@@ -572,7 +572,7 @@ Each namespace contains multiple topics and the retention size (storage size) of
 <!--pulsar-admin-->
 
 ```
-$ pulsar-admin set-retention --size 10 --time 100 test-tenant/ns1
+$ pulsar-admin set-retention --size 100 --time 10 test-tenant/ns1
 ```
 
 ```

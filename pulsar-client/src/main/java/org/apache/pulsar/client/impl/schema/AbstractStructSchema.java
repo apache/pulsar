@@ -40,7 +40,7 @@ public abstract class AbstractStructSchema<T> extends AbstractSchema<T> {
     protected SchemaWriter<T> writer;
     protected SchemaInfoProvider schemaInfoProvider;
 
-    public AbstractStructSchema(SchemaInfo schemaInfo){
+    public AbstractStructSchema(SchemaInfo schemaInfo) {
         this.schemaInfo = schemaInfo;
     }
 

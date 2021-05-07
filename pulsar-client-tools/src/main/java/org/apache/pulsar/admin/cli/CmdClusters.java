@@ -45,7 +45,7 @@ public class CmdClusters extends CmdBase {
 
     @Parameters(commandDescription = "Get the configuration data for the specified cluster")
     private class Get extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
 
         void run() throws PulsarAdminException {
@@ -56,7 +56,7 @@ public class CmdClusters extends CmdBase {
 
     @Parameters(commandDescription = "Provisions a new cluster. This operation requires Pulsar super-user privileges")
     private class Create extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = "--url", description = "service-url", required = false)
@@ -87,7 +87,7 @@ public class CmdClusters extends CmdBase {
 
     @Parameters(commandDescription = "Update the configuration for a cluster")
     private class Update extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = "--url", description = "service-url", required = false)
@@ -117,10 +117,10 @@ public class CmdClusters extends CmdBase {
 
     @Parameters(commandDescription = "Deletes an existing cluster")
     private class Delete extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-a", "--all" }, description = "Delete all data (tenants) of the cluster\n", required = false)
+        @Parameter(names = { "-a", "--all" }, description = "Delete all data (tenants) of the cluster", required = false)
         private boolean deleteAll = false;
 
         void run() throws PulsarAdminException {
@@ -148,7 +148,7 @@ public class CmdClusters extends CmdBase {
 
     @Parameters(commandDescription = "Update peer cluster names")
     private class UpdatePeerClusters extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = "--peer-clusters", description = "Comma separated peer-cluster names [Pass empty string \"\" to delete list]", required = true)
@@ -165,7 +165,7 @@ public class CmdClusters extends CmdBase {
     @Parameters(commandDescription = "Get list of peer-clusters")
     private class GetPeerClusters extends CliCommand {
         
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
         
         void run() throws PulsarAdminException {
@@ -177,7 +177,7 @@ public class CmdClusters extends CmdBase {
     
     @Parameters(commandDescription = "Create a new failure-domain for a cluster. updates it if already created.")
     private class CreateFailureDomain extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = "--domain-name", description = "domain-name", required = true)
@@ -196,7 +196,7 @@ public class CmdClusters extends CmdBase {
 
     @Parameters(commandDescription = "Update failure-domain for a cluster. Creates a new one if not exist.")
     private class UpdateFailureDomain extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = "--domain-name", description = "domain-name", required = true)
@@ -215,7 +215,7 @@ public class CmdClusters extends CmdBase {
     
     @Parameters(commandDescription = "Deletes an existing failure-domain")
     private class DeleteFailureDomain extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = "--domain-name", description = "domain-name", required = true)
@@ -230,7 +230,7 @@ public class CmdClusters extends CmdBase {
     @Parameters(commandDescription = "List the existing failure-domains for a cluster")
     private class ListFailureDomains extends CliCommand {
         
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
         
         void run() throws PulsarAdminException {
@@ -241,7 +241,7 @@ public class CmdClusters extends CmdBase {
 
     @Parameters(commandDescription = "Get the configuration brokers of a failure-domain")
     private class GetFailureDomain extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
         
         @Parameter(names = "--domain-name", description = "domain-name", required = true)

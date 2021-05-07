@@ -165,17 +165,17 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(method.invoke(persistentTopic), 3600);
 
         admin.namespaces().setNamespaceMessageTTL(myNamespace, 10);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(()
+        Awaitility.await().untilAsserted(()
                 -> Assert.assertEquals(admin.namespaces().getNamespaceMessageTTL(myNamespace).intValue(), 10));
         Assert.assertEquals((int)method.invoke(persistentTopic), 10);
 
         admin.namespaces().setNamespaceMessageTTL(myNamespace, 0);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(()
+        Awaitility.await().untilAsserted(()
                 -> Assert.assertEquals(admin.namespaces().getNamespaceMessageTTL(myNamespace).intValue(), 0));
         Assert.assertEquals((int)method.invoke(persistentTopic), 0);
 
         admin.namespaces().removeNamespaceMessageTTL(myNamespace);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(()
+        Awaitility.await().untilAsserted(()
                 -> Assert.assertNull(admin.namespaces().getNamespaceMessageTTL(myNamespace)));
         Assert.assertEquals((int)method.invoke(persistentTopic), 3600);
     }
@@ -198,26 +198,26 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(topicMessageTTLApplied, 3600);
 
         admin.namespaces().setNamespaceMessageTTL(myNamespace, 10);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(()
+        Awaitility.await().untilAsserted(()
                 -> Assert.assertEquals(admin.namespaces().getNamespaceMessageTTL(myNamespace).intValue(), 10));
         topicMessageTTLApplied = admin.topics().getMessageTTL(topicName, true);
         Assert.assertEquals(topicMessageTTLApplied, 10);
 
         admin.namespaces().setNamespaceMessageTTL(myNamespace, 0);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(()
+        Awaitility.await().untilAsserted(()
                 -> Assert.assertEquals(admin.namespaces().getNamespaceMessageTTL(myNamespace).intValue(), 0));
         topicMessageTTLApplied = admin.topics().getMessageTTL(topicName, true);
         Assert.assertEquals(topicMessageTTLApplied, 0);
 
         admin.topics().setMessageTTL(topicName, 20);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(()
+        Awaitility.await().untilAsserted(()
                 -> Assert.assertNotNull(admin.topics().getMessageTTL(topicName)));
         topicMessageTTLApplied = admin.topics().getMessageTTL(topicName, true);
         Assert.assertEquals(topicMessageTTLApplied, 20);
 
         admin.namespaces().removeNamespaceMessageTTL(myNamespace);
         admin.topics().removeMessageTTL(topicName);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(()
+        Awaitility.await().untilAsserted(()
                 -> Assert.assertEquals(admin.topics().getMessageTTL(topicName, true).intValue(), 3600));
         Assert.assertEquals((int)method.invoke(persistentTopic), 3600);
     }

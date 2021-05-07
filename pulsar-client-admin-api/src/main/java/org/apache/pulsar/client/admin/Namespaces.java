@@ -3897,4 +3897,306 @@ public interface Namespaces {
      *              Unexpected error
      */
     CompletableFuture<Void> removeMaxTopicsPerNamespaceAsync(String namespace);
+
+    /**
+<<<<<<< HEAD
+     * Set key value pair property for a namespace.
+     * If the property absents, a new property will added. Otherwise, the new value will overwrite.
+     *
+     * <p/>
+     * Example:
+     *
+     * <pre>
+     *     admin.namespaces().setProperty("a", "a");
+     *     admin.namespaces().setProperty("b", "b");
+     * </pre>
+     *
+     * @param namespace
+     *              Namespace name
+     * @param key
+     *              key of the property
+     * @param value
+     *              value of the property
+     */
+    CompletableFuture<Void> setPropertyAsync(String namespace, String key, String value);
+
+    /**
+     * Set key value pair property for a namespace.
+     * If the property absents, a new property will added. Otherwise, the new value will overwrite.
+     *
+     * <p/>
+     * Example:
+     *
+     * <pre>
+     *     admin.namespaces().setProperty("a", "a");
+     *     admin.namespaces().setProperty("b", "b");
+     * </pre>
+     *
+     * @param namespace
+     *              Namespace name
+     * @param key
+     *              key of the property
+     * @param value
+     *              value of the property
+     */
+    void setProperty(String namespace, String key, String value) throws PulsarAdminException;
+
+    /**
+     * Set key value pair properties for a namespace asynchronously.
+     * If the property absents, a new property will added. Otherwise, the new value will overwrite.
+     *
+     * @param namespace
+     *              Namespace name
+     * @param properties
+     *              key value pair properties
+     */
+    CompletableFuture<Void> setPropertiesAsync(String namespace, Map<String, String> properties);
+
+    /**
+     * Set key value pair properties for a namespace.
+     * If the property absents, a new property will added. Otherwise, the new value will overwrite.
+     *
+     * @param namespace
+     *              Namespace name
+     * @param properties
+     *              key value pair properties
+     */
+    void setProperties(String namespace, Map<String, String> properties) throws PulsarAdminException;
+
+    /**
+     * Get property value for a given key.
+     * If the property absents, will return null.
+     *
+     * <p/>
+     * Example:
+     *
+     * <pre>
+     *     admin.namespaces().getProperty("a");
+     *     admin.namespaces().getProperty("b");
+     * </pre>
+     *
+     * @param namespace
+     *              Namespace name
+     * @param key
+     *              key of the property
+     *
+     * @return value of the property.
+     */
+    CompletableFuture<String> getPropertyAsync(String namespace, String key);
+
+    /**
+     * Get property value for a given key.
+     * If the property absents, will return null.
+     *
+     * <p/>
+     * Example:
+     *
+     * <pre>
+     *     admin.namespaces().getProperty("a");
+     *     admin.namespaces().getProperty("b");
+     * </pre>
+     *
+     * @param namespace
+     *              Namespace name
+     * @param key
+     *              key of the property
+     *
+     * @return value of the property.
+     */
+    String getProperty(String namespace, String key) throws PulsarAdminException;
+
+    /**
+     * Get all properties of a namespace asynchronously.
+     *
+     * <p/>
+     * Example:
+     *
+     * <pre>
+     *     admin.namespaces().getPropertiesAsync();
+     * </pre>
+     *
+     * @param namespace
+     *              Namespace name
+     *
+     * @return key value pair properties.
+     */
+    CompletableFuture<Map<String, String>> getPropertiesAsync(String namespace);
+
+    /**
+     * Get all properties of a namespace.
+     *
+     * <p/>
+     * Example:
+     *
+     * <pre>
+     *     admin.namespaces().getProperties();
+     * </pre>
+     *
+     * @param namespace
+     *              Namespace name
+     *
+     * @return key value pair properties.
+     */
+    Map<String, String> getProperties(String namespace) throws PulsarAdminException;
+
+    /**
+     * Remove a property for a given key.
+     * Return value of the property if the property exists, otherwise return null.
+     *
+     * <p/>
+     * Example:
+     *
+     * <pre>
+     *     admin.namespaces().removeProperty("a");
+     *     admin.namespaces().removeProperty("b");
+     * </pre>
+     *
+     * @param namespace
+     *              Namespace name
+     * @param key
+     *              key of the property
+     *
+     * @return value of the property.
+     */
+    CompletableFuture<String> removePropertyAsync(String namespace, String key);
+
+    /**
+     * Remove a property for a given key.
+     * Return value of the property if the property exists, otherwise return null.
+     *
+     * <p/>
+     * Example:
+     *
+     * <pre>
+     *     admin.namespaces().removeProperty("a");
+     *     admin.namespaces().removeProperty("b");
+     * </pre>
+     *
+     * @param namespace
+     *              Namespace name
+     * @param key
+     *              key of the property
+     *
+     * @return value of the property.
+     */
+    String removeProperty(String namespace, String key) throws PulsarAdminException;
+
+    /**
+     * Clear all properties of a namespace asynchronously.
+     *
+     * <p/>
+     * Example:
+     *
+     * <pre>
+     *     admin.namespaces().clearPropertiesAsync();
+     * </pre>
+     *
+     * @param namespace
+     *              Namespace name
+     */
+    CompletableFuture<Void> clearPropertiesAsync(String namespace);
+
+    /**
+     * Clear all properties of a namespace.
+     *
+     * <p/>
+     * Example:
+     *
+     * <pre>
+     *     admin.namespaces().clearProperties();
+     * </pre>
+     *
+     * @param namespace
+     *              Namespace name
+     */
+    void clearProperties(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the ResourceGroup for a namespace.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>60</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     * @return
+     */
+    String getNamespaceResourceGroup(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the ResourceGroup for a namespace asynchronously.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>60</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     */
+    CompletableFuture<String> getNamespaceResourceGroupAsync(String namespace);
+
+    /**
+     * Set the ResourceGroup for a namespace.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>60</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param resourcegroupname
+     *            ResourceGroup name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setNamespaceResourceGroup(String namespace, String resourcegroupname) throws PulsarAdminException;
+
+    /**
+     * Set the ResourceGroup for a namespace asynchronously.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>60</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param resourcegroupname
+     *            TTL values for all messages for all topics in this namespace
+     */
+    CompletableFuture<Void> setNamespaceResourceGroupAsync(String namespace, String resourcegroupname);
+
+    /**
+     * Remove the ResourceGroup on  a namespace.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeNamespaceResourceGroup(String namespace) throws PulsarAdminException;
+
+    /**
+     * Remove the ResourceGroup on a namespace asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeNamespaceResourceGroupAsync(String namespace);
 }

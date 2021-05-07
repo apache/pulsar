@@ -617,4 +617,22 @@ void PartitionedConsumerImpl::setNegativeAcknowledgeEnabledForTesting(bool enabl
     }
 }
 
+bool PartitionedConsumerImpl::isConnected() const {
+    Lock stateLock(mutex_);
+    if (state_ != Ready) {
+        return false;
+    }
+    stateLock.unlock();
+
+    Lock consumersLock(consumersMutex_);
+    const auto consumers = consumers_;
+    consumersLock.unlock();
+    for (const auto& consumer : consumers_) {
+        if (!consumer->isConnected()) {
+            return false;
+        }
+    }
+    return true;
+}
+
 }  // namespace pulsar

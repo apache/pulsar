@@ -81,6 +81,7 @@ public class ClientDeduplicationFailureTest {
         config.setClusterName("use");
         config.setWebServicePort(Optional.of(0));
         config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setBrokerShutdownTimeoutMs(0L);
         config.setBrokerServicePort(Optional.of(0));
         config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
         config.setTlsAllowInsecureConnection(true);
@@ -108,6 +109,9 @@ public class ClientDeduplicationFailureTest {
         ClusterData clusterData = new ClusterData(url.toString());
         admin.clusters().createCluster(config.getClusterName(), clusterData);
 
+        if (pulsarClient != null) {
+            pulsarClient.shutdown();
+        }
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).maxBackoffInterval(1, TimeUnit.SECONDS);
         pulsarClient = clientBuilder.build();
 

@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -40,6 +41,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
@@ -48,6 +51,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -89,6 +93,7 @@ import org.apache.pulsar.broker.protocol.ProtocolHandlers;
 import org.apache.pulsar.broker.resourcegroup.ResourceUsageTransportManager;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.GracefulExecutorServicesShutdown;
 import org.apache.pulsar.broker.service.SystemTopicBaseTxnBufferSnapshotService;
 import org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService;
 import org.apache.pulsar.broker.service.Topic;
@@ -108,7 +113,6 @@ import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
-import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.configuration.VipStatus;
@@ -166,6 +170,7 @@ import org.slf4j.LoggerFactory;
 @Setter(AccessLevel.PROTECTED)
 public class PulsarService implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(PulsarService.class);
+    private static final double GRACEFUL_SHUTDOWN_TIMEOUT_RATIO_OF_TOTAL_TIMEOUT = 0.5d;
     private ServiceConfiguration config = null;
     private NamespaceService nsService = null;
     private ManagedLedgerStorage managedLedgerClientFactory = null;
@@ -238,7 +243,7 @@ public class PulsarService implements AutoCloseable {
     private PulsarResources pulsarResources;
 
     public enum State {
-        Init, Started, Closed
+        Init, Started, Closing, Closed
     }
 
     private volatile State state;
@@ -313,10 +318,15 @@ public class PulsarService implements AutoCloseable {
         try {
             closeAsync().get();
         } catch (ExecutionException e) {
-            if (e.getCause() instanceof PulsarServerException) {
-                throw (PulsarServerException) e.getCause();
+            Throwable cause = e.getCause();
+            if (cause instanceof PulsarServerException) {
+                throw (PulsarServerException) cause;
+            } else if (getConfiguration().getBrokerShutdownTimeoutMs() == 0
+                    && (cause instanceof TimeoutException || cause instanceof CancellationException)) {
+                // ignore shutdown timeout when timeout is 0, which is primarily used in tests
+                // to forcefully shutdown the broker
             } else {
-                throw new PulsarServerException(e.getCause());
+                throw new PulsarServerException(cause);
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -332,8 +342,15 @@ public class PulsarService implements AutoCloseable {
             if (closeFuture != null) {
                 return closeFuture;
             }
+            LOG.info("Closing PulsarService");
+            state = State.Closing;
 
             // close the service in reverse order v.s. in which they are started
+            if (this.resourceUsageTransportManager != null) {
+                this.resourceUsageTransportManager.close();
+                this.resourceUsageTransportManager = null;
+            }
+
             if (this.webService != null) {
                 try {
                     this.webService.close();
@@ -348,6 +365,22 @@ public class PulsarService implements AutoCloseable {
 
             if (this.webSocketService != null) {
                 this.webSocketService.close();
+            }
+
+            GracefulExecutorServicesShutdown executorServicesShutdown =
+                    GracefulExecutorServicesShutdown
+                            .initiate()
+                            .timeout(
+                                    Duration.ofMillis(
+                                            (long) (GRACEFUL_SHUTDOWN_TIMEOUT_RATIO_OF_TOTAL_TIMEOUT
+                                                    * getConfiguration()
+                                                    .getBrokerShutdownTimeoutMs())));
+
+            // shutdown loadmanager before shutting down the broker
+            executorServicesShutdown.shutdown(loadManagerExecutor);
+            LoadManager loadManager = this.loadManager.get();
+            if (loadManager != null) {
+                loadManager.stop();
             }
 
             List<CompletableFuture<Void>> asyncCloseFutures = new ArrayList<>();
@@ -370,8 +403,6 @@ public class PulsarService implements AutoCloseable {
                 this.leaderElectionService.close();
                 this.leaderElectionService = null;
             }
-
-            loadManagerExecutor.shutdown();
 
             if (globalZkCache != null) {
                 globalZkCache.close();
@@ -407,29 +438,13 @@ public class PulsarService implements AutoCloseable {
                 nsService = null;
             }
 
-            if (compactorExecutor != null) {
-                compactorExecutor.shutdown();
-            }
+            executorServicesShutdown.shutdown(compactorExecutor);
+            executorServicesShutdown.shutdown(offloaderScheduler);
+            executorServicesShutdown.shutdown(executor);
+            executorServicesShutdown.shutdown(orderedExecutor);
+            executorServicesShutdown.shutdown(cacheExecutor);
 
-            if (offloaderScheduler != null) {
-                offloaderScheduler.shutdown();
-            }
 
-            // executor is not initialized in mocks even when real close method is called
-            // guard against null executors
-            if (executor != null) {
-                executor.shutdown();
-            }
-
-            if (orderedExecutor != null) {
-                orderedExecutor.shutdown();
-            }
-            cacheExecutor.shutdown();
-
-            LoadManager loadManager = this.loadManager.get();
-            if (loadManager != null) {
-                loadManager.stop();
-            }
 
             if (schemaRegistryService != null) {
                 schemaRegistryService.close();
@@ -446,10 +461,7 @@ public class PulsarService implements AutoCloseable {
                 transactionBufferClient.close();
             }
 
-            if (transactionExecutor != null) {
-                transactionExecutor.shutdown();
-                transactionExecutor = null;
-            }
+            executorServicesShutdown.shutdown(transactionExecutor);
 
             if (coordinationService != null) {
                 coordinationService.close();
@@ -462,20 +474,32 @@ public class PulsarService implements AutoCloseable {
                 configurationMetadataStore.close();
             }
 
-            state = State.Closed;
-            isClosedCondition.signalAll();
+            // add timeout handling for closing executors
+            asyncCloseFutures.add(executorServicesShutdown.handle());
 
-            CompletableFuture<Void> shutdownFuture =
-                    CompletableFuture.allOf(asyncCloseFutures.toArray(new CompletableFuture[0]));
-            closeFuture = shutdownFuture;
-            return shutdownFuture;
+            closeFuture = addTimeoutHandling(FutureUtil.waitForAllAndSupportCancel(asyncCloseFutures));
+            closeFuture.handle((v, t) -> {
+                if (t == null) {
+                    LOG.info("Closed");
+                } else if (t instanceof CancellationException) {
+                    LOG.info("Closed (shutdown cancelled)");
+                } else if (t instanceof TimeoutException) {
+                    LOG.info("Closed (shutdown timeout)");
+                } else {
+                    LOG.warn("Closed with errors", t);
+                }
+                state = State.Closed;
+                isClosedCondition.signalAll();
+                return null;
+            });
+            return closeFuture;
         } catch (Exception e) {
             PulsarServerException pse;
             if (e instanceof CompletionException && e.getCause() instanceof MetadataStoreException) {
-                pse = new PulsarServerException(MetadataStoreException.unwrap((CompletionException) e));
+                pse = new PulsarServerException(MetadataStoreException.unwrap(e));
             } else if (e.getCause() instanceof CompletionException
                     && e.getCause().getCause() instanceof MetadataStoreException) {
-                pse = new PulsarServerException(MetadataStoreException.unwrap((CompletionException) e.getCause()));
+                pse = new PulsarServerException(MetadataStoreException.unwrap(e.getCause()));
             } else {
                 pse = new PulsarServerException(e);
             }
@@ -483,6 +507,20 @@ public class PulsarService implements AutoCloseable {
         } finally {
             mutex.unlock();
         }
+    }
+
+    private CompletableFuture<Void> addTimeoutHandling(CompletableFuture<Void> future) {
+        ScheduledExecutorService shutdownExecutor = Executors.newSingleThreadScheduledExecutor(
+                new DefaultThreadFactory(getClass().getSimpleName() + "-shutdown"));
+        FutureUtil.addTimeoutHandling(future,
+                Duration.ofMillis(Math.max(1L, getConfiguration().getBrokerShutdownTimeoutMs())),
+                shutdownExecutor, () -> FutureUtil.createTimeoutException("Timeout in close", getClass(), "close"));
+        future.handle((v, t) -> {
+            // shutdown the shutdown executor
+            shutdownExecutor.shutdownNow();
+            return null;
+        });
+        return future;
     }
 
     /**
@@ -713,8 +751,7 @@ public class PulsarService implements AutoCloseable {
                 this.transactionBufferSnapshotService = new SystemTopicBaseTxnBufferSnapshotService(getClient());
                 this.transactionTimer =
                         new HashedWheelTimer(new DefaultThreadFactory("pulsar-transaction-timer"));
-                transactionBufferClient = TransactionBufferClientImpl.create(
-                        getNamespaceService(), ((PulsarClientImpl) getClient()).getCnxPool(), transactionTimer);
+                transactionBufferClient = TransactionBufferClientImpl.create(getClient(), transactionTimer);
 
                 transactionMetadataStoreService = new TransactionMetadataStoreService(TransactionMetadataStoreProvider
                         .newProvider(config.getTransactionMetadataStoreProviderClassName()), this,
@@ -751,11 +788,10 @@ public class PulsarService implements AutoCloseable {
             }
 
             // Start the task to publish resource usage, if necessary
-            if (config.getResourceUsageTransportClassName() != null
-              && config.getResourceUsageTransportClassName() != "") {
+            if (isNotBlank(config.getResourceUsageTransportClassName())) {
                 Class<?> clazz = Class.forName(config.getResourceUsageTransportClassName());
                 Constructor<?> ctor = clazz.getConstructor(PulsarService.class);
-                Object object = ctor.newInstance(new Object[] { this });
+                Object object = ctor.newInstance(new Object[]{this});
                 this.resourceUsageTransportManager = (ResourceUsageTransportManager) object;
             }
 
@@ -1483,6 +1519,10 @@ public class PulsarService implements AutoCloseable {
         return coordinationService;
     }
 
+    public CompletableFuture<Set<String>> getAvailableBookiesAsync() {
+        return this.localZkCacheService.availableBookiesCache().getAsync();
+    }
+
     public static WorkerConfig initializeWorkerConfigFromBrokerConfig(ServiceConfiguration brokerConfig,
                                                                       String workerConfigFile) throws IOException {
         WorkerConfig workerConfig = WorkerConfig.load(workerConfigFile);
@@ -1530,4 +1570,5 @@ public class PulsarService implements AutoCloseable {
                         ? workerConfig.getWorkerPortTls() : workerConfig.getWorkerPort()));
         return workerConfig;
     }
+
 }

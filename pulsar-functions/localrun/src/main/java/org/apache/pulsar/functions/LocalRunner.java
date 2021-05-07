@@ -61,7 +61,9 @@ import org.apache.pulsar.common.nar.FileUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
 import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.runtime.RuntimeUtils;
 import org.apache.pulsar.functions.runtime.process.ProcessRuntimeFactory;
@@ -93,6 +95,8 @@ public class LocalRunner implements AutoCloseable {
     private final Thread shutdownHook;
     private ClassLoader userCodeClassLoader;
     private boolean userCodeClassLoaderCreated;
+    private RuntimeFactory runtimeFactory;
+    private HTTPServer metricsServer;
 
     public enum RuntimeEnv {
         THREAD,
@@ -171,7 +175,7 @@ public class LocalRunner implements AutoCloseable {
     protected String secretsProviderClassName;
     @Parameter(names = "--secretsProviderConfig", description = "Whats the config for the secrets provider", hidden = true)
     protected String secretsProviderConfig;
-    @Parameter(names = "--metricsPortStart", description = "The starting port range for metrics server", hidden = true)
+    @Parameter(names = "--metricsPortStart", description = "The starting port range for metrics server. When running instances as threads, one metrics server is used to host the stats for all instances.", hidden = true)
     protected Integer metricsPortStart;
 
     private static final String DEFAULT_SERVICE_URL = "pulsar://localhost:6650";
@@ -184,7 +188,12 @@ public class LocalRunner implements AutoCloseable {
 
         // parse args by JCommander
         jcommander.parse(args);
-        localRunner.start(true);
+        try {
+            localRunner.start(true);
+        } catch (Exception e) {
+            log.error("Encountered error starting localrunner", e);
+            localRunner.close();
+        }
     }
 
     @Builder
@@ -226,11 +235,13 @@ public class LocalRunner implements AutoCloseable {
             this.connectorsDir = Paths.get(pulsarHome, "connectors").toString();
         }
         this.metricsPortStart = metricsPortStart;
-        shutdownHook = new Thread() {
-            public void run() {
-                LocalRunner.this.stop();
+        shutdownHook = new Thread(() -> {
+            try {
+                LocalRunner.this.close();
+            } catch (Exception exception) {
+                log.warn("Encountered exception when closing localrunner", exception);
             }
-        };
+        });
     }
 
     private static File createNarExtractionTempDirectory() {
@@ -259,11 +270,20 @@ public class LocalRunner implements AutoCloseable {
             } catch (IllegalStateException e) {
                 // ignore possible "Shutdown in progress"
             }
-            log.info("Shutting down the localrun runtimeSpawner ...");
+
+            if (metricsServer != null) {
+                metricsServer.stop();
+            }
+
             for (RuntimeSpawner spawner : spawners) {
                 spawner.close();
             }
             spawners.clear();
+
+            if (runtimeFactory != null) {
+                runtimeFactory.close();
+                runtimeFactory = null;
+            }
 
             if (userCodeClassLoaderCreated) {
                 if (userCodeClassLoader instanceof Closeable) {
@@ -463,7 +483,7 @@ public class LocalRunner implements AutoCloseable {
                                            String stateStorageServiceUrl, AuthenticationConfig authConfig,
                                            String userCodeFile) throws Exception {
         SecretsProviderConfigurator secretsProviderConfigurator = getSecretsProviderConfigurator();
-        try (ProcessRuntimeFactory containerFactory = new ProcessRuntimeFactory(
+        runtimeFactory = new ProcessRuntimeFactory(
                 serviceUrl,
                 webServiceUrl,
                 stateStorageServiceUrl,
@@ -474,62 +494,66 @@ public class LocalRunner implements AutoCloseable {
                 null, /* extra dependencies dir */
                 narExtractionDirectory, /* nar extraction dir */
                 secretsProviderConfigurator,
-                false, Optional.empty(), Optional.empty())) {
+                false, Optional.empty(), Optional.empty());
 
-            for (int i = 0; i < parallelism; ++i) {
-                InstanceConfig instanceConfig = new InstanceConfig();
-                instanceConfig.setFunctionDetails(functionDetails);
-                // TODO: correctly implement function version and id
-                instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
-                instanceConfig.setFunctionId(UUID.randomUUID().toString());
-                instanceConfig.setInstanceId(i + instanceIdOffset);
-                instanceConfig.setMaxBufferedTuples(1024);
-                instanceConfig.setPort(FunctionCommon.findAvailablePort());
+        for (int i = 0; i < parallelism; ++i) {
+            InstanceConfig instanceConfig = new InstanceConfig();
+            instanceConfig.setFunctionDetails(functionDetails);
+            // TODO: correctly implement function version and id
+            instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
+            instanceConfig.setFunctionId(UUID.randomUUID().toString());
+            instanceConfig.setInstanceId(i + instanceIdOffset);
+            instanceConfig.setMaxBufferedTuples(1024);
+            instanceConfig.setPort(FunctionCommon.findAvailablePort());
+
+            if (metricsPortStart != null) {
+                int metricsPort = metricsPortStart + i;
+                if (metricsPortStart < 0 || metricsPortStart > 65535) {
+                    throw new IllegalArgumentException("Metrics port need to be within the range of 0 and 65535");
+                }
+                instanceConfig.setMetricsPort(metricsPort);
+            } else {
                 instanceConfig.setMetricsPort(FunctionCommon.findAvailablePort());
-                instanceConfig.setClusterName("local");
-                if (functionConfig != null) {
-                    instanceConfig.setMaxPendingAsyncRequests(functionConfig.getMaxPendingAsyncRequests());
-                    if (functionConfig.getExposePulsarAdminClientEnabled() != null) {
-                        instanceConfig.setExposePulsarAdminClientEnabled(functionConfig.getExposePulsarAdminClientEnabled());
-                    }
-                }
-                RuntimeSpawner runtimeSpawner = new RuntimeSpawner(
-                        instanceConfig,
-                        userCodeFile,
-                        null,
-                        containerFactory,
-                        30000);
-                spawners.add(runtimeSpawner);
-                runtimeSpawner.start();
             }
-            Timer statusCheckTimer = new Timer();
-            statusCheckTimer.scheduleAtFixedRate(new TimerTask() {
-                @Override
-                public void run() {
-                    CompletableFuture<String>[] futures = new CompletableFuture[spawners.size()];
-                    int index = 0;
-                    for (RuntimeSpawner spawner : spawners) {
-                        futures[index] = spawner.getFunctionStatusAsJson(index);
-                        index++;
-                    }
-                    try {
-                        CompletableFuture.allOf(futures).get(5, TimeUnit.SECONDS);
-                        for (index = 0; index < futures.length; ++index) {
-                            String json = futures[index].get();
-                            Gson gson = new GsonBuilder().setPrettyPrinting().create();
-                            log.info(gson.toJson(new JsonParser().parse(json)));
-                        }
-                    } catch (TimeoutException | InterruptedException | ExecutionException e) {
-                        log.error("Could not get status from all local instances");
-                    }
+            instanceConfig.setClusterName("local");
+            if (functionConfig != null) {
+                instanceConfig.setMaxPendingAsyncRequests(functionConfig.getMaxPendingAsyncRequests());
+                if (functionConfig.getExposePulsarAdminClientEnabled() != null) {
+                    instanceConfig.setExposePulsarAdminClientEnabled(functionConfig.getExposePulsarAdminClientEnabled());
                 }
-            }, 30000, 30000);
-            java.lang.Runtime.getRuntime().addShutdownHook(new Thread() {
-                public void run() {
-                    statusCheckTimer.cancel();
-                }
-            });
+            }
+            RuntimeSpawner runtimeSpawner = new RuntimeSpawner(
+                    instanceConfig,
+                    userCodeFile,
+                    null,
+                    runtimeFactory,
+                    30000);
+            spawners.add(runtimeSpawner);
+            runtimeSpawner.start();
         }
+        Timer statusCheckTimer = new Timer();
+        statusCheckTimer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                CompletableFuture<String>[] futures = new CompletableFuture[spawners.size()];
+                int index = 0;
+                for (RuntimeSpawner spawner : spawners) {
+                    futures[index] = spawner.getFunctionStatusAsJson(index);
+                    index++;
+                }
+                try {
+                    CompletableFuture.allOf(futures).get(5, TimeUnit.SECONDS);
+                    for (index = 0; index < futures.length; ++index) {
+                        String json = futures[index].get();
+                        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+                        log.info(gson.toJson(new JsonParser().parse(json)));
+                    }
+                } catch (TimeoutException | InterruptedException | ExecutionException e) {
+                    log.error("Could not get status from all local instances");
+                }
+            }
+        }, 30000, 30000);
+        java.lang.Runtime.getRuntime().addShutdownHook(new Thread(() -> statusCheckTimer.cancel()));
     }
 
 
@@ -537,6 +561,13 @@ public class LocalRunner implements AutoCloseable {
                                            int parallelism, int instanceIdOffset, String serviceUrl,
                                            String stateStorageServiceUrl, AuthenticationConfig authConfig,
                                            String userCodeFile) throws Exception {
+
+        if (metricsPortStart != null) {
+            if (metricsPortStart < 0 || metricsPortStart > 65535) {
+                throw new IllegalArgumentException("Metrics port need to be within the range of 0 and 65535");
+            }
+        }
+
         SecretsProvider secretsProvider;
         if (secretsProviderClassName != null) {
             secretsProvider = (SecretsProvider) Reflections.createInstance(secretsProviderClassName, ClassLoader.getSystemClassLoader());
@@ -554,16 +585,15 @@ public class LocalRunner implements AutoCloseable {
         }
 
         // Collector Registry for prometheus metrics
-        CollectorRegistry collectorRegistry = new CollectorRegistry();
+        FunctionCollectorRegistry collectorRegistry = FunctionCollectorRegistry.getDefaultImplementation();
         RuntimeUtils.registerDefaultCollectors(collectorRegistry);
 
-        ThreadRuntimeFactory threadRuntimeFactory;
         ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
         try {
             if (userCodeClassLoader != null) {
                 Thread.currentThread().setContextClassLoader(userCodeClassLoader);
             }
-            threadRuntimeFactory = new ThreadRuntimeFactory("LocalRunnerThreadGroup",
+            runtimeFactory = new ThreadRuntimeFactory("LocalRunnerThreadGroup",
                     serviceUrl,
                     stateStorageServiceUrl,
                     authConfig,
@@ -583,10 +613,7 @@ public class LocalRunner implements AutoCloseable {
             instanceConfig.setInstanceId(i + instanceIdOffset);
             instanceConfig.setMaxBufferedTuples(1024);
             if (metricsPortStart != null) {
-                if (metricsPortStart < 0 || metricsPortStart > 65535) {
-                    throw new IllegalArgumentException("Metrics port need to be within the range of 0 and 65535");
-                }
-                instanceConfig.setMetricsPort(metricsPortStart + i);
+                instanceConfig.setMetricsPort(metricsPortStart);
             }
             instanceConfig.setClusterName("local");
             if (functionConfig != null) {
@@ -600,17 +627,15 @@ public class LocalRunner implements AutoCloseable {
                     instanceConfig,
                     userCodeFile,
                     null,
-                    threadRuntimeFactory,
+                    runtimeFactory,
                     30000);
             spawners.add(runtimeSpawner);
             runtimeSpawner.start();
-
-            if (metricsPortStart != null) {
-                // starting metrics server
-                log.info("Starting metrics server on port {}", instanceConfig.getMetricsPort());
-                new HTTPServer(new InetSocketAddress(instanceConfig.getMetricsPort()), collectorRegistry, true);
-            }
-
+        }
+        if (metricsPortStart != null) {
+            // starting metrics server
+            log.info("Starting metrics server on port {}", metricsPortStart);
+            metricsServer = new HTTPServer(new InetSocketAddress(metricsPortStart), collectorRegistry, true);
         }
     }
 

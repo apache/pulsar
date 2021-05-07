@@ -26,6 +26,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import static org.testng.internal.junit.ArrayAsserts.assertArrayEquals;
 
 import com.google.common.collect.Sets;
@@ -33,10 +34,18 @@ import com.google.common.collect.Sets;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.client.BKException;
+import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
+import org.apache.pulsar.broker.service.schema.SchemaRegistry;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryServiceImpl;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -52,7 +61,9 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -258,7 +269,16 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testUseAutoConsumeWithSchemalessTopic() throws Exception {
+    public void testUseAutoConsumeWithBytesSchemaTopic() throws Exception {
+        testUseAutoConsumeWithSchemalessTopic(SchemaType.BYTES);
+    }
+
+    @Test
+    public void testUseAutoConsumeWithNoneSchemaTopic() throws Exception {
+        testUseAutoConsumeWithSchemalessTopic(SchemaType.NONE);
+    }
+
+    private void testUseAutoConsumeWithSchemalessTopic(SchemaType schema) throws Exception {
         final String tenant = PUBLIC_TENANT;
         final String namespace = "test-namespace-" + randomName(16);
         final String topicName = "test-schemaless";
@@ -275,6 +295,15 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
 
         admin.topics().createPartitionedTopic(topic, 2);
 
+        // set schema
+        SchemaInfo schemaInfo = SchemaInfo
+                .builder()
+                .schema(new byte[0])
+                .name("dummySchema")
+                .type(schema)
+                .build();
+        admin.schemas().createSchema(topic, schemaInfo);
+
         Producer<byte[]> producer = pulsarClient
                 .newProducer()
                 .topic(topic)
@@ -286,7 +315,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 .subscribe();
 
         // use GenericRecord even for primitive types
-        // it will be a PrimitiveRecord
+        // it will be a GenericObjectWrapper
         Consumer<GenericRecord> consumer2 = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
                 .subscriptionName("test-sub3")
                 .topic(topic)
@@ -468,5 +497,63 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 .subscriptionName("sub")
                 .subscribe();
         consumer.close();
+    }
+
+    @Test
+    public void testDeleteTopicAndSchema() throws Exception {
+        final String tenant = PUBLIC_TENANT;
+        final String namespace = "test-namespace-" + randomName(16);
+        final String topicName = "test-delete-topic-and-schema";
+
+        final String topic = TopicName.get(
+                TopicDomain.persistent.value(),
+                tenant,
+                namespace,
+                topicName).toString();
+
+        admin.namespaces().createNamespace(
+                tenant + "/" + namespace,
+                Sets.newHashSet(CLUSTER_NAME));
+
+        @Cleanup
+        Producer<Schemas.PersonOne> p1 = pulsarClient.newProducer(Schema.JSON(Schemas.PersonOne.class))
+                .topic(topic)
+                .create();
+
+        @Cleanup
+        Producer<Schemas.PersonThree> p2 = pulsarClient.newProducer(Schema.JSON(Schemas.PersonThree.class))
+                .topic(topic)
+                .create();
+
+        List<CompletableFuture<SchemaRegistry.SchemaAndMetadata>> schemaFutures =
+                this.getPulsar().getSchemaRegistryService().getAllSchemas(TopicName.get(topic).getSchemaName()).get();
+        FutureUtil.waitForAll(schemaFutures).get();
+        List<SchemaRegistry.SchemaAndMetadata> schemas = schemaFutures.stream().map(future -> {
+            try {
+                return future.get();
+            } catch (Exception e) {
+                return null;
+            }
+        }).collect(Collectors.toList());
+
+        assertEquals(schemas.size(), 2);
+        for (SchemaRegistry.SchemaAndMetadata schema : schemas) {
+            assertNotNull(schema);
+        }
+
+        List<Long> ledgers = ((BookkeeperSchemaStorage)this.getPulsar().getSchemaStorage())
+                .getSchemaLedgerList(TopicName.get(topic).getSchemaName());
+        assertEquals(ledgers.size(), 2);
+        admin.topics().delete(topic, true, true);
+        assertEquals(this.getPulsar().getSchemaRegistryService()
+                .trimDeletedSchemaAndGetList(TopicName.get(topic).getSchemaName()).get().size(), 0);
+
+        for (Long ledger : ledgers) {
+            try {
+                getPulsar().getBookKeeperClient().openLedger(ledger, BookKeeper.DigestType.CRC32, new byte[]{});
+                fail();
+            } catch (BKException.BKNoSuchLedgerExistsException ignore) {
+            }
+        }
     }
 }

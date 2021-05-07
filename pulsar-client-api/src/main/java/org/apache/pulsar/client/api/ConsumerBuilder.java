@@ -731,4 +731,14 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * @return
      */
     ConsumerBuilder<T> expireTimeOfIncompleteChunkedMessage(long duration, TimeUnit unit);
+
+    /**
+     * Enable pooling of messages and the underlying data buffers.
+     * <p/>
+     * When pooling is enabled, the application is responsible for calling Message.release() after the handling of every
+     * received message. If “release()” is not called on a received message, there will be a memory leak. If an
+     * application attempts to use and already “released” message, it might experience undefined behavior (eg: memory
+     * corruption, deserialization error, etc.).
+     */
+    ConsumerBuilder<T> poolMessages(boolean poolMessages);
 }

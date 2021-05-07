@@ -44,6 +44,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.ArrayList;
@@ -164,6 +165,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         executor = OrderedExecutor.newBuilder().numThreads(1).build();
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
         svcConfig.setAdvertisedAddress("localhost");
+        svcConfig.setBrokerShutdownTimeoutMs(0L);
         pulsar = spy(new PulsarService(svcConfig));
         doReturn(svcConfig).when(pulsar).getConfiguration();
         doReturn(mock(Compactor.class)).when(pulsar).getCompactor();
@@ -547,6 +549,94 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         testMaxProducers();
     }
 
+    private Producer getMockedProducerWithSpecificAddress(Topic topic, long producerId, InetAddress address)
+            throws Exception {
+        final String producerNameBase = "producer";
+        final String role = "appid1";
+
+        ServerCnx cnx = spy(new ServerCnx(pulsar));
+        doReturn(true).when(cnx).isActive();
+        doReturn(true).when(cnx).isWritable();
+        doReturn(new InetSocketAddress(address, 1234)).when(cnx).clientAddress();
+        doReturn(address.getHostAddress()).when(cnx).clientSourceAddress();
+        doReturn(new PulsarCommandSenderImpl(null, cnx)).when(cnx).getCommandSender();
+
+        return new Producer(topic, cnx, producerId, producerNameBase + producerId, role, false, null,
+                SchemaVersion.Latest, 0, false, ProducerAccessMode.Shared, Optional.empty());
+    }
+
+    @Test
+    public void testMaxSameAddressProducers() throws Exception {
+        // set max clients
+        ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
+        doReturn(2).when(svcConfig).getMaxSameAddressProducersPerTopic();
+        doReturn(svcConfig).when(pulsar).getConfiguration();
+
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+
+        InetAddress address1 = InetAddress.getLoopbackAddress();
+        InetAddress address2 = InetAddress.getLocalHost();
+        String ipAddress1 = address1.getHostAddress();
+        String ipAddress2 = address2.getHostAddress();
+
+        // 1. add producer1 with ipAddress1
+        Producer producer1 = getMockedProducerWithSpecificAddress(topic, 1, address1);
+        topic.addProducer(producer1, new CompletableFuture<>());
+        assertEquals(topic.getProducers().size(), 1);
+        assertEquals(topic.getNumberOfSameAddressProducers(ipAddress1), 1);
+
+        // 2. add producer2 with ipAddress1
+        Producer producer2 = getMockedProducerWithSpecificAddress(topic, 2, address1);
+        topic.addProducer(producer2, new CompletableFuture<>());
+        assertEquals(topic.getProducers().size(), 2);
+        assertEquals(topic.getNumberOfSameAddressProducers(ipAddress1), 2);
+
+        // 3. add producer3 with ipAddress1 but reached maxSameAddressProducersPerTopic
+        try {
+            Producer producer3 = getMockedProducerWithSpecificAddress(topic, 3, address1);
+            topic.addProducer(producer3, new CompletableFuture<>()).join();
+            fail("should have failed");
+        } catch (Exception e) {
+            assertEquals(e.getCause().getClass(), BrokerServiceException.ProducerBusyException.class);
+        }
+        assertEquals(topic.getProducers().size(), 2);
+        assertEquals(topic.getNumberOfSameAddressProducers(ipAddress1), 2);
+
+        // 4. add producer4 with ipAddress2
+        Producer producer4 = getMockedProducerWithSpecificAddress(topic, 4, address2);
+        topic.addProducer(producer4, new CompletableFuture<>());
+        assertEquals(topic.getProducers().size(), 3);
+        assertEquals(topic.getNumberOfSameAddressProducers(ipAddress2), 1);
+
+        // 5. add producer5 with ipAddress2
+        Producer producer5 = getMockedProducerWithSpecificAddress(topic, 5, address2);
+        topic.addProducer(producer5, new CompletableFuture<>());
+        assertEquals(topic.getProducers().size(), 4);
+        assertEquals(topic.getNumberOfSameAddressProducers(ipAddress2), 2);
+
+        // 6. add producer6 with ipAddress2 but reached maxSameAddressProducersPerTopic
+        try {
+            Producer producer6 = getMockedProducerWithSpecificAddress(topic, 6, address2);
+            topic.addProducer(producer6, new CompletableFuture<>()).join();
+            fail("should have failed");
+        } catch (Exception e) {
+            assertEquals(e.getCause().getClass(), BrokerServiceException.ProducerBusyException.class);
+        }
+        assertEquals(topic.getProducers().size(), 4);
+        assertEquals(topic.getNumberOfSameAddressProducers(ipAddress2), 2);
+
+        // 7. remove producer1
+        topic.removeProducer(producer1);
+        assertEquals(topic.getProducers().size(), 3);
+        assertEquals(topic.getNumberOfSameAddressProducers(ipAddress1), 1);
+
+        // 8. add producer7 with ipAddress1
+        Producer producer7 = getMockedProducerWithSpecificAddress(topic, 7, address1);
+        topic.addProducer(producer7, new CompletableFuture<>());
+        assertEquals(topic.getProducers().size(), 4);
+        assertEquals(topic.getNumberOfSameAddressProducers(ipAddress1), 2);
+    }
+
     @Test
     public void testSubscribeFail() throws Exception {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
@@ -888,6 +978,121 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(successTopicName).getNamespace())))
                 .thenReturn(policies);
         testMaxConsumersFailover();
+    }
+
+    private Consumer getMockedConsumerWithSpecificAddress(Topic topic, Subscription sub, long consumerId,
+            InetAddress address) throws Exception {
+        final String consumerNameBase = "consumer";
+        final String role = "appid1";
+
+        ServerCnx cnx = spy(new ServerCnx(pulsar));
+        doReturn(true).when(cnx).isActive();
+        doReturn(true).when(cnx).isWritable();
+        doReturn(new InetSocketAddress(address, 1234)).when(cnx).clientAddress();
+        doReturn(address.getHostAddress()).when(cnx).clientSourceAddress();
+        doReturn(new PulsarCommandSenderImpl(null, cnx)).when(cnx).getCommandSender();
+
+        return new Consumer(sub, SubType.Shared, topic.getName(), consumerId, 0, consumerNameBase + consumerId, 50000,
+                cnx, role, Collections.emptyMap(), false, InitialPosition.Latest, null);
+    }
+
+    @Test
+    public void testMaxSameAddressConsumers() throws Exception {
+        // set max clients
+        ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
+        doReturn(2).when(svcConfig).getMaxSameAddressConsumersPerTopic();
+        doReturn(svcConfig).when(pulsar).getConfiguration();
+
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        PersistentSubscription sub1 = new PersistentSubscription(topic, "sub1", cursorMock, false);
+        PersistentSubscription sub2 = new PersistentSubscription(topic, "sub2", cursorMock, false);
+
+        InetAddress address1 = InetAddress.getLoopbackAddress();
+        InetAddress address2 = InetAddress.getLocalHost();
+        String ipAddress1 = address1.getHostAddress();
+        String ipAddress2 = address2.getHostAddress();
+
+        Method addConsumerToSubscription = AbstractTopic.class.getDeclaredMethod("addConsumerToSubscription",
+                Subscription.class, Consumer.class);
+        addConsumerToSubscription.setAccessible(true);
+
+        // for count consumers on topic
+        ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions = new ConcurrentOpenHashMap<>(16, 1);
+        subscriptions.put("sub1", sub1);
+        subscriptions.put("sub2", sub2);
+        Field field = topic.getClass().getDeclaredField("subscriptions");
+        field.setAccessible(true);
+        field.set(topic, subscriptions);
+
+        // 1. add consumer1 with ipAddress1 to sub1
+        Consumer consumer1 = getMockedConsumerWithSpecificAddress(topic, sub1, 1, address1);
+        addConsumerToSubscription.invoke(topic, sub1, consumer1);
+        assertEquals(topic.getNumberOfConsumers(), 1);
+        assertEquals(topic.getNumberOfSameAddressConsumers(ipAddress1), 1);
+        assertEquals(sub1.getNumberOfSameAddressConsumers(ipAddress1), 1);
+
+        // 2. add consumer2 with ipAddress1 to sub2
+        Consumer consumer2 = getMockedConsumerWithSpecificAddress(topic, sub2, 2, address1);
+        addConsumerToSubscription.invoke(topic, sub2, consumer2);
+        assertEquals(topic.getNumberOfConsumers(), 2);
+        assertEquals(topic.getNumberOfSameAddressConsumers(ipAddress1), 2);
+        assertEquals(sub1.getNumberOfSameAddressConsumers(ipAddress1), 1);
+        assertEquals(sub2.getNumberOfSameAddressConsumers(ipAddress1), 1);
+
+        // 3. add consumer3 with ipAddress2 to sub1
+        Consumer consumer3 = getMockedConsumerWithSpecificAddress(topic, sub1, 3, address2);
+        addConsumerToSubscription.invoke(topic, sub1, consumer3);
+        assertEquals(topic.getNumberOfConsumers(), 3);
+        assertEquals(topic.getNumberOfSameAddressConsumers(ipAddress1), 2);
+        assertEquals(topic.getNumberOfSameAddressConsumers(ipAddress2), 1);
+        assertEquals(sub1.getNumberOfSameAddressConsumers(ipAddress1), 1);
+        assertEquals(sub1.getNumberOfSameAddressConsumers(ipAddress2), 1);
+
+        // 4. add consumer4 with ipAddress2 to sub2
+        Consumer consumer4 = getMockedConsumerWithSpecificAddress(topic, sub2, 4, address2);
+        addConsumerToSubscription.invoke(topic, sub2, consumer4);
+        assertEquals(topic.getNumberOfConsumers(), 4);
+        assertEquals(topic.getNumberOfSameAddressConsumers(ipAddress1), 2);
+        assertEquals(topic.getNumberOfSameAddressConsumers(ipAddress2), 2);
+        assertEquals(sub2.getNumberOfSameAddressConsumers(ipAddress1), 1);
+        assertEquals(sub2.getNumberOfSameAddressConsumers(ipAddress2), 1);
+
+        // 5. add consumer5 with ipAddress1 to sub1 but reach maxSameAddressConsumersPerTopic
+        try {
+            Consumer consumer5 = getMockedConsumerWithSpecificAddress(topic, sub1, 5, address1);
+            addConsumerToSubscription.invoke(topic, sub1, consumer5);
+            fail("should have failed");
+        } catch (InvocationTargetException e) {
+            assertTrue(e.getCause() instanceof BrokerServiceException.ConsumerBusyException);
+        }
+        assertEquals(topic.getNumberOfConsumers(), 4);
+        assertEquals(topic.getNumberOfSameAddressConsumers(ipAddress1), 2);
+        assertEquals(sub1.getNumberOfSameAddressConsumers(ipAddress1), 1);
+
+        // 6. add consumer6 with ipAddress2 to sub2 but reach maxSameAddressConsumersPerTopic
+        try {
+            Consumer consumer6 = getMockedConsumerWithSpecificAddress(topic, sub2, 6, address2);
+            addConsumerToSubscription.invoke(topic, sub2, consumer6);
+            fail("should have failed");
+        } catch (InvocationTargetException e) {
+            assertTrue(e.getCause() instanceof BrokerServiceException.ConsumerBusyException);
+        }
+        assertEquals(topic.getNumberOfConsumers(), 4);
+        assertEquals(topic.getNumberOfSameAddressConsumers(ipAddress2), 2);
+        assertEquals(sub2.getNumberOfSameAddressConsumers(ipAddress2), 1);
+
+        // 7. remove consumer1 from sub1
+        consumer1.close();
+        assertEquals(topic.getNumberOfConsumers(), 3);
+        assertEquals(topic.getNumberOfSameAddressConsumers(ipAddress1), 1);
+        assertEquals(sub1.getNumberOfSameAddressConsumers(ipAddress1), 0);
+
+        // 8. add consumer7 with ipAddress1 to sub1
+        Consumer consumer7 = getMockedConsumerWithSpecificAddress(topic, sub1, 7, address1);
+        addConsumerToSubscription.invoke(topic, sub1, consumer7);
+        assertEquals(topic.getNumberOfConsumers(), 4);
+        assertEquals(topic.getNumberOfSameAddressConsumers(ipAddress1), 2);
+        assertEquals(sub1.getNumberOfSameAddressConsumers(ipAddress1), 1);
     }
 
     @Test
@@ -1525,6 +1730,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         final URL brokerUrl = new URL(
                 "http://" + pulsar.getAdvertisedAddress() + ":" + pulsar.getConfiguration().getBrokerServicePort().get());
+        @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(brokerUrl.toString()).build();
         ManagedCursor cursor = mock(ManagedCursorImpl.class);
         doReturn(remoteCluster).when(cursor).getName();
@@ -1569,6 +1775,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         final URL brokerUrl = new URL(
                 "http://" + pulsar.getAdvertisedAddress() + ":" + pulsar.getConfiguration().getBrokerServicePort().get());
+        @Cleanup
         PulsarClient client = spy(PulsarClient.builder().serviceUrl(brokerUrl.toString()).build());
         PulsarClientImpl clientImpl = (PulsarClientImpl) client;
         doReturn(new CompletableFuture<Producer>()).when(clientImpl)

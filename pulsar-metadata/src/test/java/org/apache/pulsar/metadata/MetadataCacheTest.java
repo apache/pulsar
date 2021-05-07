@@ -136,6 +136,10 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         assertEquals(objCache.getIfCached(key1), Optional.of(value1));
         assertEquals(objCache.get(key1).join(), Optional.of(value1));
 
+        assertEquals(objCache.readModifyUpdateOrCreate(key1, __ -> value2).join(), value2);
+        assertEquals(objCache.getIfCached(key1), Optional.of(value2));
+        assertEquals(objCache.get(key1).join(), Optional.of(value2));
+
         objCache.delete(key1).join();
 
         assertEquals(objCache.getIfCached(key1), Optional.empty());
@@ -284,9 +288,8 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         MyClass value1 = new MyClass("a", 1);
         objCache.create(key1, value1).join();
 
-        objCache.readModifyUpdate(key1, v -> {
-            return new MyClass(v.a, v.b + 1);
-        }).join();
+        assertEquals(objCache.readModifyUpdate(key1, v -> new MyClass(v.a, v.b + 1)).join(),
+                new MyClass("a", 2));
 
         Optional<MyClass> newValue1 = objCache.get(key1).join();
         assertTrue(newValue1.isPresent());

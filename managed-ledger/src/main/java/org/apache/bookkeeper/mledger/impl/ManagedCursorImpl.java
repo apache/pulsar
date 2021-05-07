@@ -163,6 +163,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         PositionImplRecyclable position = PositionImplRecyclable.create();
         position.ledgerId = key;
         position.entryId = value;
+        position.ackSet = null;
         return position;
     };
     private final LongPairRangeSet<PositionImpl> individualDeletedMessages;
@@ -1609,6 +1610,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     new ManagedLedgerException("Reset cursor in progress - unable to mark delete position "
                             + position.toString()),
                     ctx);
+            return;
         }
 
         if (log.isDebugEnabled()) {

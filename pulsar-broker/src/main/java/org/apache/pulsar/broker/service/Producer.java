@@ -89,6 +89,7 @@ public class Producer {
     private final Map<String, String> metadata;
 
     private final SchemaVersion schemaVersion;
+    private final String clientAddress; // IP address only, no port number included
 
     public Producer(Topic topic, TransportCnx cnx, long producerId, String producerName, String appId,
             boolean isEncrypted, Map<String, String> metadata, SchemaVersion schemaVersion, long epoch,
@@ -131,6 +132,8 @@ public class Producer {
         this.schemaVersion = schemaVersion;
         this.accessMode = accessMode;
         this.topicEpoch = topicEpoch;
+
+        this.clientAddress = cnx.clientSourceAddress();
     }
 
     @Override
@@ -660,6 +663,10 @@ public class Producer {
 
     public Optional<Long> getTopicEpoch() {
         return topicEpoch;
+    }
+
+    public String getClientAddress() {
+        return clientAddress;
     }
 
     private static final Logger log = LoggerFactory.getLogger(Producer.class);

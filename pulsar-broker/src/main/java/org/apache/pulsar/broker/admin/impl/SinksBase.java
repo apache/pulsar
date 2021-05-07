@@ -554,6 +554,6 @@ public class SinksBase extends AdminResource {
     })
     @Path("/reloadBuiltInSinks")
     public void reloadSinks() {
-        sinks().reloadConnectors(clientAppId());
+        sinks().reloadConnectors(clientAppId(), clientAuthData());
     }
 }

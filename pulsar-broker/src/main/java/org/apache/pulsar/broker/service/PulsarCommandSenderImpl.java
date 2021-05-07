@@ -251,8 +251,8 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
                 }
 
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}-{}] Sending message to consumerId {}, msg id {}-{}", topicName, subscription,
-                            consumerId, entry.getLedgerId(), entry.getEntryId());
+                    log.debug("[{}-{}] Sending message to consumerId {}, msg id {}-{} with batchSize {}",
+                            topicName, subscription,  consumerId, entry.getLedgerId(), entry.getEntryId(), batchSize);
                 }
 
                 int redeliveryCount = 0;

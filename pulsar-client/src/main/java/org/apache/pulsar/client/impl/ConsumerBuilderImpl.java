@@ -458,4 +458,9 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
         return this;
     }
 
+    @Override
+    public ConsumerBuilder<T> poolMessages(boolean poolMessages) {
+        conf.setPoolMessages(poolMessages);
+        return this;
+    }
 }

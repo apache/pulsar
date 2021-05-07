@@ -33,10 +33,10 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
-import java.util.Date;
 import java.text.NumberFormat;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -250,8 +250,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                 pulsar.getBrokerService().getTopicIfExists(topic1).get().get().getSubscription(subName);
         PersistentSubscription sub2 = (PersistentSubscription)
                 pulsar.getBrokerService().getTopicIfExists(topic2).get().get().getSubscription(subName);
-        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> sub.getExpiredMessageRate() != 0.0);
-        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> sub2.getExpiredMessageRate() != 0.0);
+        Awaitility.await().until(() -> sub.getExpiredMessageRate() != 0.0);
+        Awaitility.await().until(() -> sub2.getExpiredMessageRate() != 0.0);
 
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
@@ -1058,8 +1058,9 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         compareBrokerConnectionStateCount(cm, 1.0);
 
         pulsar.getConfiguration().setAuthenticationEnabled(true);
-        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString())
-                .operationTimeout(1, TimeUnit.MILLISECONDS).build();
+
+        replacePulsarClient(PulsarClient.builder().serviceUrl(lookupUrl.toString())
+                .operationTimeout(1, TimeUnit.MILLISECONDS));
 
         try {
             pulsarClient.newProducer()

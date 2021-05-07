@@ -1239,6 +1239,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             totalChunks = 0;
             chunkId = -1;
             uncompressedSize = 0;
+            retryCount = 0;
+            batchSizeByte = 0;
+            numMessagesInBatch = 1;
             recyclerHandle.recycle(this);
         }
 
@@ -1312,7 +1315,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         cnx.sendRequestWithId(
                 Commands.newProducer(topic, producerId, requestId, producerName, conf.isEncryptionEnabled(), metadata,
-                       schemaInfo, connectionHandler.epoch, userProvidedProducerName,
+                       schemaInfo, connectionHandler.getEpoch(), userProvidedProducerName,
                        conf.getAccessMode(), topicEpoch),
                 requestId).thenAccept(response -> {
                     String producerName = response.getProducerName();

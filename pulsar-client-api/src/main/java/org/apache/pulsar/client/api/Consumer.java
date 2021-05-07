@@ -22,6 +22,7 @@ import java.io.Closeable;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
@@ -600,6 +601,32 @@ public interface Consumer<T> extends Closeable {
 
     /**
      * Reset the subscription associated with this consumer to a specific message id.
+     * <p>
+     * The Function input is topic+partition.
+     * <p>
+     * The return value is the seek position/timestamp of the current partition.
+     * <p>
+     * If returns null, the current partition will not do any processing.
+     * @param function
+     * @throws PulsarClientException
+     */
+    void seek(Function<String, Object> function) throws PulsarClientException;
+
+    /**
+     * Reset the subscription associated with this consumer to a specific message id asynchronously.
+     * <p>
+     * The Function input is topic+partition.
+     * <p>
+     * The return value is the seek position/timestamp of the current partition.
+     * <p>
+     * If returns null, the current partition will not do any processing.
+     * @param function
+     * @return
+     */
+    CompletableFuture<Void> seekAsync(Function<String, Object> function);
+
+    /**
+     * Reset the subscription associated with this consumer to a specific message id.
      *
      * <p>The message id can either be a specific message or represent the first or last messages in the topic.
      * <ul>
@@ -626,14 +653,14 @@ public interface Consumer<T> extends Closeable {
     CompletableFuture<Void> seekAsync(long timestamp);
 
     /**
-     * Get the last message id available available for consume.
+     * Get the last message id available for consume.
      *
      * @return the last message id.
      */
     MessageId getLastMessageId() throws PulsarClientException;
 
     /**
-     * Get the last message id available available for consume.
+     * Get the last message id available for consume.
      *
      * @return a future that can be used to track the completion of the operation.
      */

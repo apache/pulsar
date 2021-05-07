@@ -918,6 +918,10 @@ public class PersistentSubscription implements Subscription {
         return expiryMonitor.getMessageExpiryRate();
     }
 
+    public PersistentMessageExpiryMonitor getExpiryMonitor() {
+        return expiryMonitor;
+    }
+
     public long estimateBacklogSize() {
         return cursor.getEstimatedSizeSinceMarkDeletePosition();
     }
@@ -1059,7 +1063,7 @@ public class PersistentSubscription implements Subscription {
     public void processReplicatedSubscriptionSnapshot(ReplicatedSubscriptionsSnapshot snapshot) {
         ReplicatedSubscriptionSnapshotCache snapshotCache = this.replicatedSubscriptionSnapshotCache;
         if (snapshotCache != null) {
-            snapshotCache.addNewSnapshot(snapshot);
+            snapshotCache.addNewSnapshot(new ReplicatedSubscriptionsSnapshot().copyFrom(snapshot));
         }
     }
 
@@ -1094,7 +1098,7 @@ public class PersistentSubscription implements Subscription {
     }
 
     public boolean checkAndUnblockIfStuck() {
-        return dispatcher.checkAndUnblockIfStuck();
+        return dispatcher != null ? dispatcher.checkAndUnblockIfStuck() : false;
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentSubscription.class);
