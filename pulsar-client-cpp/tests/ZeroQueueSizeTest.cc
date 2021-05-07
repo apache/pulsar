@@ -226,7 +226,7 @@ TEST(ZeroQueueSizeTest, testPauseResume) {
 
 TEST(ZeroQueueSizeTest, testPauseResumeNoReconnection) {
     Client client(lookupUrl);
-    const auto topic = "ZeroQueueSizeTestPauseListener-" + std::to_string(time(nullptr));
+    const auto topic = "ZeroQueueSizeTestPauseResumeNoReconnection-" + std::to_string(time(nullptr));
 
     std::mutex mtx;
     std::condition_variable cond;
