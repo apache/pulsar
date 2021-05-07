@@ -3529,6 +3529,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Ledger already created when timeout task is triggered", name);
+                    return;
                 }
             }
             cb.createComplete(BKException.Code.TimeoutException, null, ledgerCreated);
