@@ -225,20 +225,20 @@ required plugins.
 
 #### Configure Checkstyle
 
-1. Install the Checkstyle-IDEA plugin
+1. Install the Checkstyle-IDEA plugin.
 
 2. Open Checkstyle Settings dialog box by going to **Settings** -> **Tools** -> **Checkstyle**.
 
-3. Set **Checkstyle version** to **8.37**
+3. Set **Checkstyle version** to **8.37**.
 
-4. Set **Scan scope** to **Only Java sources (including tests)**
+4. Set **Scan scope** to **Only Java sources (including tests)**.
 
-5. Click the **+** button in the **Configuration** section to open a dialog to choose the checkfile file.
-   1. Enter a **Description**. Eg. Pulsar.
+5. Click **+** button in the **Configuration** section to open a dialog to choose the checkfile file.
+   1. Enter a **Description**. For example, Pulsar.
    2. Select **Use a local checkstyle file**.
    3. Set **File** to **buildtools/src/main/resources/pulsar/checkstyle.xml**.
    4. Select **Store relative to project location**.
-   5. Click **Next**, then **Next** again, then **Finish**.
+   5. Click **Next** -> **Next** -> **Finish**.
 
 6. Activate the configuration you just added by toggling the corresponding box.
 
