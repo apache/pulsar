@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.sql.presto;
 
+import static java.util.Objects.requireNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.prestosql.decoder.FieldValueProviders.bytesValueProvider;
@@ -179,7 +180,7 @@ public class PulsarRecordCursor implements RecordCursor {
             this.schemaInfoProvider = new PulsarSqlSchemaInfoProvider(this.topicName,
                     pulsarConnectorConfig.getPulsarAdmin());
         } catch (PulsarClientException e) {
-            log.error(e, "Failed to init  Pulsar SchemaInfo Provider");
+            log.error(e, "Failed to init Pulsar SchemaInfo Provider");
             throw new RuntimeException(e);
 
         }
@@ -234,7 +235,7 @@ public class PulsarRecordCursor implements RecordCursor {
         private final Thread thread;
 
         public DeserializeEntries() {
-            this.thread = new Thread(this, "derserialize-thread-split-" + pulsarSplit.getSplitId());
+            this.thread = new Thread(this, "deserialize-thread-split-" + pulsarSplit.getSplitId());
         }
 
         public void interrupt() {
@@ -556,34 +557,46 @@ public class PulsarRecordCursor implements RecordCursor {
 
         for (DecoderColumnHandle columnHandle : columnHandles) {
             if (columnHandle.isInternal()) {
-                if (PulsarInternalColumn.PARTITION.getName().equals(columnHandle.getName())) {
-                    currentRowValuesMap.put(columnHandle, longValueProvider(this.partition));
-                } else if (PulsarInternalColumn.EVENT_TIME.getName().equals(columnHandle.getName())) {
-                    currentRowValuesMap.put(columnHandle, PulsarFieldValueProviders.timeValueProvider(
-                            this.currentMessage.getEventTime(), this.currentMessage.getPublishTime() == 0));
-                } else if (PulsarInternalColumn.PUBLISH_TIME.getName().equals(columnHandle.getName())) {
-                    currentRowValuesMap.put(columnHandle, PulsarFieldValueProviders.timeValueProvider(
-                            this.currentMessage.getPublishTime(), this.currentMessage.getPublishTime() == 0));
-                } else if (PulsarInternalColumn.MESSAGE_ID.getName().equals(columnHandle.getName())) {
-                    currentRowValuesMap.put(columnHandle, bytesValueProvider(
-                            this.currentMessage.getMessageId().toString().getBytes()));
-                } else if (PulsarInternalColumn.SEQUENCE_ID.getName().equals(columnHandle.getName())) {
-                    currentRowValuesMap.put(columnHandle, longValueProvider(this.currentMessage.getSequenceId()));
-                } else if (PulsarInternalColumn.PRODUCER_NAME.getName().equals(columnHandle.getName())) {
-                    currentRowValuesMap.put(columnHandle,
-                            bytesValueProvider(this.currentMessage.getProducerName().getBytes()));
-                } else if (PulsarInternalColumn.KEY.getName().equals(columnHandle.getName())) {
-                    String key = this.currentMessage.getKey().orElse(null);
-                    currentRowValuesMap.put(columnHandle, bytesValueProvider(key == null ? null : key.getBytes()));
-                } else if (PulsarInternalColumn.PROPERTIES.getName().equals(columnHandle.getName())) {
-                    try {
+                PulsarInternalColumn internalColumn = PulsarInternalColumn.getInternalFieldsMap().get(columnHandle.getName());
+                requireNonNull(internalColumn, "unknown internal field " + columnHandle.getName());
+
+                switch (internalColumn) {
+                    case PARTITION:
+                        currentRowValuesMap.put(columnHandle, longValueProvider(this.partition));
+                        break;
+                    case EVENT_TIME:
+                        currentRowValuesMap.put(columnHandle, PulsarFieldValueProviders.timeValueProvider(
+                                this.currentMessage.getEventTime(), this.currentMessage.getPublishTime() == 0));
+                        break;
+                    case PUBLISH_TIME:
+                        currentRowValuesMap.put(columnHandle, PulsarFieldValueProviders.timeValueProvider(
+                                this.currentMessage.getPublishTime(), this.currentMessage.getPublishTime() == 0));
+                        break;
+                    case MESSAGE_ID:
                         currentRowValuesMap.put(columnHandle, bytesValueProvider(
-                                new ObjectMapper().writeValueAsBytes(this.currentMessage.getProperties())));
-                    } catch (JsonProcessingException e) {
-                        throw new RuntimeException(e);
-                    }
-                } else {
-                    throw new IllegalArgumentException("unknown internal field " + columnHandle.getName());
+                                this.currentMessage.getMessageId().toString().getBytes()));
+                        break;
+                    case SEQUENCE_ID:
+                        currentRowValuesMap.put(columnHandle, longValueProvider(this.currentMessage.getSequenceId()));
+                        break;
+                    case PRODUCER_NAME:
+                        currentRowValuesMap.put(columnHandle,
+                                bytesValueProvider(this.currentMessage.getProducerName().getBytes()));
+                        break;
+                    case KEY:
+                        String key = this.currentMessage.getKey().orElse(null);
+                        currentRowValuesMap.put(columnHandle, bytesValueProvider(key == null ? null : key.getBytes()));
+                        break;
+                    case PROPERTIES:
+                        try {
+                            currentRowValuesMap.put(columnHandle, bytesValueProvider(
+                                    new ObjectMapper().writeValueAsBytes(this.currentMessage.getProperties())));
+                        } catch (JsonProcessingException e) {
+                            throw new RuntimeException(e);
+                        }
+                        break;
+                    default:
+                        throw new IllegalArgumentException("unknown internal field " + columnHandle.getName());
                 }
             }
         }

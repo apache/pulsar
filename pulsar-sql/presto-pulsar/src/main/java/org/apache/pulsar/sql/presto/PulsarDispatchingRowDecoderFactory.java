@@ -28,9 +28,10 @@ import io.prestosql.decoder.DecoderColumnHandle;
 import io.prestosql.spi.connector.ColumnMetadata;
 import io.prestosql.spi.type.TypeManager;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
-
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -48,6 +49,8 @@ public class PulsarDispatchingRowDecoderFactory {
 
     private TypeManager typeManager;
 
+    private final Map<SchemaInfo, PulsarRowDecoderFactory> rowDecoderFactoryCache = new HashMap<>();
+
     @Inject
     public PulsarDispatchingRowDecoderFactory(TypeManager typeManager) {
         this.typeManager = typeManager;
@@ -55,13 +58,13 @@ public class PulsarDispatchingRowDecoderFactory {
 
     public PulsarRowDecoder createRowDecoder(TopicName topicName, SchemaInfo schemaInfo,
                                              Set<DecoderColumnHandle> columns) {
-        PulsarRowDecoderFactory rowDecoderFactory = createDecoderFactory(schemaInfo);
+        PulsarRowDecoderFactory rowDecoderFactory = rowDecoderFactoryCache.computeIfAbsent(schemaInfo, this::createDecoderFactory);
         return rowDecoderFactory.createRowDecoder(topicName, schemaInfo, columns);
     }
 
     public List<ColumnMetadata> extractColumnMetadata(TopicName topicName, SchemaInfo schemaInfo,
                                                       PulsarColumnHandle.HandleKeyValueType handleKeyValueType) {
-        PulsarRowDecoderFactory rowDecoderFactory = createDecoderFactory(schemaInfo);
+        PulsarRowDecoderFactory rowDecoderFactory = rowDecoderFactoryCache.computeIfAbsent(schemaInfo, this::createDecoderFactory);
         return rowDecoderFactory.extractColumnMetadata(topicName, schemaInfo, handleKeyValueType);
     }
 

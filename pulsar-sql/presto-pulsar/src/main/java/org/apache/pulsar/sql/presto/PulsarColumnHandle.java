@@ -194,23 +194,22 @@ public class PulsarColumnHandle implements DecoderColumnHandle {
         if (internal != that.internal) {
             return false;
         }
-        if (connectorId != null ? !connectorId.equals(that.connectorId) : that.connectorId != null) {
+        if (!Objects.equals(connectorId, that.connectorId)) {
             return false;
         }
-        if (name != null ? !name.equals(that.name) : that.name != null) {
+        if (!Objects.equals(name, that.name)) {
             return false;
         }
-        if (type != null ? !type.equals(that.type) : that.type != null) {
+        if (!Objects.equals(type, that.type)) {
             return false;
         }
-        if (mapping != null ? !mapping.equals(that.mapping) : that.mapping != null) {
+        if (!Objects.equals(mapping, that.mapping)) {
             return false;
         }
-        if (dataFormat != null ? !dataFormat.equals(that.dataFormat) : that.dataFormat != null) {
+        if (!Objects.equals(dataFormat, that.dataFormat)) {
             return false;
         }
-
-        if (formatHint != null ? !formatHint.equals(that.formatHint) : that.formatHint != null) {
+        if (!Objects.equals(formatHint, that.formatHint)) {
             return false;
         }
 

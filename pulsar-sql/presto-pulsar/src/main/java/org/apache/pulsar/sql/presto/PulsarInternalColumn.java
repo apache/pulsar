@@ -31,41 +31,39 @@ import io.prestosql.spi.type.Type;
 import io.prestosql.spi.type.VarcharType;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Consumer;
 
 /**
- * This abstract class represents internal columns.
+ * Internal columns enum.
  */
-public class PulsarInternalColumn {
+public enum PulsarInternalColumn {
 
+    PARTITION("__partition__", IntegerType.INTEGER, "The partition number which the message belongs to"),
 
-    public static final PulsarInternalColumn PARTITION = new PulsarInternalColumn("__partition__",
-            IntegerType.INTEGER, "The partition number which the message belongs to");
+    EVENT_TIME("__event_time__", TimestampType.TIMESTAMP, "Application defined timestamp in milliseconds of when the event occurred"),
 
-    public static final PulsarInternalColumn EVENT_TIME = new PulsarInternalColumn("__event_time__",
-            TimestampType.TIMESTAMP, "Application defined timestamp in milliseconds of when the event occurred");
+    PUBLISH_TIME("__publish_time__", TimestampType.TIMESTAMP, "The timestamp in milliseconds of when event as published"),
 
-    public static final PulsarInternalColumn PUBLISH_TIME = new PulsarInternalColumn("__publish_time__",
-            TimestampType.TIMESTAMP, "The timestamp in milliseconds of when event as published");
+    MESSAGE_ID("__message_id__", VarcharType.VARCHAR, "The message ID of the message used to generate this row"),
 
-    public static final PulsarInternalColumn MESSAGE_ID = new PulsarInternalColumn("__message_id__",
-            VarcharType.VARCHAR, "The message ID of the message used to generate this row");
+    SEQUENCE_ID("__sequence_id__", BigintType.BIGINT, "The sequence ID of the message used to generate this row"),
 
-    public static final PulsarInternalColumn SEQUENCE_ID = new PulsarInternalColumn("__sequence_id__",
-            BigintType.BIGINT, "The sequence ID of the message used to generate this row");
+    PRODUCER_NAME("__producer_name__", VarcharType.VARCHAR, "The name of the producer that publish the message used to generate this row"),
 
-    public static final PulsarInternalColumn PRODUCER_NAME = new PulsarInternalColumn("__producer_name__",
-            VarcharType.VARCHAR, "The name of the producer that publish the message used to generate this row");
+    KEY("__key__", VarcharType.VARCHAR, "The partition key for the topic"),
 
-    public static final PulsarInternalColumn KEY = new PulsarInternalColumn("__key__",
-            VarcharType.VARCHAR, "The partition key for the topic");
+    PROPERTIES("__properties__", VarcharType.VARCHAR, "User defined properties"),
+    ;
 
-    public static final PulsarInternalColumn PROPERTIES = new PulsarInternalColumn("__properties__",
-            VarcharType.VARCHAR, "User defined properties");
-
-    private static Set<PulsarInternalColumn> internalFields = ImmutableSet.of(PARTITION, EVENT_TIME, PUBLISH_TIME,
+    private static final Set<PulsarInternalColumn> internalFields = ImmutableSet.of(PARTITION, EVENT_TIME, PUBLISH_TIME,
             MESSAGE_ID, SEQUENCE_ID, PRODUCER_NAME, KEY, PROPERTIES);
 
+    private static final Map<String, PulsarInternalColumn> internalFieldsMap;
+
+    static {
+        ImmutableMap.Builder<String, PulsarInternalColumn> builder = ImmutableMap.builder();
+        internalFields.forEach(pulsarInternalColumn -> builder.put(pulsarInternalColumn.getName(), pulsarInternalColumn));
+        internalFieldsMap = builder.build();
+    }
 
     private final String name;
     private final Type type;
@@ -107,14 +105,7 @@ public class PulsarInternalColumn {
     }
 
     public static Map<String, PulsarInternalColumn> getInternalFieldsMap() {
-        ImmutableMap.Builder<String, PulsarInternalColumn> builder = ImmutableMap.builder();
-        getInternalFields().forEach(new Consumer<PulsarInternalColumn>() {
-            @Override
-            public void accept(PulsarInternalColumn pulsarInternalColumn) {
-                builder.put(pulsarInternalColumn.getName(), pulsarInternalColumn);
-            }
-        });
-        return builder.build();
+        return internalFieldsMap;
     }
 
 }
