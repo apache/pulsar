@@ -21,6 +21,9 @@ package org.apache.pulsar.client.impl.schema;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import java.util.concurrent.CompletableFuture;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
@@ -35,7 +38,7 @@ import org.apache.pulsar.common.schema.SchemaType;
  * [Key, Value] pair schema definition
  */
 @Slf4j
-public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
+public class KeyValueSchema<K, V> extends AbstractSchema<KeyValue<K, V>> {
 
     @Getter
     private final Schema<K> keySchema;
@@ -139,16 +142,16 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
         }
     }
 
-    public KeyValue<K, V> decode(byte[] bytes) {
-        return decode(bytes, null);
+    public KeyValue<K, V> decode(ByteBuf byteBuf) {
+        return decode(byteBuf, null);
     }
 
-    public KeyValue<K, V> decode(byte[] bytes, byte[] schemaVersion) {
+    public KeyValue<K, V> decode(ByteBuf bytes, byte[] schemaVersion) {
         if (this.keyValueEncodingType == KeyValueEncodingType.SEPARATED) {
             throw new SchemaSerializationException("This method cannot be used under this SEPARATED encoding type");
         }
-
-        return KeyValue.decode(bytes, (keyBytes, valueBytes) -> decode(keyBytes, valueBytes, schemaVersion));
+        byte[] array = ByteBufUtil.getBytes(bytes);
+        return KeyValue.decode(array, (keyBytes, valueBytes) -> decode(keyBytes, valueBytes, schemaVersion));
     }
 
     public KeyValue<K, V> decode(byte[] keyBytes, byte[] valueBytes, byte[] schemaVersion) {
@@ -259,4 +262,14 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
         return "KeyValueSchema(" + keyValueEncodingType + "," + keySchema + "," + valueSchema + ")";
     }
 
+    @Override
+    public Schema<?> atSchemaVersion(byte[] schemaVersion) throws SchemaSerializationException {
+        if (!supportSchemaVersioning()) {
+            return this;
+        } else {
+            Schema<?> keySchema = this.keySchema instanceof AbstractSchema ? ((AbstractSchema) this.keySchema).atSchemaVersion(schemaVersion) : this.keySchema;
+            Schema<?> valueSchema = this.valueSchema instanceof AbstractSchema ? ((AbstractSchema) this.valueSchema).atSchemaVersion(schemaVersion) : this.valueSchema;
+            return KeyValueSchema.of(keySchema, valueSchema, keyValueEncodingType);
+        }
+    }
 }
