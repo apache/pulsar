@@ -204,7 +204,7 @@ void ConsumerImpl::connectionFailed(Result result) {
 }
 
 void ConsumerImpl::sendFlowPermitsToBroker(const ClientConnectionPtr& cnx, int numMessages) {
-    if (cnx) {
+    if (cnx && numMessages > 0) {
         LOG_DEBUG(getName() << "Send more permits: " << numMessages);
         SharedBuffer cmd = Commands::newFlow(consumerId_, static_cast<unsigned int>(numMessages));
         cnx->sendCommand(cmd);
