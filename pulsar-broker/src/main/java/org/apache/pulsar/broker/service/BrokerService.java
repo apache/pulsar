@@ -1183,7 +1183,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             return;
         }
 
-        if (!checkMaxTopicsPerNamespace(topicName, 1, topicFuture)) {
+        if (createIfMissing && !checkMaxTopicsPerNamespace(topicName, 1, topicFuture)) {
             return;
         }
 
