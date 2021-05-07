@@ -855,7 +855,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
      * send the flow command to have the broker start pushing messages
      */
     private void sendFlowPermitsToBroker(ClientCnx cnx, int numMessages) {
-        if (cnx != null) {
+        if (cnx != null && numMessages > 0) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Adding {} additional permits", topic, subscription, numMessages);
             }
