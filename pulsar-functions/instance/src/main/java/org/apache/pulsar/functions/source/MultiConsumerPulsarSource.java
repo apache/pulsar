@@ -26,9 +26,12 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.Reflections;
+import org.apache.pulsar.io.core.ExtendedSourceContext;
 import org.apache.pulsar.io.core.SourceContext;
 
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -41,7 +44,7 @@ public class MultiConsumerPulsarSource<T> extends PushPulsarSource<T> implements
 
     private final MultiConsumerPulsarSourceConfig pulsarSourceConfig;
     private final ClassLoader functionClassLoader;
-    private List<Consumer<T>> inputConsumers = new LinkedList<>();
+    private final Map<TopicName, Consumer<T>> inputConsumers = new HashMap<>();
 
     public MultiConsumerPulsarSource(PulsarClient pulsarClient,
                                      MultiConsumerPulsarSourceConfig pulsarSourceConfig,
@@ -69,7 +72,20 @@ public class MultiConsumerPulsarSource<T> extends PushPulsarSource<T> implements
             cb.messageListener(this);
 
             Consumer<T> consumer = cb.subscribeAsync().join();
-            inputConsumers.add(consumer);
+            inputConsumers.put(TopicName.get(topic), consumer);
+        }
+        if (sourceContext instanceof ExtendedSourceContext) {
+            ((ExtendedSourceContext) sourceContext).setConsumerGetter(topicName -> {
+                try {
+                    TopicName req = TopicName.get(topicName);
+                    if (inputConsumers.containsKey(req)) {
+                        return inputConsumers.get(req);
+                    }
+                } catch (Exception e) {
+                    return null;
+                }
+                return null;
+            });
         }
     }
 
@@ -81,7 +97,7 @@ public class MultiConsumerPulsarSource<T> extends PushPulsarSource<T> implements
     @Override
     public void close() throws Exception {
         if (inputConsumers != null ) {
-            inputConsumers.forEach(consumer -> {
+            inputConsumers.values().forEach(consumer -> {
                 try {
                     consumer.close();
                 } catch (PulsarClientException e) {
@@ -109,7 +125,7 @@ public class MultiConsumerPulsarSource<T> extends PushPulsarSource<T> implements
 
     @VisibleForTesting
     List<Consumer<T>> getInputConsumers() {
-        return inputConsumers;
+        return new LinkedList<>(inputConsumers.values());
     }
 
 }

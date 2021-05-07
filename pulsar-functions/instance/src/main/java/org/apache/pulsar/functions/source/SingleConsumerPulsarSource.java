@@ -24,8 +24,10 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.io.core.ExtendedSourceContext;
 import org.apache.pulsar.io.core.SourceContext;
 
 import java.util.Map;
@@ -71,6 +73,19 @@ public class SingleConsumerPulsarSource<T> extends PulsarSource<T> {
 
         ConsumerBuilder<T> cb = createConsumeBuilder(topic, pulsarSourceConsumerConfig);
         consumer = cb.subscribeAsync().join();
+        if (sourceContext instanceof ExtendedSourceContext) {
+            ((ExtendedSourceContext) sourceContext).setConsumerGetter(topicName -> {
+                try {
+                    TopicName src = TopicName.get(topic);
+                    if (src.equals(TopicName.get(topicName))) {
+                        return consumer;
+                    }
+                } catch (Exception e) {
+                    return null;
+                }
+                return null;
+            });
+        }
     }
 
     @Override

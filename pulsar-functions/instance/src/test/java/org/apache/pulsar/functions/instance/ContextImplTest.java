@@ -39,7 +39,10 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
@@ -55,6 +58,7 @@ import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.secretsprovider.EnvironmentBasedSecretsProvider;
 import org.apache.pulsar.io.core.SinkContext;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
@@ -198,5 +202,58 @@ public class ContextImplTest {
                 FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
                 pulsarAdmin);
         context.getPulsarAdmin();
+    }
+
+    @Test
+    public void testUnsupportedExtendedSinkContext(){
+        config.setExposePulsarAdminClientEnabled(false);
+        context = new ContextImpl(
+                config,
+                logger,
+                client,
+                new EnvironmentBasedSecretsProvider(), FunctionCollectorRegistry.getDefaultImplementation(), new String[0],
+                FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
+                pulsarAdmin);
+        try {
+            context.seek("z", 0, Mockito.mock(MessageId.class));
+            Assert.fail("Expected exception");
+        } catch (PulsarClientException e) {
+            // pass
+        }
+        try {
+            context.pause("z");
+            Assert.fail("Expected exception");
+        } catch (PulsarClientException e) {
+            // pass
+        }
+        try {
+            context.resume("z");
+            Assert.fail("Expected exception");
+        } catch (PulsarClientException e) {
+            // pass
+        }
+    }
+
+    @Test
+    public void testExtendedSinkContext() throws PulsarClientException {
+        config.setExposePulsarAdminClientEnabled(false);
+        context = new ContextImpl(
+                config,
+                logger,
+                client,
+                new EnvironmentBasedSecretsProvider(), FunctionCollectorRegistry.getDefaultImplementation(), new String[0],
+                FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
+                pulsarAdmin);
+        Consumer<?> mockConsumer = Mockito.mock(Consumer.class);
+        context.setConsumerGetter(topic -> mockConsumer);
+
+        context.seek("z", 0, Mockito.mock(MessageId.class));
+        Mockito.verify(mockConsumer, Mockito.times(1)).seek(any(MessageId.class));
+
+        context.pause("z");
+        Mockito.verify(mockConsumer, Mockito.times(1)).pause();
+
+        context.resume("z");
+        Mockito.verify(mockConsumer, Mockito.times(1)).resume();
     }
  }

@@ -21,7 +21,6 @@ package org.apache.pulsar.functions.instance;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Summary;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -40,6 +39,7 @@ import lombok.ToString;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.HashingScheme;
 import org.apache.pulsar.client.api.MessageId;
@@ -51,7 +51,9 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
+import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.common.functions.ExternalPulsarConfig;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Record;
@@ -68,8 +70,8 @@ import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.ProducerConfigUtils;
+import org.apache.pulsar.io.core.ExtendedSourceContext;
 import org.apache.pulsar.io.core.SinkContext;
-import org.apache.pulsar.io.core.SourceContext;
 import org.slf4j.Logger;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -79,7 +81,7 @@ import static org.apache.pulsar.functions.instance.stats.FunctionStatsManager.US
  * This class implements the Context interface exposed to the user.
  */
 @ToString
-class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable {
+class ContextImpl implements Context, SinkContext, ExtendedSourceContext, AutoCloseable {
     private InstanceConfig config;
     private Logger logger;
 
@@ -112,6 +114,8 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     private final static String[] userMetricsLabelNames;
 
     private boolean exposePulsarAdminClientEnabled;
+
+    private java.util.function.Function<String, Consumer<?>> getConsumerFunc;
 
     static {
         // add label to indicate user metric
@@ -706,4 +710,41 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
             logger.warn("Failed to close producers", e);
         }
     }
+
+    @Override
+    public void seek(String topic, int partition, MessageId messageId) throws PulsarClientException {
+        Consumer<?> consumer = getConsumer(topic);
+        final MessageId msgId;
+        if (partition == 0) {
+            msgId = messageId;
+        } else {
+            TopicName topicName = TopicName.get(topic);
+            msgId = new TopicMessageIdImpl(
+                    topicName.getPartition(partition).toString(), topicName.toString(), messageId);
+        }
+        consumer.seek(msgId);
+    }
+
+    @Override
+    public void pause(String topic) throws PulsarClientException {
+        getConsumer(topic).pause();
+    }
+
+    @Override
+    public void resume(String topic) throws PulsarClientException {
+        getConsumer(topic).resume();
+    }
+
+    @Override
+    public void setConsumerGetter(java.util.function.Function<String, Consumer<?>> getConsumerFunc) {
+        this.getConsumerFunc = getConsumerFunc;
+    }
+
+    private Consumer<?> getConsumer(String topic) throws PulsarClientException {
+        if (getConsumerFunc == null) {
+            throw new PulsarClientException("Getting consumer is not supported");
+        }
+        return getConsumerFunc.apply(topic);
+    }
+
 }
