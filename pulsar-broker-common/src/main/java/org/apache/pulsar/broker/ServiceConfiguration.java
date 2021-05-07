@@ -2220,6 +2220,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         }
     }
 
+    /**
+     * Get the address of Broker, first try to get it from AdvertisedAddress.
+     * If it is not set, try to get the address set by advertisedListener.
+     * If it is still not set, get it through InetAddress.getLocalHost().
+     * @return
+     */
     public String getAppliedAdvertisedAddress() {
         Map<String, AdvertisedListener> result = MultipleListenerValidator
                 .validateAndAnalysisAdvertisedListener(this);
