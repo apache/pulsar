@@ -20,6 +20,7 @@
 package org.apache.pulsar.functions.instance;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.common.base.Preconditions;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -39,7 +40,6 @@ import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
-import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
@@ -668,17 +668,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     break;
             }
 
-            switch (sourceSpec.getSubscriptionType()) {
-                case FAILOVER:
-                    pulsarSourceConfig.setSubscriptionType(SubscriptionType.Failover);
-                    break;
-                case KEY_SHARED:
-                    pulsarSourceConfig.setSubscriptionType(SubscriptionType.Key_Shared);
-                    break;
-                default:
-                    pulsarSourceConfig.setSubscriptionType(SubscriptionType.Shared);
-                    break;
-            }
+            Preconditions.checkNotNull(contextImpl.getSubscriptionType());
+            pulsarSourceConfig.setSubscriptionType(contextImpl.getSubscriptionType());
 
             pulsarSourceConfig.setTypeClassName(sourceSpec.getTypeClassName());
 
