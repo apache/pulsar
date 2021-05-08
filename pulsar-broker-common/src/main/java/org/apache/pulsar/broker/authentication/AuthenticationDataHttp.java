@@ -28,6 +28,8 @@ public class AuthenticationDataHttp implements AuthenticationDataSource {
     protected final HttpServletRequest request;
     protected final SocketAddress remoteAddress;
 
+    protected String subscription;
+
     public AuthenticationDataHttp(HttpServletRequest request) {
         if (request == null) {
             throw new IllegalArgumentException();
@@ -67,6 +69,24 @@ public class AuthenticationDataHttp implements AuthenticationDataSource {
     @Override
     public SocketAddress getPeerAddress() {
         return remoteAddress;
+    }
+
+    /*
+     * Subscription
+     */
+    @Override
+    public boolean hasSubscription() {
+        return this.subscription != null;
+    }
+
+    @Override
+    public void setSubscription(String subscription) {
+        this.subscription = subscription;
+    }
+
+    @Override
+    public String getSubscription() {
+        return subscription;
     }
 
 }

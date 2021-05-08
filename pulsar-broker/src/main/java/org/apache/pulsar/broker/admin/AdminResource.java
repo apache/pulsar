@@ -55,10 +55,12 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -490,13 +492,9 @@ public abstract class AdminResource extends PulsarWebResource {
         }
 
         try {
-            checkConnect(topicName);
-        } catch (WebApplicationException e) {
-            try {
-                validateAdminAccessForTenant(topicName.getTenant());
-            } catch (Exception ex) {
-                return FutureUtil.failedFuture(ex);
-            }
+            validateTopicOperation(topicName, TopicOperation.LOOKUP);
+        } catch (RestException e) {
+            return FutureUtil.failedFuture(e);
         } catch (Exception e) {
             // unknown error marked as internal server error
             log.warn("Unexpected error while authorizing lookup. topic={}, role={}. Error: {}", topicName,
@@ -520,9 +518,7 @@ public abstract class AdminResource extends PulsarWebResource {
         validateGlobalNamespaceOwnership(topicName.getNamespaceObject());
 
         try {
-            checkConnect(topicName);
-        } catch (WebApplicationException e) {
-            validateAdminAccessForTenant(topicName.getTenant());
+            validateTopicOperation(topicName, TopicOperation.LOOKUP);
         } catch (Exception e) {
             // unknown error marked as internal server error
             log.warn("Unexpected error while authorizing lookup. topic={}, role={}. Error: {}", topicName,
@@ -694,7 +690,7 @@ public abstract class AdminResource extends PulsarWebResource {
 
         final int maxPartitions = pulsar().getConfig().getMaxNumPartitionsPerPartitionedTopic();
         try {
-            validateAdminAccessForTenant(topicName.getTenant());
+            validateNamespaceOperation(topicName.getNamespaceObject(), NamespaceOperation.CREATE_TOPIC);
         } catch (Exception e) {
             log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
             resumeAsyncResponseExceptionally(asyncResponse, e);
