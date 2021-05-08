@@ -32,6 +32,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.Supplier;
 import javax.ws.rs.core.Response;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -498,6 +499,7 @@ public class PulsarWorkerService implements WorkerService {
             log.info("/** Initializing Runtime Manager **/");
 
             MessageId lastAssignmentMessageId = functionRuntimeManager.initialize();
+            Supplier<Boolean> checkIsStillLeader = () -> membershipManager.getLeader().getWorkerId().equals(workerConfig.getWorkerId());
 
             // Setting references to managers in scheduler
             schedulerManager.setFunctionMetaDataManager(functionMetaDataManager);
@@ -520,7 +522,8 @@ public class PulsarWorkerService implements WorkerService {
             // Starting cluster services
             this.clusterServiceCoordinator = new ClusterServiceCoordinator(
                     workerConfig.getWorkerId(),
-                    leaderService);
+                    leaderService,
+                    checkIsStillLeader);
 
             clusterServiceCoordinator.addTask("membership-monitor",
                     workerConfig.getFailureCheckFreqMs(),
@@ -561,6 +564,7 @@ public class PulsarWorkerService implements WorkerService {
             workerStatsManager.setFunctionRuntimeManager(functionRuntimeManager);
             workerStatsManager.setFunctionMetaDataManager(functionMetaDataManager);
             workerStatsManager.setLeaderService(leaderService);
+            workerStatsManager.setIsLeader(checkIsStillLeader);
             workerStatsManager.startupTimeEnd();
         } catch (Throwable t) {
             log.error("Error Starting up in worker", t);
