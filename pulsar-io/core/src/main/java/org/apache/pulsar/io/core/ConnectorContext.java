@@ -68,7 +68,7 @@ public interface ConnectorContext {
      * @return the namespace this source belongs to
      */
     String getNamespace();
-    
+
     /**
      * The logger object that can be used to log in a sink
      * @return the logger object
