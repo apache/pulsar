@@ -605,7 +605,7 @@ public interface Consumer<T> extends Closeable {
      * The Function input is topic+partition. It returns only timestamp or MessageId.
      * <p>
      * The return value is the seek position/timestamp of the current partition.
-     * Exception will be thrown if other types of objects are returned.
+     * Exception is thrown if other object types are returned.
      * <p>
      * If returns null, the current partition will not do any processing.
      * Exception in a partition may affect other partitions.
