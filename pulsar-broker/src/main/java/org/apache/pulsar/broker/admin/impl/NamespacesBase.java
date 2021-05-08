@@ -831,7 +831,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetAutoSubscriptionCreation(
-                AsyncResponse asyncResponse, AutoSubscriptionCreationOverride autoSubscriptionCreationOverride) {
+            AsyncResponse asyncResponse, AutoSubscriptionCreationOverride autoSubscriptionCreationOverride) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.AUTO_SUBSCRIPTION_CREATION, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 

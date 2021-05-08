@@ -236,7 +236,6 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
-
         TopicStats topicStats = persistentTopics.getStats(testTenant, testNamespace, testLocalTopicName, true, true, false);
         long msgBacklog = topicStats.subscriptions.get(SUB_EARLIEST).msgBacklog;
         System.out.println("Message back log for " + SUB_EARLIEST + " is :" + msgBacklog);
