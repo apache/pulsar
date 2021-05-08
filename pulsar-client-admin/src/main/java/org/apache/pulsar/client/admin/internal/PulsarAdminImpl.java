@@ -430,12 +430,6 @@ public class PulsarAdminImpl implements PulsarAdmin {
         return serviceUrl;
     }
 
-    /**
-     * @return the client Configuration Data that is being used
-     */
-    public ClientConfigurationData getClientConfigData() {
-        return clientConfigData;
-    }
 
     /**
      * @return the schemas
