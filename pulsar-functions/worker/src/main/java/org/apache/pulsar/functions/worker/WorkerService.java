@@ -41,6 +41,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import java.net.URI;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.Supplier;
 
 /**
  * A service component contains everything to run a worker except rest server.
@@ -228,6 +229,8 @@ public class WorkerService {
             log.info("/** Initializing Runtime Manager **/");
 
             MessageId lastAssignmentMessageId = functionRuntimeManager.initialize();
+            Supplier<Boolean> checkIsStillLeader =
+                () -> membershipManager.getLeader().getWorkerId().equals(workerConfig.getWorkerId());
 
             // Setting references to managers in scheduler
             schedulerManager.setFunctionMetaDataManager(functionMetaDataManager);
@@ -250,7 +253,8 @@ public class WorkerService {
             // Starting cluster services
             this.clusterServiceCoordinator = new ClusterServiceCoordinator(
                     workerConfig.getWorkerId(),
-                    leaderService);
+                    leaderService,
+                    checkIsStillLeader);
 
             clusterServiceCoordinator.addTask("membership-monitor",
                     workerConfig.getFailureCheckFreqMs(),
@@ -291,6 +295,7 @@ public class WorkerService {
             workerStatsManager.setFunctionRuntimeManager(functionRuntimeManager);
             workerStatsManager.setFunctionMetaDataManager(functionMetaDataManager);
             workerStatsManager.setLeaderService(leaderService);
+            workerStatsManager.setIsLeader(checkIsStillLeader);
             workerStatsManager.startupTimeEnd();
         } catch (Throwable t) {
             log.error("Error Starting up in worker", t);
