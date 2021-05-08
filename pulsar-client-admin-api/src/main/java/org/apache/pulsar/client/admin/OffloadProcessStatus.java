@@ -19,37 +19,36 @@
 package org.apache.pulsar.client.admin;
 
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.impl.MessageIdImpl;
 
 /**
  * Status of offload process.
  */
 public class OffloadProcessStatus extends LongRunningProcessStatus {
 
-    public MessageIdImpl firstUnoffloadedMessage;
+    public MessageId firstUnoffloadedMessage;
 
     public OffloadProcessStatus() {
         super(Status.NOT_RUN, "");
-        firstUnoffloadedMessage = (MessageIdImpl) MessageId.earliest;
+        firstUnoffloadedMessage = MessageId.earliest;
     }
 
     private OffloadProcessStatus(Status status, String lastError,
-                                 MessageIdImpl firstUnoffloadedMessage) {
+                                 MessageId firstUnoffloadedMessage) {
         this.status = status;
         this.lastError = lastError;
         this.firstUnoffloadedMessage = firstUnoffloadedMessage;
     }
 
     public static OffloadProcessStatus forStatus(Status status) {
-        return new OffloadProcessStatus(status, "", (MessageIdImpl) MessageId.earliest);
+        return new OffloadProcessStatus(status, "", MessageId.earliest);
     }
 
     public static OffloadProcessStatus forError(String lastError) {
         return new OffloadProcessStatus(Status.ERROR, lastError,
-                (MessageIdImpl) MessageId.earliest);
+                MessageId.earliest);
     }
 
-    public static OffloadProcessStatus forSuccess(MessageIdImpl messageId) {
+    public static OffloadProcessStatus forSuccess(MessageId messageId) {
         return new OffloadProcessStatus(Status.SUCCESS, "", messageId);
     }
 }
