@@ -600,7 +600,7 @@ public interface Consumer<T> extends Closeable {
     void seek(long timestamp) throws PulsarClientException;
 
     /**
-     * Reset the subscription associated with this consumer to a specific message id or message publish time.
+     * Reset the subscription associated with this consumer to a specific message ID or message publish time.
      * <p>
      * The Function input is topic+partition, and can only return timestamp or MessageId.
      * <p>
