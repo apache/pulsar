@@ -615,7 +615,7 @@ public interface Consumer<T> extends Closeable {
     void seek(Function<String, Object> function) throws PulsarClientException;
 
     /**
-     * Reset the subscription associated with this consumer to a specific message id
+     * Reset the subscription associated with this consumer to a specific message ID
      * or message publish time asynchronously.
      * <p>
      * The Function input is topic+partition, and can only return timestamp or MessageId.
