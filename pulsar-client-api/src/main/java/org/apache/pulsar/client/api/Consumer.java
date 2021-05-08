@@ -602,7 +602,7 @@ public interface Consumer<T> extends Closeable {
     /**
      * Reset the subscription associated with this consumer to a specific message ID or message publish time.
      * <p>
-     * The Function input is topic+partition, and can only return timestamp or MessageId.
+     * The Function input is topic+partition. It returns only timestamp or MessageId.
      * <p>
      * The return value is the seek position/timestamp of the current partition.
      * Exception will be thrown if other types of objects are returned.
