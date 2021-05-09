@@ -303,7 +303,7 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
                 if (proposedValue.isPresent()) {
                     elect()
                             .exceptionally(ex -> {
-                                log.warn("Leader election for path {} has failed", ex);
+                                log.warn("Leader election for path {} has failed", path, ex);
                                 synchronized (LeaderElectionImpl.this) {
                                     try {
                                         stateChangesListener.accept(leaderElectionState);
@@ -313,7 +313,7 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
 
                                     if (internalState != InternalState.Closed) {
                                         executor.schedule(() -> {
-                                            log.info("Retrying Leader election for path {}");
+                                            log.info("Retrying Leader election for path {}", path);
                                             elect();
                                         }, LEADER_ELECTION_RETRY_DELAY_SECONDS, TimeUnit.SECONDS);
                                     }
