@@ -831,6 +831,8 @@ public class PersistentTopic extends AbstractTopic
                     // Flip the subscription state
                     subscription.setReplicated(replicated);
                 }
+
+                resetSubscriptionCursor(subscription, startMessageRollbackDurationSec);
                 subscriptionFuture.complete(subscription);
             }
 
@@ -892,22 +894,23 @@ public class PersistentTopic extends AbstractTopic
                 subscriptions.put(subscriptionName, subscription);
             }
 
-            if (startMessageRollbackDurationSec > 0) {
-                long timestamp = System.currentTimeMillis()
-                        - TimeUnit.SECONDS.toMillis(startMessageRollbackDurationSec);
-                final Subscription finalSubscription = subscription;
-                subscription.resetCursor(timestamp).handle((s, ex) -> {
-                    if (ex != null) {
-                        log.warn("[{}] Failed to reset cursor {} position at timestamp {}", topic, subscriptionName,
-                                startMessageRollbackDurationSec);
-                    }
-                    subscriptionFuture.complete(finalSubscription);
-                    return null;
-                });
-                return subscriptionFuture;
-            } else {
-                return CompletableFuture.completedFuture(subscription);
-            }
+            resetSubscriptionCursor(subscription, startMessageRollbackDurationSec);
+            subscriptionFuture.complete(subscription);
+            return subscriptionFuture;
+        }
+    }
+
+    private void resetSubscriptionCursor(Subscription subscription, long startMessageRollbackDurationSec) {
+        if (startMessageRollbackDurationSec > 0) {
+            long timestamp = System.currentTimeMillis()
+                    - TimeUnit.SECONDS.toMillis(startMessageRollbackDurationSec);
+            subscription.resetCursor(timestamp).handle((s, ex) -> {
+                if (ex != null) {
+                    log.warn("[{}] Failed to reset cursor {} position at timestamp {}", topic, subscription.getName(),
+                            startMessageRollbackDurationSec);
+                }
+                return null;
+            });
         }
     }
 
