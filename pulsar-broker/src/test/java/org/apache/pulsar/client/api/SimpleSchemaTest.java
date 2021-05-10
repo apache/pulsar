@@ -805,6 +805,13 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                 assertEquals(data.getKey().getField("i"), i * 100);
                 assertEquals(data.getValue().getField("i"), i * 1000);
                 c0.acknowledge(wrapper);
+                KeyValueSchema keyValueSchema = (KeyValueSchema) wrapper.getReaderSchema().get();
+                assertNotNull(keyValueSchema.getKeySchema());
+                assertNotNull(keyValueSchema.getValueSchema());
+                assertTrue(keyValueSchema.getKeySchema().getSchemaInfo().getSchemaDefinition().contains("V1Data"));
+                assertTrue(keyValueSchema.getValueSchema().getSchemaInfo().getSchemaDefinition().contains("V1Data"));
+                assertTrue(keyValueSchema.getKeySchema().getNativeSchema().isPresent());
+                assertTrue(keyValueSchema.getValueSchema().getNativeSchema().isPresent());
             }
 
 
@@ -835,9 +842,13 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                     assertEquals(data.getValue().getField("i"), i * 1000);
                     assertEquals(data.getKey().getField("j"), i);
                     assertEquals(data.getValue().getField("j"), i * 20);
-                    KeyValueSchema keyValueSchema = (KeyValueSchema) data.getReaderSchema().get();
+                    KeyValueSchema keyValueSchema = (KeyValueSchema) wrapper.getReaderSchema().get();
                     assertNotNull(keyValueSchema.getKeySchema());
                     assertNotNull(keyValueSchema.getValueSchema());
+                    assertTrue(keyValueSchema.getKeySchema().getSchemaInfo().getSchemaDefinition().contains("V2Data"));
+                    assertTrue(keyValueSchema.getValueSchema().getSchemaInfo().getSchemaDefinition().contains("V2Data"));
+                    assertTrue(keyValueSchema.getKeySchema().getNativeSchema().isPresent());
+                    assertTrue(keyValueSchema.getValueSchema().getNativeSchema().isPresent());
                 }
             }
         }
