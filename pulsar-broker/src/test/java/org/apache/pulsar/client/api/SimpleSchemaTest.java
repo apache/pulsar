@@ -835,11 +835,10 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                     assertEquals(data.getValue().getField("i"), i * 1000);
                     assertEquals(data.getKey().getField("j"), i);
                     assertEquals(data.getValue().getField("j"), i * 20);
+                    KeyValueSchema keyValueSchema = (KeyValueSchema) data.getReaderSchema().get();
+                    assertNotNull(keyValueSchema.getKeySchema());
+                    assertNotNull(keyValueSchema.getValueSchema());
                 }
-
-                KeyValueSchema keyValueSchema = (KeyValueSchema) data.getReaderSchema().get();
-                assertNotNull(keyValueSchema.getKeySchema());
-                assertNotNull(keyValueSchema.getValueSchema());
             }
         }
     }

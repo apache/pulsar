@@ -142,16 +142,27 @@ public class KeyValueSchema<K, V> extends AbstractSchema<KeyValue<K, V>> {
         }
     }
 
-    public KeyValue<K, V> decode(ByteBuf byteBuf) {
-        return decode(byteBuf, null);
+    @Override
+    public KeyValue<K, V> decode(byte[] bytes) {
+        return decode(bytes, null);
     }
 
-    public KeyValue<K, V> decode(ByteBuf bytes, byte[] schemaVersion) {
+    @Override
+    public KeyValue<K, V> decode(byte[] bytes, byte[] schemaVersion) {
         if (this.keyValueEncodingType == KeyValueEncodingType.SEPARATED) {
             throw new SchemaSerializationException("This method cannot be used under this SEPARATED encoding type");
         }
-        byte[] array = ByteBufUtil.getBytes(bytes);
-        return KeyValue.decode(array, (keyBytes, valueBytes) -> decode(keyBytes, valueBytes, schemaVersion));
+        return KeyValue.decode(bytes, (keyBytes, valueBytes) -> decode(keyBytes, valueBytes, schemaVersion));
+    }
+
+    @Override
+    public KeyValue<K, V> decode(ByteBuf byteBuf) {
+        return decode(ByteBufUtil.getBytes(byteBuf));
+    }
+
+    @Override
+    public T decode(ByteBuf byteBuf, byte[] schemaVersion) {
+        return decode(ByteBufUtil.getBytes(byteBuf), schemaVersion);
     }
 
     public KeyValue<K, V> decode(byte[] keyBytes, byte[] valueBytes, byte[] schemaVersion) {
