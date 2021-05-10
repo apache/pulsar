@@ -2153,10 +2153,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         executor.executeOrdered(name, safeRun(() -> internalTrimConsumedLedgers(promise)));
     }
 
-    private void scheduleDeferredTrimming(CompletableFuture<?> promise) {
-        scheduledExecutor.schedule(safeRun(() -> trimConsumedLedgersInBackground(promise)), 100, TimeUnit.MILLISECONDS);
-    }
-
     public void trimConsumedLedgersInBackground(boolean isTruncate, CompletableFuture<?> promise) {
         executor.executeOrdered(name, safeRun(() -> internalTrimLedgers(isTruncate, promise)));
     }
