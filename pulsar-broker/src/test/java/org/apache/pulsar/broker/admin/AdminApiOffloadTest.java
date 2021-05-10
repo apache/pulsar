@@ -28,6 +28,8 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
+
 import com.google.common.collect.Sets;
 import java.util.HashMap;
 import java.util.Map;
@@ -43,6 +45,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -135,10 +138,12 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         Awaitility.await().untilAsserted(() ->
                 assertEquals(admin.topics().offloadStatus(topicName).status,
                 LongRunningProcessStatus.Status.SUCCESS));
-        MessageIdImpl firstUnoffloaded = (MessageIdImpl) admin.topics().offloadStatus(topicName).firstUnoffloadedMessage;
+        MessageId firstUnoffloaded = admin.topics().offloadStatus(topicName).firstUnoffloadedMessage;
+        assertTrue(firstUnoffloaded instanceof MessageIdImpl);
+        MessageIdImpl firstUnoffloadedMessage = (MessageIdImpl) firstUnoffloaded;
         // First unoffloaded is the first entry of current ledger
-        assertEquals(firstUnoffloaded.getLedgerId(), info.ledgers.get(1).ledgerId);
-        assertEquals(firstUnoffloaded.getEntryId(), 0);
+        assertEquals(firstUnoffloadedMessage.getLedgerId(), info.ledgers.get(1).ledgerId);
+        assertEquals(firstUnoffloadedMessage.getEntryId(), 0);
 
         verify(offloader, times(2)).offload(any(), any(), any());
     }
