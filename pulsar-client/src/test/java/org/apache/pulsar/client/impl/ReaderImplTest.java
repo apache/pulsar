@@ -22,32 +22,50 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
+import org.awaitility.Awaitility;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 
 public class ReaderImplTest {
     ReaderImpl<byte[]> reader;
+    private ExecutorService executorService;
 
     @BeforeMethod
     void setupReader() {
         PulsarClientImpl mockedClient = ClientTestFixtures.createPulsarClientMockWithMockedClientCnx();
         ReaderConfigurationData<byte[]> readerConfiguration = new ReaderConfigurationData<>();
         readerConfiguration.setTopicName("topicName");
+        executorService = Executors.newSingleThreadExecutor();
+        when(mockedClient.getInternalExecutorService()).thenReturn(executorService);
         CompletableFuture<Consumer<byte[]>> consumerFuture = new CompletableFuture<>();
         reader = new ReaderImpl<>(mockedClient, readerConfiguration, ClientTestFixtures.createMockedExecutorProvider(),
                 consumerFuture, Schema.BYTES);
+    }
+
+    @AfterMethod
+    public void clean() {
+        if (executorService != null) {
+            executorService.shutdownNow();
+            executorService = null;
+        }
     }
 
     @Test
     void shouldSupportCancellingReadNextAsync() {
         // given
         CompletableFuture<Message<byte[]>> future = reader.readNextAsync();
-        assertNotNull(reader.getConsumer().peekPendingReceive());
+        Awaitility.await().untilAsserted(() -> {
+            assertNotNull(reader.getConsumer().peekPendingReceive());
+        });
 
         // when
         future.cancel(false);

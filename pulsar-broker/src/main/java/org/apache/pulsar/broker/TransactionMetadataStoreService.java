@@ -36,6 +36,7 @@ import org.apache.pulsar.broker.transaction.buffer.exceptions.UnsupportedTxnActi
 import org.apache.pulsar.broker.transaction.recover.TransactionRecoverTrackerImpl;
 import org.apache.pulsar.broker.transaction.timeout.TransactionTimeoutTrackerFactoryImpl;
 import org.apache.pulsar.client.api.PulsarClientException.BrokerPersistenceException;
+import org.apache.pulsar.client.api.PulsarClientException.ConnectException;
 import org.apache.pulsar.client.api.PulsarClientException.LookupException;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClientException.ReachMaxPendingOpsException;
@@ -403,7 +404,8 @@ public class TransactionMetadataStoreService {
                 || e instanceof ManagedLedgerException
                 || e instanceof BrokerPersistenceException
                 || e instanceof LookupException
-                || e instanceof ReachMaxPendingOpsException) {
+                || e instanceof ReachMaxPendingOpsException
+                || e instanceof ConnectException) {
             return true;
         } else {
             return false;

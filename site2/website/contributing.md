@@ -118,43 +118,10 @@ these two remotes for pushing changes).
 
 You are now ready to start developing!
 
-#### [Optional] IDE Setup
+#### IDE Setup
 
-Depending on your preferred development environment, you may need to prepare it to develop Pulsar code.
+For how to set up IDE, see [here](https://github.com/apache/pulsar/blob/master/README.md#setting-up-your-ide). 
 
-##### IntelliJ
-
-###### Enable Annotation Processing
-
-To configure annotation processing in IntelliJ:
-
-1. Open Annotation Processors Settings dialog box by going to Settings -> Build, Execution, Deployment -> Compiler -> Annotation Processors.
-1. Select the following buttons:
-    1. "Enable annotation processing"
-    1. "Obtain processors from project classpath"
-    1. "Store generated sources relative to: Module content root"
-1. Set the generated source directories to be equal to the Maven directories:
-    1. Set "Production sources directory:" to "target/generated-sources/annotations".
-    1. Set "Test sources directory:" to "target/generated-test-sources/test-annotations".
-1. Click "OK".
-
-##### Eclipse
-
-Use a recent Eclipse version that includes m2e. Start Eclipse with a fresh workspace in a
-separate directory from your checkout.
-
-###### Initial setup
-
-1. Import the Pulsar projects
-
-	File
-	-> Import...
-	-> Existing Maven Projects
-	-> Browse to the directory you cloned into and select "pulsar"
-	-> make sure all pulsar projects are selected
-	-> Finalize
-
-You now should have all the Pulsar projects imported into eclipse and should see no compile errors.
 
 ### Create a branch in your fork
 

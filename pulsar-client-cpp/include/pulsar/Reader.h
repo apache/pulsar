@@ -132,6 +132,11 @@ class PULSAR_PUBLIC Reader {
      */
     void seekAsync(uint64_t timestamp, ResultCallback callback);
 
+    /**
+     * @return Whether the reader is currently connected to the broker
+     */
+    bool isConnected() const;
+
    private:
     typedef std::shared_ptr<ReaderImpl> ReaderImplPtr;
     ReaderImplPtr impl_;

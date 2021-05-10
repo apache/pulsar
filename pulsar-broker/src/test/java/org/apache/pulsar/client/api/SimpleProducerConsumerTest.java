@@ -3865,7 +3865,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             producer.sendAsync("msg" + i);
         }
         //Give some time to consume
-        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+        Awaitility.await()
                 .untilAsserted(() -> Assert.assertEquals(consumer.getStats().getMsgNumInReceiverQueue().intValue(), receiveQueueSize));
         consumer.close();
         producer.close();
@@ -3894,7 +3894,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             producer.sendAsync("msg" + i);
         }
         //Give some time to consume
-        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+        Awaitility.await()
                 .untilAsserted(() -> Assert.assertEquals(consumer.getStats().getMsgNumInReceiverQueue().intValue(), receiveQueueSize));
         consumer.close();
         producer.close();
@@ -3933,7 +3933,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
         FutureUtil.waitForAll(messageIds).get();
 
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().untilAsserted(() -> {
             long size = ((ConsumerBase<byte[]>) consumer).getIncomingMessageSize();
             log.info("Check the incoming message size should greater that 0, current size is {}", size);
             Assert.assertTrue(size > 0);
@@ -3943,7 +3943,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             consumer.acknowledge(consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS));
         }
 
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().untilAsserted(() -> {
             long size = ((ConsumerBase<byte[]>) consumer).getIncomingMessageSize();
             log.info("Check the incoming message size should be 0, current size is {}", size);
             Assert.assertEquals(size, 0);

@@ -82,7 +82,7 @@ public class TransactionClientReconnectTest extends TransactionTestBase {
         ((PulsarClientImpl) pulsarClient).getLookup()
                 .getPartitionedTopicMetadata(TopicName.TRANSACTION_COORDINATOR_ASSIGN).get();
 
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).until(() -> {
+        Awaitility.await().until(() -> {
             pulsarClient.newTransaction()
                     .withTransactionTimeout(200, TimeUnit.MILLISECONDS).build().get();
             return true;

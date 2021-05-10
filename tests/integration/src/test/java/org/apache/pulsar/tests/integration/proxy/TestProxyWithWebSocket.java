@@ -93,7 +93,7 @@ public class TestProxyWithWebSocket extends PulsarTestSuite {
                 "  \"context\": \"1\"\n" +
                 "}");
 
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().untilAsserted(() -> {
             String response = myWebSocket.getResponse();
             Assert.assertNotNull(response);
             Assert.assertTrue(response.contains("ok"));

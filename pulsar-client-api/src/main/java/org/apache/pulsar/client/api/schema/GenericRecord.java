@@ -58,7 +58,7 @@ public interface GenericRecord extends GenericObject {
      * Retrieve the value of the provided <tt>fieldName</tt>.
      *
      * @param fieldName the field name
-     * @return the value object
+     * @return the value object, or null if field doesn't exist
      */
     Object getField(String fieldName);
 

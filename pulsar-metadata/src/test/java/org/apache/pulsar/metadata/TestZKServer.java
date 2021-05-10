@@ -33,6 +33,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.apache.zookeeper.server.NIOServerCnxnFactory;
 import org.apache.zookeeper.server.ServerCnxnFactory;
+import org.apache.zookeeper.server.SessionTracker;
+import org.apache.zookeeper.server.SessionTrackerImpl;
 import org.apache.zookeeper.server.ZooKeeperServer;
 import org.assertj.core.util.Files;
 
@@ -79,6 +81,24 @@ public class TestZKServer implements AutoCloseable {
         log.info("Stopped test ZK server");
     }
 
+    public void expireSession(long sessionId) {
+        zks.expire(new SessionTracker.Session() {
+            @Override
+            public long getSessionId() {
+                return sessionId;
+            }
+
+            @Override
+            public int getTimeout() {
+                return 10_000;
+            }
+
+            @Override
+            public boolean isClosing() {
+                return false;
+            }
+        });
+    }
 
     @Override
     public void close() throws Exception {
