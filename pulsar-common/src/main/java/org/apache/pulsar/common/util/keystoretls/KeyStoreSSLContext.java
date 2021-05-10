@@ -39,6 +39,7 @@ import javax.net.ssl.SSLException;
 import javax.net.ssl.TrustManagerFactory;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.common.util.SecurityUtility;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 
 /**
@@ -344,6 +345,13 @@ public class KeyStoreSSLContext {
                                                             long certRefreshInSec)
             throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
         SslContextFactory sslCtxFactory;
+
+        if (sslProviderString == null) {
+            Provider provider = SecurityUtility.CONSCRYPT_PROVIDER;
+            if (provider != null) {
+                sslProviderString = provider.getName();
+            }
+        }
 
         sslCtxFactory = new SslContextFactoryWithAutoRefresh(
                 sslProviderString,

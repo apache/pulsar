@@ -71,6 +71,9 @@ public class SecurityUtility {
     public static final Provider BC_PROVIDER = getProvider();
     public static final String BC_FIPS_PROVIDER_CLASS = "org.bouncycastle.jcajce.provider.BouncyCastleFipsProvider";
     public static final String BC_NON_FIPS_PROVIDER_CLASS = "org.bouncycastle.jce.provider.BouncyCastleProvider";
+    public static final String CONSCRYPT_PROVIDER_CLASS = "org.conscrypt.OpenSSLProvider";
+    public static final Provider CONSCRYPT_PROVIDER = loadConscryptProvider();
+
     // Security.getProvider("BC") / Security.getProvider("BCFIPS").
     // also used to get Factories. e.g. CertificateFactory.getInstance("X.509", "BCFIPS")
     public static final String BC_FIPS = "BCFIPS";
@@ -107,6 +110,21 @@ public class SecurityUtility {
             log.warn("Not able to get Bouncy Castle provider for both FIPS and Non-FIPS from class path:", e);
             throw new RuntimeException(e);
         }
+    }
+
+    private static Provider loadConscryptProvider() {
+        Provider provider;
+        try {
+            provider = (Provider) Class.forName(CONSCRYPT_PROVIDER_CLASS).newInstance();
+        } catch (ClassNotFoundException | InstantiationException | IllegalAccessException e) {
+            log.warn("Unable to get security provider for class {}", CONSCRYPT_PROVIDER_CLASS, e);
+            return null;
+        }
+        Security.addProvider(provider);
+        if (log.isDebugEnabled()) {
+            log.debug("Added security provider '{}' from class {}", provider.getName(), CONSCRYPT_PROVIDER_CLASS);
+        }
+        return provider;
     }
 
     /**
@@ -246,7 +264,8 @@ public class SecurityUtility {
         trustManagers = setupTrustCerts(ksh, allowInsecureConnection, trustCertficates);
         keyManagers = setupKeyManager(ksh, privateKey, certificates);
 
-        SSLContext sslCtx = SSLContext.getInstance("TLS");
+        SSLContext sslCtx = CONSCRYPT_PROVIDER != null ? SSLContext.getInstance("TLS", CONSCRYPT_PROVIDER)
+                : SSLContext.getInstance("TLS");
         sslCtx.init(keyManagers, trustManagers, new SecureRandom());
         sslCtx.getDefaultSSLParameters();
         return sslCtx;
@@ -445,6 +464,9 @@ public class SecurityUtility {
             super();
             sslCtxRefresher = new DefaultSslContextBuilder(tlsAllowInsecureConnection, tlsTrustCertsFilePath,
                     tlsCertificateFilePath, tlsKeyFilePath, tlsRequireTrustedClientCertOnConnect, certRefreshInSec);
+            if (CONSCRYPT_PROVIDER != null) {
+                setProvider(CONSCRYPT_PROVIDER.getName());
+            }
         }
 
         @Override
