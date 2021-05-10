@@ -101,12 +101,7 @@ public class SinkRecord<T> implements Record<T> {
         }
 
         if (sourceRecord.getSchema() != null) {
-            // unwrap actual schema
-            Schema<T> schema =  sourceRecord.getSchema();
-            if (schema instanceof AutoConsumeSchema) {
-                schema = (Schema<T>) ((AutoConsumeSchema) schema).getInternalSchema();
-            }
-            return schema;
+            return sourceRecord.getSchema();
         }
 
         if (sourceRecord instanceof KVRecord) {

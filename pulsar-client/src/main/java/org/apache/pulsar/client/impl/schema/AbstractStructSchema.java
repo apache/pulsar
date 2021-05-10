@@ -136,6 +136,11 @@ public abstract class AbstractStructSchema<T> extends AbstractSchema<T> {
         }
 
         @Override
+        public byte[] encode(T message) {
+            throw new UnsupportedOperationException("This schema is not meant to be used for encoding");
+        }
+
+        @Override
         public Optional<Object> getNativeSchema() {
             if (reader instanceof AbstractMultiVersionReader) {
                 AbstractMultiVersionReader abstractMultiVersionReader = (AbstractMultiVersionReader) reader;

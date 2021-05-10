@@ -103,14 +103,8 @@ public abstract class PulsarSource<T> implements Source<T> {
     }
 
     protected Record<T> buildRecord(Consumer<T> consumer, Message<T> message) {
-        Schema<T> schema = null;
-        if (message instanceof MessageImpl) {
-            MessageImpl impl = (MessageImpl) message;
-            schema = impl.getSchemaInternal();
-        } else if (message instanceof TopicMessageImpl) {
-            TopicMessageImpl impl = (TopicMessageImpl) message;
-            schema = impl.getSchemaInternal();
-        }
+        Schema<T> schema = impl.getReaderSchema();
+
         return PulsarRecord.<T>builder()
                 .message(message)
                 .schema(schema)
