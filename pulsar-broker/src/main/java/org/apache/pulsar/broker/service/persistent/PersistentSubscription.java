@@ -382,8 +382,8 @@ public class PersistentSubscription implements Subscription {
         if (position != null) {
             ManagedLedgerImpl managedLedger = ((ManagedLedgerImpl) cursor.getManagedLedger());
             PositionImpl nextPosition = managedLedger.getNextValidPosition(position);
-            if (nextPosition!= null &&
-                    nextPosition.compareTo((PositionImpl) managedLedger.getLastConfirmedEntry()) <= 0) {
+            if (nextPosition!= null
+                    && nextPosition.compareTo((PositionImpl) managedLedger.getLastConfirmedEntry()) <= 0) {
                 managedLedger.asyncReadEntry(nextPosition, new ReadEntryCallback() {
                     @Override
                     public void readEntryComplete(Entry entry, Object ctx) {
