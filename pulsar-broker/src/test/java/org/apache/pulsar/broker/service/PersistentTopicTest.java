@@ -23,12 +23,12 @@ import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMo
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.anyString;
-import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.matches;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.matches;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -40,7 +40,6 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
-import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -75,6 +74,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -2103,6 +2103,43 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         assertFalse(fencedTopicMonitoringTask.isCancelled());
         assertTrue((boolean) isFencedField.get(topic));
         assertTrue((boolean) isClosingOrDeletingField.get(topic));
+    }
+
+    @Test
+    public void testGetDurableSubscription() throws Exception {
+        ManagedLedger mockLedger = mock(ManagedLedger.class);
+        ManagedCursor mockCursor = mock(ManagedCursor.class);
+        Position mockPosition = mock(Position.class);
+        doReturn("test").when(mockCursor).getName();
+        doAnswer((Answer<Object>) invocationOnMock -> {
+            ((AsyncCallbacks.FindEntryCallback) invocationOnMock.getArguments()[2]).findEntryComplete(mockPosition, invocationOnMock.getArguments()[3]);
+            return null;
+        }).when(mockCursor).asyncFindNewestMatching(any(), any(), any(), any());
+        doAnswer((Answer<Object>) invocationOnMock -> {
+            ((AsyncCallbacks.ResetCursorCallback) invocationOnMock.getArguments()[1]).resetComplete(null);
+            return null;
+        }).when(mockCursor).asyncResetCursor(any(), any());
+        doAnswer((Answer<Object>) invocationOnMock -> {
+            ((OpenCursorCallback) invocationOnMock.getArguments()[3]).openCursorComplete(mockCursor, null);
+            return null;
+        }).when(mockLedger).asyncOpenCursor(any(), any(), any(), any(), any());
+        PersistentTopic topic = new PersistentTopic(successTopicName, mockLedger, brokerService);
+
+        CommandSubscribe cmd = new CommandSubscribe()
+                .setConsumerId(1)
+                .setDurable(true)
+                .setStartMessageRollbackDurationSec(60)
+                .setTopic(successTopicName)
+                .setSubscription(successSubName)
+                .setConsumerName("consumer-name")
+                .setReadCompacted(false)
+                .setRequestId(1)
+                .setSubType(SubType.Exclusive);
+
+        Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
+                0, cmd.getConsumerName(), cmd.isDurable(), null, Collections.emptyMap(), cmd.isReadCompacted(), InitialPosition.Latest,
+                cmd.getStartMessageRollbackDurationSec(),false, null);
+        f1.get();
     }
 
     private ByteBuf getMessageWithMetadata(byte[] data) {
