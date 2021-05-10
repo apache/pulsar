@@ -122,7 +122,7 @@ public class CmdNonPersistentTopics extends CmdBase {
 
     @Parameters(commandDescription = "Get list of non-persistent topics present under a namespace")
     private class GetList extends CliCommand {
-        @Parameter(description = "tenant/namespaces", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -134,7 +134,7 @@ public class CmdNonPersistentTopics extends CmdBase {
 
     @Parameters(commandDescription = "Get list of non-persistent topics present under a namespace bundle")
     private class GetListInBundle extends CliCommand {
-        @Parameter(description = "tenant/namespaces", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = { "-b",

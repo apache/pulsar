@@ -95,7 +95,7 @@ public class CmdPersistentTopics extends CmdBase {
 
     @Parameters(commandDescription = "Get the list of topics under a namespace.")
     private class ListCmd extends CliCommand {
-        @Parameter(description = "tenant/namespaces", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -107,7 +107,7 @@ public class CmdPersistentTopics extends CmdBase {
 
     @Parameters(commandDescription = "Get the list of partitioned topics under a namespace.")
     private class PartitionedTopicListCmd extends CliCommand {
-        @Parameter(description = "tenant/namespaces", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
