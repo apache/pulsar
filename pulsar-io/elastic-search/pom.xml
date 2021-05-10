@@ -62,7 +62,14 @@
   		<groupId>org.elasticsearch.client</groupId>
   		<artifactId>elasticsearch-rest-high-level-client</artifactId>
   	</dependency>
-  	
+
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>elasticsearch</artifactId>
+      <version>1.15.3</version>
+      <scope>test</scope>
+    </dependency>
+
   	<dependency>
         <groupId>net.andreinc.mockneat</groupId>
         <artifactId>mockneat</artifactId>
@@ -70,11 +77,6 @@
         <scope>test</scope>
     </dependency>
 
-  	<dependency>
-  		<groupId>com.google.code.gson</groupId>
-  		<artifactId>gson</artifactId>
-  		<scope>test</scope>
-  	</dependency>
   </dependencies>
   
   <build>
