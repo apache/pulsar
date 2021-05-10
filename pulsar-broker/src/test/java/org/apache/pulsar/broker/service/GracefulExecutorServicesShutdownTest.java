@@ -23,6 +23,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -148,6 +149,8 @@ public class GracefulExecutorServicesShutdownTest {
         // when
         shutdown.shutdown(executorService);
         CompletableFuture<Void> future = shutdown.handle();
+        // waiting to start awaitTermination
+        verify(executorService, timeout(100).atLeastOnce()).awaitTermination(anyLong(), any());
         future.cancel(false);
 
         // then
