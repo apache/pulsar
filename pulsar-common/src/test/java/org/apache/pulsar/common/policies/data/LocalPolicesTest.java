@@ -18,12 +18,17 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import static org.apache.pulsar.common.policies.data.Policies.defaultBundle;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.google.common.base.Objects;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class LocalPolicesTest {
@@ -48,5 +53,101 @@ public class LocalPolicesTest {
         localPolicy1.bundles.setBoundaries(boundaries0);
         localPolicy1.bundles.setNumBundles(boundaries0.size() - 1);
         assertEquals(localPolicy1, localPolicy0);
+    }
+
+    // only for test
+    class MutableLocalPolicies {
+
+        public BundlesData bundles;
+        // bookie affinity group for bookie-isolation
+        public BookieAffinityGroupData bookieAffinityGroup;
+        // namespace anti-affinity-group
+        public String namespaceAntiAffinityGroup;
+
+        public MutableLocalPolicies() {
+            bundles = defaultBundle();
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hashCode(bundles, bookieAffinityGroup);
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj instanceof LocalPolicies) {
+                LocalPolicies other = (LocalPolicies) obj;
+                return Objects.equal(bundles, other.bundles)
+                        && Objects.equal(bookieAffinityGroup, other.bookieAffinityGroup)
+                        && Objects.equal(namespaceAntiAffinityGroup, other.namespaceAntiAffinityGroup);
+            }
+            return false;
+        }
+
+    }
+
+    // https://github.com/apache/pulsar/pull/9598
+    @Test
+    public void testMakeLocalPoliciesImmutableSerializationCompatibility() throws IOException {
+
+        // no fields
+        MutableLocalPolicies mutableLocalPolicies = new MutableLocalPolicies();
+        LocalPolicies immutableLocalPolicies = new LocalPolicies();
+
+        // serialize and deserialize
+        byte[] data = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(mutableLocalPolicies);
+        LocalPolicies mutableDeserializedPolicies = ObjectMapperFactory.getThreadLocal().readValue(data, LocalPolicies.class);
+
+        Assert.assertEquals(mutableDeserializedPolicies,immutableLocalPolicies);
+
+
+
+
+        // check with set other fields
+        BookieAffinityGroupData bookieAffinityGroupData = new BookieAffinityGroupData("aaa","bbb");
+        String namespaceAntiAffinityGroup = "namespace1,namespace2";
+
+        mutableLocalPolicies.bookieAffinityGroup = bookieAffinityGroupData;
+        mutableLocalPolicies.namespaceAntiAffinityGroup = namespaceAntiAffinityGroup;
+        LocalPolicies immutableLocalPolicies2 = new LocalPolicies(defaultBundle(),bookieAffinityGroupData,namespaceAntiAffinityGroup);
+
+        // serialize and deserialize
+        data = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(mutableLocalPolicies);
+        mutableDeserializedPolicies = ObjectMapperFactory.getThreadLocal().readValue(data, LocalPolicies.class);
+
+        Assert.assertEquals(mutableDeserializedPolicies,immutableLocalPolicies2);
+
+    }
+
+    @Test
+    public void testMakeLocalPoliciesImmutableStringSerializationCompatibility() throws IOException {
+
+        // no fields
+        MutableLocalPolicies mutableLocalPolicies = new MutableLocalPolicies();
+        LocalPolicies immutableLocalPolicies = new LocalPolicies();
+
+        // serialize and deserialize
+        String data = ObjectMapperFactory.getThreadLocal().writeValueAsString(mutableLocalPolicies);
+        LocalPolicies mutableDeserializedPolicies = ObjectMapperFactory.getThreadLocal().readValue(data, LocalPolicies.class);
+
+        Assert.assertEquals(mutableDeserializedPolicies,immutableLocalPolicies);
+
+
+
+
+        // check with set other fields
+        BookieAffinityGroupData bookieAffinityGroupData = new BookieAffinityGroupData("aaa","bbb");
+        String namespaceAntiAffinityGroup = "namespace1,namespace2";
+
+        mutableLocalPolicies.bookieAffinityGroup = bookieAffinityGroupData;
+        mutableLocalPolicies.namespaceAntiAffinityGroup = namespaceAntiAffinityGroup;
+        LocalPolicies immutableLocalPolicies2 = new LocalPolicies(defaultBundle(),bookieAffinityGroupData,namespaceAntiAffinityGroup);
+
+        // serialize and deserialize
+        data = ObjectMapperFactory.getThreadLocal().writeValueAsString(mutableLocalPolicies);
+        mutableDeserializedPolicies = ObjectMapperFactory.getThreadLocal().readValue(data, LocalPolicies.class);
+
+        Assert.assertEquals(mutableDeserializedPolicies,immutableLocalPolicies2);
+
     }
 }

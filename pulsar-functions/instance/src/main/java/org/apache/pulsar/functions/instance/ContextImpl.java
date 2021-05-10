@@ -35,6 +35,8 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+
+import lombok.ToString;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.CompressionType;
@@ -46,6 +48,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.common.functions.ExternalPulsarConfig;
@@ -75,6 +78,7 @@ import static org.apache.pulsar.functions.instance.stats.FunctionStatsManager.US
 /**
  * This class implements the Context interface exposed to the user.
  */
+@ToString
 class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable {
     private InstanceConfig config;
     private Logger logger;
@@ -102,6 +106,8 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     Map<String, String[]> userMetricsLabels = new HashMap<>();
     private final String[] metricsLabels;
     private final Summary userMetricsSummary;
+
+    private final SubscriptionType subscriptionType;
 
     private final static String[] userMetricsLabelNames;
 
@@ -192,6 +198,19 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
             config.getFunctionDetails().getName()
         );
         this.exposePulsarAdminClientEnabled = config.isExposePulsarAdminClientEnabled();
+
+        Function.SourceSpec sourceSpec = config.getFunctionDetails().getSource();
+        switch (sourceSpec.getSubscriptionType()) {
+            case FAILOVER:
+                subscriptionType = SubscriptionType.Failover;
+                break;
+            case KEY_SHARED:
+                subscriptionType = SubscriptionType.Key_Shared;
+                break;
+            default:
+                subscriptionType = SubscriptionType.Shared;
+                break;
+        }
     }
 
     public void setCurrentMessageContext(Record<?> record) {
@@ -437,6 +456,11 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     @Override
     public <O> ConsumerBuilder<O> newConsumerBuilder(Schema<O> schema) throws PulsarClientException {
         return this.externalPulsarClusters.get(defaultPulsarCluster).getClient().newConsumer(schema);
+    }
+
+    @Override
+    public SubscriptionType getSubscriptionType() {
+        return subscriptionType;
     }
 
     public <O> CompletableFuture<Void> publish(String topicName, O object, Schema<O> schema) {

@@ -56,13 +56,20 @@ class ProducerImpl : public HandlerBase,
                  const ProducerConfiguration& producerConfiguration, int32_t partition = -1);
     ~ProducerImpl();
 
-    virtual const std::string& getTopic() const;
-
-    virtual void sendAsync(const Message& msg, SendCallback callback);
-
-    virtual void closeAsync(CloseCallback callback);
-
-    virtual Future<Result, ProducerImplBaseWeakPtr> getProducerCreatedFuture();
+    // overrided methods from ProducerImplBase
+    const std::string& getProducerName() const override;
+    int64_t getLastSequenceId() const override;
+    const std::string& getSchemaVersion() const override;
+    void sendAsync(const Message& msg, SendCallback callback) override;
+    void closeAsync(CloseCallback callback) override;
+    void start() override;
+    void shutdown() override;
+    bool isClosed() override;
+    const std::string& getTopic() const override;
+    Future<Result, ProducerImplBaseWeakPtr> getProducerCreatedFuture() override;
+    void triggerFlush() override;
+    void flushAsync(FlushCallback callback) override;
+    bool isConnected() const override;
 
     bool removeCorruptMessage(uint64_t sequenceId);
 
@@ -70,25 +77,9 @@ class ProducerImpl : public HandlerBase,
 
     virtual void disconnectProducer();
 
-    const std::string& getProducerName() const;
-
-    int64_t getLastSequenceId() const;
-
-    const std::string& getSchemaVersion() const;
-
     uint64_t getProducerId() const;
 
     int32_t partition() const noexcept { return partition_; }
-
-    virtual void start();
-
-    virtual void shutdown();
-
-    virtual bool isClosed();
-
-    virtual void triggerFlush();
-
-    virtual void flushAsync(FlushCallback callback);
 
    protected:
     ProducerStatsBasePtr producerStatsBasePtr_;
@@ -108,12 +99,11 @@ class ProducerImpl : public HandlerBase,
     friend class BatchMessageContainerBase;
     friend class BatchMessageContainer;
 
-    virtual void connectionOpened(const ClientConnectionPtr& connection);
-    virtual void connectionFailed(Result result);
-
-    virtual HandlerBaseWeakPtr get_weak_from_this() { return shared_from_this(); }
-
-    const std::string& getName() const;
+    // overrided methods from HandlerBase
+    void connectionOpened(const ClientConnectionPtr& connection) override;
+    void connectionFailed(Result result) override;
+    HandlerBaseWeakPtr get_weak_from_this() override { return shared_from_this(); }
+    const std::string& getName() const override { return producerStr_; }
 
    private:
     void printStats();

@@ -31,6 +31,7 @@ DEFAULT_STANDALONE_CONF=$PULSAR_HOME/conf/standalone.conf
 DEFAULT_WEBSOCKET_CONF=$PULSAR_HOME/conf/websocket.conf
 DEFAULT_LOG_CONF=$PULSAR_HOME/conf/log4j2.yaml
 DEFAULT_PULSAR_PRESTO_CONF=${PULSAR_HOME}/conf/presto
+DEFAULT_FUNCTIONS_LOG_CONF=$PULSAR_HOME/conf/functions_log4j2.xml
 
 # functions related variables
 FUNCTIONS_HOME=$PULSAR_HOME/pulsar-functions
@@ -157,6 +158,7 @@ where command is one of:
 or command is the full name of a class with a defined main() method.
 
 Environment variables:
+   FUNCTIONS_LOG_CONF            Function Log4j configuration file (default $DEFAULT_FUNCTIONS_LOG_CONF)
    PULSAR_LOG_CONF               Log4j configuration file (default $DEFAULT_LOG_CONF)
    PULSAR_BROKER_CONF            Configuration file for broker (default: $DEFAULT_BROKER_CONF)
    PULSAR_BOOKKEEPER_CONF        Configuration file for bookie (default: $DEFAULT_BOOKKEEPER_CONF)
@@ -264,6 +266,10 @@ if [ -z "$PULSAR_PRESTO_CONF" ]; then
     PULSAR_PRESTO_CONF=$DEFAULT_PULSAR_PRESTO_CONF
 fi
 
+if [ -z "$FUNCTIONS_LOG_CONF"]; then
+  FUNCTIONS_LOG_CONF=$DEFAULT_FUNCTIONS_LOG_CONF
+fi
+
 PULSAR_CLASSPATH="$PULSAR_JAR:$PULSAR_CLASSPATH:$PULSAR_EXTRA_CLASSPATH"
 PULSAR_CLASSPATH="`dirname $PULSAR_LOG_CONF`:$PULSAR_CLASSPATH"
 OPTS="$OPTS -Dlog4j.configurationFile=`basename $PULSAR_LOG_CONF`"
@@ -305,7 +311,7 @@ OPTS="$OPTS -Dpulsar.functions.java.instance.jar=${JAVA_INSTANCE_JAR}"
 OPTS="$OPTS -Dpulsar.functions.python.instance.file=${PY_INSTANCE_FILE}"
 OPTS="$OPTS -Dpulsar.functions.extra.dependencies.dir=${FUNCTIONS_EXTRA_DEPS_DIR}"
 OPTS="$OPTS -Dpulsar.functions.instance.classpath=${PULSAR_CLASSPATH}"
-
+OPTS="$OPTS -Dpulsar.functions.log.conf=${FUNCTIONS_LOG_CONF}"
 
 ZK_OPTS=" -Dzookeeper.4lw.commands.whitelist=* -Dzookeeper.snapshot.trust.empty=true"
 

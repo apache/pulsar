@@ -1239,6 +1239,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             totalChunks = 0;
             chunkId = -1;
             uncompressedSize = 0;
+            retryCount = 0;
+            batchSizeByte = 0;
+            numMessagesInBatch = 1;
             recyclerHandle.recycle(this);
         }
 

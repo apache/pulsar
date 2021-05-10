@@ -368,9 +368,9 @@ public class PulsarStandalone implements AutoCloseable {
 
     private void createSampleNameSpace(ClusterData clusterData, String cluster) {
         // Create a sample namespace
-        final String property = "sample";
+        final String tenant = "sample";
         final String globalCluster = "global";
-        final String namespace = property + "/" + cluster + "/ns1";
+        final String namespace = tenant + "/ns1";
         try {
             if (!admin.clusters().getClusters().contains(cluster)) {
                 admin.clusters().createCluster(cluster, clusterData);
@@ -385,12 +385,12 @@ public class PulsarStandalone implements AutoCloseable {
                 admin.clusters().createCluster(globalCluster, new ClusterData(null, null));
             }
 
-            if (!admin.tenants().getTenants().contains(property)) {
-                admin.tenants().createTenant(property,
+            if (!admin.tenants().getTenants().contains(tenant)) {
+                admin.tenants().createTenant(tenant,
                         new TenantInfo(Sets.newHashSet(config.getSuperUserRoles()), Sets.newHashSet(cluster)));
             }
 
-            if (!admin.namespaces().getNamespaces(property).contains(namespace)) {
+            if (!admin.namespaces().getNamespaces(tenant).contains(namespace)) {
                 admin.namespaces().createNamespace(namespace);
             }
         } catch (PulsarAdminException e) {

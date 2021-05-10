@@ -171,7 +171,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             @Override
             public void addFailed(ManagedLedgerException exception, Object ctx) {
                 log.error("Failed to append buffer to txn {}", txnId, exception);
-                completableFuture.completeExceptionally(exception);
+                completableFuture.completeExceptionally(new PersistenceException(exception));
             }
         }, null);
         return completableFuture;

@@ -81,6 +81,7 @@ import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantOperation;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.path.PolicyPath;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -780,10 +781,6 @@ public abstract class PulsarWebResource {
         return null;
     }
 
-    protected void checkConnect(TopicName topicName) throws Exception {
-        checkAuthorization(pulsar(), topicName, clientAppId(), clientAuthData());
-    }
-
     protected static void checkAuthorization(PulsarService pulsarService, TopicName topicName, String role,
             AuthenticationDataSource authenticationData) throws Exception {
         if (!pulsarService.getConfiguration().isAuthorizationEnabled()) {
@@ -791,8 +788,8 @@ public abstract class PulsarWebResource {
             return;
         }
         // get zk policy manager
-        if (!pulsarService.getBrokerService().getAuthorizationService().canLookup(topicName, role,
-                authenticationData)) {
+        if (!pulsarService.getBrokerService().getAuthorizationService().allowTopicOperation(topicName,
+                TopicOperation.LOOKUP, null, role, authenticationData)) {
             log.warn("[{}] Role {} is not allowed to lookup topic", topicName, role);
             throw new RestException(Status.UNAUTHORIZED, "Don't have permission to connect to this namespace");
         }
@@ -1038,6 +1035,50 @@ public abstract class PulsarWebResource {
             URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(host).port(port).build();
             log.debug("[{}] Redirecting the rest call to {}: broker={}", clientAppId(), redirect, broker);
             throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+
+        }
+    }
+
+    public void validateTopicPolicyOperation(TopicName topicName, PolicyName policy, PolicyOperation operation) {
+        if (pulsar().getConfiguration().isAuthenticationEnabled()
+                && pulsar().getBrokerService().isAuthorizationEnabled()) {
+            if (!isClientAuthenticated(clientAppId())) {
+                throw new RestException(Status.FORBIDDEN, "Need to authenticate to perform the request");
+            }
+
+            Boolean isAuthorized = pulsar().getBrokerService().getAuthorizationService()
+                    .allowTopicPolicyOperation(topicName, policy, operation, originalPrincipal(), clientAppId(),
+                            clientAuthData());
+
+            if (!isAuthorized) {
+                throw new RestException(Status.FORBIDDEN, String.format("Unauthorized to validateTopicPolicyOperation"
+                        + " for operation [%s] on topic [%s] on policy [%s]", operation.toString(),
+                        topicName, policy.toString()));
+            }
+        }
+    }
+
+    public void validateTopicOperation(TopicName topicName, TopicOperation operation) {
+        validateTopicOperation(topicName, operation, null);
+    }
+
+    public void validateTopicOperation(TopicName topicName, TopicOperation operation, String subscription) {
+        if (pulsar().getConfiguration().isAuthenticationEnabled()
+                && pulsar().getBrokerService().isAuthorizationEnabled()) {
+            if (!isClientAuthenticated(clientAppId())) {
+                throw new RestException(Status.UNAUTHORIZED, "Need to authenticate to perform the request");
+            }
+
+            AuthenticationDataHttps authData = clientAuthData();
+            authData.setSubscription(subscription);
+
+            Boolean isAuthorized = pulsar().getBrokerService().getAuthorizationService()
+                    .allowTopicOperation(topicName, operation, originalPrincipal(), clientAppId(), authData);
+
+            if (!isAuthorized) {
+                throw new RestException(Status.UNAUTHORIZED, String.format("Unauthorized to validateTopicOperation for"
+                        + " operation [%s] on topic [%s]", operation.toString(), topicName));
+            }
         }
     }
 

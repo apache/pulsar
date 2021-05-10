@@ -19,6 +19,7 @@
 package org.apache.pulsar.tests.integration.presto;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
 import java.nio.ByteBuffer;
@@ -37,6 +38,7 @@ import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
+import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -145,6 +147,19 @@ public class TestBasicPresto extends TestPulsarSQLBase {
             assertTrue(e.getResult().getStderr().contains(topic2));
             assertTrue(e.getResult().getStderr().contains("matched the table name public/default/" + tableName));
         }
+    }
+
+    @Test
+    public void testListTopicShouldNotShowNonPersistentTopics() throws Exception {
+        String tableName = "non_persistent" + randomName(5);
+
+        String topic1 = "non-persistent://public/default/" + tableName.toUpperCase();
+        TopicName topicName1 = TopicName.get(topic1);
+        prepareData(topicName1, false, false, JSONSchema.of(Stock.class));
+
+        String query = "show tables from pulsar.\"public/default\"";
+        ContainerExecResult result = execQuery(query);
+        assertFalse(result.getStdout().contains("non_persistent"));
     }
 
     @Override

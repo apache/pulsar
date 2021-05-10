@@ -178,7 +178,7 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
                 return LocalDateTimeSchema.of();
             case JSON:
             case AVRO:
-                return GenericSchemaImpl.of(schemaInfo);
+                return GenericSchemaImpl.of(schemaInfo, false);
             case PROTOBUF_NATIVE:
                 return GenericProtobufNativeSchema.of(schemaInfo);
             case KEY_VALUE:

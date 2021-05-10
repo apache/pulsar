@@ -207,6 +207,12 @@ module.exports = {
       roles: 'Committer, PMC'
     },
     {
+      name: 'Yuto Furuta',
+      apacheId: 'k2la',
+      org: 'Yahoo Japan Corporation',
+      roles: 'Committer'
+    },
+    {
       name: 'Yong Zhang',
       apacheId: 'yong',
       org: 'StreamNative',

@@ -51,39 +51,39 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
     MultiTopicsConsumerImpl(ClientImplPtr client, const std::vector<std::string>& topics,
                             const std::string& subscriptionName, TopicNamePtr topicName,
                             const ConsumerConfiguration& conf, const LookupServicePtr lookupServicePtr_);
-    virtual ~MultiTopicsConsumerImpl();
-    virtual Future<Result, ConsumerImplBaseWeakPtr> getConsumerCreatedFuture();
-    virtual const std::string& getSubscriptionName() const;
-    virtual const std::string& getTopic() const;
-    virtual const std::string& getName() const;
-    virtual Result receive(Message& msg);
-    virtual Result receive(Message& msg, int timeout);
-    virtual void receiveAsync(ReceiveCallback& callback);
-    virtual void unsubscribeAsync(ResultCallback callback);
-    virtual void acknowledgeAsync(const MessageId& msgId, ResultCallback callback);
-    virtual void acknowledgeCumulativeAsync(const MessageId& msgId, ResultCallback callback);
-    virtual void closeAsync(ResultCallback callback);
-    virtual void start();
-    virtual void shutdown();
-    virtual bool isClosed();
-    virtual bool isOpen();
-    virtual Result pauseMessageListener();
-    virtual Result resumeMessageListener();
-    virtual void redeliverUnacknowledgedMessages();
-    virtual void redeliverUnacknowledgedMessages(const std::set<MessageId>& messageIds);
-    virtual int getNumOfPrefetchedMessages() const;
-    virtual void getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callback);
+    ~MultiTopicsConsumerImpl();
+    // overrided methods from ConsumerImplBase
+    Future<Result, ConsumerImplBaseWeakPtr> getConsumerCreatedFuture() override;
+    const std::string& getSubscriptionName() const override;
+    const std::string& getTopic() const override;
+    Result receive(Message& msg) override;
+    Result receive(Message& msg, int timeout) override;
+    void receiveAsync(ReceiveCallback& callback) override;
+    void unsubscribeAsync(ResultCallback callback) override;
+    void acknowledgeAsync(const MessageId& msgId, ResultCallback callback) override;
+    void acknowledgeCumulativeAsync(const MessageId& msgId, ResultCallback callback) override;
+    void closeAsync(ResultCallback callback) override;
+    void start() override;
+    void shutdown() override;
+    bool isClosed() override;
+    bool isOpen() override;
+    Result pauseMessageListener() override;
+    Result resumeMessageListener() override;
+    void redeliverUnacknowledgedMessages() override;
+    void redeliverUnacknowledgedMessages(const std::set<MessageId>& messageIds) override;
+    const std::string& getName() const override;
+    int getNumOfPrefetchedMessages() const override;
+    void getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callback) override;
+    void seekAsync(const MessageId& msgId, ResultCallback callback) override;
+    void seekAsync(uint64_t timestamp, ResultCallback callback) override;
+    void negativeAcknowledge(const MessageId& msgId) override;
+    bool isConnected() const override;
     void handleGetConsumerStats(Result, BrokerConsumerStats, LatchPtr, MultiTopicsBrokerConsumerStatsPtr,
                                 size_t, BrokerConsumerStatsCallback);
     // return first topic name when all topics name valid, or return null pointer
     static std::shared_ptr<TopicName> topicNamesValid(const std::vector<std::string>& topics);
     void unsubscribeOneTopicAsync(const std::string& topic, ResultCallback callback);
     Future<Result, Consumer> subscribeOneTopicAsync(const std::string& topic);
-    // not supported
-    virtual void seekAsync(const MessageId& msgId, ResultCallback callback);
-    virtual void seekAsync(uint64_t timestamp, ResultCallback callback);
-
-    virtual void negativeAcknowledge(const MessageId& msgId);
 
    protected:
     const ClientImplPtr client_;
@@ -94,7 +94,7 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
     typedef std::map<std::string, ConsumerImplPtr> ConsumerMap;
     ConsumerMap consumers_;
     std::map<std::string, int> topicsPartitions_;
-    std::mutex mutex_;
+    mutable std::mutex mutex_;
     std::mutex pendingReceiveMutex_;
     MultiTopicsConsumerState state_;
     std::shared_ptr<std::atomic<int>> numberTopicPartitions_;
@@ -136,7 +136,7 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
                                          std::string& topicPartitionName, ResultCallback callback);
 
    private:
-    virtual void setNegativeAcknowledgeEnabledForTesting(bool enabled);
+    void setNegativeAcknowledgeEnabledForTesting(bool enabled) override;
 
     FRIEND_TEST(ConsumerTest, testMultiTopicsConsumerUnAckedMessageRedelivery);
 };

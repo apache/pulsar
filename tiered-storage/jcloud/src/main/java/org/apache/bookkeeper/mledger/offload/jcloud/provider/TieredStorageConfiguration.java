@@ -75,6 +75,8 @@ public class TieredStorageConfiguration {
     protected static final int MB = 1024 * 1024;
 
     public static final String GCS_ACCOUNT_KEY_FILE_FIELD = "gcsManagedLedgerOffloadServiceAccountKeyFile";
+    public static final String S3_ID_FIELD = "s3ManagedLedgerOffloadCredentialId";
+    public static final String S3_SECRET_FIELD = "s3ManagedLedgerOffloadCredentialSecret";
     public static final String S3_ROLE_FIELD = "s3ManagedLedgerOffloadRole";
     public static final String S3_ROLE_SESSION_NAME_FIELD = "s3ManagedLedgerOffloadRoleSessionName";
 

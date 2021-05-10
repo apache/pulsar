@@ -602,13 +602,17 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     @Override
     public void redeliverUnacknowledgedMessages() {
-        consumers.values().stream().forEach(consumer -> {
-            consumer.redeliverUnacknowledgedMessages();
-            consumer.unAckedChunkedMessageIdSequenceMap.clear();
-        });
-        clearIncomingMessages();
-        unAckedMessageTracker.clear();
-
+        lock.writeLock().lock();
+        try {
+            consumers.values().stream().forEach(consumer -> {
+                consumer.redeliverUnacknowledgedMessages();
+                consumer.unAckedChunkedMessageIdSequenceMap.clear();
+            });
+            clearIncomingMessages();
+            unAckedMessageTracker.clear();
+        } finally {
+            lock.writeLock().unlock();
+        }
         resumeReceivingFromPausedConsumersIfNeeded();
     }
 

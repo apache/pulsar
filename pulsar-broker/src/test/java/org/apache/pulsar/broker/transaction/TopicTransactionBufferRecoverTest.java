@@ -181,7 +181,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         assertNull(message);
         admin.topics().unload(RECOVER_COMMIT);
 
-        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> {
+        Awaitility.await().until(() -> {
             for (int i = 0; i < getPulsarServiceList().size(); i++) {
                 Field field = BrokerService.class.getDeclaredField("topics");
                 field.setAccessible(true);
