@@ -37,6 +37,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
+import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckReplyCallBack;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.proto.PendingAckMetadata;
@@ -205,8 +206,8 @@ public class MLPendingAckStore implements PendingAckStore {
             @Override
             public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}][{}] MLPendingAckStore message append success at {}, operation : {}",
-                            managedLedger.getName(), ctx, position, pendingAckMetadataEntry.getPendingAckOp());
+                    log.debug("[{}][{}] MLPendingAckStore message append success at {} txnId: {}, operation : {}",
+                            managedLedger.getName(), ctx, position, txnID, pendingAckMetadataEntry.getPendingAckOp());
                 }
                 // store the persistent position in to memory
                 if (pendingAckMetadataEntry.getPendingAckOp() != PendingAckOp.ABORT
@@ -272,7 +273,7 @@ public class MLPendingAckStore implements PendingAckStore {
                 log.error("[{}][{}] MLPendingAckStore message append fail exception : {}, operation : {}",
                         managedLedger.getName(), ctx, exception, pendingAckMetadataEntry.getPendingAckOp());
                 buf.release();
-                completableFuture.completeExceptionally(exception);
+                completableFuture.completeExceptionally(new PersistenceException(exception));
             }
         } , null);
         return completableFuture;

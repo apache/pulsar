@@ -220,7 +220,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                         // it will produce the wrong operation. so we append fail,
                         // we should wait tc time out or client abort this transaction.
                         handleIndividualAck(txnID, positions);
-                        completableFuture.completeExceptionally(e);
+                        completableFuture.completeExceptionally(e.getCause());
                     }
                     return null;
                 })).exceptionally(e -> {
@@ -287,7 +287,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                     // state, when wereplay it, it will produce the wrong operation. so we append fail, we should
                     // wait tc time out or client abort this transaction.
                     handleCumulativeAck(txnID, position);
-                    completableFuture.completeExceptionally(e);
+                    completableFuture.completeExceptionally(e.getCause());
                     return null;
                 })
         ).exceptionally(e -> {
@@ -354,7 +354,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                     }).exceptionally(e -> {
                         log.error("[{}] Transaction pending ack store commit txnId : [{}] fail!",
                                 topicName, txnID, e);
-                        commitFuture.completeExceptionally(e);
+                        commitFuture.completeExceptionally(e.getCause());
                         return null;
                     })).exceptionally(e -> {
                 commitFuture.completeExceptionally(e);
