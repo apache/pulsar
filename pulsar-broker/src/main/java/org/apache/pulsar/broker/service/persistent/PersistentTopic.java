@@ -713,7 +713,7 @@ public class PersistentTopic extends AbstractTopic
             lock.readLock().unlock();
         }
 
-        CompletableFuture<? extends Subscription> subscriptionFuture = isDurable ?
+        CompletableFuture<? extends Subscription> subscriptionFuture = isDurable ? //
                 getDurableSubscription(subscriptionName, initialPosition, startMessageRollbackDurationSec,
                         replicatedSubscriptionState)
                 : getNonDurableSubscription(subscriptionName, startMessageId, initialPosition,
@@ -913,8 +913,8 @@ public class PersistentTopic extends AbstractTopic
         final Subscription finalSubscription = subscription;
         subscription.resetCursor(timestamp).handle((s, ex) -> {
             if (ex != null) {
-                log.warn("[{}] Failed to reset cursor {} position at timestamp {}, caused by {}", topic, subscription.getName(),
-                        startMessageRollbackDurationSec, ex.getMessage());
+                log.warn("[{}] Failed to reset cursor {} position at timestamp {}, caused by {}", topic,
+                        subscription.getName(), startMessageRollbackDurationSec, ex.getMessage());
             }
             subscriptionFuture.complete(finalSubscription);
             return null;
