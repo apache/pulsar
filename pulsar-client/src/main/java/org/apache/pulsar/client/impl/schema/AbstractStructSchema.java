@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl.schema;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
-;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
@@ -119,10 +118,15 @@ public abstract class AbstractStructSchema<T> extends AbstractSchema<T> {
                                       AbstractStructSchema<T> parent) {
             super(schemaInfo);
             this.schemaVersion = schemaVersion;
-            this.writer = parent.writer;
+            this.writer = null;
             this.reader = parent.reader;
             this.schemaInfoProvider = parent.schemaInfoProvider;
             this.parent = parent;
+        }
+
+        @Override
+        public boolean requireFetchingSchemaInfo() {
+            return true;
         }
 
         @Override

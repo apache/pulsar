@@ -228,7 +228,6 @@ public class KeyValueSchema<K, V> extends AbstractSchema<KeyValue<K, V>> {
         this.schemaInfo = KeyValueSchemaInfo.encodeKeyValueSchemaInfo(
             keySchema, valueSchema, keyValueEncodingType
         );
-
         this.keySchema.setSchemaInfoProvider(new SchemaInfoProvider() {
             @Override
             public CompletableFuture<SchemaInfo> getSchemaByVersion(byte[] schemaVersion) {
@@ -283,4 +282,5 @@ public class KeyValueSchema<K, V> extends AbstractSchema<KeyValue<K, V>> {
             return KeyValueSchema.of(keySchema, valueSchema, keyValueEncodingType);
         }
     }
+
 }
