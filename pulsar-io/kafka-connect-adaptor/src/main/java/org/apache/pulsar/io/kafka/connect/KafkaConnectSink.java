@@ -35,6 +35,7 @@ import org.apache.kafka.connect.sink.SinkConnector;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.kafka.connect.sink.SinkTask;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -159,6 +160,9 @@ public class KafkaConnectSink implements Sink<GenericObject> {
     public void open(Map<String, Object> config, SinkContext ctx) throws Exception {
         kafkaSinkConfig = PulsarKafkaConnectSinkConfig.load(config);
         Objects.requireNonNull(kafkaSinkConfig.getTopic(), "Kafka topic is not set");
+        Preconditions.checkArgument(ctx.getSubscriptionType() == SubscriptionType.Failover
+                || ctx.getSubscriptionType() == SubscriptionType.Exclusive,
+                "Source must run with Exclusive or Failover subscription type");
         topicName = kafkaSinkConfig.getTopic();
         unwrapKeyValueIfAvailable = kafkaSinkConfig.isUnwrapKeyValueIfAvailable();
 
