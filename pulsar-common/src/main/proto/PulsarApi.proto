@@ -256,6 +256,7 @@ enum ProtocolVersion {
     v15 = 15; // Add CommandGetOrCreateSchema and CommandGetOrCreateSchemaResponse
     v16 = 16; // Add support for raw message metadata
     v17 = 17; // Added support ack receipt
+    v18 = 18; // Added ProducerStatsKey
 }
 
 message CommandConnect {
@@ -481,6 +482,8 @@ message CommandProducer {
     // leave it empty and then it will always carry the same epoch number on
     // the subsequent reconnections.
     optional uint64 topic_epoch = 11;
+
+    optional string producer_stats_key = 12;
 }
 
 message CommandSend {
@@ -629,6 +632,8 @@ message CommandProducerSuccess {
     // for creating the producer. Instead it will wait indefinitely until it gets
     // a subsequent  `CommandProducerSuccess` with `producer_ready==true`.
     optional bool producer_ready = 6 [default = true];
+
+    optional string producer_stats_key = 7;
 }
 
 message CommandError {

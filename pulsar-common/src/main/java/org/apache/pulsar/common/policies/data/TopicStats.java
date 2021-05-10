@@ -23,6 +23,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Statistics for a Pulsar topic.
@@ -142,16 +143,19 @@ public class TopicStats {
         this.offloadedStorageSize += stats.offloadedStorageSize;
         this.nonContiguousDeletedMessagesRanges += stats.nonContiguousDeletedMessagesRanges;
         this.nonContiguousDeletedMessagesRangesSerializedSize += stats.nonContiguousDeletedMessagesRangesSerializedSize;
-        if (this.publishers.size() != stats.publishers.size()) {
-            for (int i = 0; i < stats.publishers.size(); i++) {
-                PublisherStats publisherStats = new PublisherStats();
-                this.publishers.add(publisherStats.add(stats.publishers.get(i)));
+
+        stats.publishers.forEach((s) -> {
+            final Optional<PublisherStats> optionalStats = this.publishers.stream().filter(e -> e.producerStatsKey.equals(s.producerStatsKey))
+                    .findFirst();
+            if (optionalStats.isPresent()) {
+                optionalStats.ifPresent(e -> e.add(s));
+            } else {
+                final PublisherStats newStats = new PublisherStats();
+                newStats.add(s);
+                this.publishers.add(newStats);
             }
-        } else {
-            for (int i = 0; i < stats.publishers.size(); i++) {
-                this.publishers.get(i).add(stats.publishers.get(i));
-            }
-        }
+        });
+
         if (this.subscriptions.size() != stats.subscriptions.size()) {
             for (String subscription : stats.subscriptions.keySet()) {
                 SubscriptionStats subscriptionStats = new SubscriptionStats();
@@ -184,5 +188,4 @@ public class TopicStats {
         }
         return this;
     }
-
 }

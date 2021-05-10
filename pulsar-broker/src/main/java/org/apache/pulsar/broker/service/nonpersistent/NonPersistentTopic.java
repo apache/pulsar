@@ -34,6 +34,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
@@ -744,6 +745,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
         ObjectObjectHashMap<String, PublisherStats> remotePublishersStats = new ObjectObjectHashMap<>();
 
+        final AtomicInteger nonKeyCounter = new AtomicInteger(0);
         producers.values().forEach(producer -> {
             NonPersistentPublisherStats publisherStats = (NonPersistentPublisherStats) producer.getStats();
             stats.msgRateIn += publisherStats.msgRateIn;
@@ -752,7 +754,13 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
             if (producer.isRemote()) {
                 remotePublishersStats.put(producer.getRemoteCluster(), publisherStats);
             } else {
-                stats.getPublishers().add(publisherStats);
+                if (publisherStats.producerStatsKey == null) {
+                    final NonPersistentPublisherStats copyStats = (NonPersistentPublisherStats) publisherStats.clone();
+                    copyStats.producerStatsKey = String.valueOf(nonKeyCounter.getAndIncrement());
+                    stats.publishers.add(copyStats);
+                } else {
+                    stats.publishers.add(publisherStats);
+                }
             }
         });
 

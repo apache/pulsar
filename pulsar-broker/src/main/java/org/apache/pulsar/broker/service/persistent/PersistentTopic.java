@@ -42,6 +42,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiFunction;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -1692,6 +1693,7 @@ public class PersistentTopic extends AbstractTopic
 
         ObjectObjectHashMap<String, PublisherStats> remotePublishersStats = new ObjectObjectHashMap<>();
 
+        final AtomicInteger nonKeyCounter = new AtomicInteger(0);
         producers.values().forEach(producer -> {
             PublisherStats publisherStats = producer.getStats();
             stats.msgRateIn += publisherStats.msgRateIn;
@@ -1700,7 +1702,13 @@ public class PersistentTopic extends AbstractTopic
             if (producer.isRemote()) {
                 remotePublishersStats.put(producer.getRemoteCluster(), publisherStats);
             } else {
-                stats.publishers.add(publisherStats);
+                if (publisherStats.producerStatsKey == null) {
+                    final PublisherStats copyStats = publisherStats.clone();
+                    copyStats.producerStatsKey = String.valueOf(nonKeyCounter.getAndIncrement());
+                    stats.publishers.add(copyStats);
+                } else {
+                    stats.publishers.add(publisherStats);
+                }
             }
         });
 

@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.admin.impl.PersistentTopicsBase.unsafeGetPartitionedTopicMetadataAsync;
 import static org.apache.pulsar.broker.lookup.TopicLookupBase.lookupTopicAsync;
+import static org.apache.pulsar.common.api.proto.ProtocolVersion.v18;
 import static org.apache.pulsar.common.api.proto.ProtocolVersion.v5;
 import static org.apache.pulsar.common.protocol.Commands.newLookupErrorResponse;
 import com.google.common.annotations.VisibleForTesting;
@@ -1081,6 +1082,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final ProducerAccessMode producerAccessMode = cmdProducer.getProducerAccessMode();
         final Optional<Long> topicEpoch = cmdProducer.hasTopicEpoch()
                 ? Optional.of(cmdProducer.getTopicEpoch()) : Optional.empty();
+        final Optional<String> producerStatsKey = cmdProducer.hasProducerStatsKey()
+                ? Optional.of(cmdProducer.getProducerStatsKey())
+                : getRemoteEndpointProtocolVersion() >= v18.getValue()
+                    ? Optional.of(service.generateUniqueProducerStatsKey())
+                    : Optional.empty();
 
         TopicName topicName = validateTopicName(cmdProducer.getTopic(), requestId, cmdProducer);
         if (topicName == null) {
@@ -1114,7 +1120,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 log.info("[{}] Producer with the same id is already created:"
                                          + " producerId={}, producer={}", remoteAddress, producerId, producer);
                                 commandSender.sendProducerSuccessResponse(requestId, producer.getProducerName(),
-                                        producer.getSchemaVersion());
+                                        producer.getSchemaVersion(), producer.getProducerStatsKey());
 
                                 return null;
                             } else {
@@ -1193,8 +1199,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             schemaVersionFuture.thenAccept(schemaVersion -> {
                                 CompletableFuture<Void> producerQueuedFuture = new CompletableFuture<>();
                                 Producer producer = new Producer(topic, ServerCnx.this, producerId, producerName,
-                                        getPrincipal(), isEncrypted, metadata, schemaVersion, epoch,
-                                        userProvidedProducerName, producerAccessMode, topicEpoch);
+                                        getPrincipal(), isEncrypted, metadata, schemaVersion,
+                                        epoch, userProvidedProducerName, producerAccessMode, topicEpoch,
+                                        producerStatsKey);
 
                                 topic.addProducer(producer, producerQueuedFuture).thenAccept(newTopicEpoch -> {
                                     if (isActive()) {
@@ -1202,7 +1209,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                             log.info("[{}] Created new producer: {}", remoteAddress, producer);
                                             commandSender.sendProducerSuccessResponse(requestId, producerName,
                                                     producer.getLastSequenceId(), producer.getSchemaVersion(),
-                                                    newTopicEpoch, true /* producer is ready now */);
+                                                    newTopicEpoch, true /* producer is ready now */,
+                                                    producerStatsKey);
                                             return;
                                         } else {
                                             // The producer's future was completed before by
@@ -1241,7 +1249,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                         log.info("[{}] Producer is waiting in queue: {}", remoteAddress, producer);
                                         commandSender.sendProducerSuccessResponse(requestId, producerName,
                                                 producer.getLastSequenceId(), producer.getSchemaVersion(),
-                                                Optional.empty(), false/* producer is not ready now */);
+                                                Optional.empty(), false/* producer is not ready now */,
+                                                producerStatsKey);
                                     }
                                 });
                             });

@@ -31,4 +31,5 @@ public class ProducerResponse {
     private byte[] schemaVersion;
 
     private Optional<Long> topicEpoch;
+    private String producerStatsKey;
 }

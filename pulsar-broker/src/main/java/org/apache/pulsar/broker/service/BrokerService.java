@@ -240,8 +240,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     protected volatile PublishRateLimiter brokerPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
 
     private DistributedIdGenerator producerNameGenerator;
+    private DistributedIdGenerator producerStatsKeyGenerator;
 
     public final static String PRODUCER_NAME_GENERATOR_PATH = "/counters/producer-name";
+    public final static String PRODUCER_STATS_KEY_GENERATOR_PATH = "/counters/producer-stats-key";
 
     private final BacklogQuotaManager backlogQuotaManager;
 
@@ -432,6 +434,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public void start() throws Exception {
         this.producerNameGenerator = new DistributedIdGenerator(pulsar.getCoordinationService(),
                 PRODUCER_NAME_GENERATOR_PATH, pulsar.getConfiguration().getClusterName());
+        this.producerStatsKeyGenerator = new DistributedIdGenerator(pulsar.getCoordinationService(),
+                PRODUCER_STATS_KEY_GENERATOR_PATH, pulsar.getConfiguration().getClusterName());
 
         ServerBootstrap bootstrap = defaultServerBootstrap.clone();
 
@@ -1839,6 +1843,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     public String generateUniqueProducerName() {
         return producerNameGenerator.getNextId();
+    }
+
+    public String generateUniqueProducerStatsKey() {
+        return producerStatsKeyGenerator.getNextId();
     }
 
     public Map<String, TopicStats> getTopicStats() {

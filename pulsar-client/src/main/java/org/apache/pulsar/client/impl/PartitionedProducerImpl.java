@@ -35,6 +35,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -69,6 +70,8 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
     private volatile Timeout partitionsAutoUpdateTimeout = null;
     TopicsPartitionChangedListener topicsPartitionChangedListener;
     CompletableFuture<Void> partitionsAutoUpdateFuture = null;
+
+    private String producerStatsKey = null;
 
     public PartitionedProducerImpl(PulsarClientImpl client, String topic, ProducerConfigurationData conf, int numPartitions,
             CompletableFuture<Producer<T>> producerCreatedFuture, Schema<T> schema, ProducerInterceptors interceptors) {
@@ -140,41 +143,55 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
         AtomicReference<Throwable> createFail = new AtomicReference<Throwable>();
         AtomicInteger completed = new AtomicInteger();
 
-        for (int partitionIndex : indexList) {
-            createProducer(partitionIndex).handle((prod, createException) -> {
-                if (createException != null) {
-                    setState(State.Failed);
-                    createFail.compareAndSet(null, createException);
+        final Consumer<Throwable> after = (createException) -> {
+            if (createException != null) {
+                setState(State.Failed);
+                createFail.compareAndSet(null, createException);
+            }
+            // we mark success if all the partitions are created
+            // successfully, else we throw an exception
+            // due to any
+            // failure in one of the partitions and close the successfully
+            // created partitions
+            if (completed.incrementAndGet() == indexList.size()) {
+                if (createFail.get() == null) {
+                    setState(State.Ready);
+                    log.info("[{}] Created partitioned producer", topic);
+                    producerCreatedFuture().complete(PartitionedProducerImpl.this);
+                } else {
+                    log.error("[{}] Could not create partitioned producer.", topic, createFail.get().getCause());
+                    closeAsync().handle((ok, closeException) -> {
+                        producerCreatedFuture().completeExceptionally(createFail.get());
+                        client.cleanupProducer(this);
+                        return null;
+                    });
                 }
-                // we mark success if all the partitions are created
-                // successfully, else we throw an exception
-                // due to any
-                // failure in one of the partitions and close the successfully
-                // created partitions
-                if (completed.incrementAndGet() == indexList.size()) {
-                    if (createFail.get() == null) {
-                        setState(State.Ready);
-                        log.info("[{}] Created partitioned producer", topic);
-                        producerCreatedFuture().complete(PartitionedProducerImpl.this);
-                    } else {
-                        log.error("[{}] Could not create partitioned producer.", topic, createFail.get().getCause());
-                        closeAsync().handle((ok, closeException) -> {
-                            producerCreatedFuture().completeExceptionally(createFail.get());
-                            client.cleanupProducer(this);
-                            return null;
-                        });
-                    }
-                }
+            }
+        };
 
-                return null;
-            });
-        }
+        createProducer(indexList.get(0)).handle((prod, createException) -> {
+            producerStatsKey = producers.get(indexList.get(0)).getProducerStatsKey();
+            after.accept(createException);
+            return Optional.ofNullable(producerStatsKey);
+        }).thenApply(id -> {
+            for (int i = 1; i < indexList.size(); i++) {
+                createProducer(indexList.get(i), id).handle((prod, createException) -> {
+                    after.accept(createException);
+                    return null;
+                });
+            }
+            return null;
+        });
     }
 
     private CompletableFuture<Producer<T>> createProducer(final int partitionIndex) {
+        return createProducer(partitionIndex, Optional.empty());
+    }
+
+    private CompletableFuture<Producer<T>> createProducer(final int partitionIndex, final Optional<String> producerStatsKey) {
         String partitionName = TopicName.get(topic).getPartition(partitionIndex).toString();
         ProducerImpl<T> producer = client.newProducerImpl(partitionName, partitionIndex,
-                conf, schema, interceptors, new CompletableFuture<>());
+                conf, schema, interceptors, new CompletableFuture<>(), producerStatsKey);
         producers.put(partitionIndex, producer);
         return producer.producerCreatedFuture();
     }
@@ -191,7 +208,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
                 "Illegal partition index chosen by the message routing policy: " + partition);
 
         if (!producers.containsKey(partition)) {
-            final State createState = createProducer(partition).handle((prod, createException) -> {
+            final State createState = createProducer(partition, Optional.ofNullable(producerStatsKey)).handle((prod, createException) -> {
                 if (createException != null) {
                     log.error("[{}] Could not create internal producer. partitionIndex: {}", topic, partition,
                             createException);
@@ -358,7 +375,8 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
                                     ProducerImpl<T> producer =
                                             new ProducerImpl<>(client,
                                                     partitionName, conf, new CompletableFuture<>(),
-                                                    partitionIndex, schema, interceptors);
+                                                    partitionIndex, schema, interceptors,
+                                                    Optional.ofNullable(producerStatsKey));
                                     producers.put(partitionIndex, producer);
                                     return producer.producerCreatedFuture();
                                 }).collect(Collectors.toList());

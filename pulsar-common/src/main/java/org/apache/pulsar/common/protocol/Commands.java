@@ -318,16 +318,17 @@ public class Commands {
     }
 
     public static BaseCommand newProducerSuccessCommand(long requestId, String producerName,
-            SchemaVersion schemaVersion) {
-        return newProducerSuccessCommand(requestId, producerName, -1, schemaVersion, Optional.empty(), true);
+            SchemaVersion schemaVersion, Optional<String> producerStatsKey) {
+        return newProducerSuccessCommand(requestId, producerName, -1, schemaVersion, Optional.empty(), true, producerStatsKey);
     }
 
-    public static ByteBuf newProducerSuccess(long requestId, String producerName, SchemaVersion schemaVersion) {
-        return newProducerSuccess(requestId, producerName, -1, schemaVersion, Optional.empty(), true);
+    public static ByteBuf newProducerSuccess(long requestId, String producerName, SchemaVersion schemaVersion, Optional<String> producerStatsKey) {
+        return newProducerSuccess(requestId, producerName, -1, schemaVersion, Optional.empty(), true, producerStatsKey);
     }
 
     public static BaseCommand newProducerSuccessCommand(long requestId, String producerName, long lastSequenceId,
-            SchemaVersion schemaVersion, Optional<Long> topicEpoch, boolean isProducerReady) {
+            SchemaVersion schemaVersion, Optional<Long> topicEpoch, boolean isProducerReady,
+            Optional<String> producerStatsKey) {
         BaseCommand cmd = localCmd(Type.PRODUCER_SUCCESS);
         CommandProducerSuccess ps = cmd.setProducerSuccess()
                 .setRequestId(requestId)
@@ -335,14 +336,15 @@ public class Commands {
                 .setLastSequenceId(lastSequenceId)
                 .setSchemaVersion(schemaVersion.bytes())
                 .setProducerReady(isProducerReady);
+        producerStatsKey.ifPresent(ps::setProducerStatsKey);
         topicEpoch.ifPresent(ps::setTopicEpoch);
         return cmd;
     }
 
     public static ByteBuf newProducerSuccess(long requestId, String producerName, long lastSequenceId,
-            SchemaVersion schemaVersion, Optional<Long> topicEpoch, boolean isProducerReady) {
+            SchemaVersion schemaVersion, Optional<Long> topicEpoch, boolean isProducerReady, Optional<String> producerStatsKey) {
         return serializeWithSize(newProducerSuccessCommand(requestId, producerName, lastSequenceId, schemaVersion,
-                topicEpoch, isProducerReady));
+                topicEpoch, isProducerReady, producerStatsKey));
     }
 
     public static BaseCommand newErrorCommand(long requestId, ServerError serverError, String message) {
@@ -706,6 +708,16 @@ public class Commands {
           boolean encrypted, Map<String, String> metadata, SchemaInfo schemaInfo,
           long epoch, boolean userProvidedProducerName,
           ProducerAccessMode accessMode, Optional<Long> topicEpoch) {
+        return newProducer(topic, producerId, requestId, producerName,
+        encrypted, metadata, schemaInfo,
+        epoch, userProvidedProducerName,
+        accessMode, topicEpoch, null);
+    }
+
+    public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName,
+            boolean encrypted, Map<String, String> metadata, SchemaInfo schemaInfo,
+            long epoch, boolean userProvidedProducerName,
+            ProducerAccessMode accessMode, Optional<Long> topicEpoch, String producerStatsKey) {
         BaseCommand cmd = localCmd(Type.PRODUCER);
         CommandProducer producer = cmd.setProducer()
                 .setTopic(topic)
@@ -730,6 +742,10 @@ public class Commands {
         }
 
         topicEpoch.ifPresent(producer::setTopicEpoch);
+
+        if (producerStatsKey != null) {
+            producer.setProducerStatsKey(producerStatsKey);
+        }
         return serializeWithSize(cmd);
     }
 

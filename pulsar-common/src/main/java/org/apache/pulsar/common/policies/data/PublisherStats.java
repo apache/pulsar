@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import com.google.common.collect.Maps;
 import static com.google.common.base.Preconditions.checkNotNull;
 import java.util.Map;
 import org.apache.pulsar.client.api.ProducerAccessMode;
@@ -25,7 +26,7 @@ import org.apache.pulsar.client.api.ProducerAccessMode;
 /**
  * Statistics about a publisher.
  */
-public class PublisherStats {
+public class PublisherStats implements Cloneable {
     private int count;
 
     public ProducerAccessMode accessMode;
@@ -44,6 +45,8 @@ public class PublisherStats {
 
     /** Id of this publisher. */
     public long producerId;
+
+    public String producerStatsKey;
 
     /** Producer name. */
     private int producerNameOffset = -1;
@@ -77,6 +80,9 @@ public class PublisherStats {
         this.msgThroughputIn += stats.msgThroughputIn;
         double newAverageMsgSize = (this.averageMsgSize * (this.count - 1) + stats.averageMsgSize) / this.count;
         this.averageMsgSize = newAverageMsgSize;
+        if (this.producerStatsKey == null) {
+            this.producerStatsKey = stats.producerStatsKey;
+        }
         return this;
     }
 
@@ -137,5 +143,18 @@ public class PublisherStats {
         this.clientVersionOffset = this.stringBuffer.length();
         this.clientVersionLength = clientVersion.length();
         this.stringBuffer.append(clientVersion);
+    }
+
+    @Override
+    public PublisherStats clone() {
+        try {
+            final PublisherStats newStats = (PublisherStats) super.clone();
+            newStats.stringBuffer = new StringBuilder(this.stringBuffer);
+            newStats.metadata = Maps.newHashMap(this.metadata);
+            return newStats;
+        }
+        catch (CloneNotSupportedException e) {
+            throw new RuntimeException("Failed to clone " + this.getClass().getName(), e);
+        }
     }
 }

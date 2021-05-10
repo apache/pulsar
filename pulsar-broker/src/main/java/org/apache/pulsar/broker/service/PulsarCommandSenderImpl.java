@@ -80,8 +80,10 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
     }
 
     @Override
-    public void sendProducerSuccessResponse(long requestId, String producerName, SchemaVersion schemaVersion) {
-        BaseCommand command = Commands.newProducerSuccessCommand(requestId, producerName, schemaVersion);
+    public void sendProducerSuccessResponse(long requestId, String producerName, SchemaVersion schemaVersion,
+            Optional<String> producerStatsKey) {
+        BaseCommand command = Commands.newProducerSuccessCommand(requestId, producerName, schemaVersion,
+                producerStatsKey);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
         cnx.ctx().writeAndFlush(outBuf);
@@ -90,9 +92,9 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
     @Override
     public void sendProducerSuccessResponse(long requestId, String producerName, long lastSequenceId,
                                             SchemaVersion schemaVersion, Optional<Long> topicEpoch,
-                                            boolean isProducerReady) {
+                                            boolean isProducerReady, Optional<String> producerStatsKey) {
         BaseCommand command = Commands.newProducerSuccessCommand(requestId, producerName, lastSequenceId,
-                schemaVersion, topicEpoch, isProducerReady);
+                schemaVersion, topicEpoch, isProducerReady, producerStatsKey);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
         cnx.ctx().writeAndFlush(outBuf);

@@ -85,6 +85,7 @@ public class Producer {
 
     private final ProducerAccessMode accessMode;
     private Optional<Long> topicEpoch;
+    private final Optional<String> producerStatsKey;
 
     private final Map<String, String> metadata;
 
@@ -94,7 +95,8 @@ public class Producer {
             boolean isEncrypted, Map<String, String> metadata, SchemaVersion schemaVersion, long epoch,
             boolean userProvidedProducerName,
             ProducerAccessMode accessMode,
-            Optional<Long> topicEpoch) {
+            Optional<Long> topicEpoch,
+            Optional<String> producerStatsKey) {
         this.topic = topic;
         this.cnx = cnx;
         this.producerId = producerId;
@@ -107,6 +109,7 @@ public class Producer {
         this.chunkedMessageRate = new Rate();
         this.isNonPersistentTopic = topic instanceof NonPersistentTopic;
         this.msgDrop = this.isNonPersistentTopic ? new Rate() : null;
+        this.producerStatsKey = producerStatsKey;
 
         this.metadata = metadata != null ? metadata : Collections.emptyMap();
 
@@ -122,6 +125,7 @@ public class Producer {
         stats.producerId = producerId;
         stats.metadata = this.metadata;
         stats.accessMode = Commands.convertProducerAccessMode(accessMode);
+        producerStatsKey.ifPresent(key -> stats.producerStatsKey = key);
 
         this.isRemote = producerName
                 .startsWith(cnx.getBrokerService().pulsar().getConfiguration().getReplicatorPrefix());
@@ -660,6 +664,10 @@ public class Producer {
 
     public Optional<Long> getTopicEpoch() {
         return topicEpoch;
+    }
+
+    public Optional<String> getProducerStatsKey() {
+        return producerStatsKey;
     }
 
     private static final Logger log = LoggerFactory.getLogger(Producer.class);

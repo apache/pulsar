@@ -138,13 +138,15 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     private Optional<Long> topicEpoch = Optional.empty();
 
+    private String producerStatsKey = null;
+
     @SuppressWarnings("rawtypes")
     private static final AtomicLongFieldUpdater<ProducerImpl> msgIdGeneratorUpdater = AtomicLongFieldUpdater
             .newUpdater(ProducerImpl.class, "msgIdGenerator");
 
     public ProducerImpl(PulsarClientImpl client, String topic, ProducerConfigurationData conf,
                         CompletableFuture<Producer<T>> producerCreatedFuture, int partitionIndex, Schema<T> schema,
-                        ProducerInterceptors interceptors) {
+                        ProducerInterceptors interceptors, Optional<String> producerStatsKey) {
         super(client, topic, conf, producerCreatedFuture, schema, interceptors);
         this.producerId = client.newProducerId();
         this.producerName = conf.getProducerName();
@@ -155,6 +157,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         this.pendingMessages = createPendingMessagesQueue();
         this.pendingCallbacks = createPendingCallbacksQueue();
         this.semaphore = new Semaphore(conf.getMaxPendingMessages(), true);
+        producerStatsKey.ifPresent(key -> this.producerStatsKey = key);
 
         this.compressor = CompressionCodecProvider.getCompressionCodec(conf.getCompressionType());
 
@@ -1313,7 +1316,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         cnx.sendRequestWithId(
                 Commands.newProducer(topic, producerId, requestId, producerName, conf.isEncryptionEnabled(), metadata,
                        schemaInfo, connectionHandler.epoch, userProvidedProducerName,
-                       conf.getAccessMode(), topicEpoch),
+                       conf.getAccessMode(), topicEpoch, producerStatsKey),
                 requestId).thenAccept(response -> {
                     String producerName = response.getProducerName();
                     long lastSequenceId = response.getLastSequenceId();
@@ -1339,7 +1342,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                             log.info("[{}] [{}] Producer epoch is {}", topic, producerName, response.getTopicEpoch());
                         }
                         topicEpoch = response.getTopicEpoch();
-
+                        this.producerStatsKey = response.getProducerStatsKey();
 
                         if (this.producerName == null) {
                             this.producerName = producerName;
@@ -1835,6 +1838,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     public String getProducerName() {
         return producerName;
+    }
+
+    public String getProducerStatsKey() {
+        return producerStatsKey;
     }
 
     // wrapper for connection methods
