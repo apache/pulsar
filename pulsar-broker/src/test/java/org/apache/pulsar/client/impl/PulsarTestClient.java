@@ -22,6 +22,7 @@ import static org.testng.Assert.assertEquals;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
+import java.util.Optional;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -134,9 +135,9 @@ public class PulsarTestClient extends PulsarClientImpl {
     @Override
     protected <T> ProducerImpl<T> newProducerImpl(String topic, int partitionIndex, ProducerConfigurationData conf,
                                                   Schema<T> schema, ProducerInterceptors interceptors,
-                                                  CompletableFuture<Producer<T>> producerCreatedFuture) {
+                                                  CompletableFuture<Producer<T>> producerCreatedFuture, Optional<String> producerStatsKey) {
         return new ProducerImpl<T>(this, topic, conf, producerCreatedFuture, partitionIndex, schema,
-                interceptors) {
+                interceptors, producerStatsKey) {
             @Override
             protected BlockingQueue<OpSendMsg> createPendingMessagesQueue() {
                 return new ArrayBlockingQueue<OpSendMsg>(conf.getMaxPendingMessages()) {

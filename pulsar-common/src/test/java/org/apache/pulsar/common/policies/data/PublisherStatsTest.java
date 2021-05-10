@@ -81,11 +81,13 @@ public class PublisherStatsTest {
         stats1.msgRateIn = 1;
         stats1.msgThroughputIn = 1;
         stats1.averageMsgSize = 1;
+        stats1.producerStatsKey = "key1";
 
         PublisherStats stats2 = new PublisherStats();
         stats2.msgRateIn = 1;
         stats2.msgThroughputIn = 2;
         stats2.averageMsgSize = 3;
+        stats2.producerStatsKey = "key1";
 
         PublisherStats target = new PublisherStats();
         target.add(stats1);
@@ -94,6 +96,7 @@ public class PublisherStatsTest {
         assertEquals(target.msgRateIn, 2.0);
         assertEquals(target.msgThroughputIn, 3.0);
         assertEquals(target.averageMsgSize, 2.0);
+        assertEquals(target.producerStatsKey, "key1");
     }
 
 }

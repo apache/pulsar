@@ -81,12 +81,12 @@ public class PartitionedProducerImplTest {
         when(client.getConfiguration()).thenReturn(clientConfigurationData);
         when(client.timer()).thenReturn(timer);
         when(client.newProducer()).thenReturn(producerBuilderImpl);
-        when(client.newProducerImpl(anyString(), anyInt(), any(), any(), any(), any()))
+        when(client.newProducerImpl(anyString(), anyInt(), any(), any(), any(), any(), any()))
                 .thenAnswer(invocationOnMock -> {
             return new ProducerImpl<>(client, invocationOnMock.getArgument(0),
                     invocationOnMock.getArgument(2), invocationOnMock.getArgument(5),
                     invocationOnMock.getArgument(1), invocationOnMock.getArgument(3),
-                    invocationOnMock.getArgument(4));
+                    invocationOnMock.getArgument(4), invocationOnMock.getArgument(6));
         });
     }
 

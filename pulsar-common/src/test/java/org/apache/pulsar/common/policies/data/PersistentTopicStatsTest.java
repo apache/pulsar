@@ -17,14 +17,13 @@
  * under the License.
  */
 package org.apache.pulsar.common.policies.data;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.testng.Assert.assertEquals;
 
-import org.apache.pulsar.common.policies.data.SubscriptionStats;
-import org.apache.pulsar.common.policies.data.TopicStats;
-import org.apache.pulsar.common.policies.data.PublisherStats;
-import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.testng.annotations.Test;
+import org.testng.collections.Maps;
 
 public class PersistentTopicStatsTest {
 
@@ -75,7 +74,9 @@ public class PersistentTopicStatsTest {
         topicStats1.msgThroughputOut = 1;
         topicStats1.averageMsgSize = 1;
         topicStats1.storageSize = 1;
-        topicStats1.publishers.add(new PublisherStats());
+        final PublisherStats publisherStats1 = new PublisherStats();
+        publisherStats1.producerStatsKey = "key";
+        topicStats1.publishers.add(publisherStats1);
         topicStats1.subscriptions.put("test_ns", new SubscriptionStats());
         topicStats1.replication.put("test_ns", new ReplicatorStats());
 
@@ -86,7 +87,9 @@ public class PersistentTopicStatsTest {
         topicStats2.msgThroughputOut = 4;
         topicStats2.averageMsgSize = 5;
         topicStats2.storageSize = 6;
-        topicStats2.publishers.add(new PublisherStats());
+        final PublisherStats publisherStats2 = new PublisherStats();
+        publisherStats2.producerStatsKey = "key";
+        topicStats2.publishers.add(publisherStats2);
         topicStats2.subscriptions.put("test_ns", new SubscriptionStats());
         topicStats2.replication.put("test_ns", new ReplicatorStats());
 
@@ -101,6 +104,72 @@ public class PersistentTopicStatsTest {
         assertEquals(target.averageMsgSize, 3.0);
         assertEquals(target.storageSize, 7);
         assertEquals(target.publishers.size(), 1);
+        assertEquals(target.publishers.get(0).producerStatsKey, "key");
+        assertEquals(target.subscriptions.size(), 1);
+        assertEquals(target.replication.size(), 1);
+    }
+
+    @Test
+    public void testPersistentTopicStatsAggregationDifferentKeys() {
+        TopicStats topicStats1 = new TopicStats();
+        topicStats1.msgRateIn = 1;
+        topicStats1.msgThroughputIn = 1;
+        topicStats1.msgRateOut = 1;
+        topicStats1.msgThroughputOut = 1;
+        topicStats1.averageMsgSize = 1;
+        topicStats1.storageSize = 1;
+        final PublisherStats publisherStats1 = new PublisherStats();
+        publisherStats1.msgRateIn = 1;
+        publisherStats1.producerStatsKey = "key1";
+        topicStats1.publishers.add(publisherStats1);
+        topicStats1.subscriptions.put("test_ns", new SubscriptionStats());
+        topicStats1.replication.put("test_ns", new ReplicatorStats());
+
+        TopicStats topicStats2 = new TopicStats();
+        topicStats2.msgRateIn = 1;
+        topicStats2.msgThroughputIn = 2;
+        topicStats2.msgRateOut = 3;
+        topicStats2.msgThroughputOut = 4;
+        topicStats2.averageMsgSize = 5;
+        topicStats2.storageSize = 6;
+        final PublisherStats publisherStats2 = new PublisherStats();
+        publisherStats2.msgRateIn = 1;
+        publisherStats2.producerStatsKey = "key1";
+        topicStats2.publishers.add(publisherStats2);
+        topicStats2.subscriptions.put("test_ns", new SubscriptionStats());
+        topicStats2.replication.put("test_ns", new ReplicatorStats());
+
+        TopicStats topicStats3 = new TopicStats();
+        topicStats3.msgRateIn = 0;
+        topicStats3.msgThroughputIn = 0;
+        topicStats3.msgRateOut = 0;
+        topicStats3.msgThroughputOut = 0;
+        topicStats3.averageMsgSize = 0;
+        topicStats3.storageSize = 0;
+        final PublisherStats publisherStats3 = new PublisherStats();
+        publisherStats3.msgRateIn = 1;
+        publisherStats3.producerStatsKey = "key2";
+        topicStats3.publishers.add(publisherStats3);
+        topicStats3.subscriptions.put("test_ns", new SubscriptionStats());
+        topicStats3.replication.put("test_ns", new ReplicatorStats());
+
+        TopicStats target = new TopicStats();
+        target.add(topicStats1);
+        target.add(topicStats2);
+        target.add(topicStats3);
+
+        assertEquals(target.msgRateIn, 2.0);
+        assertEquals(target.msgThroughputIn, 3.0);
+        assertEquals(target.msgRateOut, 4.0);
+        assertEquals(target.msgThroughputOut, 5.0);
+        assertEquals(target.averageMsgSize, 2.0);
+        assertEquals(target.storageSize, 7);
+        assertEquals(target.publishers.size(), 2);
+        final Map<String, Double> expectedPublishersMap = Maps.newHashMap();
+        expectedPublishersMap.put("key1", 2.0);
+        expectedPublishersMap.put("key2", 1.0);
+        assertEquals(target.publishers.stream().collect(
+                Collectors.toMap(e -> e.producerStatsKey, e -> e.msgRateIn)), expectedPublishersMap);
         assertEquals(target.subscriptions.size(), 1);
         assertEquals(target.replication.size(), 1);
     }

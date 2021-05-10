@@ -67,14 +67,19 @@ import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedExc
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageRouter;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.PulsarTestClient;
+import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
@@ -1969,6 +1974,306 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
                 assertNull(admin.namespaces().getCompactionThreshold(namespace)));
         mockTopic.checkCompaction();
         verify(mockTopic, times(2)).triggerCompaction();
+    }
+
+    @Test
+    public void testProducerStatsKey() throws Exception {
+        final String topic = "persistent://prop-xyz/ns1/test-producer-stats-key";
+        conf.setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(1);
+        admin.topics().createPartitionedTopic(topic, 10);
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
+
+        @Cleanup
+        Producer<byte[]> producer1 = client.newProducer()
+                .topic(topic)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.CustomPartition)
+                .messageRouter(new MessageRouter() {
+                    @Override
+                    public int choosePartition(Message<?> msg, TopicMetadata metadata) {
+                        return msg.hasKey() ? Integer.parseInt(msg.getKey()) : 0;
+                    }
+                })
+                .accessMode(ProducerAccessMode.Shared)
+                .create();
+
+        @Cleanup
+        Producer<byte[]> producer2 = client.newProducer()
+                .topic(topic)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.CustomPartition)
+                .messageRouter(new MessageRouter() {
+                    @Override
+                    public int choosePartition(Message<?> msg, TopicMetadata metadata) {
+                        return msg.hasKey() ? Integer.parseInt(msg.getKey()) : 5;
+                    }
+                })
+                .accessMode(ProducerAccessMode.Shared)
+                .create();
+
+        for (int i = 0; i < 10; i++) {
+            producer1.newMessage()
+                    .key(String.valueOf(i % 5))
+                    .value(("message".getBytes(StandardCharsets.UTF_8)))
+                    .send();
+            producer2.newMessage()
+                    .key(String.valueOf(i % 5 + 5))
+                    .value(("message".getBytes(StandardCharsets.UTF_8)))
+                    .send();
+        }
+
+        Thread.sleep(1000);
+        pulsar.getBrokerService().checkGC();
+
+        PartitionedTopicStats topicStats = admin.topics().getPartitionedStats(topic, true);
+        assertEquals(topicStats.partitions.size(), 10);
+        assertEquals(topicStats.partitions.values().stream().mapToInt(e -> e.publishers.size()).sum(), 10);
+        assertEquals(topicStats.partitions.values().stream().map(e -> e.publishers.get(0).producerStatsKey).distinct().count(), 2);
+        assertEquals(topicStats.publishers.size(), 2);
+    }
+
+    @Test
+    public void testProducerStatsKeyPerPartition() throws Exception {
+        final String topic = "persistent://prop-xyz/ns1/test-producer-stats-key-per-pt";
+        conf.setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(1);
+        admin.topics().createPartitionedTopic(topic, 2);
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
+
+        @Cleanup
+        Producer<byte[]> producer1 = client.newProducer()
+                .topic(topic + TopicName.PARTITIONED_TOPIC_SUFFIX + 0)
+                .create();
+
+        @Cleanup
+        Producer<byte[]> producer2 = client.newProducer()
+                .topic(topic + TopicName.PARTITIONED_TOPIC_SUFFIX + 1)
+                .create();
+
+        for (int i = 0; i < 10; i++) {
+            producer1.newMessage()
+                    .value(("message".getBytes(StandardCharsets.UTF_8)))
+                    .send();
+            producer2.newMessage()
+                    .value(("message".getBytes(StandardCharsets.UTF_8)))
+                    .send();
+        }
+
+        Thread.sleep(1000);
+        pulsar.getBrokerService().checkGC();
+
+        PartitionedTopicStats topicStats = admin.topics().getPartitionedStats(topic, true);
+        assertEquals(topicStats.partitions.values().stream().mapToInt(e -> e.publishers.size()).sum(), 2);
+        assertEquals(topicStats.partitions.values().stream().map(e -> e.publishers.get(0).producerStatsKey).distinct().count(), 2);
+        assertEquals(topicStats.publishers.size(), 2);
+    }
+
+    @Test
+    public void testProducerStatsKeyOldVersion() throws Exception {
+        final String topic = "persistent://prop-xyz/ns1/test-producer-stats-key-old-version";
+        conf.setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(1);
+        admin.topics().createPartitionedTopic(topic, 10);
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
+
+        @Cleanup
+        PulsarTestClient oldVersionClient = PulsarTestClient.create(PulsarClient.builder().serviceUrl(pulsar.getWebServiceAddress()));
+        oldVersionClient.setOverrideRemoteEndpointProtocolVersion(ProtocolVersion.v17_VALUE);
+
+        @Cleanup
+        Producer<byte[]> producer = client.newProducer()
+                .topic(topic)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.CustomPartition)
+                .messageRouter(new MessageRouter() {
+                    @Override
+                    public int choosePartition(Message<?> msg, TopicMetadata metadata) {
+                        return msg.hasKey() ? Integer.parseInt(msg.getKey()) : 0;
+                    }
+                })
+                .accessMode(ProducerAccessMode.Shared)
+                .create();
+
+        @Cleanup
+        Producer<byte[]> oldVersionProducer = oldVersionClient.newProducer()
+                .topic(topic)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
+                .accessMode(ProducerAccessMode.Shared)
+                .create();
+
+        for (int i = 0; i < 10; i++) {
+            producer.newMessage()
+                    .key(String.valueOf(i % 5))
+                    .value(("message".getBytes(StandardCharsets.UTF_8)))
+                    .send();
+            oldVersionProducer.newMessage()
+                    .value(("message".getBytes(StandardCharsets.UTF_8)))
+                    .send();
+        }
+
+        Thread.sleep(1000);
+        pulsar.getBrokerService().checkGC();
+
+        PartitionedTopicStats topicStats = admin.topics().getPartitionedStats(topic, true);
+        assertEquals(topicStats.partitions.size(), 10);
+        assertEquals(topicStats.partitions.values().stream().mapToInt(e -> e.publishers.size()).sum(), 15);
+        assertEquals(topicStats.partitions.values().stream().map(e -> e.publishers.get(0).producerStatsKey).distinct().count(), 2);
+        assertEquals(topicStats.publishers.size(), 2);
+    }
+
+    @Test
+    public void testProducerStatsKeyNonPersistent() throws Exception {
+        final String topic = "non-persistent://prop-xyz/ns1/test-producer-stats-key-non";
+        conf.setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(1);
+        admin.topics().createPartitionedTopic(topic, 10);
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
+
+        @Cleanup
+        Producer<byte[]> producer1 = client.newProducer()
+                .topic(topic)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.CustomPartition)
+                .messageRouter(new MessageRouter() {
+                    @Override
+                    public int choosePartition(Message<?> msg, TopicMetadata metadata) {
+                        return msg.hasKey() ? Integer.parseInt(msg.getKey()) : 0;
+                    }
+                })
+                .accessMode(ProducerAccessMode.Shared)
+                .create();
+
+        @Cleanup
+        Producer<byte[]> producer2 = client.newProducer()
+                .topic(topic)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.CustomPartition)
+                .messageRouter(new MessageRouter() {
+                    @Override
+                    public int choosePartition(Message<?> msg, TopicMetadata metadata) {
+                        return msg.hasKey() ? Integer.parseInt(msg.getKey()) : 5;
+                    }
+                })
+                .accessMode(ProducerAccessMode.Shared)
+                .create();
+
+        for (int i = 0; i < 10; i++) {
+            producer1.newMessage()
+                    .key(String.valueOf(i % 5))
+                    .value(("message".getBytes(StandardCharsets.UTF_8)))
+                    .send();
+            producer2.newMessage()
+                    .key(String.valueOf(i % 5 + 5))
+                    .value(("message".getBytes(StandardCharsets.UTF_8)))
+                    .send();
+        }
+
+        Thread.sleep(1000);
+        pulsar.getBrokerService().checkGC();
+
+        PartitionedTopicStats topicStats = admin.topics().getPartitionedStats(topic, true);
+        assertEquals(topicStats.partitions.size(), 10);
+        assertEquals(topicStats.partitions.values().stream().mapToInt(e -> e.publishers.size()).sum(), 10);
+        assertEquals(topicStats.partitions.values().stream().map(e -> e.publishers.get(0).producerStatsKey).distinct().count(), 2);
+        assertEquals(topicStats.publishers.size(), 2);
+    }
+
+    @Test
+    public void testProducerStatsKeyPerPartitionNonPersistent() throws Exception {
+        final String topic = "non-persistent://prop-xyz/ns1/test-producer-stats-key-per-pt-non";
+        conf.setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(1);
+        admin.topics().createPartitionedTopic(topic, 2);
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
+
+        @Cleanup
+        Producer<byte[]> producer1 = client.newProducer()
+                .topic(topic + TopicName.PARTITIONED_TOPIC_SUFFIX + 0)
+                .create();
+
+        @Cleanup
+        Producer<byte[]> producer2 = client.newProducer()
+                .topic(topic + TopicName.PARTITIONED_TOPIC_SUFFIX + 1)
+                .create();
+
+        for (int i = 0; i < 10; i++) {
+            producer1.newMessage()
+                    .value(("message".getBytes(StandardCharsets.UTF_8)))
+                    .send();
+            producer2.newMessage()
+                    .value(("message".getBytes(StandardCharsets.UTF_8)))
+                    .send();
+        }
+
+        Thread.sleep(1000);
+        pulsar.getBrokerService().checkGC();
+
+        PartitionedTopicStats topicStats = admin.topics().getPartitionedStats(topic, true);
+        assertEquals(topicStats.partitions.values().stream().mapToInt(e -> e.publishers.size()).sum(), 2);
+        assertEquals(topicStats.partitions.values().stream().map(e -> e.publishers.get(0).producerStatsKey).distinct().count(), 2);
+        assertEquals(topicStats.publishers.size(), 2);
+    }
+
+    @Test
+    public void testProducerStatsKeyOldVersionNonPersistent() throws Exception {
+        final String topic = "non-persistent://prop-xyz/ns1/test-producer-stats-key-old-version-non";
+        conf.setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(1);
+        admin.topics().createPartitionedTopic(topic, 10);
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
+
+        @Cleanup
+        PulsarTestClient oldVersionClient = PulsarTestClient.create(PulsarClient.builder().serviceUrl(pulsar.getWebServiceAddress()));
+        oldVersionClient.setOverrideRemoteEndpointProtocolVersion(ProtocolVersion.v17_VALUE);
+
+        @Cleanup
+        Producer<byte[]> producer = client.newProducer()
+                .topic(topic)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.CustomPartition)
+                .messageRouter(new MessageRouter() {
+                    @Override
+                    public int choosePartition(Message<?> msg, TopicMetadata metadata) {
+                        return msg.hasKey() ? Integer.parseInt(msg.getKey()) : 0;
+                    }
+                })
+                .accessMode(ProducerAccessMode.Shared)
+                .create();
+
+        @Cleanup
+        Producer<byte[]> oldVersionProducer = oldVersionClient.newProducer()
+                .topic(topic)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
+                .accessMode(ProducerAccessMode.Shared)
+                .create();
+
+        for (int i = 0; i < 10; i++) {
+            producer.newMessage()
+                    .key(String.valueOf(i % 5))
+                    .value(("message".getBytes(StandardCharsets.UTF_8)))
+                    .send();
+            oldVersionProducer.newMessage()
+                    .value(("message".getBytes(StandardCharsets.UTF_8)))
+                    .send();
+        }
+
+        Thread.sleep(1000);
+        pulsar.getBrokerService().checkGC();
+
+        PartitionedTopicStats topicStats = admin.topics().getPartitionedStats(topic, true);
+        assertEquals(topicStats.partitions.size(), 10);
+        assertEquals(topicStats.partitions.values().stream().mapToInt(e -> e.publishers.size()).sum(), 15);
+        assertEquals(topicStats.partitions.values().stream().map(e -> e.publishers.get(0).producerStatsKey).distinct().count(), 2);
+        assertEquals(topicStats.publishers.size(), 2);
     }
 
 }

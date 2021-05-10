@@ -32,6 +32,7 @@ import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.Optional;
 import java.util.concurrent.ThreadFactory;
 import java.util.regex.Pattern;
 
@@ -183,7 +184,8 @@ public class MockBrokerService {
                 return;
             }
             // default
-            ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer", SchemaVersion.Empty));
+            ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer", SchemaVersion.Empty
+                    , Optional.of("stats-key")));
         }
 
         @Override
