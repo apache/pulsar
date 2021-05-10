@@ -161,7 +161,7 @@ public class KeyValueSchema<K, V> extends AbstractSchema<KeyValue<K, V>> {
     }
 
     @Override
-    public T decode(ByteBuf byteBuf, byte[] schemaVersion) {
+    public KeyValue<K, V> decode(ByteBuf byteBuf, byte[] schemaVersion) {
         return decode(ByteBufUtil.getBytes(byteBuf), schemaVersion);
     }
 
