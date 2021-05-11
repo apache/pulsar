@@ -115,11 +115,10 @@ class LockManagerImpl<T> implements LockManager<T> {
 
     private void handleDataNotification(Notification n) {
         if (n.getType() == NotificationType.Deleted) {
-            for (ResourceLockImpl<T> lock : locks) {
-                if (lock.getPath().equals(n.getPath())) {
-                    lock.lockWasInvalidated();
-                }
-            }
+            List<ResourceLockImpl<T>> invalidedLocks = locks.stream()
+                    .filter(l -> l.getPath().equals(n.getPath()))
+                    .collect(Collectors.toList());
+            invalidedLocks.forEach(ResourceLockImpl::lockWasInvalidated);
         }
     }
 
