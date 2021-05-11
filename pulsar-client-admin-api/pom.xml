@@ -45,11 +45,6 @@
             <version>${project.parent.version}</version>
         </dependency>
 
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>pulsar-package-core</artifactId>
-            <version>${project.version}</version>
-        </dependency>
     </dependencies>
 
     <build>
