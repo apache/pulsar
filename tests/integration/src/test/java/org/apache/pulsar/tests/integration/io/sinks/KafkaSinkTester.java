@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.tests.integration.io;
+package org.apache.pulsar.tests.integration.io.sinks;
 
 import static org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase.randomName;
 import static org.apache.pulsar.tests.integration.topologies.PulsarTestBase.randomName;
@@ -32,6 +32,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.apache.pulsar.tests.integration.io.sinks.SinkTester.SinkType;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testcontainers.containers.Container.ExecResult;
 import org.testcontainers.containers.KafkaContainer;

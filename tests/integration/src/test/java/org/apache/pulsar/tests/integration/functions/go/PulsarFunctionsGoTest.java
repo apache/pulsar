@@ -16,15 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.tests.integration.functions;
+package org.apache.pulsar.tests.integration.functions.go;
 
+import org.apache.pulsar.tests.integration.functions.PulsarFunctionsTest;
+import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.Runtime;
 import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
+import org.testng.annotations.Test;
 
-/**
- * Process based test.
- */
-public class PulsarFunctionsProcessTest extends PulsarFunctionsTest {
-    public PulsarFunctionsProcessTest() {
-        super(FunctionRuntimeType.PROCESS);
+public class PulsarFunctionsGoTest extends PulsarFunctionsTest {
+
+	PulsarFunctionsGoTest(FunctionRuntimeType functionRuntimeType) {
+		super(functionRuntimeType);
+	}
+
+    @Test(enabled = false, groups = {"go_function", "function"})
+    public void testGoFunctionLocalRun() throws Exception {
+        testFunctionLocalRun(Runtime.GO);
     }
+
 }

@@ -35,6 +35,7 @@ nb-configuration.xml
 
 # Mac
 **/.DS_Store
+.java-version
 
 # VisualStudioCode artifacts
 .vscode/
