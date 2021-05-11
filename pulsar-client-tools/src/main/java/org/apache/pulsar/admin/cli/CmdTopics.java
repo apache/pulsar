@@ -496,7 +496,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
-            getTopics().truncateAsync(topic);
+            getTopics().truncate(topic);
         }
     }
 
