@@ -20,9 +20,11 @@ package org.apache.pulsar.common.naming;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
 import static org.apache.pulsar.common.policies.data.Policies.FIRST_BOUNDARY;
 import static org.apache.pulsar.common.policies.data.Policies.LAST_BOUNDARY;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.base.Charsets;
@@ -44,7 +46,10 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
+import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.stats.CacheMetricsCollector;
 import org.slf4j.Logger;
@@ -58,65 +63,99 @@ public class NamespaceBundleFactory {
     private final AsyncLoadingCache<NamespaceName, NamespaceBundles> bundlesCache;
 
     private final PulsarService pulsar;
+    private final MetadataCache<Policies> policiesCache;
 
     public NamespaceBundleFactory(PulsarService pulsar, HashFunction hashFunc) {
         this.hashFunc = hashFunc;
 
         this.bundlesCache = Caffeine.newBuilder()
                 .recordStats()
-                .buildAsync((NamespaceName namespace, Executor executor) -> {
-            String path = AdminResource.joinPath(LOCAL_POLICIES_ROOT, namespace.toString());
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Loading cache with bundles for {}", namespace);
-            }
-
-            if (pulsar == null || pulsar.getConfigurationCache() == null) {
-                return CompletableFuture.completedFuture(getBundles(namespace, Optional.empty()));
-            }
-
-
-
-            CompletableFuture<NamespaceBundles> future = new CompletableFuture<>();
-            // Read the static bundle data from the policies
-            pulsar.getLocalMetadataStore().get(path).thenAccept(result -> {
-                NamespaceBundles namespaceBundles;
-
-                if (result.isPresent()) {
-                    LocalPolicies localPolicies;
-                    try {
-                        localPolicies = ObjectMapperFactory.getThreadLocal().readValue(result.get().getValue(),
-                                LocalPolicies.class);
-                    } catch (IOException e) {
-                        future.completeExceptionally(e);
-                        return;
-                    }
-
-                    namespaceBundles = getBundles(namespace,
-                            Optional.of(Pair.of(localPolicies, result.get().getStat().getVersion())));
-                    if (LOG.isDebugEnabled()) {
-                        LOG.debug("[{}] Get bundles from getLocalZkCacheService: path: {},  bundles: {}, version: {}",
-                                namespace, path,
-                                (localPolicies.bundles.boundaries != null) ? localPolicies.bundles : "null",
-                                namespaceBundles.getVersion());
-                    }
-                } else {
-                    // If no policies defined for namespace, assume 1 single bundle
-                    namespaceBundles = getBundles(namespace, Optional.empty());
-                }
-
-                future.complete(namespaceBundles);
-            }).exceptionally(ex -> {
-                future.completeExceptionally(ex);
-                return null;
-            });
-            return future;
-        });
+                .buildAsync(this::loadBundles);
 
         CacheMetricsCollector.CAFFEINE.addCache("bundles", this.bundlesCache);
 
         pulsar.getLocalMetadataStore().registerListener(this::handleMetadataStoreNotification);
 
         this.pulsar = pulsar;
+        this.policiesCache = pulsar.getConfigurationMetadataStore().getMetadataCache(Policies.class);
+    }
+
+    private CompletableFuture<NamespaceBundles> loadBundles(NamespaceName namespace, Executor executor) {
+        String path = AdminResource.joinPath(LOCAL_POLICIES_ROOT, namespace.toString());
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Loading cache with bundles for {}", namespace);
+        }
+
+        if (pulsar == null || pulsar.getConfigurationCache() == null) {
+            return CompletableFuture.completedFuture(getBundles(namespace, Optional.empty()));
+        }
+
+        CompletableFuture<NamespaceBundles> future = new CompletableFuture<>();
+        // Read the static bundle data from the policies
+        pulsar.getLocalMetadataStore().get(path).thenAccept(result -> {
+            NamespaceBundles namespaceBundles;
+
+            if (result.isPresent()) {
+                try {
+                    future.complete(readBundles(namespace,
+                            result.get().getValue(), result.get().getStat().getVersion()));
+                } catch (IOException e) {
+                    future.completeExceptionally(e);
+                }
+            } else {
+                // If no local policies defined for namespace, copy from global config
+                copyToLocalPolicies(namespace)
+                        .thenAccept(b -> future.complete(b))
+                        .exceptionally(ex -> {
+                            future.completeExceptionally(ex);
+                            return null;
+                        });
+            }
+        }).exceptionally(ex -> {
+            future.completeExceptionally(ex);
+            return null;
+        });
+        return future;
+    }
+
+    private NamespaceBundles readBundles(NamespaceName namespace, byte[] value, long version) throws IOException {
+        LocalPolicies localPolicies = ObjectMapperFactory.getThreadLocal().readValue(value, LocalPolicies.class);
+
+        NamespaceBundles namespaceBundles = getBundles(namespace,
+                Optional.of(Pair.of(localPolicies, version)));
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("[{}] Get bundles from getLocalZkCacheService: bundles: {}, version: {}",
+                    namespace,
+                    (localPolicies.bundles.boundaries != null) ? localPolicies.bundles : "null",
+                    namespaceBundles.getVersion());
+        }
+        return namespaceBundles;
+    }
+
+    private CompletableFuture<NamespaceBundles> copyToLocalPolicies(NamespaceName namespace) {
+        return policiesCache.get(AdminResource.path(POLICIES, namespace.toString()))
+                .thenCompose(optPolicies -> {
+                    if (!optPolicies.isPresent()) {
+                        return CompletableFuture.completedFuture(getBundles(namespace, Optional.empty()));
+                    }
+
+                    Policies policies = optPolicies.get();
+                    LocalPolicies localPolicies = new LocalPolicies(policies.bundles,
+                            null,
+                            null);
+
+                    String localPath = AdminResource.joinPath(LOCAL_POLICIES_ROOT, namespace.toString());
+                    byte[] value;
+                    try {
+                        value = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(localPolicies);
+                    } catch (IOException e) {
+                        return FutureUtil.failedFuture(e);
+                    }
+
+                    return pulsar.getLocalMetadataStore().put(localPath, value, Optional.of(-1L))
+                            .thenApply(stat -> getBundles(namespace,
+                                    Optional.of(Pair.of(localPolicies, stat.getVersion()))));
+                });
     }
 
     private void handleMetadataStoreNotification(Notification n) {

@@ -791,7 +791,7 @@ public class PulsarService implements AutoCloseable {
 
             state = State.Started;
         } catch (Exception e) {
-            LOG.error(e.getMessage(), e);
+            LOG.error("Failed to start Pulsar service: {}", e.getMessage(), e);
             throw new PulsarServerException(e);
         } finally {
             mutex.unlock();

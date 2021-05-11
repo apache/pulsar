@@ -207,13 +207,7 @@ public class OwnershipCache {
             return CompletableFuture.completedFuture(true);
         }
         String bundlePath = ServiceUnitUtils.path(bundle);
-        return resolveOwnership(bundlePath).thenApply(optionalOwnedDataWithStat -> {
-            if (!optionalOwnedDataWithStat.isPresent()) {
-                return false;
-            }
-            Stat stat = optionalOwnedDataWithStat.get().getValue();
-            return stat.getEphemeralOwner() == localZkCache.getZooKeeper().getSessionId();
-        });
+        return resolveOwnership(bundlePath).thenApply(Optional::isPresent);
     }
 
     /**
