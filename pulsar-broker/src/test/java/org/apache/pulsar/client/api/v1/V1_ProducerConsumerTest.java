@@ -426,13 +426,6 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         }
 
         try {
-            pulsarClient.newProducer().maxPendingMessages(0);
-            Assert.fail("should fail");
-        } catch (IllegalArgumentException e) {
-            // ok
-        }
-
-        try {
             pulsarClient.newProducer().topic("invalid://topic").create();
             Assert.fail("should fail");
         } catch (PulsarClientException e) {
