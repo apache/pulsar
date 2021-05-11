@@ -29,6 +29,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
@@ -51,7 +52,7 @@ import java.util.Base64;
 import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
-
+import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
@@ -116,10 +117,30 @@ public class SecurityUtility {
         Provider provider;
         try {
             provider = (Provider) Class.forName(CONSCRYPT_PROVIDER_CLASS).newInstance();
-        } catch (ClassNotFoundException | InstantiationException | IllegalAccessException e) {
+        } catch (ReflectiveOperationException e) {
             log.warn("Unable to get security provider for class {}", CONSCRYPT_PROVIDER_CLASS, e);
             return null;
         }
+
+        // Configure Conscrypt's default hostname verifier
+        // https://github.com/google/conscrypt/blob/master/IMPLEMENTATION_NOTES.md#hostname-verification
+        try {
+            HostnameVerifier hostnameVerifier = (HostnameVerifier) Class
+                    .forName("org.apache.http.conn.ssl.DefaultHostnameVerifier")
+                    .newInstance();
+            Class<?> conscryptClazz = Class.forName("org.conscrypt.Conscrypt");
+            Object wrappedHostnameVerifier = conscryptClazz
+                    .getMethod("wrapHostnameVerifier",
+                            new Class[]{HostnameVerifier.class}).invoke(null, hostnameVerifier);
+            Method setDefaultHostnameVerifierMethod =
+                    conscryptClazz
+                            .getMethod("setDefaultHostnameVerifier",
+                                    new Class[]{Class.forName("org.conscrypt.ConscryptHostnameVerifier")});
+            setDefaultHostnameVerifierMethod.invoke(null, wrappedHostnameVerifier);
+        } catch (Exception e) {
+            log.warn("Unable to set default hostname verifier for Conscrypt", e);
+        }
+
         Security.addProvider(provider);
         if (log.isDebugEnabled()) {
             log.debug("Added security provider '{}' from class {}", provider.getName(), CONSCRYPT_PROVIDER_CLASS);
@@ -261,7 +282,7 @@ public class SecurityUtility {
         TrustManager[] trustManagers = null;
         KeyManager[] keyManagers = null;
 
-        trustManagers = setupTrustCerts(ksh, allowInsecureConnection, trustCertficates);
+        trustManagers = setupTrustCerts(ksh, allowInsecureConnection, trustCertficates, CONSCRYPT_PROVIDER);
         keyManagers = setupKeyManager(ksh, privateKey, certificates);
 
         SSLContext sslCtx = CONSCRYPT_PROVIDER != null ? SSLContext.getInstance("TLS", CONSCRYPT_PROVIDER)
@@ -284,12 +305,15 @@ public class SecurityUtility {
     }
 
     private static TrustManager[] setupTrustCerts(KeyStoreHolder ksh, boolean allowInsecureConnection,
-            Certificate[] trustCertficates) throws NoSuchAlgorithmException, KeyStoreException {
+                                                  Certificate[] trustCertficates, Provider securityProvider)
+            throws NoSuchAlgorithmException, KeyStoreException {
         TrustManager[] trustManagers;
         if (allowInsecureConnection) {
             trustManagers = InsecureTrustManagerFactory.INSTANCE.getTrustManagers();
         } else {
-            TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+            TrustManagerFactory tmf = securityProvider != null
+                    ? TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm(), securityProvider)
+                    : TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
 
             if (trustCertficates == null || trustCertficates.length == 0) {
                 tmf.init((KeyStore) null);
@@ -301,8 +325,35 @@ public class SecurityUtility {
             }
 
             trustManagers = tmf.getTrustManagers();
+
+            for (TrustManager trustManager : trustManagers) {
+                processConscryptTrustManager(trustManager);
+            }
         }
         return trustManagers;
+    }
+
+    private static void processConscryptTrustManager(TrustManager trustManager) {
+        // workaround https://github.com/google/conscrypt/issues/1015
+        if (trustManager.getClass().getName().equals("org.conscrypt.TrustManagerImpl")) {
+            try {
+                Class<?> conscryptClazz = Class.forName("org.conscrypt.Conscrypt");
+                Object hostnameVerifier = conscryptClazz.getMethod("getHostnameVerifier",
+                        new Class[]{TrustManager.class}).invoke(null, trustManager);
+                if (hostnameVerifier == null) {
+                    Object defaultHostnameVerifier = conscryptClazz.getMethod("getDefaultHostnameVerifier",
+                            new Class[]{TrustManager.class}).invoke(null, trustManager);
+                    if (defaultHostnameVerifier != null) {
+                        conscryptClazz.getMethod("setHostnameVerifier", new Class[]{
+                                TrustManager.class,
+                                Class.forName("org.conscrypt.ConscryptHostnameVerifier")
+                        }).invoke(null, trustManager, defaultHostnameVerifier);
+                    }
+                }
+            } catch (ReflectiveOperationException e) {
+                log.warn("Unable to set hostname verifier for Conscrypt TrustManager implementation", e);
+            }
+        }
     }
 
     public static X509Certificate[] loadCertificatesFromPemFile(String certFilePath) throws KeyManagementException {
