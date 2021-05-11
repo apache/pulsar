@@ -32,6 +32,7 @@ import com.google.common.collect.Lists;
 import com.google.common.hash.Hashing;
 import io.netty.channel.EventLoopGroup;
 import io.prometheus.client.Counter;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
@@ -896,7 +897,7 @@ public class NamespaceService implements AutoCloseable {
         byte[] data;
         try {
             data = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(localPolicies);
-        } catch (Exception e) {
+        } catch (IOException e) {
             return FutureUtil.failedFuture(e);
         }
 
