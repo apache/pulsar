@@ -348,7 +348,7 @@ public class PulsarSourceTest {
     public void testSetConsumerGetter(PulsarSourceConfig pulsarSourceConfig) throws Exception {
         PulsarSource<GenericRecord> pulsarSource = getPulsarSource(pulsarSourceConfig);
 
-        AtomicReference<Function<String, Consumer<?>>> getConsumerFunc = new AtomicReference<>();
+        AtomicReference<Function<String, Optional<Consumer<?>>>> getConsumerFunc = new AtomicReference<>();
 
         ExtendedSourceContext ctxMock = Mockito.mock(ExtendedSourceContext.class);
         Mockito.doAnswer(new Answer<Void>() {
@@ -361,18 +361,18 @@ public class PulsarSourceTest {
         pulsarSource.open(new HashMap<>(), ctxMock);
 
         Mockito.verify(ctxMock, Mockito.times(1)).setConsumerGetter(any());
-        Assert.assertNull(getConsumerFunc.get().apply("UnknownTopic"));
+        Assert.assertFalse(getConsumerFunc.get().apply("UnknownTopic").isPresent());
 
         if (pulsarSourceConfig instanceof SingleConsumerPulsarSourceConfig) {
             SingleConsumerPulsarSourceConfig cfg = (SingleConsumerPulsarSourceConfig) pulsarSourceConfig;
-            Assert.assertNotNull(getConsumerFunc.get().apply(cfg.getTopic()));
+            Assert.assertTrue(getConsumerFunc.get().apply(cfg.getTopic()).isPresent());
             return;
         }
 
         if (pulsarSourceConfig instanceof MultiConsumerPulsarSourceConfig) {
             MultiConsumerPulsarSourceConfig cfg = (MultiConsumerPulsarSourceConfig) pulsarSourceConfig;
             cfg.getTopicSchema().forEach((topic, conf) -> {
-                Assert.assertNotNull(getConsumerFunc.get().apply(topic));
+                Assert.assertTrue(getConsumerFunc.get().apply(topic).isPresent());
             });
             return;
         }

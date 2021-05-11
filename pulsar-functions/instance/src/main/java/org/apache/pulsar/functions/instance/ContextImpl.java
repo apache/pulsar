@@ -115,7 +115,7 @@ class ContextImpl implements Context, SinkContext, ExtendedSourceContext, AutoCl
 
     private boolean exposePulsarAdminClientEnabled;
 
-    private java.util.function.Function<String, Consumer<?>> getConsumerFunc;
+    private java.util.function.Function<String, Optional<Consumer<?>>> getConsumerFunc;
 
     static {
         // add label to indicate user metric
@@ -736,7 +736,7 @@ class ContextImpl implements Context, SinkContext, ExtendedSourceContext, AutoCl
     }
 
     @Override
-    public void setConsumerGetter(java.util.function.Function<String, Consumer<?>> getConsumerFunc) {
+    public void setConsumerGetter(java.util.function.Function<String, Optional<Consumer<?>>> getConsumerFunc) {
         this.getConsumerFunc = getConsumerFunc;
     }
 
@@ -744,7 +744,9 @@ class ContextImpl implements Context, SinkContext, ExtendedSourceContext, AutoCl
         if (getConsumerFunc == null) {
             throw new PulsarClientException("Getting consumer is not supported");
         }
-        return getConsumerFunc.apply(topic);
+        return getConsumerFunc
+                .apply(topic)
+                .orElseThrow(() -> new PulsarClientException("Consumer for topic " + topic + " is not found"));
     }
 
 }

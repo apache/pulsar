@@ -245,7 +245,8 @@ public class ContextImplTest {
                 FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
                 pulsarAdmin);
         Consumer<?> mockConsumer = Mockito.mock(Consumer.class);
-        context.setConsumerGetter(topic -> mockConsumer);
+        context.setConsumerGetter(topic ->
+                topic.equalsIgnoreCase("z") ? Optional.of(mockConsumer) : Optional.empty());
 
         context.seek("z", 0, Mockito.mock(MessageId.class));
         Mockito.verify(mockConsumer, Mockito.times(1)).seek(any(MessageId.class));
@@ -255,5 +256,13 @@ public class ContextImplTest {
 
         context.resume("z");
         Mockito.verify(mockConsumer, Mockito.times(1)).resume();
+
+        try {
+            context.resume("unknown");
+            Assert.fail("Expected exception");
+        } catch (PulsarClientException e) {
+            // pass
+        }
+
     }
  }

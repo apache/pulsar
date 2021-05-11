@@ -35,6 +35,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -78,13 +79,11 @@ public class MultiConsumerPulsarSource<T> extends PushPulsarSource<T> implements
             ((ExtendedSourceContext) sourceContext).setConsumerGetter(topicName -> {
                 try {
                     TopicName req = TopicName.get(topicName);
-                    if (inputConsumers.containsKey(req)) {
-                        return inputConsumers.get(req);
-                    }
+                    return Optional.ofNullable(inputConsumers.get(req));
                 } catch (Exception e) {
-                    return null;
+                    log.warn("Failed to get TopicName for {}", topicName, e);
+                    return Optional.empty();
                 }
-                return null;
             });
         }
     }

@@ -31,6 +31,7 @@ import org.apache.pulsar.io.core.ExtendedSourceContext;
 import org.apache.pulsar.io.core.SourceContext;
 
 import java.util.Map;
+import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -78,12 +79,13 @@ public class SingleConsumerPulsarSource<T> extends PulsarSource<T> {
                 try {
                     TopicName src = TopicName.get(topic);
                     if (src.equals(TopicName.get(topicName))) {
-                        return consumer;
+                        return Optional.of(consumer);
                     }
                 } catch (Exception e) {
-                    return null;
+                    log.warn("Failed to get TopicName for {}", topicName, e);
+                    return Optional.empty();
                 }
-                return null;
+                return Optional.empty();
             });
         }
     }

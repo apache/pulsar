@@ -22,6 +22,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
+import java.util.Optional;
 import java.util.function.Function;
 
 /**
@@ -34,8 +35,8 @@ public interface ExtendedSourceContext extends SourceContext {
      * Provides a way for context to find consumer for given topic
      *
      * @param getConsumerFunc - function accepting String topic,
-     *                          returning Consumer or null,
-     *                          if a consumer for given topic/partition not found
+     *                          returning Optional.of(Consumer),
+     *                          Optional.empty() is returned if a consumer for given topic is not found
      */
-    void setConsumerGetter(Function<String, Consumer<?>> getConsumerFunc) ;
+    void setConsumerGetter(Function<String, Optional<Consumer<?>>> getConsumerFunc);
 }
