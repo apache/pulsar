@@ -125,9 +125,21 @@ public class SecurityUtility {
             return null;
         }
 
-        // Configure Conscrypt's default hostname verifier
+        // Configure Conscrypt's default hostname verifier to use Pulsar's TlsHostnameVerifier which
+        // is more relaxed than the Conscrypt HostnameVerifier checking for RFC 2818 conformity.
+        //
+        // Certificates used in Pulsar docs and examples aren't strictly RFC 2818 compliant since they use the
+        // deprecated way of specifying the hostname in the CN field of the subject DN of the certificate.
+        // RFC 2818 recommends the use of SAN (subjectAltName) extension for specifying the hostname in the dNSName
+        // field of the subjectAltName extension.
+        //
+        // Conscrypt's default HostnameVerifier has dropped support for the deprecated method of specifying the hostname
+        // in the CN field. Pulsar's TlsHostnameVerifier continues to support the CN field.
+        //
+        // more details of Conscrypt's hostname verification:
         // https://github.com/google/conscrypt/blob/master/IMPLEMENTATION_NOTES.md#hostname-verification
-        // there's a bug https://github.com/google/conscrypt/issues/1015 and therefore this solution alone
+        // there's a bug in Conscrypt while setting a custom HostnameVerifier,
+        // https://github.com/google/conscrypt/issues/1015 and therefore this solution alone
         // isn't sufficient to configure Conscrypt's hostname verifier. The method processConscryptTrustManager
         // contains the workaround.
         try {
