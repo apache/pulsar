@@ -111,6 +111,7 @@ flexible messaging model and an intuitive client API.</description>
     <netty.version>4.1.63.Final</netty.version>
     <netty-tc-native.version>2.0.38.Final</netty-tc-native.version>
     <jetty.version>9.4.39.v20210325</jetty.version>
+    <conscrypt.version>2.5.2</conscrypt.version>
     <jersey.version>2.31</jersey.version>
     <athenz.version>1.10.9</athenz.version>
     <prometheus.version>0.5.0</prometheus.version>
@@ -516,7 +517,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.conscrypt</groupId>
         <artifactId>conscrypt-openjdk-uber</artifactId>
-        <version>2.5.2</version>
+        <version>${conscrypt.version}</version>
       </dependency>
 
       <dependency>
