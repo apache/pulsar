@@ -27,7 +27,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Date;
-import java.util.Objects;
 import java.util.Optional;
 
 import org.apache.pulsar.client.api.schema.GenericRecord;
