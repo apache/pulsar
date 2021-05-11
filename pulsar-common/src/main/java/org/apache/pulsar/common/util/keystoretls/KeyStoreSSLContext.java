@@ -153,7 +153,9 @@ public class KeyStoreSSLContext {
         if (this.allowInsecureConnection) {
             trustManagerFactory = InsecureTrustManagerFactory.INSTANCE;
         } else {
-            trustManagerFactory = TrustManagerFactory.getInstance(tmfAlgorithm);
+            trustManagerFactory = sslProviderString != null
+                    ? TrustManagerFactory.getInstance(tmfAlgorithm, sslProviderString)
+                    : TrustManagerFactory.getInstance(tmfAlgorithm);
             KeyStore trustStore = KeyStore.getInstance(trustStoreTypeString);
             char[] passwordChars = trustStorePassword.toCharArray();
             try (FileInputStream inputStream = new FileInputStream(trustStorePath)) {
@@ -163,7 +165,9 @@ public class KeyStoreSSLContext {
         }
 
         // init
-        sslContext.init(keyManagers, trustManagerFactory.getTrustManagers(), new SecureRandom());
+        sslContext.init(keyManagers, SecurityUtility
+                        .processConscryptTrustManagers(trustManagerFactory.getTrustManagers()),
+                new SecureRandom());
         this.sslContext = sslContext;
         return sslContext;
     }

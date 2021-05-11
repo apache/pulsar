@@ -61,6 +61,9 @@ import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+import org.apache.pulsar.common.tls.TlsHostnameVerifier;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 
 /**
@@ -124,10 +127,11 @@ public class SecurityUtility {
 
         // Configure Conscrypt's default hostname verifier
         // https://github.com/google/conscrypt/blob/master/IMPLEMENTATION_NOTES.md#hostname-verification
+        // there's a bug https://github.com/google/conscrypt/issues/1015 and therefore this solution alone
+        // isn't sufficient to configure Conscrypt's hostname verifier. The method processConscryptTrustManager
+        // contains the workaround.
         try {
-            HostnameVerifier hostnameVerifier = (HostnameVerifier) Class
-                    .forName("org.apache.http.conn.ssl.DefaultHostnameVerifier")
-                    .newInstance();
+            HostnameVerifier hostnameVerifier = new TlsHostnameVerifier();
             Class<?> conscryptClazz = Class.forName("org.conscrypt.Conscrypt");
             Object wrappedHostnameVerifier = conscryptClazz
                     .getMethod("wrapHostnameVerifier",
@@ -333,8 +337,25 @@ public class SecurityUtility {
         return trustManagers;
     }
 
+    /***
+     * Conscrypt TrustManager instances will be configured to use the Pulsar {@link TlsHostnameVerifier}
+     * class.
+     * This method is used as a workaround for https://github.com/google/conscrypt/issues/1015
+     * when Conscrypt / OpenSSL is used as the TLS security provider.
+     *
+     * @param trustManagers the array of TrustManager instances to process.
+     * @return same instance passed as parameter
+     */
+    @InterfaceAudience.Private
+    public static TrustManager[] processConscryptTrustManagers(TrustManager[] trustManagers) {
+        for (TrustManager trustManager : trustManagers) {
+            processConscryptTrustManager(trustManager);
+        }
+        return trustManagers;
+    }
+
+    // workaround https://github.com/google/conscrypt/issues/1015
     private static void processConscryptTrustManager(TrustManager trustManager) {
-        // workaround https://github.com/google/conscrypt/issues/1015
         if (trustManager.getClass().getName().equals("org.conscrypt.TrustManagerImpl")) {
             try {
                 Class<?> conscryptClazz = Class.forName("org.conscrypt.Conscrypt");
