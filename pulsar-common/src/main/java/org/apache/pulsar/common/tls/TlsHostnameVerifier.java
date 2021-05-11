@@ -21,7 +21,7 @@
  * From Apache HTTP client
  */
 
-package org.apache.pulsar.client.impl.tls;
+package org.apache.pulsar.common.tls;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
