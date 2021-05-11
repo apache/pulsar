@@ -2108,7 +2108,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     @Test
     public void testGetDurableSubscription() throws Exception {
         ManagedLedger mockLedger = mock(ManagedLedger.class);
-        ManagedCursor mockCursor = mock(ManagedCursor.class);
+        ManagedCursor mockCursor = mock(ManagedCursorImpl.class);
         Position mockPosition = mock(Position.class);
         doReturn("test").when(mockCursor).getName();
         doAnswer((Answer<Object>) invocationOnMock -> {
