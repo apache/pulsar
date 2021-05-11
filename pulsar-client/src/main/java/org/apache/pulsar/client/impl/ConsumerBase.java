@@ -172,8 +172,17 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     @Override
     public Message<T> receive(int timeout, TimeUnit unit) throws PulsarClientException {
         if (conf.getReceiverQueueSize() == 0) {
-            throw new PulsarClientException.InvalidConfigurationException(
-                    "Can't use receive with timeout, if the queue size is 0");
+
+            if(!(getState() == State.Connecting)){
+                throw new PulsarClientException.InvalidConfigurationException(
+                        "Can't use receive with timeout, if the queue size is 0");
+            }
+
+
+            if (batchReceivePolicy.getTimeoutMs() > 0){
+                // This abstract method A has a zero queue implementation
+                internalReceive();
+            }
         }
         if (listener != null) {
             throw new PulsarClientException.InvalidConfigurationException(
