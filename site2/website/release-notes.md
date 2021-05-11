@@ -1,7 +1,7 @@
 
 ## Apache Pulsar Release Notes
 
-### 2.7.2 &mdash; 2021-04-XX <a id=“2.7.2”></a>
+### 2.7.2 &mdash; 2021-05-11 <a id=“2.7.2”></a>
 
 #### Broker
 - Fix the useless retry when the maximum number of subscriptions is reached [#9991](https://github.com/apache/pulsar/pull/9991)
