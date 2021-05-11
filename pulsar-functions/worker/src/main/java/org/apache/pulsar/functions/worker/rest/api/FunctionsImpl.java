@@ -670,14 +670,15 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
                                final InputStream uploadedInputStream,
                                final boolean delete,
                                URI uri,
-                               final String clientRole) {
+                               final String clientRole,
+                               AuthenticationDataSource authenticationData) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
 
         if (worker().getWorkerConfig().isAuthorizationEnabled()) {
-            if (!isSuperUser(clientRole)) {
+            if (!isSuperUser(clientRole, authenticationData)) {
                 log.error("{}/{}/{} Client [{}] is not superuser to update on worker leader {}", tenant, namespace,
                         functionName, clientRole, ComponentTypeUtils.toString(componentType));
                 throw new RestException(Response.Status.UNAUTHORIZED, "client is not authorize to perform operation");

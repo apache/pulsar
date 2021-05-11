@@ -19,9 +19,12 @@
 package org.apache.pulsar.broker.validator;
 
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.testng.annotations.Test;
 
 import java.util.Optional;
+
+import static org.testng.AssertJUnit.assertEquals;
 
 /**
  * testcase for MultipleListenerValidator.
@@ -36,6 +39,25 @@ public class MultipleListenerValidatorTest {
         config.setInternalListenerName("internal");
         MultipleListenerValidator.validateAndAnalysisAdvertisedListener(config);
     }
+
+    @Test
+    public void testGetAppliedAdvertised() throws Exception {
+        ServiceConfiguration config = new ServiceConfiguration();
+        config.setBrokerServicePortTls(Optional.of(6651));
+        config.setAdvertisedListeners("internal:pulsar://192.0.0.1:6660, internal:pulsar+ssl://192.0.0.1:6651");
+        config.setInternalListenerName("internal");
+        assertEquals(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config), "192.0.0.1");
+
+        config = new ServiceConfiguration();
+        config.setBrokerServicePortTls(Optional.of(6651));
+        config.setAdvertisedAddress("192.0.0.2");
+        assertEquals(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config), "192.0.0.2");
+
+        config.setAdvertisedAddress(null);
+        assertEquals(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config),
+                ServiceConfigurationUtils.getDefaultOrConfiguredAddress(null));
+    }
+
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testListenerDuplicate_1() {

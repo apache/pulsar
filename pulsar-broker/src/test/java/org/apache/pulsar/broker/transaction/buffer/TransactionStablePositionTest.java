@@ -82,7 +82,7 @@ public class TransactionStablePositionTest extends TransactionTestBase {
                 .enableTransaction(true)
                 .build();
 
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).until(() -> ((PulsarClientImpl) pulsarClient)
+        Awaitility.await().until(() -> ((PulsarClientImpl) pulsarClient)
                 .getTcClient().getState() == TransactionCoordinatorClient.State.READY);
     }
 

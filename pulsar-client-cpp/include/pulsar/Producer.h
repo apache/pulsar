@@ -154,6 +154,11 @@ class PULSAR_PUBLIC Producer {
      */
     void closeAsync(CloseCallback callback);
 
+    /**
+     * @return Whether the producer is currently connected to the broker
+     */
+    bool isConnected() const;
+
    private:
     explicit Producer(ProducerImplBasePtr);
 

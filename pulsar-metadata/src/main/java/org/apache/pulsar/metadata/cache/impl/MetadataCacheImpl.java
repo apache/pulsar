@@ -120,7 +120,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
     }
 
     @Override
-    public CompletableFuture<Void> readModifyUpdateOrCreate(String path, Function<Optional<T>, T> modifyFunction) {
+    public CompletableFuture<T> readModifyUpdateOrCreate(String path, Function<Optional<T>, T> modifyFunction) {
         return executeWithRetry(() -> objCache.get(path)
                 .thenCompose(optEntry -> {
                     Optional<T> currentValue;
@@ -154,12 +154,12 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                         // Make sure we have the value cached before the operation is completed
                         objCache.put(path,
                                 FutureUtils.value(Optional.of(new SimpleImmutableEntry<T, Stat>(newValueObj, stat))));
-                    });
+                    }).thenApply(__ -> newValueObj);
                 }), path);
     }
 
     @Override
-    public CompletableFuture<Void> readModifyUpdate(String path, Function<T, T> modifyFunction) {
+    public CompletableFuture<T> readModifyUpdate(String path, Function<T, T> modifyFunction) {
         return executeWithRetry(() -> objCache.get(path)
                 .thenCompose(optEntry -> {
                     if (!optEntry.isPresent()) {
@@ -185,7 +185,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                         // Make sure we have the value cached before the operation is completed
                         objCache.put(path,
                                 FutureUtils.value(Optional.of(new SimpleImmutableEntry<T, Stat>(newValueObj, stat))));
-                    });
+                    }).thenApply(__ -> newValueObj);
                 }), path);
     }
 
@@ -267,9 +267,9 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
         }
     }
 
-    private CompletableFuture<Void> executeWithRetry(Supplier<CompletableFuture<Void>> op, String key) {
-        CompletableFuture<Void> result = new CompletableFuture<>();
-        op.get().thenAccept(r -> result.complete(null)).exceptionally((ex) -> {
+    private CompletableFuture<T> executeWithRetry(Supplier<CompletableFuture<T>> op, String key) {
+        CompletableFuture<T> result = new CompletableFuture<>();
+        op.get().thenAccept(r -> result.complete(r)).exceptionally((ex) -> {
             if (ex.getCause() instanceof BadVersionException) {
                 // if resource is updated by other than metadata-cache then metadata-cache will get bad-version
                 // exception. so, try to invalidate the cache and try one more time.

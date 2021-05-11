@@ -100,7 +100,7 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
 
         Map<TransactionCoordinatorID, TransactionMetadataStore> stores =
                 getPulsarServiceList().get(0).getTransactionMetadataStoreService().getStores();
-        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> {
+        Awaitility.await().until(() -> {
             if (stores.size() == 16) {
                 for (TransactionCoordinatorID transactionCoordinatorID : stores.keySet()) {
                     if (((MLTransactionMetadataStore) stores.get(transactionCoordinatorID)).getState()

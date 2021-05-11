@@ -36,6 +36,7 @@ import com.google.common.hash.Hashing;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URL;
+import java.util.EnumSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -49,7 +50,6 @@ import java.util.function.Supplier;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.BrokerData;
 import org.apache.pulsar.broker.BundleData;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -72,14 +72,17 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.metadata.api.Notification;
+import org.apache.pulsar.metadata.api.NotificationType;
+import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.ZooDefs;
+import org.awaitility.Awaitility;
 import org.mockito.Mockito;
+import org.powermock.reflect.Whitebox;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -259,12 +262,11 @@ public class ModularLoadManagerImplTest {
         final TimeAverageMessageData longTermMessageData = new TimeAverageMessageData(1000);
         longTermMessageData.setMsgRateIn(1000);
         bundleData.setLongTermData(longTermMessageData);
-        final String firstBundleDataPath = String.format("%s/%s", ModularLoadManagerImpl.BUNDLE_DATA_ZPATH, bundles[0]);
+        final String firstBundleDataPath = String.format("%s/%s", ModularLoadManagerImpl.BUNDLE_DATA_PATH, bundles[0]);
         // Write long message rate for first bundle to ensure that even bundle distribution is not a coincidence of
         // balancing by message rate. If we were balancing by message rate, one of the brokers should only have this
         // one bundle.
-        ZkUtils.createFullPathOptimistic(pulsar1.getZkClient(), firstBundleDataPath, bundleData.getJsonBytes(),
-                ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        pulsar1.getLocalMetadataStore().getMetadataCache(BundleData.class).create(firstBundleDataPath, bundleData).join();
         for (final NamespaceBundle bundle : bundles) {
             if (primaryLoadManager.selectBrokerForAssignment(bundle).equals(primaryHost)) {
                 ++numAssignedToPrimary;
@@ -303,9 +305,8 @@ public class ModularLoadManagerImplTest {
         final TimeAverageMessageData longTermMessageData = new TimeAverageMessageData(1000);
         longTermMessageData.setMsgRateIn(1000);
         bundleData.setLongTermData(longTermMessageData);
-        final String firstBundleDataPath = String.format("%s/%s", ModularLoadManagerImpl.BUNDLE_DATA_ZPATH, bundles[0]);
-        ZkUtils.createFullPathOptimistic(pulsar1.getZkClient(), firstBundleDataPath, bundleData.getJsonBytes(),
-                ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        final String firstBundleDataPath = String.format("%s/%s", ModularLoadManagerImpl.BUNDLE_DATA_PATH, bundles[0]);
+        pulsar1.getLocalMetadataStore().getMetadataCache(BundleData.class).create(firstBundleDataPath, bundleData).join();
         String maxTopicOwnedBroker = primaryLoadManager.selectBrokerForAssignment(bundles[0]).get();
 
         for (int i = 1; i < totalBundles; i++) {
@@ -339,7 +340,8 @@ public class ModularLoadManagerImplTest {
         when(brokerDataSpy1.getLocalData()).thenReturn(localBrokerData);
         brokerDataMap.put(primaryHost, brokerDataSpy1);
         // Need to update all the bundle data for the shredder to see the spy.
-        primaryLoadManager.onUpdate(null, null, null);
+        primaryLoadManager.accept(new Notification(NotificationType.Created, LoadManager.LOADBALANCE_BROKERS_ROOT + "/broker:8080"));
+
         Thread.sleep(100);
         localBrokerData.setCpu(new ResourceUsage(80, 100));
         primaryLoadManager.doLoadShedding();
@@ -453,16 +455,15 @@ public class ModularLoadManagerImplTest {
      */
     @Test
     public void testBrokerStopCacheUpdate() throws Exception {
-        String secondaryBroker = pulsar2.getAdvertisedAddress() + ":" + pulsar2.getListenPortHTTP().get();
-        pulsar2.getLocalZkCache().getZooKeeper().delete(LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + secondaryBroker,
-                -1);
-        Thread.sleep(100);
         ModularLoadManagerWrapper loadManagerWrapper = (ModularLoadManagerWrapper) pulsar1.getLoadManager().get();
-        Field loadMgrField = ModularLoadManagerWrapper.class.getDeclaredField("loadManager");
-        loadMgrField.setAccessible(true);
-        ModularLoadManagerImpl loadManager = (ModularLoadManagerImpl) loadMgrField.get(loadManagerWrapper);
-        Set<String> avaialbeBrokers = loadManager.getAvailableBrokers();
-        assertEquals(avaialbeBrokers.size(), 1);
+        ModularLoadManagerImpl lm = Whitebox.getInternalState(loadManagerWrapper, "loadManager");
+        assertEquals(lm.getAvailableBrokers().size(), 2);
+
+        pulsar2.close();
+
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(lm.getAvailableBrokers().size(), 1);
+        });
     }
 
     /**
@@ -601,8 +602,7 @@ public class ModularLoadManagerImplTest {
         // create znode using different zk-session
         final String brokerZnode = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + pulsar.getAdvertisedAddress() + ":"
                 + config.getWebServicePort();
-        ZkUtils.createFullPathOptimistic(pulsar1.getZkClient(), brokerZnode, "".getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                CreateMode.EPHEMERAL);
+        pulsar1.getLocalMetadataStore().put(brokerZnode, new byte[0], Optional.empty(), EnumSet.of(CreateOption.Ephemeral)).join();
         try {
             pulsar.start();
         } catch (PulsarServerException e) {
@@ -610,14 +610,5 @@ public class ModularLoadManagerImplTest {
         }
 
         pulsar.close();
-    }
-
-    @Test
-    public void testZnodeMissed() throws Exception {
-        String path = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + pulsar1.getAdvertisedAddress() + ":" + pulsar1.getConfiguration().getWebServicePort().get();
-        ZkUtils.deleteFullPathOptimistic(pulsar1.getZkClient(), path, -1);
-        pulsar1.getLoadManager().get().writeLoadReportOnZookeeper();
-        // Delete it again to check the znode is create before write load balance data
-        ZkUtils.deleteFullPathOptimistic(pulsar1.getZkClient(), path, -1);
     }
 }

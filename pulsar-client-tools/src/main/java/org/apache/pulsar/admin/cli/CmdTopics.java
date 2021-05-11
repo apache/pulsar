@@ -52,6 +52,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
@@ -250,10 +251,13 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = {"-td", "--topic-domain"}, description = "Allowed topic domain (persistent, non_persistent).")
+        private TopicDomain topicDomain;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            print(getTopics().getList(namespace));
+            print(getTopics().getList(namespace, topicDomain));
         }
     }
 
@@ -1479,12 +1483,22 @@ public class CmdTopics extends CmdBase {
                 , description = "AWS Credential Secret to use when using driver S3 or aws-s3")
         private String awsSecret;
 
-        @Parameter(names = {"-m", "--maxBlockSizeInBytes"}
-                , description = "ManagedLedger offload max block Size in bytes, s3 and google-cloud-storage requires this parameter")
+        @Parameter(names = {"--ro", "--s3-role"}
+                , description = "S3 Role used for STSAssumeRoleSessionCredentialsProvider")
+        private String s3Role;
+
+        @Parameter(names = {"--s3-role-session-name", "-rsn"}
+                , description = "S3 role session name used for STSAssumeRoleSessionCredentialsProvider")
+        private String s3RoleSessionName;
+
+        @Parameter(names = {"-m", "--maxBlockSizeInBytes"},
+                description = "ManagedLedger offload max block Size in bytes,"
+                + "s3 and google-cloud-storage requires this parameter")
         private int maxBlockSizeInBytes;
 
-        @Parameter(names = {"-rb", "--readBufferSizeInBytes"}
-                , description = "ManagedLedger offload read buffer size in bytes, s3 and google-cloud-storage requires this parameter")
+        @Parameter(names = {"-rb", "--readBufferSizeInBytes"},
+                description = "ManagedLedger offload read buffer size in bytes,"
+                + "s3 and google-cloud-storage requires this parameter")
         private int readBufferSizeInBytes;
 
         @Parameter(names = {"-t", "--offloadThresholdInBytes"}
@@ -1512,16 +1526,19 @@ public class CmdTopics extends CmdBase {
                 try {
                     offloadedReadPriority = OffloadedReadPriority.fromString(this.offloadReadPriorityStr);
                 } catch (Exception e) {
-                    throw new ParameterException("--offloadedReadPriority parameter must be one of " +
-                            Arrays.stream(OffloadedReadPriority.values())
+                    throw new ParameterException("--offloadedReadPriority parameter must be one of "
+                            + Arrays.stream(OffloadedReadPriority.values())
                                     .map(OffloadedReadPriority::toString)
                                     .collect(Collectors.joining(","))
                             + " but got: " + this.offloadReadPriorityStr, e);
                 }
             }
 
-            OffloadPolicies offloadPolicies = OffloadPolicies.create(driver, region, bucket, endpoint, awsId, awsSecret, maxBlockSizeInBytes
-                    , readBufferSizeInBytes, offloadThresholdInBytes, offloadDeletionLagInMillis, offloadedReadPriority);
+            OffloadPolicies offloadPolicies = OffloadPolicies.create(driver, region, bucket, endpoint,
+                    s3Role, s3RoleSessionName,
+                    awsId, awsSecret,
+                    maxBlockSizeInBytes,
+                    readBufferSizeInBytes, offloadThresholdInBytes, offloadDeletionLagInMillis, offloadedReadPriority);
 
             getTopics().setOffloadPolicies(persistentTopic, offloadPolicies);
         }

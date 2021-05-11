@@ -168,8 +168,13 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
     @Override
     public void asyncAddEntry(final ByteBuf data, final AddCallback cb, final Object ctx) {
         bk.getProgrammedFailure().thenComposeAsync((res) -> {
+                Long delayMillis = bk.addEntryDelaysMillis.poll();
+                if (delayMillis == null) {
+                    delayMillis = 1L;
+                }
+
                 try {
-                    Thread.sleep(1);
+                    Thread.sleep(delayMillis);
                 } catch (InterruptedException e) {
                 }
 

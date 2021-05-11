@@ -88,7 +88,7 @@ public interface MetadataCache<T> {
      *            a function that will be passed the current value and returns a modified value to be stored
      * @return a future to track the completion of the operation
      */
-    CompletableFuture<Void> readModifyUpdateOrCreate(String path, Function<Optional<T>, T> modifyFunction);
+    CompletableFuture<T> readModifyUpdateOrCreate(String path, Function<Optional<T>, T> modifyFunction);
 
     /**
      * Perform an atomic read-modify-update of the value.
@@ -101,7 +101,7 @@ public interface MetadataCache<T> {
      *            a function that will be passed the current value and returns a modified value to be stored
      * @return a future to track the completion of the operation
      */
-    CompletableFuture<Void> readModifyUpdate(String path, Function<T, T> modifyFunction);
+    CompletableFuture<T> readModifyUpdate(String path, Function<T, T> modifyFunction);
 
     /**
      * Create a new object in the metadata store.

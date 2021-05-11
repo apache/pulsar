@@ -252,8 +252,12 @@ public class PersistentTopic extends AbstractTopic
             if (cursor.getName().startsWith(replicatorPrefix)) {
                 String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
                 String remoteCluster = PersistentReplicator.getRemoteCluster(cursor.getName());
-                boolean isReplicatorStarted = addReplicationCluster(remoteCluster,
-                        this, cursor.getName(), localCluster);
+                boolean isReplicatorStarted = false;
+                try {
+                    isReplicatorStarted = addReplicationCluster(remoteCluster, this, cursor.getName(), localCluster);
+                } catch (Exception e) {
+                    log.warn("[{}] failed to start replication", topic, e);
+                }
                 if (!isReplicatorStarted) {
                     throw new NamingException(
                             PersistentTopic.this.getName() + " Failed to start replicator " + remoteCluster);
@@ -1057,8 +1061,7 @@ public class PersistentTopic extends AbstractTopic
 
                                     subscribeRateLimiter.ifPresent(SubscribeRateLimiter::close);
 
-                                    brokerService.pulsar().getTopicPoliciesService()
-                                            .unregisterListener(TopicName.get(topic), getPersistentTopic());
+                                    brokerService.pulsar().getTopicPoliciesService().clean(TopicName.get(topic));
                                     log.info("[{}] Topic deleted", topic);
                                     deleteFuture.complete(null);
                                 }
@@ -1149,8 +1152,7 @@ public class PersistentTopic extends AbstractTopic
 
                     subscribeRateLimiter.ifPresent(SubscribeRateLimiter::close);
 
-                    brokerService.pulsar().getTopicPoliciesService()
-                            .unregisterListener(TopicName.get(topic), getPersistentTopic());
+                    brokerService.pulsar().getTopicPoliciesService().clean(TopicName.get(topic));
                     log.info("[{}] Topic closed", topic);
                     closeFuture.complete(null);
                 }
@@ -1172,7 +1174,8 @@ public class PersistentTopic extends AbstractTopic
         return closeFuture;
     }
 
-    private CompletableFuture<Void> checkReplicationAndRetryOnFailure() {
+    @VisibleForTesting
+    CompletableFuture<Void> checkReplicationAndRetryOnFailure() {
         CompletableFuture<Void> result = new CompletableFuture<Void>();
         checkReplication().thenAccept(res -> {
             log.info("[{}] Policies updated successfully", topic);
@@ -2182,6 +2185,10 @@ public class PersistentTopic extends AbstractTopic
         if (log.isDebugEnabled()) {
             log.debug("[{}] isEncryptionRequired changes: {} -> {}", topic, isEncryptionRequired,
                     data.encryption_required);
+        }
+        if (data.deleted) {
+            log.debug("Ignore the update because it has been deleted : {}", data);
+            return CompletableFuture.completedFuture(null);
         }
         isEncryptionRequired = data.encryption_required;
 

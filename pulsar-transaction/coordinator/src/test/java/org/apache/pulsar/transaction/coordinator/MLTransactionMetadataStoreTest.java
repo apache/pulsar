@@ -133,7 +133,7 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
                         new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl());
 
-        Awaitility.await().atMost(500, TimeUnit.MILLISECONDS).until(transactionMetadataStore::checkIfReady);
+        Awaitility.await().until(transactionMetadataStore::checkIfReady);
         TxnID txnID = transactionMetadataStore.newTransaction(20000).get();
         transactionMetadataStore.updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN).get();
         if (isUseManagedLedger) {
@@ -146,7 +146,7 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         Position position = managedLedger.getLastConfirmedEntry();
 
         if (isUseManagedLedger) {
-            Awaitility.await().atMost(2000, TimeUnit.MILLISECONDS).until(() -> {
+            Awaitility.await().until(() -> {
                 managedLedger.rollCurrentLedgerIfFull();
                 return !managedLedger.ledgerExists(position.getLedgerId());
             });
@@ -155,7 +155,7 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
                         new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl());
 
-        Awaitility.await().atMost(2000, TimeUnit.MILLISECONDS).until(transactionMetadataStore::checkIfReady);
+        Awaitility.await().until(transactionMetadataStore::checkIfReady);
         txnID = transactionMetadataStore.newTransaction(100000).get();
         assertEquals(txnID.getLeastSigBits(), 1);
     }
@@ -337,7 +337,7 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
                         new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl());
 
 
-        Awaitility.await().atMost(3000, TimeUnit.MILLISECONDS).until(transactionMetadataStore::checkIfReady);
+        Awaitility.await().until(transactionMetadataStore::checkIfReady);
 
         // txnID1 have not deleted from cursor, we can recover from transaction log
         TxnID txnID1 = transactionMetadataStore.newTransaction(1000).get();
@@ -353,7 +353,7 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
                         new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl());
 
-        Awaitility.await().atMost(3000, TimeUnit.MILLISECONDS).until(transactionMetadataStore::checkIfReady);
+        Awaitility.await().until(transactionMetadataStore::checkIfReady);
     }
 
     public class TransactionTimeoutTrackerImpl implements TransactionTimeoutTracker {

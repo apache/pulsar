@@ -22,10 +22,15 @@ on:
   pull_request:
     branches:
       - master
+    paths:
+      - '.github/workflows/**'
+      - 'pulsar-client-cpp/**'
   push:
     branches:
       - branch-*
-
+    paths:
+      - '.github/workflows/**'
+      - 'pulsar-client-cpp/**'
 jobs:
 
   cpp-build-centos7:
@@ -40,23 +45,18 @@ jobs:
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
 
-      - name: Changed files check
+      - name: Detect changed files
         id:   changes
         uses: apache/pulsar-test-infra/paths-filter@master
         with:
-          filters: |
-            # pattern syntax: https://github.com/micromatch/picomatch
-            all:
-              - 'pulsar-client-cpp/**'
-            docs:
-              - 'site2/**'
-              - 'deployment/**'
-              - '.asf.yaml'
-              - '*.md'
-              - '**/*.md'
+          filters: .github/changes-filter.yaml
+
+      - name: Check changed files
+        id: check_changes
+        run: echo "::set-output name=docs_only::${{ fromJSON(steps.changes.outputs.all_count) == fromJSON(steps.changes.outputs.docs_count) && fromJSON(steps.changes.outputs.docs_count) > 0 }}"
 
       - name: build cpp client on centos 7
-        if: ${{ steps.changes.outputs.all_count }} > ${{ steps.changes.outputs.docs_count }}
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         run: |
           echo "Build C++ client library on CentOS 7"
           pulsar-client-cpp/docker-build-centos7.sh

@@ -631,7 +631,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         assertTrue(readPosition.getEntryId() < 1000);
     }
 
-    @Test(groups = "quarantine")
+    @Test
     public void testRemoveFirstConsumer() throws Exception {
         this.conf.setSubscriptionKeySharedEnable(true);
         String topic = "testReadAheadWhenAddingConsumers-" + UUID.randomUUID();
@@ -886,7 +886,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Assert.assertNotNull(consumer3.receive(1, TimeUnit.SECONDS));
     }
 
-    @Test(dataProvider = "partitioned", groups = "quarantine")
+    @Test(dataProvider = "partitioned")
     public void testOrderingWithConsumerListener(boolean partitioned) throws Exception {
         final String topic = "persistent://public/default/key_shared-" + UUID.randomUUID();
         if (partitioned) {
@@ -928,7 +928,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             producer.newMessage().key(keys[i % 3]).value(i).send();
         }
 
-        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+        Awaitility.await().untilAsserted(() ->
                 Assert.assertEquals(received.size(), messages));
 
         Map<String, Integer> maxValueOfKeys = new HashMap<>();

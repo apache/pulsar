@@ -534,6 +534,12 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_WORKER,
+            doc = "The additional configs for the function worker service if functionsWorkerServiceNarPackage provided"
+    )
+    private Map<String, Object> functionsWorkerServiceCustomConfigs = Collections.emptyMap();
+
+    @FieldContext(
+            category = CATEGORY_WORKER,
             doc = "Enable to expose Pulsar Admin Client from Function Context, default is disabled"
     )
     private boolean exposeAdminClientEnabled = false;

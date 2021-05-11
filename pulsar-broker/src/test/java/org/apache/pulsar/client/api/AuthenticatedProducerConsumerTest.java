@@ -245,15 +245,8 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         replacePulsarClient(PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl())
                 .operationTimeout(1, TimeUnit.SECONDS));
 
-        // unauthorized topic test
-        Exception pulsarClientException = null;
-        try {
-            pulsarClient.newConsumer().topic("persistent://my-property/my-ns/other-topic")
-                    .subscriptionName("my-subscriber-name").subscribe();
-        } catch (Exception e) {
-            pulsarClientException = e;
-        }
-        Assert.assertTrue(pulsarClientException instanceof PulsarClientException);
+        pulsarClient.newConsumer().topic("persistent://my-property/my-ns/other-topic")
+                .subscriptionName("my-subscriber-name").subscribe();
 
         testSyncProducerAndConsumer(batchMessageDelayMs);
 
