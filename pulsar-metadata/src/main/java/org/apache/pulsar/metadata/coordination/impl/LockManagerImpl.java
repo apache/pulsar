@@ -26,6 +26,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -48,7 +49,7 @@ import org.apache.pulsar.metadata.cache.impl.MetadataSerde;
 @Slf4j
 class LockManagerImpl<T> implements LockManager<T> {
 
-    private final Set<ResourceLockImpl<T>> locks = new HashSet<>();
+    private final Set<ResourceLockImpl<T>> locks = new CopyOnWriteArraySet<>();
     private final MetadataStoreExtended store;
     private final MetadataCache<T> cache;
     private final MetadataSerde<T> serde;
@@ -115,10 +116,9 @@ class LockManagerImpl<T> implements LockManager<T> {
 
     private void handleDataNotification(Notification n) {
         if (n.getType() == NotificationType.Deleted) {
-            List<ResourceLockImpl<T>> invalidedLocks = locks.stream()
+            locks.stream()
                     .filter(l -> l.getPath().equals(n.getPath()))
-                    .collect(Collectors.toList());
-            invalidedLocks.forEach(ResourceLockImpl::lockWasInvalidated);
+                    .forEach(ResourceLockImpl::lockWasInvalidated);
         }
     }
 
