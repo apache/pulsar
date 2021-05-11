@@ -219,6 +219,8 @@ public class MockZooKeeperSession extends ZooKeeper {
 
     @Override
     public String toString() {
-        return "MockZookeeperSession";
+        return "MockZooKeeperSession{" +
+                "sessionId=" + sessionId +
+                '}';
     }
 }
