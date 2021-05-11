@@ -19,11 +19,14 @@
 package org.apache.pulsar.client.admin.internal;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.Version;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.module.SimpleAbstractTypeResolver;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonObject;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -87,6 +90,7 @@ import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1402,12 +1406,28 @@ public class TopicsImpl extends BaseResource implements Topics {
                 new InvocationCallback<String>() {
                     @Override
                     public void completed(String jsonString) {
-                        Gson gson = new GsonBuilder().registerTypeAdapter(MessageId.class,
-                                (JsonDeserializer) (json, typeOfT, context)
-                                -> context.deserialize(json, MessageIdImpl.class)).create();
-                        OffloadProcessStatus offloadProcessStatus = gson.fromJson(jsonString,
-                                OffloadProcessStatus.class);
-                        future.complete(offloadProcessStatus);
+                        ObjectMapper mapper = ObjectMapperFactory.create();
+                        SimpleModule module = new SimpleModule("OffloadProcessStatusConvertModule",
+                                Version.unknownVersion());
+
+                        // we not specific @JsonDeserialize annotation in OffloadProcessStatus
+                        // because we do not want to have jackson dependency in pulsar-client-admin-api
+                        // In this case we use SimpleAbstractTypeResolver to map MessageId to MessageIdImpl
+                        SimpleAbstractTypeResolver resolver = new SimpleAbstractTypeResolver();
+                        resolver.addMapping(MessageId.class, MessageIdImpl.class);
+
+                        module.setAbstractTypes(resolver);
+                        mapper = mapper.registerModule(module);
+                        OffloadProcessStatus offloadProcessStatus = null;
+                        try {
+                            offloadProcessStatus = mapper.readValue(jsonString,
+                                    OffloadProcessStatus.class);
+                        } catch (JsonProcessingException e) {
+                            future.completeExceptionally(getApiException(e));
+                        }
+                        if (offloadProcessStatus != null) {
+                            future.complete(offloadProcessStatus);
+                        }
                     }
 
                     @Override
