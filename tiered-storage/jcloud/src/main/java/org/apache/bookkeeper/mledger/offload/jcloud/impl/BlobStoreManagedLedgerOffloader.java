@@ -485,8 +485,9 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
      * @param offloadDriverMetadata
      * @return
      */
-    private BlobStoreLocation getBlobStoreLocation(Map<String, String> offloadDriverMetadata) {
-        return (!offloadDriverMetadata.isEmpty()) ? new BlobStoreLocation(offloadDriverMetadata) :
+    BlobStoreLocation getBlobStoreLocation(Map<String, String> offloadDriverMetadata) {
+        return (offloadDriverMetadata.keySet().containsAll(getOffloadDriverMetadata().keySet())) ?
+            new BlobStoreLocation(offloadDriverMetadata) :
             new BlobStoreLocation(getOffloadDriverMetadata());
     }
 

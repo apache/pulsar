@@ -23,6 +23,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 
 import java.io.IOException;
@@ -35,11 +36,13 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
+import com.google.common.collect.ImmutableMap;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
+import org.apache.bookkeeper.mledger.offload.jcloud.provider.BlobStoreLocation;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.JCloudBlobStoreProvider;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration;
 import org.jclouds.blobstore.BlobStore;
@@ -460,5 +463,40 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
             Assert.assertEquals(e.getCause().getClass(), IOException.class);
             Assert.assertTrue(e.getCause().getMessage().contains("Invalid object version"));
         }
+    }
+
+    @Test
+    public void testGetConfigurationsFromMetadata() throws IOException {
+        BlobStoreManagedLedgerOffloader offloader = getOffloader();
+        BlobStoreLocation location = offloader.getBlobStoreLocation(Collections.emptyMap());
+        assertEquals(location.getBucket(), config.getBucket());
+        assertEquals(location.getRegion(), config.getRegion());
+        assertEquals(location.getEndpoint(), config.getServiceEndpoint());
+        assertEquals(location.getProviderName(), config.getProvider().name());
+
+        location = offloader.getBlobStoreLocation(Collections.singletonMap("otherMetadataKey", "otherMetadataValue"));
+        assertEquals(location.getBucket(), config.getBucket());
+        assertEquals(location.getRegion(), config.getRegion());
+        assertEquals(location.getEndpoint(), config.getServiceEndpoint());
+        assertEquals(location.getProviderName(), config.getProvider().name());
+
+
+        Map<String, String> offloadDriverMetadata = ImmutableMap.of(
+            TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, "provider",
+            TieredStorageConfiguration.METADATA_FIELD_BUCKET, "bucket",
+            TieredStorageConfiguration.METADATA_FIELD_REGION, "region",
+            TieredStorageConfiguration.METADATA_FIELD_ENDPOINT, "endpoint"
+        );
+
+        location = offloader.getBlobStoreLocation(ImmutableMap.of(
+            TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, "provider",
+            TieredStorageConfiguration.METADATA_FIELD_BUCKET, "bucket",
+            TieredStorageConfiguration.METADATA_FIELD_REGION, "region",
+            TieredStorageConfiguration.METADATA_FIELD_ENDPOINT, "endpoint"
+        ));
+        assertEquals(location.getBucket(), "bucket");
+        assertEquals(location.getProviderName(), "provider");
+        assertEquals(location.getEndpoint(), "endpoint");
+        assertEquals(location.getRegion(), "region");
     }
 }
