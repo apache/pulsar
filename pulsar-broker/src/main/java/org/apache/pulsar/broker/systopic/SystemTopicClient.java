@@ -168,10 +168,12 @@ public interface SystemTopicClient<T> {
     }
 
     static boolean isSystemTopic(TopicName topicName) {
-        String localName = topicName.getLocalName();
-        int partitionIndex = localName.indexOf(TopicName.PARTITIONED_TOPIC_SUFFIX);
-        String topicNameWithoutSuffix = partitionIndex == -1 ? localName : localName.substring(0, partitionIndex);
-        return EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME.equals(topicNameWithoutSuffix);
+        if (topicName.isPartitioned()) {
+            return EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME
+                    .equals(TopicName.get(topicName.getPartitionedTopicName()).getLocalName());
+        }
+
+        return EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME.equals(topicName.getLocalName());
     }
 
 }
