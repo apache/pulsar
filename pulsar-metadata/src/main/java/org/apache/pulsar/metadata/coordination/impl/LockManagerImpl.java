@@ -20,6 +20,7 @@ package org.apache.pulsar.metadata.coordination.impl;
 
 import com.fasterxml.jackson.databind.type.TypeFactory;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -113,11 +114,14 @@ class LockManagerImpl<T> implements LockManager<T> {
         }
     }
 
+    @VisibleForTesting
     private void handleDataNotification(Notification n) {
         if (n.getType() == NotificationType.Deleted) {
-            locks.stream()
-                    .filter(l -> l.getPath().equals(n.getPath()))
-                    .forEach(l -> l.lockWasInvalidated());
+            for (ResourceLockImpl<T> lock : locks) {
+                if (lock.getPath().equals(n.getPath())) {
+                    lock.lockWasInvalidated();
+                }
+            }
         }
     }
 
