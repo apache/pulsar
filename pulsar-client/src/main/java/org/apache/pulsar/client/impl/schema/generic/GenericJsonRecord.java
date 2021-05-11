@@ -110,6 +110,9 @@ public class GenericJsonRecord extends VersionedGenericRecord {
         try {
             org.apache.avro.Schema schema = parseAvroSchema(schemaInfo.getSchemaDefinition());
             org.apache.avro.Schema.Field field = schema.getField(fieldName);
+            if (field == null) {
+                return false;
+            }
             ObjectMapper objectMapper = new ObjectMapper();
             JsonNode jsonNode = objectMapper.readTree(field.schema().toString());
             for (JsonNode node : jsonNode) {
