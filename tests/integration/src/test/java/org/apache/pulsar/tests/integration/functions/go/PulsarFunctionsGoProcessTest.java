@@ -16,15 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.tests.integration.functions;
+package org.apache.pulsar.tests.integration.functions.go;
 
 import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 
-/**
- * Thread based test.
- */
-public class PulsarFunctionsThreadTest extends PulsarFunctionsTest {
-    public PulsarFunctionsThreadTest() {
-        super(FunctionRuntimeType.THREAD);
-    }
+public class PulsarFunctionsGoProcessTest extends PulsarFunctionsGoTest {
+
+	PulsarFunctionsGoProcessTest() {
+		super(FunctionRuntimeType.PROCESS);
+	}
+
 }
