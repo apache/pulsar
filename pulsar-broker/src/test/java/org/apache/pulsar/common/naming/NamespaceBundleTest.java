@@ -134,6 +134,7 @@ public class NamespaceBundleTest {
         doNothing().when(poilciesCache).registerListener(any());
         MetadataStoreExtended store = mock(MetadataStoreExtended.class);
         when(pulsar.getLocalMetadataStore()).thenReturn(store);
+        when(pulsar.getConfigurationMetadataStore()).thenReturn(store);
         return NamespaceBundleFactory.createFactory(pulsar, Hashing.crc32());
     }
 
