@@ -229,6 +229,9 @@ public class SinkStatsManager extends ComponentStatsManager {
 
     @Override
     public void incrSysExceptions(Throwable ex) {
+        _statTotalSysExceptions.inc();
+        _statTotalSysExceptions1min.inc();
+
         long ts = System.currentTimeMillis();
         InstanceCommunication.FunctionStatus.ExceptionInformation info = getExceptionInfo(ex, ts);
         latestSystemExceptions.add(info);
@@ -252,6 +255,9 @@ public class SinkStatsManager extends ComponentStatsManager {
 
     @Override
     public void incrSinkExceptions(Throwable ex) {
+        _statTotalSinkExceptions.inc();
+        _statTotalSinkExceptions1min.inc();
+
         long ts = System.currentTimeMillis();
         InstanceCommunication.FunctionStatus.ExceptionInformation info = getExceptionInfo(ex, ts);
         latestSinkExceptions.add(info);
@@ -276,7 +282,7 @@ public class SinkStatsManager extends ComponentStatsManager {
 
     @Override
     public void processTimeStart() {
-        //no-p[
+        //no-op
     }
 
     @Override
