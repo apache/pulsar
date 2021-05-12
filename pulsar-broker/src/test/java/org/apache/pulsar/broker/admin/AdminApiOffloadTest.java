@@ -105,12 +105,12 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         ManagedLedgerInfo info = pulsar.getManagedLedgerFactory().getManagedLedgerInfo(mlName);
         assertEquals(info.ledgers.size(), 2);
 
-        assertEquals(admin.topics().offloadStatus(topicName).status,
+        assertEquals(admin.topics().offloadStatus(topicName).getStatus(),
                             LongRunningProcessStatus.Status.NOT_RUN);
 
         admin.topics().triggerOffload(topicName, currentId);
 
-        assertEquals(admin.topics().offloadStatus(topicName).status,
+        assertEquals(admin.topics().offloadStatus(topicName).getStatus(),
                             LongRunningProcessStatus.Status.RUNNING);
 
         try {
@@ -123,9 +123,9 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         // fail first time
         promise.completeExceptionally(new Exception("Some random failure"));
 
-        assertEquals(admin.topics().offloadStatus(topicName).status,
+        assertEquals(admin.topics().offloadStatus(topicName).getStatus(),
                             LongRunningProcessStatus.Status.ERROR);
-        Assert.assertTrue(admin.topics().offloadStatus(topicName).lastError.contains("Some random failure"));
+        Assert.assertTrue(admin.topics().offloadStatus(topicName).getLastError().contains("Some random failure"));
 
         // Try again
         doReturn(CompletableFuture.completedFuture(null))
@@ -134,9 +134,9 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         admin.topics().triggerOffload(topicName, currentId);
 
         Awaitility.await().untilAsserted(() ->
-                assertEquals(admin.topics().offloadStatus(topicName).status,
+                assertEquals(admin.topics().offloadStatus(topicName).getStatus(),
                 LongRunningProcessStatus.Status.SUCCESS));
-        MessageId firstUnoffloaded = admin.topics().offloadStatus(topicName).firstUnoffloadedMessage;
+        MessageId firstUnoffloaded = admin.topics().offloadStatus(topicName).getFirstUnoffloadedMessage();
         assertTrue(firstUnoffloaded instanceof MessageIdImpl);
         MessageIdImpl firstUnoffloadedMessage = (MessageIdImpl) firstUnoffloaded;
         // First unoffloaded is the first entry of current ledger
