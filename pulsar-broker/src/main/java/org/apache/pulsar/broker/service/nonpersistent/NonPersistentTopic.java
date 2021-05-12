@@ -267,7 +267,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                 name -> new NonPersistentSubscription(this, subscriptionName));
         Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName, 0,
                 cnx, cnx.getAuthRole(), metadata, readCompacted, initialPosition, keySharedMeta);
-        addConsumerToSubscription(subscription, consumer).thenAccept(v -> {
+        addConsumerToSubscription(subscription, consumer).thenRun(() -> {
             if (!cnx.isActive()) {
                 try {
                     consumer.close();
@@ -281,6 +281,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
                     decrementUsageCount();
                     future.completeExceptionally(e);
+                    return;
                 }
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] [{}] [{}] Subscribe failed -- count: {}", topic, subscriptionName,
@@ -293,15 +294,16 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                 future.complete(consumer);
             }
         }).exceptionally(e -> {
-            if (e.getCause() instanceof ConsumerBusyException) {
+            Throwable throwable = e.getCause();
+            if (throwable instanceof ConsumerBusyException) {
                 log.warn("[{}][{}] Consumer {} {} already connected", topic, subscriptionName, consumerId,
                         consumerName);
-            } else if (e.getCause() instanceof SubscriptionBusyException) {
+            } else if (throwable instanceof SubscriptionBusyException) {
                 log.warn("[{}][{}] {}", topic, subscriptionName, e.getMessage());
             }
 
             decrementUsageCount();
-            future.completeExceptionally(e.getCause());
+            future.completeExceptionally(throwable);
             return null;
         });
 
@@ -854,11 +856,12 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                     stopReplProducers().thenCompose(v -> delete(true, false, true))
                             .thenRun(() -> log.info("[{}] Topic deleted successfully due to inactivity", topic))
                             .exceptionally(e -> {
-                                if (e.getCause() instanceof TopicBusyException) {
+                                Throwable throwable = e.getCause();
+                                if (throwable instanceof TopicBusyException) {
                                     // topic became active again
                                     if (log.isDebugEnabled()) {
                                         log.debug("[{}] Did not delete busy topic: {}", topic,
-                                                e.getCause().getMessage());
+                                                throwable.getMessage());
                                     }
                                     replicators.forEach((region, replicator) -> replicator.startProducer());
                                 } else {

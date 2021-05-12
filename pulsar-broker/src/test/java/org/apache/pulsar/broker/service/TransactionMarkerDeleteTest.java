@@ -102,7 +102,7 @@ public class TransactionMarkerDeleteTest extends BrokerTestBase{
         doReturn(brokerService).when(topic).getBrokerService();
         doReturn(pulsarService).when(brokerService).getPulsar();
         doReturn(configuration).when(pulsarService).getConfig();
-        doReturn(true).when(configuration).isTransactionCoordinatorEnabled();
+        doReturn(false).when(configuration).isTransactionCoordinatorEnabled();
         doReturn(managedLedger).when(topic).getManagedLedger();
         ManagedCursor cursor = managedLedger.openCursor("test");
         PersistentSubscription persistentSubscription = spy(new PersistentSubscription(topic, "test",

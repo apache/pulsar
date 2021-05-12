@@ -62,9 +62,9 @@ public class MLPendingAckStore implements PendingAckStore {
 
     private final ManagedCursor cursor;
 
-    public static final String PENDING_ACK_STORE_SUFFIX = "__transaction_pendingack";
+    public static final String PENDING_ACK_STORE_SUFFIX = "__transaction_pending_ack";
 
-    private static final String PENDING_ACK_STORE_CURSOR_NAME = "pendingack";
+    private static final String PENDING_ACK_STORE_CURSOR_NAME = "__pending_ack_state";
 
     private final SpscArrayQueue<Entry> entryQueue;
 

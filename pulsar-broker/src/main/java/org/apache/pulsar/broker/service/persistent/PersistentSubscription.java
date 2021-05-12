@@ -133,7 +133,7 @@ public class PersistentSubscription implements Subscription {
         this.fullName = MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
         this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, subscriptionName, cursor, this);
         this.setReplicated(replicated);
-        if (topic.getBrokerService().getPulsar().getConfiguration().isTransactionCoordinatorEnabled()
+        if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
                 && !checkTopicIsEventsNames(topicName)
                 && !topicName.startsWith(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getLocalName())
                 && !topicName.startsWith(MLTransactionLogImpl.TRANSACTION_LOG_PREFIX)
