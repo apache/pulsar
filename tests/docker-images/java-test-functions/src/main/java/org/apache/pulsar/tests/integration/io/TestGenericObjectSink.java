@@ -41,8 +41,11 @@ public class TestGenericObjectSink implements Sink<GenericObject> {
         log.info("received record {} {}", record, record.getClass());
         log.info("schema {}", record.getSchema());
         log.info("native schema {}", record.getSchema().getNativeSchema().orElse(null));
+        log.info("schemaInfo {}", record.getSchema().getSchemaInfo());
+        log.info("schemaInfo.type {}", record.getSchema().getSchemaInfo().getType());
 
         String expectedRecordType = record.getProperties().getOrDefault("expectedType", "MISSING");
+        log.info("expectedRecordType {}", expectedRecordType);
         if (!expectedRecordType.equals(record.getSchema().getSchemaInfo().getType().name())) {
             throw new RuntimeException("Unexpected record type " + record.getSchema().getSchemaInfo().getType().name() + " is not " + expectedRecordType);
         }
