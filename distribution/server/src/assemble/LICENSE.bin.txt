@@ -410,7 +410,6 @@ The Apache Software License, Version 2.0
     - org.apache.bookkeeper.http-vertx-http-server-4.13.0.jar
     - org.apache.bookkeeper.stats-bookkeeper-stats-api-4.13.0.jar
     - org.apache.bookkeeper.stats-prometheus-metrics-provider-4.13.0.jar
-    - org.apache.bookkeeper.tests-stream-storage-tests-common-4.13.0.jar
     - org.apache.distributedlog-distributedlog-common-4.13.0.jar
     - org.apache.distributedlog-distributedlog-core-4.13.0-tests.jar
     - org.apache.distributedlog-distributedlog-core-4.13.0.jar
@@ -509,6 +508,7 @@ The Apache Software License, Version 2.0
     - io.vertx-vertx-core-3.5.4.jar
     - io.vertx-vertx-web-3.5.4.jar
   * Apache ZooKeeper
+    - org.apache.zookeeper-zookeeper-3.6.2.jar
     - org.apache.zookeeper-zookeeper-jute-3.6.2.jar
   * Snappy Java
     - org.xerial.snappy-snappy-java-1.1.7.jar

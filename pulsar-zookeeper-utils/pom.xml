@@ -56,6 +56,14 @@
           <groupId>org.apache.curator</groupId>
           <artifactId>*</artifactId>
         </exclusion>
+        <exclusion>
+          <groupId>org.apache.bookkeeper.tests</groupId>
+          <artifactId>stream-storage-tests-common</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.zookeeper</groupId>
+          <artifactId>zookeeper</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
 
