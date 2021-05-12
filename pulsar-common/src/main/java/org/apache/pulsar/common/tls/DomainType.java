@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.pulsar.client.impl.tls;
+package org.apache.pulsar.common.tls;
 
 /**
  * Domain types differentiated by Mozilla Public Suffix List.
