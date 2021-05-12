@@ -52,7 +52,7 @@
 
 #### Docker
 - Allow DockerImage to be built from source tarball [#9846](https://github.com/apache/pulsar/pull/9846)
-- fix docker standalone image error [#10359](https://github.com/apache/pulsar/pull/10359)
+- Fix docker standalone image error [#10359](https://github.com/apache/pulsar/pull/10359)
 - Suppress printing of "skip Processing" lines in startup scripts [#10275](https://github.com/apache/pulsar/pull/10275)
 - Issue 10058:apply-config-from-env.py to commented default values [#10060](https://github.com/apache/pulsar/pull/10060)
 
