@@ -16,28 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.metadata.cache.impl;
+package org.apache.pulsar.metadata.api;
 
-import com.fasterxml.jackson.databind.JavaType;
-import java.io.IOException;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.metadata.api.MetadataSerde;
+import lombok.Data;
 
-public class JSONMetadataSerdeSimpleType<T> implements MetadataSerde<T> {
+/**
+ * Represent a result for a {@link MetadataCache#getWithStats(String)} operation.
+ */
+@Data
+public class CacheGetResult<T> {
+    /**
+     * The value of the key stored.
+     */
+    private final T value;
 
-    private final JavaType typeRef;
-
-    public JSONMetadataSerdeSimpleType(JavaType typeRef) {
-        this.typeRef = typeRef;
-    }
-
-    @Override
-    public byte[] serialize(T value) throws IOException {
-        return ObjectMapperFactory.getThreadLocal().writeValueAsBytes(value);
-    }
-
-    @Override
-    public T deserialize(byte[] content) throws IOException {
-        return ObjectMapperFactory.getThreadLocal().readValue(content, typeRef);
-    }
+    /**
+     * The {@link Stat} object associated with the value.
+     */
+    private final Stat stat;
 }

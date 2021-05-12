@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.metadata.cache.impl;
+package org.apache.pulsar.metadata.api;
 
 import java.io.IOException;
 
