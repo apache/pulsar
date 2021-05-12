@@ -3915,4 +3915,76 @@ public class PersistentTopicsBase extends AdminResource {
             }
         }
     }
+
+    protected void internalTruncateNonPartitionedTopic(AsyncResponse asyncResponse, boolean authoritative) {
+        Topic topic;
+        try {
+            validateAdminAccessForTenant(topicName.getTenant());
+            validateTopicOwnership(topicName, authoritative);
+            topic = getTopicReference(topicName);
+        } catch (Exception e) {
+            log.error("[{}] Failed to truncate topic {}", clientAppId(), topicName, e);
+            resumeAsyncResponseExceptionally(asyncResponse, e);
+            return;
+        }
+        CompletableFuture<Void> future = topic.truncate();
+        future.thenAccept(a -> {
+            asyncResponse.resume(new RestException(Response.Status.NO_CONTENT.getStatusCode(),
+                    Response.Status.NO_CONTENT.getReasonPhrase()));
+        }).exceptionally(e -> {
+            asyncResponse.resume(e);
+            return null;
+        });
+    }
+
+    protected void internalTruncateTopic(AsyncResponse asyncResponse, boolean authoritative) {
+
+        // If the topic name is a partition name, no need to get partition topic metadata again
+        if (topicName.isPartitioned()) {
+            internalTruncateNonPartitionedTopic(asyncResponse, authoritative);
+        } else {
+            getPartitionedTopicMetadataAsync(topicName, authoritative, false).whenComplete((meta, t) -> {
+                if (meta.partitions > 0) {
+                    final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+                    for (int i = 0; i < meta.partitions; i++) {
+                        TopicName topicNamePartition = topicName.getPartition(i);
+                        try {
+                            futures.add(pulsar().getAdminClient().topics()
+                                .truncateAsync(topicNamePartition.toString()));
+                        } catch (Exception e) {
+                            log.error("[{}] Failed to truncate topic {}", clientAppId(), topicNamePartition, e);
+                            asyncResponse.resume(new RestException(e));
+                            return;
+                        }
+                    }
+                    FutureUtil.waitForAll(futures).handle((result, exception) -> {
+                        if (exception != null) {
+                            Throwable th = exception.getCause();
+                            if (th instanceof NotFoundException) {
+                                asyncResponse.resume(new RestException(Status.NOT_FOUND, th.getMessage()));
+                            } else if (th instanceof WebApplicationException) {
+                                asyncResponse.resume(th);
+                            } else {
+                                log.error("[{}] Failed to truncate topic {}", clientAppId(), topicName, exception);
+                                asyncResponse.resume(new RestException(exception));
+                            }
+                        } else {
+                            asyncResponse.resume(Response.noContent().build());
+                        }
+                        return null;
+                    });
+                } else {
+                    internalTruncateNonPartitionedTopic(asyncResponse, authoritative);
+                }
+            }).exceptionally(t -> {
+                log.error("[{}] Failed to truncate topic {}", clientAppId(), topicName, t);
+                if (t instanceof WebApplicationException) {
+                    asyncResponse.resume(t);
+                } else {
+                    asyncResponse.resume(new RestException(t));
+                }
+                return null;
+            });
+        }
+    }
 }

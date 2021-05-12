@@ -37,7 +37,6 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -84,6 +83,7 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("partitioned-lookup", new PartitionedLookup());
         jcommander.addCommand("bundle-range", new GetBundleRange());
         jcommander.addCommand("delete", new DeleteCmd());
+        jcommander.addCommand("truncate", new TruncateCmd());
         jcommander.addCommand("unload", new UnloadCmd());
         jcommander.addCommand("subscriptions", new ListSubscriptions());
         jcommander.addCommand("unsubscribe", new DeleteSubscription());
@@ -484,6 +484,19 @@ public class CmdTopics extends CmdBase {
             if (deleteSchema) {
                 getAdmin().schemas().deleteSchema(topic);
             }
+        }
+    }
+
+    @Parameters(commandDescription = "Truncate a topic. \n"
+            + "\t\tThe truncate operation will move all cursors to the end of the topic and delete all inactive ledgers. ")
+    private class TruncateCmd extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String topic = validateTopicName(params);
+            getTopics().truncate(topic);
         }
     }
 
