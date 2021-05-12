@@ -54,6 +54,7 @@ import org.apache.pulsar.client.admin.ResourceQuotas;
 import org.apache.pulsar.client.admin.Schemas;
 import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.client.admin.Topics;
+import org.apache.pulsar.client.admin.internal.OffloadProcessStatusImpl;
 import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -1102,7 +1103,7 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("offload persistent://myprop/clust/ns1/ds1 -s 1k"));
         verify(mockTopics).triggerOffload("persistent://myprop/clust/ns1/ds1", new MessageIdImpl(2, 0, -1));
 
-        when(mockTopics.offloadStatus("persistent://myprop/clust/ns1/ds1")).thenReturn(new OffloadProcessStatus());
+        when(mockTopics.offloadStatus("persistent://myprop/clust/ns1/ds1")).thenReturn(new OffloadProcessStatusImpl());
         cmdTopics.run(split("offload-status persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).offloadStatus("persistent://myprop/clust/ns1/ds1");
 

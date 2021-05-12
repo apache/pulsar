@@ -45,6 +45,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
+import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Topics;
@@ -1022,13 +1023,13 @@ public class CmdTopics extends CmdBase {
             String persistentTopic = validatePersistentTopic(params);
 
             try {
-                LongRunningProcessStatus status = getTopics().offloadStatus(persistentTopic);
-                while (wait && status.status == LongRunningProcessStatus.Status.RUNNING) {
+                OffloadProcessStatus status = getTopics().offloadStatus(persistentTopic);
+                while (wait && status.getStatus() == LongRunningProcessStatus.Status.RUNNING) {
                     Thread.sleep(1000);
                     status = getTopics().offloadStatus(persistentTopic);
                 }
 
-                switch (status.status) {
+                switch (status.getStatus()) {
                 case NOT_RUN:
                     System.out.println("Offload has not been run for " + persistentTopic
                                        + " since broker startup");
@@ -1041,7 +1042,7 @@ public class CmdTopics extends CmdBase {
                     break;
                 case ERROR:
                     System.out.println("Error in offload");
-                    throw new PulsarAdminException("Error offloading: " + status.lastError);
+                    throw new PulsarAdminException("Error offloading: " + status.getLastError());
                 }
             } catch (InterruptedException e) {
                 throw new PulsarAdminException(e);
