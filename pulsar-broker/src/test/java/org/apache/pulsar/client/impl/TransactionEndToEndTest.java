@@ -46,7 +46,6 @@ import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -142,7 +141,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .subscriptionName("test")
                 .enableBatchIndexAcknowledgment(true)
                 .subscribe();
-        Awaitility.await().atMost(3000, TimeUnit.MILLISECONDS).until(consumer::isConnected);
+        Awaitility.await().until(consumer::isConnected);
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient
                 .newProducer()
@@ -216,7 +215,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .subscriptionName(subName)
                 .enableBatchIndexAcknowledgment(true)
                 .subscribe();
-        Awaitility.await().atMost(3000, TimeUnit.MILLISECONDS).until(consumer::isConnected);
+        Awaitility.await().until(consumer::isConnected);
 
         // Can't receive transaction messages before abort.
         Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
@@ -307,7 +306,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(subscriptionType)
                 .subscribe();
-        Awaitility.await().atMost(3000, TimeUnit.MILLISECONDS).until(consumer::isConnected);
+        Awaitility.await().until(consumer::isConnected);
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
@@ -383,7 +382,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .enableBatchIndexAcknowledgment(true)
                 .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS)
                 .subscribe();
-        Awaitility.await().atMost(3000, TimeUnit.MILLISECONDS).until(consumer::isConnected);
+        Awaitility.await().until(consumer::isConnected);
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient
@@ -507,7 +506,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .subscriptionType(subscriptionType)
                 .ackTimeout(1, TimeUnit.MINUTES)
                 .subscribe();
-        Awaitility.await().atMost(3000, TimeUnit.MILLISECONDS).until(consumer::isConnected);
+        Awaitility.await().until(consumer::isConnected);
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
@@ -654,7 +653,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .subscriptionName("test")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
-        Awaitility.await().atMost(3000, TimeUnit.MILLISECONDS).until(consumer::isConnected);
+        Awaitility.await().until(consumer::isConnected);
 
         for (int i = 0; i < txnCnt * messageCnt; i++) {
             Message<byte[]> message = consumer.receive();
@@ -671,7 +670,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .topic(topic)
                 .subscriptionName("test")
                 .subscribe();
-        Awaitility.await().atMost(3000, TimeUnit.MILLISECONDS).until(consumer::isConnected);
+        Awaitility.await().until(consumer::isConnected);
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()

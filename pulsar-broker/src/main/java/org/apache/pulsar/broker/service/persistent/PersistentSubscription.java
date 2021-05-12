@@ -133,11 +133,11 @@ public class PersistentSubscription implements Subscription {
         this.fullName = MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
         this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, subscriptionName, cursor, this);
         this.setReplicated(replicated);
-        if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
-                && !checkTopicIsEventsNames(topic.getName())
-                && !topic.getName().contains(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getLocalName())
-                && !topic.getName().contains(MLPendingAckStore.PENDING_ACK_STORE_SUFFIX)
-                && !topic.getName().contains(MLTransactionLogImpl.TRANSACTION_LOG_PREFIX)) {
+        if (topic.getBrokerService().getPulsar().getConfiguration().isTransactionCoordinatorEnabled()
+                && !checkTopicIsEventsNames(topicName)
+                && !topicName.startsWith(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getLocalName())
+                && !topicName.startsWith(MLTransactionLogImpl.TRANSACTION_LOG_PREFIX)
+                && !topicName.endsWith(MLPendingAckStore.PENDING_ACK_STORE_SUFFIX)) {
             this.pendingAckHandle = new PendingAckHandleImpl(this);
         } else {
             this.pendingAckHandle = new PendingAckHandleDisabled();

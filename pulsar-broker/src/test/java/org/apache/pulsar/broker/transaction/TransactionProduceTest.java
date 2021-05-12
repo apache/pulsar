@@ -280,7 +280,7 @@ public class TransactionProduceTest extends TransactionTestBase {
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
 
-        Awaitility.await().atMost(3000, TimeUnit.MILLISECONDS).until(consumer::isConnected);
+        Awaitility.await().until(consumer::isConnected);
 
         for (int i = 0; i < incomingMessageCnt; i++) {
             Message<byte[]> message = consumer.receive();
@@ -343,7 +343,7 @@ public class TransactionProduceTest extends TransactionTestBase {
                 .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
-        Awaitility.await().atMost(3000, TimeUnit.MILLISECONDS).until(consumer::isConnected);
+        Awaitility.await().until(consumer::isConnected);
 
         for (int i = 0; i < incomingMessageCnt; i++) {
             Message<byte[]> message = consumer.receive();

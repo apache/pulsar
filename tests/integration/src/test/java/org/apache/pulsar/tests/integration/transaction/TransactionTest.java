@@ -100,7 +100,7 @@ public class TransactionTest extends TransactionTestBase {
                 .subscriptionType(SubscriptionType.Shared)
                 .enableBatchIndexAcknowledgment(true)
                 .subscribe();
-        Awaitility.await().atMost(3000, TimeUnit.MILLISECONDS).until(transferConsumer::isConnected);
+        Awaitility.await().until(transferConsumer::isConnected);
         log.info("transfer consumer create finished");
 
         @Cleanup
@@ -116,7 +116,7 @@ public class TransactionTest extends TransactionTestBase {
                 .subscriptionName("integration-test")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
-        Awaitility.await().atMost(3000, TimeUnit.MILLISECONDS).until(balanceUpdateConsumer::isConnected);
+        Awaitility.await().until(balanceUpdateConsumer::isConnected);
         log.info("balance update consumer create finished");
 
         while (true) {

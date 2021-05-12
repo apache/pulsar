@@ -106,8 +106,8 @@ public class TransactionConsumeTest extends TransactionTestBase {
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
 
-        Awaitility.await().atMost(3000, TimeUnit.MILLISECONDS).until(exclusiveConsumer::isConnected);
-        Awaitility.await().atMost(3000, TimeUnit.MILLISECONDS).until(sharedConsumer::isConnected);
+        Awaitility.await().until(exclusiveConsumer::isConnected);
+        Awaitility.await().until(sharedConsumer::isConnected);
 
         long mostSigBits = 2L;
         long leastSigBits = 5L;
@@ -184,8 +184,8 @@ public class TransactionConsumeTest extends TransactionTestBase {
                 .subscriptionName("shared-test")
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
-        Awaitility.await().atMost(3000, TimeUnit.MILLISECONDS).until(exclusiveConsumer::isConnected);
-        Awaitility.await().atMost(3000, TimeUnit.MILLISECONDS).until(sharedConsumer::isConnected);
+        Awaitility.await().until(exclusiveConsumer::isConnected);
+        Awaitility.await().until(sharedConsumer::isConnected);
 
         long mostSigBits = 2L;
         long leastSigBits = 5L;

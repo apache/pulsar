@@ -290,7 +290,7 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
                                 (ConcurrentSkipListMap<PositionImpl, BitSetRecyclable>) field.get(managedCursor);
                         if (retryCnt == 0) {
                             //one message are not ack
-                            Awaitility.await().atMost(2000, TimeUnit.MILLISECONDS).until(() -> {
+                            Awaitility.await().until(() -> {
                                 return testPersistentSubscription.getConsumers().get(0).getPendingAcks().size() == 1;
                             });
 
@@ -298,7 +298,7 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
                             assertEquals(testPersistentSubscription.getConsumers().get(0).getPendingAcks().size(), 1);
                         } else {
                             //two message are not ack
-                            Awaitility.await().atMost(2000, TimeUnit.MILLISECONDS).until(() -> {
+                            Awaitility.await().until(() -> {
                                 return testPersistentSubscription.getConsumers().get(0).getPendingAcks().size() == 2;
                             });
 
@@ -306,7 +306,7 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
 
                             //this message is in one batch point
                             consumer.acknowledge(messageIds[0]);
-                            Awaitility.await().atMost(2000, TimeUnit.MILLISECONDS).until(() -> {
+                            Awaitility.await().until(() -> {
                                 return batchDeletedIndexes.size() == 1;
                             });
                             assertEquals(testPersistentSubscription.getConsumers().get(0).getPendingAcks().size(), 1);

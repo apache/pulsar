@@ -284,7 +284,7 @@ public class PersistentSubscriptionTest {
         }).when(cursorMock).asyncDelete(any(List.class), any(AsyncCallbacks.DeleteCallback.class), any());
 
         doReturn(CommandSubscribe.SubType.Exclusive).when(consumerMock).subType();
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).until(() -> {
+        Awaitility.await().until(() -> {
             try {
                 persistentSubscription.addConsumer(consumerMock);
                 return true;

@@ -130,7 +130,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
 
         //in order to test pending ack replay
         admin.topics().unload(PENDING_ACK_REPLAY_TOPIC);
-        Awaitility.await().atMost(3000, TimeUnit.MILLISECONDS).until(consumer::isConnected);
+        Awaitility.await().until(consumer::isConnected);
         Transaction commitTxn = pulsarClient.newTransaction()
                 .withTransactionTimeout(30, TimeUnit.SECONDS).build().get();
 
@@ -159,7 +159,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
 
         // replay this pending ack
         admin.topics().unload(PENDING_ACK_REPLAY_TOPIC);
-        Awaitility.await().atMost(4000, TimeUnit.MILLISECONDS).until(consumer::isConnected);
+        Awaitility.await().until(consumer::isConnected);
 
         abortTxn = pulsarClient.newTransaction()
                 .withTransactionTimeout(30, TimeUnit.SECONDS).build().get();
@@ -203,7 +203,6 @@ public class PendingAckPersistentTest extends TransactionTestBase {
 
         // in order to check out the pending ack cursor is clear whether or not.
         Awaitility.await()
-                .atMost(15000, TimeUnit.MILLISECONDS)
                 .until(() -> ((PositionImpl) managedCursor.getMarkDeletedPosition())
                         .compareTo((PositionImpl) managedCursor.getManagedLedger().getLastConfirmedEntry()) == -1);
     }
@@ -246,7 +245,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         Transaction txn = pulsarClient.newTransaction()
                 .withTransactionTimeout(30, TimeUnit.SECONDS).build().get();
 
-        Awaitility.await().atMost(1000, TimeUnit.MILLISECONDS).until(consumer::isConnected);
+        Awaitility.await().until(consumer::isConnected);
 
         for (int i = 0; i < pendingAckMessageIds.size(); i++) {
             try {
@@ -266,7 +265,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         commitTxn.commit().get();
 
         admin.topics().unload(PENDING_ACK_REPLAY_TOPIC);
-        Awaitility.await().atMost(3000, TimeUnit.MILLISECONDS).until(consumer::isConnected);
+        Awaitility.await().until(consumer::isConnected);
 
         for (int i = 0; i < pendingAckMessageIds.size(); i++) {
             try {
@@ -296,7 +295,6 @@ public class PendingAckPersistentTest extends TransactionTestBase {
 
         // in order to check out the pending ack cursor is clear whether or not.
         Awaitility.await()
-                .atMost(15000, TimeUnit.MILLISECONDS)
                 .until(() -> ((PositionImpl) managedCursor.getMarkDeletedPosition())
                         .compareTo((PositionImpl) managedCursor.getManagedLedger().getLastConfirmedEntry()) == -1);
     }
