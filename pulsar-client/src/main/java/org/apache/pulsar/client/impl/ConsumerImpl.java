@@ -2198,7 +2198,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             this.connectionHandler.setClientCnx(clientCnx);
             clientCnx.registerConsumer(consumerId, this);
             if (conf.isAckReceiptEnabled() &&
-                    Commands.peerSupportsAckReceipt(clientCnx.getRemoteEndpointProtocolVersion())) {
+                    !Commands.peerSupportsAckReceipt(clientCnx.getRemoteEndpointProtocolVersion())) {
                 log.warn("Server don't support ack for receipt! " +
                         "ProtoVersion >=17 support! nowVersion : {}", clientCnx.getRemoteEndpointProtocolVersion());
             }
