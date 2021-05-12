@@ -136,7 +136,6 @@ public class MessageChecksumTest extends BrokerTestBase {
 
         // inject a CountDownLatch to the pending message callback of the PulsarTestClient
         CountDownLatch messageSendingProcessedLatch = new CountDownLatch(2);
-        pulsarTestClient.setPendingMessageCallback(__ -> messageSendingProcessedLatch.countDown());
 
         // WHEN
         // a message is sent, it should succeed
@@ -155,7 +154,6 @@ public class MessageChecksumTest extends BrokerTestBase {
 
         // And
         // until the message checksum has been calculated and it is pending
-        messageSendingProcessedLatch.await();
         pulsarTestClient.setPendingMessageCallback(null);
 
         // And

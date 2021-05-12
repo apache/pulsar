@@ -1037,7 +1037,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                         consumers.remove(consumerId, consumerFuture);
                                     }
 
-                                }) //
+                                })
                                 .exceptionally(exception -> {
                                     if (exception.getCause() instanceof ConsumerBusyException) {
                                         if (log.isDebugEnabled()) {

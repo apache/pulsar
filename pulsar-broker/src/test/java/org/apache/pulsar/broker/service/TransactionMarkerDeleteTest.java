@@ -18,14 +18,19 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import java.util.Collections;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -85,5 +90,26 @@ public class TransactionMarkerDeleteTest extends BrokerTestBase{
         Thread.sleep(1000L);
         assertEquals(((PositionImpl) persistentSubscription.getCursor()
                 .getMarkDeletedPosition()).compareTo((PositionImpl) position3), 0);
+    }
+
+    @Test
+    public void testMarkerDeleteTimes() throws Exception {
+        ManagedLedgerImpl managedLedger = spy((ManagedLedgerImpl) pulsar.getManagedLedgerFactory().open("test"));
+        PersistentTopic topic = mock(PersistentTopic.class);
+        BrokerService brokerService = mock(BrokerService.class);
+        PulsarService pulsarService = mock(PulsarService.class);
+        ServiceConfiguration configuration = mock(ServiceConfiguration.class);
+        doReturn(brokerService).when(topic).getBrokerService();
+        doReturn(pulsarService).when(brokerService).getPulsar();
+        doReturn(configuration).when(pulsarService).getConfig();
+        doReturn(true).when(configuration).isTransactionCoordinatorEnabled();
+        doReturn(managedLedger).when(topic).getManagedLedger();
+        ManagedCursor cursor = managedLedger.openCursor("test");
+        PersistentSubscription persistentSubscription = spy(new PersistentSubscription(topic, "test",
+                cursor, false));
+        Position position = managedLedger.addEntry("test".getBytes());
+        persistentSubscription.acknowledgeMessage(Collections.singletonList(position),
+                AckType.Individual, Collections.emptyMap());
+        verify(managedLedger, times(0)).asyncReadEntry(any(), any(), any());
     }
 }

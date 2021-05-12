@@ -404,29 +404,33 @@ public class PersistentSubscription implements Subscription {
         if (position != null) {
             ManagedLedgerImpl managedLedger = ((ManagedLedgerImpl) cursor.getManagedLedger());
             PositionImpl nextPosition = managedLedger.getNextValidPosition(position);
-            managedLedger.asyncReadEntry(nextPosition, new ReadEntryCallback() {
-                @Override
-                public void readEntryComplete(Entry entry, Object ctx) {
-                    try {
-                        MessageMetadata messageMetadata = Commands.parseMessageMetadata(entry.getDataBuffer());
-                        isDeleteTransactionMarkerInProcess = false;
-                        if (Markers.isTxnCommitMarker(messageMetadata) || Markers.isTxnAbortMarker(messageMetadata)) {
-                            lastMarkDeleteForTransactionMarker = position;
-                            acknowledgeMessage(Collections.singletonList(nextPosition), ackType, properties);
+            if (nextPosition != null
+                    && nextPosition.compareTo((PositionImpl) managedLedger.getLastConfirmedEntry()) <= 0) {
+                managedLedger.asyncReadEntry(nextPosition, new ReadEntryCallback() {
+                    @Override
+                    public void readEntryComplete(Entry entry, Object ctx) {
+                        try {
+                            MessageMetadata messageMetadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+                            isDeleteTransactionMarkerInProcess = false;
+                            if (Markers.isTxnCommitMarker(messageMetadata)
+                                    || Markers.isTxnAbortMarker(messageMetadata)) {
+                                lastMarkDeleteForTransactionMarker = position;
+                                acknowledgeMessage(Collections.singletonList(nextPosition), ackType, properties);
+                            }
+                        } finally {
+                            entry.release();
                         }
-                    } finally {
-                        entry.release();
                     }
-                }
 
-                @Override
-                public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
-                    isDeleteTransactionMarkerInProcess = false;
-                    if (log.isDebugEnabled()) {
-                        log.debug("Fail to read transaction marker! Position : {}", position, exception);
+                    @Override
+                    public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                        isDeleteTransactionMarkerInProcess = false;
+                        log.error("Fail to read transaction marker! Position : {}", position, exception);
                     }
-                }
-            }, null);
+                }, null);
+            } else {
+                isDeleteTransactionMarkerInProcess = false;
+            }
         } else {
             isDeleteTransactionMarkerInProcess = false;
         }

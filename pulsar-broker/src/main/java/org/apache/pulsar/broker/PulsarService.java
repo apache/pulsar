@@ -274,22 +274,11 @@ public class PulsarService implements AutoCloseable {
         // Validate correctness of configuration
         PulsarConfigurationLoader.isComplete(config);
         // validate `advertisedAddress`, `advertisedListeners`, `internalListenerName`
-        Map<String, AdvertisedListener> result =
-                MultipleListenerValidator.validateAndAnalysisAdvertisedListener(config);
-        if (result != null) {
-            this.advertisedListeners = Collections.unmodifiableMap(result);
-        } else {
-            this.advertisedListeners = Collections.unmodifiableMap(Collections.emptyMap());
-        }
+        this.advertisedListeners = MultipleListenerValidator.validateAndAnalysisAdvertisedListener(config);
+        this.advertisedAddress = ServiceConfigurationUtils.getAppliedAdvertisedAddress(config);
         state = State.Init;
         // use `internalListenerName` listener as `advertisedAddress`
         this.bindAddress = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getBindAddress());
-        if (!this.advertisedListeners.isEmpty()) {
-            this.advertisedAddress = this.advertisedListeners.get(
-                    config.getInternalListenerName()).getBrokerServiceUrl().getHost();
-        } else {
-            this.advertisedAddress = advertisedAddress(config);
-        }
         this.brokerVersion = PulsarVersion.getVersion();
         this.config = config;
         this.shutdownService = new MessagingServiceShutdownHook(this, processTerminator);
@@ -1353,18 +1342,10 @@ public class PulsarService implements AutoCloseable {
         return shutdownService;
     }
 
-    /**
-     * Advertised service address.
-     *
-     * @return Hostname or IP address the service advertises to the outside world.
-     */
-    public static String advertisedAddress(ServiceConfiguration config) {
-        return ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getAdvertisedAddress());
-    }
-
-    private String brokerUrl(ServiceConfiguration config) {
+    protected String brokerUrl(ServiceConfiguration config) {
         if (config.getBrokerServicePort().isPresent()) {
-            return brokerUrl(advertisedAddress(config), getBrokerListenPort().get());
+            return brokerUrl(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config),
+                    getBrokerListenPort().get());
         } else {
             return null;
         }
@@ -1376,7 +1357,8 @@ public class PulsarService implements AutoCloseable {
 
     public String brokerUrlTls(ServiceConfiguration config) {
         if (config.getBrokerServicePortTls().isPresent()) {
-            return brokerUrlTls(advertisedAddress(config), getBrokerListenPortTls().get());
+            return brokerUrlTls(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config),
+                    getBrokerListenPortTls().get());
         } else {
             return null;
         }
@@ -1388,7 +1370,8 @@ public class PulsarService implements AutoCloseable {
 
     public String webAddress(ServiceConfiguration config) {
         if (config.getWebServicePort().isPresent()) {
-            return webAddress(advertisedAddress(config), getListenPortHTTP().get());
+            return webAddress(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config),
+                    getListenPortHTTP().get());
         } else {
             return null;
         }
@@ -1400,7 +1383,8 @@ public class PulsarService implements AutoCloseable {
 
     public String webAddressTls(ServiceConfiguration config) {
         if (config.getWebServicePortTls().isPresent()) {
-            return webAddressTls(advertisedAddress(config), getListenPortHTTPS().get());
+            return webAddressTls(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config),
+                    getListenPortHTTPS().get());
         } else {
             return null;
         }
@@ -1545,7 +1529,7 @@ public class PulsarService implements AutoCloseable {
 
         // worker talks to local broker
         String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(
-            brokerConfig.getAdvertisedAddress());
+                ServiceConfigurationUtils.getAppliedAdvertisedAddress(brokerConfig));
         workerConfig.setWorkerHostname(hostname);
         // inherit broker authorization setting
         workerConfig.setAuthenticationEnabled(brokerConfig.isAuthenticationEnabled());
