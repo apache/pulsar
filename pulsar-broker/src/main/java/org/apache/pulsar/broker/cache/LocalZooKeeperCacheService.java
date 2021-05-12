@@ -53,7 +53,6 @@ public class LocalZooKeeperCacheService {
 
     private final ZooKeeperCache cache;
 
-    private ZooKeeperDataCache<NamespaceEphemeralData> ownerInfoCache;
     private ZooKeeperManagedLedgerCache managedLedgerListCache;
     private ResourceQuotaCache resourceQuotaCache;
     private ZooKeeperDataCache<LocalPolicies> policiesCache;
@@ -67,13 +66,6 @@ public class LocalZooKeeperCacheService {
         this.configurationCacheService = configurationCacheService;
 
         initZK();
-
-        this.ownerInfoCache = new ZooKeeperDataCache<NamespaceEphemeralData>(cache) {
-            @Override
-            public NamespaceEphemeralData deserialize(String path, byte[] content) throws Exception {
-                return ObjectMapperFactory.getThreadLocal().readValue(content, NamespaceEphemeralData.class);
-            }
-        };
 
         this.policiesCache = new ZooKeeperDataCache<LocalPolicies>(cache) {
             @Override
@@ -237,10 +229,6 @@ public class LocalZooKeeperCacheService {
 
     public ResourceQuotaCache getResourceQuotaCache() {
         return this.resourceQuotaCache;
-    }
-
-    public ZooKeeperDataCache<NamespaceEphemeralData> ownerInfoCache() {
-        return this.ownerInfoCache;
     }
 
     public ZooKeeperDataCache<LocalPolicies> policiesCache() {

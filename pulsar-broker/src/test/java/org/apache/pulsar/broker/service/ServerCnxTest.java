@@ -23,6 +23,7 @@ import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMo
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.matches;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
@@ -112,6 +113,7 @@ import org.apache.pulsar.common.api.proto.BaseCommand.Type;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.apache.zookeeper.ZooKeeper;
@@ -199,7 +201,7 @@ public class ServerCnxTest {
         doReturn(namespaceService).when(pulsar).getNamespaceService();
         doReturn(true).when(namespaceService).isServiceUnitOwned(any());
         doReturn(true).when(namespaceService).isServiceUnitActive(any());
-        doReturn(CompletableFuture.completedFuture(true)).when(namespaceService).checkTopicOwnership(any());
+        doReturn(true).when(namespaceService).checkTopicOwnership(any());
 
         setupMLAsyncCallbackMocks();
 
@@ -1727,9 +1729,8 @@ public class ServerCnxTest {
         assertEquals(((CommandSuccess) response1).getRequestId(), 1);
 
         // Force the checkTopicNsOwnership method to throw ServiceUnitNotReadyException
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        future.completeExceptionally(new ServiceUnitNotReadyException("Service unit is not ready"));
-        doReturn(future).when(brokerService).checkTopicNsOwnershipAsync(anyString());
+        doReturn(FutureUtil.failedFuture(new ServiceUnitNotReadyException("Service unit is not ready")))
+                .when(brokerService).checkTopicNsOwnership(anyString());
 
         // 2nd subscribe command when the service unit is not ready
         ByteBuf clientCommand2 = Commands.newSubscribe(successTopicName, successSubName, 2 /* consumer id */,

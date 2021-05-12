@@ -274,7 +274,7 @@ public class TopicOwnerTest {
 
         // Reestablish ownership through check ownership.
         ownedBundlesCache1.synchronous().invalidate(ServiceUnitUtils.path(namespaceBundle));
-        ownershipCache1.checkOwnership(namespaceBundle).join();
+        ownershipCache1.checkOwnership(namespaceBundle);
         Assert.assertNotNull(ownershipCache1.getOwnedBundle(namespaceBundle));
 
         // Reestablish ownership through load topic.
