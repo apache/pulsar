@@ -39,7 +39,7 @@ import lombok.extern.slf4j.Slf4j;
 public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
 
 	protected final AtomicInteger testId = new AtomicInteger(0);
-	
+
     @Test(groups = "source")
     public void testDebeziumMySqlSourceJson() throws Exception {
         testDebeziumMySqlConnect("org.apache.kafka.connect.json.JsonConverter", true);
@@ -76,11 +76,6 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
         // This is the binlog count that contained in mysql container.
         final int numMessages = 47;
 
-        if (pulsarCluster == null) {
-            super.setupCluster();
-            super.setupFunctionWorkers();
-        }
-
         @Cleanup
         PulsarClient client = PulsarClient.builder()
             .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
@@ -108,10 +103,10 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
         DebeziumMySQLContainer mySQLContainer = new DebeziumMySQLContainer(pulsarCluster.getClusterName());
         sourceTester.setServiceContainer(mySQLContainer);
 
-        PulsarIODebeziumSourceRunner runner = new PulsarIODebeziumSourceRunner(pulsarCluster, functionRuntimeType.toString(), 
-        		converterClassName, tenant, namespace, sourceName, outputTopicName, numMessages, jsonWithEnvelope, 
+        PulsarIODebeziumSourceRunner runner = new PulsarIODebeziumSourceRunner(pulsarCluster, functionRuntimeType.toString(),
+        		converterClassName, tenant, namespace, sourceName, outputTopicName, numMessages, jsonWithEnvelope,
         		consumeTopicName, client);
-        
+
         runner.testSource(sourceTester);
     }
 
@@ -126,11 +121,6 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
 
         // This is the binlog count that contained in postgresql container.
         final int numMessages = 26;
-
-        if (pulsarCluster == null) {
-            super.setupCluster();
-            super.setupFunctionWorkers();
-        }
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
@@ -152,10 +142,10 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
         DebeziumPostgreSqlContainer postgreSqlContainer = new DebeziumPostgreSqlContainer(pulsarCluster.getClusterName());
         sourceTester.setServiceContainer(postgreSqlContainer);
 
-        PulsarIODebeziumSourceRunner runner = new PulsarIODebeziumSourceRunner(pulsarCluster, functionRuntimeType.toString(), 
-        		converterClassName, tenant, namespace, sourceName, outputTopicName, numMessages, jsonWithEnvelope, 
+        PulsarIODebeziumSourceRunner runner = new PulsarIODebeziumSourceRunner(pulsarCluster, functionRuntimeType.toString(),
+        		converterClassName, tenant, namespace, sourceName, outputTopicName, numMessages, jsonWithEnvelope,
         		consumeTopicName, client);
-        
+
         runner.testSource(sourceTester);
     }
 
@@ -170,12 +160,7 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
 
         // This is the binlog count that contained in mongodb container.
         final int numMessages = 17;
-
-        if (pulsarCluster == null) {
-            super.setupCluster();
-            super.setupFunctionWorkers();
-        }
-
+        
         @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
@@ -195,11 +180,11 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
         // setup debezium mongodb server
         DebeziumMongoDbContainer mongoDbContainer = new DebeziumMongoDbContainer(pulsarCluster.getClusterName());
         sourceTester.setServiceContainer(mongoDbContainer);
-        
-        PulsarIODebeziumSourceRunner runner = new PulsarIODebeziumSourceRunner(pulsarCluster, functionRuntimeType.toString(), 
-        		converterClassName, tenant, namespace, sourceName, outputTopicName, numMessages, jsonWithEnvelope, 
+
+        PulsarIODebeziumSourceRunner runner = new PulsarIODebeziumSourceRunner(pulsarCluster, functionRuntimeType.toString(),
+        		converterClassName, tenant, namespace, sourceName, outputTopicName, numMessages, jsonWithEnvelope,
         		consumeTopicName, client);
-        
+
         runner.testSource(sourceTester);
     }
 
