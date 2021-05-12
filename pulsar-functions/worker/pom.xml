@@ -220,16 +220,6 @@
           <systemPropertyVariables>
             <pulsar-io-data-generator.nar.path>${project.build.directory}/pulsar-io-data-generator.nar</pulsar-io-data-generator.nar.path>
             <pulsar-functions-api-examples.jar.path>${project.build.directory}/pulsar-functions-api-examples.jar</pulsar-functions-api-examples.jar.path>
-          </systemPropertyVariables>
-        </configuration>
-      </plugin>
-
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <configuration>
-          <systemPropertyVariables>
             <pulsar-io-cassandra.nar.path>${project.build.directory}/pulsar-io-cassandra.nar</pulsar-io-cassandra.nar.path>
             <pulsar-io-twitter.nar.path>${project.build.directory}/pulsar-io-twitter.nar</pulsar-io-twitter.nar.path>
             <!-- valid jar file that is not a valid nar file -->
@@ -237,6 +227,7 @@
           </systemPropertyVariables>
         </configuration>
       </plugin>
+
       <!-- this task will copy config files to resources for the test to work -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
