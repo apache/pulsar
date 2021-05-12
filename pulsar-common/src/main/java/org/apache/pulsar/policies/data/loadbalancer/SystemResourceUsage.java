@@ -18,9 +18,12 @@
  */
 package org.apache.pulsar.policies.data.loadbalancer;
 
+import lombok.Data;
+
 /**
  * This class represents a object which reflects system resource usage per resource and the upper limit on the resource.
  */
+@Data
 public class SystemResourceUsage {
 
     /**
@@ -50,45 +53,5 @@ public class SystemResourceUsage {
         cpu.reset();
         memory.reset();
         directMemory.reset();
-    }
-
-    public ResourceUsage getBandwidthIn() {
-        return bandwidthIn;
-    }
-
-    public void setBandwidthIn(ResourceUsage bandwidthIn) {
-        this.bandwidthIn = bandwidthIn;
-    }
-
-    public ResourceUsage getBandwidthOut() {
-        return bandwidthOut;
-    }
-
-    public void setBandwidthOut(ResourceUsage bandwidthOut) {
-        this.bandwidthOut = bandwidthOut;
-    }
-
-    public ResourceUsage getCpu() {
-        return cpu;
-    }
-
-    public void setCpu(ResourceUsage cpu) {
-        this.cpu = cpu;
-    }
-
-    public ResourceUsage getMemory() {
-        return memory;
-    }
-
-    public void setMemory(ResourceUsage memory) {
-        this.memory = memory;
-    }
-
-    public ResourceUsage getDirectMemory() {
-        return this.directMemory;
-    }
-
-    public void setDirectMemory(ResourceUsage directMemory) {
-        this.directMemory = directMemory;
     }
 }

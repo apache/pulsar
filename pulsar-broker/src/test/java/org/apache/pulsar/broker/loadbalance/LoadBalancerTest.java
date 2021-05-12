@@ -312,6 +312,10 @@ public class LoadBalancerTest {
             sru.setCpu(new ResourceUsage(60, 400));
             lr.setSystemResourceUsage(sru);
 
+            double percentUsageMem = 100 * sru.getMemory().usage / sru.getMemory().limit;
+            double percentUsageCpu = 100 * sru.getCpu().usage / sru.getCpu().limit;
+            log.info("Broker-{} - Resource usage: {}", i, Math.max(percentUsageMem, percentUsageCpu));
+
             ResourceLock<LoadReport> lock = Whitebox.getInternalState(pulsarServices[i].getLoadManager().get(),
                     "brokerLock");
             lock.updateValue(lr).join();
@@ -319,23 +323,35 @@ public class LoadBalancerTest {
 
         for (int i = 0; i < BROKER_COUNT; i++) {
             Method updateRanking = Whitebox.getMethod(SimpleLoadManagerImpl.class, "updateRanking");
-            updateRanking.invoke(pulsarServices[0].getLoadManager().get());
+            updateRanking.invoke(pulsarServices[i].getLoadManager().get());
         }
 
         // check the ranking result
         for (int i = 0; i < BROKER_COUNT; i++) {
-            AtomicReference<Map<Long, Set<ResourceUnit>>> sortedRanking = getSortedRanking(pulsarServices[i]);
-            printSortedRanking(sortedRanking);
+            int idx = i;
+            Awaitility.await().untilAsserted(() -> {
+                AtomicReference<Map<Long, Set<ResourceUnit>>> sortedRanking = getSortedRanking(pulsarServices[idx]);
+                log.info("Checking Broker {}", idx);
+                printSortedRanking(sortedRanking);
 
-            // brokers' ranking would be:
-            // 50 --> broker 0 ( 1024 / 2048 )
-            // 25 --> broker 1 ( 1024 / 4096 )
-            // 16 --> broker 2 ( 1024 / 6144 )
-            // 15 --> broker 3 ( 60 / 400 )
-            // 15 --> broker 4 ( 60 / 400 )
-            assertEquals(sortedRanking.get().get(50L).size(), 1);
-            assertEquals(sortedRanking.get().get(25L).size(), 1);
-            assertEquals(sortedRanking.get().get(16L).size(), 1);
+                // brokers' ranking would be:
+                // 50 --> broker 0 ( 1024 / 2048 )
+                // 25 --> broker 1 ( 1024 / 4096 )
+                // 16 --> broker 2 ( 1024 / 6144 )
+                // 15 --> broker 3 ( 60 / 400 )
+
+                // Reverse the map
+                Map<String, Long> usageMap = new HashMap<>();
+                sortedRanking.get().forEach((k,s) -> {
+                    s.forEach(b -> usageMap.put(b.getResourceId(), k));
+                });
+
+                log.info("Usage map: {}", usageMap);
+                assertEquals(usageMap.get(pulsarServices[0].getWebServiceAddress()).longValue(), 50);
+                assertEquals(usageMap.get(pulsarServices[1].getWebServiceAddress()).longValue(), 25);
+                assertEquals(usageMap.get(pulsarServices[2].getWebServiceAddress()).longValue(), 16);
+                assertEquals(usageMap.get(pulsarServices[3].getWebServiceAddress()).longValue(), 15);
+            });
         }
     }
 
