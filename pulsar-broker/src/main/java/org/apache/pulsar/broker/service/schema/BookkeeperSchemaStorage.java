@@ -513,7 +513,8 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
     @NotNull
     private CompletableFuture<LocatorEntry> createSchemaLocator(String id, SchemaStorageFormat.SchemaLocator locator) {
-        return store.put(id, locator.toByteArray(), Optional.of(-1L)).thenApply(stat -> new LocatorEntry(locator, stat.getVersion()));
+        return store.put(id, locator.toByteArray(), Optional.of(-1L))
+                .thenApply(stat -> new LocatorEntry(locator, stat.getVersion()));
     }
 
     @NotNull
