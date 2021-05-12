@@ -89,7 +89,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     }
 
     @Test
-    public void testMetricsTopicCount() throws Exception {
+    public void testMetricsTopicCountAndAvgMsgSize() throws Exception {
         String ns1 = "prop/ns-abc1";
         String ns2 = "prop/ns-abc2";
         admin.namespaces().createNamespace(ns1);
@@ -97,16 +97,18 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         String baseTopic1 = "persistent://" + ns1 + "/testMetricsTopicCount";
         String baseTopic2 = "persistent://" + ns2 + "/testMetricsTopicCount";
         for (int i = 0; i < 6; i++) {
-            admin.topics().createNonPartitionedTopic(baseTopic1 + UUID.randomUUID().toString());
+            admin.topics().createNonPartitionedTopic(baseTopic1 + UUID.randomUUID());
         }
         for (int i = 0; i < 3; i++) {
-            admin.topics().createNonPartitionedTopic(baseTopic2 + UUID.randomUUID().toString());
+            admin.topics().createNonPartitionedTopic(baseTopic2 + UUID.randomUUID());
         }
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
         String metricsStr = statsOut.toString();
         Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        assertTrue(metrics.containsKey("pulsar_average_msg_size"));
+        assertEquals(metrics.get("pulsar_average_msg_size").size(), 9);
         Collection<Metric> metric = metrics.get("pulsar_topics_count");
         metric.forEach(item -> {
             if (ns1.equals(item.tags.get("namespace"))) {
