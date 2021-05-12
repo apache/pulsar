@@ -572,7 +572,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     private boolean populateMessageSchema(MessageImpl msg, SendCallback callback) {
         MessageMetadata msgMetadataBuilder = msg.getMessageBuilder();
-        if (msg.getSchema() == schema) {
+        if (msg.getSchemaInternal() == schema) {
             schemaVersion.ifPresent(v -> msgMetadataBuilder.setSchemaVersion(v));
             msg.setSchemaState(MessageImpl.SchemaState.Ready);
             return true;
@@ -584,7 +584,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             completeCallbackAndReleaseSemaphore(msg.getUncompressedSize(), callback, e);
             return false;
         }
-        SchemaHash schemaHash = SchemaHash.of(msg.getSchema());
+        SchemaHash schemaHash = SchemaHash.of(msg.getSchemaInternal());
         byte[] schemaVersion = schemaCache.get(schemaHash);
         if (schemaVersion != null) {
             msgMetadataBuilder.setSchemaVersion(schemaVersion);
@@ -594,7 +594,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     private boolean rePopulateMessageSchema(MessageImpl msg) {
-        SchemaHash schemaHash = SchemaHash.of(msg.getSchema());
+        SchemaHash schemaHash = SchemaHash.of(msg.getSchemaInternal());
         byte[] schemaVersion = schemaCache.get(schemaHash);
         if (schemaVersion == null) {
             return false;
@@ -608,7 +608,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         if (!changeToRegisteringSchemaState()) {
             return;
         }
-        SchemaInfo schemaInfo = Optional.ofNullable(msg.getSchema())
+        SchemaInfo schemaInfo = Optional.ofNullable(msg.getSchemaInternal())
                                         .map(Schema::getSchemaInfo)
                                         .filter(si -> si.getType().getValue() > 0)
                                         .orElse(Schema.BYTES.getSchemaInfo());
@@ -622,7 +622,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 }
             } else {
                 log.warn("[{}] [{}] GetOrCreateSchema succeed", topic, producerName);
-                SchemaHash schemaHash = SchemaHash.of(msg.getSchema());
+                SchemaHash schemaHash = SchemaHash.of(msg.getSchemaInternal());
                 schemaCache.putIfAbsent(schemaHash, v);
                 msg.getMessageBuilder().setSchemaVersion(v);
                 msg.setSchemaState(MessageImpl.SchemaState.Ready);
