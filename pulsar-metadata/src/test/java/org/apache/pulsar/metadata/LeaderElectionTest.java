@@ -20,6 +20,7 @@ package org.apache.pulsar.metadata;
 
 import static org.testng.Assert.assertEquals;
 
+import java.util.EnumSet;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -27,11 +28,13 @@ import java.util.concurrent.TimeUnit;
 
 import lombok.Cleanup;
 
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.apache.pulsar.metadata.api.coordination.LeaderElection;
 import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
+import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
 import org.testng.annotations.Test;
@@ -72,11 +75,19 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
 
     @Test(dataProvider = "impl")
     public void multipleMembers(String provider, String url) throws Exception {
-        @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(url, MetadataStoreConfig.builder().build());
+        if (provider.equals("Memory")) {
+            // There are no multiple session in local mem provider
+            return;
+        }
 
         @Cleanup
-        CoordinationService cs1 = new CoordinationServiceImpl(store);
+        MetadataStoreExtended store1 = MetadataStoreExtended.create(url, MetadataStoreConfig.builder().build());
+        @Cleanup
+        MetadataStoreExtended store2 = MetadataStoreExtended.create(url, MetadataStoreConfig.builder().build());
+
+
+        @Cleanup
+        CoordinationService cs1 = new CoordinationServiceImpl(store1);
 
         BlockingQueue<LeaderElectionState> n1 = new LinkedBlockingDeque<>();
 
@@ -87,7 +98,7 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
                 });
 
         @Cleanup
-        CoordinationService cs2 = new CoordinationServiceImpl(store);
+        CoordinationService cs2 = new CoordinationServiceImpl(store2);
 
         BlockingQueue<LeaderElectionState> n2 = new LinkedBlockingDeque<>();
 
@@ -105,8 +116,8 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
 
         LeaderElectionState les2 = le2.elect("test-2").join();
         assertEquals(les2, LeaderElectionState.Following);
-        assertEquals(le2.getLeaderValueIfPresent(), Optional.of("test-1"));
         assertEquals(le2.getLeaderValue().join(), Optional.of("test-1"));
+        assertEquals(le2.getLeaderValueIfPresent(), Optional.of("test-1"));
         assertEquals(n2.poll(3, TimeUnit.SECONDS), LeaderElectionState.Following);
 
         le1.close();
@@ -172,4 +183,88 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
         assertEquals(cache.get("/my/leader-election-2").join(), Optional.empty());
     }
 
+
+    @Test(dataProvider = "impl")
+    public void revalidateLeaderWithinSameSession(String provider, String url) throws Exception {
+        @Cleanup
+        MetadataStoreExtended store = MetadataStoreExtended.create(url, MetadataStoreConfig.builder().build());
+
+        String path = newKey();
+
+        @Cleanup
+        CoordinationService cs = new CoordinationServiceImpl(store);
+
+        @Cleanup
+        LeaderElection<String> le = cs.getLeaderElection(String.class,
+                path, __ -> {
+                });
+
+        store.put(path, ObjectMapperFactory.getThreadLocal().writeValueAsBytes("test-1"), Optional.of(-1L),
+                EnumSet.of(CreateOption.Ephemeral)).join();
+
+        LeaderElectionState les = le.elect("test-2").join();
+        assertEquals(les, LeaderElectionState.Leading);
+        assertEquals(le.getLeaderValue().join(), Optional.of("test-2"));
+        assertEquals(le.getLeaderValueIfPresent(), Optional.of("test-2"));
+    }
+
+    @Test(dataProvider = "impl")
+    public void revalidateLeaderWithDifferentSessionsSameValue(String provider, String url) throws Exception {
+        @Cleanup
+        MetadataStoreExtended store = MetadataStoreExtended.create(url, MetadataStoreConfig.builder().build());
+
+        @Cleanup
+        MetadataStoreExtended store2 = MetadataStoreExtended.create(url, MetadataStoreConfig.builder().build());
+
+        String path = newKey();
+
+        @Cleanup
+        CoordinationService cs = new CoordinationServiceImpl(store);
+
+        @Cleanup
+        LeaderElection<String> le = cs.getLeaderElection(String.class,
+                path, __ -> {
+                });
+
+        store2.put(path, ObjectMapperFactory.getThreadLocal().writeValueAsBytes("test-1"), Optional.of(-1L),
+                EnumSet.of(CreateOption.Ephemeral)).join();
+
+        LeaderElectionState les = le.elect("test-1").join();
+        assertEquals(les, LeaderElectionState.Leading);
+        assertEquals(le.getLeaderValue().join(), Optional.of("test-1"));
+        assertEquals(le.getLeaderValueIfPresent(), Optional.of("test-1"));
+    }
+
+
+    @Test(dataProvider = "impl")
+    public void revalidateLeaderWithDifferentSessionsDifferentValue(String provider, String url) throws Exception {
+        if (provider.equals("Memory")) {
+            // There are no multiple sessions for the local memory provider
+            return;
+        }
+
+        @Cleanup
+        MetadataStoreExtended store = MetadataStoreExtended.create(url, MetadataStoreConfig.builder().build());
+
+        @Cleanup
+        MetadataStoreExtended store2 = MetadataStoreExtended.create(url, MetadataStoreConfig.builder().build());
+
+        String path = newKey();
+
+        @Cleanup
+        CoordinationService cs = new CoordinationServiceImpl(store);
+
+        @Cleanup
+        LeaderElection<String> le = cs.getLeaderElection(String.class,
+                path, __ -> {
+                });
+
+        store2.put(path, ObjectMapperFactory.getThreadLocal().writeValueAsBytes("test-1"), Optional.of(-1L),
+                EnumSet.of(CreateOption.Ephemeral)).join();
+
+        LeaderElectionState les = le.elect("test-2").join();
+        assertEquals(les, LeaderElectionState.Following);
+        assertEquals(le.getLeaderValue().join(), Optional.of("test-1"));
+        assertEquals(le.getLeaderValueIfPresent(), Optional.of("test-1"));
+    }
 }

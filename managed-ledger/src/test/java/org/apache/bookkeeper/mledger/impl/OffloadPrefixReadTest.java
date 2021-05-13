@@ -198,6 +198,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
 
         OffloadPolicies offloadPolicies = OffloadPolicies.create("S3", "", "", "",
                 null, null,
+                null, null,
                 OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
                 OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
                 OffloadPolicies.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES,

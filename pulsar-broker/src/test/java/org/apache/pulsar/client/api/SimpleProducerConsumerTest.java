@@ -680,13 +680,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
 
         try {
-            pulsarClient.newProducer().maxPendingMessages(0);
-            Assert.fail("should fail");
-        } catch (IllegalArgumentException e) {
-            // ok
-        }
-
-        try {
             pulsarClient.newProducer().topic("invalid://topic").create();
             Assert.fail("should fail");
         } catch (PulsarClientException e) {
@@ -1035,7 +1028,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         msg = subscriber1.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
         // Verify: as active-subscriber2 has not consumed messages: EntryCache must have those entries in cache
-        assertTrue(entryCache.getSize() != 0);
+        Awaitility.await().untilAsserted(() -> assertNotEquals(entryCache.getSize(), 0));
 
         // 3.b Close subscriber2: which will trigger cache to clear the cache
         subscriber2.close();

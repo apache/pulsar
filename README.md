@@ -211,6 +211,39 @@ required plugins.
 
 5. Install the lombok plugin in intellij.
 
+#### Configure code style
+
+1. Open Code Style Settings dialog box by going to **Settings** -> **Editor** -> **Code Style**.
+
+2. Click on the :gear: symbol -> **Import scheme** -> **Intellij IDEA code style XML**
+
+3. Pick the file `${pulsar_dir}/src/idea-code-style.xml`
+
+4. On the dialog box that opens, click **OK**.
+
+5. Ensure the scheme you just created is selected in **Scheme** dropdown then click **OK**.
+
+#### Configure Checkstyle
+
+1. Install the Checkstyle-IDEA plugin.
+
+2. Open Checkstyle Settings dialog box by going to **Settings** -> **Tools** -> **Checkstyle**.
+
+3. Set **Checkstyle version** to **8.37**.
+
+4. Set **Scan scope** to **Only Java sources (including tests)**.
+
+5. Click **+** button in the **Configuration** section to open a dialog to choose the checkfile file.
+   1. Enter a **Description**. For example, Pulsar.
+   2. Select **Use a local checkstyle file**.
+   3. Set **File** to **buildtools/src/main/resources/pulsar/checkstyle.xml**.
+   4. Select **Store relative to project location**.
+   5. Click **Next** -> **Next** -> **Finish**.
+
+6. Activate the configuration you just added by toggling the corresponding box.
+
+7. Click **OK**.
+
 #### Further configuration in IntelliJ 
 
 * When working on the Pulsar core modules in IntelliJ, reduce the number of active projects in IntelliJ to speed up IDE actions and reduce unrelated IDE warnings.

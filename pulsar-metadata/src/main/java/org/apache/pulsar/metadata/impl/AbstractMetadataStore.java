@@ -43,6 +43,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataCache;
+import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
@@ -114,6 +115,13 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     @Override
     public <T> MetadataCache<T> getMetadataCache(TypeReference<T> typeRef) {
         MetadataCacheImpl<T> metadataCache = new MetadataCacheImpl<T>(this, typeRef);
+        metadataCaches.add(metadataCache);
+        return metadataCache;
+    }
+
+    @Override
+    public <T> MetadataCache<T> getMetadataCache(MetadataSerde<T> serde) {
+        MetadataCacheImpl<T> metadataCache = new MetadataCacheImpl<>(this, serde);
         metadataCaches.add(metadataCache);
         return metadataCache;
     }

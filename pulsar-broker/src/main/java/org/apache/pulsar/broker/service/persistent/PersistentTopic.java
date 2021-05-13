@@ -715,7 +715,7 @@ public class PersistentTopic extends AbstractTopic
 
         CompletableFuture<? extends Subscription> subscriptionFuture = isDurable ? //
                 getDurableSubscription(subscriptionName, initialPosition, startMessageRollbackDurationSec,
-                        replicatedSubscriptionState) //
+                        replicatedSubscriptionState)
                 : getNonDurableSubscription(subscriptionName, startMessageId, initialPosition,
                 startMessageRollbackDurationSec);
 
@@ -831,7 +831,12 @@ public class PersistentTopic extends AbstractTopic
                     // Flip the subscription state
                     subscription.setReplicated(replicated);
                 }
-                subscriptionFuture.complete(subscription);
+
+                if (startMessageRollbackDurationSec > 0) {
+                    resetSubscriptionCursor(subscription, subscriptionFuture, startMessageRollbackDurationSec);
+                } else {
+                    subscriptionFuture.complete(subscription);
+                }
             }
 
             @Override
@@ -893,22 +898,27 @@ public class PersistentTopic extends AbstractTopic
             }
 
             if (startMessageRollbackDurationSec > 0) {
-                long timestamp = System.currentTimeMillis()
-                        - TimeUnit.SECONDS.toMillis(startMessageRollbackDurationSec);
-                final Subscription finalSubscription = subscription;
-                subscription.resetCursor(timestamp).handle((s, ex) -> {
-                    if (ex != null) {
-                        log.warn("[{}] Failed to reset cursor {} position at timestamp {}", topic, subscriptionName,
-                                startMessageRollbackDurationSec);
-                    }
-                    subscriptionFuture.complete(finalSubscription);
-                    return null;
-                });
+                resetSubscriptionCursor(subscription, subscriptionFuture, startMessageRollbackDurationSec);
                 return subscriptionFuture;
             } else {
                 return CompletableFuture.completedFuture(subscription);
             }
         }
+    }
+
+    private void resetSubscriptionCursor(Subscription subscription, CompletableFuture<Subscription> subscriptionFuture,
+                                         long startMessageRollbackDurationSec) {
+        long timestamp = System.currentTimeMillis()
+                - TimeUnit.SECONDS.toMillis(startMessageRollbackDurationSec);
+        final Subscription finalSubscription = subscription;
+        subscription.resetCursor(timestamp).handle((s, ex) -> {
+            if (ex != null) {
+                log.warn("[{}] Failed to reset cursor {} position at timestamp {}, caused by {}", topic,
+                        subscription.getName(), startMessageRollbackDurationSec, ex.getMessage());
+            }
+            subscriptionFuture.complete(finalSubscription);
+            return null;
+        });
     }
 
     @Override
@@ -1061,8 +1071,7 @@ public class PersistentTopic extends AbstractTopic
 
                                     subscribeRateLimiter.ifPresent(SubscribeRateLimiter::close);
 
-                                    brokerService.pulsar().getTopicPoliciesService()
-                                            .unregisterListener(TopicName.get(topic), getPersistentTopic());
+                                    brokerService.pulsar().getTopicPoliciesService().clean(TopicName.get(topic));
                                     log.info("[{}] Topic deleted", topic);
                                     deleteFuture.complete(null);
                                 }
@@ -1153,8 +1162,7 @@ public class PersistentTopic extends AbstractTopic
 
                     subscribeRateLimiter.ifPresent(SubscribeRateLimiter::close);
 
-                    brokerService.pulsar().getTopicPoliciesService()
-                            .unregisterListener(TopicName.get(topic), getPersistentTopic());
+                    brokerService.pulsar().getTopicPoliciesService().clean(TopicName.get(topic));
                     log.info("[{}] Topic closed", topic);
                     closeFuture.complete(null);
                 }
@@ -2827,6 +2835,11 @@ public class PersistentTopic extends AbstractTopic
                 return FutureUtil.failedFuture(new NotAllowedException("Unsupported txnAction " + txnAction));
             }
         });
+    }
+
+    @Override
+    public CompletableFuture<Void> truncate() {
+        return ledger.asyncTruncate();
     }
 
     public long getDelayedDeliveryTickTimeMillis() {

@@ -23,9 +23,9 @@
     <test name="pulsar-function-test-suite" preserve-order="true" >
         <classes>
             <class name="org.apache.pulsar.tests.integration.functions.PulsarStateTest" />
-            <class name="org.apache.pulsar.tests.integration.io.GenericRecordSourceTest" />
-            <class name="org.apache.pulsar.tests.integration.io.PulsarSourcePropertyTest"/>
             <class name="org.apache.pulsar.tests.integration.io.PulsarGenericObjectSinkTest"/>
+            <class name="org.apache.pulsar.tests.integration.io.sources.GenericRecordSourceTest" />
+            <class name="org.apache.pulsar.tests.integration.io.sources.PulsarSourcePropertyTest"/>
         </classes>
     </test>
 </suite>

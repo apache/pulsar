@@ -47,9 +47,11 @@ import org.apache.pulsar.client.impl.schema.SchemaTestUtils.DerivedFoo;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Foo;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.NestedBar;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.NestedBarList;
+import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecord;
 import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.assertj.core.api.Assertions;
 import org.json.JSONException;
 import org.skyscreamer.jsonassert.JSONAssert;
 import org.testng.Assert;
@@ -448,5 +450,8 @@ public class JSONSchemaTest {
         assertEquals("USA", seller3Record.getField("state"));
         assertEquals("oakstreet", seller3Record.getField("street"));
         assertEquals(9999, seller3Record.getField("zipCode"));
+
+        assertTrue(pc3Record instanceof GenericJsonRecord);
+        Assertions.assertThatCode(() -> pc3Record.getField("I_DO_NOT_EXIST")).doesNotThrowAnyException();
     }
 }

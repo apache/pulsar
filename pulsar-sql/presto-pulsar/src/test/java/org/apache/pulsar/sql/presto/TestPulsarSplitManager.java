@@ -418,6 +418,8 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
                 "test-region",
                 "test-bucket",
                 "test-endpoint",
+                "role-",
+                "role-session-name",
                 "test-credential-id",
                 "test-credential-secret",
                 5000,

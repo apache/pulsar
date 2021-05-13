@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.intercept;
 
+import javax.servlet.FilterChain;
+import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
@@ -28,6 +30,7 @@ import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import java.io.IOException;
 
 @Slf4j
 public class CounterBrokerInterceptor implements BrokerInterceptor {
@@ -66,6 +69,13 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     public void onWebserviceResponse(ServletRequest request, ServletResponse response) {
         count ++;
         log.info("[{}] On [{}] Webservice response", count, ((HttpServletRequest)request).getRequestURL().toString());
+    }
+
+    @Override
+    public void onFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+            throws IOException, ServletException {
+        count = 100;
+        chain.doFilter(request, response);
     }
 
     @Override
