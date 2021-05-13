@@ -21,11 +21,8 @@ package org.apache.bookkeeper.mledger.impl;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -2971,4 +2968,21 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertTrue(ledger2.getLedgersInfoAsList().size() == 1);
     }
 
+    @Test
+    public void testOpEntryAdd_toString_doesNotThrowNPE(){
+        ManagedLedger ml = mock(ManagedLedger.class);
+        LedgerHandle ledger = mock(LedgerHandle.class);
+        when(ml.getName()).thenReturn(null);
+        when(ledger.getId()).thenReturn(124L);
+        long entryId = 12L;
+        long startTime = 1245L;
+        int dataLength = 566;
+        String test = "OpAddEntry{" +
+                "mlName=" + ml != null ? ml.getName() : "null" +
+                ", ledgerId=" + ledger != null ? String.valueOf(ledger.getId()) : "null" +
+                ", entryId=" + entryId +
+                ", startTime=" + startTime +
+                ", dataLength=" + dataLength +
+                '}';
+    }
 }
