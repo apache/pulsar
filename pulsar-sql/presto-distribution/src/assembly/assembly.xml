@@ -49,6 +49,7 @@
             <excludes>
                 <exclude>io.airlift:launcher:tar.gz:bin:${airlift.version}</exclude>
                 <exclude>io.airlift:launcher:tar.gz:properties:${airlift.version}</exclude>
+                <exclude>*:tar.gz</exclude>
             </excludes>
         </dependencySet>
         <dependencySet>

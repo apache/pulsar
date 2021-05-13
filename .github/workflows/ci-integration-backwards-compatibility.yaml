@@ -65,11 +65,12 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
             ${{ runner.os }}-m2-dependencies-core-modules-
 
-      - name: Set up JDK 1.8
+      - name: Set up JDK 11
+        uses: actions/setup-java@v2
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
-        uses: actions/setup-java@v1
         with:
-          java-version: 1.8
+          distribution: 'adopt'
+          java-version: 11
 
       - name: Replace maven's wagon-http version
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
