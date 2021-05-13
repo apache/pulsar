@@ -299,9 +299,11 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
 
     @Override
     public String toString() {
+        ManagedLedgerImpl ml = this.ml;
+        LedgerHandle ledger = this.ledger;
         return "OpAddEntry{" +
-                "mlName" + ml.getName() +
-                "ledgerId=" + ledger.getId() +
+                "mlName=" + ml != null ? ml.getName() : "null" +
+                ", ledgerId=" + ledger != null ? String.valueOf(ledger.getId()) : "null" +
                 ", entryId=" + entryId +
                 ", startTime=" + startTime +
                 ", dataLength=" + dataLength +
