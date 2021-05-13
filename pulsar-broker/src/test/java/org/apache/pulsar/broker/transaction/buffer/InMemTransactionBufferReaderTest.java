@@ -41,6 +41,7 @@ import org.testng.annotations.Test;
 /**
  * Unit test {@link InMemTransactionBufferReader}.
  */
+@Test(groups = "broker")
 public class InMemTransactionBufferReaderTest {
 
     private final TxnID txnID = new TxnID(1234L, 5678L);
@@ -67,7 +68,7 @@ public class InMemTransactionBufferReaderTest {
         SortedMap<Long, ByteBuf> entries = new TreeMap<>();
         final int numEntries = 100;
         for (int i = 0; i < numEntries; i++) {
-            entries.put(Long.valueOf(i), Unpooled.copiedBuffer("message-" + i, UTF_8));
+            entries.put((long) i, Unpooled.copiedBuffer("message-" + i, UTF_8));
         }
 
         try (InMemTransactionBufferReader reader = new InMemTransactionBufferReader(
@@ -93,7 +94,7 @@ public class InMemTransactionBufferReaderTest {
         SortedMap<Long, ByteBuf> entries = new TreeMap<>();
         final int numEntries = 100;
         for (int i = 0; i < numEntries; i++) {
-            entries.put(Long.valueOf(i), Unpooled.copiedBuffer("message-" + i, UTF_8));
+            entries.put((long) i, Unpooled.copiedBuffer("message-" + i, UTF_8));
         }
 
         try (InMemTransactionBufferReader reader = new InMemTransactionBufferReader(

@@ -140,4 +140,6 @@ void ReaderImpl::seekAsync(uint64_t timestamp, ResultCallback callback) {
 
 ReaderImplWeakPtr ReaderImpl::getReaderImplWeakPtr() { return readerImplWeakPtr_; }
 
+bool ReaderImpl::isConnected() const { return consumer_->isConnected(); }
+
 }  // namespace pulsar

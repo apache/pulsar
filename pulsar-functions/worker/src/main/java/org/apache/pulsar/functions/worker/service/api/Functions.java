@@ -61,7 +61,8 @@ public interface Functions<W extends WorkerService> extends Component<W> {
                                       final InputStream uploadedInputStream,
                                       final boolean delete,
                                       URI uri,
-                                      final String clientRole);
+                                      final String clientRole,
+                                      final AuthenticationDataSource clientAuthenticationDataHttps);
 
     FunctionStatus getFunctionStatus(final String tenant,
                                      final String namespace,

@@ -120,7 +120,7 @@ public class CmdBrokerStats extends CmdBase {
 
     @Parameters(commandDescription = "dump allocator stats")
     private class CmdAllocatorStats extends CliCommand {
-        @Parameter(description = "allocator-name\n", required = true)
+        @Parameter(description = "allocator-name", required = true)
         private List<String> params;
 
         @Override

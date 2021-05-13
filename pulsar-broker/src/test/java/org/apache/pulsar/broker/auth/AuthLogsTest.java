@@ -45,6 +45,7 @@ import org.slf4j.LoggerFactory;
  * However it is useful to see which logs are produced when there's an
  * failure or error in authentication.
  */
+@Test(groups = "flaky")
 public class AuthLogsTest extends MockedPulsarServiceBaseTest {
     private static final Logger log = LoggerFactory.getLogger(AuthLogsTest.class);
 

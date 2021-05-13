@@ -22,9 +22,11 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertSame;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 
 import io.netty.buffer.ByteBuf;
@@ -33,8 +35,10 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.EventLoopGroup;
+import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
+import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.ArrayList;
@@ -53,7 +57,8 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
-import org.mockito.internal.util.reflection.FieldSetter;
+import org.mockito.Mockito;
+import org.powermock.reflect.Whitebox;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -65,19 +70,29 @@ public class PulsarClientImplTest {
     private PulsarClientImpl clientImpl;
     private EventLoopGroup eventLoopGroup;
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void setup() throws PulsarClientException {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setServiceUrl("pulsar://localhost:6650");
-        ThreadFactory threadFactory = new DefaultThreadFactory("client-test-stats", Thread.currentThread().isDaemon());
-        eventLoopGroup = EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), threadFactory);
+        initializeEventLoopGroup(conf);
         clientImpl = new PulsarClientImpl(conf, eventLoopGroup);
     }
 
-    @AfterMethod
+    private void initializeEventLoopGroup(ClientConfigurationData conf) {
+        ThreadFactory threadFactory = new DefaultThreadFactory("client-test-stats", Thread.currentThread().isDaemon());
+        eventLoopGroup = EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), threadFactory);
+    }
+
+    @AfterMethod(alwaysRun = true)
     public void teardown() throws Exception {
-        clientImpl.close();
-        eventLoopGroup.shutdownGracefully().get();
+        if (clientImpl != null) {
+            clientImpl.close();
+            clientImpl = null;
+        }
+        if (eventLoopGroup != null) {
+            eventLoopGroup.shutdownGracefully().get();
+            eventLoopGroup = null;
+        }
     }
 
     @Test
@@ -114,8 +129,8 @@ public class PulsarClientImplTest {
                 .thenReturn(CompletableFuture.completedFuture(mock(ProducerResponse.class)));
         when(pool.getConnection(any(InetSocketAddress.class), any(InetSocketAddress.class)))
                 .thenReturn(CompletableFuture.completedFuture(cnx));
-        FieldSetter.setField(clientImpl, clientImpl.getClass().getDeclaredField("cnxPool"), pool);
-        FieldSetter.setField(clientImpl, clientImpl.getClass().getDeclaredField("lookup"), lookup);
+        Whitebox.setInternalState(clientImpl, "cnxPool", pool);
+        Whitebox.setInternalState(clientImpl, "lookup", lookup);
 
         List<ConsumerBase<byte[]>> consumers = new ArrayList<>();
         /**
@@ -146,4 +161,60 @@ public class PulsarClientImplTest {
                 assertSame(consumer.getState(), HandlerState.State.Closed));
     }
 
+    @Test
+    public void testInitializeWithoutTimer() throws Exception {
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("pulsar://localhost:6650");
+        PulsarClientImpl client = new PulsarClientImpl(conf);
+
+        HashedWheelTimer timer = mock(HashedWheelTimer.class);
+        Field field = client.getClass().getDeclaredField("timer");
+        field.setAccessible(true);
+        field.set(client, timer);
+
+        client.shutdown();
+        verify(timer).stop();
+    }
+
+    @Test
+    public void testInitializeWithTimer() throws PulsarClientException {
+        ClientConfigurationData conf = new ClientConfigurationData();
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, new DefaultThreadFactory("test"));
+        ConnectionPool pool = Mockito.spy(new ConnectionPool(conf, eventLoop));
+        conf.setServiceUrl("pulsar://localhost:6650");
+
+        HashedWheelTimer timer = new HashedWheelTimer();
+        PulsarClientImpl client = new PulsarClientImpl(conf, eventLoop, pool, timer);
+
+        client.shutdown();
+        client.timer().stop();
+    }
+
+    @Test(expectedExceptions = PulsarClientException.class)
+    public void testNewTransactionWhenDisable() throws Exception {
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("pulsar://localhost:6650");
+        conf.setEnableTransaction(false);
+        PulsarClientImpl pulsarClient = null;
+        try {
+            pulsarClient = new PulsarClientImpl(conf);
+        } catch (PulsarClientException e) {
+            e.printStackTrace();
+        }
+        pulsarClient.newTransaction();
+    }
+
+    @Test
+    public void testResourceCleanup() throws PulsarClientException {
+        ClientConfigurationData conf = clientImpl.conf;
+        conf.setServiceUrl("");
+        initializeEventLoopGroup(conf);
+        ConnectionPool connectionPool = new ConnectionPool(conf, eventLoopGroup);
+        try {
+            assertThrows(() -> new PulsarClientImpl(conf, eventLoopGroup, connectionPool));
+        } finally {
+            // Externally passed eventLoopGroup should not be shutdown.
+            assertFalse(eventLoopGroup.isShutdown());
+        }
+    }
 }

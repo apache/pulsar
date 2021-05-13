@@ -40,6 +40,7 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -50,6 +51,7 @@ import org.testng.annotations.Test;
  *    client: org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2
  *    broker: org.apache.pulsar.broker.authentication.AuthenticationProviderToken
  */
+@Test(groups = "broker-api")
 public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(TokenOauth2AuthenticatedProducerConsumerTest.class);
 
@@ -61,7 +63,7 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
     // Credentials File, which contains "client_id" and "client_secret"
     private final String CREDENTIALS_FILE = "./src/test/resources/authentication/token/credentials_file.json";
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         conf.setAuthenticationEnabled(true);
@@ -118,7 +120,7 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         return new Object[][] { { 0 }, { 1000 } };
     }
 
-    public void testSyncProducerAndConsumer() throws Exception {
+    private void testSyncProducerAndConsumer() throws Exception {
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic")
                 .subscriptionName("my-subscriber-name").subscribe();
 

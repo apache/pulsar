@@ -90,11 +90,12 @@ import org.testng.collections.Lists;
 /**
  * Starts 3 brokers that are in 3 different clusters
  */
+@Test(groups = "quarantine")
 public class ReplicatorTest extends ReplicatorTestBase {
 
     protected String methodName;
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void beforeMethod(Method m) throws Exception {
         methodName = m.getName();
         admin1.namespaces().removeBacklogQuota("pulsar/ns");
@@ -103,7 +104,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
     }
 
     @Override
-    @BeforeClass(timeOut = 300000)
+    @BeforeClass(alwaysRun = true, timeOut = 300000)
     public void setup() throws Exception {
         super.setup();
     }
@@ -127,8 +128,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         // Run a set of producer tasks to create the topics
         List<Future<Void>> results = Lists.newArrayList();
         for (int i = 0; i < 10; i++) {
-            final TopicName dest = TopicName.get(String
-                    .format(BrokerTestUtil.newUniqueName("persistent://pulsar/ns/topic-" + i)));
+            final TopicName dest = TopicName.get(BrokerTestUtil.newUniqueName("persistent://pulsar/ns/topic-" + i));
 
             results.add(executor.submit(new Callable<Void>() {
                 @Override
@@ -211,7 +211,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         cluster2Data.setServiceUrl(cluster2ServiceUrls);
         String cluster2 = "activeCLuster2";
         admin2.clusters().createCluster(cluster2, cluster2Data);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).until(()
+        Awaitility.await().until(()
                 -> admin2.clusters().getCluster(cluster2) != null);
 
         List<String> list = admin1.brokers().getActiveBrokers(cluster2);
@@ -258,6 +258,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         replicationClients.put("r3", pulsarClient);
 
         admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"));
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newFixedThreadPool(5);
         for (int i = 0; i < 5; i++) {
             executor.submit(() -> {
@@ -274,8 +275,6 @@ public class ReplicatorTest extends ReplicatorTestBase {
                 .createProducerAsync(
                         Mockito.any(ProducerConfigurationData.class),
                         Mockito.any(Schema.class), eq(null));
-
-        executor.shutdown();
     }
 
     @DataProvider(name = "namespace")
@@ -422,8 +421,8 @@ public class ReplicatorTest extends ReplicatorTestBase {
         }
     }
 
-    @Test()
-    public void testFailures() throws Exception {
+    @Test
+    public void testFailures() {
 
         log.info("--- Starting ReplicatorTest::testFailures ---");
 
@@ -470,7 +469,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
     public void testReplicatorClearBacklog() throws Exception {
 
         // This test is to verify that reset cursor fails on global topic
-        SortedSet<String> testDests = new TreeSet<String>();
+        SortedSet<String> testDests = new TreeSet<>();
 
         final TopicName dest = TopicName
                 .get(BrokerTestUtil.newUniqueName("persistent://pulsar/ns/clearBacklogTopic"));
@@ -496,7 +495,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         assertEquals(status.replicationBacklog, 0);
     }
 
-    @Test(enabled = true, timeOut = 30000)
+    @Test(timeOut = 30000)
     public void testResetCursorNotFail() throws Exception {
 
         log.info("--- Starting ReplicatorTest::testResetCursorNotFail ---");
@@ -651,7 +650,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
      * @throws Exception
      */
 
-    @Test(timeOut = 60000, enabled = true, priority = -1)
+    @Test(timeOut = 60000, priority = -1)
     public void testResumptionAfterBacklogRelaxed() throws Exception {
         List<RetentionPolicy> policies = Lists.newArrayList();
         policies.add(RetentionPolicy.producer_exception);
@@ -770,12 +769,14 @@ public class ReplicatorTest extends ReplicatorTestBase {
     public void verifyChecksumAfterReplication() throws Exception {
         final String topicName = BrokerTestUtil.newUniqueName("persistent://pulsar/ns/checksumAfterReplication");
 
+        @Cleanup
         PulsarClient c1 = PulsarClient.builder().serviceUrl(url1.toString()).build();
         Producer<byte[]> p1 = c1.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .create();
 
+        @Cleanup
         PulsarClient c2 = PulsarClient.builder().serviceUrl(url2.toString()).build();
         RawReader reader2 = RawReader.create(c2, topicName, "sub").get();
 
@@ -820,6 +821,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         }
 
         // load namespace with dummy topic on ns
+        @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(url1.toString()).build();
         client.newProducer().topic("persistent://" + namespace + "/dummyTopic")
             .enableBatching(false)
@@ -865,8 +867,10 @@ public class ReplicatorTest extends ReplicatorTestBase {
         admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"));
         admin1.topics().createPartitionedTopic(topicName, 4);
 
+        @Cleanup
         PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
+        @Cleanup
         PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
@@ -915,8 +919,10 @@ public class ReplicatorTest extends ReplicatorTestBase {
         admin1.namespaces().createNamespace(namespace, Sets.newHashSet(cluster1, cluster2));
         admin1.topics().createPartitionedTopic(topicName, startPartitions);
 
+        @Cleanup
         PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
+        @Cleanup
         PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
@@ -943,9 +949,6 @@ public class ReplicatorTest extends ReplicatorTestBase {
         producer2.close();
         consumer1.close();
         consumer2.close();
-
-        client1.close();
-        client2.close();
     }
 
     @DataProvider(name = "topicPrefix")
@@ -968,8 +971,10 @@ public class ReplicatorTest extends ReplicatorTestBase {
         admin1.topics().createPartitionedTopic(partitionedTopicName, startPartitions);
         admin1.topics().createNonPartitionedTopic(nonPartitionedTopicName);
 
+        @Cleanup
         PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
+        @Cleanup
         PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
 

@@ -45,6 +45,7 @@ import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.protocol.Commands;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -54,13 +55,14 @@ import org.testng.annotations.Test;
  * Test for consuming transaction messages.
  */
 @Slf4j
+@Test(groups = "broker")
 public class TransactionConsumeTest extends TransactionTestBase {
 
     private final static String CONSUME_TOPIC = "persistent://public/txn/txn-consume-test";
     private final static String NORMAL_MSG_CONTENT = "Normal - ";
     private final static String TXN_MSG_CONTENT = "Txn - ";
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
         setBrokerCount(1);
         super.internalSetup();
@@ -103,6 +105,9 @@ public class TransactionConsumeTest extends TransactionTestBase {
                 .subscriptionName("shared-test")
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
+
+        Awaitility.await().until(exclusiveConsumer::isConnected);
+        Awaitility.await().until(sharedConsumer::isConnected);
 
         long mostSigBits = 2L;
         long leastSigBits = 5L;
@@ -179,6 +184,8 @@ public class TransactionConsumeTest extends TransactionTestBase {
                 .subscriptionName("shared-test")
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
+        Awaitility.await().until(exclusiveConsumer::isConnected);
+        Awaitility.await().until(sharedConsumer::isConnected);
 
         long mostSigBits = 2L;
         long leastSigBits = 5L;

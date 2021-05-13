@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Lists;
@@ -40,7 +39,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsExcep
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTracker;
 import org.apache.pulsar.broker.service.AbstractDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -59,10 +57,8 @@ import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotSeal
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.collections.ConcurrentSortedLongPairSet;
 import org.apache.pulsar.common.util.collections.LongPairSet;
@@ -158,37 +154,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         consumerSet.add(consumer);
     }
 
-    private boolean isConsumersExceededOnSubscription() {
-        Policies policies = null;
-        Integer maxConsumersPerSubscription = null;
-        try {
-            maxConsumersPerSubscription = Optional.ofNullable(topic.getBrokerService()
-                    .getTopicPolicies(TopicName.get(topic.getName())))
-                    .map(TopicPolicies::getMaxConsumersPerSubscription)
-                    .orElse(null);
-
-            if (maxConsumersPerSubscription == null) {
-                // Use getDataIfPresent from zk cache to make the call non-blocking and
-                // prevent deadlocks in addConsumer
-                policies = topic.getBrokerService().pulsar().getConfigurationCache().policiesCache()
-                        .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic.getName()).getNamespace()));
-                if (policies == null) {
-                    policies = new Policies();
-                }
-            }
-        } catch (Exception e) {
-            policies = new Policies();
-        }
-
-        if (maxConsumersPerSubscription == null) {
-            maxConsumersPerSubscription = policies.max_consumers_per_subscription > 0
-                    ? policies.max_consumers_per_subscription : serviceConfig.getMaxConsumersPerSubscription();
-        }
-
-        if (maxConsumersPerSubscription > 0 && maxConsumersPerSubscription <= consumerList.size()) {
-            return true;
-        }
-        return false;
+    @Override
+    protected boolean isConsumersExceededOnSubscription() {
+        return isConsumersExceededOnSubscription(topic.getBrokerService(), topic.getName(), consumerList.size());
     }
 
     @Override
@@ -217,6 +185,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                     redeliveryTracker.addIfAbsent(PositionImpl.get(ledgerId, entryId));
                 });
                 totalAvailablePermits -= consumer.getAvailablePermits();
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Decreased totalAvailablePermits by {} in PersistentDispatcherMultipleConsumers. "
+                                    + "New dispatcher permit count is {}", name, consumer.getAvailablePermits(),
+                            totalAvailablePermits);
+                }
                 readMoreEntries();
             }
         } else {
@@ -236,16 +209,18 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         totalAvailablePermits += additionalNumberOfMessages;
 
         if (log.isDebugEnabled()) {
-            log.debug("[{}-{}] Trigger new read after receiving flow control message with permits {}", name, consumer,
-                    totalAvailablePermits);
+            log.debug("[{}-{}] Trigger new read after receiving flow control message with permits {} "
+                            + "after adding {} permits", name, consumer,
+                    totalAvailablePermits, additionalNumberOfMessages);
         }
         readMoreEntries();
     }
 
-    public void readMoreEntries() {
+    public synchronized void readMoreEntries() {
         // totalAvailablePermits may be updated by other threads
-        int currentTotalAvailablePermits = totalAvailablePermits;
-        if (currentTotalAvailablePermits > 0 && isAtleastOneConsumerAvailable()) {
+        int firstAvailableConsumerPermits = getFirstAvailableConsumerPermits();
+        int currentTotalAvailablePermits = Math.max(totalAvailablePermits, firstAvailableConsumerPermits);
+        if (currentTotalAvailablePermits > 0 && firstAvailableConsumerPermits > 0) {
             int messagesToRead = calculateNumOfMessageToRead(currentTotalAvailablePermits);
 
             if (-1 == messagesToRead) {
@@ -506,7 +481,15 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         long totalMessagesSent = 0;
         long totalBytesSent = 0;
 
-        while (entriesToDispatch > 0 && totalAvailablePermits > 0 && isAtleastOneConsumerAvailable()) {
+        int firstAvailableConsumerPermits, currentTotalAvailablePermits;
+        boolean dispatchMessage;
+        while (entriesToDispatch > 0) {
+            firstAvailableConsumerPermits = getFirstAvailableConsumerPermits();
+            currentTotalAvailablePermits = Math.max(totalAvailablePermits, firstAvailableConsumerPermits);
+            dispatchMessage = currentTotalAvailablePermits > 0 && firstAvailableConsumerPermits > 0;
+            if (!dispatchMessage) {
+                break;
+            }
             Consumer c = getNextConsumer();
             if (c == null) {
                 // Do nothing, cursor will be rewind at reconnection
@@ -519,8 +502,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             // round-robin dispatch batch size for this consumer
             int availablePermits = c.isWritable() ? c.getAvailablePermits() : 1;
             if (log.isDebugEnabled() && !c.isWritable()) {
-                log.debug("[{}-{}] consumer is not writable. dispatching only 1 message to {} ", topic.getName(), name,
-                        c);
+                log.debug("[{}-{}] consumer is not writable. dispatching only 1 message to {}; "
+                                + "availablePermits are {}", topic.getName(), name,
+                        c, c.getAvailablePermits());
             }
             int messagesForC = Math.min(
                     Math.min(entriesToDispatch, availablePermits),
@@ -551,6 +535,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 entriesToDispatch -= messagesForC;
                 TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this,
                         -(msgSent - batchIndexesAcks.getTotalAckedIndexCount()));
+                if (log.isDebugEnabled()){
+                    log.debug("[{}] Added -({} minus {}) permits to TOTAL_AVAILABLE_PERMITS_UPDATER in "
+                                    + "PersistentDispatcherMultipleConsumers",
+                            name, msgSent, batchIndexesAcks.getTotalAckedIndexCount());
+                }
                 totalMessagesSent += sendMessageInfo.getTotalMessages();
                 totalBytesSent += sendMessageInfo.getTotalBytes();
             }
@@ -658,16 +647,20 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
      * @return
      */
     protected boolean isAtleastOneConsumerAvailable() {
+        return getFirstAvailableConsumerPermits() > 0;
+    }
+
+    protected int getFirstAvailableConsumerPermits() {
         if (consumerList.isEmpty() || IS_CLOSED_UPDATER.get(this) == TRUE) {
             // abort read if no consumers are connected or if disconnect is initiated
-            return false;
+            return 0;
         }
         for (Consumer consumer : consumerList) {
             if (isConsumerAvailable(consumer)) {
-                return true;
+                return consumer.getAvailablePermits();
             }
         }
-        return false;
+        return 0;
     }
 
     private boolean isConsumerWritable() {

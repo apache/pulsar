@@ -28,7 +28,7 @@ import java.util.HashMap;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
-
+@Test(groups = "broker")
 public class PublishRateLimiterTest {
     private final String CLUSTER_NAME = "clusterName";
     private final Policies policies = new Policies();
@@ -70,7 +70,7 @@ public class PublishRateLimiterTest {
     }
 
     @Test
-    public void testPublishRateLimiterImplUpdate() throws Exception {
+    public void testPublishRateLimiterImplUpdate() {
         publishRateLimiter.incrementPublishCount(11, 110);
         publishRateLimiter.checkPublishRate();
         assertTrue(publishRateLimiter.isPublishRateExceeded());
@@ -84,7 +84,7 @@ public class PublishRateLimiterTest {
     }
 
     @Test
-    public void testPrecisePublishRateLimiterUpdate() throws Exception {
+    public void testPrecisePublishRateLimiterUpdate() {
         assertFalse(precisPublishLimiter.tryAcquire(15, 150));
 
         //update

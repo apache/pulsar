@@ -26,6 +26,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -33,7 +34,7 @@ import java.util.Set;
  * Contains all the data that is maintained locally on each broker.
  */
 @JsonDeserialize(as = LocalBrokerData.class)
-public class LocalBrokerData extends JSONWritable implements LoadManagerReport {
+public class LocalBrokerData implements LoadManagerReport {
 
     // URLs to satisfy contract of ServiceLookupData (used by NamespaceService).
     private final String webServiceUrl;
@@ -120,6 +121,28 @@ public class LocalBrokerData extends JSONWritable implements LoadManagerReport {
         lastBundleLosses = new HashSet<>();
         protocols = new HashMap<>();
         this.advertisedListeners = Collections.unmodifiableMap(Maps.newHashMap(advertisedListeners));
+    }
+
+    /**
+     * Since the broker data is also used as a lock for the broker, we need to have a stable comparison
+     * operator that is not affected by the actual load on the broker.
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (o instanceof LocalBrokerData) {
+            LocalBrokerData other = (LocalBrokerData) o;
+            return Objects.equals(webServiceUrl, other.webServiceUrl)
+                    && Objects.equals(webServiceUrlTls, other.webServiceUrlTls)
+                    && Objects.equals(pulsarServiceUrl, other.pulsarServiceUrl)
+                    && Objects.equals(pulsarServiceUrlTls, other.pulsarServiceUrlTls);
+        }
+
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(webServiceUrl, webServiceUrlTls, pulsarServiceUrl, pulsarServiceUrlTls);
     }
 
     /**
@@ -307,6 +330,11 @@ public class LocalBrokerData extends JSONWritable implements LoadManagerReport {
 
     public Set<String> getLastBundleGains() {
         return lastBundleGains;
+    }
+
+    public void cleanDeltas() {
+        lastBundleGains.clear();
+        lastBundleLosses.clear();
     }
 
     public void setLastBundleGains(Set<String> lastBundleGains) {

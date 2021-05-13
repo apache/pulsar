@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.intercept;
 
 import java.io.IOException;
+import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
@@ -76,6 +77,16 @@ public interface BrokerInterceptor extends AutoCloseable {
      * Intercept the webservice response before send to client.
      */
     void onWebserviceResponse(ServletRequest request, ServletResponse response) throws IOException, ServletException;
+
+    /**
+     * The interception of web processing, as same as `Filter.onFilter`.
+     * So In this method, we must call `chain.doFilter` to continue the chain.
+     */
+    default void onFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+            throws IOException, ServletException {
+        // Just continue the chain by default.
+        chain.doFilter(request, response);
+    }
 
     /**
      * Initialize the broker interceptor.

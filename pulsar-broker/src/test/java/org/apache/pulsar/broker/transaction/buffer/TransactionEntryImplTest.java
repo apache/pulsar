@@ -31,6 +31,7 @@ import org.testng.annotations.Test;
 /**
  * Unit test {@link TransactionEntryImpl}.
  */
+@Test(groups = "broker")
 public class TransactionEntryImplTest {
 
     @Test

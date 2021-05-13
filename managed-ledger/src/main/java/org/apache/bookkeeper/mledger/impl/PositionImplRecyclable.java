@@ -26,7 +26,7 @@ import io.netty.util.Recycler.Handle;
 public class PositionImplRecyclable extends PositionImpl implements Position {
 
     private final Handle<PositionImplRecyclable> recyclerHandle;
-    
+
     private static final Recycler<PositionImplRecyclable> RECYCLER = new Recycler<PositionImplRecyclable>() {
         @Override
         protected PositionImplRecyclable newObject(Recycler.Handle<PositionImplRecyclable> recyclerHandle) {
@@ -44,6 +44,7 @@ public class PositionImplRecyclable extends PositionImpl implements Position {
     }
 
     public void recycle() {
+        ackSet = null;
         recyclerHandle.recycle(this);
     }
 

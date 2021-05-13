@@ -32,6 +32,7 @@ import org.testng.annotations.Test;
 
 import lombok.Cleanup;
 
+@Test(groups = "broker-api")
 public class ProxyProtocolTest extends TlsProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(ProxyProtocolTest.class);
 

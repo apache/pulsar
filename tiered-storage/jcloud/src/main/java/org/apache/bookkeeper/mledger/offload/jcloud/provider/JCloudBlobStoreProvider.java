@@ -19,12 +19,16 @@
 package org.apache.bookkeeper.mledger.offload.jcloud.provider;
 
 import static org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.GCS_ACCOUNT_KEY_FILE_FIELD;
+import static org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.S3_ID_FIELD;
 import static org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.S3_ROLE_FIELD;
 import static org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.S3_ROLE_SESSION_NAME_FIELD;
+import static org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.S3_SECRET_FIELD;
 
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.AWSSessionCredentials;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
 import com.google.common.base.Strings;
@@ -307,7 +311,24 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
         if (config.getCredentials() == null) {
             final AWSCredentialsProvider authChain;
             try {
-                if (Strings.isNullOrEmpty(config.getConfigProperty(S3_ROLE_FIELD))) {
+                if (!Strings.isNullOrEmpty(config.getConfigProperty(S3_ID_FIELD))
+                    && !Strings.isNullOrEmpty(config.getConfigProperty(S3_SECRET_FIELD))) {
+                    AWSCredentials awsCredentials = new AWSCredentials() {
+                        @Override
+                        public String getAWSAccessKeyId() {
+                            return config.getConfigProperty(S3_ID_FIELD);
+                        }
+
+                        @Override
+                        public String getAWSSecretKey() {
+                            return config.getConfigProperty(S3_SECRET_FIELD);
+                        }
+                    };
+                    authChain = new AWSStaticCredentialsProvider(
+                            new BasicAWSCredentials(
+                                config.getConfigProperty(S3_ID_FIELD),
+                                config.getConfigProperty(S3_SECRET_FIELD)));
+                } else if (Strings.isNullOrEmpty(config.getConfigProperty(S3_ROLE_FIELD))) {
                     authChain = DefaultAWSCredentialsProviderChain.getInstance();
                 } else {
                     authChain =

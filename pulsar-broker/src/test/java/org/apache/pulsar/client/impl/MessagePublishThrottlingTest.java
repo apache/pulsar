@@ -29,6 +29,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.PublishRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -41,6 +42,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test
 public class MessagePublishThrottlingTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(MessagePublishThrottlingTest.class);
 
@@ -451,6 +453,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         }
 
         List<Callable<Void>> topicRatesCounter = Lists.newArrayListWithExpectedSize(3);
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newSingleThreadExecutor();
         final AtomicDouble topicsRateIn = new AtomicDouble(0);
         final AtomicInteger index = new AtomicInteger(0);
@@ -528,6 +531,5 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         assertTrue(rateIn > numMessage * msgBytes);
 
         producer.close();
-        executor.shutdown();
     }
 }

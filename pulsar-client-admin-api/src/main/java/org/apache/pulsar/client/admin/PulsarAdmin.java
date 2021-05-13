@@ -54,6 +54,11 @@ public interface PulsarAdmin extends Closeable {
     Tenants tenants();
 
     /**
+     * @return the resourcegroups managements object
+     */
+    ResourceGroups resourcegroups();
+
+    /**
      *
      * @deprecated since 2.0. See {@link #tenants()}
      */

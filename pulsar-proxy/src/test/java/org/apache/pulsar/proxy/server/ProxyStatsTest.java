@@ -24,6 +24,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -33,6 +34,7 @@ import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.api.Consumer;
@@ -57,7 +59,7 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
 
     private ProxyService proxyService;
     private WebServer proxyWebServer;
-    private ProxyConfiguration proxyConfig = new ProxyConfiguration();
+    private final ProxyConfiguration proxyConfig = new ProxyConfiguration();
 
     @Override
     @BeforeClass
@@ -73,7 +75,6 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
 
         proxyService = Mockito.spy(new ProxyService(proxyConfig,
                 new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig))));
-        doReturn(mockZooKeeperClientFactory).when(proxyService).getZooKeeperClientFactory();
         doReturn(new ZKMetadataStore(mockZooKeeper)).when(proxyService).createLocalMetadataStore();
         doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(proxyService).createConfigurationMetadataStore();
 
@@ -93,7 +94,6 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
     @AfterClass(alwaysRun = true)
     protected void cleanup() throws Exception {
         internalCleanup();
-
         proxyService.close();
     }
 
@@ -105,6 +105,7 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testConnectionsStats() throws Exception {
         final String topicName1 = "persistent://sample/test/local/connections-stats";
+        @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl()).build();
         Producer<byte[]> producer = client.newProducer(Schema.BYTES).topic(topicName1).enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition).create();
@@ -134,7 +135,6 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
         assertNotNull(connectionStats);
 
         consumer.close();
-        client.close();
     }
 
     /**
@@ -148,6 +148,7 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
         final String topicName = "persistent://sample/test/local/topic-stats";
         final String topicName2 = "persistent://sample/test/local/topic-stats-2";
 
+        @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl()).build();
         Producer<byte[]> producer1 = client.newProducer(Schema.BYTES).topic(topicName).enableBatching(false)
                 .producerName("producer1").messageRoutingMode(MessageRoutingMode.SinglePartition).create();
@@ -185,7 +186,6 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
 
         consumer.close();
         consumer2.close();
-        client.close();
     }
 
     /**
@@ -194,7 +194,7 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
      * @throws Exception
      */
     @Test
-    public void testChangeLogLevel() throws Exception {
+    public void testChangeLogLevel() {
         Assert.assertEquals(proxyService.getProxyLogLevel(), 2);
         int newLogLevel = 1;
         Client httpClient = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));

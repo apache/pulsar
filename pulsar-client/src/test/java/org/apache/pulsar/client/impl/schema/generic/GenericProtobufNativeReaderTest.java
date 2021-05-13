@@ -74,7 +74,7 @@ public class GenericProtobufNativeReaderTest {
         assertEquals(record.getField("stringField"), STRING_FIELD_VLUE);
         assertEquals(record.getField("doubleField"), DOUBLE_FIELD_VLUE);
         assertEquals(SchemaType.PROTOBUF_NATIVE, record.getSchemaType());
-        DynamicMessage nativeRecord = (DynamicMessage) record.getNativeRecord();
+        DynamicMessage nativeRecord = (DynamicMessage) record.getNativeObject();
         assertEquals(nativeRecord.getField(nativeRecord.getDescriptorForType().findFieldByName("stringField")), STRING_FIELD_VLUE);
         assertEquals(nativeRecord.getField(nativeRecord.getDescriptorForType().findFieldByName("doubleField")), DOUBLE_FIELD_VLUE);
     }

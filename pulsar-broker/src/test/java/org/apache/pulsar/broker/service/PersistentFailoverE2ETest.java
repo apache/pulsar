@@ -57,6 +57,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class PersistentFailoverE2ETest extends BrokerTestBase {
 
     @BeforeClass
@@ -78,9 +79,6 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         final LinkedBlockingQueue<Integer> activeQueue = new LinkedBlockingQueue<>();
         final LinkedBlockingQueue<Integer> inActiveQueue = new LinkedBlockingQueue<>();
         String name = "";
-        public TestConsumerStateEventListener() {
-
-        }
 
         public TestConsumerStateEventListener(String name) {
             this.name = name;
@@ -103,7 +101,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         }
     }
 
-    private void verifyConsumerNotReceiveAnyStateChanges(TestConsumerStateEventListener listener) throws Exception {
+    private void verifyConsumerNotReceiveAnyStateChanges(TestConsumerStateEventListener listener) {
         assertNull(listener.activeQueue.poll());
         assertNull(listener.inActiveQueue.poll());
     }
@@ -382,33 +380,27 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
                 .receiverQueueSize(1)
                 .subscribe();
         Thread.sleep(CONSUMER_ADD_OR_REMOVE_WAIT_TIME);
-        int consumer1Messages = 0;
         while (true) {
             msg = consumer1.receive(1, TimeUnit.SECONDS);
             if (msg == null) {
                 break;
             }
-            consumer1Messages++;
             uniqueMessages.add(new String(msg.getData()));
             consumer1.acknowledge(msg);
         }
-        int consumer2Messages = 0;
         while (true) {
             msg = consumer2.receive(1, TimeUnit.SECONDS);
             if (msg == null) {
                 break;
             }
-            consumer2Messages++;
             uniqueMessages.add(new String(msg.getData()));
             consumer2.acknowledge(msg);
         }
-        int consumer3Messages = 0;
         while (true) {
             msg = consumer3.receive(1, TimeUnit.SECONDS);
             if (msg == null) {
                 break;
             }
-            consumer3Messages++;
             uniqueMessages.add(new String(msg.getData()));
             consumer3.acknowledge(msg);
         }
@@ -435,23 +427,19 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         }
         consumer1.close();
         Thread.sleep(CONSUMER_ADD_OR_REMOVE_WAIT_TIME);
-        consumer2Messages = 0;
         while (true) {
             msg = consumer2.receive(1, TimeUnit.SECONDS);
             if (msg == null) {
                 break;
             }
-            consumer2Messages++;
             uniqueMessages.add(new String(msg.getData()));
             consumer2.acknowledge(msg);
         }
-        consumer3Messages = 0;
         while (true) {
             msg = consumer3.receive(1, TimeUnit.SECONDS);
             if (msg == null) {
                 break;
             }
-            consumer3Messages++;
             uniqueMessages.add(new String(msg.getData()));
             consumer3.acknowledge(msg);
         }

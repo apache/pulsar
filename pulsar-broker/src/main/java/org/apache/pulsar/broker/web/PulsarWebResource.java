@@ -23,6 +23,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.admin.AdminResource.POLICIES_READONLY_FLAG_PATH;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.RESOURCEGROUPS;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Lists;
@@ -63,6 +64,7 @@ import org.apache.pulsar.broker.resources.LocalPoliciesResources;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.NamespaceResources.IsolationPolicyResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.broker.resources.ResourceGroupResources;
 import org.apache.pulsar.broker.resources.TenantResources;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
@@ -79,6 +81,7 @@ import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantOperation;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.path.PolicyPath;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -257,13 +260,13 @@ public abstract class PulsarWebResource {
     protected static void validateAdminAccessForTenant(PulsarService pulsar, String clientAppId,
                                                        String originalPrincipal, String tenant,
                                                        AuthenticationDataSource authenticationData)
-            throws RestException, Exception {
+            throws Exception {
         if (log.isDebugEnabled()) {
             log.debug("check admin access on tenant: {} - Authenticated: {} -- role: {}", tenant,
                     (isClientAuthenticated(clientAppId)), clientAppId);
         }
 
-        TenantInfo tenantInfo = pulsar.getPulsarResources().getTenatResources().get(path(POLICIES, tenant))
+        TenantInfo tenantInfo = pulsar.getPulsarResources().getTenantResources().get(path(POLICIES, tenant))
                 .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Tenant does not exist"));
 
         if (pulsar.getConfiguration().isAuthenticationEnabled() && pulsar.getConfiguration().isAuthorizationEnabled()) {
@@ -319,7 +322,7 @@ public abstract class PulsarWebResource {
     protected void validateClusterForTenant(String tenant, String cluster) {
         TenantInfo tenantInfo;
         try {
-            tenantInfo = pulsar().getPulsarResources().getTenatResources().get(path(POLICIES, tenant))
+            tenantInfo = pulsar().getPulsarResources().getTenantResources().get(path(POLICIES, tenant))
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Tenant does not exist"));
         } catch (RestException e) {
             log.warn("Failed to get tenant admin data for tenant {}", tenant);
@@ -778,19 +781,15 @@ public abstract class PulsarWebResource {
         return null;
     }
 
-    protected void checkConnect(TopicName topicName) throws RestException, Exception {
-        checkAuthorization(pulsar(), topicName, clientAppId(), clientAuthData());
-    }
-
     protected static void checkAuthorization(PulsarService pulsarService, TopicName topicName, String role,
-            AuthenticationDataSource authenticationData) throws RestException, Exception {
+            AuthenticationDataSource authenticationData) throws Exception {
         if (!pulsarService.getConfiguration().isAuthorizationEnabled()) {
             // No enforcing of authorization policies
             return;
         }
         // get zk policy manager
-        if (!pulsarService.getBrokerService().getAuthorizationService().canLookup(topicName, role,
-                authenticationData)) {
+        if (!pulsarService.getBrokerService().getAuthorizationService().allowTopicOperation(topicName,
+                TopicOperation.LOOKUP, null, role, authenticationData)) {
             log.warn("[{}] Role {} is not allowed to lookup topic", topicName, role);
             throw new RestException(Status.UNAUTHORIZED, "Don't have permission to connect to this namespace");
         }
@@ -876,7 +875,7 @@ public abstract class PulsarWebResource {
     }
 
     protected TenantResources tenantResources() {
-        return pulsar().getPulsarResources().getTenatResources();
+        return pulsar().getPulsarResources().getTenantResources();
     }
 
     protected ClusterResources clusterResources() {
@@ -885,6 +884,10 @@ public abstract class PulsarWebResource {
 
     protected NamespaceResources namespaceResources() {
         return pulsar().getPulsarResources().getNamespaceResources();
+    }
+
+    protected ResourceGroupResources resourceGroupResources() {
+        return pulsar().getPulsarResources().getResourcegroupResources();
     }
 
     protected LocalPoliciesResources getLocalPolicies() {
@@ -1018,10 +1021,8 @@ public abstract class PulsarWebResource {
      *
      * @param broker
      *            Broker name
-     * @throws MalformedURLException
-     *             In case the redirect happens
      */
-    protected void validateBrokerName(String broker) throws MalformedURLException {
+    protected void validateBrokerName(String broker) {
         String brokerUrl = String.format("http://%s", broker);
         String brokerUrlTls = String.format("https://%s", broker);
         if (!brokerUrl.equals(pulsar().getSafeWebServiceAddress())
@@ -1034,6 +1035,50 @@ public abstract class PulsarWebResource {
             URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(host).port(port).build();
             log.debug("[{}] Redirecting the rest call to {}: broker={}", clientAppId(), redirect, broker);
             throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+
+        }
+    }
+
+    public void validateTopicPolicyOperation(TopicName topicName, PolicyName policy, PolicyOperation operation) {
+        if (pulsar().getConfiguration().isAuthenticationEnabled()
+                && pulsar().getBrokerService().isAuthorizationEnabled()) {
+            if (!isClientAuthenticated(clientAppId())) {
+                throw new RestException(Status.FORBIDDEN, "Need to authenticate to perform the request");
+            }
+
+            Boolean isAuthorized = pulsar().getBrokerService().getAuthorizationService()
+                    .allowTopicPolicyOperation(topicName, policy, operation, originalPrincipal(), clientAppId(),
+                            clientAuthData());
+
+            if (!isAuthorized) {
+                throw new RestException(Status.FORBIDDEN, String.format("Unauthorized to validateTopicPolicyOperation"
+                        + " for operation [%s] on topic [%s] on policy [%s]", operation.toString(),
+                        topicName, policy.toString()));
+            }
+        }
+    }
+
+    public void validateTopicOperation(TopicName topicName, TopicOperation operation) {
+        validateTopicOperation(topicName, operation, null);
+    }
+
+    public void validateTopicOperation(TopicName topicName, TopicOperation operation, String subscription) {
+        if (pulsar().getConfiguration().isAuthenticationEnabled()
+                && pulsar().getBrokerService().isAuthorizationEnabled()) {
+            if (!isClientAuthenticated(clientAppId())) {
+                throw new RestException(Status.UNAUTHORIZED, "Need to authenticate to perform the request");
+            }
+
+            AuthenticationDataHttps authData = clientAuthData();
+            authData.setSubscription(subscription);
+
+            Boolean isAuthorized = pulsar().getBrokerService().getAuthorizationService()
+                    .allowTopicOperation(topicName, operation, originalPrincipal(), clientAppId(), authData);
+
+            if (!isAuthorized) {
+                throw new RestException(Status.UNAUTHORIZED, String.format("Unauthorized to validateTopicOperation for"
+                        + " operation [%s] on topic [%s]", operation.toString(), topicName));
+            }
         }
     }
 
@@ -1076,6 +1121,24 @@ public abstract class PulsarWebResource {
         return namespaces;
     }
 
+    /**
+     * Get the list of resourcegroups.
+     *
+     * @return the list of resourcegroups
+     */
+
+    protected List<String> getListOfResourcegroups(String property) throws Exception {
+        List<String> resourcegroups = Lists.newArrayList();
+
+        for (String resourcegroup : resourceGroupResources().getChildren(path(RESOURCEGROUPS))) {
+            resourcegroups.add(resourcegroup);
+        }
+
+        resourcegroups.sort(null);
+        return resourcegroups;
+    }
+
+
     public static void deleteRecursive(BaseResources resources, final String pathRoot) throws MetadataStoreException {
         PathUtils.validatePath(pathRoot);
         List<String> tree = listSubTreeBFS(resources, pathRoot);
@@ -1089,8 +1152,8 @@ public abstract class PulsarWebResource {
 
     public static List<String> listSubTreeBFS(BaseResources resources, final String pathRoot)
             throws MetadataStoreException {
-        Deque<String> queue = new LinkedList<String>();
-        List<String> tree = new ArrayList<String>();
+        Deque<String> queue = new LinkedList<>();
+        List<String> tree = new ArrayList<>();
         queue.add(pathRoot);
         tree.add(pathRoot);
         while (true) {

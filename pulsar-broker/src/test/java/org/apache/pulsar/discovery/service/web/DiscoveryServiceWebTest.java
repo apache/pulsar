@@ -22,6 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
@@ -29,7 +30,6 @@ import com.google.gson.JsonParseException;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
-import java.util.concurrent.CompletableFuture;
 
 import javax.ws.rs.HttpMethod;
 import javax.ws.rs.client.Client;
@@ -44,17 +44,22 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.discovery.service.server.ServerManager;
 import org.apache.pulsar.discovery.service.server.ServiceConfig;
-import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
-import org.apache.zookeeper.ZooKeeper;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.logging.LoggingFeature;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker-discovery")
 public class DiscoveryServiceWebTest extends ProducerConsumerBase {
 
-    private Client client = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
+    private final Client client = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
+    // DiscoveryServiceServlet gets initialized by a server and this map will help to retrieve ZK while mocking
+    // DiscoveryServiceServlet
+    private static final Map<String, MetadataStoreExtended> metadataStoreInstanceCache = Maps.newConcurrentMap();
+    private ServerManager server;
 
     @BeforeMethod
     @Override
@@ -63,12 +68,25 @@ public class DiscoveryServiceWebTest extends ProducerConsumerBase {
         super.producerBaseSetup();
         super.conf.setAuthorizationEnabled(true);
         super.conf.setAuthenticationEnabled(true);
+
+        // start server
+        ServiceConfig config = new ServiceConfig();
+        config.setWebServicePort(Optional.of(0));
+        server = new ServerManager(config);
+        Map<String, String> params = new TreeMap<>();
+        String zkServerUrl = "mockZkServerUrl";
+        metadataStoreInstanceCache.put(zkServerUrl, pulsar.createLocalMetadataStore());
+        params.put("zookeeperServers", zkServerUrl);
+        server.addServlet("/", DiscoveryServiceServletTest.class, params);
+        server.start();
     }
 
     @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+        server.stop();
+        metadataStoreInstanceCache.clear();
     }
 
     /**
@@ -79,17 +97,6 @@ public class DiscoveryServiceWebTest extends ProducerConsumerBase {
      */
     @Test
     public void testRedirectUrlWithServerStarted() throws Exception {
-        // 1. start server
-        ServiceConfig config = new ServiceConfig();
-        config.setWebServicePort(Optional.of(0));
-        ServerManager server = new ServerManager(config);
-        DiscoveryZooKeeperClientFactoryImpl.zk = mockZooKeeper;
-        Map<String, String> params = new TreeMap<>();
-        params.put("zookeeperServers", "");
-        params.put("zookeeperClientFactoryClass", DiscoveryZooKeeperClientFactoryImpl.class.getName());
-        server.addServlet("/", DiscoveryServiceServlet.class, params);
-        server.start();
-
         String serviceUrl = server.getServiceUri().toString();
         String putRequestUrl = serviceUrl + "admin/v2/namespaces/p1/n1";
         String postRequestUrl = serviceUrl + "admin/v2/namespaces/p1/n1/replication";
@@ -104,9 +111,6 @@ public class DiscoveryServiceWebTest extends ProducerConsumerBase {
                 "Need to authenticate to perform the request");
         assertEquals(hitBrokerService(HttpMethod.PUT, putRequestUrl, new BundlesData(1)), "Need to authenticate to perform the request");
         assertEquals(hitBrokerService(HttpMethod.GET, getRequestUrl, null), "Need to authenticate to perform the request");
-
-        server.stop();
-
     }
 
     public String hitBrokerService(String method, String url, Object data) throws JsonParseException {
@@ -116,11 +120,11 @@ public class DiscoveryServiceWebTest extends ProducerConsumerBase {
             WebTarget webTarget = client.target(url);
             Invocation.Builder invocationBuilder = webTarget.request(MediaType.APPLICATION_JSON);
             if (HttpMethod.PUT.equals(method)) {
-                response = (Response) invocationBuilder.put(Entity.entity(data, MediaType.APPLICATION_JSON));
+                response = invocationBuilder.put(Entity.entity(data, MediaType.APPLICATION_JSON));
             } else if (HttpMethod.GET.equals(method)) {
-                response = (Response) invocationBuilder.get();
+                response = invocationBuilder.get();
             } else if (HttpMethod.POST.equals(method)) {
-                response = (Response) invocationBuilder.post(Entity.entity(data, MediaType.APPLICATION_JSON));
+                response = invocationBuilder.post(Entity.entity(data, MediaType.APPLICATION_JSON));
             } else {
                 fail("Unsupported http method");
             }
@@ -130,18 +134,13 @@ public class DiscoveryServiceWebTest extends ProducerConsumerBase {
         }
 
         JsonObject jsonObject = new Gson().fromJson(response.readEntity(String.class), JsonObject.class);
-        String serviceResponse = jsonObject.get("reason").getAsString();
-        return serviceResponse;
+        return jsonObject.get("reason").getAsString();
     }
 
-    static class DiscoveryZooKeeperClientFactoryImpl implements ZooKeeperClientFactory {
-        static ZooKeeper zk;
-
+    public static class DiscoveryServiceServletTest extends DiscoveryServiceServlet {
         @Override
-        public CompletableFuture<ZooKeeper> create(String serverList, SessionType sessionType,
-                int zkSessionTimeoutMillis) {
-            return CompletableFuture.completedFuture(zk);
+        public MetadataStoreExtended createLocalMetadataStore(String zookeeperServers, int operationimeoutMs) throws MetadataStoreException {
+            return metadataStoreInstanceCache.get(zookeeperServers);
         }
     }
-
 }

@@ -28,6 +28,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import lombok.Cleanup;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -73,7 +74,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
     private final String TLS_SUPERUSER_CLIENT_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/cacert.pem";
 
     private ProxyService proxyService;
-    private ProxyConfiguration proxyConfig = new ProxyConfiguration();
+    private final ProxyConfiguration proxyConfig = new ProxyConfiguration();
 
     @DataProvider(name = "hostnameVerification")
     public Object[][] hostnameVerificationCodecProvider() {
@@ -210,7 +211,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         proxyService.close();
     }
 
-    void startProxy() throws Exception {
+    private void startProxy() throws Exception {
         proxyService.start();
     }
 
@@ -235,6 +236,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         startProxy();
         createAdminClient();
         // create a client which connects to proxy over tls and pass authData
+        @Cleanup
         PulsarClient proxyClient = createPulsarClient(proxyService.getServiceUrlTls(), PulsarClient.builder());
 
         String namespaceName = "my-property/proxy-authorization/my-ns";
@@ -287,6 +289,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         startProxy();
         createAdminClient();
         // create a client which connects to proxy over tls and pass authData
+        @Cleanup
         PulsarClient proxyClient = createPulsarClient(proxyService.getServiceUrlTls(),
                 PulsarClient.builder().enableTlsHostnameVerification(hostnameVerificationEnabled));
 
@@ -338,6 +341,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         startProxy();
         createAdminClient();
         // create a client which connects to proxy over tls and pass authData
+        @Cleanup
         PulsarClient proxyClient = createPulsarClient(proxyService.getServiceUrlTls(),
                 PulsarClient.builder().operationTimeout(1, TimeUnit.SECONDS));
 
@@ -438,7 +442,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
             }
         }, 3, 1000);
         try {
-
+            @Cleanup
             PulsarClient proxyClient = createPulsarClient("pulsar://localhost:" + proxyService.getListenPortTls().get(), PulsarClient.builder());
             Consumer<byte[]> consumer = proxyClient.newConsumer()
                     .topic("persistent://my-property/proxy-authorization/my-ns/my-topic1")
@@ -448,7 +452,6 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
                 Assert.fail("Failure expected for this test case");
             }
             consumer.close();
-            proxyClient.close();
         } catch (Exception ex) {
             if (!expectFailure) {
                 Assert.fail("This test case should not fail");
@@ -458,7 +461,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    protected final void createAdminClient() throws Exception {
+    private void createAdminClient() throws Exception {
         Map<String, String> authParams = Maps.newHashMap();
         authParams.put("tlsCertFile", TLS_SUPERUSER_CLIENT_CERT_FILE_PATH);
         authParams.put("tlsKeyFile", TLS_SUPERUSER_CLIENT_KEY_FILE_PATH);

@@ -40,6 +40,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker-api")
 public class InterceptorsTest extends ProducerConsumerBase {
 
     private static final Logger log = LoggerFactory.getLogger(InterceptorsTest.class);
@@ -105,14 +106,14 @@ public class InterceptorsTest extends ProducerConsumerBase {
             @Override
             public boolean eligible(Message message) {
                 return SchemaType.STRING.equals(
-                        ((MessageImpl)message).getSchema().getSchemaInfo().getType());
+                        ((MessageImpl)message).getSchemaInternal().getSchemaInfo().getType());
             }
         };
         BaseInterceptor interceptor3 = new BaseInterceptor("int3") {
             @Override
             public boolean eligible(Message message) {
                 return SchemaType.INT32.equals(
-                        ((MessageImpl)message).getSchema().getSchemaInfo().getType());
+                        ((MessageImpl)message).getSchemaInternal().getSchemaInfo().getType());
             }
         };
 

@@ -238,7 +238,7 @@ public final class SchemaUtils {
             sortedProperties.putAll(properties);
             JsonObject object = new JsonObject();
             sortedProperties.forEach((key, value) -> {
-                object.add(key, new JsonPrimitive(value));
+                object.add(key, (value != null) ? new JsonPrimitive(value) : null);
             });
             return object;
         }

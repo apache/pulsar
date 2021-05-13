@@ -21,10 +21,12 @@ package org.apache.pulsar.broker.service.persistent;
 import org.apache.pulsar.broker.service.PersistentTopicTest;
 import org.apache.pulsar.broker.service.streamingdispatch.StreamingDispatcher;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 /**
  * PersistentTopicTest with {@link StreamingDispatcher}
  */
+@Test(groups = "broker")
 public class PersistentTopicStreamingDispatcherTest extends PersistentTopicTest {
 
     @BeforeMethod

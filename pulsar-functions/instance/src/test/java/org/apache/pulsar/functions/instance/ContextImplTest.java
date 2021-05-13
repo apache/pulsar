@@ -41,6 +41,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.ProducerBase;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
@@ -50,9 +51,12 @@ import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.state.BKStateStoreImpl;
 import org.apache.pulsar.functions.instance.state.InstanceStateManager;
+import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.secretsprovider.EnvironmentBasedSecretsProvider;
+import org.apache.pulsar.io.core.SinkContext;
 import org.slf4j.Logger;
+import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -92,7 +96,7 @@ public class ContextImplTest {
             config,
             logger,
             client,
-            new EnvironmentBasedSecretsProvider(), new CollectorRegistry(), new String[0],
+            new EnvironmentBasedSecretsProvider(), FunctionCollectorRegistry.getDefaultImplementation(), new String[0],
                 FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
                 pulsarAdmin);
         context.setCurrentMessageContext((Record<String>) () -> null);
@@ -136,6 +140,14 @@ public class ContextImplTest {
         context.getCounterAsync("test-key");
         verify(context.defaultStateStore, times(1)).getCounterAsync(eq("test-key"));
     }
+
+    @Test
+    public void testGetSubscriptionType()  {
+        SinkContext ctx = context;
+        // make sure SinkContext can get SubscriptionType.
+        Assert.assertEquals(ctx.getSubscriptionType(), SubscriptionType.Shared);
+    }
+
 
     @Test
     public void testPutStateStateEnabled() throws Exception {
@@ -182,7 +194,7 @@ public class ContextImplTest {
                 config,
                 logger,
                 client,
-                new EnvironmentBasedSecretsProvider(), new CollectorRegistry(), new String[0],
+                new EnvironmentBasedSecretsProvider(), FunctionCollectorRegistry.getDefaultImplementation(), new String[0],
                 FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
                 pulsarAdmin);
         context.getPulsarAdmin();

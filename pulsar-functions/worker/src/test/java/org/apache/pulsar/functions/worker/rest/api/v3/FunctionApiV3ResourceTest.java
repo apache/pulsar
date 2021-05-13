@@ -83,6 +83,7 @@ import org.apache.pulsar.functions.worker.PulsarWorkerService;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
+import org.apache.pulsar.functions.worker.rest.api.PulsarFunctionTestTemporaryDirectory;
 import org.apache.pulsar.functions.worker.rest.api.v2.FunctionsApiV2Resource;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.mockito.Mockito;
@@ -91,6 +92,7 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.testng.Assert;
 import org.testng.IObjectFactory;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
@@ -152,6 +154,7 @@ public class FunctionApiV3ResourceTest {
     private FunctionMetaData mockedFunctionMetadata;
     private LeaderService mockedLeaderService;
     private Packages mockedPackages;
+    private PulsarFunctionTestTemporaryDirectory tempDirectory;
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -195,15 +198,23 @@ public class FunctionApiV3ResourceTest {
         WorkerConfig workerConfig = new WorkerConfig()
             .setWorkerId("test")
             .setWorkerPort(8080)
-            .setDownloadDirectory("/tmp/pulsar/functions")
             .setFunctionMetadataTopicName("pulsar/functions")
             .setNumFunctionPackageReplicas(3)
             .setPulsarServiceUrl("pulsar://localhost:6650/");
+        tempDirectory = PulsarFunctionTestTemporaryDirectory.create(getClass().getSimpleName());
+        tempDirectory.useTemporaryDirectoriesForWorkerConfig(workerConfig);
         when(mockedWorkerService.getWorkerConfig()).thenReturn(workerConfig);
 
         this.resource = spy(new FunctionsImpl(() -> mockedWorkerService));
         mockStatic(InstanceUtils.class);
         PowerMockito.when(InstanceUtils.calculateSubjectType(any())).thenReturn(FunctionDetails.ComponentType.FUNCTION);
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void cleanup() {
+        if (tempDirectory != null) {
+            tempDirectory.delete();
+        }
     }
 
     //

@@ -56,11 +56,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 /**
  * Test Pulsar sink on function
- *
  */
+@Test(groups = "broker-io")
 public class PulsarFunctionAdminTest {
     LocalBookkeeperEnsemble bkEnsemble;
 
@@ -83,7 +84,7 @@ public class PulsarFunctionAdminTest {
 
     private static final Logger log = LoggerFactory.getLogger(PulsarFunctionAdminTest.class);
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     void setup(Method method) throws Exception {
 
         log.info("--- Setting up method {} ---", method.getName());
@@ -99,6 +100,7 @@ public class PulsarFunctionAdminTest {
         config.setWebServicePort(Optional.of(0));
         config.setWebServicePortTls(Optional.of(0));
         config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setBrokerShutdownTimeoutMs(0L);
         config.setBrokerServicePort(Optional.of(0));
         config.setBrokerServicePortTls(Optional.of(0));
         config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
@@ -147,6 +149,9 @@ public class PulsarFunctionAdminTest {
             clientBuilder.allowTlsInsecureConnection(workerConfig.isTlsAllowInsecureConnection());
             clientBuilder.authentication(workerConfig.getBrokerClientAuthenticationPlugin(),
                     workerConfig.getBrokerClientAuthenticationParameters());
+        }
+        if (pulsarClient != null) {
+            pulsarClient.close();
         }
         pulsarClient = clientBuilder.build();
 
