@@ -62,11 +62,6 @@ public class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
            return;
        }
 
-       if (pulsarCluster == null) {
-           super.setupCluster();
-           super.setupFunctionWorkers();
-       }
-
        String inputTopicName = "persistent://public/default/test-serde-java-input-" + randomName(8);
        String outputTopicName = "test-publish-serde-output-" + randomName(8);
        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build()) {
@@ -98,7 +93,7 @@ public class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
        assertEquals(functionStatus.getNumInstances(), 1);
        assertEquals(functionStatus.getInstances().get(0).getStatus().isRunning(), true);
    }
-   
+
 
    @Test(groups = {"java_function", "function"})
    public void testJavaExclamationFunction() throws Exception {
