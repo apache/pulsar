@@ -48,7 +48,7 @@
 - Add get version command for pulsar rest api, pulsar-admin, pulsar-client [#9975](https://github.com/apache/pulsar/pull/9975)
 
 #### Pulsar SQL
-- Using pulsar SQL query messages will appear `NoSuchLedger… [#9910](https://github.com/apache/pulsar/pull/9910)
+- Using pulsar SQL query messages will appear NoSuchLedger… [#9910](https://github.com/apache/pulsar/pull/9910)
 
 #### Docker
 - Allow DockerImage to be built from source tarball [#9846](https://github.com/apache/pulsar/pull/9846)
