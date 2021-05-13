@@ -176,7 +176,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
 
     // Called in executor hashed on managed ledger name, once the add operation is complete
     @Override
-    public void safeRun() {
+    public synchronized void safeRun() {
         // Remove this entry from the head of the pending queue
         OpAddEntry firstInQueue = ml.pendingAddEntries.poll();
         checkArgument(this == firstInQueue);
