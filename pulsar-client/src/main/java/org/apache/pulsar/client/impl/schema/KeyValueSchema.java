@@ -122,6 +122,8 @@ public class KeyValueSchema<K, V> extends AbstractSchema<KeyValue<K, V>> {
         // defer configuring the key/value schema info until `configureSchemaInfo` is called.
         if (!requireFetchingSchemaInfo()) {
             configureKeyValueSchemaInfo();
+        } else {
+            buildKeyValueSchemaInfo();
         }
     }
 
@@ -224,10 +226,14 @@ public class KeyValueSchema<K, V> extends AbstractSchema<KeyValue<K, V>> {
         return KeyValueSchema.of(keySchema.clone(), valueSchema.clone(), keyValueEncodingType);
     }
 
-    private void configureKeyValueSchemaInfo() {
+    private void buildKeyValueSchemaInfo() {
         this.schemaInfo = KeyValueSchemaInfo.encodeKeyValueSchemaInfo(
-            keySchema, valueSchema, keyValueEncodingType
+                keySchema, valueSchema, keyValueEncodingType
         );
+    }
+
+    private void configureKeyValueSchemaInfo() {
+        buildKeyValueSchemaInfo();
         this.keySchema.setSchemaInfoProvider(new SchemaInfoProvider() {
             @Override
             public CompletableFuture<SchemaInfo> getSchemaByVersion(byte[] schemaVersion) {
