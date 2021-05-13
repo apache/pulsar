@@ -752,7 +752,6 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-<<<<<<< HEAD
     public void testNullKey() throws Exception {
         final String tenant = PUBLIC_TENANT;
         final String namespace = "test-namespace-" + randomName(16);
@@ -785,7 +784,8 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         Message<String> message = consumer.receive();
         assertNull(message.getKey());
         assertEquals("foo", message.getValue());
-=======
+    }
+
     public void testConsumeMultipleSchemaMessages() throws Exception {
         final String namespace = "test-namespace-" + randomName(16);
         String ns = PUBLIC_TENANT + "/" + namespace;
@@ -961,7 +961,6 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
             default:
                 // nothing to do
         }
->>>>>>> 9ae9522001f... support consume multiple schema type message data by auto consume schema AutoConsumeSchema
     }
 
 }
