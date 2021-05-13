@@ -22,6 +22,7 @@ package org.apache.pulsar.functions.instance;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Preconditions;
 
+import com.scurrilous.circe.checksum.Crc32cIntChecksum;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -564,6 +565,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private void setupLogHandler() {
         if (instanceConfig.getFunctionDetails().getLogTopic() != null &&
                 !instanceConfig.getFunctionDetails().getLogTopic().isEmpty()) {
+            // make sure Crc32cIntChecksum class is loaded before logging starts
+            // to prevent "SSE4.2 CRC32C provider initialized" appearing in log topic
+            new Crc32cIntChecksum();
             logAppender = new LogAppender(client, instanceConfig.getFunctionDetails().getLogTopic(),
                     FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails()));
             logAppender.start();
