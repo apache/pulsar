@@ -253,19 +253,18 @@ public abstract class AbstractTopic implements Topic {
         return count;
     }
 
-    protected void addConsumerToSubscription(Subscription subscription, Consumer consumer)
-            throws BrokerServiceException {
+    protected CompletableFuture<Void> addConsumerToSubscription(Subscription subscription, Consumer consumer) {
         if (isConsumersExceededOnTopic()) {
             log.warn("[{}] Attempting to add consumer to topic which reached max consumers limit", topic);
-            throw new ConsumerBusyException("Topic reached max consumers limit");
+            return FutureUtil.failedFuture(new ConsumerBusyException("Topic reached max consumers limit"));
         }
 
         if (isSameAddressConsumersExceededOnTopic(consumer)) {
             log.warn("[{}] Attempting to add consumer to topic which reached max same address consumers limit", topic);
-            throw new ConsumerBusyException("Topic reached max same address consumers limit");
+            return FutureUtil.failedFuture(new ConsumerBusyException("Topic reached max same address consumers limit"));
         }
 
-        subscription.addConsumer(consumer);
+        return subscription.addConsumer(consumer);
     }
 
     @Override

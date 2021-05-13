@@ -265,13 +265,24 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
         NonPersistentSubscription subscription = subscriptions.computeIfAbsent(subscriptionName,
                 name -> new NonPersistentSubscription(this, subscriptionName));
-
-        try {
-            Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName, 0,
-                    cnx, cnx.getAuthRole(), metadata, readCompacted, initialPosition, keySharedMeta);
-            addConsumerToSubscription(subscription, consumer);
+        Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName, 0,
+                cnx, cnx.getAuthRole(), metadata, readCompacted, initialPosition, keySharedMeta);
+        addConsumerToSubscription(subscription, consumer).thenRun(() -> {
             if (!cnx.isActive()) {
-                consumer.close();
+                try {
+                    consumer.close();
+                } catch (BrokerServiceException e) {
+                    if (e instanceof ConsumerBusyException) {
+                        log.warn("[{}][{}] Consumer {} {} already connected", topic, subscriptionName, consumerId,
+                                consumerName);
+                    } else if (e instanceof SubscriptionBusyException) {
+                        log.warn("[{}][{}] {}", topic, subscriptionName, e.getMessage());
+                    }
+
+                    decrementUsageCount();
+                    future.completeExceptionally(e);
+                    return;
+                }
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] [{}] [{}] Subscribe failed -- count: {}", topic, subscriptionName,
                             consumer.consumerName(), currentUsageCount());
@@ -282,17 +293,19 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                 log.info("[{}][{}] Created new subscription for {}", topic, subscriptionName, consumerId);
                 future.complete(consumer);
             }
-        } catch (BrokerServiceException e) {
-            if (e instanceof ConsumerBusyException) {
+        }).exceptionally(e -> {
+            Throwable throwable = e.getCause();
+            if (throwable instanceof ConsumerBusyException) {
                 log.warn("[{}][{}] Consumer {} {} already connected", topic, subscriptionName, consumerId,
                         consumerName);
-            } else if (e instanceof SubscriptionBusyException) {
+            } else if (throwable instanceof SubscriptionBusyException) {
                 log.warn("[{}][{}] {}", topic, subscriptionName, e.getMessage());
             }
 
             decrementUsageCount();
-            future.completeExceptionally(e);
-        }
+            future.completeExceptionally(throwable);
+            return null;
+        });
 
         return future;
     }
@@ -843,11 +856,12 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                     stopReplProducers().thenCompose(v -> delete(true, false, true))
                             .thenRun(() -> log.info("[{}] Topic deleted successfully due to inactivity", topic))
                             .exceptionally(e -> {
-                                if (e.getCause() instanceof TopicBusyException) {
+                                Throwable throwable = e.getCause();
+                                if (throwable instanceof TopicBusyException) {
                                     // topic became active again
                                     if (log.isDebugEnabled()) {
                                         log.debug("[{}] Did not delete busy topic: {}", topic,
-                                                e.getCause().getMessage());
+                                                throwable.getMessage());
                                     }
                                     replicators.forEach((region, replicator) -> replicator.startProducer());
                                 } else {

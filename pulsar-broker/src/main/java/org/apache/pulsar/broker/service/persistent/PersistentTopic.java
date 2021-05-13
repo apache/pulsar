@@ -103,6 +103,7 @@ import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.broker.stats.ReplicationMetrics;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferDisable;
+import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.api.MessageId;
@@ -308,7 +309,8 @@ public class PersistentTopic extends AbstractTopic
         if (brokerService.getPulsar().getConfiguration().isTransactionCoordinatorEnabled()
                 && !checkTopicIsEventsNames(topic)
                 && !topicName.getEncodedLocalName().startsWith(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getLocalName())
-                && !topicName.getEncodedLocalName().startsWith(MLTransactionLogImpl.TRANSACTION_LOG_PREFIX)) {
+                && !topicName.getEncodedLocalName().startsWith(MLTransactionLogImpl.TRANSACTION_LOG_PREFIX)
+                && !topicName.getEncodedLocalName().endsWith(MLPendingAckStore.PENDING_ACK_STORE_SUFFIX)) {
             this.transactionBuffer = brokerService.getPulsar()
                     .getTransactionBufferProvider().newTransactionBuffer(this, transactionCompletableFuture);
         } else {
@@ -724,16 +726,26 @@ public class PersistentTopic extends AbstractTopic
                 : 0;
 
         subscriptionFuture.thenAccept(subscription -> {
-            try {
-                Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName,
-                        maxUnackedMessages, cnx, cnx.getAuthRole(), metadata,
-                        readCompacted, initialPosition, keySharedMeta);
-                addConsumerToSubscription(subscription, consumer);
-
+            Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName,
+                    maxUnackedMessages, cnx, cnx.getAuthRole(), metadata,
+                    readCompacted, initialPosition, keySharedMeta);
+            addConsumerToSubscription(subscription, consumer).thenAccept(v -> {
                 checkBackloggedCursors();
-
                 if (!cnx.isActive()) {
-                    consumer.close();
+                    try {
+                        consumer.close();
+                    } catch (BrokerServiceException e) {
+                        if (e instanceof ConsumerBusyException) {
+                            log.warn("[{}][{}] Consumer {} {} already connected",
+                                    topic, subscriptionName, consumerId, consumerName);
+                        } else if (e instanceof SubscriptionBusyException) {
+                            log.warn("[{}][{}] {}", topic, subscriptionName, e.getMessage());
+                        }
+
+                        decrementUsageCount();
+                        future.completeExceptionally(e);
+                        return;
+                    }
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] [{}] [{}] Subscribe failed -- count: {}", topic, subscriptionName,
                                 consumer.consumerName(), currentUsageCount());
@@ -747,17 +759,18 @@ public class PersistentTopic extends AbstractTopic
                     log.info("[{}][{}] Created new subscription for {}", topic, subscriptionName, consumerId);
                     future.complete(consumer);
                 }
-            } catch (BrokerServiceException e) {
-                if (e instanceof ConsumerBusyException) {
+            }).exceptionally(e -> {
+                if (e.getCause() instanceof ConsumerBusyException) {
                     log.warn("[{}][{}] Consumer {} {} already connected", topic, subscriptionName, consumerId,
                             consumerName);
-                } else if (e instanceof SubscriptionBusyException) {
+                } else if (e.getCause() instanceof SubscriptionBusyException) {
                     log.warn("[{}][{}] {}", topic, subscriptionName, e.getMessage());
                 }
 
                 decrementUsageCount();
                 future.completeExceptionally(e);
-            }
+                return null;
+            });
         }).exceptionally(ex -> {
             log.error("[{}] Failed to create subscription: {} error: {}", topic, subscriptionName, ex);
             decrementUsageCount();

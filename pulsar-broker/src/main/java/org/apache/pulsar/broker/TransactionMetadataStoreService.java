@@ -399,17 +399,13 @@ public class TransactionMetadataStoreService {
     }
 
     private static boolean isRetryableException(Throwable e) {
-        if (e instanceof TransactionMetadataStoreStateException
+        return e instanceof TransactionMetadataStoreStateException
                 || e instanceof RequestTimeoutException
                 || e instanceof ManagedLedgerException
                 || e instanceof BrokerPersistenceException
                 || e instanceof LookupException
                 || e instanceof ReachMaxPendingOpsException
-                || e instanceof ConnectException) {
-            return true;
-        } else {
-            return false;
-        }
+                || e instanceof ConnectException;
     }
 
     private CompletableFuture<Void> endTxnInTransactionMetadataStore(TxnID txnID, int txnAction) {

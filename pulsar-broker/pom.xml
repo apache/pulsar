@@ -477,7 +477,10 @@
         <configuration>
           <protocArtifact>com.google.protobuf:protoc:${protoc3.version}:exe:${os.detected.classifier}</protocArtifact>
           <checkStaleness>true</checkStaleness>
-          <excludes>**/ResourceUsage.proto</excludes>
+          <excludes>
+            <exclude>**/ResourceUsage.proto</exclude>
+            <exclude>**/TransactionPendingAck.proto</exclude>
+          </excludes>
         </configuration>
         <executions>
           <execution>
@@ -495,7 +498,10 @@
         <artifactId>lightproto-maven-plugin</artifactId>
         <version>${lightproto-maven-plugin.version}</version>
         <configuration>
-          <sources>${project.basedir}/src/main/proto/ResourceUsage.proto</sources>
+          <sources>
+            <source>${project.basedir}/src/main/proto/TransactionPendingAck.proto</source>
+            <source>${project.basedir}/src/main/proto/ResourceUsage.proto</source>
+          </sources>
           <targetSourcesSubDir>generated-sources/lightproto/java</targetSourcesSubDir>
           <targetTestSourcesSubDir>generated-sources/lightproto/java</targetTestSourcesSubDir>
         </configuration>

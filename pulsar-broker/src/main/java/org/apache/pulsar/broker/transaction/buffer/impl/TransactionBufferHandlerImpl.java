@@ -148,9 +148,9 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
                 }
             });
         } catch (ExecutionException e) {
+            log.error("endTxn channel is not active exception", e);
             cache.invalidate(topic);
             cb.completeExceptionally(new PulsarClientException.LookupException(e.getCause().getMessage()));
-            pendingRequests.remove(requestId);
             op.recycle();
         }
         return cb;
