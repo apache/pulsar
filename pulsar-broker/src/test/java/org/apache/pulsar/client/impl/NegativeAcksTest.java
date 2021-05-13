@@ -28,6 +28,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -40,6 +41,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
+@Test(groups = "broker-impl")
 public class NegativeAcksTest extends ProducerConsumerBase {
 
     @Override
@@ -103,7 +105,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
             throws Exception {
         log.info("Test negative acks batching={} partitions={} subType={} negAckDelayMs={}", batching, usePartitions,
                 subscriptionType, negAcksDelayMillis);
-        String topic = "testNegativeAcks-" + System.nanoTime();
+        String topic = BrokerTestUtil.newUniqueName("testNegativeAcks");
 
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)

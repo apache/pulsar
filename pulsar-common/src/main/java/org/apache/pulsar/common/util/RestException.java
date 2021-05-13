@@ -39,7 +39,9 @@ public class RestException extends WebApplicationException {
         }
         writer.append("Stacktrace:\n\n");
 
-        t.printStackTrace(new PrintWriter(writer));
+        if (t != null) {
+            t.printStackTrace(new PrintWriter(writer));
+        }
         return writer.toString();
     }
 

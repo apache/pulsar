@@ -140,6 +140,7 @@
     "Reference": [
       "version-2.6.0-reference-terminology",
       "version-2.6.0-reference-cli-tools",
+      "version-2.6.0-pulsar-admin",
       "version-2.6.0-reference-configuration",
       "version-2.6.0-reference-metrics"
     ]

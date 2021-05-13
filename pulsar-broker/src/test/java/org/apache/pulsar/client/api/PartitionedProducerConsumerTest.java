@@ -49,6 +49,7 @@ import com.google.common.collect.Sets;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 
+@Test(groups = "broker-api")
 public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(PartitionedProducerConsumerTest.class);
 
@@ -67,7 +68,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
-        executor.shutdown();
+        executor.shutdownNow();
     }
 
     @Test(timeOut = 30000)
@@ -899,7 +900,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
     }
 
 
-    private class AlwaysTwoMessageRouter implements MessageRouter {
+    private static class AlwaysTwoMessageRouter implements MessageRouter {
         @Override
         public int choosePartition(Message<?> msg, TopicMetadata metadata) {
             return 2;

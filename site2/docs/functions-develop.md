@@ -99,7 +99,7 @@ func main() {
 	pf.Start(HandleRequest)
 }
 ```
-For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsar-function-go/examples/inputFunc.go#L20-L36).
+For complete code, see [here](https://github.com/apache/pulsar/blob/77cf09eafa4f1626a53a1fe2e65dd25f377c1127/pulsar-function-go/examples/inputFunc/inputFunc.go#L20-L36).
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
@@ -275,6 +275,7 @@ Java, Python and Go SDKs provide access to a **context object** that can be used
 * An interface for storing and retrieving state in [state storage](#state-storage).
 * A function to publish new messages onto arbitrary topics.
 * A function to ack the message being processed (if auto-ack is disabled).
+* (Java) get Pulsar admin client.
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--Java-->
@@ -310,6 +311,8 @@ public interface Context {
     <O> CompletableFuture<Void> publish(String topicName, O object);
     <O> TypedMessageBuilder<O> newOutputMessage(String topicName, Schema<O> schema) throws PulsarClientException;
     <O> ConsumerBuilder<O> newConsumerBuilder(Schema<O> schema) throws PulsarClientException;
+    PulsarAdmin getPulsarAdmin();
+    PulsarAdmin getPulsarAdmin(String clusterName);
 }
 ```
 
@@ -479,7 +482,7 @@ func contextFunc(ctx context.Context) {
 }
 ```
 
-For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsar-function-go/examples/contextFunc.go#L29-L34).
+For complete code, see [here](https://github.com/apache/pulsar/blob/77cf09eafa4f1626a53a1fe2e65dd25f377c1127/pulsar-function-go/examples/contextFunc/contextFunc.go#L29-L34).
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
@@ -710,10 +713,78 @@ When you use `logTopic` related functionalities in Go Function, import `github.c
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
-## Metrics
-Pulsar Functions can publish arbitrary metrics to the metrics interface which can be queried. 
+### Pulsar admin
 
+Pulsar Functions using the Java SDK has access to the Pulsar admin client, which allows the Pulsar admin client to manage API calls to current Pulsar clusters or external clusters (if `external-pulsars` is provided).
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Java-->
+
+Below is an example of how to use the Pulsar admin client exposed from the Function `context`.
+
+```
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.Function;
+
+/**
+ * In this particular example, for every input message,
+ * the function resets the cursor of the current function's subscription to a
+ * specified timestamp.
+ */
+public class CursorManagementFunction implements Function<String, String> {
+
+    @Override
+    public String process(String input, Context context) throws Exception {
+        PulsarAdmin adminClient = context.getPulsarAdmin();
+        if (adminClient != null) {
+            String topic = context.getCurrentRecord().getTopicName().isPresent() ?
+                    context.getCurrentRecord().getTopicName().get() : null;
+            String subName = context.getTenant() + "/" + context.getNamespace() + "/" + context.getFunctionName();
+            if (topic != null) {
+                // 1578188166 below is a random-pick timestamp
+                adminClient.topics().resetCursor(topic, subName, 1578188166);
+                return "reset cursor successfully";
+            }
+        }
+        return null;
+    }
+}
+```
+
+If you want your function to get access to the Pulsar admin client, you need to enable this feature by setting `exposeAdminClientEnabled=true` in the `functions_worker.yml` file. You can test whether this feature is enabled or not using the command `pulsar-admin functions localrun` with the flag `--web-service-url`.
+
+```
+$ bin/pulsar-admin functions localrun \
+ --jar my-functions.jar \
+ --classname my.package.CursorManagementFunction \
+ --web-service-url http://pulsar-web-service:8080 \
+ # Other function configs
+```
+
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+## Metrics
+
+Pulsar Functions allows you to deploy and manage processing functions that consume messages from and publish messages to Pulsar topics easily. It is important to ensure that the running functions are healthy at any time. Pulsar Functions can publish arbitrary metrics to the metrics interface which can be queried. 
+
+> **Note**
+> 
 > If a Pulsar Function uses the language-native interface for Java or Python, that function is not able to publish metrics and stats to Pulsar.
+
+You can monitor Pulsar Functions that have been deployed with the following methods:
+
+- Check the metrics provided by Pulsar.
+
+  Pulsar Functions expose the metrics that can be collected and used for monitoring the health of **Java, Python, and Go** functions. You can check the metrics by following the [monitoring](deploy-monitoring.md) guide.
+
+  For the complete list of the function metrics, see [here](reference-metrics.md#pulsar-functions).
+
+- Set and check your customized metrics.
+
+  In addition to the metrics provided by Pulsar, Pulsar allows you to customize metrics for **Java and Python** functions. Function workers collect user-defined metrics to Prometheus automatically and you can check them in Grafana.
+
+Here are examples of how to customize metrics for Java and Python functions.
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--Java-->
@@ -739,8 +810,6 @@ public class MetricRecorderFunction implements Function<Integer, Void> {
 }
 ```
 
-> For instructions on reading and using metrics, see the [Monitoring](deploy-monitoring.md) guide.
-
 <!--Python-->
 You can record metrics using the [`Context`](#context) object on a per-key basis. For example, you can set a metric for the `process-count` key and a different metric for the `elevens-count` key every time the function processes a message. The following is an example.
 
@@ -758,9 +827,6 @@ class MetricRecorderFunction(Function):
 Currently, the feature is not available in Go.
 
 <!--END_DOCUSAURUS_CODE_TABS-->
-
-### Access metrics
-To access metrics created by Pulsar Functions, refer to [Monitoring](deploy-monitoring.md) in Pulsar. 
 
 ## Security
 

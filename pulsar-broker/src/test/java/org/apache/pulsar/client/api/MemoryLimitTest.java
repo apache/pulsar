@@ -32,6 +32,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker-api")
 public class MemoryLimitTest extends ProducerConsumerBase {
 
     @DataProvider(name = "batching")
@@ -56,8 +57,8 @@ public class MemoryLimitTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test(dataProvider = "batching")
-    public void testRejectMessages(boolean enableBatch)
+    @Test
+    public void testRejectMessages()
             throws Exception {
         String topic = newTopicName();
 
@@ -99,8 +100,8 @@ public class MemoryLimitTest extends ProducerConsumerBase {
         producer.send(new byte[1024]);
     }
 
-    @Test(dataProvider = "batching")
-    public void testRejectMessagesOnMultipleTopics(boolean enableBatch) throws Exception {
+    @Test
+    public void testRejectMessagesOnMultipleTopics() throws Exception {
         String t1 = newTopicName();
         String t2 = newTopicName();
 

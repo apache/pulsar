@@ -51,8 +51,8 @@ public class ManagedLedgerOfflineBacklog {
     private final byte[] password;
     private final BookKeeper.DigestType digestType;
     private static final int META_READ_TIMEOUT_SECONDS = 60;
-    private boolean accurate = false;
-    private String brokerName;
+    private final boolean accurate;
+    private final String brokerName;
 
     public ManagedLedgerOfflineBacklog(DigestType digestType, byte[] password, String brokerName,
             boolean accurate) {

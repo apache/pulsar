@@ -23,59 +23,61 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAckResponse;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAddPartitionToTxn;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAddPartitionToTxnResponse;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAddSubscriptionToTxn;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAddSubscriptionToTxnResponse;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthResponse;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStats;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandEndTxn;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandEndTxnOnPartition;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandEndTxnOnPartitionResponse;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandEndTxnOnSubscription;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandEndTxnOnSubscriptionResponse;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandEndTxnResponse;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandError;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetOrCreateSchema;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetOrCreateSchemaResponse;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetSchema;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetSchemaResponse;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandMessage;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandNewTxn;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandNewTxnResponse;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandPing;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandPong;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandReachedEndOfTopic;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessages;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSeek;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSend;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendError;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendReceipt;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe;
+
+import org.apache.pulsar.common.api.proto.BaseCommand;
+import org.apache.pulsar.common.api.proto.CommandAck;
+import org.apache.pulsar.common.api.proto.CommandAckResponse;
+import org.apache.pulsar.common.api.proto.CommandActiveConsumerChange;
+import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxn;
+import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxnResponse;
+import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxn;
+import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxnResponse;
+import org.apache.pulsar.common.api.proto.CommandAuthChallenge;
+import org.apache.pulsar.common.api.proto.CommandAuthResponse;
+import org.apache.pulsar.common.api.proto.CommandCloseConsumer;
+import org.apache.pulsar.common.api.proto.CommandCloseProducer;
+import org.apache.pulsar.common.api.proto.CommandConnect;
+import org.apache.pulsar.common.api.proto.CommandConnected;
+import org.apache.pulsar.common.api.proto.CommandConsumerStats;
+import org.apache.pulsar.common.api.proto.CommandConsumerStatsResponse;
+import org.apache.pulsar.common.api.proto.CommandEndTxn;
+import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartition;
+import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse;
+import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscription;
+import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscriptionResponse;
+import org.apache.pulsar.common.api.proto.CommandEndTxnResponse;
+import org.apache.pulsar.common.api.proto.CommandError;
+import org.apache.pulsar.common.api.proto.CommandFlow;
+import org.apache.pulsar.common.api.proto.CommandGetLastMessageId;
+import org.apache.pulsar.common.api.proto.CommandGetLastMessageIdResponse;
+import org.apache.pulsar.common.api.proto.CommandGetOrCreateSchema;
+import org.apache.pulsar.common.api.proto.CommandGetOrCreateSchemaResponse;
+import org.apache.pulsar.common.api.proto.CommandGetSchema;
+import org.apache.pulsar.common.api.proto.CommandGetSchemaResponse;
+import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
+import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespaceResponse;
+import org.apache.pulsar.common.api.proto.CommandLookupTopic;
+import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
+import org.apache.pulsar.common.api.proto.CommandMessage;
+import org.apache.pulsar.common.api.proto.CommandNewTxn;
+import org.apache.pulsar.common.api.proto.CommandNewTxnResponse;
+import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadata;
+import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse;
+import org.apache.pulsar.common.api.proto.CommandPing;
+import org.apache.pulsar.common.api.proto.CommandPong;
+import org.apache.pulsar.common.api.proto.CommandProducer;
+import org.apache.pulsar.common.api.proto.CommandProducerSuccess;
+import org.apache.pulsar.common.api.proto.CommandReachedEndOfTopic;
+import org.apache.pulsar.common.api.proto.CommandRedeliverUnacknowledgedMessages;
+import org.apache.pulsar.common.api.proto.CommandSeek;
+import org.apache.pulsar.common.api.proto.CommandSend;
+import org.apache.pulsar.common.api.proto.CommandSendError;
+import org.apache.pulsar.common.api.proto.CommandSendReceipt;
+import org.apache.pulsar.common.api.proto.CommandSubscribe;
+import org.apache.pulsar.common.api.proto.CommandSuccess;
+import org.apache.pulsar.common.api.proto.CommandUnsubscribe;
+import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.intercept.InterceptException;
-import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,6 +90,8 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
     // The broker can get the real client address and proxy address from the proxy message.
     protected HAProxyMessage proxyMessage;
 
+    private final BaseCommand cmd = new BaseCommand();
+
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         if (msg instanceof HAProxyMessage) {
@@ -98,19 +102,10 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
         }
         // Get a buffer that contains the full frame
         ByteBuf buffer = (ByteBuf) msg;
-        BaseCommand cmd = null;
-        BaseCommand.Builder cmdBuilder = null;
         try {
             // De-serialize the command
             int cmdSize = (int) buffer.readUnsignedInt();
-            int writerIndex = buffer.writerIndex();
-            buffer.writerIndex(buffer.readerIndex() + cmdSize);
-            ByteBufCodedInputStream cmdInputStream = ByteBufCodedInputStream.get(buffer);
-            cmdBuilder = BaseCommand.newBuilder();
-            cmd = cmdBuilder.mergeFrom(cmdInputStream, null).build();
-            buffer.writerIndex(writerIndex);
-
-            cmdInputStream.recycle();
+            cmd.parseFrom(buffer, cmdSize);
 
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Received cmd {}", ctx.channel().remoteAddress(), cmd.getType());
@@ -126,86 +121,69 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 } catch (InterceptException e) {
                     ctx.writeAndFlush(Commands.newPartitionMetadataResponse(getServerError(e.getErrorCode()),
                             e.getMessage(), cmd.getPartitionMetadata().getRequestId()));
-                } finally {
-                    cmd.getPartitionMetadata().recycle();
                 }
                 break;
 
             case PARTITIONED_METADATA_RESPONSE:
                 checkArgument(cmd.hasPartitionMetadataResponse());
                 handlePartitionResponse(cmd.getPartitionMetadataResponse());
-                cmd.getPartitionMetadataResponse().recycle();
                 break;
 
             case LOOKUP:
                 checkArgument(cmd.hasLookupTopic());
                 handleLookup(cmd.getLookupTopic());
-                cmd.getLookupTopic().recycle();
                 break;
 
             case LOOKUP_RESPONSE:
                 checkArgument(cmd.hasLookupTopicResponse());
                 handleLookupResponse(cmd.getLookupTopicResponse());
-                cmd.getLookupTopicResponse().recycle();
                 break;
 
             case ACK:
                 checkArgument(cmd.hasAck());
                 handleAck(cmd.getAck());
-                for (int i = 0; i < cmd.getAck().getMessageIdCount(); i++) {
-                    cmd.getAck().getMessageId(i).recycle();
-                }
-                cmd.getAck().recycle();
                 break;
 
             case ACK_RESPONSE:
                 checkArgument(cmd.hasAckResponse());
                 handleAckResponse(cmd.getAckResponse());
-                cmd.getAckResponse().recycle();
                 break;
 
             case CLOSE_CONSUMER:
                 checkArgument(cmd.hasCloseConsumer());
                 safeInterceptCommand(cmd);
                 handleCloseConsumer(cmd.getCloseConsumer());
-                cmd.getCloseConsumer().recycle();
                 break;
 
             case CLOSE_PRODUCER:
                 checkArgument(cmd.hasCloseProducer());
                 safeInterceptCommand(cmd);
                 handleCloseProducer(cmd.getCloseProducer());
-                cmd.getCloseProducer().recycle();
                 break;
 
             case CONNECT:
                 checkArgument(cmd.hasConnect());
                 handleConnect(cmd.getConnect());
-                cmd.getConnect().recycle();
                 break;
 
             case CONNECTED:
                 checkArgument(cmd.hasConnected());
                 handleConnected(cmd.getConnected());
-                cmd.getConnected().recycle();
                 break;
 
             case ERROR:
                 checkArgument(cmd.hasError());
                 handleError(cmd.getError());
-                cmd.getError().recycle();
                 break;
 
             case FLOW:
                 checkArgument(cmd.hasFlow());
                 handleFlow(cmd.getFlow());
-                cmd.getFlow().recycle();
                 break;
 
             case MESSAGE: {
                 checkArgument(cmd.hasMessage());
                 handleMessage(cmd.getMessage(), buffer);
-                cmd.getMessage().recycle();
                 break;
             }
             case PRODUCER:
@@ -216,8 +194,6 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 } catch (InterceptException e) {
                     ctx.writeAndFlush(Commands.newError(cmd.getProducer().getRequestId(),
                             getServerError(e.getErrorCode()), e.getMessage()));
-                } finally {
-                    cmd.getProducer().recycle();
                 }
                 break;
 
@@ -231,21 +207,17 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 } catch (InterceptException e) {
                     ctx.writeAndFlush(Commands.newSendError(cmd.getSend().getProducerId(),
                             cmd.getSend().getSequenceId(), getServerError(e.getErrorCode()), e.getMessage()));
-                } finally {
-                    cmd.getSend().recycle();
                 }
                 break;
             }
             case SEND_ERROR:
                 checkArgument(cmd.hasSendError());
                 handleSendError(cmd.getSendError());
-                cmd.getSendError().recycle();
                 break;
 
             case SEND_RECEIPT:
                 checkArgument(cmd.hasSendReceipt());
                 handleSendReceipt(cmd.getSendReceipt());
-                cmd.getSendReceipt().recycle();
                 break;
 
             case SUBSCRIBE:
@@ -256,28 +228,23 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 } catch (InterceptException e) {
                     ctx.writeAndFlush(Commands.newError(cmd.getSubscribe().getRequestId(),
                             getServerError(e.getErrorCode()), e.getMessage()));
-                } finally {
-                    cmd.getSubscribe().recycle();
                 }
                 break;
 
             case SUCCESS:
                 checkArgument(cmd.hasSuccess());
                 handleSuccess(cmd.getSuccess());
-                cmd.getSuccess().recycle();
                 break;
 
             case PRODUCER_SUCCESS:
                 checkArgument(cmd.hasProducerSuccess());
                 handleProducerSuccess(cmd.getProducerSuccess());
-                cmd.getProducerSuccess().recycle();
                 break;
 
             case UNSUBSCRIBE:
                 checkArgument(cmd.hasUnsubscribe());
                 safeInterceptCommand(cmd);
                 handleUnsubscribe(cmd.getUnsubscribe());
-                cmd.getUnsubscribe().recycle();
                 break;
 
             case SEEK:
@@ -288,62 +255,51 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 } catch (InterceptException e) {
                     ctx.writeAndFlush(Commands.newError(cmd.getSeek().getRequestId(), getServerError(e.getErrorCode()),
                             e.getMessage()));
-                } finally {
-                    cmd.getSeek().recycle();
                 }
                 break;
 
             case PING:
                 checkArgument(cmd.hasPing());
                 handlePing(cmd.getPing());
-                cmd.getPing().recycle();
                 break;
 
             case PONG:
                 checkArgument(cmd.hasPong());
                 handlePong(cmd.getPong());
-                cmd.getPong().recycle();
                 break;
 
             case REDELIVER_UNACKNOWLEDGED_MESSAGES:
                 checkArgument(cmd.hasRedeliverUnacknowledgedMessages());
                 handleRedeliverUnacknowledged(cmd.getRedeliverUnacknowledgedMessages());
-                cmd.getRedeliverUnacknowledgedMessages().recycle();
                 break;
 
             case CONSUMER_STATS:
                 checkArgument(cmd.hasConsumerStats());
                 handleConsumerStats(cmd.getConsumerStats());
-                cmd.getConsumerStats().recycle();
                 break;
 
             case CONSUMER_STATS_RESPONSE:
                 checkArgument(cmd.hasConsumerStatsResponse());
                 handleConsumerStatsResponse(cmd.getConsumerStatsResponse());
-                cmd.getConsumerStatsResponse().recycle();
                 break;
 
             case REACHED_END_OF_TOPIC:
                 checkArgument(cmd.hasReachedEndOfTopic());
                 handleReachedEndOfTopic(cmd.getReachedEndOfTopic());
-                cmd.getReachedEndOfTopic().recycle();
                 break;
 
             case GET_LAST_MESSAGE_ID:
                 checkArgument(cmd.hasGetLastMessageId());
                 handleGetLastMessageId(cmd.getGetLastMessageId());
-                cmd.getGetLastMessageId().recycle();
                 break;
 
             case GET_LAST_MESSAGE_ID_RESPONSE:
                 checkArgument(cmd.hasGetLastMessageIdResponse());
                 handleGetLastMessageIdSuccess(cmd.getGetLastMessageIdResponse());
-                cmd.getGetLastMessageIdResponse().recycle();
                 break;
 
             case ACTIVE_CONSUMER_CHANGE:
                 handleActiveConsumerChange(cmd.getActiveConsumerChange());
-                cmd.getActiveConsumerChange().recycle();
                 break;
 
             case GET_TOPICS_OF_NAMESPACE:
@@ -355,13 +311,11 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                     ctx.writeAndFlush(Commands.newError(cmd.getGetTopicsOfNamespace().getRequestId(),
                             getServerError(e.getErrorCode()), e.getMessage()));
                 }
-                cmd.getGetTopicsOfNamespace().recycle();
                 break;
 
             case GET_TOPICS_OF_NAMESPACE_RESPONSE:
                 checkArgument(cmd.hasGetTopicsOfNamespaceResponse());
                 handleGetTopicsOfNamespaceSuccess(cmd.getGetTopicsOfNamespaceResponse());
-                cmd.getGetTopicsOfNamespaceResponse().recycle();
                 break;
 
             case GET_SCHEMA:
@@ -372,15 +326,12 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 } catch (InterceptException e) {
                     ctx.writeAndFlush(Commands.newGetSchemaResponseError(cmd.getGetSchema().getRequestId(),
                             getServerError(e.getErrorCode()), e.getMessage()));
-                } finally {
-                    cmd.getGetSchema().recycle();
                 }
                 break;
 
             case GET_SCHEMA_RESPONSE:
                 checkArgument(cmd.hasGetSchemaResponse());
                 handleGetSchemaResponse(cmd.getGetSchemaResponse());
-                cmd.getGetSchemaResponse().recycle();
                 break;
 
             case GET_OR_CREATE_SCHEMA:
@@ -392,119 +343,96 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                     ctx.writeAndFlush(Commands.newGetOrCreateSchemaResponseError(
                             cmd.getGetOrCreateSchema().getRequestId(), getServerError(e.getErrorCode()),
                             e.getMessage()));
-                } finally {
-                    cmd.getGetOrCreateSchema().recycle();
                 }
                 break;
 
             case GET_OR_CREATE_SCHEMA_RESPONSE:
                 checkArgument(cmd.hasGetOrCreateSchemaResponse());
                 handleGetOrCreateSchemaResponse(cmd.getGetOrCreateSchemaResponse());
-                cmd.getGetOrCreateSchemaResponse().recycle();
                 break;
 
             case AUTH_CHALLENGE:
                 checkArgument(cmd.hasAuthChallenge());
                 handleAuthChallenge(cmd.getAuthChallenge());
-                cmd.getAuthChallenge().recycle();
                 break;
 
             case AUTH_RESPONSE:
                 checkArgument(cmd.hasAuthResponse());
                 handleAuthResponse(cmd.getAuthResponse());
-                cmd.getAuthResponse().recycle();
                 break;
 
             case NEW_TXN:
                 checkArgument(cmd.hasNewTxn());
                 handleNewTxn(cmd.getNewTxn());
-                cmd.getNewTxn().recycle();
                 break;
 
             case NEW_TXN_RESPONSE:
                 checkArgument(cmd.hasNewTxnResponse());
                 handleNewTxnResponse(cmd.getNewTxnResponse());
-                cmd.getNewTxnResponse().recycle();
                 break;
 
             case ADD_PARTITION_TO_TXN:
                 checkArgument(cmd.hasAddPartitionToTxn());
                 handleAddPartitionToTxn(cmd.getAddPartitionToTxn());
-                cmd.getAddPartitionToTxn().recycle();
                 break;
 
             case ADD_PARTITION_TO_TXN_RESPONSE:
                 checkArgument(cmd.hasAddPartitionToTxnResponse());
                 handleAddPartitionToTxnResponse(cmd.getAddPartitionToTxnResponse());
-                cmd.getAddPartitionToTxnResponse().recycle();
                 break;
 
             case ADD_SUBSCRIPTION_TO_TXN:
                 checkArgument(cmd.hasAddSubscriptionToTxn());
                 handleAddSubscriptionToTxn(cmd.getAddSubscriptionToTxn());
-                cmd.getAddSubscriptionToTxn().recycle();
                 break;
 
             case ADD_SUBSCRIPTION_TO_TXN_RESPONSE:
                 checkArgument(cmd.hasAddSubscriptionToTxnResponse());
                 handleAddSubscriptionToTxnResponse(cmd.getAddSubscriptionToTxnResponse());
-                cmd.getAddSubscriptionToTxnResponse().recycle();
                 break;
 
             case END_TXN:
                 checkArgument(cmd.hasEndTxn());
                 handleEndTxn(cmd.getEndTxn());
-                cmd.getEndTxn().recycle();
                 break;
 
             case END_TXN_RESPONSE:
                 checkArgument(cmd.hasEndTxnResponse());
                 handleEndTxnResponse(cmd.getEndTxnResponse());
-                cmd.getEndTxnResponse().recycle();
                 break;
 
             case END_TXN_ON_PARTITION:
                 checkArgument(cmd.hasEndTxnOnPartition());
                 handleEndTxnOnPartition(cmd.getEndTxnOnPartition());
-                cmd.getEndTxnOnPartition().recycle();
                 break;
 
             case END_TXN_ON_PARTITION_RESPONSE:
                 checkArgument(cmd.hasEndTxnOnPartitionResponse());
                 handleEndTxnOnPartitionResponse(cmd.getEndTxnOnPartitionResponse());
-                cmd.getEndTxnOnPartitionResponse().recycle();
                 break;
 
             case END_TXN_ON_SUBSCRIPTION:
                 checkArgument(cmd.hasEndTxnOnSubscription());
                 handleEndTxnOnSubscription(cmd.getEndTxnOnSubscription());
-                cmd.getEndTxnOnSubscription().recycle();
                 break;
 
             case END_TXN_ON_SUBSCRIPTION_RESPONSE:
                 checkArgument(cmd.hasEndTxnOnSubscriptionResponse());
                 handleEndTxnOnSubscriptionResponse(cmd.getEndTxnOnSubscriptionResponse());
-                cmd.getEndTxnOnSubscriptionResponse().recycle();
+                break;
+            default:
                 break;
             }
         } finally {
-            if (cmdBuilder != null) {
-                cmdBuilder.recycle();
-            }
-
-            if (cmd != null) {
-                cmd.recycle();
-            }
-
             buffer.release();
         }
     }
 
     protected abstract void messageReceived();
 
-    private PulsarApi.ServerError getServerError(int errorCode) {
-        PulsarApi.ServerError serverError = PulsarApi.ServerError.valueOf(errorCode);
-        return serverError == null ? PulsarApi.ServerError.UnknownError : serverError;
+    private ServerError getServerError(int errorCode) {
+        ServerError serverError = ServerError.valueOf(errorCode);
+        return serverError == null ? ServerError.UnknownError : serverError;
     }
 
     private void safeInterceptCommand(BaseCommand command) {
@@ -635,10 +563,10 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
         throw new UnsupportedOperationException();
     }
 
-    protected void handleGetLastMessageId(PulsarApi.CommandGetLastMessageId getLastMessageId) {
+    protected void handleGetLastMessageId(CommandGetLastMessageId getLastMessageId) {
         throw new UnsupportedOperationException();
     }
-    protected void handleGetLastMessageIdSuccess(PulsarApi.CommandGetLastMessageIdResponse success) {
+    protected void handleGetLastMessageIdSuccess(CommandGetLastMessageIdResponse success) {
         throw new UnsupportedOperationException();
     }
 

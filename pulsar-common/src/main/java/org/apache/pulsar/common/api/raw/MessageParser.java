@@ -23,11 +23,15 @@ import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
 import static org.apache.pulsar.common.protocol.Commands.readChecksum;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.ReferenceCountUtil;
+import io.netty.util.concurrent.FastThreadLocal;
+
 import java.io.IOException;
+
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.naming.TopicName;
@@ -39,6 +43,13 @@ import org.apache.pulsar.common.protocol.Commands;
 @UtilityClass
 @Slf4j
 public class MessageParser {
+
+    private static final FastThreadLocal<SingleMessageMetadata> LOCAL_SINGLE_MESSAGE_METADATA = //
+            new FastThreadLocal<SingleMessageMetadata>() {
+                protected SingleMessageMetadata initialValue() throws Exception {
+                    return new SingleMessageMetadata();
+                };
+            };
 
     /**
      * Definition of an interface to process a raw Pulsar entry payload.
@@ -53,10 +64,9 @@ public class MessageParser {
      */
     public static void parseMessage(TopicName topicName, long ledgerId, long entryId, ByteBuf headersAndPayload,
             MessageProcessor processor, int maxMessageSize) throws IOException {
-        MessageMetadata msgMetadata = null;
         ByteBuf payload = headersAndPayload;
         ByteBuf uncompressedPayload = null;
-        ReferenceCountedObject<MessageMetadata> refCntMsgMetadata = null;
+        ReferenceCountedMessageMetadata refCntMsgMetadata = null;
 
         try {
             if (!verifyChecksum(topicName, headersAndPayload, ledgerId, entryId)) {
@@ -64,8 +74,11 @@ public class MessageParser {
                 return;
             }
 
+            refCntMsgMetadata = ReferenceCountedMessageMetadata.get();
+            MessageMetadata msgMetadata = refCntMsgMetadata.getMetadata();
+
             try {
-                msgMetadata = Commands.parseMessageMetadata(payload);
+                Commands.parseMessageMetadata(payload, msgMetadata);
             } catch (Throwable t) {
                 log.warn("[{}] Failed to deserialize metadata for message {}:{} - Ignoring",
                     topicName, ledgerId, entryId);
@@ -90,7 +103,6 @@ public class MessageParser {
             }
 
             final int numMessages = msgMetadata.getNumMessagesInBatch();
-            refCntMsgMetadata = new ReferenceCountedObject<>(msgMetadata, (x) -> x.recycle());
 
             if (numMessages == 1 && !msgMetadata.hasNumMessagesInBatch()) {
                 processor.process(
@@ -145,25 +157,23 @@ public class MessageParser {
         }
     }
 
-    private static void receiveIndividualMessagesFromBatch(ReferenceCountedObject<MessageMetadata> msgMetadata,
+    private static void receiveIndividualMessagesFromBatch(ReferenceCountedMessageMetadata msgMetadata,
             ByteBuf uncompressedPayload, long ledgerId, long entryId, MessageProcessor processor) {
-        int batchSize = msgMetadata.get().getNumMessagesInBatch();
+        int batchSize = msgMetadata.getMetadata().getNumMessagesInBatch();
 
         try {
             for (int i = 0; i < batchSize; ++i) {
-                PulsarApi.SingleMessageMetadata.Builder singleMessageMetadataBuilder = PulsarApi.SingleMessageMetadata
-                        .newBuilder();
+               SingleMessageMetadata singleMessageMetadata = LOCAL_SINGLE_MESSAGE_METADATA.get();
                 ByteBuf singleMessagePayload = Commands.deSerializeSingleMessageInBatch(uncompressedPayload,
-                        singleMessageMetadataBuilder, i, batchSize);
+                        singleMessageMetadata, i, batchSize);
 
-                if (singleMessageMetadataBuilder.getCompactedOut()) {
+                if (singleMessageMetadata.isCompactedOut()) {
                     // message has been compacted out, so don't send to the user
                     singleMessagePayload.release();
-                    singleMessageMetadataBuilder.recycle();
                     continue;
                 }
 
-                processor.process(RawMessageImpl.get(msgMetadata, singleMessageMetadataBuilder, singleMessagePayload,
+                processor.process(RawMessageImpl.get(msgMetadata, singleMessageMetadata, singleMessagePayload,
                         ledgerId, entryId, i));
             }
         } catch (IOException e) {

@@ -19,12 +19,17 @@
 #include <pulsar/Client.h>
 #include <gtest/gtest.h>
 
-#include "../lib/Future.h"
-#include "../lib/Utils.h"
+#include "HttpHelper.h"
+
+#include "lib/Future.h"
+#include "lib/Utils.h"
+#include "lib/LogUtils.h"
+DECLARE_LOG_OBJECT()
 
 using namespace pulsar;
 
-static std::string serviceUrl = "pulsar://localhost:6650";
+static const std::string serviceUrl = "pulsar://localhost:6650";
+static const std::string adminUrl = "http://localhost:8080/";
 
 TEST(ProducerTest, producerNotInitialized) {
     Producer producer;
@@ -70,4 +75,54 @@ TEST(ProducerTest, exactlyOnceWithProducerNameSpecified) {
     Producer producer3;
     Result result = client.createProducer(topicName, producerConfiguration2, producer3);
     ASSERT_EQ(ResultProducerBusy, result);
+}
+
+TEST(ProducerTest, testSynchronouslySend) {
+    Client client(serviceUrl);
+    const std::string topic = "ProducerTestSynchronouslySend";
+
+    Consumer consumer;
+    ASSERT_EQ(ResultOk, client.subscribe(topic, "sub-name", consumer));
+
+    Producer producer;
+    ASSERT_EQ(ResultOk, client.createProducer(topic, producer));
+    MessageId messageId;
+    ASSERT_EQ(ResultOk, producer.send(MessageBuilder().setContent("hello").build(), messageId));
+    LOG_INFO("Send message to " << messageId);
+
+    Message receivedMessage;
+    ASSERT_EQ(ResultOk, consumer.receive(receivedMessage, 3000));
+    LOG_INFO("Received message from " << receivedMessage.getMessageId());
+    ASSERT_EQ(receivedMessage.getMessageId(), messageId);
+    ASSERT_EQ(ResultOk, consumer.acknowledge(receivedMessage));
+
+    client.close();
+}
+
+TEST(ProducerTest, testIsConnected) {
+    Client client(serviceUrl);
+    const std::string nonPartitionedTopic =
+        "testProducerIsConnectedNonPartitioned-" + std::to_string(time(nullptr));
+    const std::string partitionedTopic =
+        "testProducerIsConnectedPartitioned-" + std::to_string(time(nullptr));
+
+    Producer producer;
+    ASSERT_FALSE(producer.isConnected());
+    // ProducerImpl
+    ASSERT_EQ(ResultOk, client.createProducer(nonPartitionedTopic, producer));
+    ASSERT_TRUE(producer.isConnected());
+    ASSERT_EQ(ResultOk, producer.close());
+    ASSERT_FALSE(producer.isConnected());
+
+    int res = makePutRequest(
+        adminUrl + "admin/v2/persistent/public/default/" + partitionedTopic + "/partitions", "2");
+    ASSERT_TRUE(res == 204 || res == 409) << "res: " << res;
+
+    // PartitionedProducerImpl
+    ASSERT_EQ(ResultOk, client.createProducer(partitionedTopic, producer));
+    ASSERT_TRUE(producer.isConnected());
+    ASSERT_EQ(ResultOk, producer.close());
+    ASSERT_FALSE(producer.isConnected());
+
+    client.close();
 }

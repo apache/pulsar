@@ -19,11 +19,16 @@
 package org.apache.bookkeeper.mledger.offload.jcloud.provider;
 
 import static org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.GCS_ACCOUNT_KEY_FILE_FIELD;
+import static org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.S3_ID_FIELD;
 import static org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.S3_ROLE_FIELD;
 import static org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.S3_ROLE_SESSION_NAME_FIELD;
+import static org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.S3_SECRET_FIELD;
 
 import com.amazonaws.auth.AWSCredentials;
+import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.AWSSessionCredentials;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
 import com.google.common.base.Strings;
@@ -33,6 +38,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.Charset;
+import java.util.Properties;
 import java.util.UUID;
 
 import lombok.extern.slf4j.Slf4j;
@@ -57,6 +63,8 @@ import org.jclouds.googlecloud.GoogleCredentialsFromJson;
 import org.jclouds.googlecloudstorage.GoogleCloudStorageProviderMetadata;
 import org.jclouds.providers.AnonymousProviderMetadata;
 import org.jclouds.providers.ProviderMetadata;
+import org.jclouds.s3.S3ApiMetadata;
+import org.jclouds.s3.reference.S3Constants;
 
 /**
  * Enumeration of the supported JCloud Blob Store Providers.
@@ -162,6 +170,28 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
         }
     },
 
+
+    /**
+     * Aliyun OSS is compatible with the S3 API
+     * https://www.alibabacloud.com/help/doc-detail/64919.htm
+     */
+    ALIYUN_OSS("aliyun-oss", new AnonymousProviderMetadata(new S3ApiMetadata(), "")) {
+        @Override
+        public void validate(TieredStorageConfiguration config) throws IllegalArgumentException {
+            ALIYUN_OSS_VALIDATION.validate(config);
+        }
+
+        @Override
+        public BlobStore getBlobStore(TieredStorageConfiguration config) {
+            return ALIYUN_OSS_BLOB_STORE_BUILDER.getBlobStore(config);
+        }
+
+        @Override
+        public void buildCredentials(TieredStorageConfiguration config) {
+            ALIYUN_OSS_CREDENTIAL_BUILDER.buildCredentials(config);
+        }
+    },
+
     TRANSIENT("transient", new AnonymousProviderMetadata(new TransientApiMetadata(), "")) {
         @Override
         public void validate(TieredStorageConfiguration config) throws IllegalArgumentException {
@@ -177,7 +207,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
             ContextBuilder builder =  ContextBuilder.newBuilder("transient");
             BlobStoreContext ctx = builder
                     .buildView(BlobStoreContext.class);
-            
+
             BlobStore bs = ctx.getBlobStore();
 
             if (!bs.containerExists(config.getBucket())) {
@@ -265,7 +295,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
 
         if (config.getProviderCredentials() != null) {
                 return contextBuilder
-                        .credentialsSupplier(config.getCredentials())
+                        .credentialsSupplier(config.getCredentials()::get)
                         .buildView(BlobStoreContext.class)
                         .getBlobStore();
         } else {
@@ -279,37 +309,117 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
 
     static final CredentialBuilder AWS_CREDENTIAL_BUILDER = (TieredStorageConfiguration config) -> {
         if (config.getCredentials() == null) {
-            AWSCredentials awsCredentials = null;
+            final AWSCredentialsProvider authChain;
             try {
-                if (Strings.isNullOrEmpty(config.getConfigProperty(S3_ROLE_FIELD))) {
-                    awsCredentials = DefaultAWSCredentialsProviderChain.getInstance().getCredentials();
+                if (!Strings.isNullOrEmpty(config.getConfigProperty(S3_ID_FIELD))
+                    && !Strings.isNullOrEmpty(config.getConfigProperty(S3_SECRET_FIELD))) {
+                    AWSCredentials awsCredentials = new AWSCredentials() {
+                        @Override
+                        public String getAWSAccessKeyId() {
+                            return config.getConfigProperty(S3_ID_FIELD);
+                        }
+
+                        @Override
+                        public String getAWSSecretKey() {
+                            return config.getConfigProperty(S3_SECRET_FIELD);
+                        }
+                    };
+                    authChain = new AWSStaticCredentialsProvider(
+                            new BasicAWSCredentials(
+                                config.getConfigProperty(S3_ID_FIELD),
+                                config.getConfigProperty(S3_SECRET_FIELD)));
+                } else if (Strings.isNullOrEmpty(config.getConfigProperty(S3_ROLE_FIELD))) {
+                    authChain = DefaultAWSCredentialsProviderChain.getInstance();
                 } else {
-                    awsCredentials =
+                    authChain =
                             new STSAssumeRoleSessionCredentialsProvider.Builder(
                                     config.getConfigProperty(S3_ROLE_FIELD),
                                     config.getConfigProperty(S3_ROLE_SESSION_NAME_FIELD)
-                            ).build().getCredentials();
+                            ).build();
                 }
 
-                if (awsCredentials instanceof AWSSessionCredentials) {
-                    // if we have session credentials, we need to send the session token
-                    // this allows us to support EC2 metadata credentials
-                    SessionCredentials sessionCredentials =  SessionCredentials.builder()
-                            .accessKeyId(awsCredentials.getAWSAccessKeyId())
-                            .secretAccessKey(awsCredentials.getAWSSecretKey())
-                            .sessionToken(((AWSSessionCredentials) awsCredentials).getSessionToken())
-                            .build();
-                    config.setProviderCredentials(() -> sessionCredentials);
-                } else {
-                    Credentials credentials = new Credentials(
-                            awsCredentials.getAWSAccessKeyId(), awsCredentials.getAWSSecretKey());
-                    config.setProviderCredentials(() -> credentials);
-                }
+                // Important! Delay the building of actual credentials
+                // until later to support tokens that may be refreshed
+                // such as all session tokens
+                config.setProviderCredentials(() -> {
+                    AWSCredentials newCreds = authChain.getCredentials();
+                    Credentials jcloudCred = null;
 
+                    if (newCreds instanceof AWSSessionCredentials) {
+                        // if we have session credentials, we need to send the session token
+                        // this allows us to support EC2 metadata credentials
+                        jcloudCred = SessionCredentials.builder()
+                                .accessKeyId(newCreds.getAWSAccessKeyId())
+                                .secretAccessKey(newCreds.getAWSSecretKey())
+                                .sessionToken(((AWSSessionCredentials) newCreds).getSessionToken())
+                                .build();
+                    } else {
+                        // in the event we hit this branch, we likely don't have expiring
+                        // credentials, however, this still allows for the user to update
+                        // profiles creds or some other mechanism
+                        jcloudCred = new Credentials(
+                                newCreds.getAWSAccessKeyId(), newCreds.getAWSSecretKey());
+                    }
+                    return jcloudCred;
+                });
             } catch (Exception e) {
                 // allowed, some mock s3 service do not need credential
                 log.warn("Exception when get credentials for s3 ", e);
             }
         }
     };
+
+    static final BlobStoreBuilder ALIYUN_OSS_BLOB_STORE_BUILDER = (TieredStorageConfiguration config) -> {
+        ContextBuilder contextBuilder = ContextBuilder.newBuilder(config.getProviderMetadata());
+        Properties overrides = config.getOverrides();
+        // For security reasons, OSS supports only virtual hosted style access.
+        overrides.setProperty(S3Constants.PROPERTY_S3_VIRTUAL_HOST_BUCKETS, "true");
+        contextBuilder.overrides(overrides);
+        contextBuilder.endpoint(config.getServiceEndpoint());
+
+        if (config.getProviderCredentials() != null) {
+            return contextBuilder
+                    .credentialsSupplier(config.getCredentials()::get)
+                    .buildView(BlobStoreContext.class)
+                    .getBlobStore();
+        } else {
+            log.warn("The credentials is null. driver: {}, bucket: {}", config.getDriver(), config.getBucket());
+            return contextBuilder
+                    .buildView(BlobStoreContext.class)
+                    .getBlobStore();
+        }
+    };
+
+    static final ConfigValidation ALIYUN_OSS_VALIDATION = (TieredStorageConfiguration config) -> {
+        if (Strings.isNullOrEmpty(config.getServiceEndpoint())) {
+            throw new IllegalArgumentException(
+                    "ServiceEndpoint must specified for " + config.getDriver() + " offload");
+        }
+
+        if (Strings.isNullOrEmpty(config.getBucket())) {
+            throw new IllegalArgumentException(
+                    "Bucket cannot be empty for " + config.getDriver() + " offload");
+        }
+
+        if (config.getMaxBlockSizeInBytes() < (5 * 1024 * 1024)) {
+            throw new IllegalArgumentException(
+                    "ManagedLedgerOffloadMaxBlockSizeInBytes cannot be less than 5MB for "
+                            + config.getDriver() + " offload");
+        }
+    };
+
+    static final CredentialBuilder ALIYUN_OSS_CREDENTIAL_BUILDER = (TieredStorageConfiguration config) -> {
+        String accountName = System.getenv("ALIYUN_OSS_ACCESS_KEY_ID");
+        if (StringUtils.isEmpty(accountName)) {
+            throw new IllegalArgumentException("Couldn't get the aliyun oss access key id.");
+        }
+        String accountKey = System.getenv("ALIYUN_OSS_ACCESS_KEY_SECRET");
+        if (StringUtils.isEmpty(accountKey)) {
+            throw new IllegalArgumentException("Couldn't get the aliyun oss access key secret.");
+        }
+        Credentials credentials = new Credentials(
+                accountName, accountKey);
+        config.setProviderCredentials(() -> credentials);
+    };
+
 }

@@ -27,11 +27,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.jcloud.shade.com.google.common.base.Supplier;
 import org.jclouds.Constants;
 import org.jclouds.aws.s3.AWSS3ProviderMetadata;
 import org.jclouds.blobstore.BlobStore;
@@ -61,12 +61,22 @@ public class TieredStorageConfiguration {
     public static final String METADATA_FIELD_REGION = "region";
     public static final String METADATA_FIELD_ENDPOINT = "serviceEndpoint";
     public static final String METADATA_FIELD_MAX_BLOCK_SIZE = "maxBlockSizeInBytes";
+    public static final String METADATA_FIELD_MIN_BLOCK_SIZE = "minBlockSizeInBytes";
     public static final String METADATA_FIELD_READ_BUFFER_SIZE = "readBufferSizeInBytes";
+    public static final String METADATA_FIELD_WRITE_BUFFER_SIZE = "writeBufferSizeInBytes";
     public static final String OFFLOADER_PROPERTY_PREFIX = "managedLedgerOffload";
+    public static final String MAX_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC = "maxOffloadSegmentRolloverTimeInSeconds";
+    public static final String MIN_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC = "minOffloadSegmentRolloverTimeInSeconds";
+    public static final long DEFAULT_MAX_SEGMENT_TIME_IN_SECOND = 600;
+    public static final long DEFAULT_MIN_SEGMENT_TIME_IN_SECOND = 0;
+    public static final String MAX_OFFLOAD_SEGMENT_SIZE_IN_BYTES = "maxOffloadSegmentSizeInBytes";
+    public static final long DEFAULT_MAX_SEGMENT_SIZE_IN_BYTES = 1024 * 1024 * 1024;
 
     protected static final int MB = 1024 * 1024;
 
     public static final String GCS_ACCOUNT_KEY_FILE_FIELD = "gcsManagedLedgerOffloadServiceAccountKeyFile";
+    public static final String S3_ID_FIELD = "s3ManagedLedgerOffloadCredentialId";
+    public static final String S3_SECRET_FIELD = "s3ManagedLedgerOffloadCredentialSecret";
     public static final String S3_ROLE_FIELD = "s3ManagedLedgerOffloadRole";
     public static final String S3_ROLE_SESSION_NAME_FIELD = "s3ManagedLedgerOffloadRoleSessionName";
 
@@ -177,6 +187,30 @@ public class TieredStorageConfiguration {
         return null;
     }
 
+    public long getMaxSegmentTimeInSecond() {
+        if (configProperties.containsKey(MAX_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC)) {
+            return Long.parseLong(configProperties.get(MAX_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC));
+        } else {
+            return DEFAULT_MAX_SEGMENT_TIME_IN_SECOND;
+        }
+    }
+
+    public long getMinSegmentTimeInSecond() {
+        if (configProperties.containsKey(MIN_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC)) {
+            return Long.parseLong(configProperties.get(MIN_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC));
+        } else {
+            return DEFAULT_MIN_SEGMENT_TIME_IN_SECOND;
+        }
+    }
+
+    public long getMaxSegmentSizeInBytes() {
+        if (configProperties.containsKey(MAX_OFFLOAD_SEGMENT_SIZE_IN_BYTES)) {
+            return Long.parseLong(configProperties.get(MAX_OFFLOAD_SEGMENT_SIZE_IN_BYTES));
+        } else {
+            return DEFAULT_MAX_SEGMENT_SIZE_IN_BYTES;
+        }
+    }
+
     public void setServiceEndpoint(String s) {
         configProperties.put(getKeyName(METADATA_FIELD_ENDPOINT), s);
     }
@@ -213,6 +247,15 @@ public class TieredStorageConfiguration {
         return new Integer(64 * MB);
     }
 
+    public Integer getMinBlockSizeInBytes() {
+        for (String key : getKeys(METADATA_FIELD_MIN_BLOCK_SIZE)) {
+            if (configProperties.containsKey(key)) {
+                return Integer.valueOf(configProperties.get(key));
+            }
+        }
+        return 5 * MB;
+    }
+
     public Integer getReadBufferSizeInBytes() {
         for (String key : getKeys(METADATA_FIELD_READ_BUFFER_SIZE)) {
             if (configProperties.containsKey(key)) {
@@ -220,6 +263,15 @@ public class TieredStorageConfiguration {
             }
         }
         return new Integer(MB);
+    }
+
+    public Integer getWriteBufferSizeInBytes() {
+        for (String key : getKeys(METADATA_FIELD_WRITE_BUFFER_SIZE)) {
+            if (configProperties.containsKey(key)) {
+                return Integer.valueOf(configProperties.get(key));
+            }
+        }
+        return 10 * MB;
     }
 
     public Supplier<Credentials> getProviderCredentials() {

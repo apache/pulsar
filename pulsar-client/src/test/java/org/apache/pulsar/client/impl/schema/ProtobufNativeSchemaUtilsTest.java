@@ -25,7 +25,7 @@ import org.testng.annotations.Test;
 public class ProtobufNativeSchemaUtilsTest {
 
     @Test
-    public static void testSerialize() throws Exception {
+    public static void testSerialize() {
         byte[] data =  ProtobufNativeSchemaUtils.serialize(org.apache.pulsar.client.schema.proto.Test.TestMessage.getDescriptor());
         Descriptors.Descriptor descriptor =  ProtobufNativeSchemaUtils.deserialize(data);
         Assert.assertNotNull(descriptor);
@@ -34,7 +34,7 @@ public class ProtobufNativeSchemaUtilsTest {
     }
 
     @Test
-    public static void testNestedMessage() throws Exception {
+    public static void testNestedMessage() {
 
     }
 

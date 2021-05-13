@@ -23,6 +23,7 @@ import com.google.common.collect.ImmutableList;
 import io.prestosql.spi.connector.RecordCursor;
 import io.prestosql.spi.connector.RecordSet;
 import io.prestosql.spi.type.Type;
+
 import java.util.List;
 
 /**
@@ -35,8 +36,10 @@ public class PulsarRecordSet implements RecordSet {
     private final PulsarSplit pulsarSplit;
     private final PulsarConnectorConfig pulsarConnectorConfig;
 
+    private PulsarDispatchingRowDecoderFactory decoderFactory;
+
     public PulsarRecordSet(PulsarSplit split, List<PulsarColumnHandle> columnHandles, PulsarConnectorConfig
-            pulsarConnectorConfig) {
+            pulsarConnectorConfig, PulsarDispatchingRowDecoderFactory decoderFactory) {
         requireNonNull(split, "split is null");
         this.columnHandles = requireNonNull(columnHandles, "column handles is null");
         ImmutableList.Builder<Type> types = ImmutableList.builder();
@@ -48,6 +51,8 @@ public class PulsarRecordSet implements RecordSet {
         this.pulsarSplit = split;
 
         this.pulsarConnectorConfig = pulsarConnectorConfig;
+
+        this.decoderFactory = decoderFactory;
     }
 
 
@@ -58,6 +63,7 @@ public class PulsarRecordSet implements RecordSet {
 
     @Override
     public RecordCursor cursor() {
-        return new PulsarRecordCursor(this.columnHandles, this.pulsarSplit, this.pulsarConnectorConfig);
+        return new PulsarRecordCursor(this.columnHandles, this.pulsarSplit,
+                this.pulsarConnectorConfig, this.decoderFactory);
     }
 }

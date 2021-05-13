@@ -45,6 +45,7 @@ class TopicStats {
     long offloadedStorageUsed;
 
     long backlogQuotaLimit;
+    long backlogQuotaLimitTime;
 
     StatsBuckets storageWriteLatencyBuckets = new StatsBuckets(ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC);
     StatsBuckets storageLedgerWriteLatencyBuckets = new StatsBuckets(ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC);
@@ -54,6 +55,7 @@ class TopicStats {
 
     Map<String, AggregatedReplicationStats> replicationStats = new HashMap<>();
     Map<String, AggregatedSubscriptionStats> subscriptionStats = new HashMap<>();
+    Map<String, AggregatedProducerStats> producerStats = new HashMap<>();
 
     // Used for tracking duplicate TYPE definitions
     static Map<String, String> metricWithTypeDefinition = new HashMap<>();
@@ -79,9 +81,11 @@ class TopicStats {
         backlogSize = 0;
         offloadedStorageUsed = 0;
         backlogQuotaLimit = 0;
+        backlogQuotaLimitTime = -1;
 
         replicationStats.clear();
         subscriptionStats.clear();
+        producerStats.clear();
         storageWriteLatencyBuckets.reset();
         storageLedgerWriteLatencyBuckets.reset();
         entrySizeBuckets.reset();
@@ -107,6 +111,8 @@ class TopicStats {
         metric(stream, cluster, namespace, topic, "pulsar_storage_backlog_size", stats.backlogSize);
         metric(stream, cluster, namespace, topic, "pulsar_storage_offloaded_size", stats.offloadedStorageUsed);
         metric(stream, cluster, namespace, topic, "pulsar_storage_backlog_quota_limit", stats.backlogQuotaLimit);
+        metric(stream, cluster, namespace, topic, "pulsar_storage_backlog_quota_limit_time",
+                stats.backlogQuotaLimitTime);
 
         long[] latencyBuckets = stats.storageWriteLatencyBuckets.getBuckets();
         metric(stream, cluster, namespace, topic, "pulsar_storage_write_latency_le_0_5", latencyBuckets[0]);
@@ -163,6 +169,15 @@ class TopicStats {
         metric(stream, cluster, namespace, topic, "pulsar_entry_size_count", stats.entrySizeBuckets.getCount());
         metric(stream, cluster, namespace, topic, "pulsar_entry_size_sum", stats.entrySizeBuckets.getSum());
 
+        stats.producerStats.forEach((p, producerStats) -> {
+            metric(stream, cluster, namespace, topic, p, producerStats.producerId, "pulsar_producer_msg_rate_in",
+                    producerStats.msgRateIn);
+            metric(stream, cluster, namespace, topic, p, producerStats.producerId, "pulsar_producer_msg_throughput_in",
+                    producerStats.msgThroughputIn);
+            metric(stream, cluster, namespace, topic, p, producerStats.producerId, "pulsar_producer_msg_average_Size",
+                    producerStats.averageMsgSize);
+        });
+
         stats.subscriptionStats.forEach((n, subsStats) -> {
             metric(stream, cluster, namespace, topic, n, "pulsar_subscription_back_log",
                     subsStats.msgBacklog);
@@ -186,6 +201,14 @@ class TopicStats {
                     subsStats.msgOutCounter);
             metric(stream, cluster, namespace, topic, n, "pulsar_subscription_last_expire_timestamp",
                     subsStats.lastExpireTimestamp);
+            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_last_acked_timestamp",
+                subsStats.lastAckedTimestamp);
+            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_last_consumed_flow_timestamp",
+                subsStats.lastConsumedFlowTimestamp);
+            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_last_consumed_timestamp",
+                subsStats.lastConsumedTimestamp);
+            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_last_mark_delete_advanced_timestamp",
+                subsStats.lastMarkDeleteAdvancedTimestamp);
             metric(stream, cluster, namespace, topic, n, "pulsar_subscription_msg_rate_expired",
                     subsStats.msgRateExpired);
             metric(stream, cluster, namespace, topic, n, "pulsar_subscription_total_msg_expired",
@@ -254,6 +277,15 @@ class TopicStats {
         metricType(stream, name);
         stream.write(name).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace)
                 .write("\",topic=\"").write(topic).write("\",subscription=\"").write(subscription).write("\"} ");
+        stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
+    }
+
+    private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String topic,
+                               String producerName, long produceId, String name, double value) {
+        metricType(stream, name);
+        stream.write(name).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace)
+                .write("\",topic=\"").write(topic).write("\",producer_name=\"").write(producerName)
+                .write("\",producer_id=\"").write(produceId).write("\"} ");
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
     }
 

@@ -32,6 +32,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.function.Supplier;
 
 @Getter
 @Parameters(commandDescription = "Generate documents automatically.")
@@ -43,7 +44,7 @@ public class CmdGenerateDocument extends CmdBase {
 
     private PulsarAdminTool tool;
 
-    public CmdGenerateDocument(PulsarAdmin admin) {
+    public CmdGenerateDocument(Supplier<PulsarAdmin> admin) {
         super("documents", admin);
         baseJcommander = new JCommander();
         usageFormatter = new DefaultUsageFormatter(baseJcommander);
@@ -59,7 +60,7 @@ public class CmdGenerateDocument extends CmdBase {
             try {
                 if (!c.getKey().equals("documents")) {
                     baseJcommander.addCommand(
-                            c.getKey(), c.getValue().getConstructor(PulsarAdmin.class).newInstance(admin));
+                            c.getKey(), c.getValue().getConstructor(Supplier.class).newInstance(admin));
                 }
             } catch (Exception e) {
                 System.err.println(e.getMessage());
@@ -110,7 +111,7 @@ public class CmdGenerateDocument extends CmdBase {
             }
             cmdObj.jcommander.getCommands().forEach((subK, subV) -> {
                 sb.append("\n\n## <em>").append(subK).append("</em>\n\n");
-                sb.append(cmdObj.usageFormatter.getCommandDescription(subK)).append("\n\n");
+                sb.append(cmdObj.getUsageFormatter().getCommandDescription(subK)).append("\n\n");
                 sb.append("### Usage\n\n");
                 sb.append("------------\n\n\n");
                 sb.append("```bdocs-tab:example_shell\n$ pulsar-admin ").append(module).append(" ")

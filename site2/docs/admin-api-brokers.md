@@ -48,6 +48,34 @@ admin.brokers().getActiveBrokers(clusterName)
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
+### Get the information of the leader broker
+
+Fetch the information of the leader broker, for example, the service url.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
+
+```shell
+$ pulsar-admin brokers leader-broker
+```
+
+```
+BrokerInfo(serviceUrl=broker1.use.org.com:8080)
+```
+
+<!--REST API-->
+
+{@inject: endpoint|GET|/admin/v2/brokers/leaderBroker?version=[[pulsar:version_number]]}
+
+<!--JAVA-->
+
+```java
+admin.brokers().getLeaderBroker()
+```
+For the detail of the code above, see [here](https://github.com/apache/pulsar/blob/master/pulsar-client-admin/src/main/java/org/apache/pulsar/client/admin/internal/BrokersImpl.java#L80)
+
+<!--END_DOCUSAURUS_CODE_TABS-->
+
 #### list of namespaces owned by a given broker
 
 It finds all namespaces which are owned and served by a given broker.

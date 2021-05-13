@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
+import lombok.Cleanup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -28,6 +29,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.testng.Assert.assertNull;
 
+@Test(groups = "broker-api")
 public class RetryTopicTest extends ProducerConsumerBase {
 
     private static final Logger log = LoggerFactory.getLogger(RetryTopicTest.class);
@@ -63,6 +65,7 @@ public class RetryTopicTest extends ProducerConsumerBase {
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
 
+        @Cleanup
         PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
         Consumer<byte[]> deadLetterConsumer = newPulsarClient.newConsumer(Schema.BYTES)
                 .topic("persistent://my-property/my-ns/my-subscription-DLQ")
@@ -113,7 +116,6 @@ public class RetryTopicTest extends ProducerConsumerBase {
         assertNull(checkMessage);
 
         checkConsumer.close();
-        newPulsarClient.close();
     }
 
     /**
@@ -135,6 +137,7 @@ public class RetryTopicTest extends ProducerConsumerBase {
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
                 .enableRetry(true)
+                .ackTimeout(1, TimeUnit.SECONDS)
                 .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(maxRedeliveryCount).build())
                 .receiverQueueSize(100)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
@@ -218,6 +221,7 @@ public class RetryTopicTest extends ProducerConsumerBase {
                         .build())
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
+        @Cleanup
         PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
         Consumer<byte[]> deadLetterConsumer = newPulsarClient.newConsumer(Schema.BYTES)
                 .topic("persistent://my-property/my-ns/my-subscription-DLQ")
@@ -248,6 +252,7 @@ public class RetryTopicTest extends ProducerConsumerBase {
         } while (totalInDeadLetter < sendMessages);
         deadLetterConsumer.close();
         consumer.close();
+        @Cleanup
         PulsarClient newPulsarClient1 = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
         Consumer<byte[]> checkConsumer = newPulsarClient1.newConsumer(Schema.BYTES)
                 .topic(topic)
@@ -260,8 +265,6 @@ public class RetryTopicTest extends ProducerConsumerBase {
             log.info("check consumer received message : {} {}", checkMessage.getMessageId(), new String(checkMessage.getData()));
         }
         assertNull(checkMessage);
-        newPulsarClient.close();
-        newPulsarClient1.close();
         checkConsumer.close();
     }
 

@@ -155,7 +155,7 @@ public class RateLimiterTest {
         // change rate-time from 1sec to 5sec
         rate.setRate(permits, 5 * rateTimeMSec, TimeUnit.MILLISECONDS, null);
         assertEquals(rate.getAvailablePermits(), 100);
-        assertEquals(rate.tryAcquire(permits), true);
+        assertTrue(rate.tryAcquire(permits));
         assertEquals(rate.getAvailablePermits(), 0);
         // check after a rate-time: permits can't be renewed
         Thread.sleep(rateTimeMSec);

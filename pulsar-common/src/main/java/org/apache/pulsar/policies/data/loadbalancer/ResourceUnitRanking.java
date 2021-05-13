@@ -19,11 +19,14 @@
 package org.apache.pulsar.policies.data.loadbalancer;
 
 import java.util.Set;
+
+import lombok.EqualsAndHashCode;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 
 /**
  * The class containing information about system resources, allocated quota, and loaded bundles.
  */
+@EqualsAndHashCode
 public class ResourceUnitRanking implements Comparable<ResourceUnitRanking> {
 
     private static final long KBITS_TO_BYTES = 1024 / 8;

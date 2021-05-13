@@ -40,7 +40,7 @@ import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.impl.ConsumerImpl;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
@@ -55,8 +55,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 
-/**
- */
+@Test(groups = "broker")
 public class PersistentQueueE2ETest extends BrokerTestBase {
 
     @BeforeClass
@@ -205,7 +204,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
         Consumer<byte[]> consumer2 = newPulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Shared).messageListener((consumer, msg) -> {
-                    // do notthing
+                    // do nothing
                 }).subscribe();
 
         List<CompletableFuture<MessageId>> futures = Lists.newArrayListWithCapacity(numMsgs * 2);
@@ -494,7 +493,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
             consumer1.acknowledge(msgId);
         }
 
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().untilAsserted(() -> {
             TopicStats stats = admin.topics().getStats(topicName);
             // Unacked messages count should be 0 for both consumers at this point
             SubscriptionStats subStats = stats.subscriptions.get(subName);

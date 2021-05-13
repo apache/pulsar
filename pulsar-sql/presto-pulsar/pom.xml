@@ -101,6 +101,55 @@
           <version>${joda.version}</version>
         </dependency>
 
+        <dependency>
+            <groupId>io.prestosql</groupId>
+            <artifactId>presto-record-decoder</artifactId>
+            <version>${presto.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.prestosql</groupId>
+            <artifactId>presto-main</artifactId>
+            <version>${presto.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.prestosql</groupId>
+            <artifactId>presto-testing</artifactId>
+            <version>${presto.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+          <groupId>org.apache.pulsar</groupId>
+          <artifactId>pulsar-broker</artifactId>
+          <version>${project.version}</version>
+          <scope>test</scope>
+        </dependency>
+
+        <dependency>
+          <groupId>org.apache.pulsar</groupId>
+          <artifactId>pulsar-broker</artifactId>
+          <version>${project.version}</version>
+          <scope>test</scope>
+          <type>test-jar</type>
+        </dependency>
+
+        <dependency>
+          <groupId>org.apache.pulsar</groupId>
+          <artifactId>testmocks</artifactId>
+          <version>${project.version}</version>
+          <scope>test</scope>
+        </dependency>
+
+        <dependency>
+          <groupId>org.eclipse.jetty</groupId>
+          <artifactId>jetty-http</artifactId>
+          <version>${jetty.version}</version>
+          <scope>test</scope>
+        </dependency>
+
     </dependencies>
 
     <build>
@@ -110,7 +159,7 @@
                 <artifactId>maven-shade-plugin</artifactId>
                 <executions>
                     <execution>
-                        <phase>package</phase>
+                        <phase>${shadePluginPhase}</phase>
                         <goals>
                             <goal>shade</goal>
                         </goals>

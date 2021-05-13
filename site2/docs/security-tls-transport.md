@@ -113,7 +113,7 @@ openssl ca -config openssl.cnf -extensions server_cert \
 
 At this point, you have a cert, `broker.cert.pem`, and a key, `broker.key-pk8.pem`, which you can use along with `ca.cert.pem` to configure TLS transport encryption for your broker and proxy nodes.
 
-## Broker Configuration
+## Configure broker
 
 To configure a Pulsar [broker](reference-terminology.md#broker) to use TLS transport encryption, you need to make some changes to `broker.conf`, which locates in the `conf` directory of your [Pulsar installation](getting-started-standalone.md).
 
@@ -121,6 +121,7 @@ Add these values to the configuration file (substituting the appropriate certifi
 
 ```properties
 tlsEnabled=true
+tlsRequireTrustedClientCertOnConnect=true
 tlsCertificateFilePath=/path/to/broker.cert.pem
 tlsKeyFilePath=/path/to/broker.key-pk8.pem
 tlsTrustCertsFilePath=/path/to/ca.cert.pem

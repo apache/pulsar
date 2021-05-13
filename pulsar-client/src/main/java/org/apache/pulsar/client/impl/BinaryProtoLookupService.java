@@ -37,9 +37,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
+import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
+import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
+import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse.LookupType;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -328,11 +328,11 @@ public class BinaryProtoLookupService implements LookupService {
         public final boolean redirect;
 
         public LookupDataResult(CommandLookupTopicResponse result) {
-            this.brokerUrl = result.getBrokerServiceUrl();
-            this.brokerUrlTls = result.getBrokerServiceUrlTls();
-            this.authoritative = result.getAuthoritative();
-            this.redirect = result.getResponse() == LookupType.Redirect;
-            this.proxyThroughServiceUrl = result.getProxyThroughServiceUrl();
+            this.brokerUrl = result.hasBrokerServiceUrl() ? result.getBrokerServiceUrl() : null;
+            this.brokerUrlTls = result.hasBrokerServiceUrlTls() ? result.getBrokerServiceUrlTls() : null;
+            this.authoritative = result.isAuthoritative();
+            this.redirect = result.hasResponse() && result.getResponse() == LookupType.Redirect;
+            this.proxyThroughServiceUrl = result.isProxyThroughServiceUrl();
             this.partitions = -1;
         }
 

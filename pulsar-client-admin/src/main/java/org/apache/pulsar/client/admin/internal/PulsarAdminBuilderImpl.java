@@ -32,10 +32,10 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
 
     protected final ClientConfigurationData conf;
-    private int connectTimeout = PulsarAdmin.DEFAULT_CONNECT_TIMEOUT_SECONDS;
-    private int readTimeout = PulsarAdmin.DEFAULT_READ_TIMEOUT_SECONDS;
-    private int requestTimeout = PulsarAdmin.DEFAULT_REQUEST_TIMEOUT_SECONDS;
-    private int autoCertRefreshTime = PulsarAdmin.DEFAULT_CERT_REFRESH_SECONDS;
+    private int connectTimeout = PulsarAdminImpl.DEFAULT_CONNECT_TIMEOUT_SECONDS;
+    private int readTimeout = PulsarAdminImpl.DEFAULT_READ_TIMEOUT_SECONDS;
+    private int requestTimeout = PulsarAdminImpl.DEFAULT_REQUEST_TIMEOUT_SECONDS;
+    private int autoCertRefreshTime = PulsarAdminImpl.DEFAULT_CERT_REFRESH_SECONDS;
     private TimeUnit connectTimeoutUnit = TimeUnit.SECONDS;
     private TimeUnit readTimeoutUnit = TimeUnit.SECONDS;
     private TimeUnit requestTimeoutUnit = TimeUnit.SECONDS;
@@ -44,7 +44,7 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
 
     @Override
     public PulsarAdmin build() throws PulsarClientException {
-        return new PulsarAdmin(conf.getServiceUrl(), conf, connectTimeout, connectTimeoutUnit, readTimeout,
+        return new PulsarAdminImpl(conf.getServiceUrl(), conf, connectTimeout, connectTimeoutUnit, readTimeout,
                 readTimeoutUnit, requestTimeout, requestTimeoutUnit, autoCertRefreshTime,
                 autoCertRefreshTimeUnit, clientBuilderClassLoader);
     }

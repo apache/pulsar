@@ -153,7 +153,7 @@ public class KubernetesRuntimeFactoryConfig {
     private Integer metricsPort = 9094;
 
     @FieldContext(
-       doc = "The directory inside  the function pod where nar packages will be extracted"
+       doc = "The directory inside the function pod where nar packages will be extracted"
     )
     private String narExtractionDirectory = NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR;
 

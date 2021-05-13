@@ -27,6 +27,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 /**
@@ -120,6 +121,7 @@ public class FunctionStats {
         /**
          * Function instance statistics data.
          */
+        @EqualsAndHashCode(callSuper = true)
         @Data
         @JsonInclude(JsonInclude.Include.ALWAYS)
         @JsonPropertyOrder({ "receivedTotal", "processedSuccessfullyTotal", "systemExceptionsTotal",

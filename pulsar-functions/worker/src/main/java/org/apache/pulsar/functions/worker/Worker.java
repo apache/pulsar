@@ -30,9 +30,12 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
+import org.apache.pulsar.broker.cache.ConfigurationMetadataCacheService;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.functions.worker.rest.WorkerServer;
 import org.apache.pulsar.functions.worker.service.WorkerServiceLoader;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.zookeeper.GlobalZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZookeeperBkClientFactoryImpl;
@@ -46,10 +49,9 @@ public class Worker {
 
     private ZooKeeperClientFactory zkClientFactory = null;
     private final OrderedExecutor orderedExecutor = OrderedExecutor.newBuilder().numThreads(8).name("zk-cache-ordered").build();
-    private final ScheduledExecutorService cacheExecutor = Executors.newScheduledThreadPool(10,
-            new DefaultThreadFactory("zk-cache-callback"));
-    private GlobalZooKeeperCache globalZkCache;
-    private ConfigurationCacheService configurationCacheService;
+    private PulsarResources pulsarResources;
+    private MetadataStoreExtended configMetadataStore;
+    private ConfigurationMetadataCacheService configurationCacheService;
     private final ErrorNotifier errorNotifier;
 
     public Worker(WorkerConfig workerConfig) {
@@ -64,7 +66,7 @@ public class Worker {
         server = new WorkerServer(workerService, getAuthenticationService());
         server.start();
         log.info("/** Started worker server on port={} **/", this.workerConfig.getWorkerPort());
-        
+
         try {
             errorNotifier.waitForError();
         } catch (Throwable th) {
@@ -80,20 +82,15 @@ public class Worker {
         if (this.workerConfig.isAuthorizationEnabled()) {
 
             log.info("starting configuration cache service");
-
-            this.globalZkCache = new GlobalZooKeeperCache(getZooKeeperClientFactory(),
-                    (int) workerConfig.getZooKeeperSessionTimeoutMillis(),
-                    workerConfig.getZooKeeperOperationTimeoutSeconds(),
-                    workerConfig.getConfigurationStoreServers(),
-                    orderedExecutor, cacheExecutor,
-                    workerConfig.getZooKeeperOperationTimeoutSeconds());
             try {
-                this.globalZkCache.start();
+                configMetadataStore = PulsarResources.createMetadataStore(workerConfig.getConfigurationStoreServers(),
+                        (int) workerConfig.getZooKeeperSessionTimeoutMillis());
             } catch (IOException e) {
                 throw new PulsarServerException(e);
             }
-
-            this.configurationCacheService = new ConfigurationCacheService(this.globalZkCache, this.workerConfig.getPulsarFunctionsCluster());
+            pulsarResources = new PulsarResources(null, configMetadataStore);
+            this.configurationCacheService = new ConfigurationMetadataCacheService(this.pulsarResources,
+                    this.workerConfig.getPulsarFunctionsCluster());
                 return new AuthorizationService(getServiceConfiguration(), this.configurationCacheService);
             }
         return null;
@@ -121,12 +118,16 @@ public class Worker {
             log.warn("Failed to gracefully stop worker service ", e);
         }
 
-        if (this.globalZkCache != null) {
+        if (this.configMetadataStore != null) {
             try {
-                this.globalZkCache.close();
-            } catch (IOException e) {
+                this.configMetadataStore.close();
+            } catch (Exception e) {
                 log.warn("Failed to close global zk cache ", e);
             }
+        }
+
+        if (orderedExecutor != null) {
+            orderedExecutor.shutdownNow();
         }
     }
 

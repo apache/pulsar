@@ -84,7 +84,7 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     private CryptoKeyReader cryptoKeyReader;
 
     @JsonIgnore
-    private MessageCrypto messageCrypto = null;
+    private transient MessageCrypto messageCrypto = null;
 
     @JsonIgnore
     private Set<String> encryptionKeys = new TreeSet<>();
@@ -131,7 +131,7 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     }
 
     public void setMaxPendingMessages(int maxPendingMessages) {
-        checkArgument(maxPendingMessages > 0, "maxPendingMessages needs to be > 0");
+        checkArgument(maxPendingMessages >= 0, "maxPendingMessages needs to be >= 0");
         this.maxPendingMessages = maxPendingMessages;
     }
 

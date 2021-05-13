@@ -41,6 +41,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 
+@Test(groups = "broker")
 public class BrokerInterceptorTest extends ProducerConsumerBase {
 
     private static final String listenerName1 = "listener1";
@@ -135,6 +136,6 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
 
         assertEquals(msg.getValue(), "hello world");
 
-        Assert.assertTrue(((CounterBrokerInterceptor) listener).getBeforeSendCount() == 1);
+        assertEquals(((CounterBrokerInterceptor) listener).getBeforeSendCount(), 1);
     }
 }

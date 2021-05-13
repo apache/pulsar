@@ -18,21 +18,31 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.US_ASCII;
-import static org.junit.Assert.assertEquals;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doReturn;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.collect.Sets;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
+import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.client.api.DigestType;
+import org.apache.bookkeeper.client.api.LedgerMetadata;
+import org.apache.bookkeeper.net.BookieId;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.StringSchema;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -46,24 +56,31 @@ import org.testng.annotations.Test;
  * Unit tests for schema admin api.
  */
 @Slf4j
+@Test(groups = "broker")
 public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
 
+    final String cluster = "test";
     @BeforeMethod
     @Override
     public void setup() throws Exception {
         super.internalSetup();
 
         // Setup namespaces
-        admin.clusters().createCluster("test", new ClusterData(pulsar.getWebServiceAddress()));
+        admin.clusters().createCluster(cluster, new ClusterData(pulsar.getWebServiceAddress()));
         TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant("schematest", tenantInfo);
         admin.namespaces().createNamespace("schematest/test", Sets.newHashSet("test"));
+        admin.namespaces().createNamespace("schematest/"+cluster+"/test", Sets.newHashSet("test"));
     }
 
     @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    enum ApiVersion{
+        V1, V2;
     }
 
     public static class Foo {
@@ -76,7 +93,7 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         String file1;
     }
 
-    private static Map<String, String> PROPS;
+    private static final Map<String, String> PROPS;
 
     static {
         PROPS = new HashMap<>();
@@ -121,6 +138,11 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         };
     }
 
+    @DataProvider(name = "version")
+    public Object[][] versions() {
+        return new Object[][] { { ApiVersion.V1 }, { ApiVersion.V2 } };
+    }
+
     @Test(dataProvider = "schemas")
     public void testSchemaInfoApi(Schema<?> schema) throws Exception {
         testSchemaInfoApi(schema, "schematest/test/test-" + schema.getSchemaInfo().getType());
@@ -140,19 +162,20 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         SchemaInfo readSi = admin.schemas().getSchemaInfo(topicName);
         log.info("Read schema of topic {} : {}", topicName, readSi);
 
-        assertEquals(si, readSi);
+        assertEquals(readSi, si);
 
         readSi = admin.schemas().getSchemaInfo(topicName + "-partition-0");
         log.info("Read schema of topic {} : {}", topicName, readSi);
 
-        assertEquals(si, readSi);
+        assertEquals(readSi, si);
 
     }
 
-    @Test
-    public void testPostSchemaCompatibilityStrategy() throws PulsarAdminException {
-        String namespace = "schematest/test";
-        String topicName = namespace + "/testStrategyChange";
+    @Test(dataProvider = "version")
+    public void testPostSchemaCompatibilityStrategy(ApiVersion version) throws PulsarAdminException {
+        String namespace = format("%s%s%s", "schematest", (ApiVersion.V1.equals(version) ? "/" + cluster + "/" : "/"),
+                "test");
+        String topicName = "persistent://"+namespace + "/testStrategyChange";
         SchemaInfo fooSchemaInfo = Schema.AVRO(SchemaDefinition.builder()
                 .withAlwaysAllowNull(false)
                 .withPojo(Foo.class).build())
@@ -192,25 +215,137 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         SchemaInfoWithVersion readSi = admin.schemas().getSchemaInfoWithVersion(topicName);
         log.info("Read schema of topic {} : {}", topicName, readSi);
 
-        assertEquals(si, readSi.getSchemaInfo());
-        assertEquals(0, readSi.getVersion());
+        assertEquals(readSi.getSchemaInfo(), si);
+        assertEquals(readSi.getVersion(), 0);
 
         readSi = admin.schemas().getSchemaInfoWithVersion(topicName + "-partition-0");
         log.info("Read schema of topic {} : {}", topicName, readSi);
 
-        assertEquals(si, readSi.getSchemaInfo());
-        assertEquals(0, readSi.getVersion());
+        assertEquals(readSi.getSchemaInfo(), si);
+        assertEquals(readSi.getVersion(), 0);
 
     }
 
-    @Test
-    public void createKeyValueSchema() throws Exception {
-        String topicName = "schematest/test/test-key-value-schema";
+    @Test(dataProvider = "version")
+    public void createKeyValueSchema(ApiVersion version) throws Exception {
+        String namespace = format("%s%s%s", "schematest", (ApiVersion.V1.equals(version) ? "/" + cluster + "/" : "/"),
+                "test");
+        String topicName = "persistent://"+namespace + "/test-key-value-schema";
         Schema keyValueSchema = Schema.KeyValue(Schema.AVRO(Foo.class), Schema.AVRO(Foo.class));
         admin.schemas().createSchema(topicName,
                 keyValueSchema.getSchemaInfo());
         SchemaInfo schemaInfo = admin.schemas().getSchemaInfo(topicName);
 
-        assertEquals(schemaInfo, keyValueSchema.getSchemaInfo());
+        assertEquals(keyValueSchema.getSchemaInfo(), schemaInfo);
+    }
+
+    @Test
+    void getTopicIntervalStateIncludeSchemaStoreLedger() throws PulsarAdminException {
+        String topicName = "persistent://schematest/test/get-schema-ledger-info";
+        admin.topics().createNonPartitionedTopic(topicName);
+        admin.topics().createSubscription(topicName, "test", MessageId.earliest);
+        Schema<Foo> schema = Schema.AVRO(Foo.class);
+        admin.schemas().createSchema(topicName, schema.getSchemaInfo());
+        long ledgerId = 1;
+        long entryId = 10;
+        long length = 10;
+        doReturn(CompletableFuture.completedFuture(new LedgerMetadata() {
+            @Override
+            public long getLedgerId() {
+                return ledgerId;
+            }
+
+            @Override
+            public int getEnsembleSize() {
+                return 0;
+            }
+
+            @Override
+            public int getWriteQuorumSize() {
+                return 0;
+            }
+
+            @Override
+            public int getAckQuorumSize() {
+                return 0;
+            }
+
+            @Override
+            public long getLastEntryId() {
+                return entryId;
+            }
+
+            @Override
+            public long getLength() {
+                return length;
+            }
+
+            @Override
+            public boolean hasPassword() {
+                return false;
+            }
+
+            @Override
+            public byte[] getPassword() {
+                return new byte[0];
+            }
+
+            @Override
+            public DigestType getDigestType() {
+                return null;
+            }
+
+            @Override
+            public long getCtime() {
+                return 0;
+            }
+
+            @Override
+            public boolean isClosed() {
+                return false;
+            }
+
+            @Override
+            public Map<String, byte[]> getCustomMetadata() {
+                return null;
+            }
+
+            @Override
+            public List<BookieId> getEnsembleAt(long entryId) {
+                return null;
+            }
+
+            @Override
+            public NavigableMap<Long, ? extends List<BookieId>> getAllEnsembles() {
+                return null;
+            }
+
+            @Override
+            public State getState() {
+                return null;
+            }
+
+            @Override
+            public String toSafeString() {
+                return "test";
+            }
+
+            @Override
+            public int getMetadataFormatVersion() {
+                return 0;
+            }
+
+            @Override
+            public long getCToken() {
+                return 0;
+            }
+        })).when(mockBookKeeper).getLedgerMetadata(anyLong());
+        PersistentTopicInternalStats persistentTopicInternalStats = admin.topics().getInternalStats(topicName);
+        List<PersistentTopicInternalStats.LedgerInfo> list = persistentTopicInternalStats.schemaLedgers;
+        assertEquals(list.size(), 1);
+        PersistentTopicInternalStats.LedgerInfo ledgerInfo = list.get(0);
+        assertEquals(ledgerInfo.ledgerId, ledgerId);
+        assertEquals(ledgerInfo.entries, entryId + 1);
+        assertEquals(ledgerInfo.size, length);
     }
 }

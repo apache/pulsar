@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
+@Test(groups = "broker")
 public class ConsumerStatsTest extends ProducerConsumerBase {
 
     @BeforeMethod

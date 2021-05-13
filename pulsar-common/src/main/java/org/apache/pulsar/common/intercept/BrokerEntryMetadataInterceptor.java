@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.common.intercept;
 
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
@@ -32,11 +32,11 @@ public interface BrokerEntryMetadataInterceptor {
     /**
      * Called by ManagedLedger to intercept adding an entry.
      */
-    PulsarApi.BrokerEntryMetadata.Builder intercept(PulsarApi.BrokerEntryMetadata.Builder brokerMetadata);
+    BrokerEntryMetadata intercept(BrokerEntryMetadata brokerMetadata);
 
     /**
      * Called by ManagedLedger to intercept adding an entry with numberOfMessages.
      */
-    PulsarApi.BrokerEntryMetadata.Builder interceptWithNumberOfMessages(PulsarApi.BrokerEntryMetadata.Builder brokerMetadata,
-                                                                        int numberOfMessages);
+    BrokerEntryMetadata interceptWithNumberOfMessages(BrokerEntryMetadata brokerMetadata,
+            int numberOfMessages);
 }

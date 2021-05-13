@@ -18,6 +18,23 @@
  */
 package org.apache.pulsar.websocket;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import lombok.Getter;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.api.CompressionType;
@@ -33,30 +50,28 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.naming.TopicName;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
-import org.junit.Assert;
-import org.junit.Test;
 import org.mockito.Mock;
-
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
-
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.Test;
 
 public class AbstractWebSocketHandlerTest {
+    List<PulsarClient> createdClients = Collections.synchronizedList(new ArrayList<>());
+
     @Mock
     private HttpServletRequest httpServletRequest;
+
+    @AfterClass(alwaysRun = true)
+    final void cleanupCreatedClients() {
+        for (PulsarClient createdClient : createdClients) {
+            try {
+                createdClient.shutdown();
+            } catch (PulsarClientException e) {
+                // ignore
+            }
+        }
+        createdClients.clear();
+    }
 
     @Test
     public void topicNameUrlEncodingTest() throws Exception {
@@ -82,41 +97,41 @@ public class AbstractWebSocketHandlerTest {
         when(httpServletRequest.getRequestURI()).thenReturn(producerV1 + URLEncoder.encode(producerV1Topic, StandardCharsets.UTF_8.name()));
         WebSocketHandlerImpl webSocketHandler = new WebSocketHandlerImpl(null, httpServletRequest, null);
         TopicName topicName = webSocketHandler.getTopic();
-        Assert.assertEquals("persistent://my-property/my-cluster/my-ns/" + producerV1Topic, topicName.toString());
+        assertEquals(topicName.toString(), "persistent://my-property/my-cluster/my-ns/" + producerV1Topic);
 
         when(httpServletRequest.getRequestURI()).thenReturn(consumerV1
                 + URLEncoder.encode(consumerV1Topic, StandardCharsets.UTF_8.name()) + "/"
                 + URLEncoder.encode(consumerV1Sub, StandardCharsets.UTF_8.name()));
         webSocketHandler = new WebSocketHandlerImpl(null, httpServletRequest, null);
         topicName = webSocketHandler.getTopic();
-        Assert.assertEquals("persistent://my-property/my-cluster/my-ns/" + consumerV1Topic, topicName.toString());
+        assertEquals(topicName.toString(), "persistent://my-property/my-cluster/my-ns/" + consumerV1Topic);
 
         when(httpServletRequest.getRequestURI()).thenReturn(readerV1
                 + URLEncoder.encode(readerV1Topic, StandardCharsets.UTF_8.name()));
         webSocketHandler = new WebSocketHandlerImpl(null, httpServletRequest, null);
         topicName = webSocketHandler.getTopic();
-        Assert.assertEquals("persistent://my-property/my-cluster/my-ns/" + readerV1Topic, topicName.toString());
+        assertEquals(topicName.toString(), "persistent://my-property/my-cluster/my-ns/" + readerV1Topic);
 
         when(httpServletRequest.getRequestURI()).thenReturn(producerV2
                 + URLEncoder.encode(producerV2Topic, StandardCharsets.UTF_8.name()));
         webSocketHandler = new WebSocketHandlerImpl(null, httpServletRequest, null);
         topicName = webSocketHandler.getTopic();
-        Assert.assertEquals("persistent://my-property/my-ns/" + producerV2Topic, topicName.toString());
+        assertEquals(topicName.toString(), "persistent://my-property/my-ns/" + producerV2Topic);
 
         when(httpServletRequest.getRequestURI()).thenReturn(consumerV2
                 + URLEncoder.encode(consumerV2Topic, StandardCharsets.UTF_8.name()) + "/"
                 + URLEncoder.encode(consumerV2Sub, StandardCharsets.UTF_8.name()));
         webSocketHandler = new WebSocketHandlerImpl(null, httpServletRequest, null);
         topicName = webSocketHandler.getTopic();
-        Assert.assertEquals("persistent://my-property/my-ns/" + consumerV2Topic, topicName.toString());
+        assertEquals(topicName.toString(), "persistent://my-property/my-ns/" + consumerV2Topic);
         String sub = ConsumerHandler.extractSubscription(httpServletRequest);
-        Assert.assertEquals(consumerV2Sub, sub);
+        assertEquals(sub, consumerV2Sub);
 
         when(httpServletRequest.getRequestURI()).thenReturn(readerV2
                 + URLEncoder.encode(readerV2Topic, StandardCharsets.UTF_8.name()));
         webSocketHandler = new WebSocketHandlerImpl(null, httpServletRequest, null);
         topicName = webSocketHandler.getTopic();
-        Assert.assertEquals("persistent://my-property/my-ns/" + readerV2Topic, topicName.toString());
+        assertEquals(topicName.toString(), "persistent://my-property/my-ns/" + readerV2Topic);
     }
 
     @Test
@@ -135,48 +150,48 @@ public class AbstractWebSocketHandlerTest {
         when(httpServletRequest.getRequestURI()).thenReturn(producerV1);
         WebSocketHandlerImpl webSocketHandler = new WebSocketHandlerImpl(null, httpServletRequest, null);
         TopicName topicName = webSocketHandler.getTopic();
-        Assert.assertEquals("persistent://my-property/my-cluster/my-ns/my-topic", topicName.toString());
+        assertEquals(topicName.toString(), "persistent://my-property/my-cluster/my-ns/my-topic");
 
         when(httpServletRequest.getRequestURI()).thenReturn(consumerV1);
         webSocketHandler = new WebSocketHandlerImpl(null, httpServletRequest, null);
         topicName = webSocketHandler.getTopic();
-        Assert.assertEquals("persistent://my-property/my-cluster/my-ns/my-topic", topicName.toString());
+        assertEquals(topicName.toString(), "persistent://my-property/my-cluster/my-ns/my-topic");
 
         when(httpServletRequest.getRequestURI()).thenReturn(readerV1);
         webSocketHandler = new WebSocketHandlerImpl(null, httpServletRequest, null);
         topicName = webSocketHandler.getTopic();
-        Assert.assertEquals("persistent://my-property/my-cluster/my-ns/my-topic", topicName.toString());
+        assertEquals(topicName.toString(), "persistent://my-property/my-cluster/my-ns/my-topic");
 
         when(httpServletRequest.getRequestURI()).thenReturn(producerV2);
         webSocketHandler = new WebSocketHandlerImpl(null, httpServletRequest, null);
         topicName = webSocketHandler.getTopic();
-        Assert.assertEquals("persistent://my-property/my-ns/my-topic", topicName.toString());
+        assertEquals(topicName.toString(), "persistent://my-property/my-ns/my-topic");
 
         when(httpServletRequest.getRequestURI()).thenReturn(consumerV2);
         webSocketHandler = new WebSocketHandlerImpl(null, httpServletRequest, null);
         topicName = webSocketHandler.getTopic();
-        Assert.assertEquals("persistent://my-property/my-ns/my-topic", topicName.toString());
+        assertEquals(topicName.toString(), "persistent://my-property/my-ns/my-topic");
 
         when(httpServletRequest.getRequestURI()).thenReturn(consumerLongTopicNameV2);
         webSocketHandler = new WebSocketHandlerImpl(null, httpServletRequest, null);
         topicName = webSocketHandler.getTopic();
-        Assert.assertEquals("persistent://my-tenant/my-ns/some/topic/with/slashes", topicName.toString());
+        assertEquals(topicName.toString(), "persistent://my-tenant/my-ns/some/topic/with/slashes");
 
         when(httpServletRequest.getRequestURI()).thenReturn(readerV2);
         webSocketHandler = new WebSocketHandlerImpl(null, httpServletRequest, null);
         topicName = webSocketHandler.getTopic();
-        Assert.assertEquals("persistent://my-property/my-ns/my-topic/ / /@!$#^&*( /)1 /_、`，《》</>", topicName.toString());
+        assertEquals(topicName.toString(), "persistent://my-property/my-ns/my-topic/ / /@!$#^&*( /)1 /_、`，《》</>");
 
     }
 
-    class WebSocketHandlerImpl extends AbstractWebSocketHandler {
+    static class WebSocketHandlerImpl extends AbstractWebSocketHandler {
 
         public WebSocketHandlerImpl(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
             super(service, request, response);
         }
 
         @Override
-        protected Boolean isAuthorized(String authRole, AuthenticationDataSource authenticationData) throws Exception {
+        protected Boolean isAuthorized(String authRole, AuthenticationDataSource authenticationData) {
             return null;
         }
 
@@ -191,7 +206,7 @@ public class AbstractWebSocketHandlerTest {
 
     }
 
-    class MockedServletUpgradeResponse extends ServletUpgradeResponse {
+    static class MockedServletUpgradeResponse extends ServletUpgradeResponse {
 
         @Getter
         private int statusCode;
@@ -209,10 +224,12 @@ public class AbstractWebSocketHandlerTest {
     }
 
     PulsarClient newPulsarClient() throws PulsarClientException {
-        return PulsarClient.builder()
+        PulsarClient client = PulsarClient.builder()
                 .serviceUrl("pulsar://localhost:6650")
                 .operationTimeout(1, TimeUnit.SECONDS)
                 .build();
+        createdClients.add(client);
+        return client;
     }
 
     class MockedProducerHandler extends ProducerHandler {

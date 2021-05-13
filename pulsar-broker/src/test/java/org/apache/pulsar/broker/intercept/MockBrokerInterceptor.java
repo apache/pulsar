@@ -18,20 +18,21 @@
  */
 package org.apache.pulsar.broker.intercept;
 
-import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.service.ServerCnx;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.intercept.InterceptException;
+import java.io.IOException;
 
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
-import java.io.IOException;
+
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.ServerCnx;
+import org.apache.pulsar.common.api.proto.BaseCommand;
+import org.apache.pulsar.common.intercept.InterceptException;
 
 public class MockBrokerInterceptor implements BrokerInterceptor {
 
     @Override
-    public void onPulsarCommand(PulsarApi.BaseCommand command, ServerCnx cnx) throws InterceptException {
+    public void onPulsarCommand(BaseCommand command, ServerCnx cnx) throws InterceptException {
         // no-op
     }
 

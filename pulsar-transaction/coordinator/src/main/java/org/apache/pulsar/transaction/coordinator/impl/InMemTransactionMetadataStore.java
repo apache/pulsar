@@ -30,7 +30,7 @@ import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.InvalidTxnStatusException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.TransactionNotFoundException;
-import org.apache.pulsar.transaction.coordinator.proto.PulsarTransactionMetadata.TxnStatus;
+import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 
 /**
  * An in-memory implementation of {@link TransactionMetadataStore}.
@@ -65,7 +65,7 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
             tcID.getId(),
             localID.getAndIncrement()
         );
-        TxnMetaImpl txn = TxnMetaImpl.create(txnID);
+        TxnMetaImpl txn = new TxnMetaImpl(txnID);
         transactions.put(txnID, txn);
         return CompletableFuture.completedFuture(txnID);
     }

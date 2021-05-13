@@ -26,6 +26,7 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.AccessLevel;
@@ -220,7 +221,8 @@ public class ServiceURI {
                 } else if (serviceInfos.length == 1 && serviceInfos[0].toLowerCase().equals(SSL_SERVICE)) {
                     port = BINARY_TLS_PORT;
                 } else {
-                    throw new IllegalArgumentException("Invalid pulsar service : " + serviceName + "+" + serviceInfos);
+                    throw new IllegalArgumentException("Invalid pulsar service : " + serviceName + "+"
+                        + Arrays.toString(serviceInfos));
                 }
                 break;
             case HTTP_SERVICE:

@@ -487,6 +487,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private int httpNumThreads = Math.max(8, 2 * Runtime.getRuntime().availableProcessors());
 
+    @Deprecated
     @FieldContext(
             category = CATEGORY_PLUGIN,
             doc = "The directory to locate proxy additional servlet"
@@ -495,9 +496,22 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_PLUGIN,
+            doc = "The directory to locate proxy additional servlet"
+    )
+    private String additionalServletDirectory = "./proxyAdditionalServlet";
+
+    @Deprecated
+    @FieldContext(
+            category = CATEGORY_PLUGIN,
             doc = "List of proxy additional servlet to load, which is a list of proxy additional servlet names"
     )
     private Set<String> proxyAdditionalServlets = Sets.newTreeSet();
+
+    @FieldContext(
+            category = CATEGORY_PLUGIN,
+            doc = "List of proxy additional servlet to load, which is a list of proxy additional servlet names"
+    )
+    private Set<String> additionalServlets = Sets.newTreeSet();
 
     @FieldContext(
             category =  CATEGORY_HTTP,
@@ -521,7 +535,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
                         + "Configure the public key to be used to validate auth tokens"
                         + " The key can be specified like:\n\n"
                         + "tokenPublicKey=data:;base64,xxxxxxxxx\n"
-                        + "tokenPublicKey=file:///my/public.key")
+                        + "tokenPublicKey=file:///my/public.key  ( Note: key file must be DER-encoded )")
             ),
             @PropertyContext(
                 key = "tokenSecretKey",
@@ -531,7 +545,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
                         + "Configure the secret key to be used to validate auth tokens"
                         + "The key can be specified like:\n\n"
                         + "tokenSecretKey=data:;base64,xxxxxxxxx\n"
-                        + "tokenSecretKey=file:///my/secret.key")
+                        + "tokenSecretKey=file:///my/secret.key  ( Note: key file must be DER-encoded )")
             )
         }
     )

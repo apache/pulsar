@@ -50,6 +50,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.DefaultCryptoKeyReader;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.RetryMessageUtil;
@@ -149,8 +150,8 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
                 "Passed in topicNames should not be null or empty.");
         Arrays.stream(topicNames).forEach(topicName ->
                 checkArgument(StringUtils.isNotBlank(topicName), "topicNames cannot have blank topic"));
-        conf.getTopicNames().addAll(Lists.newArrayList(Arrays.stream(topicNames).map(StringUtils::trim)
-                .collect(Collectors.toList())));
+        conf.getTopicNames().addAll(Arrays.stream(topicNames).map(StringUtils::trim)
+                .collect(Collectors.toList()));
         return this;
     }
 
@@ -190,6 +191,12 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
         checkArgument(ackTimeout == 0 || timeUnit.toMillis(ackTimeout) >= MIN_ACK_TIMEOUT_MILLIS,
                 "Ack timeout should be greater than " + MIN_ACK_TIMEOUT_MILLIS + " ms");
         conf.setAckTimeoutMillis(timeUnit.toMillis(ackTimeout));
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> isAckReceiptEnabled(boolean isAckReceiptEnabled) {
+        conf.setAckReceiptEnabled(isAckReceiptEnabled);
         return this;
     }
 
@@ -240,6 +247,18 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
+    public ConsumerBuilder<T> defaultCryptoKeyReader(String privateKey) {
+        checkArgument(StringUtils.isNotBlank(privateKey), "privateKey cannot be blank");
+        return cryptoKeyReader(DefaultCryptoKeyReader.builder().defaultPrivateKey(privateKey).build());
+    }
+
+    @Override
+    public ConsumerBuilder<T> defaultCryptoKeyReader(@NonNull Map<String, String> privateKeys) {
+        checkArgument(!privateKeys.isEmpty(), "privateKeys cannot be empty");
+        return cryptoKeyReader(DefaultCryptoKeyReader.builder().privateKeys(privateKeys).build());
+    }
+
+    @Override
     public ConsumerBuilder<T> messageCrypto(@NonNull MessageCrypto messageCrypto) {
         conf.setMessageCrypto(messageCrypto);
         return this;
@@ -281,7 +300,13 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
     @Override
     public ConsumerBuilder<T> maxPendingChuckedMessage(int maxPendingChuckedMessage) {
-        conf.setMaxPendingChuckedMessage(maxPendingChuckedMessage);
+        conf.setMaxPendingChunkedMessage(maxPendingChuckedMessage);
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> maxPendingChunkedMessage(int maxPendingChunkedMessage) {
+        conf.setMaxPendingChunkedMessage(maxPendingChunkedMessage);
         return this;
     }
 
@@ -405,7 +430,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
     @Override
     public String toString() {
-        return conf != null ? conf.toString() : null;
+        return conf != null ? conf.toString() : "";
     }
 
     @Override
@@ -430,7 +455,12 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     @Override
     public ConsumerBuilder<T> expireTimeOfIncompleteChunkedMessage(long duration, TimeUnit unit) {
         conf.setExpireTimeOfIncompleteChunkedMessageMillis(unit.toMillis(duration));
-        return null;
+        return this;
     }
 
+    @Override
+    public ConsumerBuilder<T> poolMessages(boolean poolMessages) {
+        conf.setPoolMessages(poolMessages);
+        return this;
+    }
 }

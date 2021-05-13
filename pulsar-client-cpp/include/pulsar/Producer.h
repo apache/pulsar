@@ -50,7 +50,14 @@ class PULSAR_PUBLIC Producer {
     const std::string& getProducerName() const;
 
     /**
-     * Publish a message on the topic associated with this Producer.
+     * @deprecated
+     * It's the same with send(const Message& msg, MessageId& messageId) except that MessageId will be stored
+     * in `msg` though `msg` is `const`.
+     */
+    Result send(const Message& msg);
+
+    /**
+     * Publish a message on the topic associated with this Producer and get the associated MessageId.
      *
      * This method will block until the message will be accepted and persisted
      * by the broker. In case of errors, the client library will try to
@@ -61,11 +68,19 @@ class PULSAR_PUBLIC Producer {
      *
      * This method is equivalent to asyncSend() and wait until the callback is triggered.
      *
-     * @param msg message to publish
+     * @param [in] msg message to publish
+     * @param [out] messageId the message id assigned to the published message
      * @return ResultOk if the message was published successfully
-     * @return ResultWriteError if it wasn't possible to publish the message
+     * @return ResultTimeout if message was not sent successfully in ProducerConfiguration#getSendTimeout
+     * @return ResultProducerQueueIsFull if the outgoing messsage queue is full when
+     *   ProducerConfiguration::getBlockIfQueueFull was false
+     * @return ResultMessageTooBig if message size is bigger than the maximum message size
+     * @return ResultAlreadyClosed if Producer was already closed when message was sent
+     * @return ResultCryptoError if ProducerConfiguration::isEncryptionEnabled returns true but the message
+     *   was failed to encrypt
+     * @return ResultInvalidMessage if message's invalid, it's usually caused by resending the same Message
      */
-    Result send(const Message& msg);
+    Result send(const Message& msg, MessageId& messageId);
 
     /**
      * Asynchronously publish a message on the topic associated with this Producer.
@@ -138,6 +153,11 @@ class PULSAR_PUBLIC Producer {
      * pending writes will not be retried.
      */
     void closeAsync(CloseCallback callback);
+
+    /**
+     * @return Whether the producer is currently connected to the broker
+     */
+    bool isConnected() const;
 
    private:
     explicit Producer(ProducerImplBasePtr);

@@ -33,6 +33,7 @@ import org.apache.pulsar.broker.BookKeeperClientFactory;
 import org.apache.pulsar.broker.BookKeeperClientFactoryImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
@@ -73,8 +74,19 @@ public class CompactorTool {
             jcommander.usage();
             throw new IllegalArgumentException("Need to specify a configuration file for broker");
         } else {
+            log.info(String.format("read configuration file %s", arguments.brokerConfigFile));
             brokerConfig = PulsarConfigurationLoader.create(
                     arguments.brokerConfigFile, ServiceConfiguration.class);
+        }
+
+
+        if (isBlank(brokerConfig.getZookeeperServers())) {
+            throw new IllegalArgumentException(
+                    String.format("Need to specify `zookeeperServers` in configuration file \n"
+                                    + "or specify configuration file path from command line.\n"
+                                    + "now configuration file path is=[%s]\n",
+                            arguments.brokerConfigFile)
+            );
         }
 
         ClientBuilder clientBuilder = PulsarClient.builder();
@@ -86,14 +98,18 @@ public class CompactorTool {
 
 
         if (brokerConfig.getBrokerServicePortTls().isPresent()) {
+            log.info("Found `brokerServicePortTls` in configuration file. \n"
+                    + "Will connect pulsar use TLS.");
             clientBuilder
-                    .serviceUrl(PulsarService.brokerUrlTls(PulsarService.advertisedAddress(brokerConfig),
+                    .serviceUrl(PulsarService.brokerUrlTls(ServiceConfigurationUtils
+                                    .getAppliedAdvertisedAddress(brokerConfig),
                             brokerConfig.getBrokerServicePortTls().get()))
                     .allowTlsInsecureConnection(brokerConfig.isTlsAllowInsecureConnection())
                     .tlsTrustCertsFilePath(brokerConfig.getTlsCertificateFilePath());
 
         } else {
-            clientBuilder.serviceUrl(PulsarService.brokerUrl(PulsarService.advertisedAddress(brokerConfig),
+            clientBuilder.serviceUrl(PulsarService.brokerUrl(ServiceConfigurationUtils
+                            .getAppliedAdvertisedAddress(brokerConfig),
                     brokerConfig.getBrokerServicePort().get()));
         }
 

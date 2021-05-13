@@ -196,9 +196,13 @@ public class ClusterData {
 
     @Override
     public String toString() {
-        return MoreObjects.toStringHelper(this).add("serviceUrl", serviceUrl).add("serviceUrlTls", serviceUrlTls)
-                .add("brokerServiceUrl", brokerServiceUrl).add("brokerServiceUrlTls", brokerServiceUrlTls)
-                .add("proxyServiceUrl", proxyServiceUrl).add("proxyProtocol", proxyProtocol)
+        return MoreObjects.toStringHelper(this)
+                .add("serviceUrl", serviceUrl)
+                .add("serviceUrlTls", serviceUrlTls)
+                .add("brokerServiceUrl", brokerServiceUrl)
+                .add("brokerServiceUrlTls", brokerServiceUrlTls)
+                .add("proxyServiceUrl", proxyServiceUrl)
+                .add("proxyProtocol", proxyProtocol)
                 .add("peerClusterNames", peerClusterNames).toString();
     }
 

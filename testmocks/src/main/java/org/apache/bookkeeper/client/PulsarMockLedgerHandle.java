@@ -168,8 +168,13 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
     @Override
     public void asyncAddEntry(final ByteBuf data, final AddCallback cb, final Object ctx) {
         bk.getProgrammedFailure().thenComposeAsync((res) -> {
+                Long delayMillis = bk.addEntryDelaysMillis.poll();
+                if (delayMillis == null) {
+                    delayMillis = 1L;
+                }
+
                 try {
-                    Thread.sleep(1);
+                    Thread.sleep(delayMillis);
                 } catch (InterruptedException e) {
                 }
 
@@ -255,10 +260,7 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
     }
 
     private static LedgerMetadata createMetadata(long id, DigestType digest, byte[] passwd) {
-        List<BookieId> ensemble = Lists.newArrayList(
-                new BookieSocketAddress("192.0.2.1", 1234).toBookieId(),
-                new BookieSocketAddress("192.0.2.2", 1234).toBookieId(),
-                new BookieSocketAddress("192.0.2.3", 1234).toBookieId());
+        List<BookieId> ensemble = new ArrayList<>(PulsarMockBookKeeper.getMockEnsemble());
         return LedgerMetadataBuilder.create()
             .withDigestType(digest.toApiDigestType())
             .withPassword(passwd)

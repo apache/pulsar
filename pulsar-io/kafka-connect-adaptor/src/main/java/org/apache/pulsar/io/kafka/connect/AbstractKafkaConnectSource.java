@@ -183,13 +183,16 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
         Optional<String> partitionId;
         @Getter
         Optional<String> destinationTopic;
+        @Getter
+        Optional<Integer> partitionIndex;
 
         KafkaSchemaWrappedSchema keySchema;
 
         KafkaSchemaWrappedSchema valueSchema;
 
         AbstractKafkaSourceRecord(SourceRecord srcRecord) {
-            this.destinationTopic = Optional.of(topicNamespace + "/" + srcRecord.topic());
+            this.destinationTopic = Optional.of("persistent://"+topicNamespace + "/" + srcRecord.topic());
+            this.partitionIndex = Optional.ofNullable(srcRecord.kafkaPartition());
         }
 
         @Override

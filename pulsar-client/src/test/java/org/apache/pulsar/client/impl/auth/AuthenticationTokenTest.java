@@ -159,4 +159,16 @@ public class AuthenticationTokenTest {
         assertEquals(authData.getCommandData(), "my-test-token-string");
         authToken.close();
     }
+
+    @Test
+    public void testAuthTokenConfigFromJson() throws Exception{
+        AuthenticationToken authToken = new AuthenticationToken();
+        authToken.configure("{\"token\":\"my-test-token-string\"}");
+        assertEquals(authToken.getAuthMethodName(), "token");
+
+        AuthenticationDataProvider authData = authToken.getAuthData();
+        assertTrue(authData.hasDataFromCommand());
+        assertEquals(authData.getCommandData(), "my-test-token-string");
+        authToken.close();
+    }
 }

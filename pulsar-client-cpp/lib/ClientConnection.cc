@@ -136,6 +136,11 @@ static Result getResult(ServerError serverError) {
     return ResultUnknownError;
 }
 
+inline std::ostream& operator<<(std::ostream& os, ServerError error) {
+    os << getResult(error);
+    return os;
+}
+
 static bool file_exists(const std::string& path) {
     if (path.empty()) {
         return false;
@@ -184,7 +189,7 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
 #if BOOST_VERSION >= 105400
         boost::asio::ssl::context ctx(boost::asio::ssl::context::tlsv12_client);
 #else
-        boost::asio::ssl::context ctx(executor_->io_service_, boost::asio::ssl::context::tlsv1_client);
+        boost::asio::ssl::context ctx(*executor_->io_service_, boost::asio::ssl::context::tlsv1_client);
 #endif
         Url serviceUrl;
         Url::parse(physicalAddress, serviceUrl);
@@ -971,6 +976,7 @@ void ClientConnection::handleIncomingCommand() {
                     const CommandError& error = incomingCmd_.error();
                     Result result = getResult(error.error());
                     LOG_WARN(cnxString_ << "Received error response from server: " << result
+                                        << (error.has_message() ? (" (" + error.message() + ")") : "")
                                         << " -- req_id: " << error.request_id());
 
                     Lock lock(mutex_);
@@ -1186,8 +1192,9 @@ Future<Result, BrokerConsumerStatsImpl> ClientConnection::newConsumerStats(uint6
 }
 
 void ClientConnection::newTopicLookup(const std::string& topicName, bool authoritative,
-                                      const uint64_t requestId, LookupDataResultPromisePtr promise) {
-    newLookup(Commands::newLookup(topicName, authoritative, requestId), requestId, promise);
+                                      const std::string& listenerName, const uint64_t requestId,
+                                      LookupDataResultPromisePtr promise) {
+    newLookup(Commands::newLookup(topicName, authoritative, requestId, listenerName), requestId, promise);
 }
 
 void ClientConnection::newPartitionedMetadataLookup(const std::string& topicName, const uint64_t requestId,

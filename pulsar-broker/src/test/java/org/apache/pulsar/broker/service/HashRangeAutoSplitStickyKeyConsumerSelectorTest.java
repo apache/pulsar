@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service;
 
 import com.google.common.collect.ImmutableList;
-import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -31,15 +30,16 @@ import java.util.Map;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+@Test(groups = "broker")
 public class HashRangeAutoSplitStickyKeyConsumerSelectorTest {
 
     @Test
     public void testGetConsumerKeyHashRanges() throws BrokerServiceException.ConsumerAssignException {
         HashRangeAutoSplitStickyKeyConsumerSelector selector = new HashRangeAutoSplitStickyKeyConsumerSelector(2 << 5);
         List<String> consumerName = Arrays.asList("consumer1", "consumer2", "consumer3", "consumer4");
-        for (int index = 0; index < consumerName.size(); index++) {
+        for (String s : consumerName) {
             Consumer consumer = mock(Consumer.class);
-            when(consumer.consumerName()).thenReturn(consumerName.get(index));
+            when(consumer.consumerName()).thenReturn(s);
             selector.addConsumer(consumer);
         }
 

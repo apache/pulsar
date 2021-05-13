@@ -802,7 +802,7 @@ $ pulsar-admin namespaces set-message-ttl options
 Options
 |Flag|Description|Default|
 |----|---|---|
-|`-ttl`, `--messageTTL`|Message TTL in seconds|0|
+|`-ttl`, `--messageTTL`|MeMessage TTL in seconds. When the value is set to `0`, TTL is disabled. TTL is disabled by default.|0|
 
 
 ### `get-retention`

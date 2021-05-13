@@ -41,12 +41,12 @@ import org.apache.pulsar.broker.service.HashRangeExclusiveStickyKeyConsumerSelec
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMeta;
+import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.NonPersistentSubscriptionStats;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -98,11 +98,11 @@ public class NonPersistentSubscription implements Subscription {
     }
 
     @Override
-    public synchronized void addConsumer(Consumer consumer) throws BrokerServiceException {
+    public synchronized CompletableFuture<Void> addConsumer(Consumer consumer) {
         updateLastActive();
         if (IS_FENCED_UPDATER.get(this) == TRUE) {
             log.warn("Attempting to add consumer {} on a fenced subscription", consumer);
-            throw new SubscriptionFencedException("Subscription is fenced");
+            return FutureUtil.failedFuture(new SubscriptionFencedException("Subscription is fenced"));
         }
 
         if (dispatcher == null || !dispatcher.isConsumerConnected()) {
@@ -137,10 +137,8 @@ public class NonPersistentSubscription implements Subscription {
             case Key_Shared:
                 if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared) {
                     previousDispatcher = dispatcher;
-                    KeySharedMeta ksm = consumer.getKeySharedMeta() != null
-                            ? consumer.getKeySharedMeta() : KeySharedMeta.getDefaultInstance();
 
-                    switch (ksm.getKeySharedMode()) {
+                    switch (consumer.getKeySharedMeta().getKeySharedMode()) {
                         case STICKY:
                             dispatcher = new NonPersistentStickyKeyDispatcherMultipleConsumers(topic, this,
                                     new HashRangeExclusiveStickyKeyConsumerSelector());
@@ -163,7 +161,7 @@ public class NonPersistentSubscription implements Subscription {
                 }
                 break;
             default:
-                throw new ServerMetadataException("Unsupported subscription type");
+                return FutureUtil.failedFuture(new ServerMetadataException("Unsupported subscription type"));
             }
 
             if (previousDispatcher != null) {
@@ -176,11 +174,16 @@ public class NonPersistentSubscription implements Subscription {
             }
         } else {
             if (consumer.subType() != dispatcher.getType()) {
-                throw new SubscriptionBusyException("Subscription is of different type");
+                return FutureUtil.failedFuture(new SubscriptionBusyException("Subscription is of different type"));
             }
         }
 
-        dispatcher.addConsumer(consumer);
+        try {
+            dispatcher.addConsumer(consumer);
+            return CompletableFuture.completedFuture(null);
+        } catch (BrokerServiceException brokerServiceException) {
+            return FutureUtil.failedFuture(brokerServiceException);
+        }
     }
 
     @Override
@@ -430,8 +433,15 @@ public class NonPersistentSubscription implements Subscription {
     }
 
     @Override
-    public void expireMessages(int messageTTLInSeconds) {
-        // No-op
+    public boolean expireMessages(int messageTTLInSeconds) {
+        throw new UnsupportedOperationException("Expire message by timestamp is not supported for"
+                + " non-persistent topic.");
+    }
+
+    @Override
+    public boolean expireMessages(Position position) {
+        throw new UnsupportedOperationException("Expire message by position is not supported for"
+                + " non-persistent topic.");
     }
 
     public NonPersistentSubscriptionStats getStats() {
@@ -487,7 +497,7 @@ public class NonPersistentSubscription implements Subscription {
     }
 
     @Override
-    public CompletableFuture<Void> endTxn(long txnidMostBits, long txnidLeastBits, int txnAction) {
+    public CompletableFuture<Void> endTxn(long txnidMostBits, long txnidLeastBits, int txnAction, long lowWaterMark) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         completableFuture.completeExceptionally(
                 new Exception("Unsupported operation end txn for NonPersistentSubscription"));

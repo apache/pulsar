@@ -44,6 +44,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
+import static org.testng.Assert.fail;
 
 /**
  * Unit tests for {@link org.apache.pulsar.functions.source.batch.BatchSourceExecutor}
@@ -99,7 +100,7 @@ public class BatchSourceExecutorTest {
   public static class TestBatchSourceFailDiscovery extends TestBatchSource {
     @Override
     public void discover(Consumer<byte[]> taskEater) throws Exception {
-      throw new Exception("test");
+      throw new Exception("discovery failed");
     }
   }
 
@@ -266,9 +267,11 @@ public class BatchSourceExecutorTest {
       }
       return null;
     }).when(messageBuilder).send();
+    triggerQueue.clear();
+    completedQueue.clear();
   }
 
-  @AfterMethod
+  @AfterMethod(alwaysRun = true)
   public void cleanUp() throws Exception {
     batchSourceExecutor.close();
   }
@@ -353,7 +356,7 @@ public class BatchSourceExecutorTest {
     batchSourceExecutor.open(pushConfig, context);
   }
 
-  @Test (timeOut = 5000)
+  @Test
   public void testLifeCycle() throws Exception {
     batchSourceExecutor.open(config, context);
     Assert.assertEquals(testBatchSource.getDiscoverCount(), 0);
@@ -372,7 +375,7 @@ public class BatchSourceExecutorTest {
     Assert.assertEquals(testBatchSource.getCloseCount(), 1);
   }
 
-  @Test (timeOut = 5000)
+  @Test
   public void testPushLifeCycle() throws Exception {
     batchSourceExecutor.open(pushConfig, context);
     Assert.assertEquals(testBatchPushSource.getDiscoverCount(), 0);
@@ -391,15 +394,16 @@ public class BatchSourceExecutorTest {
     Assert.assertEquals(testBatchPushSource.getCloseCount(), 1);
   }
 
-
-  @Test(expectedExceptions = Exception.class, expectedExceptionsMessageRegExp = "test", timeOut = 1000)
+  @Test(expectedExceptions = Exception.class, expectedExceptionsMessageRegExp = "discovery failed")
   public void testDiscoveryPhaseError() throws Exception {
     config = createConfig(TestBatchSourceFailDiscovery.class.getName(), testBatchConfig);
     batchSourceExecutor.open(config, context);
     triggerQueue.put("trigger");
-    while (true) {
+    for (int i = 0; i < 100; i++) {
       batchSourceExecutor.read();
       Thread.sleep(100);
     }
+    fail("should have thrown an exception");
   }
+
 }

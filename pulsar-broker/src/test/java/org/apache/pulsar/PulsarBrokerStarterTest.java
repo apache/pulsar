@@ -35,10 +35,7 @@ import java.lang.reflect.Method;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.testng.annotations.Test;
 
-/**
- * @version $Revision$<br>
- *          Created on Sep 6, 2012
- */
+@Test(groups = "broker")
 public class PulsarBrokerStarterTest {
 
     private File createValidBrokerConfigFile() throws FileNotFoundException {
@@ -92,7 +89,6 @@ public class PulsarBrokerStarterTest {
      * method returns a non-null {@link ServiceConfiguration} instance where all required settings are filled in and (2)
      * if the property variables inside the given property file are correctly referred to that returned object.
      */
-    @Test
     public void testLoadConfig() throws SecurityException, NoSuchMethodException, IOException, IllegalArgumentException,
             IllegalAccessException, InvocationTargetException {
 

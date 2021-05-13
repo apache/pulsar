@@ -29,6 +29,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import lombok.Cleanup;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -39,7 +40,7 @@ public class IOUtilsTest {
     InputStream stdin = System.in;
     PrintStream stdout = System.out;
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void tearDown() {
         System.setIn(stdin);
         System.setOut(stdout);
@@ -102,6 +103,7 @@ public class IOUtilsTest {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             System.setOut(new PrintStream(baos));
             System.setIn(new ByteArrayInputStream(data.getBytes()));
+            @Cleanup("shutdownNow")
             ExecutorService executor = Executors.newSingleThreadExecutor();
             @SuppressWarnings("unchecked")
             Future<Void> future = (Future<Void>) executor.submit(() -> {
@@ -128,6 +130,7 @@ public class IOUtilsTest {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             System.setOut(new PrintStream(baos));
             System.setIn(new ByteArrayInputStream(data.getBytes(StandardCharsets.UTF_8)));
+            @Cleanup("shutdownNow")
             ExecutorService executor = Executors.newSingleThreadExecutor();
             @SuppressWarnings("unchecked")
             Future<Void> future = (Future<Void>) executor.submit(() -> {

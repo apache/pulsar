@@ -16,6 +16,8 @@ Client certificates are generated using the certificate authority. Server certif
 
 The biggest difference between client certs and server certs is that the **common name** for the client certificate is the **role token** which that client is authenticated as.
 
+To use client certificates, you need to set `tlsRequireTrustedClientCertOnConnect=true` at the broker side. For details, refer to [TLS broker configuration](security-tls-transport.md#configure-broker).
+
 First, you need to enter the following command to generate the key :
 
 ```bash

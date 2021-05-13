@@ -262,6 +262,16 @@ $ bin/pulsar-admin namespaces set-offload-threshold --size 10M my-tenant/my-name
 
 > Automatic offload runs when a new segment is added to a topic log. If you set the threshold on a namespace, but few messages are being produced to the topic, offload will not until the current segment is full.
 
+## Configuring read priority for offloaded messages
+
+By default, once messages were offloaded to long term storage, brokers will read them from long term storage, but messages still exists in bookkeeper for a period depends on the administrator's configuration. For 
+messages exists in both bookkeeper and long term storage, if they are preferred to read from bookkeeper, you can use command to change this configuration.
+
+```bash
+# default value for -orp is tiered-storage-first
+$ bin/pulsar-admin namespaces set-offload-policies my-tenant/my-namespace -orp bookkeeper-first
+$ bin/pulsar-admin topics set-offload-policies my-tenant/my-namespace/topic1 -orp bookkeeper-first
+```     
 
 ## Triggering offload manually
 

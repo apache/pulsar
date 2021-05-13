@@ -47,7 +47,6 @@ import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata.Builder;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -58,6 +57,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
+@Test(groups = "broker-impl")
 public class ReaderTest extends MockedPulsarServiceBaseTest {
 
     private static final String subscription = "reader-sub";
@@ -145,7 +145,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
             Assert.assertTrue(keys.remove(reader.readNext().getKey()));
         }
         // start from latest with start message inclusive should only read the last message in batch
-        Assert.assertTrue(keys.size() == 9);
+        assertEquals(keys.size(), 9);
         Assert.assertFalse(keys.contains("key9"));
         Assert.assertFalse(reader.hasMessageAvailable());
     }
@@ -220,9 +220,11 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         for (int i = 0; i < totalMsg; i++) {
             TypedMessageBuilderImpl<byte[]> msg = (TypedMessageBuilderImpl<byte[]>) producer.newMessage()
                     .value(("old" + i).getBytes());
-            Builder metadataBuilder = msg.getMetadataBuilder();
-            metadataBuilder.setPublishTime(oldMsgPublishTime).setSequenceId(i);
-            metadataBuilder.setProducerName(producer.getProducerName()).setReplicatedFrom("us-west1");
+            msg.getMetadataBuilder()
+                .setPublishTime(oldMsgPublishTime)
+                .setSequenceId(i)
+                .setProducerName(producer.getProducerName())
+                .setReplicatedFrom("us-west1");
             lastMsgId = msg.send();
         }
 
@@ -232,9 +234,10 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         for (int i = 0; i < totalMsg; i++) {
             TypedMessageBuilderImpl<byte[]> msg = (TypedMessageBuilderImpl<byte[]>) producer.newMessage()
                     .value(("new" + i).getBytes());
-            Builder metadataBuilder = msg.getMetadataBuilder();
-            metadataBuilder.setPublishTime(newMsgPublishTime);
-            metadataBuilder.setProducerName(producer.getProducerName()).setReplicatedFrom("us-west1");
+            msg.getMetadataBuilder()
+                    .setPublishTime(newMsgPublishTime)
+                    .setProducerName(producer.getProducerName())
+                    .setReplicatedFrom("us-west1");
             MessageId msgId = msg.send();
             if (firstMsgId == null) {
                 firstMsgId = msgId;
@@ -392,7 +395,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         assertEquals(receivedMessages.size(), expectedMessages);
         for (String receivedMessage : receivedMessages) {
             log.info("Receive message {}", receivedMessage);
-            assertTrue(Integer.valueOf(receivedMessage) <= StickyKeyConsumerSelector.DEFAULT_RANGE_SIZE / 2);
+            assertTrue(Integer.parseInt(receivedMessage) <= StickyKeyConsumerSelector.DEFAULT_RANGE_SIZE / 2);
         }
 
     }
@@ -403,7 +406,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         doTestReaderSubName(false);
     }
 
-    public void doTestReaderSubName(boolean setPrefix) throws Exception {
+    private void doTestReaderSubName(boolean setPrefix) throws Exception {
         final String topic = "persistent://my-property/my-ns/testReaderSubName" + System.currentTimeMillis();
         final String subName = "my-sub-name";
 

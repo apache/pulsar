@@ -34,6 +34,7 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadFactory;
 
 @SuppressWarnings("checkstyle:JavadocType")
@@ -85,5 +86,14 @@ public class EventLoopUtil {
         if (Epoll.isAvailable()) {
             bootstrap.childOption(EpollChannelOption.EPOLL_MODE, EpollMode.LEVEL_TRIGGERED);
         }
+    }
+
+    /**
+     * Shutdowns the EventLoopGroup gracefully. Returns a {@link CompletableFuture}
+     * @param eventLoopGroup the event loop to shutdown
+     * @return CompletableFuture that completes when the shutdown has completed
+     */
+    public static CompletableFuture<Void> shutdownGracefully(EventLoopGroup eventLoopGroup) {
+        return NettyFutureUtil.toCompletableFutureVoid(eventLoopGroup.shutdownGracefully());
     }
 }

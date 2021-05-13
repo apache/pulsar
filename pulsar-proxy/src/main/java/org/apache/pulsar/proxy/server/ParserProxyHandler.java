@@ -24,11 +24,10 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.lang3.mutable.MutableLong;
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.raw.MessageParser;
 import org.apache.pulsar.common.api.raw.RawMessage;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.proxy.stats.TopicStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,7 +70,7 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
         this.maxMessageSize = maxMessageSize;
     }
 
-    private void logging(Channel conn, PulsarApi.BaseCommand.Type cmdtype, String info, List<RawMessage> messages) throws Exception{
+    private void logging(Channel conn, BaseCommand.Type cmdtype, String info, List<RawMessage> messages) throws Exception{
 
         if (messages != null) {
             // lag
@@ -90,9 +89,9 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
         }
     }
 
+    private final BaseCommand cmd = new BaseCommand();
+
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
-        PulsarApi.BaseCommand cmd = null;
-        PulsarApi.BaseCommand.Builder cmdBuilder = null;
         TopicName topicName ;
         List<RawMessage> messages = Lists.newArrayList();
         ByteBuf buffer = (ByteBuf)(msg);
@@ -102,14 +101,7 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
             buffer.markWriterIndex();
 
             int cmdSize = (int) buffer.readUnsignedInt();
-            int writerIndex = buffer.writerIndex();
-            buffer.writerIndex(buffer.readerIndex() + cmdSize);
-
-            ByteBufCodedInputStream cmdInputStream = ByteBufCodedInputStream.get(buffer);
-            cmdBuilder = PulsarApi.BaseCommand.newBuilder();
-            cmd = cmdBuilder.mergeFrom(cmdInputStream, null).build();
-            buffer.writerIndex(writerIndex);
-            cmdInputStream.recycle();
+            cmd.parseFrom(buffer,  cmdSize);
 
             switch (cmd.getType()) {
                 case PRODUCER:
@@ -171,13 +163,6 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
             log.error("{},{},{}" , e.getMessage() , e.getStackTrace() ,  e.getCause());
 
         } finally {
-
-            if (cmdBuilder != null) {
-                cmdBuilder.recycle();
-            }
-            if (cmd != null) {
-                cmd.recycle();
-            }
             buffer.resetReaderIndex();
             buffer.resetWriterIndex();
 

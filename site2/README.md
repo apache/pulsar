@@ -54,6 +54,8 @@ If warning messages are shown as below, it means broken links exist.
 
 Fix the broken links manually and then send a pull request.
 
+Besides, you can use an automatic checker tool to crawl through the Pulsar website and identify dead links, for example, [Dr. Link Checker](https://www.drlinkcheck.com/).
+
 ## Documentation
 Pulsar documents are written in English. Documentation related pages are placed in the `/site2/docs` directory. All documentation pages are versioned. For more details, refer to [versioning](#versioning).
 
@@ -210,6 +212,60 @@ Versioned sidebars are also copied into `website/versioned_sidebars` and are nam
 If you want to change the documentation for a previous version, you can access files for that respective version.
 
 For more details about versioning, refer to [Versioning](https://docusaurus.io/docs/en/versioning).
+
+## C++ client API doc
+
+You can use the C++ client API to connect to a Pulsar cluster and handles data. [Pulsar C++ client API doc](https://pulsar.apache.org/api/cpp/https://pulsar.apache.org/api/cpp/) provides extensive implementation details and usage conventions for the C++ client. 
+
+If you want to modify the C++ client API doc, follow the steps below.
+
+**Prerequisite**
+
+- [Doxygen](http://www.doxygen.nl/)
+  
+  Pulsar uses [Doxygen](http://www.doxygen.nl/) to generate the C++ client API doc. Before submitting doc changes, you need to preview the docs using Doxygen. 
+  
+  1. Install Doxygen.
+   
+     Go to the directory `pulsar/pulsar-client-cpp` and run the command `brew install doxygen` (MacOS). 
+  
+  2. Create a folder for the generated HTML files.
+
+     Go to the directory `pulsar` and run the command `mkdir -p ../target/doxygen`.
+  
+- [clang-format](https://www.electronjs.org/docs/development/clang-format#:~:text=clang%2Dformat%20is%20a%20tool,style%20issues%20during%20code%20reviews)
+
+  Long code lines might cause C++ API tests to fail. Consequently, before submitting doc changes, you can break long lines of code automatically using `clang-format`.
+
+  To install clang-format, go to the directory `pulsar` and run the command `brew install clang-format` (MacOS).
+
+**Step**
+
+1. Modify your desired code file.
+   
+   All C++ API code files are stored at [here](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/include/pulsar). 
+   
+   > #### Tip
+   >
+   > - Each class has its corresponding `h` file. For example, if you want to update the [ProducerConfiguration class](https://pulsar.apache.org/api/cpp/classpulsar_1_1_producer_configuration.html), you need to modify the file [ProducerConfiguration.h](https://github.com/apache/pulsar/blob/master/pulsar-client-cpp/include/pulsar/ProducerConfiguration.h).
+   > 
+   > - If you want to update descriptions for member functions, you can take [Pulsar Java API doc](https://github.com/apache/pulsar/tree/master/pulsar-client-api/src/main/java/org/apache/pulsar/client/api) as references.
+
+2. Format the code file.
+   
+   Go to the directory `pulsar/pulsar-client-cpp` and run the command `clang-format -i include/pulsar/<your-file-name>`.
+
+   Check your file to make sure that the long lines are broken into short lines.
+
+3. Preview the code changes.
+   
+   Go to the directory `pulsar/pulsar-client-cpp` and run the command `doxygen`. 
+   
+   All HTML files are stored at the folder `pulsar/target/doxygen/html`. Check your file to make sure that all changes take effect. 
+
+4. Submit your doc PR. 
+   
+   [Here](https://github.com/apache/pulsar/pull/9822) is an example.
 
 ## Translation and localization
 

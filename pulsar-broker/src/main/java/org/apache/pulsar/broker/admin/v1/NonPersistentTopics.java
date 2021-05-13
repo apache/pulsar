@@ -50,9 +50,11 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -98,9 +100,10 @@ public class NonPersistentTopics extends PersistentTopics {
                                             @PathParam("topic") @Encoded String encodedTopic,
                                             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(property, cluster, namespace, encodedTopic);
-        validateAdminOperationOnTopic(authoritative);
+        validateTopicOwnership(topicName, authoritative);
+        validateTopicOperation(topicName, TopicOperation.GET_STATS);
         Topic topic = getTopicReference(topicName);
-        return ((NonPersistentTopic) topic).getStats(false);
+        return ((NonPersistentTopic) topic).getStats(false, false);
     }
 
     @GET
@@ -119,7 +122,8 @@ public class NonPersistentTopics extends PersistentTopics {
                                                          @QueryParam("metadata") @DefaultValue("false")
                                                                      boolean metadata) {
         validateTopicName(property, cluster, namespace, encodedTopic);
-        validateAdminOperationOnTopic(authoritative);
+        validateTopicOwnership(topicName, authoritative);
+        validateTopicOperation(topicName, TopicOperation.GET_STATS);
         Topic topic = getTopicReference(topicName);
         try {
             boolean includeMetadata = metadata && hasSuperUserAccess();
@@ -188,7 +192,7 @@ public class NonPersistentTopics extends PersistentTopics {
         Policies policies = null;
         NamespaceName nsName = null;
         try {
-            validateAdminAccessForTenant(property);
+            validateNamespaceOperation(namespaceName, NamespaceOperation.GET_TOPICS);
             policies = getNamespacePolicies(property, cluster, namespace);
             nsName = NamespaceName.get(property, cluster, namespace);
 
@@ -254,7 +258,7 @@ public class NonPersistentTopics extends PersistentTopics {
                                           @PathParam("bundle") String bundleRange) {
         log.info("[{}] list of topics on namespace bundle {}/{}/{}/{}", clientAppId(), property, cluster, namespace,
                 bundleRange);
-        validateAdminAccessForTenant(property);
+        validateNamespaceOperation(namespaceName, NamespaceOperation.GET_BUNDLE);
         Policies policies = getNamespacePolicies(property, cluster, namespace);
         if (!cluster.equals(Constants.GLOBAL_CLUSTER)) {
             validateClusterOwnership(cluster);
@@ -266,13 +270,13 @@ public class NonPersistentTopics extends PersistentTopics {
         NamespaceName fqnn = NamespaceName.get(property, cluster, namespace);
         try {
             if (!isBundleOwnedByAnyBroker(fqnn, policies.bundles, bundleRange)
-                    .get(pulsar().getConfig().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS)) {
+                .get(pulsar().getConfig().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS)) {
                 log.info("[{}] Namespace bundle is not owned by any broker {}/{}/{}/{}", clientAppId(), property,
-                        cluster, namespace, bundleRange);
+                    cluster, namespace, bundleRange);
                 return null;
             }
             NamespaceBundle nsBundle = validateNamespaceBundleOwnership(fqnn, policies.bundles, bundleRange,
-                    true, true);
+                true, true);
             final List<String> topicList = Lists.newArrayList();
             pulsar().getBrokerService().forEachTopic(topic -> {
                 TopicName topicName = TopicName.get(topic.getName());
@@ -281,15 +285,12 @@ public class NonPersistentTopics extends PersistentTopics {
                 }
             });
             return topicList;
+        } catch (WebApplicationException wae) {
+            throw wae;
         } catch (Exception e) {
             log.error("[{}] Failed to unload namespace bundle {}/{}", clientAppId(), fqnn.toString(), bundleRange, e);
             throw new RestException(e);
         }
-    }
-
-    protected void validateAdminOperationOnTopic(TopicName topicName, boolean authoritative) {
-        validateAdminAccessForTenant(topicName.getTenant());
-        validateTopicOwnership(topicName, authoritative);
     }
 
     private Topic getTopicReference(TopicName topicName) {

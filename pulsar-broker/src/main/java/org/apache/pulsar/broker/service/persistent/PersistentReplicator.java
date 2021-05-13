@@ -42,6 +42,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
@@ -55,8 +56,8 @@ import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.SendCallback;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
-import org.apache.pulsar.common.api.proto.PulsarMarkers.MarkerType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.api.proto.MarkerType;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.stats.Rate;
@@ -70,7 +71,7 @@ public class PersistentReplicator extends AbstractReplicator
     private final PersistentTopic topic;
     private final String replicatorName;
     private final ManagedLedger ledger;
-    protected ManagedCursor cursor;
+    protected volatile ManagedCursor cursor;
 
     private Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
 
@@ -189,12 +190,14 @@ public class PersistentReplicator extends AbstractReplicator
 
     @Override
     protected void disableReplicatorRead() {
-        // deactivate cursor after successfully close the producer
-        this.cursor.setInactive();
+        if (this.cursor != null) {
+            // deactivate cursor after successfully close the producer
+            this.cursor.setInactive();
+        }
     }
 
     @Override
-    protected synchronized CompletableFuture<Void> openCursorAsync() {
+    protected CompletableFuture<Void> openCursorAsync() {
         log.info("[{}][{} -> {}] Starting open cursor for replicator", topicName, localCluster, remoteCluster);
         if (cursor != null) {
             log.info("[{}][{} -> {}] Using the exists cursor for replicator", topicName, localCluster, remoteCluster);
@@ -296,7 +299,8 @@ public class PersistentReplicator extends AbstractReplicator
                     log.debug("[{}][{} -> {}] Schedule read of {} messages", topicName, localCluster, remoteCluster,
                             messagesToRead);
                 }
-                cursor.asyncReadEntriesOrWait(messagesToRead, readMaxSizeBytes, this, null);
+                cursor.asyncReadEntriesOrWait(messagesToRead, readMaxSizeBytes, this,
+                        null, PositionImpl.latest);
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}][{} -> {}] Not scheduling read due to pending read. Messages To Read {}", topicName,
@@ -439,10 +443,12 @@ public class PersistentReplicator extends AbstractReplicator
     }
 
     public void updateCursorState() {
-        if (producer != null && producer.isConnected()) {
-            this.cursor.setActive();
-        } else {
-            this.cursor.setInactive();
+        if (this.cursor != null) {
+            if (producer != null && producer.isConnected()) {
+                this.cursor.setActive();
+            } else {
+                this.cursor.setInactive();
+            }
         }
     }
 
@@ -686,7 +692,7 @@ public class PersistentReplicator extends AbstractReplicator
     }
 
     public ReplicatorStats getStats() {
-        stats.replicationBacklog = cursor.getNumberOfEntriesInBacklog(false);
+        stats.replicationBacklog = cursor != null ? cursor.getNumberOfEntriesInBacklog(false) : 0;
         stats.connected = producer != null && producer.isConnected();
         stats.replicationDelayInSeconds = getReplicationDelayInSeconds();
 
@@ -713,16 +719,24 @@ public class PersistentReplicator extends AbstractReplicator
         return 0L;
     }
 
-    public void expireMessages(int messageTTLInSeconds) {
+    public boolean expireMessages(int messageTTLInSeconds) {
         if ((cursor.getNumberOfEntriesInBacklog(false) == 0)
                 || (cursor.getNumberOfEntriesInBacklog(false) < MINIMUM_BACKLOG_FOR_EXPIRY_CHECK
                         && !topic.isOldestMessageExpired(cursor, messageTTLInSeconds))) {
             // don't do anything for almost caught-up connected subscriptions
-            return;
+            return false;
         }
         if (expiryMonitor != null) {
-            expiryMonitor.expireMessages(messageTTLInSeconds);
+            return expiryMonitor.expireMessages(messageTTLInSeconds);
         }
+        return false;
+    }
+
+    public boolean expireMessages(Position position) {
+        if (expiryMonitor != null) {
+            return expiryMonitor.expireMessages(position);
+        }
+        return false;
     }
 
     @Override
@@ -746,7 +760,8 @@ public class PersistentReplicator extends AbstractReplicator
 
         int markerType = msg.getMessageBuilder().getMarkerType();
 
-        if (!remoteCluster.equals(msg.getMessageBuilder().getReplicatedFrom())) {
+        if (!(msg.getMessageBuilder().hasReplicatedFrom()
+                && remoteCluster.equals(msg.getMessageBuilder().getReplicatedFrom()))) {
             // Only consider markers that are coming from the same cluster that this
             // replicator instance is assigned to.
             // All the replicators will see all the markers, but we need to only process

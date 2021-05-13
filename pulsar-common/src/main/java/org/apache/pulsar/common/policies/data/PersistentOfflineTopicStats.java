@@ -72,7 +72,7 @@ public class PersistentOfflineTopicStats {
     /**
      * Details about a cursor.
      */
-    public class CursorDetails {
+    public static class CursorDetails {
         public long cursorBacklog;
         public long cursorLedgerId;
 
@@ -93,7 +93,7 @@ public class PersistentOfflineTopicStats {
     /**
      * Details about a ledger.
      */
-    public class LedgerDetails {
+    public static class LedgerDetails {
         public long entries;
         public long timestamp;
         public long size;

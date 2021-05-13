@@ -43,6 +43,13 @@
         </dependency>
 
         <dependency>
+            <groupId>org.apache.pulsar</groupId>
+            <artifactId>pulsar-client-admin-api</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>
             <scope>test</scope>
@@ -99,16 +106,6 @@
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
-                            <properties>
-                                <property>
-                                    <name>testRetryCount</name>
-                                    <value>0</value>
-                                </property>
-                                <property>
-                                    <name>listener</name>
-                                    <value>org.apache.pulsar.tests.PulsarTestListener,org.apache.pulsar.tests.AnnotationListener</value>
-                                </property>
-                            </properties>
                             <argLine>-Xmx2G -XX:MaxDirectMemorySize=8G
                                 -Dio.netty.leakDetectionLevel=advanced
                             </argLine>

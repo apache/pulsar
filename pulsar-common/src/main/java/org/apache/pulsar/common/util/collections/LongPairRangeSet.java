@@ -23,6 +23,8 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeSet;
 import com.google.common.collect.TreeRangeSet;
+import lombok.EqualsAndHashCode;
+
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
@@ -148,6 +150,7 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
     /**
      * This class is a simple key-value data structure.
      */
+    @EqualsAndHashCode
     class LongPair implements Comparable<LongPair> {
 
         @SuppressWarnings("checkstyle:ConstantName")

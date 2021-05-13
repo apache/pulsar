@@ -51,8 +51,11 @@ public class GenericBrokerHostUsageImpl implements BrokerHostUsage {
         this.systemBean = (OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
         this.usage = new SystemResourceUsage();
         this.totalCpuLimit = getTotalCpuLimit();
-        executorService.scheduleAtFixedRate(this::checkCpuLoad, 0, CPU_CHECK_MILLIS, TimeUnit.MILLISECONDS);
-        executorService.scheduleAtFixedRate(this::doCalculateBrokerHostUsage, 0,
+        // Call now to initialize values before the constructor returns
+        calculateBrokerHostUsage();
+        executorService.scheduleAtFixedRate(this::checkCpuLoad, CPU_CHECK_MILLIS,
+                CPU_CHECK_MILLIS, TimeUnit.MILLISECONDS);
+        executorService.scheduleAtFixedRate(this::doCalculateBrokerHostUsage, hostUsageCheckIntervalMin,
                 hostUsageCheckIntervalMin, TimeUnit.MINUTES);
     }
 
@@ -61,7 +64,7 @@ public class GenericBrokerHostUsageImpl implements BrokerHostUsage {
         return usage;
     }
 
-    private void checkCpuLoad() {
+    private synchronized void checkCpuLoad() {
         cpuUsageSum += systemBean.getSystemCpuLoad();
         cpuUsageCount++;
     }
@@ -84,7 +87,10 @@ public class GenericBrokerHostUsageImpl implements BrokerHostUsage {
         return 100 * Runtime.getRuntime().availableProcessors();
     }
 
-    private double getTotalCpuUsage() {
+    private synchronized double getTotalCpuUsage() {
+        if (cpuUsageCount == 0) {
+            return 0;
+        }
         double cpuUsage = cpuUsageSum / cpuUsageCount;
         cpuUsageSum = 0d;
         cpuUsageCount = 0;
@@ -92,9 +98,6 @@ public class GenericBrokerHostUsageImpl implements BrokerHostUsage {
     }
 
     private ResourceUsage getCpuUsage() {
-        if (cpuUsageCount == 0) {
-            return new ResourceUsage(0, totalCpuLimit);
-        }
         return new ResourceUsage(getTotalCpuUsage() * totalCpuLimit, totalCpuLimit);
     }
 

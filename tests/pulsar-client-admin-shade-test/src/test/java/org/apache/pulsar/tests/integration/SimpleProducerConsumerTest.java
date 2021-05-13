@@ -26,16 +26,15 @@ import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
 import org.apache.pulsar.common.api.EncryptionContext;
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.shade.com.google.common.collect.Maps;
-import org.apache.pulsar.shade.com.google.common.collect.Sets;
 import org.apache.pulsar.shade.io.netty.buffer.ByteBuf;
 import org.apache.pulsar.shade.io.netty.buffer.Unpooled;
-import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
+import org.apache.pulsar.tests.TestRetrySupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -49,6 +48,9 @@ import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.Security;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
@@ -57,15 +59,17 @@ import java.util.concurrent.TimeUnit;
 
 import static org.testng.Assert.*;
 
-public class SimpleProducerConsumerTest {
+public class SimpleProducerConsumerTest extends TestRetrySupport {
     private static final Logger log = LoggerFactory.getLogger(SimpleProducerConsumerTest.class);
 
     private PulsarContainer pulsarContainer;
     private URI lookupUrl;
     private PulsarClient pulsarClient;
 
-    @BeforeClass
-    public void setup() throws PulsarClientException, URISyntaxException, PulsarAdminException {
+    @Override
+    @BeforeClass(alwaysRun = true)
+    public void setup() throws Exception {
+        incrementSetupNumber();
         Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
 
         pulsarContainer = new PulsarContainer();
@@ -75,19 +79,27 @@ public class SimpleProducerConsumerTest {
                 .build();
         lookupUrl = new URI(pulsarContainer.getPlainTextPulsarBrokerUrl());
 
+        @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarContainer.getPulsarAdminUrl()).build();
         admin.tenants().createTenant("my-property",
-                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("standalone")));
+                new TenantInfo(new HashSet<>(Arrays.asList("appid1", "appid2")), Collections.singleton("standalone")));
         admin.namespaces().createNamespace("my-property/my-ns");
-        admin.namespaces().setNamespaceReplicationClusters("my-property/my-ns", Sets.newHashSet("standalone"));
-        admin.close();
+        admin.namespaces().setNamespaceReplicationClusters("my-property/my-ns", Collections.singleton("standalone"));
     }
 
-    @AfterClass
-    public void cleanup() throws PulsarClientException {
-        pulsarClient.close();
-        pulsarContainer.stop();
-        pulsarContainer.close();
+    @Override
+    @AfterClass(alwaysRun = true)
+    public void cleanup() throws Exception {
+        markCurrentSetupNumberCleaned();
+        if (pulsarClient != null) {
+            pulsarClient.close();
+            pulsarClient = null;
+        }
+        if (pulsarContainer != null) {
+            pulsarContainer.stop();
+            pulsarContainer.close();
+            pulsarContainer = null;
+        }
     }
 
     private PulsarClient newPulsarClient(String url, int intervalInSecs) throws PulsarClientException {
@@ -138,7 +150,7 @@ public class SimpleProducerConsumerTest {
 
         final int totalMsg = 10;
 
-        Set<String> messageSet = Sets.newHashSet();
+        Set<String> messageSet = new HashSet<>();
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/myrsa-topic1")
                 .subscriptionName("my-subscriber-name").cryptoKeyReader(new EncKeyReader()).subscribe();
         Consumer<byte[]> normalConsumer = pulsarClient.newConsumer()
@@ -200,7 +212,7 @@ public class SimpleProducerConsumerTest {
 
         final String encryptionKeyName = "client-rsa.pem";
         final String encryptionKeyVersion = "1.0";
-        Map<String, String> metadata = Maps.newHashMap();
+        Map<String, String> metadata = new HashMap<>();
         metadata.put("version", encryptionKeyVersion);
         class EncKeyReader implements CryptoKeyReader {
             EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
@@ -275,16 +287,19 @@ public class SimpleProducerConsumerTest {
                 .addEncryptionKey(encryptionKeyName).compressionType(CompressionType.LZ4)
                 .cryptoKeyReader(new EncKeyReader()).create();
 
+        @Cleanup
         PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
         Consumer<byte[]> consumer1 = newPulsarClient.newConsumer().topicsPattern(topicName)
                 .subscriptionName("my-subscriber-name").cryptoKeyReader(new EncKeyReader())
                 .subscriptionType(SubscriptionType.Shared).ackTimeout(1, TimeUnit.SECONDS).subscribe();
 
+        @Cleanup
         PulsarClient newPulsarClient1 = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
         Consumer<byte[]> consumer2 = newPulsarClient1.newConsumer().topicsPattern(topicName)
                 .subscriptionName("my-subscriber-name").cryptoKeyReader(new InvalidKeyReader())
                 .subscriptionType(SubscriptionType.Shared).ackTimeout(1, TimeUnit.SECONDS).subscribe();
 
+        @Cleanup
         PulsarClient newPulsarClient2 = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
         Consumer<byte[]> consumer3 = newPulsarClient2.newConsumer().topicsPattern(topicName)
                 .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Shared).ackTimeout(1, TimeUnit.SECONDS).subscribe();
@@ -369,7 +384,7 @@ public class SimpleProducerConsumerTest {
         final int totalMsg = 10;
 
         MessageImpl<byte[]> msg = null;
-        Set<String> messageSet = Sets.newHashSet();
+        Set<String> messageSet = new HashSet<>();
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic("persistent://my-property/use/myenc-ns/myenc-topic1").subscriptionName("my-subscriber-name")
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
@@ -459,7 +474,7 @@ public class SimpleProducerConsumerTest {
 
         final String encryptionKeyName = "client-rsa.pem";
         final String encryptionKeyVersion = "1.0";
-        Map<String, String> metadata = Maps.newHashMap();
+        Map<String, String> metadata = new HashMap<>();
         metadata.put("version", encryptionKeyVersion);
         class EncKeyReader implements CryptoKeyReader {
             EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
@@ -542,31 +557,32 @@ public class SimpleProducerConsumerTest {
         ByteBuf payloadBuf = Unpooled.wrappedBuffer(msg.getData());
         // try to decrypt use default MessageCryptoBc
         MessageCrypto crypto = new MessageCryptoBc("test", false);
-        PulsarApi.MessageMetadata.Builder metadataBuilder = PulsarApi.MessageMetadata.newBuilder();
-        PulsarApi.EncryptionKeys.Builder encKeyBuilder = PulsarApi.EncryptionKeys.newBuilder();
-        encKeyBuilder.setKey(encryptionKeyName);
-        ByteString keyValue = ByteString.copyFrom(dataKey);
-        encKeyBuilder.setValue(keyValue);
-        PulsarApi.EncryptionKeys encKey = encKeyBuilder.build();
-        metadataBuilder.setEncryptionParam(ByteString.copyFrom(encrParam));
-        metadataBuilder.setEncryptionAlgo(encAlgo);
-        metadataBuilder.setProducerName("test");
-        metadataBuilder.setSequenceId(123);
-        metadataBuilder.setPublishTime(12333453454L);
-        metadataBuilder.addEncryptionKeys(encKey);
-        metadataBuilder.setCompression(CompressionCodecProvider.convertToWireProtocol(compressionType));
-        metadataBuilder.setUncompressedSize(uncompressedSize);
-        ByteBuf decryptedPayload = crypto.decrypt(() -> metadataBuilder.build(), payloadBuf, reader);
+        MessageMetadata msgMetadata = new MessageMetadata()
+                .setEncryptionParam(encrParam)
+                .setProducerName("test")
+                .setSequenceId(123)
+                .setPublishTime(12333453454L)
+                .setCompression(CompressionCodecProvider.convertToWireProtocol(compressionType))
+                .setUncompressedSize(uncompressedSize);
+
+        if (encAlgo != null) {
+            msgMetadata.setEncryptionAlgo(encAlgo);
+        }
+
+        msgMetadata.addEncryptionKey()
+            .setKey(encryptionKeyName)
+            .setValue(dataKey);
+
+        ByteBuf decryptedPayload = crypto.decrypt(() -> msgMetadata, payloadBuf, reader);
 
         // try to uncompress
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(compressionType);
         ByteBuf uncompressedPayload = codec.decode(decryptedPayload, uncompressedSize);
 
         if (batchSize > 0) {
-            PulsarApi.SingleMessageMetadata.Builder singleMessageMetadataBuilder = PulsarApi.SingleMessageMetadata
-                    .newBuilder();
+            SingleMessageMetadata singleMessageMetadata = new SingleMessageMetadata();
             uncompressedPayload = Commands.deSerializeSingleMessageInBatch(uncompressedPayload,
-                    singleMessageMetadataBuilder, 0, batchSize);
+                    singleMessageMetadata, 0, batchSize);
         }
 
         byte[] data = new byte[uncompressedPayload.readableBytes()];

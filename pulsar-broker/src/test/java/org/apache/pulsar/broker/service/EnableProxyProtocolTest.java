@@ -37,6 +37,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
+@Test(groups = "broker")
 public class EnableProxyProtocolTest extends BrokerTestBase  {
 
     @BeforeClass
@@ -90,7 +91,7 @@ public class EnableProxyProtocolTest extends BrokerTestBase  {
         pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
                 .subscribe();
         org.apache.pulsar.broker.service.Consumer c = pulsar.getBrokerService().getTopicReference(topicName).get().getSubscription(subName).getConsumers().get(0);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> Assert.assertTrue(c.cnx().hasHAProxyMessage()));
+        Awaitility.await().untilAsserted(() -> Assert.assertTrue(c.cnx().hasHAProxyMessage()));
         TopicStats topicStats = admin.topics().getStats(topicName);
         Assert.assertEquals(topicStats.subscriptions.size(), 1);
         SubscriptionStats subscriptionStats = topicStats.subscriptions.get(subName);

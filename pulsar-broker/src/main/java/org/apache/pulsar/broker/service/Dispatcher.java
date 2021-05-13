@@ -23,8 +23,8 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.Policies;
 
@@ -122,6 +122,13 @@ public interface Dispatcher {
 
     default void markDeletePositionMoveForward() {
         // No-op
+    }
+
+    /**
+     * Checks if dispatcher is stuck and unblocks the dispatch if needed.
+     */
+    default boolean checkAndUnblockIfStuck() {
+        return false;
     }
 
 }
