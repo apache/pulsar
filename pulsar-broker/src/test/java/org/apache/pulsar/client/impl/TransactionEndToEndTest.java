@@ -875,6 +875,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             consumer.acknowledgeCumulativeAsync(consumer.receive().getMessageId(), txn);
         }
         topic = TopicName.get(topic).toString();
+        boolean exist = false;
         for (int i = 0; i < getPulsarServiceList().size(); i++) {
 
             Field field = BrokerService.class.getDeclaredField("topics");
@@ -892,10 +893,11 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                     field = persistentSubscription.getClass().getDeclaredField("dispatcher");
                     field.setAccessible(true);
                     field.set(persistentSubscription, null);
+                    exist = true;
                 }
             }
         }
-
         txn.abort().get();
+        assertTrue(exist);
     }
 }
