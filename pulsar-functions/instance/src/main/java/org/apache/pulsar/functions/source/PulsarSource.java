@@ -28,6 +28,7 @@ import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.utils.CryptoUtils;
 import org.apache.pulsar.io.core.Source;
@@ -36,6 +37,7 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import java.security.Security;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -56,6 +58,8 @@ public abstract class PulsarSource<T> implements Source<T> {
         this.properties = properties;
         this.functionClassLoader = functionClassLoader;
     }
+
+    public abstract List<Consumer<T>> getInputConsumers();
 
     protected ConsumerBuilder<T> createConsumeBuilder(String topic, PulsarSourceConsumerConfig conf) {
 

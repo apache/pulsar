@@ -24,14 +24,13 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.io.core.ExtendedSourceContext;
 import org.apache.pulsar.io.core.SourceContext;
 
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -44,6 +43,7 @@ public class SingleConsumerPulsarSource<T> extends PulsarSource<T> {
     private final ClassLoader functionClassLoader;
     private final TopicSchema topicSchema;
     private Consumer<T> consumer;
+    private final List<Consumer<T>> inputConsumers = new LinkedList<>();
 
     public SingleConsumerPulsarSource(PulsarClient pulsarClient,
                                       SingleConsumerPulsarSourceConfig pulsarSourceConfig,
@@ -74,20 +74,7 @@ public class SingleConsumerPulsarSource<T> extends PulsarSource<T> {
 
         ConsumerBuilder<T> cb = createConsumeBuilder(topic, pulsarSourceConsumerConfig);
         consumer = cb.subscribeAsync().join();
-        if (sourceContext instanceof ExtendedSourceContext) {
-            ((ExtendedSourceContext) sourceContext).setConsumerGetter(topicName -> {
-                try {
-                    TopicName src = TopicName.get(topic);
-                    if (src.equals(TopicName.get(topicName))) {
-                        return Optional.of(consumer);
-                    }
-                } catch (Exception e) {
-                    log.warn("Failed to get TopicName for {}", topicName, e);
-                    return Optional.empty();
-                }
-                return Optional.empty();
-            });
-        }
+        inputConsumers.add(consumer);
     }
 
     @Override
@@ -99,6 +86,11 @@ public class SingleConsumerPulsarSource<T> extends PulsarSource<T> {
     @VisibleForTesting
     Consumer<T> getInputConsumer() {
         return consumer;
+    }
+
+    @Override
+    public List<Consumer<T>> getInputConsumers() {
+        return inputConsumers;
     }
 
     @Override

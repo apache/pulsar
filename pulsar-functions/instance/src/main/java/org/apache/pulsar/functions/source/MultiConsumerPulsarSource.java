@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.functions.source;
 
-import com.google.common.annotations.VisibleForTesting;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -26,16 +25,12 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.Reflections;
-import org.apache.pulsar.io.core.ExtendedSourceContext;
 import org.apache.pulsar.io.core.SourceContext;
 
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.TreeMap;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -45,7 +40,7 @@ public class MultiConsumerPulsarSource<T> extends PushPulsarSource<T> implements
 
     private final MultiConsumerPulsarSourceConfig pulsarSourceConfig;
     private final ClassLoader functionClassLoader;
-    private final Map<TopicName, Consumer<T>> inputConsumers = new HashMap<>();
+    private final List<Consumer<T>> inputConsumers = new LinkedList<>();
 
     public MultiConsumerPulsarSource(PulsarClient pulsarClient,
                                      MultiConsumerPulsarSourceConfig pulsarSourceConfig,
@@ -73,18 +68,7 @@ public class MultiConsumerPulsarSource<T> extends PushPulsarSource<T> implements
             cb.messageListener(this);
 
             Consumer<T> consumer = cb.subscribeAsync().join();
-            inputConsumers.put(TopicName.get(topic), consumer);
-        }
-        if (sourceContext instanceof ExtendedSourceContext) {
-            ((ExtendedSourceContext) sourceContext).setConsumerGetter(topicName -> {
-                try {
-                    TopicName req = TopicName.get(topicName);
-                    return Optional.ofNullable(inputConsumers.get(req));
-                } catch (Exception e) {
-                    log.warn("Failed to get TopicName for {}", topicName, e);
-                    return Optional.empty();
-                }
-            });
+            inputConsumers.add(consumer);
         }
     }
 
@@ -96,7 +80,7 @@ public class MultiConsumerPulsarSource<T> extends PushPulsarSource<T> implements
     @Override
     public void close() throws Exception {
         if (inputConsumers != null ) {
-            inputConsumers.values().forEach(consumer -> {
+            inputConsumers.forEach(consumer -> {
                 try {
                     consumer.close();
                 } catch (PulsarClientException e) {
@@ -122,9 +106,9 @@ public class MultiConsumerPulsarSource<T> extends PushPulsarSource<T> implements
         return configs;
     }
 
-    @VisibleForTesting
-    List<Consumer<T>> getInputConsumers() {
-        return new LinkedList<>(inputConsumers.values());
+    @Override
+    public List<Consumer<T>> getInputConsumers() {
+        return inputConsumers;
     }
 
 }

@@ -68,16 +68,18 @@ public interface SinkContext extends ConnectorContext {
     /**
      * Stop requesting new messages for given topic and partition until {@link #resume(String topic)} is called.
      * @param topic - topic name
+     * @param partition - partition id (0 for non-partitioned topics)
      */
-    default void pause(String topic) throws PulsarClientException {
+    default void pause(String topic, int partition) throws PulsarClientException {
         throw new UnsupportedOperationException("not implemented");
     }
 
     /**
      * Resume requesting messages.
      * @param topic - topic name
+     * @param partition - partition id (0 for non-partitioned topics)
      */
-    default void resume(String topic) throws PulsarClientException {
+    default void resume(String topic, int partition) throws PulsarClientException {
         throw new UnsupportedOperationException("not implemented");
     }
 }

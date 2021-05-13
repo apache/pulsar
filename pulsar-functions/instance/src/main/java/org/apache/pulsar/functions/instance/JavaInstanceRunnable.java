@@ -67,6 +67,7 @@ import org.apache.pulsar.functions.sink.PulsarSinkConfig;
 import org.apache.pulsar.functions.sink.PulsarSinkDisable;
 import org.apache.pulsar.functions.source.MultiConsumerPulsarSourceConfig;
 import org.apache.pulsar.functions.source.MultiConsumerPulsarSource;
+import org.apache.pulsar.functions.source.PulsarSource;
 import org.apache.pulsar.functions.source.PulsarSourceConfig;
 import org.apache.pulsar.functions.source.SingleConsumerPulsarSource;
 import org.apache.pulsar.functions.source.SingleConsumerPulsarSourceConfig;
@@ -724,6 +725,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             } else {
                 this.source.open(ObjectMapperFactory.getThreadLocal().readValue(sourceSpec.getConfigs(),
                         new TypeReference<Map<String, Object>>() {}), contextImpl);
+            }
+            if (this.source instanceof PulsarSource) {
+                contextImpl.setInputConsumers(((PulsarSource) this.source).getInputConsumers());
             }
         } catch (Exception e) {
             log.error("Source open produced uncaught exception: ", e);

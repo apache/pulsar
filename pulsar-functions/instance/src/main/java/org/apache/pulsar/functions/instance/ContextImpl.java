@@ -32,8 +32,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
 import lombok.ToString;
 import org.apache.commons.lang3.StringUtils;
@@ -50,6 +52,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.common.functions.ExternalPulsarConfig;
@@ -70,8 +73,8 @@ import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.ProducerConfigUtils;
-import org.apache.pulsar.io.core.ExtendedSourceContext;
 import org.apache.pulsar.io.core.SinkContext;
+import org.apache.pulsar.io.core.SourceContext;
 import org.slf4j.Logger;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -81,7 +84,7 @@ import static org.apache.pulsar.functions.instance.stats.FunctionStatsManager.US
  * This class implements the Context interface exposed to the user.
  */
 @ToString
-class ContextImpl implements Context, SinkContext, ExtendedSourceContext, AutoCloseable {
+class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable {
     private InstanceConfig config;
     private Logger logger;
 
@@ -115,7 +118,8 @@ class ContextImpl implements Context, SinkContext, ExtendedSourceContext, AutoCl
 
     private boolean exposePulsarAdminClientEnabled;
 
-    private java.util.function.Function<String, Optional<Consumer<?>>> getConsumerFunc;
+    private List<Consumer<?>> inputConsumers;
+    private final Map<TopicName, Consumer> topicConsumers = new ConcurrentHashMap<>();
 
     static {
         // add label to indicate user metric
@@ -713,40 +717,64 @@ class ContextImpl implements Context, SinkContext, ExtendedSourceContext, AutoCl
 
     @Override
     public void seek(String topic, int partition, MessageId messageId) throws PulsarClientException {
-        Consumer<?> consumer = getConsumer(topic);
-        final MessageId msgId;
-        if (partition == 0) {
-            msgId = messageId;
-        } else {
-            TopicName topicName = TopicName.get(topic);
-            msgId = new TopicMessageIdImpl(
-                    topicName.getPartition(partition).toString(), topicName.toString(), messageId);
-        }
-        consumer.seek(msgId);
+        Consumer<?> consumer = getConsumer(topic, partition);
+        consumer.seek(messageId);
     }
 
     @Override
-    public void pause(String topic) throws PulsarClientException {
-        getConsumer(topic).pause();
+    public void pause(String topic, int partition) throws PulsarClientException {
+        getConsumer(topic, partition).pause();
     }
 
     @Override
-    public void resume(String topic) throws PulsarClientException {
-        getConsumer(topic).resume();
+    public void resume(String topic, int partition) throws PulsarClientException {
+        getConsumer(topic, partition).resume();
     }
 
-    @Override
-    public void setConsumerGetter(java.util.function.Function<String, Optional<Consumer<?>>> getConsumerFunc) {
-        this.getConsumerFunc = getConsumerFunc;
+    public void setInputConsumers(List<Consumer<?>> inputConsumers) {
+        this.inputConsumers = inputConsumers;
+        inputConsumers.stream()
+            .flatMap(consumer ->
+                    consumer instanceof MultiTopicsConsumerImpl
+                            ? ((MultiTopicsConsumerImpl<?>) consumer).getConsumers().stream()
+                            : Stream.of(consumer))
+            .forEach(consumer -> topicConsumers.putIfAbsent(TopicName.get(consumer.getTopic()), consumer));
     }
 
-    private Consumer<?> getConsumer(String topic) throws PulsarClientException {
-        if (getConsumerFunc == null) {
+    @VisibleForTesting
+    Consumer<?> getConsumer(String topic, int partition) throws PulsarClientException {
+        if (inputConsumers == null) {
             throw new PulsarClientException("Getting consumer is not supported");
         }
-        return getConsumerFunc
-                .apply(topic)
-                .orElseThrow(() -> new PulsarClientException("Consumer for topic " + topic + " is not found"));
+        for (int i = 0; i < 2; i++) {
+            Consumer<?> consumer = topicConsumers.get(TopicName.get(topic).getPartition(partition));
+
+            if (consumer != null) {
+                return consumer;
+            }
+
+            if (partition == 0) {
+                consumer = topicConsumers.get(TopicName.get(topic));
+
+                if (consumer != null) {
+                    return consumer;
+                }
+            }
+
+            if (i == 0) {
+                // MultiTopicsConsumer's list of consumers could change
+                // if partitions changed or pattern(s) used to subscribe
+                inputConsumers.stream()
+                        .flatMap(c ->
+                                c instanceof MultiTopicsConsumerImpl
+                                        ? ((MultiTopicsConsumerImpl<?>) c).getConsumers().stream()
+                                        : Stream.empty())
+                        .forEach(c -> topicConsumers.putIfAbsent(TopicName.get(c.getTopic()), c));
+            }
+        }
+
+        throw new PulsarClientException("Consumer for topic " + topic
+                + " partition " + partition + " is not found");
     }
 
 }
