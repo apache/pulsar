@@ -86,8 +86,7 @@ components in the Pulsar ecosystem, including connectors, adapters, and other la
 ## Build Pulsar
 
 Requirements:
- * Java 8 JDK (for building Pulsar)
-   * When building Pulsar on a higher version (higher than Java 8), the resulting artifacts are not compatible with Java 8 runtime because of some issues, such as [issue 8445](https://github.com/apache/pulsar/issues/8445).
+ * Java [JDK 11](https://adoptopenjdk.net/?variant=openjdk11) or [JDK 8](https://adoptopenjdk.net/?variant=openjdk8)
  * Maven 3.6.1+
 
 Compile and install:
@@ -133,15 +132,11 @@ Check https://pulsar.apache.org for documentation and examples.
 
 Docker images must be built with Java 8 for `branch-2.7` or previous branches because of
 [issue 8445](https://github.com/apache/pulsar/issues/8445).
-This issue has been resolved in the `master` branch (and will be part of `branch-2.8`). 
-It is recommended to use Java 8 until Java 11 support has been finished 
-([issue 9578](https://github.com/apache/pulsar/issues/9578)).
+Java 11 is the recommended JDK version in `master`/`branch-2.8`.
 
 This builds the docker images `apachepulsar/pulsar-all:latest` and `apachepulsar/pulsar:latest`.
 
 ```bash
-# make sure to build with Java 8 since building with newer versions isn't yet supported
-java -version
 mvn clean install -DskipTests
 mvn package -Pdocker,-main -am -pl docker/pulsar-all -DskipTests
 ```
@@ -169,7 +164,7 @@ required plugins.
 
 ### Intellij
 
-#### Configure Project JDK to Java 8 (1.8) JDK
+#### Configure Project JDK to Java 11 JDK
 
 1. Open **Project Settings**. 
 
@@ -177,9 +172,9 @@ required plugins.
    
 2. Select the JDK version.
     
-    From the JDK version drop-down list, select **Download JDK...** or choose an existing recent Java 8 (1.8) JDK version.
+    From the JDK version drop-down list, select **Download JDK...** or choose an existing recent Java 11 JDK version.
 
-3. In the download dialog, select version **1.8**. You can pick a version from many vendors. Unless you have a specific preference, choose **AdoptOpenJDK (Hotspot)**.
+3. In the download dialog, select version **11**. You can pick a version from many vendors. Unless you have a specific preference, choose **AdoptOpenJDK (Hotspot)**.
  
 
 #### Configure Java version for Maven in IntelliJ
@@ -187,7 +182,7 @@ required plugins.
 1. Open Maven Importing Settings dialog by going to 
    **Settings** -> **Build, Execution, Deployment** -> **Build Tools** -> **Maven** -> **Importing**.
 
-2. Choose **Use Project JDK** for **JDK for Importer** setting. This uses the Java 8 (1.8) JDK for running Maven 
+2. Choose **Use Project JDK** for **JDK for Importer** setting. This uses the Java 11 JDK for running Maven 
    when importing the project to IntelliJ. Some of the configuration in the Maven build is conditional based on 
    the JDK version. Incorrect configuration gets chosen when the "JDK for Importer" isn't the same as the "Project JDK".
 
