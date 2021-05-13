@@ -84,7 +84,7 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
     public static class PojoV2 {
         private String field1;
         private int field2;
-        private double field3;
+        private Double field3;
     }
 
     @Data
