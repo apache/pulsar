@@ -239,15 +239,17 @@ public abstract class AdminResource extends PulsarWebResource {
         List<String> namespaces = Lists.newArrayList();
 
         // this will return a cluster in v1 and a namespace in v2
-        for (String clusterOrNamespace : globalZk().getChildren(path(POLICIES, property), false)) {
+        for (String clusterOrNamespace : globalZkCache().getChildren(path(POLICIES, property))) {
             // Then get the list of namespaces
             try {
-                final List<String> children = globalZk().getChildren(path(POLICIES, property, clusterOrNamespace), false);
+                final Set<String> children = globalZkCache().getChildren(path(POLICIES, property, clusterOrNamespace));
                 if (children == null || children.isEmpty()) {
                     String namespace = NamespaceName.get(property, clusterOrNamespace).toString();
-                    // if the length is 0 then this is probably a leftover cluster from namespace created
-                    // with the v1 admin format (prop/cluster/ns) and then deleted, so no need to add it to the list
-                    if (globalZk().getData(path(POLICIES, namespace), false, null).length != 0) {
+                    Optional<byte[]> znodeContent = globalZkCache().getData(path(POLICIES, namespace),
+                            (key, content) -> content);
+                    if (znodeContent.map(x -> x.length > 0).orElse(false)) {
+                        // if the length is 0 then this is probably a leftover cluster from namespace created
+                        // with the v1 admin format (prop/cluster/ns) and then deleted, so no need to add it to the list
                         namespaces.add(namespace);
                     }
                 } else {
