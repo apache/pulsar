@@ -24,7 +24,7 @@ Here is a selection of the most interesting and major features added to Pulsar 2
 ### Contributors for 2.7.2 release
 
 We would like to thank all the contributors for this release.
-As every healthy Open Source Project, Apache Pulsar is great because it is supported by a vibrant community.
+Same to other sustainable open source projects, Apache Pulsar is great because it is supported by a vibrant community.
 
 Code contributors (names taken from GitHub API):
 - Ali Ahmed
@@ -64,4 +64,3 @@ Code contributors (names taken from GitHub API):
 Also, we want to thank everyone who spent his time reporting issues and sharing the story about using Pulsar.
 
 Looking forward to your contributions to [Apache Pulsar](https://github.com/apache/pulsar).
-
