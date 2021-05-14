@@ -419,11 +419,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     public Map<String, List<String>> getConsumerKeyHashRanges() {
         return selector.getConsumerKeyHashRanges();
     }
-
-
-    public StickyKeyConsumerSelector getSelector() {
-         return selector;
-    }
+    
     private static final Logger log = LoggerFactory.getLogger(PersistentStickyKeyDispatcherMultipleConsumers.class);
 
 }
