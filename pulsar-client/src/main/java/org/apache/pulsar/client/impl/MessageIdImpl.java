@@ -210,7 +210,8 @@ public class MessageIdImpl implements MessageId {
         } else if (o instanceof TopicMessageIdImpl) {
             return compareTo(((TopicMessageIdImpl) o).getInnerMessageId());
         } else {
-            throw new UnsupportedOperationException("Unknown MessageId type: " + o.getClass().getName());
+            final String typeName = (o != null) ? o.getClass().getName() : "null";
+            throw new UnsupportedOperationException("Unknown MessageId type: " + typeName);
         }
     }
 
