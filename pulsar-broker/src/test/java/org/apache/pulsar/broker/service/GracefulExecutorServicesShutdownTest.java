@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service;
 
-import org.awaitility.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.atLeastOnce;
@@ -36,6 +35,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.testng.annotations.Test;
+import org.awaitility.Awaitility;
 
 public class GracefulExecutorServicesShutdownTest {
 
