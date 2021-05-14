@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import org.awaitility.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.atLeastOnce;
@@ -151,8 +152,8 @@ public class GracefulExecutorServicesShutdownTest {
         future.cancel(false);
 
         // then
-        assertTrue(awaitTerminationInterrupted.get(),
-                "awaitTermination should have been interrupted");
+        Awaitility.await().untilAsserted(() -> assertTrue(awaitTerminationInterrupted.get(),
+                "awaitTermination should have been interrupted"));
         verify(executorService, times(1)).awaitTermination(anyLong(), any());
         verify(executorService, times(1)).shutdownNow();
     }
