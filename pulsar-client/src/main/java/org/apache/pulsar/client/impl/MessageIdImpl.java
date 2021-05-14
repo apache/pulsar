@@ -200,6 +200,9 @@ public class MessageIdImpl implements MessageId {
 
     @Override
     public int compareTo(MessageId o) {
+        if (o == null) {
+            throw new UnsupportedOperationException("MessageId is null");
+        }
         if (o instanceof MessageIdImpl) {
             MessageIdImpl other = (MessageIdImpl) o;
             int batchIndex = (o instanceof BatchMessageIdImpl) ? ((BatchMessageIdImpl) o).getBatchIndex() : NO_BATCH;
@@ -210,8 +213,7 @@ public class MessageIdImpl implements MessageId {
         } else if (o instanceof TopicMessageIdImpl) {
             return compareTo(((TopicMessageIdImpl) o).getInnerMessageId());
         } else {
-            final String typeName = (o != null) ? o.getClass().getName() : "null";
-            throw new UnsupportedOperationException("Unknown MessageId type: " + typeName);
+            throw new UnsupportedOperationException("Unknown MessageId type: " + o.getClass().getName());
         }
     }
 
