@@ -15,7 +15,7 @@ Here is a selection of the most interesting and major features added to Pulsar 2
 - Improvements in stability in the Kinesis Connector [#10420](https://github.com/apache/pulsar/pull/10420)
 - Improvement in passing ENV variables to the Bookie (PULSAR_EXTRA_OPTS) [#10397](https://github.com/apache/pulsar/pull/10397)
 - Allow the C++ client to be built in Windows and add CI for verification [#10387](https://github.com/apache/pulsar/pull/10387).
-- Allow to activate every BookKeeper Client features in the Broker [#9232](https://github.com/apache/pulsar/pull/9232)
+- Allow activating every BookKeeper client features in the broker [#9232](https://github.com/apache/pulsar/pull/9232).
 - Improvements Pulsar Proxy
 - Upgrade core networking libraries: Jetty and Netty 
 
