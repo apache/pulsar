@@ -66,40 +66,4 @@ public interface Entry {
      * of data reached to 0).
      */
     boolean release();
-
-    /**
-     * Get number of batch messages into the entry.
-     * @return
-     */
-    int getNumberOfBatchMessages();
-
-    /**
-     * Set number of batch messages into the entry.
-     * @param numberOfBatchMessages
-     */
-    void setNumberOfBatchMessages(int numberOfBatchMessages);
-
-    /**
-     * Set data size of the entry.
-     * @param totalSizeInBytes
-     */
-    void setTotalSizeInBytes(int totalSizeInBytes);
-
-    /**
-     * Set total number of chunked messages in entry.
-     * @param totalChunkedMessages
-     */
-    void setTotalChunkedMessages(int totalChunkedMessages);
-
-    /**
-     * Get total data size of the entry.
-     * @return
-     */
-    int getTotalSizeInBytes();
-
-    /**
-     * Get total number of chuncked messages.
-     * @return
-     */
-    int getTotalChunkedMessages();
 }

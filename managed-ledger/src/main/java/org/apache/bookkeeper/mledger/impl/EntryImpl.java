@@ -45,9 +45,6 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
     private long ledgerId;
     private long entryId;
     ByteBuf data;
-    private int numberOfBatchMessages;
-    private int totalSizeInBytes;
-    private int totalChunkedMessages;
 
     public static EntryImpl create(LedgerEntry ledgerEntry) {
         EntryImpl entry = RECYCLER.get();
@@ -162,36 +159,6 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
     }
 
     @Override
-    public int getNumberOfBatchMessages() {
-        return numberOfBatchMessages;
-    }
-
-    @Override
-    public void setNumberOfBatchMessages(int numberOfBatchMessages) {
-        this.numberOfBatchMessages = numberOfBatchMessages;
-    }
-
-    @Override
-    public int getTotalSizeInBytes() {
-        return totalSizeInBytes;
-    }
-
-    @Override
-    public void setTotalSizeInBytes(int totalSizeInBytes) {
-        this.totalSizeInBytes = totalSizeInBytes;
-    }
-
-    @Override
-    public int getTotalChunkedMessages() {
-        return totalChunkedMessages;
-    }
-
-    @Override
-    public void setTotalChunkedMessages(int totalChunkedMessages) {
-        this.totalChunkedMessages = totalChunkedMessages;
-    }
-
-    @Override
     protected void deallocate() {
         // This method is called whenever the ref-count of the EntryImpl reaches 0, so that now we can recycle it
         data.release();
@@ -199,9 +166,6 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
         timestamp = -1;
         ledgerId = -1;
         entryId = -1;
-        numberOfBatchMessages = -1;
-        totalSizeInBytes = -1;
-        totalChunkedMessages = -1;
         recyclerHandle.recycle(this);
     }
 
