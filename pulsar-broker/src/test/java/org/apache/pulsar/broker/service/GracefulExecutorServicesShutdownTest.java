@@ -35,6 +35,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.testng.annotations.Test;
+import org.awaitility.Awaitility;
 
 public class GracefulExecutorServicesShutdownTest {
 
@@ -151,8 +152,8 @@ public class GracefulExecutorServicesShutdownTest {
         future.cancel(false);
 
         // then
-        assertTrue(awaitTerminationInterrupted.get(),
-                "awaitTermination should have been interrupted");
+        Awaitility.await().untilAsserted(() -> assertTrue(awaitTerminationInterrupted.get(),
+                "awaitTermination should have been interrupted"));
         verify(executorService, times(1)).awaitTermination(anyLong(), any());
         verify(executorService, times(1)).shutdownNow();
     }
