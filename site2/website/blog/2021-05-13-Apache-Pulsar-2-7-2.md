@@ -32,6 +32,9 @@ Lari Hotari, Marvin Cai, Masahiro Sakamoto, Matteo Merli, Michael Marshall, Raja
 Yong Zhang, Yunze Xu, Zhanpeng Wu, Zike Yang, baomingyu, CongBo, dockerzhang, feynmanlin, hangc0276, li jinquan, limingnihao,
 linlinnn, mlyahmed, PengHui Li, Ran.
 
+Documentation contributors:
+Anonymitaet (Yu Liu), Jennifer Huang
+
 Also, we want to thank everyone who spent his time reporting issues and sharing the story about using Pulsar.
 
 Looking forward to your contributions to [Apache Pulsar](https://github.com/apache/pulsar).
