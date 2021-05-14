@@ -331,6 +331,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                                JavaExecutionResult result) throws SinkException {
     	
     	if (result.getUserException() != null) {
+    		log.warn("Encountered exception when processing message {}", srcRecord, result.getUserException());
             stats.incrUserExceptions(result.getUserException());
             srcRecord.fail();
             return;
