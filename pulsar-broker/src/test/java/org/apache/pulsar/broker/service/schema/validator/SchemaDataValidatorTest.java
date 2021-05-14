@@ -30,6 +30,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class SchemaDataValidatorTest {
 
     private static class Foo {

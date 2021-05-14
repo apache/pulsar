@@ -33,7 +33,7 @@ import org.testng.annotations.BeforeClass;
  * Transaction test base.
  */
 @Slf4j
-public class TransactionTestBase extends PulsarTestSuite {
+public abstract class TransactionTestBase extends PulsarTestSuite {
 
     @Override
     protected void beforeStartCluster() throws Exception {
@@ -48,13 +48,18 @@ public class TransactionTestBase extends PulsarTestSuite {
         }
     }
 
-    @BeforeClass
-    public void transactionCoordinatorMetadataInitialize() throws Exception {
+    private void transactionCoordinatorMetadataInitialize() throws Exception {
         BrokerContainer brokerContainer = pulsarCluster.getBrokers().iterator().next();
         ContainerExecResult result = brokerContainer.execCmd(
                 "/pulsar/bin/pulsar", "initialize-transaction-coordinator-metadata",
                 "-cs", ZKContainer.NAME,
                 "-c", pulsarCluster.getClusterName());
+    }
+
+    @Override
+    public void setupCluster() throws Exception {
+        super.setupCluster();
+        transactionCoordinatorMetadataInitialize();
     }
 
     public void prepareTransferData(Producer<TransferOperation> transferProducer, int messageCnt) {

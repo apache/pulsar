@@ -38,17 +38,22 @@ public class ProtobufSchemaTest {
     private static final String NAME = "foo";
 
     private static final String EXPECTED_SCHEMA_JSON = "{\"type\":\"record\",\"name\":\"TestMessage\"," +
-            "\"namespace\":\"org.apache.pulsar.client.schema.proto.Test\",\"fields\":[{\"name\":\"stringField\"," +
-            "\"type\":{\"type\":\"string\",\"avro.java.string\":\"String\"},\"default\":\"\"}," +
-            "{\"name\":\"doubleField\",\"type\":\"double\",\"default\":0},{\"name\":\"intField\"," +
-            "\"type\":\"int\",\"default\":0},{\"name\":\"testEnum\",\"type\":{\"type\":\"enum\",\"name\":\"TestEnum\"," +
-            "\"symbols\":[\"SHARED\",\"FAILOVER\"]},\"default\":\"SHARED\"},{\"name\":\"nestedField\",\"type\":[\"null\"," +
-            "{\"type\":\"record\",\"name\":\"SubMessage\",\"fields\":[{\"name\":\"foo\",\"type\":{\"type\":\"string\"," +
-            "\"avro.java.string\":\"String\"},\"default\":\"\"},{\"name\":\"bar\",\"type\":\"double\",\"default\":0}]}]," +
-            "\"default\":null},{\"name\":\"repeatedField\",\"type\":{\"type\":\"array\",\"items\":{\"type\":\"string\"," +
-            "\"avro.java.string\":\"String\"}}},{\"name\":\"externalMessage\",\"type\":[\"null\",{\"type\":\"record\"," +
-            "\"name\":\"ExternalMessage\",\"namespace\":\"org.apache.pulsar.client.schema.proto.ExternalTest\"," +
-            "\"fields\":[{\"name\":\"stringField\",\"type\":{\"type\":\"string\",\"avro.java.string\":\"String\"}," +
+            "\"namespace\":\"org.apache.pulsar.client.schema.proto.Test\"," +
+            "\"fields\":[{\"name\":\"stringField\",\"type\":{\"type\":\"string\"," +
+            "\"avro.java.string\":\"String\"},\"default\":\"\"},{\"name\":\"doubleField\"," +
+            "\"type\":\"double\",\"default\":0},{\"name\":\"intField\",\"type\":\"int\"," +
+            "\"default\":0},{\"name\":\"testEnum\",\"type\":{\"type\":\"enum\"," +
+            "\"name\":\"TestEnum\",\"symbols\":[\"SHARED\",\"FAILOVER\"]}," +
+            "\"default\":\"SHARED\"},{\"name\":\"nestedField\"," +
+            "\"type\":[\"null\",{\"type\":\"record\",\"name\":\"SubMessage\"," +
+            "\"fields\":[{\"name\":\"foo\",\"type\":{\"type\":\"string\"," +
+            "\"avro.java.string\":\"String\"},\"default\":\"\"}" +
+            ",{\"name\":\"bar\",\"type\":\"double\",\"default\":0}]}]" +
+            ",\"default\":null},{\"name\":\"repeatedField\",\"type\":{\"type\":\"array\"" +
+            ",\"items\":{\"type\":\"string\",\"avro.java.string\":\"String\"}},\"default\":[]}" +
+            ",{\"name\":\"externalMessage\",\"type\":[\"null\",{\"type\":\"record\"" +
+            ",\"name\":\"ExternalMessage\",\"namespace\":\"org.apache.pulsar.client.schema.proto.ExternalTest\"" +
+            ",\"fields\":[{\"name\":\"stringField\",\"type\":{\"type\":\"string\",\"avro.java.string\":\"String\"}," +
             "\"default\":\"\"},{\"name\":\"doubleField\",\"type\":\"double\",\"default\":0}]}],\"default\":null}]}";
 
     private static final String EXPECTED_PARSING_INFO = "{\"__alwaysAllowNull\":\"true\",\"__jsr310ConversionEnabled\":\"false\"," +

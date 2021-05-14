@@ -44,7 +44,7 @@ public class TlsProducerConsumerBase extends ProducerConsumerBase {
     protected final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/authentication/tls/broker-key.pem";
     private final String clusterName = "use";
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         // TLS configuration for Broker

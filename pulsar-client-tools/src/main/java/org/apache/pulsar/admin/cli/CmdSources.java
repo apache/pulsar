@@ -171,6 +171,8 @@ public class CmdSources extends CmdBase {
         protected String secretsProviderClassName;
         @Parameter(names = "--secrets-provider-config", description = "Config that needs to be passed to secrets provider")
         protected String secretsProviderConfig;
+        @Parameter(names = "--metrics-port-start", description = "The starting port range for metrics server")
+        protected String metricsPortStart;
 
         private void mergeArgs() {
             if (!isBlank(DEPRECATED_brokerServiceUrl)) brokerServiceUrl = DEPRECATED_brokerServiceUrl;
@@ -315,8 +317,6 @@ public class CmdSources extends CmdBase {
         protected String sourceConfigString;
         @Parameter(names = "--custom-runtime-options", description = "A string that encodes options to customize the runtime, see docs for configured runtime for details")
         protected String customRuntimeOptions;
-        @Parameter(names = "--forward-source-message-property", description = "Forwarding input message's properties to output topic when processing")
-        protected Boolean forwardSourceMessageProperty = true;
 
         protected SourceConfig sourceConfig;
 
@@ -420,10 +420,6 @@ public class CmdSources extends CmdBase {
 
             if (customRuntimeOptions != null) {
                 sourceConfig.setCustomRuntimeOptions(customRuntimeOptions);
-            }
-
-            if (null != forwardSourceMessageProperty) {
-                sourceConfig.setForwardSourceMessageProperty(forwardSourceMessageProperty);
             }
             // check if source configs are valid
             validateSourceConfigs(sourceConfig);

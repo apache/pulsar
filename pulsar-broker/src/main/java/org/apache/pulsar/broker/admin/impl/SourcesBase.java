@@ -506,6 +506,6 @@ public class SourcesBase extends AdminResource {
     })
     @Path("/reloadBuiltInSources")
     public void reloadSources() {
-        sources().reloadConnectors(clientAppId());
+        sources().reloadConnectors(clientAppId(), clientAuthData());
     }
 }

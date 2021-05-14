@@ -29,10 +29,10 @@ import static org.powermock.api.mockito.PowerMockito.mockStatic;
 
 import com.beust.jcommander.ParameterException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
-
+import java.io.Closeable;
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
-
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.Sources;
@@ -46,6 +46,7 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.testng.Assert;
 import org.testng.IObjectFactory;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
@@ -73,7 +74,6 @@ public class TestCmdSources {
     private static final Long RAM = 1024L * 1024L;
     private static final Long DISK = 1024L * 1024L * 1024L;
     private static final String SINK_CONFIG_STRING = "{\"created_at\":\"Mon Jul 02 00:33:15 +0000 2018\"}";
-    private static final boolean FORWARD_PROPERTIES = true;
 
     private PulsarAdmin pulsarAdmin;
     private Sources source;
@@ -82,6 +82,8 @@ public class TestCmdSources {
     private CmdSources.UpdateSource updateSource;
     private CmdSources.LocalSourceRunner localSourceRunner;
     private CmdSources.DeleteSource deleteSource;
+    private ClassLoader oldContextClassLoader;
+    private ClassLoader jarClassLoader;
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -99,7 +101,21 @@ public class TestCmdSources {
         mockStatic(CmdFunctions.class);
         PowerMockito.doNothing().when(localSourceRunner).runCmd();
         JAR_FILE_PATH = Thread.currentThread().getContextClassLoader().getResource(JAR_FILE_NAME).getFile();
-        Thread.currentThread().setContextClassLoader(ClassLoaderUtils.loadJar(new File(JAR_FILE_PATH)));
+        jarClassLoader = ClassLoaderUtils.loadJar(new File(JAR_FILE_PATH));
+        oldContextClassLoader = Thread.currentThread().getContextClassLoader();
+        Thread.currentThread().setContextClassLoader(jarClassLoader);
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void cleanup() throws IOException {
+        if (jarClassLoader != null && jarClassLoader instanceof Closeable) {
+            ((Closeable) jarClassLoader).close();
+            jarClassLoader = null;
+        }
+        if (oldContextClassLoader != null) {
+            Thread.currentThread().setContextClassLoader(oldContextClassLoader);
+            oldContextClassLoader = null;
+        }
     }
 
     public SourceConfig getSourceConfig() {
@@ -115,7 +131,6 @@ public class TestCmdSources {
         sourceConfig.setArchive(JAR_FILE_PATH);
         sourceConfig.setResources(new Resources(CPU, RAM, DISK));
         sourceConfig.setConfigs(createSource.parseConfigs(SINK_CONFIG_STRING));
-        sourceConfig.setForwardSourceMessageProperty(FORWARD_PROPERTIES);
         return sourceConfig;
     }
 
@@ -577,19 +592,15 @@ public class TestCmdSources {
 
         updateSource.archive = "new-archive";
 
-        updateSource.forwardSourceMessageProperty = true;
-
         updateSource.processArguments();
 
         updateSource.runCmd();
-
 
         verify(source).updateSource(eq(SourceConfig.builder()
                 .tenant(PUBLIC_TENANT)
                 .namespace(DEFAULT_NAMESPACE)
                 .name(updateSource.name)
                 .archive(updateSource.archive)
-                .forwardSourceMessageProperty(true)
                 .build()), eq(updateSource.archive), eq(new UpdateOptions()));
 
 
@@ -597,11 +608,9 @@ public class TestCmdSources {
 
         updateSource.parallelism = 2;
 
-        updateSource.updateAuthData = true;
-
-        updateSource.forwardSourceMessageProperty = false;
-
         updateSource.processArguments();
+
+        updateSource.updateAuthData = true;
 
         UpdateOptions updateOptions = new UpdateOptions();
         updateOptions.setUpdateAuthData(true);
@@ -613,7 +622,6 @@ public class TestCmdSources {
                 .namespace(DEFAULT_NAMESPACE)
                 .name(updateSource.name)
                 .parallelism(2)
-                .forwardSourceMessageProperty(false)
                 .build()), eq(null), eq(updateOptions));
 
 

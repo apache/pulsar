@@ -38,6 +38,7 @@ import org.testng.annotations.Test;
 /**
  * Test get partitioned topic schema.
  */
+@Test(groups = "schema")
 public class PartitionedTopicSchemaTest extends MockedPulsarServiceBaseTest {
 
     private final static String PARTITIONED_TOPIC = "public/default/partitioned-schema-topic";

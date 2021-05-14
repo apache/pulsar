@@ -29,6 +29,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import lombok.Cleanup;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -68,6 +69,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
 
         int numberOfMessages = 10;
 
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newSingleThreadExecutor();
 
         CompletableFuture<Void> future = new CompletableFuture<Void>();
@@ -103,7 +105,6 @@ public class PulsarClientToolTest extends BrokerTestBase {
         Assert.assertEquals(pulsarClientToolProducer.run(args), 0);
 
         future.get();
-        executor.shutdown();
     }
 
     @Test(timeOut = 20000)
@@ -116,6 +117,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         final String topicName = "persistent://prop/ns-abc/test/topic-" + UUID.randomUUID().toString();
 
         int numberOfMessages = 10;
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newSingleThreadExecutor();
         CompletableFuture<Void> future = new CompletableFuture<>();
         executor.execute(() -> {
@@ -147,7 +149,6 @@ public class PulsarClientToolTest extends BrokerTestBase {
         Assert.assertEquals(pulsarClientToolProducer.run(args), 0);
         Assert.assertFalse(future.isCompletedExceptionally());
         future.get();
-        executor.shutdown();
 
         while (true) {
             try {
@@ -161,7 +162,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         }
     }
 
-    @Test(timeOut = 20000)
+    @Test(timeOut = 60000)
     public void testDurableSubscribe() throws Exception {
 
         Properties properties = new Properties();
@@ -171,6 +172,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         final String topicName = "persistent://prop/ns-abc/test/topic-" + UUID.randomUUID().toString();
 
         int numberOfMessages = 10;
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newSingleThreadExecutor();
         CompletableFuture<Void> future = new CompletableFuture<>();
         executor.execute(() -> {
@@ -204,7 +206,6 @@ public class PulsarClientToolTest extends BrokerTestBase {
         Assert.assertEquals(pulsarClientToolProducer.run(args), 0);
         Assert.assertFalse(future.isCompletedExceptionally());
         future.get();
-        executor.shutdown();
         //wait for close
         Thread.sleep(2000);
         List<String> subscriptions = admin.topics().getSubscriptions(topicName);
@@ -222,6 +223,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         final String keyUriBase = "file:../pulsar-broker/src/test/resources/certificate/";
         final int numberOfMessages = 10;
 
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newSingleThreadExecutor();
         CompletableFuture<Void> future = new CompletableFuture<>();
         executor.execute(() -> {
@@ -237,7 +239,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         });
 
         // Make sure subscription has been created
-        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> {
+        Awaitility.await().until(() -> {
             boolean isCreated = false;
             try {
                 List<String> subscriptions = admin.topics().getSubscriptions(topicName);
@@ -257,8 +259,6 @@ public class PulsarClientToolTest extends BrokerTestBase {
             Assert.assertFalse(future.isCompletedExceptionally());
         } catch (Exception e) {
             Assert.fail("consumer was unable to decrypt messages", e);
-        } finally {
-            executor.shutdown();
         }
     }
 

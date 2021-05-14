@@ -20,32 +20,27 @@ package org.apache.pulsar.broker.stats.prometheus;
 
 public class AggregatedTransactionCoordinatorStats {
 
-    public long transactionSequenceId;
+    public int actives;
 
-    public int ongoingTransactions;
+    public long committedCount;
 
-    public long lowWaterMark;
+    public long abortedCount;
 
-    public long commitTransactionCount;
+    public long createdCount;
 
-    public long abortTransactionCount;
+    public long timeoutCount;
 
-    public long createTransactionCount;
+    public long appendLogCount;
 
-    public long addAckedPartitionCount;
-
-    public long addProducedPartitionCount;
-
-    public long transactionTimeoutCount;
+    public long[] executionLatency;
 
     public void reset() {
-        transactionSequenceId = 0;
-        ongoingTransactions = 0;
-        lowWaterMark = 0;
-        commitTransactionCount = 0;
-        abortTransactionCount = 0;
-        createTransactionCount = 0;
-        addAckedPartitionCount = 0;
-        transactionTimeoutCount = 0;
+        actives = 0;
+        committedCount = 0;
+        abortedCount = 0;
+        createdCount = 0;
+        timeoutCount = 0;
+        appendLogCount = 0;
+        executionLatency = null;
     }
 }

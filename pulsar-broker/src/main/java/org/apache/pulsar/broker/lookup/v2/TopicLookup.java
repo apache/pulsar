@@ -44,9 +44,10 @@ public class TopicLookup extends TopicLookupBase {
     public void lookupTopicAsync(@PathParam("topic-domain") String topicDomain, @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @Suspended AsyncResponse asyncResponse) {
+            @Suspended AsyncResponse asyncResponse,
+            @QueryParam("listenerName") String listenerName) {
         TopicName topicName = getTopicName(topicDomain, tenant, namespace, encodedTopic);
-        internalLookupTopicAsync(topicName, authoritative, asyncResponse);
+        internalLookupTopicAsync(topicName, authoritative, asyncResponse, listenerName);
     }
 
     @GET

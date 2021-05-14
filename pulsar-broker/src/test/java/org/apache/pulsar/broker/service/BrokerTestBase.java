@@ -30,14 +30,8 @@ import com.google.common.collect.Sets;
 
 import java.util.Random;
 
-/**
- */
 public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
     protected static final int ASYNC_EVENT_COMPLETION_WAIT = 100;
-
-    protected PulsarService getPulsar() {
-        return pulsar;
-    }
 
     public void baseSetup() throws Exception {
         super.internalSetup();

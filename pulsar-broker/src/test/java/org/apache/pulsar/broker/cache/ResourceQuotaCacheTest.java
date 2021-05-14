@@ -42,6 +42,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class ResourceQuotaCacheTest {
 
     private PulsarService pulsar;
@@ -73,7 +74,7 @@ public class ResourceQuotaCacheTest {
 
     @AfterMethod(alwaysRun = true)
     public void teardown() throws Exception{
-        executor.shutdown();
+        executor.shutdownNow();
         zkCache.stop();
         zkc.shutdown();
     }

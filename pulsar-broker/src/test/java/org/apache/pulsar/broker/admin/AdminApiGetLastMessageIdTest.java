@@ -49,6 +49,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 
+@Test(groups = "broker")
 public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
 
     private PersistentTopics persistentTopics;

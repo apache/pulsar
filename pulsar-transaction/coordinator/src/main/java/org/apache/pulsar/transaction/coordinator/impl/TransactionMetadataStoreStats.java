@@ -19,39 +19,42 @@
 package org.apache.pulsar.transaction.coordinator.impl;
 
 import lombok.Data;
+import org.apache.bookkeeper.mledger.util.StatsBuckets;
 
 /**
  * Transaction metadata store stats.
  */
 @Data
 public class TransactionMetadataStoreStats {
-    /** The transaction coordinatorId. */
-    private long transactionCoordinatorId;
 
-    /** The transaction max sequenceId. */
-    private long transactionSequenceId;
+    private static final long[] TRANSACTION_EXECUTION_BUCKETS = { 10, 20, 50, 100, 500, 1_000, 5_000,
+            15_000, 30_000, 60_000, 300_000, 1_500_000, 3_000_000 };
+
+    /** The transaction coordinatorId. */
+    private long coordinatorId;
 
     /** The active transactions. */
-    private int activeTransactions;
+    private int actives;
 
-    /** The low water mark of this transaction coordinator. */
-    private long lowWaterMark;
+    /** The committed transaction count of this transaction coordinator. */
+    public long committedCount;
 
-    /** The commit transaction count of this transaction coordinator. */
-    public long commitTransactionCount;
+    /** The aborted transaction count of this transaction coordinator. */
+    public long abortedCount;
 
-    /** The abort transaction count of this transaction coordinator. */
-    public long abortTransactionCount;
+    /** The created transaction count of this transaction coordinator. */
+    public long createdCount;
 
-    /** The create transaction count of this transaction coordinator. */
-    public long createTransactionCount;
-
-    /** The add produced partition count transaction coordinator. */
-    public long addProducedPartitionCount;
-
-    /** The add transaction count of this transaction coordinator. */
-    public long addAckedPartitionCount;
+    /** The append transaction op log count of this transaction coordinator. */
+    public long appendLogCount;
 
     /** The timeout out transaction count of this transaction coordinator. */
-    public long transactionTimeoutCount;
+    public long timeoutCount;
+
+    public StatsBuckets executionLatencyBuckets = new StatsBuckets(TRANSACTION_EXECUTION_BUCKETS);
+
+    public void addTransactionExecutionLatencySample(long latency) {
+        executionLatencyBuckets.addValue(latency);
+    }
+
 }

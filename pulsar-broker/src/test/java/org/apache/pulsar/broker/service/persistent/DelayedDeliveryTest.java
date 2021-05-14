@@ -51,6 +51,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class DelayedDeliveryTest extends ProducerConsumerBase {
 
     @Override
@@ -70,8 +71,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testDelayedDelivery()
-            throws Exception {
+    public void testDelayedDelivery() throws Exception {
         String topic = BrokerTestUtil.newUniqueName("testNegativeAcks");
 
         @Cleanup
@@ -474,9 +474,9 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         }
 
         Dispatcher dispatcher = pulsar.getBrokerService().getTopicReference(topic).get().getSubscription(subName).getDispatcher();
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), messages));
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), messages));
 
         admin.topics().skipAllMessages(topic, subName);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 0));
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 0));
     }
 }

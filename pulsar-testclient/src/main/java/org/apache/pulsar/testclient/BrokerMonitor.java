@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.testclient;
 
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
+import com.beust.jcommander.Parameters;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -27,7 +31,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import com.beust.jcommander.ParameterException;
 import org.apache.pulsar.broker.TimeAverageBrokerData;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
@@ -41,8 +44,6 @@ import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
 import com.google.gson.Gson;
 
 /**
@@ -428,6 +429,8 @@ public class BrokerMonitor {
     }
 
     // JCommander arguments class.
+    @Parameters(commandDescription = "Monitors brokers and prints to the console information about their system resource usages," +
+            "\ntheir topic and bundle counts, their message rates, and other metrics.")
     private static class Arguments {
         @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)
         boolean help;
@@ -479,7 +482,7 @@ public class BrokerMonitor {
         } catch (ParameterException e) {
             System.out.println(e.getMessage());
             jc.usage();
-            System.exit(-1);
+            PerfClientUtils.exit(-1);
         }
         final ZooKeeper zkClient = new ZooKeeper(arguments.connectString, ZOOKEEPER_TIMEOUT_MILLIS, null);
         final BrokerMonitor monitor = new BrokerMonitor(zkClient);

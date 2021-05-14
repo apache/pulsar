@@ -88,7 +88,14 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
      */
     @Override
     public boolean hasMessageAvailable() {
-        return !priorityQueue.isEmpty() && priorityQueue.peekN1() <= clock.millis();
+        // Avoid the TimerTask run before reach the timeout.
+        long cutOffTime = clock.millis() + tickTimeMillis;
+        boolean hasMessageAvailable = !priorityQueue.isEmpty() && priorityQueue.peekN1() <= cutOffTime;
+        if (!hasMessageAvailable) {
+            // prevent the first delay message later than cutoffTime
+            updateTimer();
+        }
+        return hasMessageAvailable;
     }
 
     /**

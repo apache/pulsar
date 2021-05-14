@@ -48,7 +48,6 @@ ProducerImpl::ProducerImpl(ClientImplPtr client, const std::string& topic, const
           client, topic,
           Backoff(milliseconds(100), seconds(60), milliseconds(std::max(100, conf.getSendTimeout() - 100)))),
       conf_(conf),
-      executor_(client->getIOExecutorProvider()->get()),
       semaphore_(),
       pendingMessagesQueue_(),
       partition_(partition),
@@ -255,6 +254,7 @@ std::shared_ptr<ProducerImpl::PendingCallbacks> ProducerImpl::getPendingCallback
     // without holding producer mutex.
     for (auto& op : pendingMessagesQueue_) {
         callbacks->opSendMsgs.push_back(op);
+        releaseSemaphoreForSendOp(op);
     }
 
     if (batchMessageContainer_) {
@@ -262,6 +262,8 @@ std::shared_ptr<ProducerImpl::PendingCallbacks> ProducerImpl::getPendingCallback
         if (batchMessageContainer_->createOpSendMsg(opSendMsg) == ResultOk) {
             callbacks->opSendMsgs.emplace_back(opSendMsg);
         }
+
+        releaseSemaphoreForSendOp(opSendMsg);
         batchMessageContainer_->clear();
     }
     pendingMessagesQueue_.clear();
@@ -784,8 +786,6 @@ void ProducerImpl::disconnectProducer() {
     scheduleReconnection(shared_from_this());
 }
 
-const std::string& ProducerImpl::getName() const { return producerStr_; }
-
 void ProducerImpl::start() { HandlerBase::start(); }
 
 void ProducerImpl::shutdown() {
@@ -819,6 +819,11 @@ bool ProducerImplCmp::operator()(const ProducerImplPtr& a, const ProducerImplPtr
 bool ProducerImpl::isClosed() {
     Lock lock(mutex_);
     return state_ == Closed;
+}
+
+bool ProducerImpl::isConnected() const {
+    Lock lock(mutex_);
+    return !getCnx().expired() && state_ == Ready;
 }
 
 }  // namespace pulsar

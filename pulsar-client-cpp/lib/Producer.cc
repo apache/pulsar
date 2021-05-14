@@ -118,4 +118,6 @@ void Producer::producerFailMessages(Result result) {
     }
 }
 
+bool Producer::isConnected() const { return impl_ && impl_->isConnected(); }
+
 }  // namespace pulsar

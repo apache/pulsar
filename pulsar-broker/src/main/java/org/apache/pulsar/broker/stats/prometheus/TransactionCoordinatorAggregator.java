@@ -41,59 +41,70 @@ public class TransactionCoordinatorAggregator {
                 .forEach((transactionCoordinatorID, transactionMetadataStore) -> {
                     transactionCoordinatorStats.reset();
                     TransactionMetadataStoreStats transactionMetadataStoreStats = transactionMetadataStore.getStats();
-                    transactionCoordinatorStats.lowWaterMark = transactionMetadataStoreStats.getLowWaterMark();
-                    transactionCoordinatorStats.ongoingTransactions =
-                            transactionMetadataStoreStats.getActiveTransactions();
-                    transactionCoordinatorStats.transactionSequenceId =
-                            transactionMetadataStoreStats.getTransactionSequenceId();
-                    transactionCoordinatorStats.commitTransactionCount =
-                            transactionMetadataStoreStats.getCommitTransactionCount();
-                    transactionCoordinatorStats.abortTransactionCount =
-                            transactionMetadataStoreStats.getAbortTransactionCount();
-                    transactionCoordinatorStats.createTransactionCount =
-                            transactionMetadataStoreStats.getCreateTransactionCount();
-                    transactionCoordinatorStats.addAckedPartitionCount =
-                            transactionMetadataStoreStats.getAddAckedPartitionCount();
-                    transactionCoordinatorStats.addProducedPartitionCount =
-                            transactionMetadataStoreStats.getAddProducedPartitionCount();
-                    transactionCoordinatorStats.transactionTimeoutCount =
-                            transactionMetadataStoreStats.getTransactionTimeoutCount();
+                    transactionCoordinatorStats.actives =
+                            transactionMetadataStoreStats.getActives();
+                    transactionCoordinatorStats.committedCount =
+                            transactionMetadataStoreStats.getCommittedCount();
+                    transactionCoordinatorStats.abortedCount =
+                            transactionMetadataStoreStats.getAbortedCount();
+                    transactionCoordinatorStats.createdCount =
+                            transactionMetadataStoreStats.getCreatedCount();
+                    transactionCoordinatorStats.timeoutCount =
+                            transactionMetadataStoreStats.getTimeoutCount();
+                    transactionCoordinatorStats.appendLogCount =
+                            transactionMetadataStoreStats.getAppendLogCount();
+                    transactionMetadataStoreStats.executionLatencyBuckets.refresh();
+                    transactionCoordinatorStats.executionLatency =
+                            transactionMetadataStoreStats.executionLatencyBuckets.getBuckets();
                     printTransactionCoordinatorStats(stream, cluster, transactionCoordinatorStats,
-                            transactionMetadataStoreStats.getTransactionCoordinatorId());
+                            transactionMetadataStoreStats.getCoordinatorId());
 
         });
     }
 
     private static void metric(SimpleTextOutputStream stream, String cluster, String name,
-                               double value, long transactionCoordinatorId) {
+                               double value, long coordinatorId) {
         stream.write("# TYPE ").write(name).write(" gauge\n")
                 .write(name)
                 .write("{cluster=\"").write(cluster)
-                .write("\",transaction_coordinator_id=\"").write(transactionCoordinatorId).write("\"} ")
+                .write("\",coordinator_id=\"").write(coordinatorId).write("\"} ")
                 .write(value).write(' ').write(System.currentTimeMillis())
                 .write('\n');
     }
 
     static void printTransactionCoordinatorStats(SimpleTextOutputStream stream, String cluster,
                                                  AggregatedTransactionCoordinatorStats stats,
-                                                 long transactionCoordinatorId) {
-        metric(stream, cluster, "pulsar_active_transactions",
-                stats.ongoingTransactions, transactionCoordinatorId);
-        metric(stream, cluster, "pulsar_transaction_sequence_id",
-                stats.transactionSequenceId, transactionCoordinatorId);
-        metric(stream, cluster, "pulsar_transaction_low_water_mark",
-                stats.lowWaterMark, transactionCoordinatorId);
-        metric(stream, cluster, "pulsar_transaction_commit_count",
-                stats.commitTransactionCount, transactionCoordinatorId);
-        metric(stream, cluster, "pulsar_transaction_abort_count",
-                stats.abortTransactionCount, transactionCoordinatorId);
-        metric(stream, cluster, "pulsar_transaction_create_count",
-                stats.createTransactionCount, transactionCoordinatorId);
-        metric(stream, cluster, "pulsar_transaction_add_produced_partition_count",
-                stats.addProducedPartitionCount, transactionCoordinatorId);
-        metric(stream, cluster, "pulsar_transaction_add_acked_partition_count",
-                stats.addAckedPartitionCount, transactionCoordinatorId);
-        metric(stream, cluster, "pulsar_transaction_timeout_count",
-                stats.transactionTimeoutCount, transactionCoordinatorId);
+                                                 long coordinatorId) {
+        metric(stream, cluster, "pulsar_txn_active_count",
+                stats.actives, coordinatorId);
+        metric(stream, cluster, "pulsar_txn_committed_count",
+                stats.committedCount, coordinatorId);
+        metric(stream, cluster, "pulsar_txn_aborted_count",
+                stats.abortedCount, coordinatorId);
+        metric(stream, cluster, "pulsar_txn_created_count",
+                stats.createdCount, coordinatorId);
+        metric(stream, cluster, "pulsar_txn_timeout_count",
+                stats.timeoutCount, coordinatorId);
+        metric(stream, cluster, "pulsar_txn_append_log_count",
+                stats.appendLogCount, coordinatorId);
+        long[] latencyBuckets = stats.executionLatency;
+        metric(stream, cluster, "pulsar_txn_execution_latency_le_10", latencyBuckets[0], coordinatorId);
+        metric(stream, cluster, "pulsar_txn_execution_latency_le_20", latencyBuckets[1], coordinatorId);
+        metric(stream, cluster, "pulsar_txn_execution_latency_le_50", latencyBuckets[2], coordinatorId);
+        metric(stream, cluster, "pulsar_txn_execution_latency_le_100", latencyBuckets[3], coordinatorId);
+        metric(stream, cluster, "pulsar_txn_execution_latency_le_500", latencyBuckets[4], coordinatorId);
+        metric(stream, cluster, "pulsar_txn_execution_latency_le_1000", latencyBuckets[5], coordinatorId);
+        metric(stream, cluster, "pulsar_txn_execution_latency_le_5000", latencyBuckets[6], coordinatorId);
+        metric(stream, cluster, "pulsar_txn_execution_latency_le_15000", latencyBuckets[7], coordinatorId);
+        metric(stream, cluster, "pulsar_txn_execution_latency_le_30000", latencyBuckets[8], coordinatorId);
+        metric(stream, cluster, "pulsar_txn_execution_latency_le_60000", latencyBuckets[9], coordinatorId);
+        metric(stream, cluster, "pulsar_txn_execution_latency_le_300000",
+                latencyBuckets[10], coordinatorId);
+        metric(stream, cluster, "pulsar_txn_execution_latency_le_1500000",
+                latencyBuckets[11], coordinatorId);
+        metric(stream, cluster, "pulsar_txn_execution_latency_le_3000000",
+                latencyBuckets[12], coordinatorId);
+        metric(stream, cluster, "pulsar_txn_execution_latency_le_overflow",
+                latencyBuckets[13], coordinatorId);
     }
 }

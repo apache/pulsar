@@ -42,6 +42,7 @@ import org.apache.pulsar.functions.runtime.RuntimeUtils;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -103,7 +104,16 @@ class ProcessRuntime implements Runtime {
         }
         switch (instanceConfig.getFunctionDetails().getRuntime()) {
             case JAVA:
-                logConfigFile = "java_instance_log4j2.xml";
+                String logConfigPath = System.getProperty("pulsar.functions.log.conf");
+                if(log.isDebugEnabled()){
+                    log.debug("The loaded value of pulsar.functions.log.conf is {}", logConfigPath);
+                }
+                // Added null check to prevent test failures
+                if(logConfigPath != null && Files.exists(Paths.get(logConfigPath))){
+                    logConfigFile = logConfigPath;
+                } else { // Keeping existing file for backwards compatibility
+                    logConfigFile = "java_instance_log4j2.xml";
+                }
                 break;
             case PYTHON:
                 logConfigFile = System.getenv("PULSAR_HOME") + "/conf/functions-logging/logging_config.ini";

@@ -30,6 +30,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
@@ -51,7 +52,7 @@ public class MLTransactionLogImpl implements TransactionLog {
 
     private final ManagedLedger managedLedger;
 
-    public final static String TRANSACTION_LOG_PREFIX = "transaction_log_";
+    public final static String TRANSACTION_LOG_PREFIX = "__transaction_log_";
 
     private final ManagedCursor cursor;
 
@@ -59,27 +60,24 @@ public class MLTransactionLogImpl implements TransactionLog {
 
     private final SpscArrayQueue<Entry> entryQueue;
 
-    //this is for replay
-    private final PositionImpl lastConfirmedEntry;
-
-    private PositionImpl currentLoadPosition;
-
     private final long tcId;
 
     private final TopicName topicName;
+
+    private final MLTransactionLogInterceptor mlTransactionLogInterceptor;
 
     public MLTransactionLogImpl(TransactionCoordinatorID tcID,
                                 ManagedLedgerFactory managedLedgerFactory,
                                 ManagedLedgerConfig managedLedgerConfig) throws Exception {
         this.topicName = TopicName.get(TopicDomain.persistent.value(),
-                NamespaceName.SYSTEM_NAMESPACE, "transaction_log_" + tcID.getId());
+                NamespaceName.SYSTEM_NAMESPACE, TRANSACTION_LOG_PREFIX + tcID.getId());
         this.tcId = tcID.getId();
+        this.mlTransactionLogInterceptor = new MLTransactionLogInterceptor();
+        managedLedgerConfig.setManagedLedgerInterceptor(this.mlTransactionLogInterceptor);
         this.managedLedger = managedLedgerFactory.open(topicName.getPersistenceNamingEncoding(), managedLedgerConfig);
         this.cursor =  managedLedger.openCursor(TRANSACTION_SUBSCRIPTION_NAME,
                 CommandSubscribe.InitialPosition.Earliest);
-        this.currentLoadPosition = (PositionImpl) this.cursor.getMarkDeletedPosition();
         this.entryQueue = new SpscArrayQueue<>(2000);
-        this.lastConfirmedEntry = (PositionImpl) managedLedger.getLastConfirmedEntry();
     }
 
     @Override
@@ -123,6 +121,7 @@ public class MLTransactionLogImpl implements TransactionLog {
             @Override
             public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                 buf.release();
+                mlTransactionLogInterceptor.setMaxLocalTxnId(transactionMetadataEntry.getMaxLocalTxnId());
                 completableFuture.complete(position);
             }
 
@@ -172,13 +171,11 @@ public class MLTransactionLogImpl implements TransactionLog {
         public void start() {
             TransactionMetadataEntry transactionMetadataEntry = new TransactionMetadataEntry();
 
-            while (lastConfirmedEntry.compareTo(currentLoadPosition) > 0) {
-                fillEntryQueueCallback.fillQueue();
+            while (fillEntryQueueCallback.fillQueue() || entryQueue.size() > 0) {
                 Entry entry = entryQueue.poll();
                 if (entry != null) {
                     try {
                         ByteBuf buffer = entry.getDataBuffer();
-                        currentLoadPosition = PositionImpl.get(entry.getLedgerId(), entry.getEntryId());
                         transactionMetadataEntry.parseFrom(buffer, buffer.readableBytes());
                         transactionLogReplayCallback.handleMetadataEntry(entry.getPosition(), transactionMetadataEntry);
                     } finally {
@@ -196,16 +193,57 @@ public class MLTransactionLogImpl implements TransactionLog {
         }
     }
 
+    public CompletableFuture<Long> getMaxLocalTxnId() {
+
+        CompletableFuture<Long> completableFuture = new CompletableFuture<>();
+        PositionImpl position = (PositionImpl) managedLedger.getLastConfirmedEntry();
+
+        if (position != null && position.getEntryId() != -1
+                && ((ManagedLedgerImpl) managedLedger).ledgerExists(position.getLedgerId())) {
+            ((ManagedLedgerImpl) this.managedLedger).asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
+                @Override
+                public void readEntryComplete(Entry entry, Object ctx) {
+                    TransactionMetadataEntry lastConfirmEntry = new TransactionMetadataEntry();
+                    ByteBuf buffer = entry.getDataBuffer();
+                    lastConfirmEntry.parseFrom(buffer, buffer.readableBytes());
+                    completableFuture.complete(lastConfirmEntry.getMaxLocalTxnId());
+                }
+
+                @Override
+                public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                    log.error("[{}] MLTransactionLog recover MaxLocalTxnId fail!", topicName, exception);
+                    completableFuture.completeExceptionally(exception);
+                }
+            }, null);
+        } else if (managedLedger.getProperties()
+                .get(MLTransactionLogInterceptor.MAX_LOCAL_TXN_ID) != null) {
+            completableFuture.complete(Long.parseLong(managedLedger.getProperties()
+                    .get(MLTransactionLogInterceptor.MAX_LOCAL_TXN_ID)));
+        } else {
+            log.error("[{}] MLTransactionLog recover MaxLocalTxnId fail! "
+                    + "not found MaxLocalTxnId in managedLedger and properties", topicName);
+            completableFuture.completeExceptionally(new ManagedLedgerException(topicName
+                    + "MLTransactionLog recover MaxLocalTxnId fail! "
+                    + "not found MaxLocalTxnId in managedLedger and properties"));
+        }
+        return completableFuture;
+    }
+
     class FillEntryQueueCallback implements AsyncCallbacks.ReadEntriesCallback {
 
         private final AtomicLong outstandingReadsRequests = new AtomicLong(0);
 
-        void fillQueue() {
+        boolean fillQueue() {
             if (entryQueue.size() < entryQueue.capacity() && outstandingReadsRequests.get() == 0) {
                 if (cursor.hasMoreEntries()) {
                     outstandingReadsRequests.incrementAndGet();
                     readAsync(100, this);
+                    return true;
+                } else {
+                    return false;
                 }
+            } else {
+                return true;
             }
         }
 

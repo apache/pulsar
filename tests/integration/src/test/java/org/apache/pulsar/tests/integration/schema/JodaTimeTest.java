@@ -19,6 +19,7 @@
 package org.apache.pulsar.tests.integration.schema;
 
 import com.google.common.collect.Sets;
+import java.time.temporal.ChronoUnit;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -49,14 +50,25 @@ public class JodaTimeTest extends PulsarTestSuite {
     private PulsarClient client;
     private PulsarAdmin admin;
 
-    @BeforeMethod
-    public void setup() throws Exception {
+    public void setupCluster() throws Exception {
+        super.setupCluster();
         this.client = PulsarClient.builder()
                 .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
                 .build();
         this.admin = PulsarAdmin.builder()
                 .serviceHttpUrl(pulsarCluster.getHttpServiceUrl())
                 .build();
+    }
+
+    @Override
+    public void tearDownCluster() throws Exception {
+        if (client != null) {
+            client.close();
+        }
+        if (admin != null) {
+            admin.close();
+        }
+        super.tearDownCluster();
     }
 
     @Data
@@ -102,7 +114,7 @@ public class JodaTimeTest extends PulsarTestSuite {
         forSend.setDecimal(new BigDecimal("12.34"));
         forSend.setTimeMicros(System.currentTimeMillis() * 1000);
         forSend.setTimestampMillis(new DateTime("2019-03-26T04:39:58.469Z", ISOChronology.getInstanceUTC()));
-        forSend.setTimeMillis(LocalTime.now());
+        forSend.setTimeMillis(LocalTime.now().truncatedTo(ChronoUnit.MILLIS));
         forSend.setTimeMicros(System.currentTimeMillis() * 1000);
         forSend.setDate(LocalDate.now());
 
