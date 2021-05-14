@@ -61,8 +61,7 @@ Code contributors (names taken from GitHub API):
 - PengHui Li
 - ran
 
-Also, we want to thank everyone who spent his time to report issues and to share his story about using Pulsar.
+Also, we want to thank everyone who spent his time reporting issues and sharing the story about using Pulsar.
 
 Looking forward to your contributions to [Apache Pulsar](https://github.com/apache/pulsar).
-
 
