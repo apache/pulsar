@@ -616,6 +616,11 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                 assertEquals(data.getKey().getField("i"), i * 100);
                 assertEquals(data.getValue().getField("i"), i * 1000);
                 c0.acknowledge(wrapper);
+                Schema<?> schema = wrapper.getReaderSchema().get();
+                KeyValueSchema keyValueSchema = (KeyValueSchema) schema;
+                assertEquals(SchemaType.AVRO, keyValueSchema.getKeySchema().getSchemaInfo().getType());
+                assertEquals(SchemaType.AVRO, keyValueSchema.getValueSchema().getSchemaInfo().getType());
+                assertNotNull(schema.getSchemaInfo());
             }
             // verify c1
             for (int i = 0; i < numMessages; i++) {
