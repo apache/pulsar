@@ -27,39 +27,10 @@ We would like to thank all the contributors for this release.
 Same to other sustainable open source projects, Apache Pulsar is great because it is supported by a vibrant community.
 
 Code contributors (names taken from GitHub API):
-- Ali Ahmed
-- Andrey Yegorov
-- Binbin Guo
-- David Kjerrumgaard
-- Deon van der Vyver
-- Devin Bost
-- Enrico Olivelli
-- Guangning E
-- Kevin Wilson
-- Lari Hotari
-- Marvin Cai
-- Masahiro Sakamoto
-- Matteo Merli
-- Michael Marshall
-- Rajan Dhabalia
-- Shen Liu
-- Ting Yuan
-- Vincent Royer
-- Yong Zhang
-- Yunze Xu
-- Zhanpeng Wu
-- Zike Yang
-- baomingyu
-- CongBo
-- dockerzhang
-- feynmanlin
-- hangc0276
-- li jinquan
-- limingnihao
-- linlinnn
-- mlyahmed
-- PengHui Li
-- ran
+Ali Ahmed, Andrey Yegorov, Binbin Guo, David Kjerrumgaard, Deon van der Vyver, Devin Bost, Enrico Olivelli, Guangning E, Kevin Wilson,
+Lari Hotari, Marvin Cai, Masahiro Sakamoto, Matteo Merli, Michael Marshall, Rajan Dhabalia, Shen Liu, Ting Yuan, Vincent Royer,
+Yong Zhang, Yunze Xu, Zhanpeng Wu, Zike Yang, baomingyu, CongBo, dockerzhang, feynmanlin, hangc0276, li jinquan, limingnihao,
+linlinnn, mlyahmed, PengHui Li, Ran.
 
 Also, we want to thank everyone who spent his time reporting issues and sharing the story about using Pulsar.
 
