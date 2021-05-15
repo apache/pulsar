@@ -169,6 +169,11 @@ public interface SystemTopicClient {
     }
 
     static boolean isSystemTopic(TopicName topicName) {
+        if (topicName.isPartitioned()) {
+            return EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME
+                    .equals(TopicName.get(topicName.getPartitionedTopicName()).getLocalName());
+        }
+
         return EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME.equals(topicName.getLocalName());
     }
 
