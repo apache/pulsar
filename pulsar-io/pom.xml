@@ -69,6 +69,7 @@
         <module>influxdb</module>
         <module>dynamodb</module>
         <module>nsq</module>
+        <module>dis</module>
       </modules>
     </profile>
 

@@ -125,6 +125,12 @@ Pulsar has various sink connectors, which are sorted alphabetically as below.
   
 * [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/cassandra/src/main/java/org/apache/pulsar/io/cassandra/CassandraStringSink.java)
 
+### DIS
+
+* [Configuration](io-dis-sink.md#configuration)
+
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/dis/src/main/java/org/apache/pulsar/io/redis/DisConfig.java)
+
 ### ElasticSearch
 
 * [Configuration](io-elasticsearch-sink.md#configuration)
