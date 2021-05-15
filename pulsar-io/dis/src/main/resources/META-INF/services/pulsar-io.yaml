@@ -19,4 +19,4 @@
 name: dis
 description: Huawei Cloud Dis sink connector
 sinkClass: org.apache.pulsar.io.dis.DisSink
-sinkConfigClass: org.apache.pulsar.io.dis.DisSinkConfig
+sinkConfigClass: org.apache.pulsar.io.dis.DisConfig
