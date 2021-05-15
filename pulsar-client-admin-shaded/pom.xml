@@ -108,6 +108,8 @@
             <configuration>
               <createDependencyReducedPom>true</createDependencyReducedPom>
               <promoteTransitiveDependencies>true</promoteTransitiveDependencies>
+              <minimizeJar>false</minimizeJar>
+              <createSourcesJar>true</createSourcesJar>
 
               <artifactSet>
                 <includes>

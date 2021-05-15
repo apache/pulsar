@@ -97,6 +97,7 @@ flexible messaging model and an intuitive client API.</description>
     <docker.organization>apachepulsar</docker.organization>
     <skipSourceReleaseAssembly>false</skipSourceReleaseAssembly>
     <skipBuildDistribution>false</skipBuildDistribution>
+    <sourcePluginPhase>package</sourcePluginPhase>
     <shadePluginPhase>package</shadePluginPhase>
     <narPluginPhase>package</narPluginPhase>
 
@@ -227,6 +228,7 @@ flexible messaging model and an intuitive client API.</description>
     <maven-assembly-plugin.version>3.3.0</maven-assembly-plugin.version>
     <maven-dependency-plugin.version>3.1.2</maven-dependency-plugin.version>
     <maven-shade-plugin>3.2.4</maven-shade-plugin>
+    <maven-source-plugin.version>3.2.1</maven-source-plugin.version>
     <maven-antrun-plugin.version>3.0.0</maven-antrun-plugin.version>
     <nifi-nar-maven-plugin.version>1.2.0</nifi-nar-maven-plugin.version>
     <maven-checkstyle-plugin.version>3.1.2</maven-checkstyle-plugin.version>
@@ -1534,6 +1536,20 @@ flexible messaging model and an intuitive client API.</description>
                 </rules>
               </configuration>
             </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-source-plugin</artifactId>
+        <version>${maven-source-plugin.version}</version>
+        <executions>
+          <execution>
+            <id>attach-sources</id>
+            <phase>${sourcePluginPhase}</phase>
+            <goals>
+              <goal>jar-no-fork</goal>
+            </goals>
+          </execution>
         </executions>
       </plugin>
       <plugin>
