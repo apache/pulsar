@@ -344,7 +344,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
         category = CATEGORY_TLS,
         doc = "Specify the tls protocols the broker will use to negotiate during TLS handshake"
             + " (a comma-separated list of protocol names).\n\n"
-            + "Examples:- [TLSv1.2, TLSv1.1, TLSv1]"
+            + "Examples:- [TLSv1.3, TLSv1.2]"
     )
     private Set<String> tlsProtocols = Sets.newTreeSet();
     @FieldContext(
@@ -454,7 +454,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
             category = CATEGORY_KEYSTORE_TLS,
             doc = "Specify the tls protocols the broker will use to negotiate during TLS handshake"
                   + " (a comma-separated list of protocol names).\n\n"
-                  + "Examples:- [TLSv1.2, TLSv1.1, TLSv1] \n"
+                  + "Examples:- [TLSv1.3, TLSv1.2] \n"
                   + " used by the Pulsar proxy to authenticate with Pulsar brokers"
     )
     private Set<String> brokerClientTlsProtocols = Sets.newTreeSet();
