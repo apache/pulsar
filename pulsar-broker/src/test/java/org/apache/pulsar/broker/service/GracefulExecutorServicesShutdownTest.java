@@ -29,6 +29,7 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertTrue;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -120,25 +121,28 @@ public class GracefulExecutorServicesShutdownTest {
 
 
     @Test
-    public void shouldTerminateWhenFutureIsCancelled() throws InterruptedException {
+    public void shouldTerminateWhenFutureIsCancelled() throws InterruptedException, ExecutionException {
         // given
         GracefulExecutorServicesShutdown shutdown = GracefulExecutorServicesShutdown.initiate();
         shutdown.timeout(Duration.ofMillis(15000));
         ExecutorService executorService = mock(ExecutorService.class);
         when(executorService.isShutdown()).thenReturn(true);
         AtomicBoolean terminated = new AtomicBoolean();
-        AtomicBoolean awaitTerminationInterrupted = new AtomicBoolean();
+        CompletableFuture<Boolean> awaitTerminationInterrupted = new CompletableFuture<>();
         when(executorService.isTerminated()).thenAnswer(invocation -> terminated.get());
+        CountDownLatch awaitingTerminationEntered = new CountDownLatch(1);
         when(executorService.awaitTermination(anyLong(), any())).thenAnswer(invocation  -> {
             long timeout = invocation.getArgument(0);
             TimeUnit unit = invocation.getArgument(1);
+            awaitingTerminationEntered.countDown();
             try {
                 Thread.sleep(unit.toMillis(timeout));
             } catch (InterruptedException e) {
-                awaitTerminationInterrupted.set(true);
+                awaitTerminationInterrupted.complete(true);
                 Thread.currentThread().interrupt();
                 throw e;
             }
+            awaitTerminationInterrupted.complete(false);
             throw new IllegalStateException("Thread.sleep should have been interrupted");
         });
         when(executorService.shutdownNow()).thenAnswer(invocation -> {
@@ -149,11 +153,11 @@ public class GracefulExecutorServicesShutdownTest {
         // when
         shutdown.shutdown(executorService);
         CompletableFuture<Void> future = shutdown.handle();
+        awaitingTerminationEntered.await();
         future.cancel(false);
 
         // then
-        Awaitility.await().untilAsserted(() -> assertTrue(awaitTerminationInterrupted.get(),
-                "awaitTermination should have been interrupted"));
+        assertTrue(awaitTerminationInterrupted.get(), "awaitTermination should have been interrupted");
         verify(executorService, times(1)).awaitTermination(anyLong(), any());
         verify(executorService, times(1)).shutdownNow();
     }
