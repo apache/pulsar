@@ -22,10 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -69,6 +66,17 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         internalCleanup();
     }
 
+    public static void main(String[] args) {
+        try {
+            ZeroQueueSizeTest zeroQueueSizeTest = new ZeroQueueSizeTest();
+
+            zeroQueueSizeTest.setup();
+            zeroQueueSizeTest.zeroQueueSizeReceieveAsyncInCompatibility();
+        }catch (Exception ex){
+            ex.printStackTrace();
+        }
+    }
+
     @Test
     public void validQueueSizeConfig() {
         pulsarClient.newConsumer().receiverQueueSize(0);
@@ -79,15 +87,19 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         pulsarClient.newConsumer().receiverQueueSize(-1);
     }
 
+
     @Test(expectedExceptions = PulsarClientException.InvalidConfigurationException.class)
     public void zeroQueueSizeReceieveAsyncInCompatibility() throws PulsarClientException {
         String key = "zeroQueueSizeReceieveAsyncInCompatibility";
         final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
         final String subscriptionName = "my-ex-subscription-" + key;
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+        Map<String, Object> config = new HashMap<>();
+        config.put("receiveInterval", 5000);
+        config.put("receiveThreads", 6);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().loadConf(config).topic(topicName).subscriptionName(subscriptionName)
                 .receiverQueueSize(0).subscribe();
-        consumer.receive(10, TimeUnit.SECONDS);
+        consumer.receiveAsync(10, TimeUnit.SECONDS);
     }
 
     @Test(expectedExceptions = PulsarClientException.class)

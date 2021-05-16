@@ -63,6 +63,12 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private SubscriptionMode subscriptionMode = SubscriptionMode.Durable;
 
+
+    /**This is time interval for receiving messages(Only while Zero queue) **/
+    private Integer receiveInterval;
+    /**his is receive threads for receiving messages(Only while Zero queue)  **/
+    private Integer receiveThreads;
+
     @JsonIgnore
     private MessageListener<T> messageListener;
 

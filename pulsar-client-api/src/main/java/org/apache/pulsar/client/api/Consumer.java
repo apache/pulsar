@@ -119,6 +119,9 @@ public interface Consumer<T> extends Closeable {
      */
     Message<T> receive(int timeout, TimeUnit unit) throws PulsarClientException;
 
+
+    CompletableFuture<Message<T>> receiveAsync(int timeout,TimeUnit unit);
+
     /**
      * Batch receiving messages.
      *

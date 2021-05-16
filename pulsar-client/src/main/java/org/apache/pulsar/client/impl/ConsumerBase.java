@@ -32,6 +32,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.time.Duration;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -47,6 +50,10 @@ import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import java.util.function.Supplier;
+
+import io.netty.util.concurrent.DefaultThreadFactory;
+import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
@@ -172,17 +179,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     @Override
     public Message<T> receive(int timeout, TimeUnit unit) throws PulsarClientException {
         if (conf.getReceiverQueueSize() == 0) {
-
-            if(!(getState() == State.Connecting)){
-                throw new PulsarClientException.InvalidConfigurationException(
-                        "Can't use receive with timeout, if the queue size is 0");
-            }
-
-
-            if (batchReceivePolicy.getTimeoutMs() > 0){
-                // This abstract method A has a zero queue implementation
-                internalReceive();
-            }
+            throw new PulsarClientException.InvalidConfigurationException(
+                    "Can't use receive with timeout, if the queue size is 0");
         }
         if (listener != null) {
             throw new PulsarClientException.InvalidConfigurationException(
@@ -192,6 +190,50 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         verifyConsumerState();
         return internalReceive(timeout, unit);
     }
+
+    @Override
+    public CompletableFuture<Message<T>> receiveAsync(int timeout, TimeUnit unit) {
+
+        if (listener != null) {
+            return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(
+                    "Cannot use receive() when a listener has been set"));
+        }
+        try {
+            verifyConsumerState();
+        } catch (PulsarClientException e) {
+            return FutureUtil.failedFuture(e);
+        }
+
+        ScheduledExecutorService messageScheduledFuture = Executors.newSingleThreadScheduledExecutor(
+                new DefaultThreadFactory(getClass().getSimpleName()+"-receive-message")
+        );
+        if (Objects.nonNull(conf.getReceiveThreads())){
+            messageScheduledFuture = Executors.newScheduledThreadPool(
+                    conf.getReceiveThreads(),new DefaultThreadFactory(getClass().getSimpleName()+"-receive-message")
+            );
+        }
+
+        Supplier<Message<T>> asyncTask = this::doZeroQueue;
+
+        CompletableFuture<Message<T>> future =
+               FutureUtil.schedule(messageScheduledFuture,asyncTask,
+                       conf.getReceiveInterval(),TimeUnit.SECONDS);
+
+        return future;
+    }
+
+    private Message<T> doZeroQueue() {
+        Message<T> result = null;
+        try {
+            result = internalReceive();
+            return result;
+        } catch (PulsarClientException e) {
+            e.printStackTrace();
+        }
+        return result;
+    }
+
+
 
     protected abstract Message<T> internalReceive(int timeout, TimeUnit unit) throws PulsarClientException;
 
