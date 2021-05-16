@@ -62,7 +62,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
-import org.apache.pulsar.broker.ConfigHelper;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -873,6 +872,13 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     public void partitionedTopics(String topicName) throws Exception {
         assertEquals(admin.topics().getPartitionedTopicList("prop-xyz/ns1"), Lists.newArrayList());
         final String partitionedTopicName = "persistent://prop-xyz/ns1/" + topicName;
+
+        try {
+            admin.topics().getPartitionedTopicMetadata(partitionedTopicName);
+            fail("getPartitionedTopicMetadata of " + partitionedTopicName + " should not succeed");
+        } catch (NotFoundException ignored) {
+        }
+
         admin.topics().createPartitionedTopic(partitionedTopicName, 4);
         assertEquals(admin.topics().getPartitionedTopicList("prop-xyz/ns1"),
                 Lists.newArrayList(partitionedTopicName));
@@ -882,8 +888,11 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         List<String> topics = admin.topics().getList("prop-xyz/ns1");
         assertEquals(topics.size(), 4);
 
-        assertEquals(admin.topics().getPartitionedTopicMetadata("persistent://prop-xyz/ns1/ds2").partitions,
-                0);
+        try {
+            admin.topics().getPartitionedTopicMetadata("persistent://prop-xyz/ns1/ds2");
+            fail("getPartitionedTopicMetadata of persistent://prop-xyz/ns1/ds2 should not succeed");
+        } catch (NotFoundException ignored) {
+        }
         // check the getPartitionedStats for PartitionedTopic returns only partitions metadata, and no partitions info
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions,
                 admin.topics().getPartitionedStats(partitionedTopicName,false).metadata.partitions);
@@ -1003,7 +1012,11 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         admin.topics().deletePartitionedTopic(partitionedTopicName);
 
-        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 0);
+        try {
+            admin.topics().getPartitionedTopicMetadata(partitionedTopicName);
+            fail("getPartitionedTopicMetadata of " + partitionedTopicName + " should not succeed");
+        } catch (NotFoundException ignored) {
+        }
 
         admin.topics().createPartitionedTopic(partitionedTopicName, 32);
 
