@@ -18,16 +18,24 @@
  */
 package org.apache.pulsar.broker.zookeeper;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.PulsarClusterMetadataSetup;
-import org.apache.pulsar.broker.zookeeper.ZooKeeperClientAspectJTest.ZookeeperServerTest;
+import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.zookeeper.ZooKeeper;
+import org.apache.zookeeper.server.NIOServerCnxnFactory;
+import org.apache.zookeeper.server.ZooKeeperServer;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.io.Closeable;
+import java.io.File;
+import java.io.IOException;
+import java.net.InetSocketAddress;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 
+@Slf4j
 @Test(groups = "broker")
 public class ClusterMetadataSetupTest {
     private ZookeeperServerTest localZkS;
@@ -112,4 +120,53 @@ public class ClusterMetadataSetupTest {
         localZkS.close();
     }
 
+    static class ZookeeperServerTest implements Closeable {
+        private final File zkTmpDir;
+        private ZooKeeperServer zks;
+        private NIOServerCnxnFactory serverFactory;
+        private final int zkPort;
+        private final String hostPort;
+
+        public ZookeeperServerTest(int zkPort) throws IOException {
+            this.zkPort = zkPort;
+            this.hostPort = "127.0.0.1:" + zkPort;
+            this.zkTmpDir = File.createTempFile("zookeeper", "test");
+            log.info("**** Start GZK on {} ****", zkTmpDir);
+            if (!zkTmpDir.delete() || !zkTmpDir.mkdir()) {
+                throw new IOException("Couldn't create zk directory " + zkTmpDir);
+            }
+        }
+
+        public void start() throws IOException {
+            try {
+                zks = new ZooKeeperServer(zkTmpDir, zkTmpDir, ZooKeeperServer.DEFAULT_TICK_TIME);
+                zks.setMaxSessionTimeout(20000);
+                serverFactory = new NIOServerCnxnFactory();
+                serverFactory.configure(new InetSocketAddress(zkPort), 1000);
+                serverFactory.startup(zks);
+            } catch (Exception e) {
+                log.error("Exception while instantiating ZooKeeper", e);
+            }
+
+            LocalBookkeeperEnsemble.waitForServerUp(hostPort, 30000);
+            log.info("ZooKeeper started at {}", hostPort);
+        }
+
+        public void stop() throws IOException {
+            zks.shutdown();
+            serverFactory.shutdown();
+            log.info("Stoppend ZK server at {}", hostPort);
+        }
+
+        @Override
+        public void close() throws IOException {
+            zks.shutdown();
+            serverFactory.shutdown();
+            zkTmpDir.delete();
+        }
+
+        public int getZookeeperPort() {
+            return serverFactory.getLocalPort();
+        }
+    }
 }

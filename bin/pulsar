@@ -197,16 +197,10 @@ add_maven_deps_to_classpath() {
 }
 
 if [ -d "$PULSAR_HOME/lib" ]; then
-	PULSAR_CLASSPATH=$PULSAR_CLASSPATH:$PULSAR_HOME/lib/*
-    ASPECTJ_AGENT_PATH=`ls -1 $PULSAR_HOME/lib/org.aspectj-aspectjweaver-*.jar`
+	  PULSAR_CLASSPATH=$PULSAR_CLASSPATH:$PULSAR_HOME/lib/*
 else
     add_maven_deps_to_classpath
-
-    ASPECTJ_VERSION=`grep '<aspectj.version>' $PULSAR_HOME/pom.xml | awk -F'>' '{print $2}' | awk -F'<' '{print $1}'`
-    ASPECTJ_AGENT_PATH="$HOME/.m2/repository/org/aspectj/aspectjweaver/$ASPECTJ_VERSION/aspectjweaver-$ASPECTJ_VERSION.jar"
 fi
-
-ASPECTJ_AGENT="-javaagent:$ASPECTJ_AGENT_PATH"
 
 # if no args specified, show usage
 if [ $# = 0 ]; then
@@ -321,23 +315,23 @@ LOG4J2_SHUTDOWN_HOOK_DISABLED="-Dlog4j.shutdownHookEnabled=false"
 cd "$PULSAR_HOME"
 if [ $COMMAND == "broker" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"pulsar-broker.log"}
-    exec $JAVA $LOG4J2_SHUTDOWN_HOOK_DISABLED $OPTS $ASPECTJ_AGENT -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.PulsarBrokerStarter --broker-conf $PULSAR_BROKER_CONF $@
+    exec $JAVA $LOG4J2_SHUTDOWN_HOOK_DISABLED $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.PulsarBrokerStarter --broker-conf $PULSAR_BROKER_CONF $@
 elif [ $COMMAND == "bookie" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"bookkeeper.log"}
     exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.bookkeeper.server.Main --conf $PULSAR_BOOKKEEPER_CONF $@
 elif [ $COMMAND == "zookeeper" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"zookeeper.log"}
-    exec $JAVA ${ZK_OPTS} $OPTS $ASPECTJ_AGENT -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.zookeeper.ZooKeeperStarter $PULSAR_ZK_CONF $@
+    exec $JAVA ${ZK_OPTS} $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.zookeeper.ZooKeeperStarter $PULSAR_ZK_CONF $@
 elif [ $COMMAND == "global-zookeeper" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"global-zookeeper.log"}
     # Allow global ZK to turn into read-only mode when it cannot reach the quorum
     OPTS="${OPTS} ${ZK_OPTS} -Dreadonlymode.enabled=true"
-    exec $JAVA $OPTS $ASPECTJ_AGENT -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.zookeeper.ConfigurationStoreStarter $PULSAR_GLOBAL_ZK_CONF $@
+    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.zookeeper.ConfigurationStoreStarter $PULSAR_GLOBAL_ZK_CONF $@
 elif [ $COMMAND == "configuration-store" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"configuration-store.log"}
     # Allow global ZK to turn into read-only mode when it cannot reach the quorum
     OPTS="${OPTS} ${ZK_OPTS} -Dreadonlymode.enabled=true"
-    exec $JAVA $OPTS $ASPECTJ_AGENT -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.zookeeper.ConfigurationStoreStarter $PULSAR_CONFIGURATION_STORE_CONF $@
+    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.zookeeper.ConfigurationStoreStarter $PULSAR_CONFIGURATION_STORE_CONF $@
 elif [ $COMMAND == "discovery" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"discovery.log"}
     exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.discovery.service.server.DiscoveryServiceStarter $PULSAR_DISCOVERY_CONF $@
@@ -352,7 +346,7 @@ elif [ $COMMAND == "functions-worker" ]; then
     exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.functions.worker.FunctionWorkerStarter -c $PULSAR_WORKER_CONF $@
 elif [ $COMMAND == "standalone" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"pulsar-standalone.log"}
-    exec $JAVA $LOG4J2_SHUTDOWN_HOOK_DISABLED $OPTS $ASPECTJ_AGENT ${ZK_OPTS} -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.PulsarStandaloneStarter --config $PULSAR_STANDALONE_CONF $@
+    exec $JAVA $LOG4J2_SHUTDOWN_HOOK_DISABLED $OPTS ${ZK_OPTS} -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.PulsarStandaloneStarter --config $PULSAR_STANDALONE_CONF $@
 elif [ $COMMAND == "initialize-cluster-metadata" ]; then
     exec $JAVA $OPTS org.apache.pulsar.PulsarClusterMetadataSetup $@
 elif [ $COMMAND == "delete-cluster-metadata" ]; then

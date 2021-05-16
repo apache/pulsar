@@ -393,6 +393,14 @@ public class PulsarAdminToolTest {
         verify(mockNamespaces).setBacklogQuota("myprop/clust/ns1",
                 new BacklogQuota(10L * 1024 * 1024 * 1024, RetentionPolicy.producer_exception));
 
+        mockNamespaces = mock(Namespaces.class);
+        when(admin.namespaces()).thenReturn(mockNamespaces);
+        namespaces = new CmdNamespaces(() -> admin);
+
+        namespaces.run(split("set-backlog-quota myprop/clust/ns1 -p producer_exception -l 10G -lt 10000"));
+        verify(mockNamespaces).setBacklogQuota("myprop/clust/ns1",
+                new BacklogQuota(10l * 1024 * 1024 * 1024, 10000, RetentionPolicy.producer_exception));
+
         namespaces.run(split("set-persistence myprop/clust/ns1 -e 2 -w 1 -a 1 -r 100.0"));
         verify(mockNamespaces).setPersistence("myprop/clust/ns1",
                 new PersistencePolicies(2, 1, 1, 100.0d));
@@ -820,9 +828,9 @@ public class PulsarAdminToolTest {
 
         cmdTopics.run(split("get-backlog-quotas persistent://myprop/clust/ns1/ds1 -ap"));
         verify(mockTopics).getBacklogQuotaMap("persistent://myprop/clust/ns1/ds1", true);
-        cmdTopics.run(split("set-backlog-quota persistent://myprop/clust/ns1/ds1 -l 10 -p producer_request_hold"));
+        cmdTopics.run(split("set-backlog-quota persistent://myprop/clust/ns1/ds1 -l 10 -lt 1000 -p producer_request_hold"));
         verify(mockTopics).setBacklogQuota("persistent://myprop/clust/ns1/ds1"
-                , new BacklogQuota(10L, BacklogQuota.RetentionPolicy.producer_request_hold));
+                , new BacklogQuota(10L, 1000, BacklogQuota.RetentionPolicy.producer_request_hold));
         cmdTopics.run(split("remove-backlog-quota persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).removeBacklogQuota("persistent://myprop/clust/ns1/ds1");
 

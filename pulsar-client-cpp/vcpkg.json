@@ -16,11 +16,16 @@
     "boost-serialization",
     "boost-xpressive",
     "curl",
-    "dlfcn-win32",
     "openssl",
     "protobuf",
     "snappy",
     "zlib",
-    "zstd"
+    "zstd",
+    "python3",
+    "log4cxx",
+    {
+      "name": "dlfcn-win32",
+      "platform": "windows"
+    }
   ]
 }
