@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -185,6 +186,16 @@ public class ReaderImpl<T> implements Reader<T> {
     @Override
     public void seek(long timestamp) throws PulsarClientException {
         consumer.seek(timestamp);
+    }
+
+    @Override
+    public void seek(Function<String, Object> function) throws PulsarClientException {
+        consumer.seek(function);
+    }
+
+    @Override
+    public CompletableFuture<Void> seekAsync(Function<String, Object> function) {
+        return consumer.seekAsync(function);
     }
 
     @Override

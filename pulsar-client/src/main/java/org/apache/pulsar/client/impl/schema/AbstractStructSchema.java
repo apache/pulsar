@@ -158,6 +158,14 @@ public abstract class AbstractStructSchema<T> extends AbstractSchema<T> {
                 return Optional.empty();
             }
         }
+
+        @Override
+        public String toString() {
+            return "VersionedSchema(type=" + schemaInfo.getType() +
+                    ",schemaVersion="+BytesSchemaVersion.of(schemaVersion) +
+                    ",name="+schemaInfo.getName()
+                    + ")";
+        }
     }
 
     private AbstractStructSchema<T> getAbstractStructSchemaAtVersion(byte[] schemaVersion, SchemaInfo schemaInfo) {

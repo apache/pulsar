@@ -200,6 +200,9 @@ public class MessageIdImpl implements MessageId {
 
     @Override
     public int compareTo(MessageId o) {
+        if (o == null) {
+            throw new UnsupportedOperationException("MessageId is null");
+        }
         if (o instanceof MessageIdImpl) {
             MessageIdImpl other = (MessageIdImpl) o;
             int batchIndex = (o instanceof BatchMessageIdImpl) ? ((BatchMessageIdImpl) o).getBatchIndex() : NO_BATCH;

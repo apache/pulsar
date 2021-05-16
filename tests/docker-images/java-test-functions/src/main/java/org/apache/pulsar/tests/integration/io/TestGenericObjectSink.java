@@ -41,10 +41,13 @@ public class TestGenericObjectSink implements Sink<GenericObject> {
         log.info("received record {} {}", record, record.getClass());
         log.info("schema {}", record.getSchema());
         log.info("native schema {}", record.getSchema().getNativeSchema().orElse(null));
+        log.info("schemaInfo {}", record.getSchema().getSchemaInfo());
+        log.info("schemaInfo.type {}", record.getSchema().getSchemaInfo().getType());
 
         String expectedRecordType = record.getProperties().getOrDefault("expectedType", "MISSING");
+        log.info("expectedRecordType {}", expectedRecordType);
         if (!expectedRecordType.equals(record.getSchema().getSchemaInfo().getType().name())) {
-            throw new RuntimeException("Unexpected record type "+record.getSchema().getSchemaInfo().getType().name() +" is not "+expectedRecordType);
+            throw new RuntimeException("Unexpected record type " + record.getSchema().getSchemaInfo().getType().name() + " is not " + expectedRecordType);
         }
 
         log.info("value {}", record.getValue());
@@ -65,6 +68,16 @@ public class TestGenericObjectSink implements Sink<GenericObject> {
         log.info("value {}", record.getValue());
         log.info("value schema type {}", record.getValue().getSchemaType());
         log.info("value native object {}", record.getValue().getNativeObject());
+
+        String expectedSchemaDefinition = record.getProperties().getOrDefault("expectedSchemaDefinition", "");
+        log.info("schemaDefinition {}", record.getSchema().getSchemaInfo().getSchemaDefinition());
+        log.info("expectedSchemaDefinition {}", expectedSchemaDefinition);
+        if (!expectedSchemaDefinition.isEmpty()) {
+            String schemaDefinition = record.getSchema().getSchemaInfo().getSchemaDefinition();
+            if (!expectedSchemaDefinition.equals(schemaDefinition)) {
+                throw new RuntimeException("Unexpected schema definition " + schemaDefinition + " is not " + expectedSchemaDefinition);
+            }
+        }
 
         record.ack();
     }
