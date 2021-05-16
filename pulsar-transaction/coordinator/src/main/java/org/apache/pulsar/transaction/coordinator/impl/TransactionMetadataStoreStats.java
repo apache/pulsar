@@ -51,6 +51,7 @@ public class TransactionMetadataStoreStats {
     /** The timeout out transaction count of this transaction coordinator. */
     public long timeoutCount;
 
+    /** The transaction execution latency. */
     public StatsBuckets executionLatencyBuckets = new StatsBuckets(TRANSACTION_EXECUTION_BUCKETS);
 
     public void addTransactionExecutionLatencySample(long latency) {
