@@ -103,8 +103,18 @@ public class SinkRecord<T> implements Record<T> {
         if (sourceRecord.getSchema() != null) {
             // unwrap actual schema
             Schema<T> schema =  sourceRecord.getSchema();
+            // AutoConsumeSchema is a special schema, that comes into play
+            // when the Sink is going to handle any Schema
+            // usually you see Sink<GenericObject> or Sink<GenericRecord> in this case
             if (schema instanceof AutoConsumeSchema) {
-                schema = (Schema<T>) ((AutoConsumeSchema) schema).getInternalSchema();
+                // extract the Schema from the message, this is the most accurate schema we have
+                // see PIP-85
+                if (sourceRecord.getMessage().isPresent()
+                        && sourceRecord.getMessage().get().getReaderSchema().isPresent()) {
+                    schema = (Schema<T>) sourceRecord.getMessage().get().getReaderSchema().get();
+                } else {
+                    schema = (Schema<T>) ((AutoConsumeSchema) schema).getInternalSchema();
+                }
             }
             return schema;
         }

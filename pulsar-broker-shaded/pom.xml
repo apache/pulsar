@@ -145,7 +145,6 @@
                   <include>org.yaml:snakeyaml</include>
                   <include>org.hdrhistogram:*</include>
                   <include>com.github.zafarkhaja:java-semver</include>
-                  <include>org.aspectj:*</include>
                   <include>org.apache.avro:avro</include>
                   <!-- Avro transitive dependencies-->
                   <include>com.thoughtworks.paranamer:paranamer</include>
@@ -306,14 +305,6 @@
                 <relocation>
                   <pattern>org.HdrHistogram</pattern>
                   <shadedPattern>org.apache.pulsar.shade.org.HdrHistogram</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>org.aspectj</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.org.aspectj</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>aj</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.aj</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>com.ea</pattern>

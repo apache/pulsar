@@ -119,8 +119,6 @@ import org.apache.pulsar.broker.stats.prometheus.metrics.ObserverGauge;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.web.PulsarWebResource;
-import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect;
-import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect.EventListner;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -244,7 +242,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     private final int keepAliveIntervalSeconds;
     private final PulsarStats pulsarStats;
-    private final EventListner zkStatsListener;
     private final AuthenticationService authenticationService;
 
     public static final String BROKER_SERVICE_CONFIGURATION_PATH = "/admin/configuration";
@@ -352,9 +349,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                             + " unAckMsgSubscriptionPercentageLimitOnBrokerBlocked {} ",
                     pulsar.getConfiguration().getMaxUnackedMessagesPerSubscriptionOnBrokerBlocked());
         }
-
-        // register listener to capture zk-latency
-        zkStatsListener = (eventType, latencyMs) -> pulsarStats.recordZkLatencyTimeValue(eventType, latencyMs);
 
         this.delayedDeliveryTrackerFactory = DelayedDeliveryTrackerLoader
                 .loadDelayedDeliveryTrackerFactory(pulsar.getConfiguration());
@@ -468,9 +462,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         this.updateBrokerPublisherThrottlingMaxRate();
         this.startCheckReplicationPolicies();
         this.startDeduplicationSnapshotMonitor();
-        // register listener to capture zk-latency
-        ClientCnxnAspect.addListener(zkStatsListener);
-        ClientCnxnAspect.registerExecutor(pulsar.getExecutor());
     }
 
     protected void startStatsUpdater(int statsUpdateInitailDelayInSecs, int statsUpdateFrequencyInSecs) {
@@ -717,8 +708,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                                     log.warn("Error in closing authenticationService", e);
                                 }
                                 pulsarStats.close();
-                                ClientCnxnAspect.removeListener(zkStatsListener);
-                                ClientCnxnAspect.registerExecutor(null);
                                 try {
                                     delayedDeliveryTrackerFactory.close();
                                 } catch (IOException e) {

@@ -82,7 +82,6 @@ public class SecurityUtility {
     // also used to get Factories. e.g. CertificateFactory.getInstance("X.509", "BCFIPS")
     public static final String BC_FIPS = "BCFIPS";
     public static final String BC = "BC";
-    private static final String SSLCONTEXT_ALGORITHM = "TLSv1.2";
 
     public static boolean isBCFIPS() {
         return BC_PROVIDER.getClass().getCanonicalName().equals(BC_FIPS_PROVIDER_CLASS);

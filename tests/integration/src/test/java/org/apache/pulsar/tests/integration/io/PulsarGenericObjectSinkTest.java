@@ -74,9 +74,17 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
 
     @Data
     @Builder
-    public static final class Pojo {
+    public static class Pojo {
         private String field1;
         private int field2;
+    }
+
+    @Data
+    @Builder
+    public static class PojoV2 {
+        private String field1;
+        private int field2;
+        private Double field3;
     }
 
     @Data
@@ -159,6 +167,82 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
             log.info("sink {} status {}", sinkName, status);
             assertEquals(status.getInstances().size(), 1);
             assertTrue(status.getInstances().get(0).getStatus().numWrittenToSink >= numRecordsPerTopic * specs.size());
+            assertTrue(status.getInstances().get(0).getStatus().numSinkExceptions == 0);
+            assertTrue(status.getInstances().get(0).getStatus().numSystemExceptions == 0);
+            log.info("sink {} is okay", sinkName);
+        } finally {
+            dumpFunctionLogs(sinkName);
+        }
+
+        deleteSink(sinkName);
+        getSinkInfoNotFound(sinkName);
+    }
+
+    @Test(groups = {"sink"})
+    public void testGenericObjectSinkWithSchemaChange() throws Exception {
+
+        @Cleanup PulsarClient client = PulsarClient.builder()
+                .serviceUrl(container.getPlainTextServiceUrl())
+                .build();
+
+        @Cleanup
+        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(container.getHttpServiceUrl()).build();
+
+
+        final int numRecords = 2;
+
+        String sinkName = "genericobject-sink";
+        String topicName = "test-genericobject-sink-schema-change";
+
+        submitSinkConnector(sinkName, topicName, "org.apache.pulsar.tests.integration.io.TestGenericObjectSink", JAVAJAR);
+        // get sink info
+        getSinkInfoSuccess(sinkName);
+        getSinkStatus(sinkName);
+
+        @Cleanup Producer<byte[]> producer = client.newProducer()
+                    .topic(topicName)
+                    .create();
+        Schema<Pojo> schemav1 = Schema.AVRO(Pojo.class);
+        Pojo record1 = Pojo.builder().field1("foo").field2(23).build();
+        producer.newMessage(schemav1)
+                .value(record1)
+                .property("expectedType", schemav1.getSchemaInfo().getType().toString())
+                .property("expectedSchemaDefinition", schemav1.getSchemaInfo().getSchemaDefinition())
+                .property("recordNumber", "1")
+                .send();
+
+        Schema<PojoV2> schemav2 = Schema.AVRO(PojoV2.class);
+        PojoV2 record2 = PojoV2.builder().field1("foo").field2(23).field3(42.5).build();
+        producer.newMessage(schemav2)
+                .value(record2)
+                .property("expectedType", schemav2.getSchemaInfo().getType().toString())
+                .property("expectedSchemaDefinition", schemav2.getSchemaInfo().getSchemaDefinition())
+                .property("recordNumber", "2")
+                .send();
+
+        // wait that sink processed all records without errors
+
+        try {
+            log.info("waiting for sink {}", sinkName);
+
+            for (int i = 0; i < 120; i++) {
+                SinkStatus status = admin.sinks().getSinkStatus("public", "default", sinkName);
+                log.info("sink {} status {}", sinkName, status);
+                assertEquals(status.getInstances().size(), 1);
+                SinkStatus.SinkInstanceStatus instance = status.getInstances().get(0);
+                if (instance.getStatus().numWrittenToSink >= numRecords
+                        || instance.getStatus().numSinkExceptions > 0
+                        || instance.getStatus().numSystemExceptions > 0
+                        || instance.getStatus().numRestarts > 0) {
+                    break;
+                }
+                Thread.sleep(1000);
+            }
+
+            SinkStatus status = admin.sinks().getSinkStatus("public", "default", sinkName);
+            log.info("sink {} status {}", sinkName, status);
+            assertEquals(status.getInstances().size(), 1);
+            assertTrue(status.getInstances().get(0).getStatus().numWrittenToSink >= numRecords);
             assertTrue(status.getInstances().get(0).getStatus().numSinkExceptions == 0);
             assertTrue(status.getInstances().get(0).getStatus().numSystemExceptions == 0);
             log.info("sink {} is okay", sinkName);

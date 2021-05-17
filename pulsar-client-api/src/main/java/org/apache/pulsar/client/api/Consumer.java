@@ -600,26 +600,31 @@ public interface Consumer<T> extends Closeable {
     void seek(long timestamp) throws PulsarClientException;
 
     /**
-     * Reset the subscription associated with this consumer to a specific message id.
+     * Reset the subscription associated with this consumer to a specific message ID or message publish time.
      * <p>
-     * The Function input is topic+partition.
+     * The Function input is topic+partition. It returns only timestamp or MessageId.
      * <p>
      * The return value is the seek position/timestamp of the current partition.
+     * Exception is thrown if other object types are returned.
      * <p>
      * If returns null, the current partition will not do any processing.
+     * Exception in a partition may affect other partitions.
      * @param function
      * @throws PulsarClientException
      */
     void seek(Function<String, Object> function) throws PulsarClientException;
 
     /**
-     * Reset the subscription associated with this consumer to a specific message id asynchronously.
+     * Reset the subscription associated with this consumer to a specific message ID
+     * or message publish time asynchronously.
      * <p>
-     * The Function input is topic+partition.
+     * The Function input is topic+partition. It returns only timestamp or MessageId.
      * <p>
      * The return value is the seek position/timestamp of the current partition.
+     * Exception is thrown if other object types are returned.
      * <p>
      * If returns null, the current partition will not do any processing.
+     * Exception in a partition may affect other partitions.
      * @param function
      * @return
      */

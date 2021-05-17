@@ -50,6 +50,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.crypto.SecretKey;
 import javax.naming.AuthenticationException;
+import lombok.Cleanup;
 import org.apache.commons.io.IOUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
@@ -97,12 +98,13 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         String baseTopic1 = "persistent://" + ns1 + "/testMetricsTopicCount";
         String baseTopic2 = "persistent://" + ns2 + "/testMetricsTopicCount";
         for (int i = 0; i < 6; i++) {
-            admin.topics().createNonPartitionedTopic(baseTopic1 + UUID.randomUUID().toString());
+            admin.topics().createNonPartitionedTopic(baseTopic1 + UUID.randomUUID());
         }
         for (int i = 0; i < 3; i++) {
-            admin.topics().createNonPartitionedTopic(baseTopic2 + UUID.randomUUID().toString());
+            admin.topics().createNonPartitionedTopic(baseTopic2 + UUID.randomUUID());
         }
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
+        @Cleanup
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
         String metricsStr = statsOut.toString();
@@ -116,6 +118,35 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                 assertEquals(item.value, 3.0);
             }
         });
+    }
+
+    @Test
+    public void testMetricsAvgMsgSize2() throws Exception {
+        String ns1 = "prop/ns-abc1";
+        admin.namespaces().createNamespace(ns1, 1);
+        String baseTopic1 = "persistent://" + ns1 + "/testMetricsTopicCount";
+        String topicName = baseTopic1 + UUID.randomUUID();
+        Producer producer = pulsarClient.newProducer().producerName("my-pub")
+                .topic(topicName).create();
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
+                .getTopic(topicName, false).get().get();
+        org.apache.pulsar.broker.service.Producer producerInServer = persistentTopic.getProducers().get("my-pub");
+        producerInServer.getStats().msgRateIn = 10;
+        producerInServer.getStats().msgThroughputIn = 100;
+        @Cleanup
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, true, statsOut);
+        String metricsStr = statsOut.toString();
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        assertTrue(metrics.containsKey("pulsar_average_msg_size"));
+        assertEquals(metrics.get("pulsar_average_msg_size").size(), 1);
+        Collection<Metric> avgMsgSizes = metrics.get("pulsar_average_msg_size");
+        avgMsgSizes.forEach(item -> {
+            if (ns1.equals(item.tags.get("namespace"))) {
+                assertEquals(item.value, 10);
+            }
+        });
+        producer.close();
     }
 
     @Test

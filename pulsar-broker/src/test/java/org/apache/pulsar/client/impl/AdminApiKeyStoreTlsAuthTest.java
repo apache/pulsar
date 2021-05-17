@@ -101,6 +101,7 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
 
         conf.setClusterName(clusterName);
         conf.setTlsRequireTrustedClientCertOnConnect(true);
+        tlsProtocols.add("TLSv1.3");
         tlsProtocols.add("TLSv1.2");
         conf.setTlsProtocols(tlsProtocols);
 

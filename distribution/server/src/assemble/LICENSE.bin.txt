@@ -410,7 +410,6 @@ The Apache Software License, Version 2.0
     - org.apache.bookkeeper.http-vertx-http-server-4.13.0.jar
     - org.apache.bookkeeper.stats-bookkeeper-stats-api-4.13.0.jar
     - org.apache.bookkeeper.stats-prometheus-metrics-provider-4.13.0.jar
-    - org.apache.bookkeeper.tests-stream-storage-tests-common-4.13.0.jar
     - org.apache.distributedlog-distributedlog-common-4.13.0.jar
     - org.apache.distributedlog-distributedlog-core-4.13.0-tests.jar
     - org.apache.distributedlog-distributedlog-core-4.13.0.jar
@@ -511,6 +510,7 @@ The Apache Software License, Version 2.0
     - io.vertx-vertx-core-3.5.4.jar
     - io.vertx-vertx-web-3.5.4.jar
   * Apache ZooKeeper
+    - org.apache.zookeeper-zookeeper-3.6.2.jar
     - org.apache.zookeeper-zookeeper-jute-3.6.2.jar
   * Snappy Java
     - org.xerial.snappy-snappy-java-1.1.7.jar
@@ -573,18 +573,14 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
 
 Eclipse Distribution License 1.0 -- licenses/LICENSE-EDL-1.0.txt
  * Jakarta Activation
-   - jakarta.activation-jakarta.activation-api-1.2.1.jar
- * Jakarta XML Binding -- jakarta.xml.bind-jakarta.xml.bind-api-2.3.2.jar
-
-Eclipse Public License 1.0 -- licenses/LICENSE-AspectJ.txt
- * AspectJ
-    - org.aspectj-aspectjrt-1.9.2.jar
-    - org.aspectj-aspectjweaver-1.9.2.jar
+   - jakarta.activation-jakarta.activation-api-1.2.2.jar
+   - com.sun.activation-jakarta.activation-1.2.2.jar
+ * Jakarta XML Binding -- jakarta.xml.bind-jakarta.xml.bind-api-2.3.3.jar
 
 Eclipse Public License - v2.0 -- licenses/LICENSE-EPL-2.0.txt
  * Jakarta Annotations API -- jakarta.annotation-jakarta.annotation-api-1.3.5.jar
  * Jakarta RESTful Web Services -- jakarta.ws.rs-jakarta.ws.rs-api-2.1.6.jar
- * Jackarta Injection -- org.glassfish.hk2.external-jakarta.inject-2.6.1.jar
+ * Jakarta Injection -- org.glassfish.hk2.external-jakarta.inject-2.6.1.jar
 
 Public Domain (CC0) -- licenses/LICENSE-CC0.txt
  * Reactive Streams -- org.reactivestreams-reactive-streams-1.0.3.jar
