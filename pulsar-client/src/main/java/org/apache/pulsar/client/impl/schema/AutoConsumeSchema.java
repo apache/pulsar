@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import com.google.common.collect.Maps;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
@@ -31,9 +32,9 @@ import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -44,7 +45,7 @@ import static com.google.common.base.Preconditions.checkState;
 @Slf4j
 public class AutoConsumeSchema implements Schema<GenericRecord> {
 
-    private final Map<SchemaVersion, Schema<?>> schemaMap = new HashMap<>();
+    private final ConcurrentMap<SchemaVersion, Schema<?>> schemaMap = initSchemaMap();
 
     private String topicName;
 
@@ -52,8 +53,12 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
 
     private SchemaInfoProvider schemaInfoProvider;
 
-    public AutoConsumeSchema() {
+    private ConcurrentMap<SchemaVersion, Schema<?>> initSchemaMap() {
+        ConcurrentMap<SchemaVersion, Schema<?>> schemaMap = Maps.newConcurrentMap();
+        // The Schema.BYTES will not be uploaded to the broker and store in the schema storage,
+        // if the schema version in the message metadata is empty byte[], it means its schema is Schema.BYTES.
         schemaMap.put(BytesSchemaVersion.of(new byte[0]), Schema.BYTES);
+        return schemaMap;
     }
 
     public void setSchema(SchemaVersion schemaVersion, Schema<?> schema) {
