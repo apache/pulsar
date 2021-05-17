@@ -24,6 +24,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
+import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -32,6 +33,7 @@ import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -48,8 +50,11 @@ import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.compaction.TwoPhaseCompactor;
 import org.apache.pulsar.functions.LocalRunner;
+import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.worker.PulsarFunctionTestUtils;
+import org.apache.pulsar.io.core.Sink;
+import org.apache.pulsar.io.core.SinkContext;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
@@ -124,7 +129,7 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
     }
 
     @Test(timeOut = 30000)
-    private void testPulsarSinkDLQ() throws Exception {
+    public void testPulsarSinkDLQ() throws Exception {
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
         final String sourceTopic = "persistent://" + replNamespace + "/input";
@@ -198,6 +203,10 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
     }
 
     private void testPulsarSinkStats(String jarFilePathUrl) throws Exception {
+        testPulsarSinkStats(jarFilePathUrl, null);
+    }
+
+    private void testPulsarSinkStats(String jarFilePathUrl, Function<SinkConfig, SinkConfig> override) throws Exception {
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
         final String sourceTopic = "persistent://" + replNamespace + "/input";
@@ -213,8 +222,11 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
 
         SinkConfig sinkConfig = createSinkConfig(tenant, namespacePortion, sinkName, sourceTopic, subscriptionName);
-
         sinkConfig.setInputSpecs(Collections.singletonMap(sourceTopic, ConsumerConfig.builder().receiverQueueSize(1000).build()));
+        if (override != null) {
+            sinkConfig = override.apply(sinkConfig);
+        }
+
 
         if (jarFilePathUrl.startsWith(Utils.BUILTIN)) {
             sinkConfig.setArchive(jarFilePathUrl);
@@ -224,6 +236,9 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
         }
 
         sinkConfig.setInputSpecs(Collections.singletonMap(sourceTopic, ConsumerConfig.builder().receiverQueueSize(523).build()));
+        if (override != null) {
+            sinkConfig = override.apply(sinkConfig);
+        }
 
         if (jarFilePathUrl.startsWith(Utils.BUILTIN)) {
             sinkConfig.setArchive(jarFilePathUrl);
@@ -442,6 +457,36 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
     @Test(timeOut = 40000)
     public void testPulsarSinkStatsWithUrl() throws Exception {
         testPulsarSinkStats(fileServer.getUrl("/pulsar-io-data-generator.nar"));
+    }
+
+    @Test(timeOut = 20000)
+    public void testPulsarSinkPoolMessages() throws Exception {
+        String jarFilePathUrl = PulsarSinkE2ETest.class.getProtectionDomain().getCodeSource().getLocation().toURI().toString();
+        testPulsarSinkStats(jarFilePathUrl, sinkConfig -> {
+            sinkConfig.setClassName(StatsNullSink.class.getName());
+            sinkConfig.getInputSpecs().values().forEach(consumerConfig -> consumerConfig.setPoolMessages(true));
+            return sinkConfig;
+        });
+    }
+
+    public static class StatsNullSink implements Sink<ByteBuffer> {
+        volatile long bytesTotal = 0;
+
+        @Override
+        public void open(Map map, final SinkContext sinkContext) throws Exception {
+
+        }
+
+        @Override
+        public void write(Record<ByteBuffer> record) throws Exception {
+            bytesTotal += record.getValue().capacity();
+            record.ack();
+        }
+
+        @Override
+        public void close() throws Exception {
+
+        }
     }
 
     private static SinkConfig createSinkConfig(String tenant, String namespace, String functionName, String sourceTopic, String subName) {
