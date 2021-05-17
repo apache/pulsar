@@ -45,9 +45,9 @@ public class SchemaHash {
     }
 
     public static SchemaHash of(Schema schema) {
-        return of(Optional.ofNullable(schema)
-                          .map(Schema::getSchemaInfo)
-                          .map(SchemaInfo::getSchema).orElse(new byte[0]), schema.getSchemaInfo().getType());
+        Optional<SchemaInfo> schemaInfo = Optional.ofNullable(schema).map(Schema::getSchemaInfo);
+        return of(schemaInfo.map(SchemaInfo::getSchema).orElse(new byte[0]),
+                schemaInfo.map(SchemaInfo::getType).orElse(null));
     }
 
     public static SchemaHash of(SchemaData schemaData) {

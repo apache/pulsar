@@ -28,9 +28,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.collect.Sets;
+import org.apache.commons.lang3.RandomUtils;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.common.api.proto.KeyValue;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,8 +67,12 @@ public class InterceptorsTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testProducerInterceptor() throws PulsarClientException {
+    public void testProducerInterceptor() throws Exception {
         Map<MessageId, List<String>> ackCallback = new HashMap<>();
+
+        String ns = "my-property/my-ns" + RandomUtils.nextInt(999, 1999);
+        admin.namespaces().createNamespace(ns, Sets.newHashSet("test"));
+        admin.namespaces().setSchemaCompatibilityStrategy(ns, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
 
         abstract class BaseInterceptor implements
                 org.apache.pulsar.client.api.interceptor.ProducerInterceptor {
@@ -118,7 +125,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
         };
 
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic")
+                .topic("persistent://" + ns + "/my-topic")
                 .intercept(interceptor1, interceptor2, interceptor3)
                 .create();
         MessageId messageId = producer.newMessage().property("STR", "Y")
