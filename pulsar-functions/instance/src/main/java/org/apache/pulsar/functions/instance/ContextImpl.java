@@ -741,38 +741,51 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
             .forEach(consumer -> topicConsumers.putIfAbsent(TopicName.get(consumer.getTopic()), consumer));
     }
 
+    private void reloadConsumersFromMultiTopicsConsumers() {
+        // MultiTopicsConsumer in the list of inputConsumers could change its nested consumers
+        // if ne partition was created or a new topic added that matches subscription pattern.
+        // Let's update topicConsumers map to match.
+        inputConsumers
+                .stream()
+                .flatMap(c ->
+                        c instanceof MultiTopicsConsumerImpl
+                                ? ((MultiTopicsConsumerImpl<?>) c).getConsumers().stream()
+                                : Stream.empty() // no changes expected in regular consumers
+                ).forEach(c -> topicConsumers.putIfAbsent(TopicName.get(c.getTopic()), c));
+    }
+
+    // returns null if consumer not found
+    private Consumer<?> tryGetConsumer(String topic, int partition) {
+        if (partition == 0) {
+            // maybe a non-partitioned topic
+            Consumer<?> consumer = topicConsumers.get(TopicName.get(topic));
+
+            if (consumer != null) {
+                return consumer;
+            }
+        }
+        // maybe partitioned topic
+        return topicConsumers.get(TopicName.get(topic).getPartition(partition));
+    }
+
     @VisibleForTesting
     Consumer<?> getConsumer(String topic, int partition) throws PulsarClientException {
         if (inputConsumers == null) {
             throw new PulsarClientException("Getting consumer is not supported");
         }
-        for (int i = 0; i < 2; i++) {
-            Consumer<?> consumer = topicConsumers.get(TopicName.get(topic).getPartition(partition));
 
-            if (consumer != null) {
-                return consumer;
-            }
-
-            if (partition == 0) {
-                consumer = topicConsumers.get(TopicName.get(topic));
-
-                if (consumer != null) {
-                    return consumer;
-                }
-            }
-
-            if (i == 0) {
-                // MultiTopicsConsumer's list of consumers could change
-                // if partitions changed or pattern(s) used to subscribe
-                inputConsumers.stream()
-                        .flatMap(c ->
-                                c instanceof MultiTopicsConsumerImpl
-                                        ? ((MultiTopicsConsumerImpl<?>) c).getConsumers().stream()
-                                        : Stream.empty())
-                        .forEach(c -> topicConsumers.putIfAbsent(TopicName.get(c.getTopic()), c));
-            }
+        Consumer<?> consumer = tryGetConsumer(topic, partition);
+        if (consumer == null) {
+            // MultiTopicsConsumer's list of consumers could change
+            // if partitions changed or pattern(s) used to subscribe.
+            // Reload and try one more time.
+            reloadConsumersFromMultiTopicsConsumers();
+            consumer = tryGetConsumer(topic, partition);
         }
 
+        if (consumer != null) {
+            return consumer;
+        }
         throw new PulsarClientException("Consumer for topic " + topic
                 + " partition " + partition + " is not found");
     }
