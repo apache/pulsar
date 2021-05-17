@@ -145,11 +145,8 @@ public class JavaInstanceTest {
                 function,
                 instanceConfig);
         String testString = "ABC123";
-        CompletableFuture<JavaExecutionResult> resultHolder = new CompletableFuture<>();
-        JavaExecutionResult result = instance.handleMessage(mock(Record.class), testString,
-            (record, javaResult) -> resultHolder.complete(javaResult), cause -> {});
-        assertNull(result);
-        assertNotNull(resultHolder.get());
+        JavaExecutionResult result = instance.handleMessage(mock(Record.class), testString);
+        assertNull(result.getResult());
         instance.close();
     }
 
@@ -175,11 +172,8 @@ public class JavaInstanceTest {
                 function,
                 instanceConfig);
         String testString = "ABC123";
-        CompletableFuture<JavaExecutionResult> resultHolder = new CompletableFuture<>();
-        JavaExecutionResult result = instance.handleMessage(mock(Record.class), testString,
-            (record, javaResult) -> resultHolder.complete(javaResult), cause -> {});
-        assertNull(result);
-        assertSame(userException, resultHolder.get().getUserException());
+        JavaExecutionResult result = instance.handleMessage(mock(Record.class), testString);
+        assertSame(userException, result.getUserException().getCause());
         instance.close();
     }
 
