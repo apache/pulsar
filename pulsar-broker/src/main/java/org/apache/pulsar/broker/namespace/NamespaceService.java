@@ -812,14 +812,14 @@ public class NamespaceService implements AutoCloseable {
                                                 + "NamespaceBundle: %s due to %s",
                                         nsname.toString(), bundle.getBundleRange(), ex1.getMessage());
                                 LOG.warn(msg);
-                                updateFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
+                                updateFuture.completeExceptionally(new ServiceUnitNotReadyException(msg, ex1.getCause()));
                                 return null;
                             });
                         } catch (Exception e) {
                             String msg = format("failed to acquire ownership of split bundle for namespace [%s], %s",
                                 nsname.toString(), e.getMessage());
                             LOG.warn(msg, e);
-                            updateFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
+                            updateFuture.completeExceptionally(new ServiceUnitNotReadyException(msg, e));
                         }
                     } else {
                         String msg = format("bundle %s not found under namespace", bundle.toString());
@@ -838,7 +838,8 @@ public class NamespaceService implements AutoCloseable {
             updateFuture.whenCompleteAsync((r, t)-> {
                 if (t != null) {
                     // retry several times on BadVersion
-                    if ((t instanceof ServerMetadataException) && (counter.decrementAndGet() >= 0)) {
+                    if ((t.getCause() instanceof MetadataStoreException.BadVersionException)
+                            && (counter.decrementAndGet() >= 0)) {
                         pulsar.getOrderedExecutor()
                                 .execute(() -> splitAndOwnBundleOnceAndRetry(
                                         bundle, unload, counter, completionFuture, splitAlgorithm));
