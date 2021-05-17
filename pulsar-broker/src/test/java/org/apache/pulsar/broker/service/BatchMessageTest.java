@@ -45,6 +45,7 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -878,6 +879,39 @@ public class BatchMessageTest extends BrokerTestBase {
 
         producer.close();
 
+    }
+
+    @Test
+    public void testBatchMessageDispatchingAccordingToPermits() throws Exception {
+
+        int numMsgs = 1000;
+        int batchMessages = 10;
+        final String topicName = "persistent://prop/ns-abc/testRetrieveSequenceIdSpecify-" + UUID.randomUUID();
+        final String subscriptionName = "sub-1";
+
+        ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName(subscriptionName).receiverQueueSize(10).subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        ConsumerImpl<byte[]> consumer2 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName(subscriptionName).receiverQueueSize(10).subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).batchingMaxMessages(batchMessages)
+                .batchingMaxPublishDelay(500, TimeUnit.MILLISECONDS).enableBatching(true).create();
+
+        List<CompletableFuture<MessageId>> sendFutureList = Lists.newArrayList();
+        for (int i = 0; i < numMsgs; i++) {
+            byte[] message = ("my-message-" + i).getBytes();
+            sendFutureList.add(producer.newMessage().value(message).sendAsync());
+        }
+        FutureUtil.waitForAll(sendFutureList).get();
+
+        assertEquals(consumer1.numMessagesInQueue(), batchMessages, batchMessages);
+        assertEquals(consumer2.numMessagesInQueue(), batchMessages, batchMessages);
+
+        producer.close();
+        consumer1.close();
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(BatchMessageTest.class);
