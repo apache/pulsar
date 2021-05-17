@@ -50,7 +50,7 @@ $ bin/pulsar-admin topics create \
 
 #### REST API
 
-{@inject: endpoint|PUT|/admin/v2/persistent/:tenant/:namespace/:topic|operation/createNonPartitionedTopic?version=[[pulsar:version_number]]}
+{@inject: endpoint|PUT|/admin/v2/:schema/:tenant/:namespace/:topic|operation/createNonPartitionedTopic?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -73,7 +73,7 @@ $ bin/pulsar-admin topics delete \
 
 #### REST API
 
-{@inject: endpoint|DELETE|/admin/v2/persistent/:tenant/:namespace/:topic|operation/deleteTopic?version=[[pulsar:version_number]]}
+{@inject: endpoint|DELETE|/admin/v2/:schema/:tenant/:namespace/:topic|operation/deleteTopic?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -95,7 +95,7 @@ persistent://tenant/namespace/topic2
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace|operation/getList?version=[[pulsar:version_number]]}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace|operation/getList?version=[[pulsar:version_number]]}
 
 #### Java
 
