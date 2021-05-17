@@ -106,6 +106,7 @@ import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
+import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
 import org.apache.pulsar.broker.validator.MultipleListenerValidator;
 import org.apache.pulsar.broker.web.WebService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -223,7 +224,6 @@ public class PulsarService implements AutoCloseable {
     private TransactionMetadataStoreService transactionMetadataStoreService;
     private TransactionBufferProvider transactionBufferProvider;
     private TransactionBufferClient transactionBufferClient;
-    private ScheduledExecutorService transactionExecutor;
     private HashedWheelTimer transactionTimer;
 
     private BrokerInterceptor brokerInterceptor;
@@ -239,6 +239,9 @@ public class PulsarService implements AutoCloseable {
 
     private MetadataStoreExtended configurationMetadataStore;
     private PulsarResources pulsarResources;
+
+    private TransactionPendingAckStoreProvider transactionPendingAckStoreProvider;
+    private final ScheduledExecutorService transactionReplayExecutor;
 
     public enum State {
         Init, Started, Closing, Closed
@@ -287,6 +290,14 @@ public class PulsarService implements AutoCloseable {
                 new DefaultThreadFactory("pulsar"));
         this.cacheExecutor = Executors.newScheduledThreadPool(config.getNumCacheExecutorThreadPoolSize(),
                 new DefaultThreadFactory("zk-cache-callback"));
+
+        if (config.isTransactionCoordinatorEnabled()) {
+            this.transactionReplayExecutor = Executors.newScheduledThreadPool(
+                    config.getNumTransactionReplayThreadPoolSize(),
+                    new DefaultThreadFactory("transaction-replay"));
+        } else {
+            this.transactionReplayExecutor = null;
+        }
         }
 
     public MetadataStoreExtended createConfigurationMetadataStore() throws MetadataStoreException {
@@ -445,8 +456,6 @@ public class PulsarService implements AutoCloseable {
                 transactionBufferClient.close();
             }
 
-            executorServicesShutdown.shutdown(transactionExecutor);
-
             if (coordinationService != null) {
                 coordinationService.close();
             }
@@ -456,6 +465,10 @@ public class PulsarService implements AutoCloseable {
             }
             if (configurationMetadataStore != null) {
                 configurationMetadataStore.close();
+            }
+
+            if (transactionReplayExecutor != null) {
+                transactionReplayExecutor.shutdown();
             }
 
             // add timeout handling for closing executors
@@ -729,9 +742,6 @@ public class PulsarService implements AutoCloseable {
 
             // Register pulsar system namespaces and start transaction meta store service
             if (config.isTransactionCoordinatorEnabled()) {
-                this.transactionExecutor = Executors.newScheduledThreadPool(
-                        config.getNumTransactionExecutorThreadPoolSize(),
-                        new DefaultThreadFactory("pulsar-transaction"));
                 this.transactionBufferSnapshotService = new SystemTopicBaseTxnBufferSnapshotService(getClient());
                 this.transactionTimer =
                         new HashedWheelTimer(new DefaultThreadFactory("pulsar-transaction-timer"));
@@ -744,6 +754,8 @@ public class PulsarService implements AutoCloseable {
 
                 transactionBufferProvider = TransactionBufferProvider
                         .newProvider(config.getTransactionBufferProviderClassName());
+                transactionPendingAckStoreProvider = TransactionPendingAckStoreProvider
+                        .newProvider(config.getTransactionPendingAckStoreProviderClassName());
             }
 
             this.metricsGenerator = new MetricsGenerator(this);
@@ -1168,6 +1180,10 @@ public class PulsarService implements AutoCloseable {
 
     public ScheduledExecutorService getCacheExecutor() {
         return cacheExecutor;
+    }
+
+    public ScheduledExecutorService getTransactionReplayExecutor() {
+        return transactionReplayExecutor;
     }
 
     public ScheduledExecutorService getLoadManagerExecutor() {

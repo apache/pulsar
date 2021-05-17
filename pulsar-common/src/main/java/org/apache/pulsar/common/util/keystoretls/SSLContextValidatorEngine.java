@@ -20,6 +20,7 @@ package org.apache.pulsar.common.util.keystoretls;
 
 import static javax.net.ssl.SSLEngineResult.HandshakeStatus.FINISHED;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLException;
@@ -42,9 +43,16 @@ public class SSLContextValidatorEngine {
     private ByteBuffer netBuffer;
     private boolean finished = false;
 
+    /**
+     * Validates TLS handshake up to TLSv1.2.
+     * TLSv1.3 has a differences in TLS handshake as described in https://stackoverflow.com/a/62465859
+     */
     public static void validate(SSLEngineProvider clientSslEngineSupplier, SSLEngineProvider serverSslEngineSupplier)
             throws SSLException {
         SSLContextValidatorEngine clientEngine = new SSLContextValidatorEngine(clientSslEngineSupplier);
+        if (Arrays.stream(clientEngine.sslEngine.getEnabledProtocols()).anyMatch(s -> s.equals("TLSv1.3"))) {
+            throw new IllegalStateException("This validator doesn't support TLSv1.3");
+        }
         SSLContextValidatorEngine serverEngine = new SSLContextValidatorEngine(serverSslEngineSupplier);
         try {
             clientEngine.beginHandshake();

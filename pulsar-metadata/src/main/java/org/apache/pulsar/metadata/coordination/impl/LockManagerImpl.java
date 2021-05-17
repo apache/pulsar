@@ -26,7 +26,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
@@ -43,7 +42,7 @@ import org.apache.pulsar.metadata.api.coordination.ResourceLock;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.cache.impl.JSONMetadataSerdeSimpleType;
-import org.apache.pulsar.metadata.cache.impl.MetadataSerde;
+import org.apache.pulsar.metadata.api.MetadataSerde;
 
 @Slf4j
 class LockManagerImpl<T> implements LockManager<T> {

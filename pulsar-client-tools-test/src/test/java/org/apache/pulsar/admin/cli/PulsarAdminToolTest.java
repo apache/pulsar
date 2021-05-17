@@ -54,6 +54,7 @@ import org.apache.pulsar.client.admin.ResourceQuotas;
 import org.apache.pulsar.client.admin.Schemas;
 import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.client.admin.Topics;
+import org.apache.pulsar.client.admin.internal.OffloadProcessStatusImpl;
 import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -392,6 +393,14 @@ public class PulsarAdminToolTest {
         namespaces.run(split("set-backlog-quota myprop/clust/ns1 -p producer_exception -l 10G"));
         verify(mockNamespaces).setBacklogQuota("myprop/clust/ns1",
                 new BacklogQuota(10L * 1024 * 1024 * 1024, RetentionPolicy.producer_exception));
+
+        mockNamespaces = mock(Namespaces.class);
+        when(admin.namespaces()).thenReturn(mockNamespaces);
+        namespaces = new CmdNamespaces(() -> admin);
+
+        namespaces.run(split("set-backlog-quota myprop/clust/ns1 -p producer_exception -l 10G -lt 10000"));
+        verify(mockNamespaces).setBacklogQuota("myprop/clust/ns1",
+                new BacklogQuota(10l * 1024 * 1024 * 1024, 10000, RetentionPolicy.producer_exception));
 
         namespaces.run(split("set-persistence myprop/clust/ns1 -e 2 -w 1 -a 1 -r 100.0"));
         verify(mockNamespaces).setPersistence("myprop/clust/ns1",
@@ -775,6 +784,9 @@ public class PulsarAdminToolTest {
 
         CmdTopics cmdTopics = new CmdTopics(() -> admin);
 
+        cmdTopics.run(split("truncate persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).truncate("persistent://myprop/clust/ns1/ds1");
+
         cmdTopics.run(split("delete persistent://myprop/clust/ns1/ds1 -d"));
         verify(mockTopics).delete("persistent://myprop/clust/ns1/ds1", false);
         verify(mockSchemas).deleteSchema("persistent://myprop/clust/ns1/ds1");
@@ -817,9 +829,9 @@ public class PulsarAdminToolTest {
 
         cmdTopics.run(split("get-backlog-quotas persistent://myprop/clust/ns1/ds1 -ap"));
         verify(mockTopics).getBacklogQuotaMap("persistent://myprop/clust/ns1/ds1", true);
-        cmdTopics.run(split("set-backlog-quota persistent://myprop/clust/ns1/ds1 -l 10 -p producer_request_hold"));
+        cmdTopics.run(split("set-backlog-quota persistent://myprop/clust/ns1/ds1 -l 10 -lt 1000 -p producer_request_hold"));
         verify(mockTopics).setBacklogQuota("persistent://myprop/clust/ns1/ds1"
-                , new BacklogQuota(10L, BacklogQuota.RetentionPolicy.producer_request_hold));
+                , new BacklogQuota(10L, 1000, BacklogQuota.RetentionPolicy.producer_request_hold));
         cmdTopics.run(split("remove-backlog-quota persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).removeBacklogQuota("persistent://myprop/clust/ns1/ds1");
 
@@ -1110,7 +1122,7 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("offload persistent://myprop/clust/ns1/ds1 -s 1k"));
         verify(mockTopics).triggerOffload("persistent://myprop/clust/ns1/ds1", new MessageIdImpl(2, 0, -1));
 
-        when(mockTopics.offloadStatus("persistent://myprop/clust/ns1/ds1")).thenReturn(new OffloadProcessStatus());
+        when(mockTopics.offloadStatus("persistent://myprop/clust/ns1/ds1")).thenReturn(new OffloadProcessStatusImpl());
         cmdTopics.run(split("offload-status persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).offloadStatus("persistent://myprop/clust/ns1/ds1");
 
@@ -1177,6 +1189,9 @@ public class PulsarAdminToolTest {
         when(admin.topics()).thenReturn(mockTopics);
 
         CmdPersistentTopics topics = new CmdPersistentTopics(() -> admin);
+
+        topics.run(split("truncate persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).truncate("persistent://myprop/clust/ns1/ds1");
 
         topics.run(split("delete persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).delete("persistent://myprop/clust/ns1/ds1", false);

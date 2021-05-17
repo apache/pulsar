@@ -21,11 +21,8 @@ package org.apache.bookkeeper.mledger.impl;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -52,7 +49,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
@@ -2916,5 +2912,77 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         Thread.sleep(1000);
         Assert.assertEquals(ledger.getLedgersInfoAsList().size(), 1);
         Assert.assertEquals(ledger.getTotalSize(), 0);
+    }
+
+    @Test(timeOut = 20000)
+    public void testAsyncTruncateLedgerRetention() throws Exception {
+
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setRetentionSizeInMB(50);
+        config.setRetentionTime(1, TimeUnit.DAYS);
+
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("truncate_ledger", config);
+        ManagedCursor cursor = ledger.openCursor("test-cursor");
+        ledger.addEntry("test-entry-1".getBytes(Encoding));
+        ledger.addEntry("test-entry-1".getBytes(Encoding));
+        ledger.addEntry("test-entry-1".getBytes(Encoding));
+        ledger.addEntry("test-entry-1".getBytes(Encoding));
+        ledger.addEntry("test-entry-1".getBytes(Encoding));
+
+        ledger.close();
+        ManagedLedgerImpl ledger2 = (ManagedLedgerImpl)factory.open("truncate_ledger", config);
+        ledger2.addEntry("test-entry-2".getBytes(Encoding));
+
+
+        CompletableFuture<Void> future = ledger2.asyncTruncate();
+        future.get();
+
+        assertTrue(ledger2.getLedgersInfoAsList().size() <= 1);
+    }
+
+    @Test(timeOut = 20000)
+    public void testAsyncTruncateLedgerSlowestCursor() throws Exception {
+
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("truncate_ledger", config);
+        ManagedCursor cursor = ledger.openCursor("test-cursor");
+        ManagedCursor cursor2 = ledger.openCursor("test-cursor2");
+        ledger.addEntry("test-entry-1".getBytes(Encoding));
+        ledger.addEntry("test-entry-1".getBytes(Encoding));
+        ledger.addEntry("test-entry-1".getBytes(Encoding));
+        ledger.addEntry("test-entry-1".getBytes(Encoding));
+        ledger.addEntry("test-entry-1".getBytes(Encoding));
+
+        ledger.close();
+        ManagedLedgerImpl ledger2 = (ManagedLedgerImpl)factory.open("truncate_ledger", config);
+        ledger2.addEntry("test-entry-2".getBytes(Encoding));
+        ManagedCursor cursor3 = ledger2.openCursor("test-cursor");
+        cursor3.resetCursor(new PositionImpl(ledger2.getLastPosition()));
+
+        CompletableFuture<Void> future = ledger2.asyncTruncate();
+        future.get();
+
+        assertTrue(ledger2.getLedgersInfoAsList().size() == 1);
+    }
+
+    @Test
+    public void testOpEntryAdd_toString_doesNotThrowNPE(){
+        ManagedLedger ml = mock(ManagedLedger.class);
+        LedgerHandle ledger = mock(LedgerHandle.class);
+        when(ml.getName()).thenReturn(null);
+        when(ledger.getId()).thenReturn(124L);
+        long entryId = 12L;
+        long startTime = 1245L;
+        int dataLength = 566;
+        String test = "OpAddEntry{" +
+                "mlName=" + ml != null ? ml.getName() : "null" +
+                ", ledgerId=" + ledger != null ? String.valueOf(ledger.getId()) : "null" +
+                ", entryId=" + entryId +
+                ", startTime=" + startTime +
+                ", dataLength=" + dataLength +
+                '}';
     }
 }

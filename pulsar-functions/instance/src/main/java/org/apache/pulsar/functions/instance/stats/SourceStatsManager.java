@@ -228,6 +228,9 @@ public class SourceStatsManager extends ComponentStatsManager {
 
     @Override
     public void incrSysExceptions(Throwable ex) {
+        _statTotalSysExceptions.inc();
+        _statTotalSysExceptions1min.inc();
+
         long ts = System.currentTimeMillis();
         InstanceCommunication.FunctionStatus.ExceptionInformation info = getExceptionInfo(ex, ts);
         latestSystemExceptions.add(info);
@@ -246,6 +249,9 @@ public class SourceStatsManager extends ComponentStatsManager {
 
     @Override
     public void incrSourceExceptions(Throwable ex) {
+        _statTotalSourceExceptions.inc();
+        _statTotalSourceExceptions1min.inc();
+
         long ts = System.currentTimeMillis();
         InstanceCommunication.FunctionStatus.ExceptionInformation info = getExceptionInfo(ex, ts);
         latestSourceExceptions.add(info);

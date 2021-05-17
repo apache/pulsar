@@ -54,6 +54,9 @@ public class SslContextFactoryWithAutoRefresh extends SslContextFactory {
                 trustStorePassword,
                 requireTrustedClientCertOnConnect,
                 certRefreshInSec);
+        if (sslProviderString != null) {
+            setProvider(sslProviderString);
+        }
     }
 
     @Override

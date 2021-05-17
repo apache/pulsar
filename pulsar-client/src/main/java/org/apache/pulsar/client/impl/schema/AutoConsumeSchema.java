@@ -78,6 +78,16 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
         return schema == null || schema.supportSchemaVersioning();
     }
 
+    public Schema<?> atSchemaVersion(byte[] schemaVersion) {
+        fetchSchemaIfNeeded();
+        ensureSchemaInitialized();
+        if (schema.supportSchemaVersioning() && schema instanceof AbstractSchema) {
+            return ((AbstractSchema) schema).atSchemaVersion(schemaVersion);
+        } else {
+            return schema;
+        }
+    }
+
     @Override
     public GenericRecord decode(byte[] bytes, byte[] schemaVersion) {
         fetchSchemaIfNeeded();

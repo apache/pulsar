@@ -643,7 +643,7 @@ public class NamespaceService implements AutoCloseable {
 
         if (LOG.isDebugEnabled()) {
             LOG.debug("Broker not found for SLA Monitoring Namespace {}",
-                    candidateBroker + ":" + config.getWebServicePort().get());
+                    candidateBroker + ":" + config.getWebServicePort());
         }
         return false;
     }

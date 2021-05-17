@@ -43,6 +43,7 @@ import java.util.stream.Collectors;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.schema.AbstractSchema;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.api.EncryptionContext;
@@ -384,8 +385,27 @@ public class MessageImpl<T> implements Message<T> {
         return payload.readableBytes();
     }
 
-    public Schema<T> getSchema() {
+    public Schema<T> getSchemaInternal() {
         return this.schema;
+    }
+
+    @Override
+    public Optional<Schema<?>> getReaderSchema() {
+        ensureSchemaIsLoaded();
+        if (schema == null) {
+            return Optional.empty();
+        }
+        if (schema instanceof AutoConsumeSchema) {
+            byte[] schemaVersion = getSchemaVersion();
+            return Optional.of(((AutoConsumeSchema) schema)
+                    .atSchemaVersion(schemaVersion));
+        } else if (schema instanceof AbstractSchema) {
+            byte[] schemaVersion = getSchemaVersion();
+            return Optional.of(((AbstractSchema) schema)
+                    .atSchemaVersion(schemaVersion));
+        } else {
+            return Optional.of(schema);
+        }
     }
 
     @Override
@@ -397,10 +417,13 @@ public class MessageImpl<T> implements Message<T> {
         }
     }
 
-    private SchemaInfo getSchemaInfo() {
+    private void ensureSchemaIsLoaded() {
         if (schema instanceof AutoConsumeSchema) {
             ((AutoConsumeSchema) schema).fetchSchemaIfNeeded();
         }
+    }
+    private SchemaInfo getSchemaInfo() {
+        ensureSchemaIsLoaded();
         return schema.getSchemaInfo();
     }
 

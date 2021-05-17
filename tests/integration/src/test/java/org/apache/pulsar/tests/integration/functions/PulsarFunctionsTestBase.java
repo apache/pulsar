@@ -32,54 +32,9 @@ import org.testng.annotations.DataProvider;
 @Slf4j
 public abstract class PulsarFunctionsTestBase extends PulsarTestSuite {
 
-    @DataProvider(name = "FunctionRuntimeTypes")
-    public static Object[][] getData() {
-        return new Object[][] {
-            { FunctionRuntimeType.PROCESS },
-            { FunctionRuntimeType.THREAD }
-        };
-    }
-
-    protected final FunctionRuntimeType functionRuntimeType;
-
-    public PulsarFunctionsTestBase() {
-        this(FunctionRuntimeType.PROCESS);
-    }
-
-    protected PulsarFunctionsTestBase(FunctionRuntimeType functionRuntimeType) {
-        this.functionRuntimeType = functionRuntimeType;
-    }
-
-    private void setupFunctionWorkers() {
-        final int numFunctionWorkers = 2;
-        log.info("Setting up {} function workers : function runtime type = {}",
-            numFunctionWorkers, functionRuntimeType);
-        pulsarCluster.setupFunctionWorkers(randomName(5), functionRuntimeType, numFunctionWorkers);
-        log.info("{} function workers has started", numFunctionWorkers);
-    }
-
-    private void teardownFunctionWorkers() {
-        log.info("Tearing down function workers ...");
-        pulsarCluster.stopWorkers();
-        log.info("All functions workers are stopped.");
-    }
-
-    @Override
-    public void setupCluster() throws Exception {
-        super.setupCluster();
-        setupFunctionWorkers();
-    }
-
-    @Override
-    public void tearDownCluster() throws Exception {
-        teardownFunctionWorkers();
-        super.tearDownCluster();
-    }
-
     //
     // Common Variables used by functions test
     //
-
     public static final String EXCLAMATION_JAVA_CLASS =
         "org.apache.pulsar.functions.api.examples.ExclamationFunction";
 
@@ -106,7 +61,6 @@ public abstract class PulsarFunctionsTestBase extends PulsarTestSuite {
 
     public static final String PUBLISH_PYTHON_CLASS = "typed_message_builder_publish.TypedMessageBuilderPublish";
     public static final String EXCEPTION_PYTHON_CLASS = "exception_function";
-
     public static final String EXCLAMATION_PYTHON_FILE = "exclamation_function.py";
     public static final String EXCLAMATION_WITH_DEPS_PYTHON_FILE = "exclamation_with_extra_deps.py";
     public static final String EXCLAMATION_PYTHON_ZIP_FILE = "exclamation.zip";
@@ -118,6 +72,62 @@ public abstract class PulsarFunctionsTestBase extends PulsarTestSuite {
 
     public static final String LOGGING_JAVA_CLASS =
             "org.apache.pulsar.functions.api.examples.LoggingFunction";
+
+    @DataProvider(name = "FunctionRuntimeTypes")
+    public static Object[][] getData() {
+        return new Object[][] {
+            { FunctionRuntimeType.PROCESS },
+            { FunctionRuntimeType.THREAD }
+        };
+    }
+
+    @DataProvider(name = "FunctionRuntimes")
+    public static Object[][] functionRuntimes() {
+        return new Object[][] {
+            new Object[] { Runtime.JAVA },
+            new Object[] { Runtime.PYTHON },
+            new Object[] { Runtime.GO }
+        };
+    }
+
+    protected final FunctionRuntimeType functionRuntimeType;
+
+    public PulsarFunctionsTestBase() {
+        this(FunctionRuntimeType.PROCESS);
+    }
+
+    protected PulsarFunctionsTestBase(FunctionRuntimeType functionRuntimeType) {
+        this.functionRuntimeType = functionRuntimeType;
+    }
+
+    @Override
+    public void setupCluster() throws Exception {
+        super.setupCluster();
+        setupFunctionWorkers();
+    }
+
+    @Override
+    public void tearDownCluster() throws Exception {
+        try {
+            teardownFunctionWorkers();
+        } finally {
+            super.tearDownCluster();
+        }
+    }
+
+    protected void setupFunctionWorkers() {
+        final int numFunctionWorkers = 2;
+        log.info("Setting up {} function workers : function runtime type = {}",
+            numFunctionWorkers, functionRuntimeType);
+        pulsarCluster.setupFunctionWorkers(randomName(5), functionRuntimeType, numFunctionWorkers);
+        log.info("{} function workers has started", numFunctionWorkers);
+    }
+
+    protected void teardownFunctionWorkers() {
+        log.info("Tearing down function workers ...");
+        pulsarCluster.stopWorkers();
+        log.info("All functions workers are stopped.");
+    }
 
     protected static String getExclamationClass(Runtime runtime,
                                                 boolean pyZip,
@@ -136,14 +146,4 @@ public abstract class PulsarFunctionsTestBase extends PulsarTestSuite {
             throw new IllegalArgumentException("Unsupported runtime : " + runtime);
         }
     }
-
-    @DataProvider(name = "FunctionRuntimes")
-    public static Object[][] functionRuntimes() {
-        return new Object[][] {
-            new Object[] { Runtime.JAVA },
-            new Object[] { Runtime.PYTHON },
-            new Object[] { Runtime.GO }
-        };
-    }
-
 }

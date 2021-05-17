@@ -98,7 +98,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 .getConfiguration().getTransactionBufferSnapshotMaxTransactionCount();
         this.takeSnapshotIntervalTime = topic.getBrokerService().getPulsar()
                 .getConfiguration().getTransactionBufferSnapshotMinTimeInMillis();
-        this.topic.getBrokerService().getPulsar().getTransactionExecutor()
+        this.topic.getBrokerService().getPulsar().getTransactionReplayExecutor()
                 .execute(new TopicTransactionBufferRecover(new TopicTransactionBufferRecoverCallBack() {
                     @Override
                     public void recoverComplete() {
@@ -178,7 +178,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     }
 
     private void handleTransactionMessage(TxnID txnId, Position position) {
-        if (!ongoingTxns.containsKey(txnId)) {
+        if (!ongoingTxns.containsKey(txnId) && !aborts.containsKey(txnId)) {
             ongoingTxns.put(txnId, (PositionImpl) position);
             PositionImpl firstPosition = ongoingTxns.get(ongoingTxns.firstKey());
             //max read position is less than first ongoing transaction message position, so entryId -1
@@ -191,6 +191,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     public CompletableFuture<TransactionBufferReader> openTransactionBufferReader(TxnID txnID, long startSequenceId) {
         return null;
     }
+
     @Override
     public CompletableFuture<Void> commitTxn(TxnID txnID, long lowWaterMark) {
         if (log.isDebugEnabled()) {

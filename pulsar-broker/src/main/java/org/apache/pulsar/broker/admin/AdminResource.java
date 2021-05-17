@@ -399,14 +399,17 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected boolean checkBacklogQuota(BacklogQuota quota, RetentionPolicies retention) {
-        if (retention == null || retention.getRetentionSizeInMB() == 0
-                || retention.getRetentionSizeInMB() == -1) {
+        if (retention == null || retention.getRetentionSizeInMB() <= 0 || retention.getRetentionTimeInMinutes() <= 0) {
             return true;
         }
         if (quota == null) {
             quota = pulsar().getBrokerService().getBacklogQuotaManager().getDefaultQuota();
         }
         if (quota.getLimitSize() >= (retention.getRetentionSizeInMB() * 1024 * 1024)) {
+            return false;
+        }
+        // time based quota is in second
+        if (quota.getLimitTime() >= (retention.getRetentionTimeInMinutes() * 60)) {
             return false;
         }
         return true;

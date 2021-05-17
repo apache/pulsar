@@ -47,7 +47,7 @@ import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.cache.impl.JSONMetadataSerdeSimpleType;
-import org.apache.pulsar.metadata.cache.impl.MetadataSerde;
+import org.apache.pulsar.metadata.api.MetadataSerde;
 
 @Slf4j
 class LeaderElectionImpl<T> implements LeaderElection<T> {
