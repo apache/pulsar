@@ -56,7 +56,7 @@ ENV PATH "$PATH:/usr/local/rvm/bin"
 RUN rvm install 2.4.1
 
 # Install nodejs and yarn
-RUN curl -sL https://deb.nodesource.com/setup_10.x | bash -
+RUN curl -sL https://deb.nodesource.com/setup_12.x | bash -
 RUN apt-get install -y nodejs
 RUN curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add -
 RUN echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list
@@ -67,7 +67,7 @@ RUN wget https://artifacts.crowdin.com/repo/deb/crowdin.deb -O crowdin.deb
 RUN dpkg -i crowdin.deb
 
 # Install PIP and PDoc
-RUN wget https://bootstrap.pypa.io/2.7/get-pip.py && python get-pip.py && rm get-pip.py
+RUN wget https://bootstrap.pypa.io/pip/2.7/get-pip.py && python get-pip.py && rm get-pip.py
 RUN pip3 install pdoc
 
 # Install Protobuf doc generator (requires Go)
