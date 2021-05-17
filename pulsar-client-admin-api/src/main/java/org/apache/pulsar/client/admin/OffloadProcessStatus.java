@@ -18,38 +18,30 @@
  */
 package org.apache.pulsar.client.admin;
 
+import org.apache.pulsar.client.admin.utils.DefaultImplementation;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.impl.MessageIdImpl;
 
 /**
- * Status of offload process.
+ * interface class of Status of offload process.
  */
-public class OffloadProcessStatus extends LongRunningProcessStatus {
+public interface OffloadProcessStatus {
 
-    public MessageIdImpl firstUnoffloadedMessage;
+    MessageId getFirstUnoffloadedMessage();
+    String getLastError();
+    LongRunningProcessStatus.Status getStatus();
 
-    public OffloadProcessStatus() {
-        super(Status.NOT_RUN, "");
-        firstUnoffloadedMessage = (MessageIdImpl) MessageId.earliest;
+    static OffloadProcessStatus forStatus(LongRunningProcessStatus.Status status) {
+        return DefaultImplementation.newOffloadProcessStatus(status, "", MessageId.earliest);
     }
 
-    private OffloadProcessStatus(Status status, String lastError,
-                                 MessageIdImpl firstUnoffloadedMessage) {
-        this.status = status;
-        this.lastError = lastError;
-        this.firstUnoffloadedMessage = firstUnoffloadedMessage;
+    static OffloadProcessStatus forError(String lastError) {
+        return DefaultImplementation.newOffloadProcessStatus(LongRunningProcessStatus.Status.ERROR, lastError,
+                MessageId.earliest);
     }
 
-    public static OffloadProcessStatus forStatus(Status status) {
-        return new OffloadProcessStatus(status, "", (MessageIdImpl) MessageId.earliest);
+    static OffloadProcessStatus forSuccess(MessageId messageId) {
+        return DefaultImplementation.newOffloadProcessStatus(LongRunningProcessStatus.Status.SUCCESS, "",
+                messageId);
     }
 
-    public static OffloadProcessStatus forError(String lastError) {
-        return new OffloadProcessStatus(Status.ERROR, lastError,
-                (MessageIdImpl) MessageId.earliest);
-    }
-
-    public static OffloadProcessStatus forSuccess(MessageIdImpl messageId) {
-        return new OffloadProcessStatus(Status.SUCCESS, "", messageId);
-    }
 }
