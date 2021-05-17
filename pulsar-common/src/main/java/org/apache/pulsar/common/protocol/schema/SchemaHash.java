@@ -25,6 +25,7 @@ import java.util.Optional;
 import lombok.EqualsAndHashCode;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 
 /**
  * Schema hash wrapper with a HashCode inner type.
@@ -36,22 +37,25 @@ public class SchemaHash {
 
     private final HashCode hash;
 
-    private SchemaHash(HashCode hash) {
+    private final SchemaType schemaType;
+
+    private SchemaHash(HashCode hash, SchemaType schemaType) {
         this.hash = hash;
+        this.schemaType = schemaType;
     }
 
     public static SchemaHash of(Schema schema) {
-        return of(Optional.ofNullable(schema)
-                          .map(Schema::getSchemaInfo)
-                          .map(SchemaInfo::getSchema).orElse(new byte[0]));
+        Optional<SchemaInfo> schemaInfo = Optional.ofNullable(schema).map(Schema::getSchemaInfo);
+        return of(schemaInfo.map(SchemaInfo::getSchema).orElse(new byte[0]),
+                schemaInfo.map(SchemaInfo::getType).orElse(null));
     }
 
     public static SchemaHash of(SchemaData schemaData) {
-        return of(schemaData.getData());
+        return of(schemaData.getData(), schemaData.getType());
     }
 
-    private static SchemaHash of(byte[] schemaBytes) {
-        return new SchemaHash(hashFunction.hashBytes(schemaBytes));
+    private static SchemaHash of(byte[] schemaBytes, SchemaType schemaType) {
+        return new SchemaHash(hashFunction.hashBytes(schemaBytes), schemaType);
     }
 
     public byte[] asBytes() {

@@ -300,7 +300,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
             Schema newSchema = parser.parse(new String(schemaData.getData(), UTF_8));
 
             for (SchemaAndMetadata schemaAndMetadata : schemaAndMetadataList) {
-                if (isUsingAvroSchemaParser(schemaData.getType())) {
+                if (isUsingAvroSchemaParser(schemaAndMetadata.schema.getType())) {
                     Schema.Parser existParser = new Schema.Parser();
                     Schema existSchema = existParser.parse(new String(schemaAndMetadata.schema.getData(), UTF_8));
                     if (newSchema.equals(existSchema) && schemaAndMetadata.schema.getType() == schemaData.getType()) {
