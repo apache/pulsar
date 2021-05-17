@@ -27,7 +27,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import lombok.Getter;
@@ -51,6 +51,7 @@ import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.StateStore;
 import org.apache.pulsar.functions.api.StateStoreContext;
+import org.apache.pulsar.functions.instance.JavaInstance.AsyncFuncRequest;
 import org.apache.pulsar.functions.instance.state.BKStateStoreProviderImpl;
 import org.apache.pulsar.functions.instance.state.InstanceStateManager;
 import org.apache.pulsar.functions.instance.state.StateManager;
@@ -254,7 +255,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 }
 
                 addLogTopicHandler();
-                CompletableFuture<JavaExecutionResult> result;
+                JavaExecutionResult result;
 
                 // set last invocation time
                 stats.setLastInvocation(System.currentTimeMillis());
@@ -272,11 +273,12 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
                 removeLogTopicHandler();
 
-                try {
-                    processResult(currentRecord, result);
-                } catch (Exception e) {
-                    log.warn("Failed to process result of message {}", currentRecord, e);
-                    currentRecord.fail();
+                // process the synchronous results
+                if (result != null) {
+                    handleResult(currentRecord, result);
+                } else {
+                    // process the asynchronous results
+                    processAsyncResults();
                 }
             }
         } catch (Throwable t) {
@@ -318,28 +320,49 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
     }
 
-    private void processResult(Record srcRecord,
-                               CompletableFuture<JavaExecutionResult> result) throws Exception {
-        result.whenComplete((result1, throwable) -> {
-            if (throwable != null || result1.getUserException() != null) {
-                Throwable t = throwable != null ? throwable : result1.getUserException();
-                log.warn("Encountered exception when processing message {}",
-                        srcRecord, t);
-                stats.incrUserExceptions(t);
-                srcRecord.fail();
-            } else {
-                if (result1.getResult() != null) {
-                    sendOutputMessage(srcRecord, result1.getResult());
+    private void processAsyncResults() throws InterruptedException {
+        AsyncFuncRequest asyncResult = javaInstance.getPendingAsyncRequests().peek();
+        while (asyncResult != null && asyncResult.getProcessResult().isDone()) {
+            javaInstance.getPendingAsyncRequests().remove(asyncResult);
+            JavaExecutionResult execResult = new JavaExecutionResult();
+
+            try {
+                Object result = asyncResult.getProcessResult().get();
+                execResult.setResult(result);
+            } catch (ExecutionException e) {
+                if (e.getCause() instanceof Exception) {
+                    execResult.setUserException((Exception) e.getCause());
                 } else {
-                    if (instanceConfig.getFunctionDetails().getAutoAck()) {
-                        // the function doesn't produce any result or the user doesn't want the result.
-                        srcRecord.ack();
-                    }
+                    execResult.setUserException(new Exception(e.getCause()));
                 }
-                // increment total successfully processed
-                stats.incrTotalProcessedSuccessfully();
             }
-        });
+
+            handleResult(asyncResult.getRecord(), execResult);
+
+            // peek the next result
+            asyncResult = javaInstance.getPendingAsyncRequests().peek();
+        }
+    }
+
+    private void handleResult(Record srcRecord, JavaExecutionResult result) {
+        if (result.getUserException() != null) {
+            Exception t = result.getUserException();
+            log.warn("Encountered exception when processing message {}",
+                    srcRecord, t);
+            stats.incrUserExceptions(t);
+            srcRecord.fail();
+        } else {
+            if (result.getResult() != null) {
+                sendOutputMessage(srcRecord, result.getResult());
+            } else {
+                if (instanceConfig.getFunctionDetails().getAutoAck()) {
+                    // the function doesn't produce any result or the user doesn't want the result.
+                    srcRecord.ack();
+                }
+            }
+            // increment total successfully processed
+            stats.incrTotalProcessedSuccessfully();
+        }
     }
 
     private void sendOutputMessage(Record srcRecord, Object output) {
@@ -351,7 +374,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         } catch (Exception e) {
             log.info("Encountered exception in sink write: ", e);
             stats.incrSinkExceptions(e);
-            throw new RuntimeException(e);
+            // fail the source record
+            srcRecord.fail();
         } finally {
             Thread.currentThread().setContextClassLoader(instanceClassLoader);
         }
