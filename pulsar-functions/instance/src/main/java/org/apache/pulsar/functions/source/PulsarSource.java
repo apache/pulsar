@@ -103,6 +103,8 @@ public abstract class PulsarSource<T> implements Source<T> {
             cb = cb.deadLetterPolicy(deadLetterPolicyBuilder.build());
         }
 
+        cb.poolMessages(true);
+
         return cb;
     }
 
@@ -120,17 +122,25 @@ public abstract class PulsarSource<T> implements Source<T> {
                 .schema(schema)
                 .topicName(message.getTopicName())
                 .ackFunction(() -> {
-                    if (pulsarSourceConfig
-                            .getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
-                        consumer.acknowledgeCumulativeAsync(message);
-                    } else {
-                        consumer.acknowledgeAsync(message);
+                    try {
+                        if (pulsarSourceConfig
+                                .getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
+                            consumer.acknowledgeCumulativeAsync(message);
+                        } else {
+                            consumer.acknowledgeAsync(message);
+                        }
+                    } finally {
+                        message.release();
                     }
                 }).failFunction(() -> {
-                    if (pulsarSourceConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
-                        throw new RuntimeException("Failed to process message: " + message.getMessageId());
+                    try {
+                        if (pulsarSourceConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
+                            throw new RuntimeException("Failed to process message: " + message.getMessageId());
+                        }
+                        consumer.negativeAcknowledge(message);
+                    } finally {
+                        message.release();
                     }
-                    consumer.negativeAcknowledge(message);
                 })
                 .build();
     }
