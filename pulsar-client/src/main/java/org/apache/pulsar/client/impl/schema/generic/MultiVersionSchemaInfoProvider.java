@@ -93,9 +93,13 @@ public class MultiVersionSchemaInfoProvider implements SchemaInfoProvider {
     }
 
     private CompletableFuture<SchemaInfo> loadSchema(byte[] schemaVersion) {
-         return pulsarClient.getLookup()
-                .getSchema(topicName, schemaVersion)
-                .thenApply(o -> o.orElse(null));
+         if (schemaVersion.length == 0) {
+             return getLatestSchema();
+         } else {
+             return pulsarClient.getLookup()
+                     .getSchema(topicName, schemaVersion)
+                     .thenApply(o -> o.orElse(null));
+         }
     }
 
     public PulsarClientImpl getPulsarClient() {

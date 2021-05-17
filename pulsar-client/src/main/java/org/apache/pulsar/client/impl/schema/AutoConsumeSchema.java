@@ -25,15 +25,16 @@ import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.impl.schema.generic.GenericProtobufNativeSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
+import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
+import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import static com.google.common.base.Preconditions.checkState;
 
@@ -43,7 +44,7 @@ import static com.google.common.base.Preconditions.checkState;
 @Slf4j
 public class AutoConsumeSchema implements Schema<GenericRecord> {
 
-    private Schema<?> schema;
+    private final Map<SchemaVersion, Schema<?>> schemaMap = new HashMap<>();
 
     private String topicName;
 
@@ -51,65 +52,74 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
 
     private SchemaInfoProvider schemaInfoProvider;
 
-    public void setSchema(Schema<?> schema) {
-        this.schema = schema;
+    public AutoConsumeSchema() {
+        schemaMap.put(BytesSchemaVersion.of(new byte[0]), Schema.BYTES);
     }
 
-    private void ensureSchemaInitialized() {
-        checkState(null != schema, "Schema is not initialized before used");
+    public void setSchema(SchemaVersion schemaVersion, Schema<?> schema) {
+        schemaMap.put(schemaVersion, schema);
+    }
+
+    public void setSchema(Schema<?> schema) {
+        schemaMap.put(SchemaVersion.Latest, schema);
+    }
+
+    private void ensureSchemaInitialized(SchemaVersion schemaVersion) {
+        checkState(schemaMap.containsKey(schemaVersion),
+                "Schema version " + schemaVersion + " is not initialized before used");
     }
 
     @Override
     public void validate(byte[] message) {
-        ensureSchemaInitialized();
+        ensureSchemaInitialized(SchemaVersion.Latest);
 
-        schema.validate(message);
+        schemaMap.get(SchemaVersion.Latest).validate(message);
     }
 
     @Override
     public byte[] encode(GenericRecord message) {
-        ensureSchemaInitialized();
-
         throw new UnsupportedOperationException("AutoConsumeSchema is not intended to be used for encoding");
     }
 
     @Override
     public boolean supportSchemaVersioning() {
-        return schema == null || schema.supportSchemaVersioning();
+        return true;
     }
 
     public Schema<?> atSchemaVersion(byte[] schemaVersion) {
-        fetchSchemaIfNeeded();
-        ensureSchemaInitialized();
-        if (schema.supportSchemaVersioning() && schema instanceof AbstractSchema) {
-            return ((AbstractSchema) schema).atSchemaVersion(schemaVersion);
+        SchemaVersion sv = BytesSchemaVersion.of(schemaVersion);
+        fetchSchemaIfNeeded(sv);
+        ensureSchemaInitialized(sv);
+        Schema<?> topicVersionedSchema = schemaMap.get(sv);
+        if (topicVersionedSchema.supportSchemaVersioning() && topicVersionedSchema instanceof AbstractSchema) {
+            return ((AbstractSchema<?>) topicVersionedSchema).atSchemaVersion(schemaVersion);
         } else {
-            return schema;
+            return topicVersionedSchema;
         }
     }
 
     @Override
     public GenericRecord decode(byte[] bytes, byte[] schemaVersion) {
-        fetchSchemaIfNeeded();
-        ensureSchemaInitialized();
-        return adapt(schema.decode(bytes, schemaVersion), schemaVersion);
+        SchemaVersion sv = BytesSchemaVersion.of(schemaVersion);
+        fetchSchemaIfNeeded(sv);
+        ensureSchemaInitialized(sv);
+        return adapt(schemaMap.get(sv).decode(bytes, schemaVersion), schemaVersion);
     }
 
     @Override
     public void setSchemaInfoProvider(SchemaInfoProvider schemaInfoProvider) {
-        if (schema == null) {
-            this.schemaInfoProvider = schemaInfoProvider;
-        } else {
-            schema.setSchemaInfoProvider(schemaInfoProvider);
+        this.schemaInfoProvider = schemaInfoProvider;
+        if (schemaMap.containsKey(SchemaVersion.Latest)) {
+            schemaMap.get(SchemaVersion.Latest).setSchemaInfoProvider(schemaInfoProvider);
         }
     }
 
     @Override
     public SchemaInfo getSchemaInfo() {
-        if (schema == null) {
+        if (!schemaMap.containsKey(SchemaVersion.Latest)) {
             return null;
         }
-        return schema.getSchemaInfo();
+        return schemaMap.get(SchemaVersion.Latest).getSchemaInfo();
     }
 
     @Override
@@ -120,7 +130,7 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
         this.componentName = componentName;
         if (schemaInfo != null) {
             Schema<?> genericSchema = generateSchema(schemaInfo);
-            setSchema(genericSchema);
+            setSchema(SchemaVersion.Latest, genericSchema);
             log.info("Configure {} schema for topic {} : {}",
                     componentName, topicName, schemaInfo.getSchemaDefinition());
         }
@@ -128,11 +138,11 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
 
     @Override
     public Optional<Object> getNativeSchema() {
-        ensureSchemaInitialized();
-        if (schema == null) {
+        ensureSchemaInitialized(SchemaVersion.Latest);
+        if (schemaMap.get(SchemaVersion.Latest) == null) {
             return Optional.empty();
         } else {
-            return schema.getNativeSchema();
+            return schemaMap.get(SchemaVersion.Latest).getNativeSchema();
         }
     }
 
@@ -205,14 +215,13 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
     }
 
     public Schema<GenericRecord> clone() {
-        Schema<GenericRecord> schema = new AutoConsumeSchema();
-        if (this.schema != null) {
-            schema.configureSchemaInfo(topicName, componentName, this.schema.getSchemaInfo());
-        } else {
-            schema.configureSchemaInfo(topicName, componentName, null);
-        }
+        AutoConsumeSchema schema = new AutoConsumeSchema();
+        schema.configureSchemaInfo(topicName, componentName, null);
         if (schemaInfoProvider != null) {
             schema.setSchemaInfoProvider(schemaInfoProvider);
+        }
+        for (Map.Entry<SchemaVersion, Schema<?>> entry : schemaMap.entrySet()) {
+            schema.setSchema(entry.getKey(), entry.getValue());
         }
         return schema;
     }
@@ -226,19 +235,19 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
         if (value instanceof GenericRecord) {
             return (GenericRecord) value;
         }
-        if (this.schema == null) {
+        BytesSchemaVersion sv = BytesSchemaVersion.of(schemaVersion);
+        if (!schemaMap.containsKey(sv)) {
             throw new IllegalStateException("Cannot decode a message without schema");
         }
-        return wrapPrimitiveObject(value, schema.getSchemaInfo().getType(), schemaVersion);
+        return wrapPrimitiveObject(value, schemaMap.get(sv).getSchemaInfo().getType(), schemaVersion);
     }
 
     public static GenericRecord wrapPrimitiveObject(Object value, SchemaType type, byte[] schemaVersion) {
         return GenericObjectWrapper.of(value, type, schemaVersion);
     }
 
-
     public Schema<?> getInternalSchema() {
-        return schema;
+        return schemaMap.get(SchemaVersion.Latest);
     }
 
     /**
@@ -246,15 +255,15 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
      * We cannot call this method in getSchemaInfo, because getSchemaInfo is called in many
      * places and we will introduce lots of deadlocks.
      */
-    public void fetchSchemaIfNeeded() throws SchemaSerializationException {
-        if (schema == null) {
+    public void fetchSchemaIfNeeded(SchemaVersion schemaVersion) throws SchemaSerializationException {
+        if (!schemaMap.containsKey(schemaVersion)) {
             if (schemaInfoProvider == null) {
                 throw new SchemaSerializationException("Can't get accurate schema information for topic " + topicName +
                                                 "using AutoConsumeSchema because SchemaInfoProvider is not set yet");
             } else {
                 SchemaInfo schemaInfo = null;
                 try {
-                    schemaInfo = schemaInfoProvider.getLatestSchema().get();
+                    schemaInfo = schemaInfoProvider.getSchemaByVersion(schemaVersion.bytes()).get();
                     if (schemaInfo == null) {
                         // schemaless topic
                         schemaInfo = BytesSchema.of().getSchemaInfo();
@@ -267,18 +276,20 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
                     throw new SchemaSerializationException(e.getCause());
                 }
                 // schemaInfo null means that there is no schema attached to the topic.
-                schema = generateSchema(schemaInfo);
+                Schema<?> schema = generateSchema(schemaInfo);
                 schema.setSchemaInfoProvider(schemaInfoProvider);
-                log.info("Configure {} schema for topic {} : {}",
-                        componentName, topicName, schemaInfo.getSchemaDefinition());
+                setSchema(schemaVersion, schema);
+                log.info("Configure {} schema {} for topic {} : {}",
+                        componentName, schemaVersion, topicName, schemaInfo.getSchemaDefinition());
             }
         }
     }
 
     @Override
     public String toString() {
-        if (schema != null && schema.getSchemaInfo() != null) {
-            return "AUTO_CONSUME(schematype=" + schema.getSchemaInfo().getType() + ")";
+        if (schemaMap.containsKey(SchemaVersion.Latest)
+                && schemaMap.get(SchemaVersion.Latest).getSchemaInfo() != null) {
+            return "AUTO_CONSUME(schematype=" + schemaMap.get(SchemaVersion.Latest).getSchemaInfo().getType() + ")";
         } else {
             return "AUTO_CONSUME(uninitialized)";
         }
