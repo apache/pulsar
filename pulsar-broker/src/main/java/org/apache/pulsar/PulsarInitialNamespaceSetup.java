@@ -22,7 +22,7 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import java.util.List;
 import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.zookeeper.ZooKeeper;
+import org.apache.pulsar.metadata.api.MetadataStore;
 
 /**
  * Setup the initial namespace of the cluster without startup the Pulsar broker.
@@ -72,25 +72,25 @@ public class PulsarInitialNamespaceSetup {
             System.exit(1);
         }
 
-        ZooKeeper configStoreZk = PulsarClusterMetadataSetup
-                .initZk(arguments.configurationStore, arguments.zkSessionTimeoutMillis);
+        try (MetadataStore configStore = PulsarClusterMetadataSetup
+                .initMetadataStore(arguments.configurationStore, arguments.zkSessionTimeoutMillis)) {
+            for (String namespace : arguments.namespaces) {
+                NamespaceName namespaceName = null;
+                try {
+                    namespaceName = NamespaceName.get(namespace);
+                } catch (Exception e) {
+                    System.out.println("Invalid namespace name.");
+                    System.exit(1);
+                }
 
-        for (String namespace : arguments.namespaces) {
-            NamespaceName namespaceName = null;
-            try {
-                namespaceName = NamespaceName.get(namespace);
-            } catch (Exception e) {
-                System.out.println("Invalid namespace name.");
-                System.exit(1);
+                // Create specified tenant
+                PulsarClusterMetadataSetup
+                        .createTenantIfAbsent(configStore, namespaceName.getTenant(), arguments.cluster);
+
+                // Create specified namespace
+                PulsarClusterMetadataSetup.createNamespaceIfAbsent(configStore, namespaceName,
+                        arguments.cluster);
             }
-
-            // Create system tenant
-            PulsarClusterMetadataSetup
-                    .createTenantIfAbsent(configStoreZk, namespaceName.getTenant(), arguments.cluster);
-
-            // Create system namespace
-            PulsarClusterMetadataSetup.createNamespaceIfAbsent(configStoreZk, namespaceName,
-                    arguments.cluster);
         }
 
         System.out.println("Initial namespace setup success");
