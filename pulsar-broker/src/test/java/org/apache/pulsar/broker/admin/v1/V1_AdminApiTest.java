@@ -795,7 +795,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         try {
             admin.topics().getPartitionedTopicMetadata("persistent://prop-xyz/use/ns1/ds2");
             fail("getPartitionedTopicMetadata of persistent://prop-xyz/use/ns1/ds2 should not succeed");
-        } catch (NotFoundException ignored) {
+        } catch (NotFoundException expected) {
         }
 
         // create consumer and subscription
@@ -913,7 +913,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         try {
             admin.topics().getPartitionedTopicMetadata(partitionedTopicName);
             fail("getPartitionedTopicMetadata of " + partitionedTopicName + " should not succeed");
-        } catch (NotFoundException ignored) {
+        } catch (NotFoundException expected) {
         }
 
         admin.topics().createPartitionedTopic(partitionedTopicName, 32);

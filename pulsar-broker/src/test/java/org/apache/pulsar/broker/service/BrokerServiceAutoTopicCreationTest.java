@@ -156,7 +156,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         final String topicString = "persistent://prop/ns-abc/test-topic-3";
         try {
             admin.topics().getPartitionedTopicMetadata(topicString);
-        } catch (PulsarAdminException.NotFoundException ignored) {
+        } catch (PulsarAdminException.NotFoundException expected) {
         }
         assertFalse(admin.namespaces().getTopics("prop/ns-abc").contains(topicString));
     }
