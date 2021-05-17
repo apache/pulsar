@@ -59,6 +59,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.broker.service.PulsarStats;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentMessageExpiryMonitor;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -1196,17 +1197,19 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
         String metricsStr = statsOut.toString();
         Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        // enable transaction will create transaction buffer snapshot connect so create count should add 1
+        // so change some metrics check count
         List<Metric> cm = (List<Metric>) metrics.get("pulsar_connection_created_total_count");
-        compareBrokerConnectionStateCount(cm, 1.0);
+        compareBrokerConnectionStateCount(cm, 2.0);
 
         cm = (List<Metric>) metrics.get("pulsar_connection_create_success_count");
-        compareBrokerConnectionStateCount(cm, 1.0);
+        compareBrokerConnectionStateCount(cm, 2.0);
 
         cm = (List<Metric>) metrics.get("pulsar_connection_closed_total_count");
         compareBrokerConnectionStateCount(cm, 0.0);
 
         cm = (List<Metric>) metrics.get("pulsar_active_connections");
-        compareBrokerConnectionStateCount(cm, 1.0);
+        compareBrokerConnectionStateCount(cm, 2.0);
 
         pulsarClient.close();
         statsOut = new ByteArrayOutputStream();
@@ -1244,13 +1247,13 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         compareBrokerConnectionStateCount(cm, 1.0);
 
         cm = (List<Metric>) metrics.get("pulsar_connection_create_success_count");
-        compareBrokerConnectionStateCount(cm, 1.0);
+        compareBrokerConnectionStateCount(cm, 2.0);
 
         cm = (List<Metric>) metrics.get("pulsar_active_connections");
-        compareBrokerConnectionStateCount(cm, 0.0);
+        compareBrokerConnectionStateCount(cm, 1.0);
 
         cm = (List<Metric>) metrics.get("pulsar_connection_created_total_count");
-        compareBrokerConnectionStateCount(cm, 2.0);
+        compareBrokerConnectionStateCount(cm, 3.0);
     }
 
     private void compareBrokerConnectionStateCount(List<Metric> cm, double count) {
