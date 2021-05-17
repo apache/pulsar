@@ -223,3 +223,64 @@ TEST(ZeroQueueSizeTest, testPauseResume) {
 
     client.close();
 }
+
+TEST(ZeroQueueSizeTest, testPauseResumeNoReconnection) {
+    Client client(lookupUrl);
+    const auto topic = "ZeroQueueSizeTestPauseResumeNoReconnection-" + std::to_string(time(nullptr));
+
+    std::mutex mtx;
+    std::condition_variable cond;
+    bool running = true;
+
+    auto notify = [&mtx, &cond, &running] {
+        std::unique_lock<std::mutex> lock(mtx);
+        running = false;
+        cond.notify_all();
+    };
+    auto wait = [&mtx, &cond, &running] {
+        std::unique_lock<std::mutex> lock(mtx);
+        running = true;
+        while (running) {
+            cond.wait(lock);
+        }
+    };
+
+    std::mutex mtxForMessages;
+    std::vector<std::string> receivedMessages;
+
+    ConsumerConfiguration consumerConf;
+    consumerConf.setReceiverQueueSize(0);
+    consumerConf.setMessageListener(
+        [&mtxForMessages, &receivedMessages, &notify](Consumer consumer, const Message& msg) {
+            std::unique_lock<std::mutex> lock(mtxForMessages);
+            receivedMessages.emplace_back(msg.getDataAsString());
+            lock.unlock();
+            consumer.acknowledge(msg);
+            notify();  // notify the consumer that a new message arrived
+        });
+
+    Consumer consumer;
+    ASSERT_EQ(ResultOk, client.subscribe(topic, "my-sub", consumerConf, consumer));
+
+    Producer producer;
+    ASSERT_EQ(ResultOk,
+              client.createProducer(topic, ProducerConfiguration().setBatchingEnabled(false), producer));
+
+    constexpr int numMessages = 300;
+    for (int i = 0; i < numMessages; i++) {
+        const auto message = MessageBuilder().setContent(std::to_string(i)).build();
+        consumer.resumeMessageListener();
+        producer.sendAsync(message, {});
+        wait();  // wait until a new message is received
+        consumer.pauseMessageListener();
+    }
+
+    std::unique_lock<std::mutex> lock(mtxForMessages);
+    ASSERT_EQ(receivedMessages.size(), numMessages);
+    for (int i = 0; i < numMessages; i++) {
+        ASSERT_EQ(i, std::stoi(receivedMessages[i]));
+    }
+    lock.unlock();
+
+    client.close();
+}

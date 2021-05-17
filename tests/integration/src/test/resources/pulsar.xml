@@ -33,5 +33,7 @@
         <suite-file path="./pulsar-function.xml" />
         <suite-file path="./pulsar-messaging.xml" />
         <suite-file path="./pulsar-backwards-compatibility.xml" />
+        <suite-file path="./pulsar-io-sinks.xml" />
+        <suite-file path="./pulsar-io-sources.xml" />
     </suite-files>
 </suite>

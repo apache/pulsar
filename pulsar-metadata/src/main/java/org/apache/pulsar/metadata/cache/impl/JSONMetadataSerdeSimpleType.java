@@ -21,6 +21,7 @@ package org.apache.pulsar.metadata.cache.impl;
 import com.fasterxml.jackson.databind.JavaType;
 import java.io.IOException;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.metadata.api.MetadataSerde;
 
 public class JSONMetadataSerdeSimpleType<T> implements MetadataSerde<T> {
 

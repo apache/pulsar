@@ -26,6 +26,8 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
@@ -38,13 +40,16 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.metadata.api.CacheGetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
+import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.ContentDeserializationException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
+import org.apache.pulsar.metadata.api.Stat;
 import org.testng.annotations.Test;
 
 public class MetadataCacheTest extends BaseMetadataStoreTest {
@@ -135,6 +140,10 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
 
         assertEquals(objCache.getIfCached(key1), Optional.of(value1));
         assertEquals(objCache.get(key1).join(), Optional.of(value1));
+
+        assertEquals(objCache.readModifyUpdateOrCreate(key1, __ -> value2).join(), value2);
+        assertEquals(objCache.getIfCached(key1), Optional.of(value2));
+        assertEquals(objCache.get(key1).join(), Optional.of(value2));
 
         objCache.delete(key1).join();
 
@@ -284,9 +293,8 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         MyClass value1 = new MyClass("a", 1);
         objCache.create(key1, value1).join();
 
-        objCache.readModifyUpdate(key1, v -> {
-            return new MyClass(v.a, v.b + 1);
-        }).join();
+        assertEquals(objCache.readModifyUpdate(key1, v -> new MyClass(v.a, v.b + 1)).join(),
+                new MyClass("a", 2));
 
         Optional<MyClass> newValue1 = objCache.get(key1).join();
         assertTrue(newValue1.isPresent());
@@ -332,5 +340,46 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         objCache1.readModifyUpdate(key1, v -> {
             return new MyClass(v.a, v.b + 1);
         }).join();
+    }
+
+    @Test(dataProvider = "impl")
+    public void getWithStats(String provider, String url) throws Exception {
+        @Cleanup
+        MetadataStore store = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
+        MetadataCache<MyClass> objCache = store.getMetadataCache(MyClass.class);
+
+        String key1 = newKey();
+
+        MyClass value1 = new MyClass("a", 1);
+        Stat stat1 = store.put(key1, ObjectMapperFactory.getThreadLocal().writeValueAsBytes(value1), Optional.of(-1L)).join();
+
+        CacheGetResult<MyClass> res = objCache.getWithStats(key1).join().get();
+        assertEquals(res.getValue(), value1);
+        assertEquals(res.getStat().getVersion(), stat1.getVersion());
+    }
+
+    @Test(dataProvider = "impl")
+    public void cacheWithCustomSerde(String provider, String url) throws Exception {
+        @Cleanup
+        MetadataStore store = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
+
+        // Simple serde that convert numbers to ascii
+        MetadataCache<Integer> objCache = store.getMetadataCache(new MetadataSerde<Integer>() {
+            @Override
+            public byte[] serialize(Integer value) throws IOException {
+                return value.toString().getBytes(StandardCharsets.UTF_8);
+            }
+
+            @Override
+            public Integer deserialize(byte[] content) throws IOException {
+                return Integer.parseInt(new String(content, StandardCharsets.UTF_8));
+            }
+        });
+
+        String key1 = newKey();
+
+        objCache.create(key1, 1).join();
+
+        assertEquals(objCache.get(key1).join().get(), (Integer) 1);
     }
 }

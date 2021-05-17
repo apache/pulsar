@@ -28,13 +28,16 @@ void export_enums();
 void export_authentication();
 void export_schema();
 void export_cryptoKeyReader();
+void export_exceptions();
+
+PyObject* get_exception_class(Result result);
 
 
 static void translateException(const PulsarException& ex) {
     std::string err = "Pulsar error: ";
     err += strResult(ex._result);
 
-    PyErr_SetString(PyExc_Exception, err.c_str());
+    PyErr_SetString(get_exception_class(ex._result), err.c_str());
 }
 
 BOOST_PYTHON_MODULE(_pulsar)
@@ -55,4 +58,5 @@ BOOST_PYTHON_MODULE(_pulsar)
     export_authentication();
     export_schema();
     export_cryptoKeyReader();
+    export_exceptions();
 }

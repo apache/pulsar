@@ -36,6 +36,7 @@ import org.apache.pulsar.broker.transaction.buffer.exceptions.UnsupportedTxnActi
 import org.apache.pulsar.broker.transaction.recover.TransactionRecoverTrackerImpl;
 import org.apache.pulsar.broker.transaction.timeout.TransactionTimeoutTrackerFactoryImpl;
 import org.apache.pulsar.client.api.PulsarClientException.BrokerPersistenceException;
+import org.apache.pulsar.client.api.PulsarClientException.ConnectException;
 import org.apache.pulsar.client.api.PulsarClientException.LookupException;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClientException.ReachMaxPendingOpsException;
@@ -398,16 +399,13 @@ public class TransactionMetadataStoreService {
     }
 
     private static boolean isRetryableException(Throwable e) {
-        if (e instanceof TransactionMetadataStoreStateException
+        return e instanceof TransactionMetadataStoreStateException
                 || e instanceof RequestTimeoutException
                 || e instanceof ManagedLedgerException
                 || e instanceof BrokerPersistenceException
                 || e instanceof LookupException
-                || e instanceof ReachMaxPendingOpsException) {
-            return true;
-        } else {
-            return false;
-        }
+                || e instanceof ReachMaxPendingOpsException
+                || e instanceof ConnectException;
     }
 
     private CompletableFuture<Void> endTxnInTransactionMetadataStore(TxnID txnID, int txnAction) {

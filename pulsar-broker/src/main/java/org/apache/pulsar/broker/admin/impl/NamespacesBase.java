@@ -412,7 +412,7 @@ public abstract class NamespacesBase extends AdminResource {
             if (!topics.isEmpty()) {
                 for (String topic : topics) {
                     try {
-                        futures.add(pulsar().getAdminClient().topics().deleteAsync(topic, true));
+                        futures.add(pulsar().getAdminClient().topics().deleteAsync(topic, true, true));
                     } catch (Exception e) {
                         log.error("[{}] Failed to force delete topic {}", clientAppId(), topic, e);
                         asyncResponse.resume(new RestException(e));
@@ -776,7 +776,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetSubscriptionExpirationTime(int expirationTime) {
-        validateAdminAccessForTenant(namespaceName.getTenant());
+        validateNamespacePolicyOperation(namespaceName, PolicyName.SUBSCRIPTION_EXPIRATION_TIME, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         if (expirationTime < 0) {
@@ -791,7 +791,7 @@ public abstract class NamespacesBase extends AdminResource {
     protected void internalSetAutoTopicCreation(AsyncResponse asyncResponse,
                                                 AutoTopicCreationOverride autoTopicCreationOverride) {
         final int maxPartitions = pulsar().getConfig().getMaxNumPartitionsPerPartitionedTopic();
-        validateAdminAccessForTenant(namespaceName.getTenant());
+        validateNamespacePolicyOperation(namespaceName, PolicyName.AUTO_TOPIC_CREATION, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
         if (autoTopicCreationOverride != null) {
             if (!AutoTopicCreationOverride.isValidOverride(autoTopicCreationOverride)) {
@@ -832,7 +832,7 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected void internalSetAutoSubscriptionCreation(
             AsyncResponse asyncResponse, AutoSubscriptionCreationOverride autoSubscriptionCreationOverride) {
-        validateAdminAccessForTenant(namespaceName.getTenant());
+        validateNamespacePolicyOperation(namespaceName, PolicyName.AUTO_SUBSCRIPTION_CREATION, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         // Force to read the data s.t. the watch to the cache content is setup.

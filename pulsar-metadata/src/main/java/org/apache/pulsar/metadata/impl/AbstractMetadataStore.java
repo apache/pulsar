@@ -35,12 +35,15 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataCache;
+import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
@@ -117,6 +120,13 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     }
 
     @Override
+    public <T> MetadataCache<T> getMetadataCache(MetadataSerde<T> serde) {
+        MetadataCacheImpl<T> metadataCache = new MetadataCacheImpl<>(this, serde);
+        metadataCaches.add(metadataCache);
+        return metadataCache;
+    }
+
+    @Override
     public final CompletableFuture<List<String>> getChildren(String path) {
         return childrenCache.get(path);
     }
@@ -132,17 +142,21 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     }
 
     protected CompletableFuture<Void> receivedNotification(Notification notification) {
-        return CompletableFuture.supplyAsync(() -> {
-            listeners.forEach(listener -> {
-                try {
-                    listener.accept(notification);
-                } catch (Throwable t) {
-                    log.error("Failed to process metadata store notification", t);
-                }
-            });
+        try {
+            return CompletableFuture.supplyAsync(() -> {
+                listeners.forEach(listener -> {
+                    try {
+                        listener.accept(notification);
+                    } catch (Throwable t) {
+                        log.error("Failed to process metadata store notification", t);
+                    }
+                });
 
-            return null;
-        }, executor);
+                return null;
+            }, executor);
+        } catch (RejectedExecutionException e) {
+            return FutureUtil.failedFuture(e);
+        }
     }
 
     @Override

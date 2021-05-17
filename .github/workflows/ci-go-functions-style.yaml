@@ -51,43 +51,38 @@ jobs:
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
 
-      - name: Changed files check
+      - name: Detect changed files
         id:   changes
         uses: apache/pulsar-test-infra/paths-filter@master
         with:
-          filters: |
-            # pattern syntax: https://github.com/micromatch/picomatch
-            all:
-              - '**'
-            docs:
-              - 'site2/**'
-              - 'deployment/**'
-              - '.asf.yaml'
-              - '*.md'
-              - '**/*.md'
+          filters: .github/changes-filter.yaml
+
+      - name: Check changed files
+        id: check_changes
+        run: echo "::set-output name=docs_only::${{ fromJSON(steps.changes.outputs.all_count) == fromJSON(steps.changes.outputs.docs_count) && fromJSON(steps.changes.outputs.docs_count) > 0 }}"
 
       - name: Set up Go
         uses: actions/setup-go@v2
-        if: ${{ steps.changes.outputs.all_count }} > ${{ steps.changes.outputs.docs_count }}
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         with:
           go-version: ${{ matrix.go-version }}
         id: go
 
       - name: InstallTool
-        if: ${{ steps.changes.outputs.all_count }} > ${{ steps.changes.outputs.docs_count }}
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         run: |
           cd pulsar-function-go
           wget -O - -q https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s v1.18.0
           ./bin/golangci-lint --version
 
       - name: Build
-        if: ${{ steps.changes.outputs.all_count }} > ${{ steps.changes.outputs.docs_count }}
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         run: |
           cd pulsar-function-go
           go build ./...
 
       - name: CheckStyle
-        if: ${{ steps.changes.outputs.all_count }} > ${{ steps.changes.outputs.docs_count }}
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         run: |
           cd pulsar-function-go
           ./bin/golangci-lint run -c ./golangci.yml ./pf

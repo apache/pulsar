@@ -26,11 +26,14 @@ import static org.testng.Assert.assertTrue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 import lombok.Cleanup;
 
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
+import org.apache.pulsar.metadata.api.coordination.LeaderElection;
+import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
 import org.apache.pulsar.metadata.api.coordination.LockManager;
 import org.apache.pulsar.metadata.api.coordination.ResourceLock;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -130,6 +133,58 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
         Thread.sleep(2_000);
 
         assertFalse(lock.getLockExpiredFuture().isDone());
+
+        assertTrue(store.get(path).join().isPresent());
+    }
+
+    @Test
+    public void testReacquireLeadershipAfterSessionLost() throws Exception {
+        @Cleanup
+        MetadataStoreExtended store = MetadataStoreExtended.create(zks.getConnectionString(),
+                MetadataStoreConfig.builder()
+                        .sessionTimeoutMillis(2_000)
+                        .build());
+
+        BlockingQueue<SessionEvent> sessionEvents = new LinkedBlockingQueue<>();
+        store.registerSessionListener(sessionEvents::add);
+
+        BlockingQueue<LeaderElectionState> leaderElectionEvents = new LinkedBlockingQueue<>();
+        String path = newKey();
+
+        @Cleanup
+        CoordinationService coordinationService = new CoordinationServiceImpl(store);
+        @Cleanup
+        LeaderElection<String> le1 = coordinationService.getLeaderElection(String.class, path,
+                leaderElectionEvents::add);
+
+        le1.elect("value-1").join();
+        assertEquals(le1.getState(), LeaderElectionState.Leading);
+
+        LeaderElectionState les = leaderElectionEvents.poll(5, TimeUnit.SECONDS);
+        assertEquals(les, LeaderElectionState.Leading);
+
+        zks.expireSession(((ZKMetadataStore) store).getZkSessionId());
+
+        SessionEvent e = sessionEvents.poll(5, TimeUnit.SECONDS);
+        assertEquals(e, SessionEvent.ConnectionLost);
+
+        e = sessionEvents.poll(10, TimeUnit.SECONDS);
+        assertEquals(e, SessionEvent.SessionLost);
+
+        assertEquals(le1.getState(), LeaderElectionState.Leading);
+        les = leaderElectionEvents.poll();
+        assertNull(les);
+
+        e = sessionEvents.poll(10, TimeUnit.SECONDS);
+        assertEquals(e, SessionEvent.Reconnected);
+        e = sessionEvents.poll(10, TimeUnit.SECONDS);
+        assertEquals(e, SessionEvent.SessionReestablished);
+
+        Thread.sleep(2_000);
+
+        assertEquals(le1.getState(), LeaderElectionState.Leading);
+        les = leaderElectionEvents.poll();
+        assertNull(les);
 
         assertTrue(store.get(path).join().isPresent());
     }

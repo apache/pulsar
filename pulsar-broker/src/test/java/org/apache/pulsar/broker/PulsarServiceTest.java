@@ -21,17 +21,48 @@ package org.apache.pulsar.broker;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import static org.testng.AssertJUnit.assertSame;
 import java.util.Optional;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
+import org.testng.AssertJUnit;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
 
 @Slf4j
-public class PulsarServiceTest {
+public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
+
+    private boolean useListenerName = false;
+
+    @Override
+    protected void setup() throws Exception {
+        super.internalSetup();
+    }
+
+    @AfterMethod(alwaysRun = true)
+    @Override
+    protected void cleanup() throws Exception {
+        super.internalCleanup();
+        useListenerName = false;
+        resetConfig();
+    }
+
+    @Override
+    protected void doInitConf() throws Exception {
+        super.doInitConf();
+        if (useListenerName) {
+            conf.setAdvertisedAddress(null);
+            conf.setBrokerServicePortTls(Optional.of(6651));
+            conf.setBrokerServicePort(Optional.of(6660));
+            conf.setWebServicePort(Optional.of(8081));
+            conf.setWebServicePortTls(Optional.of(8082));
+        }
+    }
 
     @Test
     public void testGetWorkerService() throws Exception {
@@ -71,4 +102,21 @@ public class PulsarServiceTest {
             assertEquals(e.getMessage(), errorMessage);
         }
     }
+
+    @Test
+    public void testAppliedAdvertised() throws Exception {
+        useListenerName = true;
+        conf.setAdvertisedListeners("internal:pulsar://127.0.0.1, internal:pulsar+ssl://127.0.0.1");
+        conf.setInternalListenerName("internal");
+        setup();
+
+        AssertJUnit.assertEquals(pulsar.getAdvertisedAddress(), "127.0.0.1");
+        assertNull(pulsar.getConfiguration().getAdvertisedAddress());
+        assertEquals(conf, pulsar.getConfiguration());
+        assertEquals(pulsar.brokerUrlTls(conf), "pulsar+ssl://127.0.0.1:6651");
+        assertEquals(pulsar.brokerUrl(conf), "pulsar://127.0.0.1:6660");
+        assertEquals(pulsar.webAddress(conf), "http://127.0.0.1:8081");
+        assertEquals(pulsar.webAddressTls(conf), "https://127.0.0.1:8082");
+    }
+
 }

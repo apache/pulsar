@@ -43,23 +43,18 @@ jobs:
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
 
-      - name: Changed files check
+      - name: Detect changed files
         id:   changes
         uses: apache/pulsar-test-infra/paths-filter@master
         with:
-          filters: |
-            # pattern syntax: https://github.com/micromatch/picomatch
-            all:
-              - '**'
-            docs:
-              - 'site2/**'
-              - 'deployment/**'
-              - '.asf.yaml'
-              - '*.md'
-              - '**/*.md'
+          filters: .github/changes-filter.yaml
+
+      - name: Check changed files
+        id: check_changes
+        run: echo "::set-output name=docs_only::${{ fromJSON(steps.changes.outputs.all_count) == fromJSON(steps.changes.outputs.docs_count) && fromJSON(steps.changes.outputs.docs_count) > 0 }}"
 
       - name: Cache local Maven repository
-        if: ${{ steps.changes.outputs.all_count }} > ${{ steps.changes.outputs.docs_count }}
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         uses: actions/cache@v2
         with:
           path: |
@@ -70,27 +65,29 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
             ${{ runner.os }}-m2-dependencies-core-modules-
 
-      - name: Set up JDK 1.8
-        if: ${{ steps.changes.outputs.all_count }} > ${{ steps.changes.outputs.docs_count }}
-        uses: actions/setup-java@v1
+      - name: Set up JDK 11
+        uses: actions/setup-java@v2
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         with:
-          java-version: 1.8
+          distribution: 'adopt'
+          java-version: 11
+
 
       - name: Replace maven's wagon-http version
-        if: ${{ steps.changes.outputs.all_count }} > ${{ steps.changes.outputs.docs_count }}
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         run: sudo ./build/replace_maven-wagon-http-version.sh
 
       # license check fails with 3.6.2 so we have to downgrade
       - name: Set up Maven
-        if: ${{ steps.changes.outputs.all_count }} > ${{ steps.changes.outputs.docs_count }}
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         uses: apache/pulsar-test-infra/setup-maven@master
         with:
           maven-version: 3.6.1
 
       - name: build and check license
-        if: ${{ steps.changes.outputs.all_count }} > ${{ steps.changes.outputs.docs_count }}
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         run: mvn -q -B -ntp -DskipTests apache-rat:check initialize license:check install
 
       - name: license check
-        if: ${{ steps.changes.outputs.all_count }} > ${{ steps.changes.outputs.docs_count }}
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         run: src/check-binary-license ./distribution/server/target/apache-pulsar-*-bin.tar.gz

@@ -23,12 +23,12 @@ import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMo
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.anyString;
-import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.matches;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.matches;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -40,9 +40,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
-import java.io.IOException;
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -75,6 +73,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -414,7 +413,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         // 3. add producer for a different topic
         PersistentTopic failTopic = new PersistentTopic(failTopicName, ledgerMock, brokerService);
         Producer failProducer = new Producer(failTopic, serverCnx, 2 /* producer id */, "prod-name",
-                role, false, null, SchemaVersion.Latest,0, false,
+                role, false, null, SchemaVersion.Latest, 0, false,
                 ProducerAccessMode.Shared, Optional.empty());
         try {
             topic.addProducer(failProducer, new CompletableFuture<>());
@@ -506,20 +505,20 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         String role = "appid1";
         // 1. add producer1
         Producer producer = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name1", role,
-                false, null, SchemaVersion.Latest,0, false, ProducerAccessMode.Shared, Optional.empty());
+                false, null, SchemaVersion.Latest, 0, false, ProducerAccessMode.Shared, Optional.empty());
         topic.addProducer(producer, new CompletableFuture<>());
         assertEquals(topic.getProducers().size(), 1);
 
         // 2. add producer2
         Producer producer2 = new Producer(topic, serverCnx, 2 /* producer id */, "prod-name2", role,
-                false, null, SchemaVersion.Latest,0, false, ProducerAccessMode.Shared, Optional.empty());
+                false, null, SchemaVersion.Latest, 0, false, ProducerAccessMode.Shared, Optional.empty());
         topic.addProducer(producer2, new CompletableFuture<>());
         assertEquals(topic.getProducers().size(), 2);
 
         // 3. add producer3 but reached maxProducersPerTopic
         try {
             Producer producer3 = new Producer(topic, serverCnx, 3 /* producer id */, "prod-name3", role,
-                    false, null, SchemaVersion.Latest,0, false, ProducerAccessMode.Shared, Optional.empty());
+                    false, null, SchemaVersion.Latest, 0, false, ProducerAccessMode.Shared, Optional.empty());
             topic.addProducer(producer3, new CompletableFuture<>()).join();
             fail("should have failed");
         } catch (Exception e) {
@@ -574,8 +573,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
 
-        InetAddress address1 = InetAddress.getLoopbackAddress();
-        InetAddress address2 = InetAddress.getLocalHost();
+        InetAddress address1 = InetAddress.getByName("127.0.0.1");
+        InetAddress address2 = InetAddress.getByName("0.0.0.0");
         String ipAddress1 = address1.getHostAddress();
         String ipAddress2 = address2.getHostAddress();
 
@@ -679,13 +678,13 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         // 1. simple subscribe
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
                 0, cmd.getConsumerName(), cmd.isDurable(), null, Collections.emptyMap(), cmd.isReadCompacted(), InitialPosition.Latest,
-                0 /*avoid reseting cursor*/,false, null);
+                0 /*avoid reseting cursor*/, false, null);
         f1.get();
 
         // 2. duplicate subscribe
         Future<Consumer> f2 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
                 0, cmd.getConsumerName(), cmd.isDurable(), null, Collections.emptyMap(), cmd.isReadCompacted(), InitialPosition.Latest,
-                0 /*avoid reseting cursor*/,false, null);
+                0 /*avoid reseting cursor*/, false, null);
         try {
             f2.get();
             fail("should fail with exception");
@@ -748,10 +747,10 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         // 2. duplicate add consumer
         try {
-            sub.addConsumer(consumer);
+            sub.addConsumer(consumer).get();
             fail("Should fail with ConsumerBusyException");
-        } catch (BrokerServiceException e) {
-            assertTrue(e instanceof BrokerServiceException.ConsumerBusyException);
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof BrokerServiceException.ConsumerBusyException);
         }
 
         // 3. simple remove consumer
@@ -827,9 +826,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
             Consumer consumer3 = new Consumer(sub, SubType.Shared, topic.getName(), 3 /* consumer id */, 0,
                     "Cons3"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap(),
                     false /* read compacted */, InitialPosition.Latest, null);
-            addConsumerToSubscription.invoke(topic, sub, consumer3);
+            ((CompletableFuture<Void>) addConsumerToSubscription.invoke(topic, sub, consumer3)).get();
             fail("should have failed");
-        } catch (InvocationTargetException e) {
+        } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof BrokerServiceException.ConsumerBusyException);
         }
 
@@ -851,9 +850,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
             Consumer consumer5 = new Consumer(sub2, SubType.Shared, topic.getName(), 5 /* consumer id */, 0,
                     "Cons5"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap(),
                     false /* read compacted */, InitialPosition.Latest, null);
-            addConsumerToSubscription.invoke(topic, sub2, consumer5);
+            ((CompletableFuture<Void>) addConsumerToSubscription.invoke(topic, sub2, consumer5)).get();
             fail("should have failed");
-        } catch (InvocationTargetException e) {
+        } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof BrokerServiceException.ConsumerBusyException);
         }
     }
@@ -922,9 +921,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
             Consumer consumer3 = new Consumer(sub, SubType.Failover, topic.getName(), 3 /* consumer id */, 0,
                     "Cons3"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap(),
                     false /* read compacted */, InitialPosition.Latest, null);
-            addConsumerToSubscription.invoke(topic, sub, consumer3);
+            ((CompletableFuture<Void>) addConsumerToSubscription.invoke(topic, sub, consumer3)).get();
             fail("should have failed");
-        } catch (InvocationTargetException e) {
+        } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof BrokerServiceException.ConsumerBusyException);
         }
 
@@ -946,9 +945,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
             Consumer consumer5 = new Consumer(sub2, SubType.Failover, topic.getName(), 5 /* consumer id */, 0,
                     "Cons5"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap(),
                     false /* read compacted */, InitialPosition.Latest, null);
-            addConsumerToSubscription.invoke(topic, sub2, consumer5);
+            ((CompletableFuture<Void>) addConsumerToSubscription.invoke(topic, sub2, consumer5)).get();
             fail("should have failed");
-        } catch (InvocationTargetException e) {
+        } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof BrokerServiceException.ConsumerBusyException);
         }
     }
@@ -981,7 +980,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     }
 
     private Consumer getMockedConsumerWithSpecificAddress(Topic topic, Subscription sub, long consumerId,
-            InetAddress address) throws Exception {
+                                                          InetAddress address) throws Exception {
         final String consumerNameBase = "consumer";
         final String role = "appid1";
 
@@ -1007,8 +1006,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         PersistentSubscription sub1 = new PersistentSubscription(topic, "sub1", cursorMock, false);
         PersistentSubscription sub2 = new PersistentSubscription(topic, "sub2", cursorMock, false);
 
-        InetAddress address1 = InetAddress.getLoopbackAddress();
-        InetAddress address2 = InetAddress.getLocalHost();
+        InetAddress address1 = InetAddress.getByName("127.0.0.1");
+        InetAddress address2 = InetAddress.getByName("0.0.0.0");
         String ipAddress1 = address1.getHostAddress();
         String ipAddress2 = address2.getHostAddress();
 
@@ -1026,14 +1025,14 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         // 1. add consumer1 with ipAddress1 to sub1
         Consumer consumer1 = getMockedConsumerWithSpecificAddress(topic, sub1, 1, address1);
-        addConsumerToSubscription.invoke(topic, sub1, consumer1);
+        ((CompletableFuture<Void>) addConsumerToSubscription.invoke(topic, sub1, consumer1)).get();
         assertEquals(topic.getNumberOfConsumers(), 1);
         assertEquals(topic.getNumberOfSameAddressConsumers(ipAddress1), 1);
         assertEquals(sub1.getNumberOfSameAddressConsumers(ipAddress1), 1);
 
         // 2. add consumer2 with ipAddress1 to sub2
         Consumer consumer2 = getMockedConsumerWithSpecificAddress(topic, sub2, 2, address1);
-        addConsumerToSubscription.invoke(topic, sub2, consumer2);
+        ((CompletableFuture<Void>) addConsumerToSubscription.invoke(topic, sub2, consumer2)).get();
         assertEquals(topic.getNumberOfConsumers(), 2);
         assertEquals(topic.getNumberOfSameAddressConsumers(ipAddress1), 2);
         assertEquals(sub1.getNumberOfSameAddressConsumers(ipAddress1), 1);
@@ -1041,7 +1040,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         // 3. add consumer3 with ipAddress2 to sub1
         Consumer consumer3 = getMockedConsumerWithSpecificAddress(topic, sub1, 3, address2);
-        addConsumerToSubscription.invoke(topic, sub1, consumer3);
+        ((CompletableFuture<Void>) addConsumerToSubscription.invoke(topic, sub1, consumer3)).get();
         assertEquals(topic.getNumberOfConsumers(), 3);
         assertEquals(topic.getNumberOfSameAddressConsumers(ipAddress1), 2);
         assertEquals(topic.getNumberOfSameAddressConsumers(ipAddress2), 1);
@@ -1050,7 +1049,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         // 4. add consumer4 with ipAddress2 to sub2
         Consumer consumer4 = getMockedConsumerWithSpecificAddress(topic, sub2, 4, address2);
-        addConsumerToSubscription.invoke(topic, sub2, consumer4);
+        ((CompletableFuture<Void>) addConsumerToSubscription.invoke(topic, sub2, consumer4)).get();
         assertEquals(topic.getNumberOfConsumers(), 4);
         assertEquals(topic.getNumberOfSameAddressConsumers(ipAddress1), 2);
         assertEquals(topic.getNumberOfSameAddressConsumers(ipAddress2), 2);
@@ -1060,9 +1059,10 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         // 5. add consumer5 with ipAddress1 to sub1 but reach maxSameAddressConsumersPerTopic
         try {
             Consumer consumer5 = getMockedConsumerWithSpecificAddress(topic, sub1, 5, address1);
-            addConsumerToSubscription.invoke(topic, sub1, consumer5);
+            ((CompletableFuture<Void>) addConsumerToSubscription.invoke(topic, sub1, consumer5)).get();
+
             fail("should have failed");
-        } catch (InvocationTargetException e) {
+        } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof BrokerServiceException.ConsumerBusyException);
         }
         assertEquals(topic.getNumberOfConsumers(), 4);
@@ -1072,9 +1072,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         // 6. add consumer6 with ipAddress2 to sub2 but reach maxSameAddressConsumersPerTopic
         try {
             Consumer consumer6 = getMockedConsumerWithSpecificAddress(topic, sub2, 6, address2);
-            addConsumerToSubscription.invoke(topic, sub2, consumer6);
+            ((CompletableFuture<Void>) addConsumerToSubscription.invoke(topic, sub2, consumer6)).get();
             fail("should have failed");
-        } catch (InvocationTargetException e) {
+        } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof BrokerServiceException.ConsumerBusyException);
         }
         assertEquals(topic.getNumberOfConsumers(), 4);
@@ -1122,10 +1122,12 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         try {
             Thread.sleep(10); /* delay to ensure that the ubsubscribe gets executed first */
-            new Consumer(sub, SubType.Exclusive, topic.getName(), 2 /* consumer id */, 0, "Cons2"/* consumer name */,
-                    50000, serverCnx, "myrole-1", Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest, null);
-        } catch (BrokerServiceException e) {
-            assertTrue(e instanceof BrokerServiceException.SubscriptionFencedException);
+            sub.addConsumer(new Consumer(sub, SubType.Exclusive, topic.getName(), 2 /* consumer id */,
+                    0, "Cons2"/* consumer name */, 50000, serverCnx,
+                    "myrole-1", Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest, null)).get();
+            fail();
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof BrokerServiceException.SubscriptionFencedException);
         }
     }
 
@@ -1213,7 +1215,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
                 0, cmd.getConsumerName(), cmd.isDurable(), null, Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest,
-                0 /*avoid reseting cursor*/,false /* replicated */, null);
+                0 /*avoid reseting cursor*/, false /* replicated */, null);
         f1.get();
 
         assertTrue(topic.delete().isCompletedExceptionally());
@@ -1237,7 +1239,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
                 0, cmd.getConsumerName(), cmd.isDurable(), null, Collections.emptyMap(), cmd.isReadCompacted(), InitialPosition.Latest,
-                0 /*avoid reseting cursor*/,false /* replicated */, null);
+                0 /*avoid reseting cursor*/, false /* replicated */, null);
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);
@@ -1404,7 +1406,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         Future<Consumer> f = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
                 0, cmd.getConsumerName(), cmd.isDurable(), null, Collections.emptyMap(), cmd.isReadCompacted(), InitialPosition.Latest,
-                0 /*avoid reseting cursor*/,false /* replicated */, null);
+                0 /*avoid reseting cursor*/, false /* replicated */, null);
         try {
             f.get();
             fail("should have failed");
@@ -1548,7 +1550,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         Future<Consumer> f1 = topic1.subscribe(serverCnx, cmd1.getSubscription(), cmd1.getConsumerId(),
                 cmd1.getSubType(), 0, cmd1.getConsumerName(), cmd1.isDurable(), null, Collections.emptyMap(),
                 cmd1.isReadCompacted(), InitialPosition.Latest,
-                0 /*avoid reseting cursor*/,false /* replicated */, null);
+                0 /*avoid reseting cursor*/, false /* replicated */, null);
         f1.get();
 
         // 2. Subscribe with partition topic
@@ -1630,8 +1632,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         // 5. Subscribe on partition topic with existing consumer id and different sub type
         CommandSubscribe cmd5 = new CommandSubscribe()
-                .setConsumerId(2).
-                setConsumerName("C1")
+                .setConsumerId(2)
+                .setConsumerName("C1")
                 .setTopic(successPartitionTopicName)
                 .setSubscription(successSubName)
                 .setReadCompacted(false)
@@ -1641,7 +1643,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         Future<Consumer> f5 = topic2.subscribe(serverCnx, cmd5.getSubscription(), cmd5.getConsumerId(),
                 cmd5.getSubType(), 0, cmd5.getConsumerName(), cmd5.isDurable(), null, Collections.emptyMap(),
                 cmd5.isReadCompacted(), InitialPosition.Latest,
-                0 /*avoid reseting cursor*/,false /* replicated */, null);
+                0 /*avoid reseting cursor*/, false /* replicated */, null);
         try {
             f5.get();
             fail("should fail with exception");
@@ -1748,7 +1750,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         // replicator
         when(pulsar.getConfigurationCache().policiesCache()
                 .get(AdminResource.path(POLICIES, TopicName.get(globalTopicName).getNamespace())))
-                        .thenReturn(Optional.of(new Policies()));
+                .thenReturn(Optional.of(new Policies()));
         // try to start replicator again
         topic.startReplProducers();
         // verify: replicator.startProducer is not invoked
@@ -2103,6 +2105,50 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         assertFalse(fencedTopicMonitoringTask.isCancelled());
         assertTrue((boolean) isFencedField.get(topic));
         assertTrue((boolean) isClosingOrDeletingField.get(topic));
+    }
+
+    @Test
+    public void testGetDurableSubscription() throws Exception {
+        ManagedLedger mockLedger = mock(ManagedLedger.class);
+        ManagedCursor mockCursor = mock(ManagedCursorImpl.class);
+        Position mockPosition = mock(Position.class);
+        doReturn("test").when(mockCursor).getName();
+        doAnswer((Answer<Object>) invocationOnMock -> {
+            ((AsyncCallbacks.FindEntryCallback) invocationOnMock.getArguments()[2]).findEntryComplete(mockPosition, invocationOnMock.getArguments()[3]);
+            return null;
+        }).when(mockCursor).asyncFindNewestMatching(any(), any(), any(), any());
+        doAnswer((Answer<Object>) invocationOnMock -> {
+            ((AsyncCallbacks.ResetCursorCallback) invocationOnMock.getArguments()[1]).resetComplete(null);
+            return null;
+        }).when(mockCursor).asyncResetCursor(any(), any());
+        doAnswer((Answer<Object>) invocationOnMock -> {
+            ((DeleteCursorCallback) invocationOnMock.getArguments()[1]).deleteCursorComplete(null);
+            return null;
+        }).when(mockLedger).asyncDeleteCursor(matches(".*success.*"), any(DeleteCursorCallback.class), any());
+        doAnswer((Answer<Object>) invocationOnMock -> {
+            ((OpenCursorCallback) invocationOnMock.getArguments()[3]).openCursorComplete(mockCursor, null);
+            return null;
+        }).when(mockLedger).asyncOpenCursor(any(), any(), any(), any(), any());
+        PersistentTopic topic = new PersistentTopic(successTopicName, mockLedger, brokerService);
+
+        CommandSubscribe cmd = new CommandSubscribe()
+                .setConsumerId(1)
+                .setDurable(true)
+                .setStartMessageRollbackDurationSec(60)
+                .setTopic(successTopicName)
+                .setSubscription(successSubName)
+                .setConsumerName("consumer-name")
+                .setReadCompacted(false)
+                .setRequestId(1)
+                .setSubType(SubType.Exclusive);
+
+        Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
+                0, cmd.getConsumerName(), cmd.isDurable(), null, Collections.emptyMap(), cmd.isReadCompacted(), InitialPosition.Latest,
+                cmd.getStartMessageRollbackDurationSec(), false, null);
+        f1.get();
+
+        Future<Void> f2 = topic.unsubscribe(successSubName);
+        f2.get();
     }
 
     private ByteBuf getMessageWithMetadata(byte[] data) {

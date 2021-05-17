@@ -441,7 +441,8 @@ public class LoadSimulationController {
                         // Put the bundle data in the new ZooKeeper.
                         try {
                             ZkUtils.createFullPathOptimistic(targetZKClient, newAPITargetPath,
-                                    bundleData.getJsonBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+                                    ObjectMapperFactory.getThreadLocal().writeValueAsBytes(bundleData),
+                                    ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
                         } catch (KeeperException.NodeExistsException e) {
                             // Ignore already created nodes.
                         } catch (Exception e) {
@@ -490,11 +491,12 @@ public class LoadSimulationController {
                     final BundleData bundleData = initializeBundleData(quota, arguments);
                     // Put the bundle data in the new ZooKeeper.
                     try {
-                        ZkUtils.createFullPathOptimistic(zkClient, newAPIPath, bundleData.getJsonBytes(),
+                        ZkUtils.createFullPathOptimistic(zkClient, newAPIPath,
+                                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(bundleData),
                                 ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
                     } catch (KeeperException.NodeExistsException e) {
                         try {
-                            zkClient.setData(newAPIPath, bundleData.getJsonBytes(), -1);
+                            zkClient.setData(newAPIPath, ObjectMapperFactory.getThreadLocal().writeValueAsBytes(bundleData), -1);
                         } catch (Exception ex) {
                             throw new RuntimeException(ex);
                         }

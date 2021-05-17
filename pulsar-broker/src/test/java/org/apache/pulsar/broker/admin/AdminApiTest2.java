@@ -72,6 +72,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -1442,6 +1443,24 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("prop-xyz2/test/ns2", 10);
         assertEquals(admin.namespaces().getBundles("prop-xyz2/ns1").numBundles, 10);
         assertEquals(admin.namespaces().getBundles("prop-xyz2/test/ns2").numBundles, 10);
+    }
+
+    @Test
+    public void testForceDeleteNamespace() throws Exception {
+        conf.setForceDeleteNamespaceAllowed(true);
+        final String namespaceName = "prop-xyz2/ns1";
+        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        admin.tenants().createTenant("prop-xyz2", tenantInfo);
+        admin.namespaces().createNamespace(namespaceName, 1);
+        final String topic = "persistent://" + namespaceName + "/test" + UUID.randomUUID();
+        pulsarClient.newProducer(Schema.DOUBLE).topic(topic).create().close();
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin.schemas().getSchemaInfo(topic)));
+        admin.namespaces().deleteNamespace(namespaceName, true);
+        try {
+            admin.schemas().getSchemaInfo(topic);
+        } catch (PulsarAdminException e) {
+            assertEquals(e.getStatusCode(), 404);
+        }
     }
 
     @Test

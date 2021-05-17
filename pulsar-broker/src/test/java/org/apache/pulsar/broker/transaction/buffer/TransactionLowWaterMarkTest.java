@@ -127,7 +127,7 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
     }
 
     @Test
-    public void testLowWaterMark() throws Exception {
+    public void testTransactionBufferLowWaterMark() throws Exception {
         Transaction txn = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build().get();

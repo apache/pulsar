@@ -20,6 +20,7 @@ package org.apache.pulsar.client.api;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
@@ -44,12 +45,18 @@ import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.SecureRandom;
 import java.security.cert.Certificate;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -70,6 +77,7 @@ import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceUnit;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.ServiceUnitId;
@@ -83,6 +91,8 @@ import org.apache.pulsar.discovery.service.DiscoveryService;
 import org.apache.pulsar.discovery.service.server.ServiceConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
+import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
+import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.asynchttpclient.AsyncCompletionHandler;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.AsyncHttpClientConfig;
@@ -195,6 +205,44 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         consumer.close();
         producer.close();
 
+    }
+
+    @Test
+    public void testConcurrentWriteBrokerData() throws Exception {
+        Map<String, NamespaceBundleStats> map = new ConcurrentHashMap<>();
+        for (int i = 0; i < 100; i++) {
+            map.put("key"+ i, new NamespaceBundleStats());
+        }
+        BrokerService brokerService = mock(BrokerService.class);
+        doReturn(brokerService).when(pulsar).getBrokerService();
+        doReturn(map).when(brokerService).getBundleStats();
+        ModularLoadManagerWrapper loadManager = (ModularLoadManagerWrapper)pulsar.getLoadManager().get();
+
+        @Cleanup("shutdownNow")
+        ExecutorService executor = Executors.newFixedThreadPool(10);
+        List<Future<?>> list = new ArrayList<>();
+        for (int i = 0; i < 1000; i++) {
+            LocalBrokerData data = loadManager.getLoadManager().updateLocalBrokerData();
+            data.cleanDeltas();
+            data.getBundles().clear();
+            list.add(executor.submit(() -> {
+                try {
+                    assertNotNull(loadManager.generateLoadReport());
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }));
+            list.add(executor.submit(() -> {
+                try {
+                    loadManager.writeLoadReportOnZookeeper();
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }));
+        }
+        for (Future<?> future : list) {
+            future.get();
+        }
     }
 
     /**

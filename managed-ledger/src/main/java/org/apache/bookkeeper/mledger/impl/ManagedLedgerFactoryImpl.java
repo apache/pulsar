@@ -395,7 +395,9 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
                 @Override
                 public void initializeFailed(ManagedLedgerException e) {
-                    log.error("[{}] Failed to initialize managed ledger: {}", name, e.getMessage());
+                    if (config.isCreateIfMissing()) {
+                        log.error("[{}] Failed to initialize managed ledger: {}", name, e.getMessage());
+                    }
 
                     // Clean the map if initialization fails
                     ledgers.remove(name, future);

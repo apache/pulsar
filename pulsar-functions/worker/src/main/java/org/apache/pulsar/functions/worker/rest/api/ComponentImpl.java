@@ -901,13 +901,13 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
     }
 
     @Override
-    public void reloadConnectors(String clientRole) {
+    public void reloadConnectors(String clientRole, AuthenticationDataSource authenticationData) {
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
         if (worker().getWorkerConfig().isAuthorizationEnabled()) {
             // Only superuser has permission to do this operation.
-            if (!isSuperUser(clientRole)) {
+            if (!isSuperUser(clientRole, authenticationData)) {
                 throw new RestException(Status.UNAUTHORIZED, "This operation requires super-user access");
             }
         }
@@ -1205,13 +1205,14 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
     }
 
     @Override
-    public void uploadFunction(final InputStream uploadedInputStream, final String path, String clientRole) {
+    public void uploadFunction(final InputStream uploadedInputStream, final String path, String clientRole,
+                               AuthenticationDataSource authenticationData) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
 
-        if (worker().getWorkerConfig().isAuthorizationEnabled() && !isSuperUser(clientRole)) {
+        if (worker().getWorkerConfig().isAuthorizationEnabled() && !isSuperUser(clientRole, authenticationData)) {
             throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
         }
 
@@ -1309,7 +1310,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                     throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
                 }
             } else {
-                if (!isSuperUser(clientRole)) {
+                if (!isSuperUser(clientRole, clientAuthenticationDataHttps)) {
                     throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
                 }
             }
@@ -1441,7 +1442,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                                     AuthenticationDataSource authenticationData) throws PulsarAdminException {
         if (worker().getWorkerConfig().isAuthorizationEnabled()) {
             // skip authorization if client role is super-user
-            if (isSuperUser(clientRole)) {
+            if (isSuperUser(clientRole, authenticationData)) {
                 return true;
             }
 
@@ -1524,14 +1525,14 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         }
     }
 
-    public boolean isSuperUser(String clientRole) {
+    public boolean isSuperUser(String clientRole, AuthenticationDataSource authenticationData) {
         if (clientRole != null) {
             try {
                 if ((worker().getWorkerConfig().getSuperUserRoles() != null
                     && worker().getWorkerConfig().getSuperUserRoles().contains(clientRole))) {
                     return true;
                 }
-                return worker().getAuthorizationService().isSuperUser(clientRole, null)
+                return worker().getAuthorizationService().isSuperUser(clientRole, authenticationData)
                     .get(worker().getWorkerConfig().getZooKeeperOperationTimeoutSeconds(), SECONDS);
             } catch (InterruptedException e) {
                 log.warn("Time-out {} sec while checking the role {} is a super user role ",
