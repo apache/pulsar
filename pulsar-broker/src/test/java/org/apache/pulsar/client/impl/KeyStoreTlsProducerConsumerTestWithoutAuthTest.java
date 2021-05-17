@@ -98,6 +98,7 @@ public class KeyStoreTlsProducerConsumerTestWithoutAuthTest extends ProducerCons
 
         conf.setClusterName(clusterName);
         conf.setTlsRequireTrustedClientCertOnConnect(true);
+        tlsProtocols.add("TLSv1.3");
         tlsProtocols.add("TLSv1.2");
         conf.setTlsProtocols(tlsProtocols);
         conf.setNumExecutorThreadPoolSize(5);
