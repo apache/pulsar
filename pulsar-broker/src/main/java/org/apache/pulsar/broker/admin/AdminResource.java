@@ -23,6 +23,7 @@ import static org.apache.pulsar.common.util.Codec.decode;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.util.ArrayList;
@@ -245,9 +246,15 @@ public abstract class AdminResource extends PulsarWebResource {
                 final Set<String> children = globalZkCache().getChildren(path(POLICIES, property, clusterOrNamespace));
                 if (children == null || children.isEmpty()) {
                     String namespace = NamespaceName.get(property, clusterOrNamespace).toString();
-                    Optional<byte[]> znodeContent = globalZkCache().getData(path(POLICIES, namespace),
-                            (key, content) -> content);
-                    if (znodeContent.map(x -> x.length > 0).orElse(false)) {
+                    Optional<Policies> znodeContent = globalZkCache().getData(path(POLICIES, namespace),
+                            (key, content) -> {
+                                try {
+                                    return ObjectMapperFactory.getThreadLocal().readValue(content, Policies.class);
+                                } catch (IOException e) {
+                                    return null;
+                                }
+                            });
+                    if (znodeContent.map(x -> x != null).orElse(false)) {
                         // if the length is 0 then this is probably a leftover cluster from namespace created
                         // with the v1 admin format (prop/cluster/ns) and then deleted, so no need to add it to the list
                         namespaces.add(namespace);
