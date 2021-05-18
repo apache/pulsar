@@ -862,7 +862,7 @@ $ bin/pulsar-admin functions create \
 ```
 
 All logs produced by `LoggingFunction` above can be accessed via the `logging-function-logs` topic.
-Additionally, you can specify the function log level through the broker XML file, as described here: [Customize Function log level](#customize-function-log-level).
+Additionally, you can specify the function log level through the broker XML file as described in [Customize Function log level](#customize-function-log-level).
 
 <!--Go-->
 The following Go Function example shows different log levels based on the function input.
