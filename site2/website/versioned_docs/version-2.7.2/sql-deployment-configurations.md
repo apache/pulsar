@@ -91,7 +91,7 @@ $ ./bin/pulsar sql-worker run --etc-dir /tmp/incubator-pulsar/conf/presto --data
 You can start the worker as daemon process.
 
 ```bash
-$ ./bin sql-worker start
+$ ./bin/pulsar sql-worker start
 ```
 
 ### Deploy a cluster on multiple nodes 
