@@ -165,7 +165,7 @@ public class ClusterMetadataSetupTest {
                 "test/b",
                 "test/c",
         };
-        PulsarInitialNamespaceSetup.main(args);
+        assertEquals(PulsarInitialNamespaceSetup.doMain(args), 0);
         try (MetadataStoreExtended store = MetadataStoreExtended.create("127.0.0.1:" + localZkS.getZookeeperPort(),
                 MetadataStoreConfig.builder().build())) {
             TenantResources tenantResources = new TenantResources(store,

@@ -51,7 +51,7 @@ public class PulsarInitialNamespaceSetup {
 
     }
 
-    public static void main(String[] args) throws Exception {
+    public static int doMain(String[] args) throws Exception {
         Arguments arguments = new Arguments();
         JCommander jcommander = new JCommander();
         try {
@@ -59,7 +59,7 @@ public class PulsarInitialNamespaceSetup {
             jcommander.parse(args);
             if (arguments.help) {
                 jcommander.usage();
-                return;
+                return 0;
             }
         } catch (Exception e) {
             jcommander.usage();
@@ -69,7 +69,7 @@ public class PulsarInitialNamespaceSetup {
         if (arguments.configurationStore == null) {
             System.err.println("Configuration store address argument is required (--configuration-store)");
             jcommander.usage();
-            System.exit(1);
+            return 1;
         }
 
         try (MetadataStore configStore = PulsarClusterMetadataSetup
@@ -80,7 +80,7 @@ public class PulsarInitialNamespaceSetup {
                     namespaceName = NamespaceName.get(namespace);
                 } catch (Exception e) {
                     System.out.println("Invalid namespace name.");
-                    System.exit(1);
+                    return 1;
                 }
 
                 // Create specified tenant
@@ -94,5 +94,10 @@ public class PulsarInitialNamespaceSetup {
         }
 
         System.out.println("Initial namespace setup success");
+        return 0;
+    }
+
+    public static void main(String[] args) throws Exception {
+        System.exit(doMain(args));
     }
 }
