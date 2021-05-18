@@ -656,9 +656,9 @@ $ bin/pulsar-admin functions create \
 
 All logs produced by `LoggingFunction` above can be accessed via the `persistent://public/default/logging-function-logs` topic.
 
-#### Customizing Function Log Level
+#### Customize Function log level
 Additionally, you can use the XML file, `functions_log4j2.xml`, to customize the function log level. 
-To customize the function log level, create or update `functions_log4j2.xml` in your Pulsar conf directory (e.g. `/etc/pulsar/`) to contain contents such as:
+To customize the function log level, create or update `functions_log4j2.xml` in your Pulsar conf directory (for example, `/etc/pulsar/`) to contain contents such as:
 
 ```xml
 <Configuration>
@@ -780,7 +780,7 @@ The properties set like:
             <value>debug</value>
         </Property>
 ```
-will propagate to places where they're referenced, such as:
+propagate to places where they are referenced, such as:
 ```xml
         <Root>
             <level>${sys:pulsar.log.level}</level>
@@ -790,7 +790,7 @@ will propagate to places where they're referenced, such as:
             </AppenderRef>
         </Root>
 ```
-In that above example, debug level logging would be applied to ALL function logs. 
+In the above example, debug level logging would be applied to ALL function logs. 
 This may be more verbose than you desire. To be more selective, you can apply different log levels to different classes or modules. For example:
 
 ```xml
@@ -815,12 +815,15 @@ You can be more specific as well, such as applying a more verbose log level to a
         </Logger>
 ```
 
-Each `<AppenderRef>` entry allows you to output the log to a target specified in the definition of the Appender. 
+Each `<AppenderRef>` entry allows you to output the log to a target specified in the definition of the Appender.
 
+Additivity pertains to whether log messages will be duplicated if multiple Logger entries overlap. 
+To disable additivity, specify
 ```xml 
 <additivity>false</additivity>
 ```
-prevents the logger from duplicating log messages in the case that more than one or more `<Logger>` entries overlap a class or module.
+to prevent the logger from duplicating log messages in the case that one or more `<Logger>` entries overlap classes or modules.
+
 The `<AppenderRef>` is defined in the `<Appenders>` section, such as:
 ```xml
 <Console>
@@ -859,7 +862,7 @@ $ bin/pulsar-admin functions create \
 ```
 
 All logs produced by `LoggingFunction` above can be accessed via the `logging-function-logs` topic.
-Additionally, you can specify the function log level through the broker XML file, as described here: [Customizing Function Log Level](#customizing-function-log-level)
+Additionally, you can specify the function log level through the broker XML file, as described here: [Customize Function log level](#customize-function-log-level).
 
 <!--Go-->
 The following Go Function example shows different log levels based on the function input.
@@ -888,7 +891,7 @@ func main() {
 
 When you use `logTopic` related functionalities in Go Function, import `github.com/apache/pulsar/pulsar-function-go/logutil`, and you do not have to use the `getLogger()` context object.
 
-Additionally, you can specify the function log level through the broker XML file, as described here: [Customizing Function Log Level](#customizing-function-log-level)
+Additionally, you can specify the function log level through the broker XML file, as described here: [Customize Function log level](#customize-function-log-level)
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
