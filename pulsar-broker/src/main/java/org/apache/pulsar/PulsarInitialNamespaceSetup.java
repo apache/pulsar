@@ -63,7 +63,7 @@ public class PulsarInitialNamespaceSetup {
             }
         } catch (Exception e) {
             jcommander.usage();
-            throw e;
+            return 1;
         }
 
         if (arguments.configurationStore == null) {

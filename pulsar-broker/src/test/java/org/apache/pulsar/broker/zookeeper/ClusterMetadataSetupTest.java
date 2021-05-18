@@ -158,6 +158,15 @@ public class ClusterMetadataSetupTest {
 
     @Test
     public void testInitialNamespaceSetup() throws Exception {
+        // missing arguments
+        assertEquals(PulsarInitialNamespaceSetup.doMain(new String[]{}), 1);
+        // invalid namespace
+        assertEquals(PulsarInitialNamespaceSetup.doMain(new String[]{
+                "--cluster", "testInitialNamespaceSetup-cluster",
+                "--configuration-store", "127.0.0.1:" + localZkS.getZookeeperPort(),
+                "a/b/c/d"
+        }), 1);
+
         String[] args = {
                 "--cluster", "testInitialNamespaceSetup-cluster",
                 "--configuration-store", "127.0.0.1:" + localZkS.getZookeeperPort(),
