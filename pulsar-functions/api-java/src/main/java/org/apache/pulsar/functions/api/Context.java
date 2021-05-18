@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.functions.api;
 
-import java.nio.ByteBuffer;
-import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -31,7 +29,6 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
-import org.slf4j.Logger;
 
 /**
  * Context provides contextual information to the executing function.
@@ -41,7 +38,7 @@ import org.slf4j.Logger;
  */
 @InterfaceAudience.Public
 @InterfaceStability.Stable
-public interface Context {
+public interface Context extends BaseContext {
     /**
      * Access the record associated with the current input value.
      *
@@ -50,39 +47,11 @@ public interface Context {
     Record<?> getCurrentRecord();
 
     /**
-     * Get a list of all input topics.
-     *
-     * @return a list of all input topics
-     */
-    Collection<String> getInputTopics();
-
-    /**
-     * Get the output topic of the function.
-     *
-     * @return output topic name
-     */
-    String getOutputTopic();
-
-    /**
      * Get output schema builtin type or custom class name.
      *
      * @return output schema builtin type or custom class name
      */
     String getOutputSchemaType();
-
-    /**
-     * The tenant this function belongs to.
-     *
-     * @return the tenant this function belongs to
-     */
-    String getTenant();
-
-    /**
-     * The namespace this function belongs to.
-     *
-     * @return the namespace this function belongs to
-     */
-    String getNamespace();
 
     /**
      * The name of the function that we are executing.
@@ -99,138 +68,11 @@ public interface Context {
     String getFunctionId();
 
     /**
-     * The id of the instance that invokes this function.
-     *
-     * @return the instance id
-     */
-    int getInstanceId();
-
-    /**
-     * Get the number of instances that invoke this function.
-     *
-     * @return the number of instances that invoke this function.
-     */
-    int getNumInstances();
-
-    /**
      * The version of the function that we are executing.
      *
      * @return The version id
      */
     String getFunctionVersion();
-
-    /**
-     * The logger object that can be used to log in a function.
-     *
-     * @return the logger object
-     */
-    Logger getLogger();
-
-    /**
-     * Get the state store with the provided store name in the function tenant & namespace.
-     *
-     * @param name the state store name
-     * @param <S> the type of interface of the store to return
-     * @return the state store instance.
-     *
-     * @throws ClassCastException if the return type isn't a type
-     * or interface of the actual returned store.
-     */
-    <S extends StateStore> S getStateStore(String name);
-
-    /**
-     * Get the state store with the provided store name.
-     *
-     * @param tenant the state tenant name
-     * @param ns the state namespace name
-     * @param name the state store name
-     * @param <S> the type of interface of the store to return
-     * @return the state store instance.
-     *
-     * @throws ClassCastException if the return type isn't a type
-     * or interface of the actual returned store.
-     */
-    <S extends StateStore> S getStateStore(String tenant, String ns, String name);
-
-    /**
-     * Increment the builtin distributed counter referred by key.
-     *
-     * @param key    The name of the key
-     * @param amount The amount to be incremented
-     */
-    void incrCounter(String key, long amount);
-
-    /**
-     * Increment the builtin distributed counter referred by key
-     * but dont wait for the completion of the increment operation
-     *
-     * @param key    The name of the key
-     * @param amount The amount to be incremented
-     */
-    CompletableFuture<Void> incrCounterAsync(String key, long amount);
-
-    /**
-     * Retrieve the counter value for the key.
-     *
-     * @param key name of the key
-     * @return the amount of the counter value for this key
-     */
-    long getCounter(String key);
-
-    /**
-     * Retrieve the counter value for the key, but don't wait
-     * for the operation to be completed
-     *
-     * @param key name of the key
-     * @return the amount of the counter value for this key
-     */
-    CompletableFuture<Long> getCounterAsync(String key);
-
-    /**
-     * Update the state value for the key.
-     *
-     * @param key   name of the key
-     * @param value state value of the key
-     */
-    void putState(String key, ByteBuffer value);
-
-    /**
-     * Update the state value for the key, but don't wait for the operation to be completed
-     *
-     * @param key   name of the key
-     * @param value state value of the key
-     */
-    CompletableFuture<Void> putStateAsync(String key, ByteBuffer value);
-
-    /**
-     * Delete the state value for the key.
-     *
-     * @param key   name of the key
-     */
-    void deleteState(String key);
-
-    /**
-     * Delete the state value for the key, but don't wait for the operation to be completed
-     *
-     * @param key   name of the key
-     */
-    CompletableFuture<Void> deleteStateAsync(String key);
-
-    /**
-     * Retrieve the state value for the key.
-     *
-     * @param key name of the key
-     * @return the state value for the key.
-     */
-    ByteBuffer getState(String key);
-
-    /**
-     * Retrieve the state value for the key, but don't wait for the operation to be completed
-     *
-     * @param key name of the key
-     * @return the state value for the key.
-     */
-    CompletableFuture<ByteBuffer> getStateAsync(String key);
 
     /**
      * Get a map of all user-defined key/value configs for the function.
@@ -255,14 +97,6 @@ public interface Context {
      * @return Either the user config value associated with a given key or a supplied default value
      */
     Object getUserConfigValueOrDefault(String key, Object defaultValue);
-
-    /**
-     * Get the secret associated with this key.
-     *
-     * @param secretName The name of the secret
-     * @return The secret if anything was found or null
-     */
-    String getSecret(String secretName);
 
     /**
      * Get the pulsar admin client.

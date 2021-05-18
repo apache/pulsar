@@ -18,12 +18,9 @@
  */
 package org.apache.pulsar.io.core;
 
-import org.apache.pulsar.client.api.ConsumerBuilder;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
+import org.apache.pulsar.functions.api.BaseContext;
 
 /**
  * Interface for a source connector providing information about environment where it is running.
@@ -31,15 +28,7 @@ import org.apache.pulsar.common.classification.InterfaceStability;
  */
 @InterfaceAudience.Public
 @InterfaceStability.Stable
-public interface SourceContext extends ConnectorContext {
-
-    /**
-     * Get the output topic of the source.
-     *
-     * @return output topic name
-     */
-    String getOutputTopic();
-
+public interface SourceContext extends BaseContext {
     /**
      * The name of the source that we are executing.
      *
@@ -48,23 +37,9 @@ public interface SourceContext extends ConnectorContext {
     String getSourceName();
 
     /**
-     * New output message using schema for serializing to the topic
+     * Get the output topic of the source.
      *
-     * @param topicName The name of the topic for output message
-     * @param schema provide a way to convert between serialized data and domain objects
-     * @param <O>
-     * @return the message builder instance
-     * @throws PulsarClientException
+     * @return output topic name
      */
-    <O> TypedMessageBuilder<O> newOutputMessage(String topicName, Schema<O> schema) throws PulsarClientException;
-
-    /**
-     * Create a ConsumerBuilder with the schema.
-     *
-     * @param schema provide a way to convert between serialized data and domain objects
-     * @param <O>
-     * @return the consumer builder instance
-     * @throws PulsarClientException
-     */
-    <O> ConsumerBuilder<O> newConsumerBuilder(Schema<O> schema) throws PulsarClientException;
+    String getOutputTopic();
 }
