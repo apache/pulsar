@@ -18,11 +18,15 @@
  */
 package org.apache.pulsar.functions.instance;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.Getter;
@@ -71,7 +75,14 @@ public class JavaInstance implements AutoCloseable {
         }
     }
 
+    @VisibleForTesting
     public JavaExecutionResult handleMessage(Record<?> record, Object input) {
+        return handleMessage(record, input, (rec, result) -> {}, cause -> {});
+    }
+
+    public JavaExecutionResult handleMessage(Record<?> record, Object input,
+                                             BiConsumer<Record, JavaExecutionResult> asyncResultConsumer,
+                                             Consumer<Throwable> asyncFailureHandler) {
         if (context != null) {
             context.setCurrentMessageContext(record);
         }
@@ -98,6 +109,14 @@ public class JavaInstance implements AutoCloseable {
             );
             try {
                 pendingAsyncRequests.put(request);
+                ((CompletableFuture) output).whenCompleteAsync((res, cause) -> {
+                    try {
+                        processAsyncResults(asyncResultConsumer);
+                    } catch (Throwable innerException) {
+                        // the thread used for processing async results failed
+                        asyncFailureHandler.accept(innerException);
+                    }
+                }, executor);
                 return null;
             } catch (InterruptedException ie) {
                 log.warn("Exception while put Async requests", ie);
@@ -111,6 +130,32 @@ public class JavaInstance implements AutoCloseable {
             executionResult.setResult(output);
             return executionResult;
         }
+    }
+
+    private void processAsyncResults(BiConsumer<Record, JavaExecutionResult> resultConsumer)
+        throws InterruptedException {
+        AsyncFuncRequest asyncResult = pendingAsyncRequests.peek();
+        while (asyncResult != null && asyncResult.getProcessResult().isDone()) {
+            pendingAsyncRequests.remove(asyncResult);
+            JavaExecutionResult execResult = new JavaExecutionResult();
+
+            try {
+                Object result = asyncResult.getProcessResult().get();
+                execResult.setResult(result);
+            } catch (ExecutionException e) {
+                if (e.getCause() instanceof Exception) {
+                    execResult.setUserException((Exception) e.getCause());
+                } else {
+                    execResult.setUserException(new Exception(e.getCause()));
+                }
+            }
+
+            resultConsumer.accept(asyncResult.getRecord(), execResult);
+
+            // peek the next result
+            asyncResult = pendingAsyncRequests.peek();
+        }
+
     }
 
     @Override

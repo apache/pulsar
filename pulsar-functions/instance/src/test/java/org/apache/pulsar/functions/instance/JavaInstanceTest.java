@@ -111,9 +111,13 @@ public class JavaInstanceTest {
                 function,
                 instanceConfig);
         String testString = "ABC123";
-        JavaExecutionResult result = instance.handleMessage(mock(Record.class), testString);
-        assertNotNull(result.getResult());
-        assertEquals(testString + "-lambda", result.getResult());
+        CompletableFuture<JavaExecutionResult> resultHolder = new CompletableFuture<>();
+        JavaExecutionResult result = instance.handleMessage(
+            mock(Record.class), testString,
+            (record, javaResult) -> resultHolder.complete(javaResult), cause -> {});
+        assertNull(result);
+        assertNotNull(resultHolder.get());
+        assertEquals(testString + "-lambda", resultHolder.get().getResult());
         instance.close();
     }
     
@@ -143,8 +147,11 @@ public class JavaInstanceTest {
                 function,
                 instanceConfig);
         String testString = "ABC123";
-        JavaExecutionResult result = instance.handleMessage(mock(Record.class), testString);
-        assertNull(result.getResult());
+        CompletableFuture<JavaExecutionResult> resultHolder = new CompletableFuture<>();
+        JavaExecutionResult result = instance.handleMessage(mock(Record.class), testString,
+            (record, javaResult) -> resultHolder.complete(javaResult), cause -> {});
+        assertNull(result);
+        assertNotNull(resultHolder.get());
         instance.close();
     }
 
@@ -170,8 +177,11 @@ public class JavaInstanceTest {
                 function,
                 instanceConfig);
         String testString = "ABC123";
-        JavaExecutionResult result = instance.handleMessage(mock(Record.class), testString);
-        assertSame(userException, result.getUserException().getCause());
+        CompletableFuture<JavaExecutionResult> resultHolder = new CompletableFuture<>();
+        JavaExecutionResult result = instance.handleMessage(mock(Record.class), testString,
+            (record, javaResult) -> resultHolder.complete(javaResult), cause -> {});
+        assertNull(result);
+        assertSame(userException, resultHolder.get().getUserException());
         instance.close();
     }
 

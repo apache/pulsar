@@ -241,6 +241,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         try {
             setup();
 
+            Thread currentThread = Thread.currentThread();
+
             while (true) {
                 currentRecord = readInput();
 
@@ -265,7 +267,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
                 // process the message
                 Thread.currentThread().setContextClassLoader(functionClassLoader);
-                result = javaInstance.handleMessage(currentRecord, currentRecord.getValue());
+                result = javaInstance.handleMessage(
+                    currentRecord, currentRecord.getValue(), this::handleResult,
+                    cause -> currentThread.interrupt());
                 Thread.currentThread().setContextClassLoader(instanceClassLoader);
 
                 // register end time
@@ -273,12 +277,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
                 removeLogTopicHandler();
 
-                // process the synchronous results
                 if (result != null) {
+                    // process the synchronous results
                     handleResult(currentRecord, result);
-                } else {
-                    // process the asynchronous results
-                    processAsyncResults();
                 }
             }
         } catch (Throwable t) {
@@ -321,27 +322,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     private void processAsyncResults() throws InterruptedException {
-        AsyncFuncRequest asyncResult = javaInstance.getPendingAsyncRequests().peek();
-        while (asyncResult != null && asyncResult.getProcessResult().isDone()) {
-            javaInstance.getPendingAsyncRequests().remove(asyncResult);
-            JavaExecutionResult execResult = new JavaExecutionResult();
 
-            try {
-                Object result = asyncResult.getProcessResult().get();
-                execResult.setResult(result);
-            } catch (ExecutionException e) {
-                if (e.getCause() instanceof Exception) {
-                    execResult.setUserException((Exception) e.getCause());
-                } else {
-                    execResult.setUserException(new Exception(e.getCause()));
-                }
-            }
-
-            handleResult(asyncResult.getRecord(), execResult);
-
-            // peek the next result
-            asyncResult = javaInstance.getPendingAsyncRequests().peek();
-        }
     }
 
     private void handleResult(Record srcRecord, JavaExecutionResult result) {
