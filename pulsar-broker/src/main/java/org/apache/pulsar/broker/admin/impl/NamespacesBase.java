@@ -1108,7 +1108,7 @@ public abstract class NamespacesBase extends AdminResource {
                 getNamespaceBundleSplitAlgorithmByName(splitAlgorithmName))
                 .thenRun(() -> {
                     log.info("[{}] Successfully split namespace bundle {}", clientAppId(), nsBundle.toString());
-                    asyncResponse.resume(null);
+                    asyncResponse.resume(Response.noContent().build());
                 }).exceptionally(ex -> {
             if (ex.getCause() instanceof IllegalArgumentException) {
                 log.error("[{}] Failed to split namespace bundle {}/{} due to {}", clientAppId(), namespaceName,
