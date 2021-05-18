@@ -21,8 +21,6 @@ package org.apache.pulsar.client.admin.internal;
 import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.io.InputStream;
@@ -733,7 +731,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public JsonObject getInternalInfo(String topic) throws PulsarAdminException {
+    public String getInternalInfo(String topic) throws PulsarAdminException {
         try {
             return getInternalInfoAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
@@ -747,16 +745,15 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public CompletableFuture<JsonObject> getInternalInfoAsync(String topic) {
+    public CompletableFuture<String> getInternalInfoAsync(String topic) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "internal-info");
-        final CompletableFuture<JsonObject> future = new CompletableFuture<>();
+        final CompletableFuture<String> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<String>() {
                     @Override
                     public void completed(String response) {
-                        JsonObject json = new Gson().fromJson(response, JsonObject.class);
-                        future.complete(json);
+                        future.complete(response);
                     }
 
                     @Override

@@ -28,7 +28,6 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonObject;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -1129,7 +1128,7 @@ public class PersistentTopicsBase extends AdminResource {
             getPartitionedTopicMetadataAsync(topicName,
                     authoritative, false).thenAccept(partitionMetadata -> {
                 if (partitionMetadata.partitions > 0) {
-                    final List<CompletableFuture<JsonObject>> futures = Lists.newArrayList();
+                    final List<CompletableFuture<String>> futures = Lists.newArrayList();
 
                     PartitionedManagedLedgerInfo partitionedManagedLedgerInfo = new PartitionedManagedLedgerInfo();
 
@@ -1138,7 +1137,7 @@ public class PersistentTopicsBase extends AdminResource {
                         try {
                             futures.add(pulsar().getAdminClient().topics()
                                     .getInternalInfoAsync(
-                                            topicNamePartition.toString()).whenComplete((jsonObject, throwable) -> {
+                                            topicNamePartition.toString()).whenComplete((response, throwable) -> {
                                         if (throwable != null) {
                                             log.error("[{}] Failed to get managed info for {}",
                                                     clientAppId(), topicNamePartition, throwable);
@@ -1147,12 +1146,12 @@ public class PersistentTopicsBase extends AdminResource {
                                         Gson gson = new GsonBuilder().setPrettyPrinting().create();
                                         try {
                                             partitionedManagedLedgerInfo.partitions.put(topicNamePartition.toString(),
-                                                    jsonMapper().readValue(gson.toJson(jsonObject),
+                                                    jsonMapper().readValue(gson.toJson(response),
                                                             ManagedLedgerInfo.class));
                                         } catch (JsonProcessingException ex) {
                                             log.error("[{}] Failed to parse ManagedLedgerInfo for {} from [{}]",
                                                     clientAppId(),
-                                                    topicNamePartition, gson.toJson(jsonObject), ex);
+                                                    topicNamePartition, gson.toJson(response), ex);
                                         }
                                     }));
                         } catch (Exception e) {

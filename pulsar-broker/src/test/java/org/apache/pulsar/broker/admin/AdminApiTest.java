@@ -1034,23 +1034,21 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         String partitionTopic0 = partitionedTopicName + "-partition-0";
         String partitionTopic1 = partitionedTopicName + "-partition-1";
 
-        JsonObject partitionTopic0Info = admin.topics().getInternalInfo(partitionTopic0);
-        JsonObject partitionTopic1Info = admin.topics().getInternalInfo(partitionTopic1);
-
-        Gson gson = new GsonBuilder().create();
+        String partitionTopic0InfoResponse = admin.topics().getInternalInfo(partitionTopic0);
+        String partitionTopic1InfoResponse = admin.topics().getInternalInfo(partitionTopic1);
 
         // expected managed info
         PartitionedManagedLedgerInfo partitionedManagedLedgerInfo = new PartitionedManagedLedgerInfo();
         partitionedManagedLedgerInfo.version = 0L;
         partitionedManagedLedgerInfo.partitions.put(partitionTopic0,
-                ObjectMapperFactory.getThreadLocal().readValue(gson.toJson(partitionTopic0Info), ManagedLedgerInfo.class));
+            ObjectMapperFactory.getThreadLocal().readValue(partitionTopic0InfoResponse, ManagedLedgerInfo.class));
         partitionedManagedLedgerInfo.partitions.put(partitionTopic1,
-                ObjectMapperFactory.getThreadLocal().readValue(gson.toJson(partitionTopic1Info), ManagedLedgerInfo.class));
+            ObjectMapperFactory.getThreadLocal().readValue(partitionTopic1InfoResponse, ManagedLedgerInfo.class));
 
         String expectedResult = ObjectMapperFactory.getThreadLocal().writeValueAsString(partitionedManagedLedgerInfo);
 
-        JsonObject partitionTopicInfo = admin.topics().getInternalInfo(partitionedTopicName);
-        assertEquals(gson.toJson(partitionTopicInfo), expectedResult);
+        String partitionTopicInfoResponse = admin.topics().getInternalInfo(partitionedTopicName);
+        assertEquals(partitionTopicInfoResponse, expectedResult);
     }
 
     @Test
