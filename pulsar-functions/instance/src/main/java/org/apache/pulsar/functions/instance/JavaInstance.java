@@ -75,13 +75,20 @@ public class JavaInstance implements AutoCloseable {
         }
     }
 
-    @SuppressWarnings({ "rawtypes", "unchecked" })
-	public JavaExecutionResult handleMessage(Record<?> record, Object input) {
-    	if (context != null) {
+    @VisibleForTesting
+    public JavaExecutionResult handleMessage(Record<?> record, Object input) {
+        return handleMessage(record, input, (rec, result) -> {}, cause -> {});
+    }
+
+    public JavaExecutionResult handleMessage(Record<?> record, Object input,
+                                             BiConsumer<Record, JavaExecutionResult> asyncResultConsumer,
+                                             Consumer<Throwable> asyncFailureHandler) {
+        if (context != null) {
             context.setCurrentMessageContext(record);
-        }	
-    	
-    	JavaExecutionResult executionResult = new JavaExecutionResult();
+        }
+
+        JavaExecutionResult executionResult = new JavaExecutionResult();
+
         final Object output;
         
         try {
@@ -96,8 +103,10 @@ public class JavaInstance implements AutoCloseable {
         }
         
         if (output instanceof CompletableFuture) {
-        	
-        	// Function is in format: Function<I, CompletableFuture<O>>
+            // Function is in format: Function<I, CompletableFuture<O>>
+            AsyncFuncRequest request = new AsyncFuncRequest(
+                record, (CompletableFuture) output
+            );
             try {
                 pendingAsyncRequests.put(request);
                 ((CompletableFuture) output).whenCompleteAsync((res, cause) -> {
@@ -114,23 +123,38 @@ public class JavaInstance implements AutoCloseable {
                 executionResult.setUserException(ie);
                 return executionResult;
             }
-            
-            executionResult.setAsync(true);
-        	executionResult.setFuture(((CompletableFuture) output)
-        	  .whenCompleteAsync((obj, throwable) -> {
-                if (log.isDebugEnabled()) {
-                    log.debug("Got result async: object: {}, throwable: {}", obj, throwable);
-                }
-                pendingAsyncRequests.remove(output);
-            }, executor));
         } else {
             if (log.isDebugEnabled()) {
                 log.debug("Got result: object: {}", output);
             }
             executionResult.setResult(output);
+            return executionResult;
         }
-        
-        return executionResult;
+    }
+
+    private void processAsyncResults(BiConsumer<Record, JavaExecutionResult> resultConsumer)
+        throws InterruptedException {
+        AsyncFuncRequest asyncResult = pendingAsyncRequests.peek();
+        while (asyncResult != null && asyncResult.getProcessResult().isDone()) {
+            pendingAsyncRequests.remove(asyncResult);
+            JavaExecutionResult execResult = new JavaExecutionResult();
+
+            try {
+                Object result = asyncResult.getProcessResult().get();
+                execResult.setResult(result);
+            } catch (ExecutionException e) {
+                if (e.getCause() instanceof Exception) {
+                    execResult.setUserException((Exception) e.getCause());
+                } else {
+                    execResult.setUserException(new Exception(e.getCause()));
+                }
+            }
+
+            resultConsumer.accept(asyncResult.getRecord(), execResult);
+
+            // peek the next result
+            asyncResult = pendingAsyncRequests.peek();
+        }
     }
 
     @Override
