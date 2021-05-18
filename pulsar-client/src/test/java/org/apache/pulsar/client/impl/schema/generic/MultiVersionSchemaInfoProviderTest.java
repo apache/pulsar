@@ -32,6 +32,7 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -61,7 +62,7 @@ public class MultiVersionSchemaInfoProviderTest {
                         any(TopicName.class),
                         any(byte[].class)))
                 .thenReturn(completableFuture);
-        SchemaInfo schemaInfoByVersion = schemaProvider.getSchemaByVersion(new byte[0]).get();
+        SchemaInfo schemaInfoByVersion = schemaProvider.getSchemaByVersion(new LongSchemaVersion(0).bytes()).get();
         assertEquals(schemaInfoByVersion, schemaInfo);
     }
 }
