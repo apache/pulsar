@@ -884,8 +884,11 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         // split bundles
         try {
-            namespaces.splitNamespaceBundle(testTenant, testLocalCluster, bundledNsLocal, "0x00000000_0xffffffff",
+            AsyncResponse response = mock(AsyncResponse.class);
+            namespaces.splitNamespaceBundle(response, testTenant, testLocalCluster, bundledNsLocal, "0x00000000_0xffffffff",
                     false, true);
+            ArgumentCaptor<Response> captor = ArgumentCaptor.forClass(Response.class);
+            verify(response, timeout(5000).times(1)).resume(captor.capture());
             // verify split bundles
             BundlesData bundlesData = namespaces.getBundlesData(testTenant, testLocalCluster, bundledNsLocal);
             assertNotNull(bundlesData);
@@ -915,12 +918,11 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         mockWebUrl(localWebServiceUrl, testNs);
 
         // split bundles
-        try {
-            namespaces.splitNamespaceBundle(testTenant, testLocalCluster, bundledNsLocal, "0x08375b1a_0x08375b1b",
-                    false, false);
-        } catch (RestException re) {
-            assertEquals(re.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
-        }
+        AsyncResponse response = mock(AsyncResponse.class);
+        namespaces.splitNamespaceBundle(response, testTenant, testLocalCluster, bundledNsLocal,
+                "0x08375b1a_0x08375b1b", false, false);
+        ArgumentCaptor<Response> captor = ArgumentCaptor.forClass(Response.class);
+        verify(response, timeout(5000).times(1)).resume(any(RestException.class));
     }
 
     @Test
