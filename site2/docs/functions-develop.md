@@ -817,12 +817,12 @@ You can be more specific as well, such as applying a more verbose log level to a
 
 Each `<AppenderRef>` entry allows you to output the log to a target specified in the definition of the Appender.
 
-Additivity pertains to whether log messages will be duplicated if multiple Logger entries overlap. 
+Additivity pertains to whether log messages will be duplicated if multiple Logger entries overlap.
 To disable additivity, specify
 ```xml 
 <additivity>false</additivity>
 ```
-to prevent the logger from duplicating log messages in the case that one or more `<Logger>` entries overlap classes or modules.
+as shown in examples above. Disabling additivity prevents duplication of log messages when one or more `<Logger>` entries contain classes or modules that overlap.
 
 The `<AppenderRef>` is defined in the `<Appenders>` section, such as:
 ```xml
