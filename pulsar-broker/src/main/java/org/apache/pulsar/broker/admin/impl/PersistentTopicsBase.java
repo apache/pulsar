@@ -543,6 +543,21 @@ public class PersistentTopicsBase extends AdminResource {
                                                                       boolean checkAllowAutoCreation) {
         PartitionedTopicMetadata metadata = getPartitionedTopicMetadata(topicName,
                 authoritative, checkAllowAutoCreation);
+        if (metadata.partitions == 0 && !checkAllowAutoCreation) {
+            // The topic may be a non-partitioned topic, so check if it exists here.
+            // However, when checkAllowAutoCreation is true, the client will create the topic if it doesn't exist.
+            // In this case, `partitions == 0` means the automatically created topic is a non-partitioned topic so we
+            // shouldn't check if the topic exists.
+            try {
+                if (!pulsar().getNamespaceService().checkTopicExists(topicName).get()) {
+                    throw new RestException(Status.NOT_FOUND,
+                            new PulsarClientException.NotFoundException("Topic not exist"));
+                }
+            } catch (InterruptedException | ExecutionException e) {
+                log.error("Failed to check if topic '{}' exists", topicName, e);
+                throw new RestException(Status.INTERNAL_SERVER_ERROR, "Failed to get topic metadata");
+            }
+        }
         if (metadata.partitions > 1) {
             validateClientVersion();
         }
