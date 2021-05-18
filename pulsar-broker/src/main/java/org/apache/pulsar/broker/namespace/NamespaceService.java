@@ -217,7 +217,7 @@ public class NamespaceService implements AutoCloseable {
                 .thenApply(bundles -> bundles.findBundle(topic));
     }
 
-    public Optional<NamespaceBundle> getBundleIfPresent(TopicName topicName) throws Exception {
+    public Optional<NamespaceBundle> getBundleIfPresent(TopicName topicName) {
         Optional<NamespaceBundles> bundles = bundleFactory.getBundlesIfPresent(topicName.getNamespaceObject());
         return bundles.map(b -> b.findBundle(topicName));
     }
@@ -779,52 +779,53 @@ public class NamespaceService implements AutoCloseable {
         splitAlgorithm.getSplitBoundary(this, bundle).whenComplete((splitBoundary, ex) -> {
             CompletableFuture<List<NamespaceBundle>> updateFuture = new CompletableFuture<>();
             if (ex == null) {
-                final Pair<NamespaceBundles, List<NamespaceBundle>> splittedBundles;
                 try {
-                    splittedBundles = bundleFactory.splitBundles(bundle,
-                        2 /* by default split into 2 */, splitBoundary);
+                    bundleFactory.splitBundles(bundle,
+                        2 /* by default split into 2 */, splitBoundary)
+                            .thenAccept(splittedBundles -> {
+                                // Split and updateNamespaceBundles. Update may fail because of concurrent write to Zookeeper.
+                                if (splittedBundles == null) {
+                                    String msg = format("bundle %s not found under namespace", bundle.toString());
+                                    LOG.warn(msg);
+                                    updateFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
+                                    return;
+                                }
 
-                    // Split and updateNamespaceBundles. Update may fail because of concurrent write to Zookeeper.
-                    if (splittedBundles != null) {
-                        checkNotNull(splittedBundles.getLeft());
-                        checkNotNull(splittedBundles.getRight());
-                        checkArgument(splittedBundles.getRight().size() == 2,
-                                "bundle has to be split in two bundles");
-                        NamespaceName nsname = bundle.getNamespaceObject();
-                        if (LOG.isDebugEnabled()) {
-                            LOG.debug("[{}] splitAndOwnBundleOnce: {}, counter: {},  2 bundles: {}, {}",
-                                    nsname.toString(), bundle.getBundleRange(), counter.get(),
-                                    splittedBundles.getRight().get(0).getBundleRange(),
-                                    splittedBundles.getRight().get(1).getBundleRange());
-                        }
-                        try {
-                            // take ownership of newly split bundles
-                            for (NamespaceBundle sBundle : splittedBundles.getRight()) {
-                                checkNotNull(ownershipCache.tryAcquiringOwnership(sBundle));
-                            }
-                            updateNamespaceBundles(nsname, splittedBundles.getLeft())
-                                    .thenRun(() -> {
-                                        bundleFactory.invalidateBundleCache(bundle.getNamespaceObject());
-                                        updateFuture.complete(splittedBundles.getRight());
-                                    }).exceptionally(ex1 -> {
-                                String msg = format("failed to update namespace policies [%s], "
-                                                + "NamespaceBundle: %s due to %s",
-                                        nsname.toString(), bundle.getBundleRange(), ex1.getMessage());
-                                LOG.warn(msg);
-                                updateFuture.completeExceptionally(new ServiceUnitNotReadyException(msg, ex1.getCause()));
-                                return null;
+                                checkNotNull(splittedBundles.getLeft());
+                                checkNotNull(splittedBundles.getRight());
+                                checkArgument(splittedBundles.getRight().size() == 2,
+                                        "bundle has to be split in two bundles");
+                                NamespaceName nsname = bundle.getNamespaceObject();
+                                if (LOG.isDebugEnabled()) {
+                                    LOG.debug("[{}] splitAndOwnBundleOnce: {}, counter: {},  2 bundles: {}, {}",
+                                            nsname.toString(), bundle.getBundleRange(), counter.get(),
+                                            splittedBundles.getRight().get(0).getBundleRange(),
+                                            splittedBundles.getRight().get(1).getBundleRange());
+                                }
+                                try {
+                                    // take ownership of newly split bundles
+                                    for (NamespaceBundle sBundle : splittedBundles.getRight()) {
+                                        checkNotNull(ownershipCache.tryAcquiringOwnership(sBundle));
+                                    }
+                                    updateNamespaceBundles(nsname, splittedBundles.getLeft())
+                                            .thenRun(() -> {
+                                                bundleFactory.invalidateBundleCache(bundle.getNamespaceObject());
+                                                updateFuture.complete(splittedBundles.getRight());
+                                            }).exceptionally(ex1 -> {
+                                        String msg = format("failed to update namespace policies [%s], "
+                                                        + "NamespaceBundle: %s due to %s",
+                                                nsname.toString(), bundle.getBundleRange(), ex1.getMessage());
+                                        LOG.warn(msg);
+                                        updateFuture.completeExceptionally(new ServiceUnitNotReadyException(msg, ex1.getCause()));
+                                        return null;
+                                    });
+                                } catch (Exception e) {
+                                    String msg = format("failed to acquire ownership of split bundle for namespace [%s], %s",
+                                            nsname.toString(), e.getMessage());
+                                    LOG.warn(msg, e);
+                                    updateFuture.completeExceptionally(new ServiceUnitNotReadyException(msg, e));
+                                }
                             });
-                        } catch (Exception e) {
-                            String msg = format("failed to acquire ownership of split bundle for namespace [%s], %s",
-                                nsname.toString(), e.getMessage());
-                            LOG.warn(msg, e);
-                            updateFuture.completeExceptionally(new ServiceUnitNotReadyException(msg, e));
-                        }
-                    } else {
-                        String msg = format("bundle %s not found under namespace", bundle.toString());
-                        LOG.warn(msg);
-                        updateFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
-                    }
                 } catch (Exception e) {
                     updateFuture.completeExceptionally(e);
                 }
@@ -951,7 +952,7 @@ public class NamespaceService implements AutoCloseable {
         return getBundleAsync(topic).thenApply(bundle -> ownershipCache.isNamespaceBundleOwned(bundle));
     }
 
-    private boolean isTopicOwned(TopicName topicName) throws Exception {
+    private boolean isTopicOwned(TopicName topicName) {
         Optional<NamespaceBundle> bundle = getBundleIfPresent(topicName);
         if (bundle.isPresent()) {
             return ownershipCache.getOwnedBundle(bundle.get()) != null;

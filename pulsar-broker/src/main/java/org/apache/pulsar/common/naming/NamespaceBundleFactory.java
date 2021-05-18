@@ -164,7 +164,7 @@ public class NamespaceBundleFactory {
             try {
                 LOG.info("Policy updated for namespace {}, refreshing the bundle cache.", namespace);
                 // Trigger a background refresh to fetch new bundle data from the policies
-                bundlesCache.synchronous().refresh(namespace);
+                bundlesCache.synchronous().invalidate(namespace);
             } catch (Exception e) {
                 LOG.error("Failed to update the policy change for ns {}", namespace, e);
             }
@@ -196,7 +196,7 @@ public class NamespaceBundleFactory {
         return bundlesCache.synchronous().get(nsname);
     }
 
-    public Optional<NamespaceBundles> getBundlesIfPresent(NamespaceName nsname) throws Exception {
+    public Optional<NamespaceBundles> getBundlesIfPresent(NamespaceName nsname) {
         return Optional.ofNullable(bundlesCache.synchronous().getIfPresent(nsname));
     }
 
@@ -240,7 +240,7 @@ public class NamespaceBundleFactory {
      *
      * @param targetBundle
      *            {@link NamespaceBundle} needs to be split
-     * @param numBundles
+     * @param argNumBundles
      *            split into numBundles
      * @param splitBoundary
      *            split into 2 numBundles by the given split key. The given split key must between the key range of the
@@ -248,53 +248,57 @@ public class NamespaceBundleFactory {
      * @return List of split {@link NamespaceBundle} and {@link NamespaceBundles} that contains final bundles including
      *         split bundles for a given namespace
      */
-    public Pair<NamespaceBundles, List<NamespaceBundle>> splitBundles(
-            NamespaceBundle targetBundle, int numBundles, Long splitBoundary) {
+    public CompletableFuture<Pair<NamespaceBundles, List<NamespaceBundle>>> splitBundles(
+            NamespaceBundle targetBundle, int argNumBundles, Long splitBoundary) {
         checkArgument(canSplitBundle(targetBundle), "%s bundle can't be split further", targetBundle);
         if (splitBoundary != null) {
             checkArgument(splitBoundary > targetBundle.getLowerEndpoint()
                             && splitBoundary < targetBundle.getUpperEndpoint(),
                     "The given fixed key must between the key range of the %s bundle", targetBundle);
-            numBundles = 2;
+            argNumBundles = 2;
         }
         checkNotNull(targetBundle, "can't split null bundle");
         checkNotNull(targetBundle.getNamespaceObject(), "namespace must be present");
         NamespaceName nsname = targetBundle.getNamespaceObject();
-        NamespaceBundles sourceBundle = bundlesCache.synchronous().get(nsname);
 
-        final int lastIndex = sourceBundle.partitions.length - 1;
+        final int numBundles = argNumBundles;
 
-        final long[] partitions = new long[sourceBundle.partitions.length + (numBundles - 1)];
-        int pos = 0;
-        int splitPartition = -1;
-        final Range<Long> range = targetBundle.getKeyRange();
-        for (int i = 0; i < lastIndex; i++) {
-            if (sourceBundle.partitions[i] == range.lowerEndpoint()
-                    && (range.upperEndpoint() == sourceBundle.partitions[i + 1])) {
-                splitPartition = i;
-                Long maxVal = sourceBundle.partitions[i + 1];
-                Long minVal = sourceBundle.partitions[i];
-                Long segSize = splitBoundary == null ? (maxVal - minVal) / numBundles : splitBoundary - minVal;
-                partitions[pos++] = minVal;
-                Long curPartition = minVal + segSize;
-                for (int j = 0; j < numBundles - 1; j++) {
-                    partitions[pos++] = curPartition;
-                    curPartition += segSize;
+        return bundlesCache.get(nsname).thenApply(sourceBundle -> {
+            final int lastIndex = sourceBundle.partitions.length - 1;
+
+            final long[] partitions = new long[sourceBundle.partitions.length + (numBundles - 1)];
+            int pos = 0;
+            int splitPartition = -1;
+            final Range<Long> range = targetBundle.getKeyRange();
+            for (int i = 0; i < lastIndex; i++) {
+                if (sourceBundle.partitions[i] == range.lowerEndpoint()
+                        && (range.upperEndpoint() == sourceBundle.partitions[i + 1])) {
+                    splitPartition = i;
+                    Long maxVal = sourceBundle.partitions[i + 1];
+                    Long minVal = sourceBundle.partitions[i];
+                    Long segSize = splitBoundary == null ? (maxVal - minVal) / numBundles : splitBoundary - minVal;
+                    partitions[pos++] = minVal;
+                    Long curPartition = minVal + segSize;
+                    for (int j = 0; j < numBundles - 1; j++) {
+                        partitions[pos++] = curPartition;
+                        curPartition += segSize;
+                    }
+                } else {
+                    partitions[pos++] = sourceBundle.partitions[i];
                 }
-            } else {
-                partitions[pos++] = sourceBundle.partitions[i];
             }
-        }
-        partitions[pos] = sourceBundle.partitions[lastIndex];
-        if (splitPartition != -1) {
-            // keep version of sourceBundle
-            NamespaceBundles splitNsBundles =
-                    new NamespaceBundles(nsname, this, sourceBundle.getLocalPolicies(), partitions);
-            List<NamespaceBundle> splitBundles = splitNsBundles.getBundles().subList(splitPartition,
-                    (splitPartition + numBundles));
-            return new ImmutablePair<>(splitNsBundles, splitBundles);
-        }
-        return null;
+            partitions[pos] = sourceBundle.partitions[lastIndex];
+            if (splitPartition != -1) {
+                // keep version of sourceBundle
+                NamespaceBundles splitNsBundles =
+                        new NamespaceBundles(nsname, this, sourceBundle.getLocalPolicies(), partitions);
+                List<NamespaceBundle> splitBundles = splitNsBundles.getBundles().subList(splitPartition,
+                        (splitPartition + numBundles));
+                return new ImmutablePair<>(splitNsBundles, splitBundles);
+            }
+
+            return null;
+        });
     }
 
     public boolean canSplitBundle(NamespaceBundle bundle) {

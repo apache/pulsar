@@ -516,7 +516,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         bCacheField.setAccessible(true);
         ((AsyncLoadingCache<NamespaceName, NamespaceBundles>) bCacheField.get(utilityFactory)).put(nsname,
                 CompletableFuture.completedFuture(bundles));
-        return utilityFactory.splitBundles(targetBundle, 2, null);
+        return utilityFactory.splitBundles(targetBundle, 2, null).join();
     }
 
     private static final Logger log = LoggerFactory.getLogger(NamespaceServiceTest.class);

@@ -53,6 +53,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
@@ -1355,7 +1356,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         ExecutorService executorService = Executors.newCachedThreadPool();
 
         try {
-            executorService.invokeAll(Arrays.asList(() -> {
+            List<Future<Void>> futures = executorService.invokeAll(Arrays.asList(() -> {
                 log.info("split 2 bundles at the same time. spilt: 0x00000000_0x7fffffff ");
                 admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0x7fffffff", false, null);
                 return null;
@@ -1364,6 +1365,10 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 admin.namespaces().splitNamespaceBundle(namespace, "0x7fffffff_0xffffffff", false, null);
                 return null;
             }));
+
+            for (Future<?> f : futures) {
+                f.get();
+            }
         } catch (Exception e) {
             fail("split bundle shouldn't have thrown exception");
         }
@@ -1377,7 +1382,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         }
 
         try {
-            executorService.invokeAll(Arrays.asList(() -> {
+            List<Future<Void>> futures = executorService.invokeAll(Arrays.asList(() -> {
                 log.info("split 4 bundles at the same time. spilt: 0x00000000_0x3fffffff ");
                 admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0x3fffffff", false, null);
                 return null;
@@ -1394,6 +1399,10 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 admin.namespaces().splitNamespaceBundle(namespace, "0xbfffffff_0xffffffff", false, null);
                 return null;
             }));
+
+            for (Future<?> f : futures) {
+                f.get();
+            }
         } catch (Exception e) {
             fail("split bundle shouldn't have thrown exception");
         }
