@@ -22,8 +22,6 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 
-import io.netty.buffer.ByteBuf;
-
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
@@ -64,7 +62,6 @@ import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.CryptoException;
-import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.EncryptionKeys;
 import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -532,7 +529,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
 
     @Override
     public int getMaxOutputSize(int inputLen) {
-        return cipher.getOutputSize(inputLen);
+        return inputLen + Math.max(inputLen, 512);
     }
 
     private boolean getKeyAndDecryptData(MessageMetadata msgMetadata, ByteBuffer payload, ByteBuffer targetBuffer) {
