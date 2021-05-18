@@ -53,7 +53,6 @@ import java.util.stream.Collectors;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -63,7 +62,6 @@ import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.lookup.LookupResult;
-import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
@@ -783,7 +781,8 @@ public class NamespaceService implements AutoCloseable {
                     bundleFactory.splitBundles(bundle,
                         2 /* by default split into 2 */, splitBoundary)
                             .thenAccept(splittedBundles -> {
-                                // Split and updateNamespaceBundles. Update may fail because of concurrent write to Zookeeper.
+                                // Split and updateNamespaceBundles. Update may fail because of concurrent write to
+                                // Zookeeper.
                                 if (splittedBundles == null) {
                                     String msg = format("bundle %s not found under namespace", bundle.toString());
                                     LOG.warn(msg);
@@ -816,11 +815,13 @@ public class NamespaceService implements AutoCloseable {
                                                         + "NamespaceBundle: %s due to %s",
                                                 nsname.toString(), bundle.getBundleRange(), ex1.getMessage());
                                         LOG.warn(msg);
-                                        updateFuture.completeExceptionally(new ServiceUnitNotReadyException(msg, ex1.getCause()));
+                                        updateFuture.completeExceptionally(
+                                                new ServiceUnitNotReadyException(msg, ex1.getCause()));
                                         return null;
                                     });
                                 } catch (Exception e) {
-                                    String msg = format("failed to acquire ownership of split bundle for namespace [%s], %s",
+                                    String msg = format(
+                                            "failed to acquire ownership of split bundle for namespace [%s], %s",
                                             nsname.toString(), e.getMessage());
                                     LOG.warn(msg, e);
                                     updateFuture.completeExceptionally(new ServiceUnitNotReadyException(msg, e));
