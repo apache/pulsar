@@ -922,7 +922,7 @@ public class NamespaceService implements AutoCloseable {
 
     public boolean isServiceUnitOwned(ServiceUnitId suName) throws Exception {
         if (suName instanceof TopicName) {
-            return isTopicOwned((TopicName) suName);
+            return isTopicOwnedAsync((TopicName) suName).get();
         }
 
         if (suName instanceof NamespaceName) {
