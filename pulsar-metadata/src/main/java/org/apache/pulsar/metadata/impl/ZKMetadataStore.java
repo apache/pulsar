@@ -31,12 +31,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.bookkeeper.zookeeper.BoundExponentialBackoffRetryPolicy;
 import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
+import org.apache.pulsar.metadata.api.MetadataStoreLifecycle;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
@@ -51,14 +53,18 @@ import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
 
 @Slf4j
-public class ZKMetadataStore extends AbstractMetadataStore implements MetadataStoreExtended, Watcher {
+public class ZKMetadataStore extends AbstractMetadataStore implements MetadataStoreExtended, Watcher, MetadataStoreLifecycle {
 
+    private final String metadataURL;
+    private final MetadataStoreConfig metadataStoreConfig;
     private final boolean isZkManaged;
     private final ZooKeeper zkc;
     private ZKSessionWatcher sessionWatcher;
 
     public ZKMetadataStore(String metadataURL, MetadataStoreConfig metadataStoreConfig) throws MetadataStoreException {
         try {
+            this.metadataURL = metadataURL;
+            this.metadataStoreConfig = metadataStoreConfig;
             isZkManaged = true;
             zkc = ZooKeeperClient.newBuilder().connectString(metadataURL)
                     .connectRetryPolicy(new BoundExponentialBackoffRetryPolicy(100, 60_000, Integer.MAX_VALUE))
@@ -78,6 +84,8 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
 
     @VisibleForTesting
     public ZKMetadataStore(ZooKeeper zkc) {
+        this.metadataURL = null;
+        this.metadataStoreConfig = null;
         this.isZkManaged = false;
         this.zkc = zkc;
         this.sessionWatcher = new ZKSessionWatcher(zkc, this::receivedSessionEvent);
@@ -359,5 +367,36 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
 
     public long getZkSessionId() {
         return zkc.getSessionId();
+    }
+
+    @Override
+    public CompletableFuture<Void> initializeCluster() {
+        if (this.metadataURL == null) {
+            return FutureUtil.failedFuture(new MetadataStoreException("metadataURL is not set"));
+        }
+        if (this.metadataStoreConfig == null) {
+            return FutureUtil.failedFuture(new MetadataStoreException("metadataStoreConfig is not set"));
+        }
+        int chrootIndex = metadataURL.indexOf("/");
+        if (chrootIndex > 0) {
+            String chrootPath = metadataURL.substring(chrootIndex);
+            String zkConnectForChrootCreation = metadataURL.substring(0, chrootIndex);
+            try (ZooKeeper chrootZk = ZooKeeperClient.newBuilder()
+                    .connectString(zkConnectForChrootCreation)
+                    .sessionTimeoutMs(metadataStoreConfig.getSessionTimeoutMillis())
+                    .connectRetryPolicy(
+                            new BoundExponentialBackoffRetryPolicy(metadataStoreConfig.getSessionTimeoutMillis(),
+                                    metadataStoreConfig.getSessionTimeoutMillis(), 0))
+                    .build()) {
+                if (chrootZk.exists(chrootPath, false) == null) {
+                    ZkUtils.createFullPathOptimistic(chrootZk, chrootPath, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE,
+                            CreateMode.PERSISTENT);
+                    log.info("Created zookeeper chroot path {} successfully", chrootPath);
+                }
+            } catch (Exception e) {
+                return FutureUtil.failedFuture(e);
+            }
+        }
+        return CompletableFuture.completedFuture(null);
     }
 }
