@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.functions.source;
 
-import com.google.common.annotations.VisibleForTesting;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -41,7 +40,7 @@ public class MultiConsumerPulsarSource<T> extends PushPulsarSource<T> implements
 
     private final MultiConsumerPulsarSourceConfig pulsarSourceConfig;
     private final ClassLoader functionClassLoader;
-    private List<Consumer<T>> inputConsumers = new LinkedList<>();
+    private final List<Consumer<T>> inputConsumers = new LinkedList<>();
 
     public MultiConsumerPulsarSource(PulsarClient pulsarClient,
                                      MultiConsumerPulsarSourceConfig pulsarSourceConfig,
@@ -107,8 +106,8 @@ public class MultiConsumerPulsarSource<T> extends PushPulsarSource<T> implements
         return configs;
     }
 
-    @VisibleForTesting
-    List<Consumer<T>> getInputConsumers() {
+    @Override
+    public List<Consumer<T>> getInputConsumers() {
         return inputConsumers;
     }
 
