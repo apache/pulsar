@@ -52,7 +52,7 @@ import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.protocol.schema.SchemaVersion;
+import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -420,7 +420,7 @@ public class MessageImpl<T> implements Message<T> {
 
     private void ensureSchemaIsLoaded() {
         if (schema instanceof AutoConsumeSchema) {
-            ((AutoConsumeSchema) schema).fetchSchemaIfNeeded(SchemaVersion.Latest);
+            ((AutoConsumeSchema) schema).fetchSchemaIfNeeded(BytesSchemaVersion.of(getSchemaVersion()));
         }
     }
 

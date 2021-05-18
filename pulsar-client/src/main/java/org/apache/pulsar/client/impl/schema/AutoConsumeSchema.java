@@ -261,6 +261,9 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
      * places and we will introduce lots of deadlocks.
      */
     public void fetchSchemaIfNeeded(SchemaVersion schemaVersion) throws SchemaSerializationException {
+        if (schemaVersion == null) {
+            schemaVersion = BytesSchemaVersion.of(new byte[0]);
+        }
         if (!schemaMap.containsKey(schemaVersion)) {
             if (schemaInfoProvider == null) {
                 throw new SchemaSerializationException("Can't get accurate schema information for topic " + topicName +
