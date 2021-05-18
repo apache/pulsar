@@ -658,7 +658,7 @@ All logs produced by `LoggingFunction` above can be accessed via the `persistent
 
 #### Customize Function log level
 Additionally, you can use the XML file, `functions_log4j2.xml`, to customize the function log level. 
-To customize the function log level, create or update `functions_log4j2.xml` in your Pulsar conf directory (for example, `/etc/pulsar/`) to contain contents such as:
+To customize the function log level, create or update `functions_log4j2.xml` in your Pulsar conf directory (for example, `/etc/pulsar/` on bare-metal, or `/pulsar/conf` on Kubernetes) to contain contents such as:
 
 ```xml
 <Configuration>
