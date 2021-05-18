@@ -22,7 +22,9 @@ package org.apache.pulsar.io.kafka.connect;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -30,6 +32,7 @@ import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.client.util.MessageIdUtils;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.source.PulsarRecord;
 import org.apache.pulsar.io.core.KeyValue;
@@ -51,8 +54,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
@@ -124,6 +131,50 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         List<String> lines = Files.readAllLines(file, StandardCharsets.US_ASCII);
         assertEquals("value", lines.get(0));
     }
+
+    @Test
+    public void seekPauseResumeTest() throws Exception {
+        KafkaConnectSink sink = new KafkaConnectSink();
+        SinkContext mockCtx = Mockito.mock(SinkContext.class);
+        when(mockCtx.getSubscriptionType()).thenReturn(SubscriptionType.Failover);
+        sink.open(props, mockCtx);
+
+        final GenericRecord rec = getGenericRecord("value", Schema.STRING);
+        Message msg = mock(MessageImpl.class);
+        when(msg.getValue()).thenReturn(rec);
+        final MessageId msgId = new MessageIdImpl(10, 10, 0);
+        when(msg.getMessageId()).thenReturn(msgId);
+
+        final AtomicInteger status = new AtomicInteger(0);
+        Record<GenericObject> record = PulsarRecord.<String>builder()
+                .topicName("fake-topic")
+                .message(msg)
+                .ackFunction(status::incrementAndGet)
+                .failFunction(status::decrementAndGet)
+                .schema(Schema.STRING)
+                .build();
+
+        sink.write(record);
+        sink.flush();
+
+        assertEquals(1, status.get());
+
+        final TopicPartition tp = new TopicPartition("fake-topic", 0);
+        assertNotEquals(0, MessageIdUtils.getOffset(msgId));
+        assertEquals(MessageIdUtils.getOffset(msgId), sink.currentOffset(tp.topic(), tp.partition()));
+
+        sink.taskContext.offset(tp, 0);
+        verify(mockCtx, times(1)).seek(Mockito.anyString(), Mockito.anyInt(), any());
+        assertEquals(0, sink.currentOffset(tp.topic(), tp.partition()));
+
+        sink.taskContext.pause(tp);
+        verify(mockCtx, times(1)).pause(tp.topic(), tp.partition());
+        sink.taskContext.resume(tp);
+        verify(mockCtx, times(1)).resume(tp.topic(), tp.partition());
+
+        sink.close();
+    }
+
 
     @Test
     public void subscriptionTypeTest() throws Exception {

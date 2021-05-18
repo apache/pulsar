@@ -28,6 +28,8 @@ import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.sink.SinkTaskContext;
 import org.apache.kafka.connect.storage.OffsetBackingStore;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.util.MessageIdUtils;
 import org.apache.pulsar.io.core.SinkContext;
 
 import java.nio.ByteBuffer;
@@ -50,6 +52,7 @@ import static org.apache.pulsar.io.kafka.connect.PulsarKafkaWorkerConfig.TOPIC_N
 public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
 
     private final Map<String, String> config;
+    private final SinkContext ctx;
 
     private final OffsetBackingStore offsetStore;
     private final String topicNamespace;
@@ -62,6 +65,7 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
                                       SinkContext ctx,
                                       Consumer<Collection<TopicPartition>> onPartitionChange) {
         this.config = config;
+        this.ctx = ctx;
 
         offsetStore = new PulsarOffsetBackingStore();
         PulsarKafkaWorkerConfig pulsarKafkaWorkerConfig = new PulsarKafkaWorkerConfig(config);
@@ -152,14 +156,36 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
         offsetMap.put(key, value);
     }
 
-    @SneakyThrows
+    private void seekAndUpdateOffset(TopicPartition topicPartition, long offset) {
+        try {
+            ctx.seek(topicPartition.topic(), topicPartition.partition(), MessageIdUtils.getMessageId(offset));
+        } catch (PulsarClientException e) {
+            log.error("Failed to seek topic {} partition {} offset {}",
+                    topicPartition.topic(), topicPartition.partition(), offset, e);
+            throw new RuntimeException("Failed to seek topic " + topicPartition.topic() + " partition "
+                    + topicPartition.partition() + " offset " + offset, e);
+        }
+        if (!currentOffsets.containsKey(topicPartition)) {
+            runRepartition.set(true);
+        }
+        currentOffsets.put(topicPartition, offset);
+    }
+
+    public void updateLastOffset(TopicPartition topicPartition, long offset) {
+        if (!currentOffsets.containsKey(topicPartition)) {
+            runRepartition.set(true);
+        }
+        currentOffsets.put(topicPartition, offset);
+
+        if (runRepartition.compareAndSet(true, false)) {
+            onPartitionChange.accept(currentOffsets.keySet());
+        }
+    }
+
     @Override
     public void offset(Map<TopicPartition, Long> map) {
         map.forEach((key, value) -> {
-            if (!currentOffsets.containsKey(key)) {
-                runRepartition.set(true);
-            }
-            currentOffsets.put(key, value);
+            seekAndUpdateOffset(key, value);
         });
 
         if (runRepartition.compareAndSet(true, false)) {
@@ -169,10 +195,7 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
 
     @Override
     public void offset(TopicPartition topicPartition, long l) {
-        if (!currentOffsets.containsKey(topicPartition)) {
-            runRepartition.set(true);
-        }
-        currentOffsets.put(topicPartition, l);
+        seekAndUpdateOffset(topicPartition, l);
 
         if (runRepartition.compareAndSet(true, false)) {
             onPartitionChange.accept(currentOffsets.keySet());
@@ -191,12 +214,26 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
 
     @Override
     public void pause(TopicPartition... topicPartitions) {
-        log.warn("pause() is called but is not supported currently.");
+        for (TopicPartition tp: topicPartitions) {
+            try {
+                ctx.pause(tp.topic(), tp.partition());
+            } catch (PulsarClientException e) {
+                log.error("Failed to pause topic {} partition {}", tp.topic(), tp.partition(), e);
+                throw new RuntimeException("Failed to pause topic " + tp.topic() + " partition " + tp.partition(), e);
+            }
+        }
     }
 
     @Override
     public void resume(TopicPartition... topicPartitions) {
-        log.warn("resume() is called but is not supported currently.");
+        for (TopicPartition tp: topicPartitions) {
+            try {
+                ctx.resume(tp.topic(), tp.partition());
+            } catch (PulsarClientException e) {
+                log.error("Failed to resume topic {} partition {}", tp.topic(), tp.partition(), e);
+                throw new RuntimeException("Failed to resume topic " + tp.topic() + " partition " + tp.partition(), e);
+            }
+        }
     }
 
     @Override

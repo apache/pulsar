@@ -91,7 +91,8 @@ public class KafkaConnectSink implements Sink<GenericObject> {
     }
 
     private PulsarKafkaSinkContext sinkContext;
-    private PulsarKafkaSinkTaskContext taskContext;
+    @VisibleForTesting
+    PulsarKafkaSinkTaskContext taskContext;
     private SinkConnector connector;
     private SinkTask task;
 
@@ -311,7 +312,7 @@ public class KafkaConnectSink implements Sink<GenericObject> {
             log.error("Message without sequenceId. Key: {} Value: {}", key, value);
             throw new IllegalStateException("Message without sequenceId");
         }
-        taskContext.offset(new TopicPartition(topic, partition), offset);
+        taskContext.updateLastOffset(new TopicPartition(topic, partition), offset);
 
         Long timestamp = null;
         TimestampType timestampType = TimestampType.NO_TIMESTAMP_TYPE;
