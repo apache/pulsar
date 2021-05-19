@@ -512,13 +512,23 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
             @ApiResponse(code = 403, message = "Don't have admin permission") })
-    public void splitNamespaceBundle(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+    public void splitNamespaceBundle(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
             @PathParam("bundle") String bundleRange,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("unload") @DefaultValue("false") boolean unload,
             @QueryParam("splitAlgorithmName") String splitAlgorithmName) {
-        validateNamespaceName(tenant, namespace);
-        internalSplitNamespaceBundle(bundleRange, authoritative, unload, splitAlgorithmName);
+
+        try {
+            validateNamespaceName(tenant, namespace);
+            internalSplitNamespaceBundle(asyncResponse, bundleRange, authoritative, unload, splitAlgorithmName);
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
     }
 
     @POST

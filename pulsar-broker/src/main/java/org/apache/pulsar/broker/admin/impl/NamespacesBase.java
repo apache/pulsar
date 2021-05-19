@@ -1067,7 +1067,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     @SuppressWarnings("deprecation")
-    protected void internalSplitNamespaceBundle(String bundleRange,
+    protected void internalSplitNamespaceBundle(AsyncResponse asyncResponse, String bundleRange,
                                                 boolean authoritative, boolean unload, String splitAlgorithmName) {
         validateSuperUserAccess();
         checkNotNull(bundleRange, "BundleRange should not be null");
@@ -1089,32 +1089,38 @@ public abstract class NamespacesBase extends AdminResource {
                 pulsar().getConfig().getSupportedNamespaceBundleSplitAlgorithms();
         if (StringUtils.isNotBlank(splitAlgorithmName)
                 && !supportedNamespaceBundleSplitAlgorithms.contains(splitAlgorithmName)) {
-            throw new RestException(Status.PRECONDITION_FAILED,
+            asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
                     "Unsupported namespace bundle split algorithm, supported algorithms are "
-                            + supportedNamespaceBundleSplitAlgorithms);
+                            + supportedNamespaceBundleSplitAlgorithms));
         }
 
+        NamespaceBundle nsBundle;
+
         try {
-            NamespaceBundle nsBundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
-                authoritative, true);
-            pulsar().getNamespaceService().splitAndOwnBundle(nsBundle, unload,
-                getNamespaceBundleSplitAlgorithmByName(splitAlgorithmName)).get();
-            log.info("[{}] Successfully split namespace bundle {}", clientAppId(), nsBundle.toString());
-        } catch (WebApplicationException wae) {
-            throw wae;
-        } catch (ExecutionException e) {
-            if (e.getCause() instanceof IllegalArgumentException) {
-                log.error("[{}] Failed to split namespace bundle {}/{} due to {}", clientAppId(), namespaceName,
-                        bundleRange, e.getMessage());
-                throw new RestException(Status.PRECONDITION_FAILED, "Split bundle failed due to invalid request");
-            } else {
-                log.error("[{}] Failed to split namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange, e);
-                throw new RestException(e.getCause());
-            }
+            nsBundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
+                    authoritative, true);
         } catch (Exception e) {
-            log.error("[{}] Failed to split namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange, e);
-            throw new RestException(e);
+            asyncResponse.resume(e);
+            return;
         }
+
+        pulsar().getNamespaceService().splitAndOwnBundle(nsBundle, unload,
+                getNamespaceBundleSplitAlgorithmByName(splitAlgorithmName))
+                .thenRun(() -> {
+                    log.info("[{}] Successfully split namespace bundle {}", clientAppId(), nsBundle.toString());
+                    asyncResponse.resume(Response.noContent().build());
+                }).exceptionally(ex -> {
+            if (ex.getCause() instanceof IllegalArgumentException) {
+                log.error("[{}] Failed to split namespace bundle {}/{} due to {}", clientAppId(), namespaceName,
+                        bundleRange, ex.getMessage());
+                asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
+                        "Split bundle failed due to invalid request"));
+            } else {
+                log.error("[{}] Failed to split namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange, ex);
+                asyncResponse.resume(new RestException(ex.getCause()));
+            }
+            return null;
+        });
     }
 
     private NamespaceBundleSplitAlgorithm getNamespaceBundleSplitAlgorithmByName(String algorithmName) {

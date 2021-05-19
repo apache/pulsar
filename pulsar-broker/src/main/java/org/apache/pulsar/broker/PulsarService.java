@@ -1531,6 +1531,7 @@ public class PulsarService implements AutoCloseable {
         String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(
                 ServiceConfigurationUtils.getAppliedAdvertisedAddress(brokerConfig));
         workerConfig.setWorkerHostname(hostname);
+        workerConfig.setPulsarFunctionsCluster(brokerConfig.getClusterName());
         // inherit broker authorization setting
         workerConfig.setAuthenticationEnabled(brokerConfig.isAuthenticationEnabled());
         workerConfig.setAuthenticationProviders(brokerConfig.getAuthenticationProviders());

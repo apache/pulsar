@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.common.api.raw;
 
+import io.netty.buffer.ByteBuf;
 import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
+import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
 import java.util.Map;
@@ -35,7 +37,8 @@ public class RawMessageImplTest {
 
     @Test
     public void testGetProperties() {
-        ReferenceCountedMessageMetadata refCntMsgMetadata = ReferenceCountedMessageMetadata.get();
+        ReferenceCountedMessageMetadata refCntMsgMetadata =
+                ReferenceCountedMessageMetadata.get(Mockito.mock(ByteBuf.class));
         SingleMessageMetadata singleMessageMetadata = new SingleMessageMetadata();
         singleMessageMetadata.addProperty().setKey(HARD_CODE_KEY).setValue(KEY_VALUE_FIRST);
         singleMessageMetadata.addProperty().setKey(HARD_CODE_KEY).setValue(KEY_VALUE_SECOND);

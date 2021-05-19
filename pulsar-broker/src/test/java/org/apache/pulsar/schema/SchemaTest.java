@@ -59,12 +59,14 @@ import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -542,12 +544,12 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testKeyValueSchemaWithStructsINLINE() throws Exception {
-        testKeyValueSchema(KeyValueEncodingType.INLINE);
+        testKeyValueSchemaWithStructs(KeyValueEncodingType.INLINE);
     }
 
     @Test
     public void testKeyValueSchemaWithStructsSEPARATED() throws Exception {
-        testKeyValueSchema(KeyValueEncodingType.SEPARATED);
+        testKeyValueSchemaWithStructs(KeyValueEncodingType.SEPARATED);
     }
 
     private void testKeyValueSchemaWithStructs(KeyValueEncodingType keyValueEncodingType) throws Exception {
@@ -588,7 +590,12 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
 
         Message<KeyValue<Schemas.PersonOne, Schemas.PersonTwo>> message = consumer.receive();
         Message<GenericRecord> message2 = consumer2.receive();
-        assertEquals(message.getValue(), message2.getValue().getNativeObject());
+        log.info("message: {}", message.getValue(), message.getValue().getClass());
+        log.info("message2: {}", message2.getValue().getNativeObject(), message2.getValue().getNativeObject().getClass());
+        KeyValue<GenericRecord, GenericRecord> keyValue2 = (KeyValue<GenericRecord, GenericRecord>) message2.getValue().getNativeObject();
+        assertEquals(message.getValue().getKey().id, keyValue2.getKey().getField("id"));
+        assertEquals(message.getValue().getValue().id, keyValue2.getValue().getField("id"));
+        assertEquals(message.getValue().getValue().name, keyValue2.getValue().getField("name"));
 
         Schema<?> schema = message.getReaderSchema().get();
         Schema<?> schemaFromGenericRecord = message.getReaderSchema().get();
@@ -704,4 +711,74 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
             }
         }
     }
+
+    @Test
+    public void testProducerMultipleSchemaMessages() throws Exception {
+        final String tenant = PUBLIC_TENANT;
+        final String namespace = "test-namespace-" + randomName(16);
+        final String topicName = "auto_schema_test";
+
+        String ns = tenant + "/" + namespace;
+        admin.namespaces().createNamespace(ns, Sets.newHashSet(CLUSTER_NAME));
+        admin.namespaces().setSchemaCompatibilityStrategy(ns, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+
+        final String topic = TopicName.get(TopicDomain.persistent.value(), tenant, namespace, topicName).toString();
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES())
+                .topic(topic)
+                .create();
+
+        producer.newMessage(Schema.STRING).value("test").send();
+        producer.newMessage(Schema.JSON(Schemas.PersonThree.class)).value(new Schemas.PersonThree(0, "ran")).send();
+        producer.newMessage(Schema.AVRO(Schemas.PersonThree.class)).value(new Schemas.PersonThree(0, "ran")).send();
+        producer.newMessage(Schema.AVRO(Schemas.PersonOne.class)).value(new Schemas.PersonOne(0)).send();
+        producer.newMessage(Schema.JSON(Schemas.PersonThree.class)).value(new Schemas.PersonThree(1, "tang")).send();
+        producer.newMessage(Schema.BYTES).value("test".getBytes(StandardCharsets.UTF_8)).send();
+        producer.newMessage(Schema.BYTES).value("test".getBytes(StandardCharsets.UTF_8)).send();
+        producer.newMessage(Schema.BOOL).value(true).send();
+
+        List<SchemaInfo> allSchemas = admin.schemas().getAllSchemas(topic);
+        Assert.assertEquals(allSchemas.size(), 5);
+        Assert.assertEquals(allSchemas.get(0), Schema.STRING.getSchemaInfo());
+        Assert.assertEquals(allSchemas.get(1), Schema.JSON(Schemas.PersonThree.class).getSchemaInfo());
+        Assert.assertEquals(allSchemas.get(2), Schema.AVRO(Schemas.PersonThree.class).getSchemaInfo());
+        Assert.assertEquals(allSchemas.get(3), Schema.AVRO(Schemas.PersonOne.class).getSchemaInfo());
+        Assert.assertEquals(allSchemas.get(4), Schema.BOOL.getSchemaInfo());
+    }
+
+    @Test
+    public void testNullKey() throws Exception {
+        final String tenant = PUBLIC_TENANT;
+        final String namespace = "test-namespace-" + randomName(16);
+        final String topicName = "test-schema-" + randomName(16);
+
+        final String topic = TopicName.get(
+                TopicDomain.persistent.value(),
+                tenant,
+                namespace,
+                topicName).toString();
+
+        admin.namespaces().createNamespace(
+                tenant + "/" + namespace,
+                Sets.newHashSet(CLUSTER_NAME));
+
+        admin.topics().createPartitionedTopic(topic, 2);
+
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .subscriptionName("test-sub")
+                .topic(topic)
+                .subscribe();
+
+        producer.send("foo");
+
+        Message<String> message = consumer.receive();
+        assertNull(message.getKey());
+        assertEquals("foo", message.getValue());
+    }
+
 }
