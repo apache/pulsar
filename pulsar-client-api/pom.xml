@@ -33,14 +33,17 @@
     <name>Pulsar Client :: API</name>
 
     <dependencies>
+        <!--
+            This module is meant to be free of any dependencies, because we don't want to have external symbols
+            exposed directly in our API.
+
+            The exception here is Protobuf, in order to support Protobuf schema. The library is marked as provided
+            so it's the user responsibility to add it to the classpath.
+        -->
+
         <dependency>
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java</artifactId>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-buffer</artifactId>
             <scope>provided</scope>
         </dependency>
     </dependencies>

@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
-import io.netty.buffer.ByteBuf;
+import java.nio.ByteBuffer;
 import java.util.Set;
 import java.util.function.Supplier;
 import org.apache.pulsar.client.api.PulsarClientException.CryptoException;
@@ -56,30 +56,42 @@ public interface MessageCrypto<MetadataT, BuilderT> {
      */
     boolean removeKeyCipher(String keyName);
 
+    /**
+     * Return the maximum for a given buffer to be encrypted or decrypted.
+     *
+     * This is meant to allow to pre-allocate a buffer with enough space to be passed as
+     *
+     * @param inputLen the length of the input buffer
+     * @return the maximum size of the buffer to hold the encrypted/decrypted version of the input buffer
+     */
+    int getMaxOutputSize(int inputLen);
+
     /*
      * Encrypt the payload using the data key and update message metadata with the keyname & encrypted data key
      *
      * @param encKeys One or more public keys to encrypt data key
-     *
      * @param msgMetadata Message Metadata
-     *
      * @param payload Message which needs to be encrypted
+     * @param outBuffer the buffer where to write the encrypted payload. The buffer needs to be have enough space
+     *              to hold the encrypted value. Use #getMaxOutputSize method to discover the max size.
      *
-     * @return encryptedData if success
+     * @throws PulsarClientException if the encryption fails
      */
-    ByteBuf encrypt(Set<String> encKeys, CryptoKeyReader keyReader,
-                    Supplier<BuilderT> messageMetadataBuilderSupplier, ByteBuf payload) throws PulsarClientException;
+    void encrypt(Set<String> encKeys, CryptoKeyReader keyReader,
+                       Supplier<BuilderT> messageMetadataBuilderSupplier,
+                 ByteBuffer payload, ByteBuffer outBuffer) throws PulsarClientException;
 
     /*
      * Decrypt the payload using the data key. Keys used to encrypt data key can be retrieved from msgMetadata
      *
      * @param msgMetadata Message Metadata
-     *
      * @param payload Message which needs to be decrypted
-     *
      * @param keyReader KeyReader implementation to retrieve key value
+     * @param outBuffer the buffer where to write the encrypted payload. The buffer needs to be have enough space
+     *              to hold the encrypted value. Use #getMaxOutputSize method to discover the max size.
      *
-     * @return decryptedData if success, null otherwise
+     * @return true if success, false otherwise
      */
-    ByteBuf decrypt(Supplier<MetadataT> messageMetadataSupplier, ByteBuf payload, CryptoKeyReader keyReader);
+    boolean decrypt(Supplier<MetadataT> messageMetadataSupplier, ByteBuffer payload,
+                 ByteBuffer outBuffer, CryptoKeyReader keyReader);
 }
