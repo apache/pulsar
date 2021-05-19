@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.api.raw;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.util.AbstractReferenceCounted;
 import io.netty.util.Recycler;
 import io.netty.util.ReferenceCounted;
@@ -37,14 +38,17 @@ public class ReferenceCountedMessageMetadata extends AbstractReferenceCounted {
             };
 
     private final MessageMetadata metadata = new MessageMetadata();
+    private ByteBuf parsedBuf;
     private final Recycler.Handle<ReferenceCountedMessageMetadata> handle;
 
     private ReferenceCountedMessageMetadata(Recycler.Handle<ReferenceCountedMessageMetadata> handle) {
         this.handle = handle;
     }
 
-    public static ReferenceCountedMessageMetadata get() {
+    public static ReferenceCountedMessageMetadata get(ByteBuf parsedBuf) {
         ReferenceCountedMessageMetadata ref = RECYCLER.get();
+        ref.parsedBuf = parsedBuf;
+        ref.parsedBuf.retain();
         ref.setRefCnt(1);
         return ref;
     }
@@ -60,6 +64,9 @@ public class ReferenceCountedMessageMetadata extends AbstractReferenceCounted {
 
     @Override
     protected void deallocate() {
+        if (parsedBuf != null) {
+            parsedBuf.release();
+        }
         metadata.clear();
         handle.recycle(this);
     }

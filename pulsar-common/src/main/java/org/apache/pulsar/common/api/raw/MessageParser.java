@@ -74,7 +74,7 @@ public class MessageParser {
                 return;
             }
 
-            refCntMsgMetadata = ReferenceCountedMessageMetadata.get();
+            refCntMsgMetadata = ReferenceCountedMessageMetadata.get(headersAndPayload);
             MessageMetadata msgMetadata = refCntMsgMetadata.getMetadata();
 
             try {
