@@ -66,6 +66,17 @@ public class ClusterData {
     )
     private String proxyServiceUrl;
     @ApiModelProperty(
+            name = "authenticationPlugin",
+            value = "Authentication plugin when client would like to connect to cluster.",
+            example = "org.apache.pulsar.client.impl.auth.AuthenticationToken"
+    )
+    private String authenticationPlugin;
+    @ApiModelProperty(
+            name = "authenticationParameters",
+            value = "Authentication parameters when client would like to connect to cluster."
+    )
+    private String authenticationParameters;
+    @ApiModelProperty(
         name = "proxyProtocol",
         value = "protocol to decide type of proxy routing eg: SNI-routing",
         example = "SNI"
@@ -100,14 +111,28 @@ public class ClusterData {
     }
 
     public ClusterData(String serviceUrl, String serviceUrlTls, String brokerServiceUrl, String brokerServiceUrlTls,
-            String proxyServiceUrl, ProxyProtocol proxyProtocol) {
+                       String authenticationPlugin, String authenticationParameters) {
         this.serviceUrl = serviceUrl;
         this.serviceUrlTls = serviceUrlTls;
         this.brokerServiceUrl = brokerServiceUrl;
         this.brokerServiceUrlTls = brokerServiceUrlTls;
+        this.authenticationPlugin = authenticationPlugin;
+        this.authenticationParameters = authenticationParameters;
+    }
+
+    public ClusterData(String serviceUrl, String serviceUrlTls, String brokerServiceUrl, String brokerServiceUrlTls,
+                       String proxyServiceUrl, String authenticationPlugin, String authenticationParameters,
+                       ProxyProtocol proxyProtocol) {
+        this.serviceUrl = serviceUrl;
+        this.serviceUrlTls = serviceUrlTls;
+        this.brokerServiceUrl = brokerServiceUrl;
+        this.brokerServiceUrlTls = brokerServiceUrlTls;
+        this.authenticationPlugin = authenticationPlugin;
+        this.authenticationParameters = authenticationParameters;
         this.proxyServiceUrl = proxyServiceUrl;
         this.proxyProtocol = proxyProtocol;
     }
+
 
     public void update(ClusterData other) {
         checkNotNull(other);
@@ -117,6 +142,8 @@ public class ClusterData {
         this.brokerServiceUrlTls = other.brokerServiceUrlTls;
         this.proxyServiceUrl = other.proxyServiceUrl;
         this.proxyProtocol = other.proxyProtocol;
+        this.authenticationPlugin = other.authenticationPlugin;
+        this.authenticationParameters = other.authenticationParameters;
     }
 
     public String getServiceUrl() {
@@ -171,6 +198,22 @@ public class ClusterData {
         return peerClusterNames;
     }
 
+    public String getAuthenticationPlugin() {
+        return authenticationPlugin;
+    }
+
+    public void setAuthenticationPlugin(String authenticationPlugin) {
+        this.authenticationPlugin = authenticationPlugin;
+    }
+
+    public String getAuthenticationParameters() {
+        return authenticationParameters;
+    }
+
+    public void setAuthenticationParameters(String authenticationParameters) {
+        this.authenticationParameters = authenticationParameters;
+    }
+
     public void setPeerClusterNames(LinkedHashSet<String> peerClusterNames) {
         this.peerClusterNames = peerClusterNames;
     }
@@ -183,7 +226,10 @@ public class ClusterData {
                     && Objects.equals(brokerServiceUrl, other.brokerServiceUrl)
                     && Objects.equals(brokerServiceUrlTls, other.brokerServiceUrlTls)
                     && Objects.equals(proxyServiceUrl, other.proxyServiceUrl)
-                    && Objects.equals(proxyProtocol, other.proxyProtocol);
+                    && Objects.equals(proxyProtocol, other.proxyProtocol)
+                    && Objects.equals(authenticationPlugin, other.authenticationPlugin)
+                    && Objects.equals(authenticationParameters, other.authenticationParameters);
+
         }
 
         return false;
@@ -203,7 +249,8 @@ public class ClusterData {
                 .add("brokerServiceUrlTls", brokerServiceUrlTls)
                 .add("proxyServiceUrl", proxyServiceUrl)
                 .add("proxyProtocol", proxyProtocol)
-                .add("peerClusterNames", peerClusterNames).toString();
+                .add("peerClusterNames", peerClusterNames).add("authenticationPlugin", authenticationPlugin)
+                .add("authenticationParameters", authenticationParameters).toString();
     }
 
 }

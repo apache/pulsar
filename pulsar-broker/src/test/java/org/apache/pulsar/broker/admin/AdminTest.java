@@ -394,6 +394,18 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
         }
+
+        // Check authentication
+        try {
+            clusters.createCluster("auth", new ClusterData("http://dummy.web.example.com", "",
+                    "http://dummy.messaging.example.com", "",
+                    "authenticationPlugin", "authenticationParameters"));
+            ClusterData cluster = clusters.getCluster("auth");
+            assertEquals("authenticationPlugin", cluster.getAuthenticationPlugin());
+            assertEquals("authenticationParameters", cluster.getAuthenticationParameters());
+        } catch (RestException e) {
+            assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
+        }
     }
 
     Object asynRequests(Consumer<TestAsyncResponse> function) throws Exception {
