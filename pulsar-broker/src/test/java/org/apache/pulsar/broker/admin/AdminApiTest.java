@@ -93,7 +93,9 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
@@ -104,6 +106,7 @@ import org.apache.pulsar.common.naming.PartitionedManagedLedgerInfo;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
@@ -2994,6 +2997,35 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         verifyCoordinatorStatus(1L, transactionCoordinatorStatus.coordinatorId,
                 transactionCoordinatorStatus.state,
                 transactionCoordinatorStatus.sequenceId, transactionCoordinatorStatus.lowWaterMark);
+    }
+
+    @Test(timeOut = 20000)
+    public void testGetTransactionInBufferStats() throws Exception {
+        initTransaction(2);
+        TransactionImpl transaction = (TransactionImpl) getTransaction();
+        final String topic = "persistent://public/default/testGetTransactionInBufferStats";
+        admin.topics().createNonPartitionedTopic(topic);
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES).topic(topic).sendTimeout(0, TimeUnit.SECONDS).create();
+        MessageId messageId = producer.newMessage(transaction).value("Hello pulsar!".getBytes()).send();
+        TransactionInBufferStats transactionInBufferStats = admin.transactions()
+                .getTransactionInBufferStats(new TxnID(transaction.getTxnIdMostBits(),
+                        transaction.getTxnIdLeastBits()), topic).get();
+        PositionImpl position =
+                PositionImpl.get(((MessageIdImpl) messageId).getLedgerId(), ((MessageIdImpl) messageId).getEntryId());
+        assertEquals(transactionInBufferStats.stablePosition, position.toString());
+        assertFalse(transactionInBufferStats.aborted);
+        assertEquals(transactionInBufferStats.state, "Ready");
+        assertEquals(transactionInBufferStats.topic, topic);
+
+        transaction.abort().get();
+
+        transactionInBufferStats = admin.transactions()
+                .getTransactionInBufferStats(new TxnID(transaction.getTxnIdMostBits(),
+                        transaction.getTxnIdLeastBits()), topic).get();
+        assertNull(transactionInBufferStats.stablePosition);
+        assertTrue(transactionInBufferStats.aborted);
+        assertEquals(transactionInBufferStats.state, "Ready");
+        assertEquals(transactionInBufferStats.topic, topic);
     }
 
     private static void verifyCoordinatorStatus(long expectedCoordinatorId, long coordinatorId, String state,

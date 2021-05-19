@@ -118,6 +118,7 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
@@ -3046,6 +3047,10 @@ public class PersistentTopic extends AbstractTopic
 
     public boolean isTxnAborted(TxnID txnID) {
         return this.transactionBuffer.isTxnAborted(txnID);
+    }
+
+    public TransactionInBufferStats getTransactionInBufferStats(TxnID txnID) {
+        return this.transactionBuffer.getTransactionInBufferStats(txnID);
     }
 
     @Override

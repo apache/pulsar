@@ -24,6 +24,8 @@ import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStatus;
 
 public class TransactionsImpl extends BaseResource implements Transactions {
@@ -71,6 +73,28 @@ public class TransactionsImpl extends BaseResource implements Transactions {
                     }
                 });
         return statusList;
+    }
+
+    @Override
+    public CompletableFuture<TransactionInBufferStats> getTransactionInBufferStats(TxnID txnID, String topic) {
+        WebTarget path = adminV3Transactions.path("transactionInBufferStats");
+        path = path.queryParam("coordinatorId", txnID.getMostSigBits());
+        path = path.queryParam("sequenceId", txnID.getLeastSigBits());
+        path = path.queryParam("topic", topic);
+        final CompletableFuture<TransactionInBufferStats> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<TransactionInBufferStats>() {
+                    @Override
+                    public void completed(TransactionInBufferStats stats) {
+                        future.complete(stats);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
     }
 
 }

@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.admin.v3;
 
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import javax.ws.rs.Consumes;
@@ -49,5 +50,24 @@ public class Transactions extends TransactionsBase {
                                                 @DefaultValue("false") boolean authoritative,
                                      @QueryParam("coordinatorId") Integer coordinatorId) {
         internalGetCoordinatorStatus(asyncResponse, authoritative, coordinatorId);
+    }
+
+    @GET
+    @Path("/transactionInBufferStats")
+    @ApiOperation(value = "Get transaction state in transaction buffer.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void getTransactionInBufferStats(@Suspended final AsyncResponse asyncResponse,
+                                            @QueryParam("authoritative")
+                                            @DefaultValue("false") boolean authoritative,
+                                            @QueryParam("coordinatorId")
+                                            @ApiParam(value = "Coordinator id", required = true)
+                                                    long coordinatorId,
+                                            @ApiParam(value = "Sequence id", required = true)
+                                            @QueryParam("sequenceId") long sequenceId,
+                                            @ApiParam(value = "Topic", required = true)
+                                            @QueryParam("topic") String topic) {
+        internalGetTransactionInBufferStats(asyncResponse, authoritative, coordinatorId, sequenceId, topic);
     }
 }
