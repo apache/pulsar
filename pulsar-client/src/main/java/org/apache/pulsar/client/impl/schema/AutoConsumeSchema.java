@@ -127,6 +127,17 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
         return schemaMap.get(SchemaVersion.Latest).getSchemaInfo();
     }
 
+    public SchemaInfo getSchemaInfo(byte[] schemaVersion) {
+        if (schemaVersion == null) {
+            return Schema.BYTES.getSchemaInfo();
+        }
+        SchemaVersion sv = BytesSchemaVersion.of(schemaVersion);
+        if (schemaMap.containsKey(sv)) {
+            return schemaMap.get(sv).getSchemaInfo();
+        }
+        return null;
+    }
+
     @Override
     public void configureSchemaInfo(String topicName,
                                     String componentName,
@@ -253,6 +264,10 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
 
     public Schema<?> getInternalSchema() {
         return schemaMap.get(SchemaVersion.Latest);
+    }
+
+    public Schema<?> getInternalSchema(byte[] schemaVersion) {
+        return schemaMap.get(BytesSchemaVersion.of(schemaVersion));
     }
 
     /**

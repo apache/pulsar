@@ -59,12 +59,8 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
-import org.apache.pulsar.client.impl.schema.AvroSchema;
-import org.apache.pulsar.client.impl.schema.BooleanSchema;
-import org.apache.pulsar.client.impl.schema.BytesSchema;
-import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
-import org.apache.pulsar.client.impl.schema.StringSchema;
+import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecord;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -802,21 +798,34 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 .create();
 
         AtomicInteger totalMsgCnt = new AtomicInteger(0);
-        generateDataByDifferentSchema(getTopicName(ns, "bytes_schema"),
-                Schema.BYTES, autoProducer, totalMsgCnt);
-        generateDataByDifferentSchema(getTopicName(ns, "string_schema"),
-                Schema.STRING, autoProducer, totalMsgCnt);
-        generateDataByDifferentSchema(getTopicName(ns, "bool_schema"),
-                Schema.BOOL, autoProducer, totalMsgCnt);
-        generateDataByDifferentSchema(getTopicName(ns, "json_one_schema"),
-                Schema.JSON(Schemas.PersonOne.class), autoProducer, totalMsgCnt);
-        generateDataByDifferentSchema(getTopicName(ns, "json_three_schema"),
-                Schema.JSON(Schemas.PersonThree.class), autoProducer, totalMsgCnt);
-        generateDataByDifferentSchema(getTopicName(ns, "json_four_schema"),
-                Schema.JSON(Schemas.PersonFour.class), autoProducer, totalMsgCnt);
-        generateDataByDifferentSchema(getTopicName(ns, "avro_one_schema"),
-                Schema.AVRO(Schemas.PersonOne.class), autoProducer, totalMsgCnt);
-
+        generateDataByDifferentSchema(ns, "bytes_schema", Schema.BYTES, "bytes value".getBytes(),
+                autoProducer, totalMsgCnt);
+        generateDataByDifferentSchema(ns, "string_schema", Schema.STRING, "string value",
+                autoProducer, totalMsgCnt);
+        generateDataByDifferentSchema(ns, "bool_schema", Schema.BOOL, true,
+                autoProducer, totalMsgCnt);
+        generateDataByDifferentSchema(ns, "json_one_schema", Schema.JSON(Schemas.PersonOne.class),
+                new Schemas.PersonOne(1), autoProducer, totalMsgCnt);
+        generateDataByDifferentSchema(ns, "json_three_schema", Schema.JSON(Schemas.PersonThree.class),
+                new Schemas.PersonThree(3, "ran"), autoProducer, totalMsgCnt);
+        generateDataByDifferentSchema(ns, "json_four_schema", Schema.JSON(Schemas.PersonFour.class),
+                new Schemas.PersonFour(4, "tang", 18), autoProducer, totalMsgCnt);
+        generateDataByDifferentSchema(ns, "avro_one_schema", Schema.AVRO(Schemas.PersonOne.class),
+                new Schemas.PersonOne(10), autoProducer, totalMsgCnt);
+        generateDataByDifferentSchema(ns, "k_one_v_three_schema_separate",
+                Schema.KeyValue(Schema.JSON(Schemas.PersonOne.class),
+                        Schema.JSON(Schemas.PersonThree.class), KeyValueEncodingType.SEPARATED),
+                new KeyValue<>(new Schemas.PersonOne(1), new Schemas.PersonThree(3, "kv-separate")),
+                autoProducer, totalMsgCnt);
+        generateDataByDifferentSchema(ns, "k_one_v_four_schema_inline",
+                Schema.KeyValue(Schema.JSON(Schemas.PersonOne.class),
+                        Schema.JSON(Schemas.PersonFour.class), KeyValueEncodingType.INLINE),
+                new KeyValue<>(new Schemas.PersonOne(10), new Schemas.PersonFour(30, "kv-inline", 20)),
+                autoProducer, totalMsgCnt);
+        generateDataByDifferentSchema(ns, "k_int_v_three_schema_separate",
+                Schema.KeyValue(Schema.INT32, Schema.JSON(Schemas.PersonThree.class), KeyValueEncodingType.SEPARATED),
+                new KeyValue<>(100, new Schemas.PersonThree(40, "kv-separate")),
+                autoProducer, totalMsgCnt);
 
         Consumer<GenericRecord> autoConsumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
                 .topic(autoProducerTopic)
@@ -840,37 +849,18 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         return ns + "/" + baseTopic;
     }
 
-    private void generateDataByDifferentSchema(String topic,
-                                               Schema<?> schema,
+    private void generateDataByDifferentSchema(String ns,
+                                               String baseTopic,
+                                               Schema schema,
+                                               Object data,
                                                Producer<?> autoProducer,
-                                               AtomicInteger totalMsgCnt)throws PulsarClientException {
-        Producer<?> producer = pulsarClient.newProducer(schema)
+                                               AtomicInteger totalMsgCnt) throws PulsarClientException {
+        String topic = getTopicName(ns, baseTopic);
+        Producer<Object> producer = pulsarClient.newProducer(schema)
                 .topic(topic)
                 .create();
-
-        if (schema instanceof BytesSchema) {
-            producer.newMessage(Schema.BYTES).value("bytes value".getBytes()).send();
-        } else if (schema instanceof StringSchema) {
-            producer.newMessage(Schema.STRING).value("string value").send();
-        } else if (schema instanceof BooleanSchema) {
-            producer.newMessage(Schema.BOOL).value(true).send();
-        } else if (schema instanceof JSONSchema
-                && schema.getSchemaInfo().getSchemaDefinition().contains("PersonOne")) {
-            producer.newMessage(Schema.JSON(Schemas.PersonOne.class))
-                    .value(new Schemas.PersonOne(1)).send();
-        } else if (schema instanceof JSONSchema
-                && schema.getSchemaInfo().getSchemaDefinition().contains("PersonThree")) {
-            producer.newMessage(Schema.JSON(Schemas.PersonThree.class))
-                    .value(new Schemas.PersonThree(3, "ran")).send();
-        } else if (schema instanceof JSONSchema
-                && schema.getSchemaInfo().getSchemaDefinition().contains("PersonFour")) {
-            producer.newMessage(Schema.JSON(Schemas.PersonFour.class))
-                    .value(new Schemas.PersonFour(4, "tang", 18)).send();
-        } else if (schema instanceof AvroSchema
-                && schema.getSchemaInfo().getSchemaDefinition().contains("PersonOne")) {
-            producer.newMessage(Schema.AVRO(Schemas.PersonOne.class))
-                    .value(new Schemas.PersonOne(1)).send();
-        }
+        producer.newMessage().value(data).property("baseTopic", baseTopic).send();
+        totalMsgCnt.incrementAndGet();
 
         Consumer<GenericRecord> consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
                 .topic(topic)
@@ -885,9 +875,23 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         if (!message.getReaderSchema().isPresent()) {
             Assert.fail("Failed to get reader schema for topic " + topic);
         }
-        autoProducer.newMessage(
-                Schema.AUTO_PRODUCE_BYTES(message.getReaderSchema().get())).value(message.getData()).send();
-        totalMsgCnt.incrementAndGet();
+        message.getValue();
+
+        Schema<?> readerSchema = message.getReaderSchema().get();
+        if (readerSchema instanceof KeyValueSchema
+                && ((KeyValueSchema<?, ?>) readerSchema)
+                .getKeyValueEncodingType().equals(KeyValueEncodingType.SEPARATED)) {
+            autoProducer.newMessage(
+                    Schema.AUTO_PRODUCE_BYTES(message.getReaderSchema().get())).keyBytes(message.getKeyBytes())
+                    .value(message.getData())
+                    .properties(message.getProperties())
+                    .send();
+        } else {
+            autoProducer.newMessage(Schema.AUTO_PRODUCE_BYTES(message.getReaderSchema().get()))
+                    .properties(message.getProperties())
+                    .value(message.getData())
+                    .send();
+        }
         producer.close();
         consumer.close();
     }
@@ -897,36 +901,62 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
             Assert.fail("Failed to get reader schema for auto consume multiple schema topic.");
         }
         Object nativeObject = message.getValue().getNativeObject();
+        String baseTopic = message.getProperty("baseTopic");
         JsonNode jsonNode;
-        switch (index) {
-            case 0:
+        KeyValue kv;
+        switch (baseTopic) {
+            case "bytes_schema":
                 Assert.assertEquals(new String((byte[]) nativeObject), "bytes value");
                 break;
-            case 1:
+            case "string_schema":
                 Assert.assertEquals((String) nativeObject, "string value");
                 break;
-            case 2:
+            case "bool_schema":
                 Assert.assertEquals(nativeObject, Boolean.TRUE);
                 break;
-            case 3:
+            case "json_one_schema":
                 jsonNode = (JsonNode) nativeObject;
                 Assert.assertEquals(jsonNode.get("id").intValue(), 1);
                 break;
-            case 4:
+            case "json_three_schema":
                 jsonNode = (JsonNode) nativeObject;
                 Assert.assertEquals(jsonNode.get("id").intValue(), 3);
                 Assert.assertEquals(jsonNode.get("name").textValue(), "ran");
                 break;
-            case 5:
+            case "json_four_schema":
                 jsonNode = (JsonNode) nativeObject;
                 Assert.assertEquals(jsonNode.get("id").intValue(), 4);
                 Assert.assertEquals(jsonNode.get("name").textValue(), "tang");
                 Assert.assertEquals(jsonNode.get("age").intValue(), 18);
                 break;
-            case 6:
+            case "avro_one_schema":
                 org.apache.avro.generic.GenericRecord genericRecord =
                         (org.apache.avro.generic.GenericRecord) nativeObject;
-                Assert.assertEquals(genericRecord.get("id"), 1);
+                Assert.assertEquals(genericRecord.get("id"), 10);
+                break;
+            case "k_one_v_three_schema_separate":
+                kv = (KeyValue<?, ?>) nativeObject;
+                jsonNode = ((GenericJsonRecord) kv.getKey()).getJsonNode();
+                Assert.assertEquals(jsonNode.get("id").intValue(), 1);
+                jsonNode = ((GenericJsonRecord) kv.getValue()).getJsonNode();
+                Assert.assertEquals(jsonNode.get("id").intValue(), 3);
+                Assert.assertEquals(jsonNode.get("name").textValue(), "kv-separate");
+                break;
+            case "k_one_v_four_schema_inline":
+                kv = (KeyValue<?, ?>) nativeObject;
+                jsonNode = ((GenericJsonRecord) kv.getKey()).getJsonNode();
+                Assert.assertEquals(jsonNode.get("id").intValue(), 10);
+                jsonNode = ((GenericJsonRecord) kv.getValue()).getJsonNode();
+                Assert.assertEquals(jsonNode.get("id").intValue(), 30);
+                Assert.assertEquals(jsonNode.get("name").textValue(), "kv-inline");
+                Assert.assertEquals(jsonNode.get("age").intValue(), 20);
+                break;
+            case "k_int_v_three_schema_separate":
+                kv = (KeyValue<?, ?>) nativeObject;
+                Assert.assertEquals(kv.getKey(), new Integer(100));
+                jsonNode = ((GenericJsonRecord) kv.getValue()).getJsonNode();
+                Assert.assertEquals(jsonNode.get("id").intValue(), 40);
+                Assert.assertEquals(jsonNode.get("name").textValue(), "kv-separate");
                 break;
             default:
                 // nothing to do

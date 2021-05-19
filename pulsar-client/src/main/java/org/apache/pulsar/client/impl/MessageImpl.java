@@ -426,6 +426,9 @@ public class MessageImpl<T> implements Message<T> {
 
     private SchemaInfo getSchemaInfo() {
         ensureSchemaIsLoaded();
+        if (schema instanceof AutoConsumeSchema) {
+            return ((AutoConsumeSchema) schema).getSchemaInfo(getSchemaVersion());
+        }
         return schema.getSchemaInfo();
     }
 
@@ -451,7 +454,7 @@ public class MessageImpl<T> implements Message<T> {
 
     private KeyValueSchema getKeyValueSchema() {
         if (schema instanceof AutoConsumeSchema) {
-            return (KeyValueSchema) ((AutoConsumeSchema) schema).getInternalSchema();
+            return (KeyValueSchema) ((AutoConsumeSchema) schema).getInternalSchema(getSchemaVersion());
         } else {
             return (KeyValueSchema) schema;
         }
