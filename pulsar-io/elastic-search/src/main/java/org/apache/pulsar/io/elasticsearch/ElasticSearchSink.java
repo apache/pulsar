@@ -43,11 +43,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-/**
- * The base abstract class for ElasticSearch sinks.
- * Users need to implement extractKeyValue function to use this sink.
- * This class assumes that the input will be JSON documents
- */
+
 @Connector(
         name = "elastic_search",
         type = IOType.SINK,
