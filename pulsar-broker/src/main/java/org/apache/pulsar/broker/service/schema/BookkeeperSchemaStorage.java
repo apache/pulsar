@@ -22,7 +22,6 @@ import static com.google.common.collect.Iterables.concat;
 import static com.google.common.collect.Lists.newArrayList;
 import static com.google.protobuf.ByteString.copyFrom;
 import static java.util.Objects.isNull;
-import static java.util.Objects.nonNull;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage.Functions.newSchemaEntry;
 import static org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
@@ -101,6 +100,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         this.bookKeeper = pulsar.getBookKeeperClientFactory().create(
             pulsar.getConfiguration(),
             pulsar.getZkClient(),
+            pulsar.getIoEventLoopGroup(),
             Optional.empty(),
             null
         );
@@ -237,9 +237,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
     @Override
     public void close() throws Exception {
-        if (nonNull(bookKeeper)) {
-            bookKeeper.close();
-        }
+        // nothing to do
     }
 
     @NotNull
