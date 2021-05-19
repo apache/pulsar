@@ -45,11 +45,14 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.awaitility.Awaitility;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-public class MessageParserBase extends MockedPulsarServiceBaseTest {
+public class MessageParserTest extends MockedPulsarServiceBaseTest {
 
+    @BeforeClass
     public void setup() throws Exception {
         super.internalSetup();
 
@@ -59,6 +62,7 @@ public class MessageParserBase extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("my-tenant/my-ns", Sets.newHashSet("test"));
     }
 
+    @AfterClass
     public void cleanup() throws Exception {
         super.internalCleanup();
     }
@@ -114,7 +118,6 @@ public class MessageParserBase extends MockedPulsarServiceBaseTest {
 
             List<RawMessage> messages = Lists.newArrayList();
             ByteBuf headsAndPayload = entry.getDataBuffer();
-            System.out.println("1 -----------> " + headsAndPayload.refCnt());
 
             try {
                 MessageParser.parseMessage(topicName, entry.getLedgerId(), entry.getEntryId(), headsAndPayload,
@@ -122,8 +125,6 @@ public class MessageParserBase extends MockedPulsarServiceBaseTest {
             } finally {
                 entry.release();
             }
-
-            System.out.println("2 -----------> " + headsAndPayload.refCnt());
 
             assertEquals(messages.size(), 10);
 
@@ -135,8 +136,6 @@ public class MessageParserBase extends MockedPulsarServiceBaseTest {
                 msg.getSchemaVersion();
                 msg.release();
             });
-
-            System.out.println("3 -----------> " + headsAndPayload.refCnt());
 
             Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
                 assertEquals(headsAndPayload.refCnt(), 0);

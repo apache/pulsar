@@ -55,9 +55,7 @@ class PulsarMockReadHandle implements ReadHandle {
                 List<LedgerEntry> seq = new ArrayList<>();
                 long entryId = firstEntry;
                 while (entryId <= lastEntry && entryId < entries.size()) {
-                    LedgerEntryImpl entry = entries.get((int) entryId++).duplicate();
-                    entry.getEntryBuffer().release();
-                    seq.add(entry);
+                    seq.add(entries.get((int) entryId++).duplicate());
                 }
                 log.debug("Entries read: {}", seq);
 
