@@ -1,8 +1,7 @@
 ---
-id: version-2.7.2-standalone
+id: standalone
 title: Set up a standalone Pulsar locally
 sidebar_label: Run Pulsar locally
-original_id: standalone
 ---
 
 For local development and testing, you can run Pulsar in standalone mode on your machine. The standalone mode includes a Pulsar broker, the necessary ZooKeeper and BookKeeper components running inside of a single Java Virtual Machine (JVM) process.
@@ -16,10 +15,14 @@ This tutorial guides you through every step of the installation process.
 
 ### System requirements
 
-Pulsar is currently available for **MacOS** and **Linux**. To use Pulsar, you need to install Java 8 from [Oracle download center](http://www.oracle.com/).
+Pulsar is currently available for **MacOS** and **Linux**. To use Pulsar, you need to install [Java 8](https://adoptopenjdk.net/?variant=openjdk8) or [Java 11](https://adoptopenjdk.net/?variant=openjdk11).
 
 > #### Tip
 > By default, Pulsar allocates 2G JVM heap memory to start. It can be changed in `conf/pulsar_env.sh` file under `PULSAR_MEM`. This is extra options passed into JVM. 
+
+> **Note**
+> 
+> Broker is only supported on 64-bit JVM.
 
 ### Install Pulsar using binary release
 

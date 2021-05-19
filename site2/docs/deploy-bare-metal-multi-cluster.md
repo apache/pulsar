@@ -33,6 +33,10 @@ If you want to deploy a single Pulsar cluster, see [Clusters and Brokers](gettin
 ## System requirement
 Pulsar is currently available for **MacOS** and **Linux**. In order to use Pulsar, you need to install [Java 8](https://adoptopenjdk.net/?variant=openjdk8) or [Java 11](https://adoptopenjdk.net/?variant=openjdk11).
 
+> **Note**
+>
+> Broker is only supported on 64-bit JVM.
+
 ## Install Pulsar
 
 To get started running Pulsar, download a binary tarball release in one of the following ways:

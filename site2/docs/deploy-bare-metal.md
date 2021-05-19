@@ -40,6 +40,10 @@ To run Pulsar on bare metal, the following configuration is recommended:
   * 3 for running a Pulsar broker, and a [BookKeeper](https://bookkeeper.apache.org) bookie
 * A single [DNS](https://en.wikipedia.org/wiki/Domain_Name_System) name covering all of the Pulsar broker hosts
 
+> **Note**
+>
+> Broker is only supported on 64-bit JVM.
+
 > If you do not have enough machines, or to try out Pulsar in cluster mode (and expand the cluster later),
 > you can deploy a full Pulsar configuration on one node, where Zookeeper, the bookie and broker are run on the same machine.
 

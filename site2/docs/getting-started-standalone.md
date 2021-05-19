@@ -20,6 +20,10 @@ Pulsar is currently available for **MacOS** and **Linux**. To use Pulsar, you ne
 > #### Tip
 > By default, Pulsar allocates 2G JVM heap memory to start. It can be changed in `conf/pulsar_env.sh` file under `PULSAR_MEM`. This is extra options passed into JVM. 
 
+> **Note**
+> 
+> Broker is only supported on 64-bit JVM.
+
 ### Install Pulsar using binary release
 
 To get started with Pulsar, download a binary tarball release in one of the following ways:
