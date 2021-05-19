@@ -59,6 +59,7 @@ import org.elasticsearch.action.delete.DeleteResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.*;
 import org.elasticsearch.client.indices.CreateIndexRequest;
 import org.elasticsearch.client.indices.CreateIndexResponse;
@@ -69,6 +70,7 @@ import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
 import javax.net.ssl.HostnameVerifier;
@@ -432,28 +434,17 @@ public class ElasticSearchClient {
     }
 
     @VisibleForTesting
-    protected boolean addBlock(String indexName) throws IOException {
-        return client.indices().putSettings(new UpdateSettingsRequest()
-        .settings(Settings.builder().put("index.blocks.write","true").build()),
-                RequestOptions.DEFAULT).isAcknowledged();
-    }
-
-    @VisibleForTesting
-    protected boolean removeBlock(String indexName) throws IOException {
-        return client.indices().putSettings(new UpdateSettingsRequest()
-                        .settings(Settings.builder().put("index.blocks.write",false).build()),
-                RequestOptions.DEFAULT).isAcknowledged();
-    }
-
-    @VisibleForTesting
     protected long totalHits(String indexName) throws IOException {
         client.indices().refresh(new RefreshRequest(indexName), RequestOptions.DEFAULT);
-        return client.search(
+        SearchResponse response =  client.search(
                 new SearchRequest()
                         .indices(indexName)
                         .source(new SearchSourceBuilder().query(QueryBuilders.matchAllQuery())),
-                RequestOptions.DEFAULT)
-                .getHits().getTotalHits().value;
+                RequestOptions.DEFAULT);
+        for(SearchHit searchHit : response.getHits()) {
+            System.out.println(searchHit.getId()+": "+searchHit.getFields());
+        }
+        return response.getHits().getTotalHits().value;
     }
 
     @VisibleForTesting

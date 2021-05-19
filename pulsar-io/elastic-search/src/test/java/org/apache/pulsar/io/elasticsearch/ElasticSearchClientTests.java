@@ -195,13 +195,11 @@ public class ElasticSearchClientTests {
         assertEquals(mockRecord.failed, 0);
         assertEquals(client.totalHits(index), 2);
 
-        // wait the end of the elasticsearch container pause.
-        Thread.sleep(11000L);
+        chaosContainer.stop();
+        client.flush();
         assertEquals(mockRecord.acked, 3);
         assertEquals(mockRecord.failed, 0);
         assertEquals(client.totalHits(index), 3);
-
-        chaosContainer.stop();
     }
 
     @Test
