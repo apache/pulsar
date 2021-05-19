@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.core;
+package org.apache.pulsar.io.elasticsearch;
 
 import lombok.Data;
 import lombok.experimental.Accessors;
@@ -26,7 +26,7 @@ import java.io.Serializable;
 
 @Data
 @Accessors(chain = true)
-public class SslConfig  implements Serializable {
+public class ElasticsearchSslConfig implements Serializable {
 
     private static final long serialVersionUID = 1L;
 

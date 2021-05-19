@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.io.elasticsearch;
 
-import org.apache.pulsar.io.core.SslConfig;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 import org.testcontainers.utility.MountableFile;
@@ -27,7 +26,6 @@ import org.testng.annotations.Test;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -71,7 +69,7 @@ public class ElasticsearchClientSslTests {
                     .setIndexName(INDEX)
                     .setUsername("elastic")
                     .setPassword("elastic")
-                    .setSsl(new SslConfig()
+                    .setSsl(new ElasticsearchSslConfig()
                             .setEnabled(true)
                             .setTruststorePath(sslResourceDir + "/truststore.jks")
                             .setTruststorePassword("changeit"));
@@ -108,7 +106,7 @@ public class ElasticsearchClientSslTests {
                     .setIndexName(INDEX)
                     .setUsername("elastic")
                     .setPassword("elastic")
-                    .setSsl(new SslConfig()
+                    .setSsl(new ElasticsearchSslConfig()
                             .setEnabled(true)
                             .setProtocols("TLSv1.2")
                             .setHostnameVerification(true)
@@ -146,7 +144,7 @@ public class ElasticsearchClientSslTests {
                     .setIndexName(INDEX)
                     .setUsername("elastic")
                     .setPassword("elastic")
-                    .setSsl(new SslConfig()
+                    .setSsl(new ElasticsearchSslConfig()
                             .setEnabled(true)
                             .setHostnameVerification(true)
                             .setTruststorePath(sslResourceDir + "/truststore.jks")

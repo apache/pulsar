@@ -46,7 +46,6 @@ import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.SSLContexts;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.io.core.SslConfig;
 import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.admin.indices.refresh.RefreshRequest;
@@ -503,7 +502,7 @@ public class ElasticsearchClient {
                 ConnectingIOReactor ioReactor = new DefaultConnectingIOReactor(ioReactorConfig);
                 PoolingNHttpClientConnectionManager connManager;
                 if (config.getSsl().isEnabled()) {
-                    SslConfig sslConfig = config.getSsl();
+                    ElasticsearchSslConfig sslConfig = config.getSsl();
                     HostnameVerifier hostnameVerifier = config.getSsl().isHostnameVerification()
                             ? SSLConnectionSocketFactory.getDefaultHostnameVerifier()
                             : new NoopHostnameVerifier();
@@ -534,7 +533,7 @@ public class ElasticsearchClient {
         }
 
         private SSLContext buildSslContext(ElasticsearchConfig config) throws NoSuchAlgorithmException, KeyManagementException, CertificateException, KeyStoreException, IOException, UnrecoverableKeyException {
-            SslConfig sslConfig = config.getSsl();
+            ElasticsearchSslConfig sslConfig = config.getSsl();
             SSLContextBuilder sslContextBuilder = SSLContexts.custom();
             if (!Strings.isNullOrEmpty(sslConfig.getProvider())) {
                 sslContextBuilder.setProvider(sslConfig.getProvider());

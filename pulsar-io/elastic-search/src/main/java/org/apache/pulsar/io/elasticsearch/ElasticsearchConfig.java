@@ -29,7 +29,6 @@ import java.util.Map;
 import lombok.Data;
 import lombok.experimental.Accessors;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.io.core.SslConfig;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 /**
@@ -208,7 +207,7 @@ public class ElasticsearchConfig implements Serializable {
     )
     private String primaryFields = "";
 
-    private SslConfig ssl = new SslConfig();
+    private ElasticsearchSslConfig ssl = new ElasticsearchSslConfig();
 
     @FieldDoc(
             required = false,
