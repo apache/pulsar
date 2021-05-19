@@ -95,7 +95,6 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
         tbClient = TransactionBufferClientImpl.create(
                 ((PulsarClientImpl) pulsarClient),
                 new HashedWheelTimer(new DefaultThreadFactory("transaction-buffer")));
-        eventLoopGroup = new NioEventLoopGroup();
     }
 
     @Override
@@ -115,6 +114,7 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
 
     @Override
     protected void afterPulsarStart() throws Exception {
+        eventLoopGroup = new NioEventLoopGroup();
         brokerServices = new BrokerService[pulsarServices.length];
         AtomicLong atomicLong = new AtomicLong(0);
         for (int i = 0; i < pulsarServices.length; i++) {
