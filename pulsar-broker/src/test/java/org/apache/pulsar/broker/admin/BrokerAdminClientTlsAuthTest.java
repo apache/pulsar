@@ -42,6 +42,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
+@Test(groups = "broker")
 public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
     protected String methodName;
 
@@ -112,6 +113,7 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
 
         /***** Start Broker 2 ******/
         ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setBrokerShutdownTimeoutMs(0L);
         conf.setBrokerServicePort(Optional.of(0));
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePort(Optional.of(0));
@@ -119,6 +121,7 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
         conf.setAdvertisedAddress("localhost");
         conf.setClusterName(this.conf.getClusterName());
         conf.setZookeeperServers("localhost:2181");
+        conf.setConfigurationStoreServers("localhost:3181");
         buildConf(conf);
 
         @Cleanup

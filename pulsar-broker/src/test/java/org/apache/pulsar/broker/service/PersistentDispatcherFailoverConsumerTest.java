@@ -61,6 +61,7 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -91,6 +92,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class PersistentDispatcherFailoverConsumerTest {
 
     private BrokerService brokerService;
@@ -103,13 +105,14 @@ public class PersistentDispatcherFailoverConsumerTest {
     private ChannelHandlerContext channelCtx;
     private LinkedBlockingQueue<CommandActiveConsumerChange> consumerChanges;
     private ZooKeeper mockZk;
-    private PulsarService pulsar;
+    protected PulsarService pulsar;
     final String successTopicName = "persistent://part-perf/global/perf.t1/ptopic";
     final String failTopicName = "persistent://part-perf/global/perf.t1/pfailTopic";
 
     @BeforeMethod
     public void setup() throws Exception {
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
+        svcConfig.setBrokerShutdownTimeoutMs(0L);
         pulsar = spy(new PulsarService(svcConfig));
         doReturn(svcConfig).when(pulsar).getConfiguration();
 
@@ -208,7 +211,7 @@ public class PersistentDispatcherFailoverConsumerTest {
 
     void setupMLAsyncCallbackMocks() {
         ledgerMock = mock(ManagedLedger.class);
-        cursorMock = mock(ManagedCursor.class);
+        cursorMock = mock(ManagedCursorImpl.class);
 
         doReturn(new ArrayList<Object>()).when(ledgerMock).getCursors();
         doReturn("mockCursor").when(cursorMock).getName();
@@ -238,7 +241,8 @@ public class PersistentDispatcherFailoverConsumerTest {
         doAnswer(new Answer<Object>() {
             @Override
             public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                ((AddEntryCallback) invocationOnMock.getArguments()[1]).addComplete(new PositionImpl(1, 1), null);
+                ((AddEntryCallback) invocationOnMock.getArguments()[1]).addComplete(
+                        new PositionImpl(1, 1), null, null);
                 return null;
             }
         }).when(ledgerMock).asyncAddEntry(any(byte[].class), any(AddEntryCallback.class), any());

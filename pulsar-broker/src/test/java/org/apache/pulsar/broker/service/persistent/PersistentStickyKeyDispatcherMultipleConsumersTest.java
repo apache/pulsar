@@ -56,6 +56,7 @@ import static org.testng.Assert.fail;
 
 @PrepareForTest({ DispatchRateLimiter.class })
 @PowerMockIgnore({"org.apache.logging.log4j.*"})
+@Test(groups = "broker")
 public class PersistentStickyKeyDispatcherMultipleConsumersTest {
 
     private PulsarService pulsarMock;
@@ -220,7 +221,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
                 return null;
             }).when(cursorMock).asyncReadEntriesOrWait(
                     anyInt(), anyLong(), any(PersistentStickyKeyDispatcherMultipleConsumers.class),
-                    eq(PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal));
+                    eq(PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal), any());
         } catch (Exception e) {
             fail("Failed to set to field", e);
         }

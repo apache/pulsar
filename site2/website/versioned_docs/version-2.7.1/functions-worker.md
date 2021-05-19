@@ -36,6 +36,7 @@ Pay attention to the following required settings when configuring functions-work
 
 - `numFunctionPackageReplicas`: The number of replicas to store function packages. The default value is `1`, which is good for standalone deployment. For production deployment, to ensure high availability, set it to be larger than `2`.
 - `pulsarFunctionsCluster`: Set the value to your Pulsar cluster name (same as the `clusterName` setting in the broker configuration).
+- `initializedDlogMetadata`: Whether to initialize distributed log metadata in runtime. If it is set to `true`, you must ensure that it has been initialized by `bin/pulsarinitialize-cluster-metadata` command.
 
 If authentication is enabled on the BookKeeper cluster, configure the following BookKeeper authentication settings.
 

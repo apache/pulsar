@@ -23,6 +23,7 @@
     <test name="pulsar-sql-test-suite" preserve-order="true" >
         <classes>
             <class name="org.apache.pulsar.tests.integration.presto.TestBasicPresto" />
+            <class name="org.apache.pulsar.tests.integration.presto.TestPrestoQueryTieredStorage" />
         </classes>
     </test>
 </suite>

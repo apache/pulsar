@@ -18,8 +18,15 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.testng.Assert.fail;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
@@ -27,23 +34,12 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
-
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-
-import static org.junit.Assert.fail;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
-
-
+@Test(groups = "broker-impl")
 public class ConsumerAckResponseTest extends ProducerConsumerBase {
 
     private final static TransactionImpl transaction = mock(TransactionImpl.class);
@@ -67,7 +63,7 @@ public class ConsumerAckResponseTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testAckResponse() throws PulsarClientException, InterruptedException, ExecutionException {
+    public void testAckResponse() throws PulsarClientException, InterruptedException {
         String topic = "testAckResponse";
         @Cleanup
         Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)

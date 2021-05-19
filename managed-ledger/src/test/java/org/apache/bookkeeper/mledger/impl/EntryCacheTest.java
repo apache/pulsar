@@ -52,9 +52,8 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
 
     private ManagedLedgerImpl ml;
 
-    @BeforeMethod
-    public void setUp(Method method) throws Exception {
-        super.setUp(method);
+    @Override
+    protected void setUpTestCase() throws Exception {
         ml = mock(ManagedLedgerImpl.class);
         when(ml.getName()).thenReturn("name");
         when(ml.getExecutor()).thenReturn(executor);

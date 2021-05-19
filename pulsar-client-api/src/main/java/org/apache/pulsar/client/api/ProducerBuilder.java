@@ -335,7 +335,7 @@ public interface ProducerBuilder<T> extends Cloneable {
      * so, consumer will not be able to consume and ack those messages. So, those messages can
      * be only discared by msg ttl) Or configure
      * {@link ConsumerBuilder#expireTimeOfIncompleteChunkedMessage()}
-     * 5. Consumer configuration: consumer should also configure receiverQueueSize and maxPendingChuckedMessage
+     * 5. Consumer configuration: consumer should also configure receiverQueueSize and maxPendingChunkedMessage
      * </pre>
      * @param enableChunking
      * @return
@@ -352,6 +352,30 @@ public interface ProducerBuilder<T> extends Cloneable {
      * @return the producer builder instance
      */
     ProducerBuilder<T> cryptoKeyReader(CryptoKeyReader cryptoKeyReader);
+
+    /**
+     * Sets the default implementation of {@link CryptoKeyReader}.
+     *
+     * <p>Configure the key reader to be used to encrypt the message payloads.
+     *
+     * @param publicKey
+     *            the public key that is always used to encrypt message payloads.
+     * @return the producer builder instance
+     * @since 2.8.0
+     */
+    ProducerBuilder<T> defaultCryptoKeyReader(String publicKey);
+
+    /**
+     * Sets the default implementation of {@link CryptoKeyReader}.
+     *
+     * <p>Configure the key reader to be used to encrypt the message payloads.
+     *
+     * @param publicKeys
+     *            the map of public key names and their URIs used to encrypt message payloads.
+     * @return the producer builder instance
+     * @since 2.8.0
+     */
+    ProducerBuilder<T> defaultCryptoKeyReader(Map<String, String> publicKeys);
 
     /**
      * Add public encryption key, used by producer to encrypt the data key.

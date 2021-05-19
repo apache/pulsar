@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -26,23 +27,29 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
-import org.junit.Test;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class CurrentLedgerRolloverIfFullTest extends BrokerTestBase {
+
+    @BeforeClass
     @Override
     protected void setup() throws Exception {
-
+        baseSetup();
     }
 
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
-
+        internalCleanup();
     }
 
     @Test
     public void testCurrentLedgerRolloverIfFull() throws Exception {
-        super.baseSetup();
         final String topicName = "persistent://prop/ns-abc/CurrentLedgerRolloverIfFullTest";
 
         @Cleanup
@@ -77,21 +84,28 @@ public class CurrentLedgerRolloverIfFullTest extends BrokerTestBase {
 
         for (int i = 0; i < msgNum; i++) {
             Message<byte[]> msg = consumer.receive(2, TimeUnit.SECONDS);
-            Assert.assertTrue(msg != null);
+            Assert.assertNotNull(msg);
             consumer.acknowledge(msg);
         }
 
         // all the messages have been acknowledged
         // and all the ledgers have been removed except the the last ledger
-        Thread.sleep(500);
-        Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 1);
-        Assert.assertNotEquals(managedLedger.getCurrentLedgerSize(), 0);
+        Awaitility.await()
+                .pollInterval(Duration.ofMillis(500L))
+                .untilAsserted(() -> {
+                            Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 1);
+                            Assert.assertNotEquals(managedLedger.getCurrentLedgerSize(), 0);
+                        });
 
         // trigger a ledger rollover
-        // the last ledger will be closed and removed and we have one ledger for empty
         managedLedger.rollCurrentLedgerIfFull();
-        Thread.sleep(1000);
-        Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 1);
-        Assert.assertEquals(managedLedger.getTotalSize(), 0);
+
+        // the last ledger will be closed and removed and we have one ledger for empty
+        Awaitility.await()
+                .pollInterval(Duration.ofMillis(1000L))
+                .untilAsserted(() -> {
+                    Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 1);
+                    Assert.assertEquals(managedLedger.getTotalSize(), 0);
+                });
     }
 }

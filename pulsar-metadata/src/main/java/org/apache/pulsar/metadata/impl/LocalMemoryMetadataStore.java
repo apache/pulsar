@@ -18,19 +18,19 @@
  */
 package org.apache.pulsar.metadata.impl;
 
-import java.io.IOException;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.NavigableMap;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicLong;
 
 import lombok.Data;
 
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.pulsar.metadata.api.GetResult;
-import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
@@ -38,8 +38,10 @@ import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
+import org.apache.pulsar.metadata.api.extended.CreateOption;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
-public class LocalMemoryMetadataStore extends AbstractMetadataStore implements MetadataStore {
+public class LocalMemoryMetadataStore extends AbstractMetadataStore implements MetadataStoreExtended {
 
     @Data
     private static class Value {
@@ -47,12 +49,15 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
         final byte[] data;
         final long createdTimestamp;
         final long modifiedTimestamp;
+        final boolean ephemeral;
     }
 
     private final NavigableMap<String, Value> map;
+    private final AtomicLong sequentialIdGenerator;
 
-    public LocalMemoryMetadataStore(String metadataURL, MetadataStoreConfig metadataStoreConfig) throws IOException {
+    public LocalMemoryMetadataStore(String metadataURL, MetadataStoreConfig metadataStoreConfig) {
         map = new TreeMap<>();
+        sequentialIdGenerator = new AtomicLong();
     }
 
     @Override
@@ -64,7 +69,8 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
         Value v = map.get(path);
         if (v != null) {
             return FutureUtils.value(
-                    Optional.of(new GetResult(v.data, new Stat(v.version, v.createdTimestamp, v.modifiedTimestamp))));
+                    Optional.of(new GetResult(v.data, new Stat(path, v.version, v.createdTimestamp, v.modifiedTimestamp,
+                            v.isEphemeral(), true))));
         } else {
             return FutureUtils.value(Optional.empty());
         }
@@ -102,7 +108,13 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
     }
 
     @Override
-    public synchronized CompletableFuture<Stat> put(String path, byte[] data, Optional<Long> optExpectedVersion) {
+    public CompletableFuture<Stat> put(String path, byte[] value, Optional<Long> expectedVersion) {
+        return put(path, value, expectedVersion, EnumSet.noneOf(CreateOption.class));
+    }
+
+    @Override
+    public synchronized CompletableFuture<Stat> storePut(String path, byte[] data, Optional<Long> optExpectedVersion,
+            EnumSet<CreateOption> options) {
         if (!isValidPath(path)) {
             return FutureUtils.exception(new MetadataStoreException(""));
         }
@@ -110,10 +122,14 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
         boolean hasVersion = optExpectedVersion.isPresent();
         int expectedVersion = optExpectedVersion.orElse(-1L).intValue();
 
+        if (options.contains(CreateOption.Sequential)) {
+            path += Long.toString(sequentialIdGenerator.getAndIncrement());
+        }
+
         long now = System.currentTimeMillis();
 
         if (hasVersion && expectedVersion == -1) {
-            Value newValue = new Value(0, data, now, now);
+            Value newValue = new Value(0, data, now, now, options.contains(CreateOption.Ephemeral));
             Value existingValue = map.putIfAbsent(path, newValue);
             if (existingValue != null) {
                 return FutureUtils.exception(new BadVersionException(""));
@@ -123,7 +139,7 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
                 if (parent != null) {
                     receivedNotification(new Notification(NotificationType.ChildrenChanged, parent));
                 }
-                return FutureUtils.value(new Stat(0, now, now));
+                return FutureUtils.value(new Stat(path, 0, now, now, newValue.isEphemeral(), true));
             }
         } else {
             Value existingValue = map.get(path);
@@ -133,7 +149,8 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
             } else {
                 long newVersion = existingValue != null ? existingValue.version + 1 : 0;
                 long createdTimestamp = existingValue != null ? existingValue.createdTimestamp : now;
-                Value newValue = new Value(newVersion, data, createdTimestamp, now);
+                Value newValue = new Value(newVersion, data, createdTimestamp, now,
+                        options.contains(CreateOption.Ephemeral));
                 map.put(path, newValue);
 
                 NotificationType type = existingValue == null ? NotificationType.Created : NotificationType.Modified;
@@ -145,13 +162,13 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
                     }
                 }
                 return FutureUtils
-                        .value(new Stat(newValue.version, newValue.createdTimestamp, newValue.modifiedTimestamp));
+                        .value(new Stat(path, newValue.version, newValue.createdTimestamp, newValue.modifiedTimestamp, false, true));
             }
         }
     }
 
     @Override
-    public synchronized CompletableFuture<Void> delete(String path, Optional<Long> optExpectedVersion) {
+    public synchronized CompletableFuture<Void> storeDelete(String path, Optional<Long> optExpectedVersion) {
         if (!isValidPath(path)) {
             return FutureUtils.exception(new MetadataStoreException(""));
         }
@@ -159,7 +176,7 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
         Value value = map.get(path);
         if (value == null) {
             return FutureUtils.exception(new NotFoundException(""));
-        } else if (value != null && optExpectedVersion.isPresent() && optExpectedVersion.get() != value.version) {
+        } else if (optExpectedVersion.isPresent() && optExpectedVersion.get() != value.version) {
             return FutureUtils.exception(new BadVersionException(""));
         } else {
             map.remove(path);
@@ -177,16 +194,6 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
             return false;
         }
 
-        return path != "/" || !path.endsWith("/");
-    }
-
-    private static String parent(String path) {
-        int idx = path.lastIndexOf('/');
-        if (idx <= 0) {
-            // No parent
-            return null;
-        }
-
-        return path.substring(0, idx);
+        return !path.equals("/") || !path.endsWith("/");
     }
 }

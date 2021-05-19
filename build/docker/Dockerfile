@@ -24,11 +24,15 @@ RUN mkdir /pulsar
 ADD protobuf.patch /pulsar
 
 RUN apt-get update && \
+    apt-get install -y software-properties-common && \
+    add-apt-repository ppa:openjdk-r/ppa && \
+    apt-get update && \
     apt-get install -y tig g++ cmake libssl-dev libcurl4-openssl-dev \
-                liblog4cxx-dev libprotobuf-dev libboost-all-dev google-mock libgtest-dev \
-                libjsoncpp-dev libxml2-utils protobuf-compiler wget \
-                curl doxygen openjdk-8-jdk-headless clang-format-5.0 \
-                gnupg2 golang-1.10-go zip unzip libzstd-dev libsnappy-dev
+                liblog4cxx-dev libprotobuf-dev google-mock libgtest-dev \
+                libboost-dev libboost-program-options-dev libboost-system-dev libboost-python-dev \
+                libxml2-utils protobuf-compiler wget \
+                curl doxygen openjdk-8-jdk-headless openjdk-11-jdk-headless clang-format-5.0 \
+                gnupg2 golang-1.13-go zip unzip libzstd-dev libsnappy-dev python3-pip libpython-dev
 
 # Compile and install gtest
 RUN cd /usr/src/gtest && cmake . && make && cp libgtest.a /usr/lib
@@ -40,6 +44,7 @@ RUN cd /usr/src/gmock && cmake . && make && cp libgmock.a /usr/lib
 RUN git clone https://github.com/google/gtest-parallel.git
 
 ENV JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-amd64
+ENV JAVA_HOME_11=/usr/lib/jvm/java-1.11.0-openjdk-amd64
 
 ## Website build dependencies
 
@@ -51,7 +56,7 @@ ENV PATH "$PATH:/usr/local/rvm/bin"
 RUN rvm install 2.4.1
 
 # Install nodejs and yarn
-RUN curl -sL https://deb.nodesource.com/setup_10.x | bash -
+RUN curl -sL https://deb.nodesource.com/setup_12.x | bash -
 RUN apt-get install -y nodejs
 RUN curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add -
 RUN echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list
@@ -62,12 +67,12 @@ RUN wget https://artifacts.crowdin.com/repo/deb/crowdin.deb -O crowdin.deb
 RUN dpkg -i crowdin.deb
 
 # Install PIP and PDoc
-RUN wget https://bootstrap.pypa.io/get-pip.py && python get-pip.py
-RUN pip install pdoc
+RUN wget https://bootstrap.pypa.io/pip/2.7/get-pip.py && python get-pip.py && rm get-pip.py
+RUN pip3 install pdoc
 
 # Install Protobuf doc generator (requires Go)
 ENV GOPATH "$HOME/go"
-ENV PATH "/usr/lib/go-1.10/bin:$GOPATH/bin:$PATH"
+ENV PATH "/usr/lib/go-1.13/bin:$GOPATH/bin:$PATH"
 RUN go get -u github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
 
 # Build the patched protoc
@@ -80,7 +85,9 @@ RUN git clone https://github.com/google/protobuf.git /pulsar/protobuf && \
     make
 
 # Installation
+ARG MAVEN_VERSION=3.6.3
 ARG MAVEN_FILENAME="apache-maven-${MAVEN_VERSION}-bin.tar.gz"
+ARG MAVEN_HOME=/opt/maven
 ARG MAVEN_URL="http://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/${MAVEN_FILENAME}"
 ARG MAVEN_TMP="/tmp/${MAVEN_FILENAME}"
 RUN wget --no-verbose -O ${MAVEN_TMP} ${MAVEN_URL} 

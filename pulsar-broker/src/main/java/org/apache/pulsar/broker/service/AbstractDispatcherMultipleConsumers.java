@@ -72,6 +72,8 @@ public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDi
 
     public abstract boolean isConsumerAvailable(Consumer consumer);
 
+    protected void cancelPendingRead() {}
+
     /**
      * <pre>
      * Broker gives more priority while dispatching messages. Here, broker follows descending priorities. (eg:

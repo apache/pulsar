@@ -189,9 +189,6 @@ ledgerDirectories=data/bookkeeper/ledgers
 
 # Point to local ZK quorum
 zkServers=zk1.example.com:2181,zk2.example.com:2181,zk3.example.com:2181
-
-# Change the ledger manager type
-ledgerManagerType=hierarchical
 ```
 
 To change the ZooKeeper root path that BookKeeper uses, use `zkLedgersRootPath=/MY-PREFIX/ledgers` instead of `zkServers=localhost:2181/MY-PREFIX`.

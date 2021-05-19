@@ -21,6 +21,7 @@ package org.apache.pulsar.testclient;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
+import com.beust.jcommander.Parameters;
 import com.google.common.util.concurrent.RateLimiter;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -171,6 +172,7 @@ public class LoadSimulationClient {
     }
 
     // JCommander arguments for starting a LoadSimulationClient.
+    @Parameters(commandDescription = "Simulate client load by maintaining producers and consumers for topics.")
     private static class MainArguments {
         @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)
         boolean help;
@@ -342,8 +344,9 @@ public class LoadSimulationClient {
         } catch (ParameterException e) {
             System.out.println(e.getMessage());
             jc.usage();
-            System.exit(-1);
+            PerfClientUtils.exit(-1);
         }
+        PerfClientUtils.printJVMInformation(log);
         (new LoadSimulationClient(mainArguments)).run();
     }
 

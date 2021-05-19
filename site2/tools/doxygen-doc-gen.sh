@@ -21,14 +21,17 @@
 set -x -e
 
 ROOT_DIR=$(git rev-parse --show-toplevel)
-VERSION=`${ROOT_DIR}/src/get-project-version.py`
+VERSION=$("$ROOT_DIR/src/get-project-version.py")
 DOXYGEN=doxygen
 
-mkdir -p $ROOT_DIR/generated-site/api/cpp
+mkdir -p "$ROOT_DIR/generated-site/api/cpp"
 
 (
-  cd $ROOT_DIR/pulsar-client-cpp
-  $DOXYGEN Doxyfile
+  cd "$ROOT_DIR/pulsar-client-cpp"
+  "$DOXYGEN" Doxyfile
 )
 
-mv $ROOT_DIR/target/doxygen/html $ROOT_DIR/generated-site/api/cpp/${VERSION}
+# Latest docs in html dir
+cp -r "$ROOT_DIR/target/doxygen/html" "$ROOT_DIR/generated-site/api/cpp/"
+# Versioned docs in VERSION dir
+mv "$ROOT_DIR/target/doxygen/html" "$ROOT_DIR/generated-site/api/cpp/$VERSION"

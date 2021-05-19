@@ -19,6 +19,7 @@
 package org.apache.pulsar.admin.cli;
 
 import java.util.Arrays;
+import java.util.function.Supplier;
 
 import org.apache.commons.lang3.StringUtils;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -38,24 +39,24 @@ public class CmdClusters extends CmdBase {
     @Parameters(commandDescription = "List the existing clusters")
     private class List extends CliCommand {
         void run() throws PulsarAdminException {
-            print(admin.clusters().getClusters());
+            print(getAdmin().clusters().getClusters());
         }
     }
 
     @Parameters(commandDescription = "Get the configuration data for the specified cluster")
     private class Get extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
 
         void run() throws PulsarAdminException {
             String cluster = getOneArgument(params);
-            print(admin.clusters().getCluster(cluster));
+            print(getAdmin().clusters().getCluster(cluster));
         }
     }
 
     @Parameters(commandDescription = "Provisions a new cluster. This operation requires Pulsar super-user privileges")
     private class Create extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = "--url", description = "service-url", required = false)
@@ -73,20 +74,26 @@ public class CmdClusters extends CmdBase {
         @Parameter(names = "--proxy-url", description = "Proxy-service url when client would like to connect to broker via proxy.", required = false)
         private String proxyServiceUrl;
 
+        @Parameter(names = "--auth-plugin", description = "authentication plugin", required = false)
+        private String authenticationPlugin;
+
+        @Parameter(names = "--auth-parameters", description = "authentication parameters", required = false)
+        private String authenticationParameters;
+
         @Parameter(names = "--proxy-protocol", description = "protocol to decide type of proxy routing eg: SNI", required = false)
         private ProxyProtocol proxyProtocol;
 
         void run() throws PulsarAdminException {
             String cluster = getOneArgument(params);
-            admin.clusters().createCluster(cluster,
+            getAdmin().clusters().createCluster(cluster,
                     new ClusterData(serviceUrl, serviceUrlTls, brokerServiceUrl, brokerServiceUrlTls, proxyServiceUrl,
-                            proxyProtocol));
+                            authenticationPlugin, authenticationParameters, proxyProtocol));
         }
     }
 
     @Parameters(commandDescription = "Update the configuration for a cluster")
     private class Update extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = "--url", description = "service-url", required = false)
@@ -104,50 +111,56 @@ public class CmdClusters extends CmdBase {
         @Parameter(names = "--proxy-url", description = "Proxy-service url when client would like to connect to broker via proxy.", required = false)
         private String proxyServiceUrl;
 
+        @Parameter(names = "--auth-plugin", description = "authentication plugin", required = false)
+        private String authenticationPlugin;
+
+        @Parameter(names = "--auth-parameters", description = "authentication parameters", required = false)
+        private String authenticationParameters;
+
         @Parameter(names = "--proxy-protocol", description = "protocol to decide type of proxy routing eg: SNI", required = false)
         private ProxyProtocol proxyProtocol;
 
         void run() throws PulsarAdminException {
             String cluster = getOneArgument(params);
-            admin.clusters().updateCluster(cluster, new ClusterData(serviceUrl, serviceUrlTls, brokerServiceUrl,
-                    brokerServiceUrlTls, proxyServiceUrl, proxyProtocol));
+            getAdmin().clusters().updateCluster(cluster, new ClusterData(serviceUrl, serviceUrlTls, brokerServiceUrl,
+                    brokerServiceUrlTls, proxyServiceUrl, authenticationPlugin, authenticationParameters, proxyProtocol));
         }
     }
 
     @Parameters(commandDescription = "Deletes an existing cluster")
     private class Delete extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-a", "--all" }, description = "Delete all data (tenants) of the cluster\n", required = false)
+        @Parameter(names = { "-a", "--all" }, description = "Delete all data (tenants) of the cluster", required = false)
         private boolean deleteAll = false;
 
         void run() throws PulsarAdminException {
             String cluster = getOneArgument(params);
 
             if (deleteAll) {
-                for (String tenant : admin.tenants().getTenants()) {
-                    for (String namespace : admin.namespaces().getNamespaces(tenant)) {
+                for (String tenant : getAdmin().tenants().getTenants()) {
+                    for (String namespace : getAdmin().namespaces().getNamespaces(tenant)) {
                         // Partitioned topic's schema must be deleted by deletePartitionedTopic() but not delete() for each partition
-                        for (String topic : admin.topics().getPartitionedTopicList(namespace)) {
-                            admin.topics().deletePartitionedTopic(topic, true, true);
+                        for (String topic : getAdmin().topics().getPartitionedTopicList(namespace)) {
+                            getAdmin().topics().deletePartitionedTopic(topic, true, true);
                         }
-                        for (String topic : admin.topics().getList(namespace)) {
-                            admin.topics().delete(topic, true, true);
+                        for (String topic : getAdmin().topics().getList(namespace)) {
+                            getAdmin().topics().delete(topic, true, true);
                         }
-                        admin.namespaces().deleteNamespace(namespace, true);
+                        getAdmin().namespaces().deleteNamespace(namespace, true);
                     }
-                    admin.tenants().deleteTenant(tenant);
+                    getAdmin().tenants().deleteTenant(tenant);
                 }
             }
 
-            admin.clusters().deleteCluster(cluster);
+            getAdmin().clusters().deleteCluster(cluster);
         }
     }
 
     @Parameters(commandDescription = "Update peer cluster names")
     private class UpdatePeerClusters extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = "--peer-clusters", description = "Comma separated peer-cluster names [Pass empty string \"\" to delete list]", required = true)
@@ -157,26 +170,26 @@ public class CmdClusters extends CmdBase {
             String cluster = getOneArgument(params);
             java.util.LinkedHashSet<String> clusters = StringUtils.isBlank(peerClusterNames) ? null
                     : Sets.newLinkedHashSet(Arrays.asList(peerClusterNames.split(",")));
-            admin.clusters().updatePeerClusterNames(cluster, clusters);
+            getAdmin().clusters().updatePeerClusterNames(cluster, clusters);
         }
     }
 
     @Parameters(commandDescription = "Get list of peer-clusters")
     private class GetPeerClusters extends CliCommand {
         
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
         
         void run() throws PulsarAdminException {
             String cluster = getOneArgument(params);
-            print(admin.clusters().getPeerClusterNames(cluster));
+            print(getAdmin().clusters().getPeerClusterNames(cluster));
         }
     }
     
     
     @Parameters(commandDescription = "Create a new failure-domain for a cluster. updates it if already created.")
     private class CreateFailureDomain extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = "--domain-name", description = "domain-name", required = true)
@@ -189,13 +202,13 @@ public class CmdClusters extends CmdBase {
             String cluster = getOneArgument(params);
             FailureDomain domain = new FailureDomain();
             domain.setBrokers((isNotBlank(brokerList) ? Sets.newHashSet(brokerList.split(",")): null));
-            admin.clusters().createFailureDomain(cluster, domainName, domain);
+            getAdmin().clusters().createFailureDomain(cluster, domainName, domain);
         }
     }
 
     @Parameters(commandDescription = "Update failure-domain for a cluster. Creates a new one if not exist.")
     private class UpdateFailureDomain extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = "--domain-name", description = "domain-name", required = true)
@@ -208,13 +221,13 @@ public class CmdClusters extends CmdBase {
             String cluster = getOneArgument(params);
             FailureDomain domain = new FailureDomain();
             domain.setBrokers((isNotBlank(brokerList) ? Sets.newHashSet(brokerList.split(",")) : null));
-            admin.clusters().updateFailureDomain(cluster, domainName, domain);
+            getAdmin().clusters().updateFailureDomain(cluster, domainName, domain);
         }
     }
     
     @Parameters(commandDescription = "Deletes an existing failure-domain")
     private class DeleteFailureDomain extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = "--domain-name", description = "domain-name", required = true)
@@ -222,25 +235,25 @@ public class CmdClusters extends CmdBase {
 
         void run() throws PulsarAdminException {
             String cluster = getOneArgument(params);
-            admin.clusters().deleteFailureDomain(cluster, domainName);
+            getAdmin().clusters().deleteFailureDomain(cluster, domainName);
         }
     }
 
     @Parameters(commandDescription = "List the existing failure-domains for a cluster")
     private class ListFailureDomains extends CliCommand {
         
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
         
         void run() throws PulsarAdminException {
             String cluster = getOneArgument(params);
-            print(admin.clusters().getFailureDomains(cluster));
+            print(getAdmin().clusters().getFailureDomains(cluster));
         }
     }
 
     @Parameters(commandDescription = "Get the configuration brokers of a failure-domain")
     private class GetFailureDomain extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
         
         @Parameter(names = "--domain-name", description = "domain-name", required = true)
@@ -248,11 +261,11 @@ public class CmdClusters extends CmdBase {
 
         void run() throws PulsarAdminException {
             String cluster = getOneArgument(params);
-            print(admin.clusters().getFailureDomain(cluster, domainName));
+            print(getAdmin().clusters().getFailureDomain(cluster, domainName));
         }
     }
     
-    public CmdClusters(PulsarAdmin admin) {
+    public CmdClusters(Supplier<PulsarAdmin> admin) {
         super("clusters", admin);
         jcommander.addCommand("get", new Get());
         jcommander.addCommand("create", new Create());

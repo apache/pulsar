@@ -19,7 +19,6 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-
 import com.google.common.base.Objects;
 import com.google.common.collect.ComparisonChain;
 import org.apache.bookkeeper.mledger.Position;
@@ -125,7 +124,6 @@ public class PositionImpl implements Position, Comparable<PositionImpl> {
             PositionImpl other = (PositionImpl) obj;
             return ledgerId == other.ledgerId && entryId == other.entryId;
         }
-
         return false;
     }
 

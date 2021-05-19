@@ -388,4 +388,13 @@ public class KeyValueSchemaTest {
         assertEquals(foo, fooBack);
         assertEquals(bar, barBack);
     }
+
+    @Test
+    public void testKeyValueSchemaSeparatedEncoding() {
+        KeyValueSchema<String, String> keyValueSchema = (KeyValueSchema<String,String>)
+                KeyValueSchema.of(Schema.STRING, Schema.STRING, KeyValueEncodingType.SEPARATED);
+        KeyValueSchema<String, String> keyValueSchema2 = (KeyValueSchema<String,String>)
+                AutoConsumeSchema.getSchema(keyValueSchema.getSchemaInfo());
+        assertEquals(keyValueSchema.getKeyValueEncodingType(), keyValueSchema2.getKeyValueEncodingType());
+    }
 }

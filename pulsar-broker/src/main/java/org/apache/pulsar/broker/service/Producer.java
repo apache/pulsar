@@ -35,7 +35,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
-import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicClosedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
 import org.apache.pulsar.broker.service.Topic.PublishContext;
@@ -67,10 +66,9 @@ public class Producer {
     private final long producerId;
     private final String appId;
     private Rate msgIn;
-    private Rate chuckedMessageRate;
+    private Rate chunkedMessageRate;
     // it records msg-drop rate only for non-persistent topic
     private final Rate msgDrop;
-    private AuthenticationDataSource authenticationData;
 
     private volatile long pendingPublishAcks = 0;
     private static final AtomicLongFieldUpdater<Producer> pendingPublishAcksUpdater = AtomicLongFieldUpdater
@@ -91,6 +89,7 @@ public class Producer {
     private final Map<String, String> metadata;
 
     private final SchemaVersion schemaVersion;
+    private final String clientAddress; // IP address only, no port number included
 
     public Producer(Topic topic, TransportCnx cnx, long producerId, String producerName, String appId,
             boolean isEncrypted, Map<String, String> metadata, SchemaVersion schemaVersion, long epoch,
@@ -105,9 +104,8 @@ public class Producer {
         this.epoch = epoch;
         this.closeFuture = new CompletableFuture<>();
         this.appId = appId;
-        this.authenticationData = cnx.getAuthenticationData();
         this.msgIn = new Rate();
-        this.chuckedMessageRate = new Rate();
+        this.chunkedMessageRate = new Rate();
         this.isNonPersistentTopic = topic instanceof NonPersistentTopic;
         this.msgDrop = this.isNonPersistentTopic ? new Rate() : null;
 
@@ -134,6 +132,8 @@ public class Producer {
         this.schemaVersion = schemaVersion;
         this.accessMode = accessMode;
         this.topicEpoch = topicEpoch;
+
+        this.clientAddress = cnx.clientSourceAddress();
     }
 
     @Override
@@ -425,7 +425,7 @@ public class Producer {
                     ledgerId, entryId);
             producer.cnx.completedSendOperation(producer.isNonPersistentTopic, msgSize);
             if (this.chunked) {
-                producer.chuckedMessageRate.recordEvent();
+                producer.chunkedMessageRate.recordEvent();
             }
             producer.publishOperationCompleted();
             recycle();
@@ -573,12 +573,12 @@ public class Producer {
 
     public void updateRates() {
         msgIn.calculateRate();
-        chuckedMessageRate.calculateRate();
+        chunkedMessageRate.calculateRate();
         stats.msgRateIn = msgIn.getRate();
         stats.msgThroughputIn = msgIn.getValueRate();
         stats.averageMsgSize = msgIn.getAverageValue();
-        stats.chunkedMessageRate = chuckedMessageRate.getRate();
-        if (chuckedMessageRate.getCount() > 0 && this.topic instanceof PersistentTopic) {
+        stats.chunkedMessageRate = chunkedMessageRate.getRate();
+        if (chunkedMessageRate.getCount() > 0 && this.topic instanceof PersistentTopic) {
             ((PersistentTopic) this.topic).msgChunkPublished = true;
         }
         if (this.isNonPersistentTopic) {
@@ -625,7 +625,7 @@ public class Producer {
         if (cnx.getBrokerService().getAuthorizationService() != null) {
             try {
                 if (cnx.getBrokerService().getAuthorizationService().canProduce(topicName, appId,
-                        authenticationData)) {
+                        cnx.getAuthenticationData())) {
                     return;
                 }
             } catch (Exception e) {
@@ -663,6 +663,10 @@ public class Producer {
 
     public Optional<Long> getTopicEpoch() {
         return topicEpoch;
+    }
+
+    public String getClientAddress() {
+        return clientAddress;
     }
 
     private static final Logger log = LoggerFactory.getLogger(Producer.class);

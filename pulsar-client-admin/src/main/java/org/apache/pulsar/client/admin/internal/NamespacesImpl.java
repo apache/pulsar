@@ -30,9 +30,11 @@ import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
@@ -616,7 +618,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public int getNamespaceMessageTTL(String namespace) throws PulsarAdminException {
+    public Integer getNamespaceMessageTTL(String namespace) throws PulsarAdminException {
         try {
             return getNamespaceMessageTTLAsync(namespace).
                     get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
@@ -869,6 +871,63 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
+    public void removeDeduplicationStatus(String namespace) throws PulsarAdminException {
+        try {
+            removeDeduplicationStatusAsync(namespace)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> removeDeduplicationStatusAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "deduplication");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public Boolean getDeduplicationStatus(String namespace) throws PulsarAdminException {
+        try {
+            return getDeduplicationStatusAsync(namespace)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Boolean> getDeduplicationStatusAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "deduplication");
+        final CompletableFuture<Boolean> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<Boolean>() {
+                    @Override
+                    public void completed(Boolean enabled) {
+                        future.complete(enabled);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
     public void setDeduplicationStatus(String namespace, boolean enableDeduplication) throws PulsarAdminException {
         try {
             setDeduplicationStatusAsync(namespace, enableDeduplication)
@@ -957,6 +1016,64 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "autoSubscriptionCreation");
         return asyncPostRequest(path, Entity.entity(autoSubscriptionCreationOverride, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void setSubscriptionTypesEnabled(
+            String namespace, Set<SubscriptionType> subscriptionTypesEnabled) throws PulsarAdminException {
+        try {
+            setSubscriptionTypesEnabledAsync(namespace, subscriptionTypesEnabled)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> setSubscriptionTypesEnabledAsync(String namespace,
+                                                                    Set<SubscriptionType> subscriptionTypes) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "subscriptionTypesEnabled");
+        return asyncPostRequest(path, Entity.entity(subscriptionTypes, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public Set<SubscriptionType> getSubscriptionTypesEnabled(String namespace) throws PulsarAdminException {
+        try {
+            return getSubscriptionTypesEnabledAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Set<SubscriptionType>> getSubscriptionTypesEnabledAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "subscriptionTypesEnabled");
+        final CompletableFuture<Set<SubscriptionType>> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<Set<SubscriptionType>>() {
+                    @Override
+                    public void completed(Set<SubscriptionType> subscriptionTypesEnabled) {
+                        future.complete(subscriptionTypesEnabled);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
     }
 
     @Override
@@ -1077,6 +1194,27 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "backlogQuota")
                 .queryParam("backlogQuotaType", BacklogQuotaType.destination_storage.toString());
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public void removePersistence(String namespace) throws PulsarAdminException {
+        try {
+            removePersistenceAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> removePersistenceAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "persistence");
         return asyncDeleteRequest(path);
     }
 
@@ -1234,6 +1372,27 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "retention");
         return asyncPostRequest(path, Entity.entity(retention, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void removeRetention(String namespace) throws PulsarAdminException {
+        try {
+            removeRetentionAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> removeRetentionAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "retention");
+        return asyncDeleteRequest(path);
     }
 
     @Override
@@ -1451,6 +1610,28 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
+    public void removeDispatchRate(String namespace) throws PulsarAdminException {
+        try {
+            removeDispatchRateAsync(namespace).
+                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> removeDispatchRateAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "dispatchRate");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
     public void setDispatchRate(String namespace, DispatchRate dispatchRate) throws PulsarAdminException {
         try {
             setDispatchRateAsync(namespace, dispatchRate).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
@@ -1527,6 +1708,27 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
+    public void removeSubscribeRate(String namespace) throws PulsarAdminException {
+        try {
+            removeSubscribeRateAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> removeSubscribeRateAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "subscribeRate");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
     public SubscribeRate getSubscribeRate(String namespace) throws PulsarAdminException {
         try {
             return getSubscribeRateAsync(namespace).
@@ -1560,6 +1762,29 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
                 });
         return future;
     }
+
+    @Override
+    public void removeSubscriptionDispatchRate(String namespace) throws PulsarAdminException {
+        try {
+            removeSubscriptionDispatchRateAsync(namespace).
+                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> removeSubscriptionDispatchRateAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "subscriptionDispatchRate");
+        return asyncDeleteRequest(path);
+    }
+
 
     @Override
     public void setSubscriptionDispatchRate(String namespace, DispatchRate dispatchRate) throws PulsarAdminException {
@@ -1635,6 +1860,27 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "replicatorDispatchRate");
         return asyncPostRequest(path, Entity.entity(dispatchRate, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void removeReplicatorDispatchRate(String namespace) throws PulsarAdminException {
+        try {
+            removeReplicatorDispatchRateAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> removeReplicatorDispatchRateAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "replicatorDispatchRate");
+        return asyncDeleteRequest(path);
     }
 
     @Override
@@ -1910,6 +2156,28 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "delayedDelivery");
         return asyncPostRequest(path, Entity.entity(delayedDeliveryPolicies, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void removeDelayedDeliveryMessages(String namespace) throws PulsarAdminException {
+        try {
+            removeDelayedDeliveryMessagesAsync(namespace)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> removeDelayedDeliveryMessagesAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "delayedDelivery");
+        return asyncDeleteRequest(path);
     }
 
     @Override
@@ -2197,7 +2465,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public int getMaxConsumersPerTopic(String namespace) throws PulsarAdminException {
+    public Integer getMaxConsumersPerTopic(String namespace) throws PulsarAdminException {
         try {
             return getMaxConsumersPerTopicAsync(namespace).
                     get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
@@ -2254,7 +2522,29 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public int getMaxConsumersPerSubscription(String namespace) throws PulsarAdminException {
+    public void removeMaxConsumersPerTopic(String namespace) throws PulsarAdminException {
+        try {
+            removeMaxConsumersPerTopicAsync(namespace)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> removeMaxConsumersPerTopicAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "maxConsumersPerTopic");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public Integer getMaxConsumersPerSubscription(String namespace) throws PulsarAdminException {
         try {
             return getMaxConsumersPerSubscriptionAsync(namespace).
                     get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
@@ -2313,7 +2603,31 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public int getMaxUnackedMessagesPerConsumer(String namespace) throws PulsarAdminException {
+    public void removeMaxConsumersPerSubscription(String namespace)
+            throws PulsarAdminException {
+        try {
+            removeMaxConsumersPerSubscriptionAsync(namespace)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> removeMaxConsumersPerSubscriptionAsync(
+            String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "maxConsumersPerSubscription");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public Integer getMaxUnackedMessagesPerConsumer(String namespace) throws PulsarAdminException {
         try {
             return getMaxUnackedMessagesPerConsumerAsync(namespace).
                     get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
@@ -2372,7 +2686,29 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public int getMaxUnackedMessagesPerSubscription(String namespace) throws PulsarAdminException {
+    public void removeMaxUnackedMessagesPerConsumer(String namespace) throws PulsarAdminException {
+        try {
+            removeMaxUnackedMessagesPerConsumerAsync(namespace)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> removeMaxUnackedMessagesPerConsumerAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "maxUnackedMessagesPerConsumer");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public Integer getMaxUnackedMessagesPerSubscription(String namespace) throws PulsarAdminException {
         try {
             return getMaxUnackedMessagesPerSubscriptionAsync(namespace).
                     get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
@@ -2431,7 +2767,31 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public long getCompactionThreshold(String namespace) throws PulsarAdminException {
+    public void removeMaxUnackedMessagesPerSubscription(String namespace)
+            throws PulsarAdminException {
+        try {
+            removeMaxUnackedMessagesPerSubscriptionAsync(namespace)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> removeMaxUnackedMessagesPerSubscriptionAsync(
+            String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "maxUnackedMessagesPerSubscription");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public Long getCompactionThreshold(String namespace) throws PulsarAdminException {
         try {
             return getCompactionThresholdAsync(namespace).
                     get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
@@ -2485,6 +2845,28 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "compactionThreshold");
         return asyncPutRequest(path, Entity.entity(compactionThreshold, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void removeCompactionThreshold(String namespace) throws PulsarAdminException {
+        try {
+            removeCompactionThresholdAsync(namespace)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> removeCompactionThresholdAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "compactionThreshold");
+        return asyncDeleteRequest(path);
     }
 
     @Override
@@ -2981,6 +3363,254 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<Void> removeMaxTopicsPerNamespaceAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "maxTopicsPerNamespace");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public CompletableFuture<Void> setPropertyAsync(String namespace, String key, String value) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "property", key, value);
+        return asyncPutRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void setProperty(String namespace, String key, String value) throws PulsarAdminException {
+        try {
+            setPropertyAsync(namespace, key, value)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> setPropertiesAsync(String namespace, Map<String, String> properties) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "properties");
+        return asyncPutRequest(path, Entity.entity(properties, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void setProperties(String namespace, Map<String, String> properties) throws PulsarAdminException {
+        try {
+            setPropertiesAsync(namespace, properties)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public String getNamespaceResourceGroup(String namespace) throws PulsarAdminException {
+        try {
+            return getNamespaceResourceGroupAsync(namespace).
+                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<String> getPropertyAsync(String namespace, String key) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        final CompletableFuture<String> future = new CompletableFuture<>();
+        WebTarget path = namespacePath(ns, "property", key);
+        asyncGetRequest(path, new InvocationCallback<String>() {
+            @Override
+            public void completed(String value) {
+                future.complete(StringUtils.isEmpty(value) ? null : value);
+            }
+
+            @Override
+            public void failed(Throwable throwable) {
+                future.completeExceptionally(getApiException(throwable.getCause()));
+            }
+        });
+        return future;
+    }
+
+    @Override
+    public String getProperty(String namespace, String key) throws PulsarAdminException {
+        try {
+            return getPropertyAsync(namespace, key)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Map<String, String>> getPropertiesAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        final CompletableFuture<Map<String, String>> future = new CompletableFuture<>();
+        WebTarget path = namespacePath(ns, "properties");
+        asyncGetRequest(path, new InvocationCallback<Map<String, String>>() {
+            @Override
+            public void completed(Map<String, String> value) {
+                future.complete(value);
+            }
+
+            @Override
+            public void failed(Throwable throwable) {
+                future.completeExceptionally(getApiException(throwable.getCause()));
+            }
+        });
+        return future;
+    }
+
+    @Override
+    public CompletableFuture<String> getNamespaceResourceGroupAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "resourcegroup");
+        final CompletableFuture<String> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<String>() {
+                    @Override
+                    public void completed(String rgName) {
+                        future.complete(rgName);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
+    public Map<String, String> getProperties(String namespace) throws PulsarAdminException {
+        try {
+            return getPropertiesAsync(namespace)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public void setNamespaceResourceGroup(String namespace, String resourcegroupname) throws PulsarAdminException {
+        try {
+            setNamespaceResourceGroupAsync(namespace, resourcegroupname)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<String> removePropertyAsync(String namespace, String key) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        final CompletableFuture<String> future = new CompletableFuture<>();
+        WebTarget path = namespacePath(ns, "property", key);
+        asyncDeleteRequest(path, new InvocationCallback<String>() {
+            @Override
+            public void completed(String value) {
+                future.complete(StringUtils.isEmpty(value) ? null : value);
+            }
+
+            @Override
+            public void failed(Throwable throwable) {
+                future.completeExceptionally(getApiException(throwable.getCause()));
+            }
+        });
+        return future;
+    }
+
+    @Override
+    public String removeProperty(String namespace, String key) throws PulsarAdminException {
+        try {
+            return removePropertyAsync(namespace, key)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> setNamespaceResourceGroupAsync(String namespace, String resourcegroupname) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "resourcegroup");
+        return asyncPostRequest(path, Entity.entity(resourcegroupname, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void removeNamespaceResourceGroup(String namespace) throws PulsarAdminException {
+        try {
+            removeNamespaceResourceGroupAsync(namespace)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> clearPropertiesAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        final CompletableFuture<String> future = new CompletableFuture<>();
+        WebTarget path = namespacePath(ns, "properties");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public void clearProperties(String namespace) throws PulsarAdminException {
+        try {
+            clearPropertiesAsync(namespace)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> removeNamespaceResourceGroupAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "resourcegroup");
         return asyncDeleteRequest(path);
     }
 

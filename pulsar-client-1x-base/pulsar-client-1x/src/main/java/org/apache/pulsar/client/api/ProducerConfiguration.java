@@ -286,7 +286,7 @@ public class ProducerConfiguration implements Serializable {
      * messages will be compressed at the batch level, leading to a much better compression ratio for similar headers or
      * contents.
      *
-     * When enabled default batch delay is set to 10 ms and default batch size is 1000 messages
+     * When enabled default batch delay is set to 1 ms and default batch size is 1000 messages
      *
      * @see ProducerConfiguration#setBatchingMaxPublishDelay(long, TimeUnit)
      * @since 1.0.36 <br>
@@ -380,7 +380,7 @@ public class ProducerConfiguration implements Serializable {
     }
 
     /**
-     * Set the time period within which the messages sent will be batched <i>default: 10ms</i> if batch messages are
+     * Set the time period within which the messages sent will be batched <i>default: 1ms</i> if batch messages are
      * enabled. If set to a non zero value, messages will be queued until this time interval or until
      *
      * @see ProducerConfiguration#batchingMaxMessages threshold is reached; all messages will be published as a single

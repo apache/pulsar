@@ -36,6 +36,7 @@ import lombok.NoArgsConstructor;
 public class ExternalPulsarConfig {
     private String name;
     private String serviceURL;
+    private String webServiceURL;
     private AuthenticationConfig authConfig;
     private ProducerConfig producerConfig;
 }

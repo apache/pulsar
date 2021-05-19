@@ -129,6 +129,8 @@ In the exclusive and failover subscription modes, consumers only negatively ackn
 
 In the shared and Key_Shared subscription modes, you can negatively acknowledge messages individually.
 
+Be aware that negative acknowledgment on ordered subscription types, such as Exclusive, Failover and Key_Shared, can cause failed messages to arrive consumers out of the original order.
+
 > **Note**
 > If batching is enabled, other messages and the negatively acknowledged messages in the same batch are redelivered to the consumer.
 
@@ -407,7 +409,7 @@ In non-persistent topics, brokers immediately deliver messages to all connected 
 
 > With non-persistent topics, message data lives only in memory. If a message broker fails or message data can otherwise not be retrieved from memory, your message data may be lost. Use non-persistent topics only if you're *certain* that your use case requires it and can sustain it.
 
-By default, non-persistent topics are enabled on Pulsar brokers. You can disable them in the broker's [configuration](reference-configuration.md#broker-enableNonPersistentTopics). You can manage non-persistent topics using the [`pulsar-admin topics`](referencereference--pulsar-admin/#topics-1) interface.
+By default, non-persistent topics are enabled on Pulsar brokers. You can disable them in the broker's [configuration](reference-configuration.md#broker-enableNonPersistentTopics). You can manage non-persistent topics using the `pulsar-admin topics` command. For more information, see [`pulsar-admin`](http://pulsar.apache.org/tools/pulsar-admin/).
 
 ### Performance
 

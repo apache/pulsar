@@ -52,19 +52,11 @@ public interface TransactionBufferProvider {
     }
 
     /**
-     * Open the transaction buffer.
-     *
-     * @return a future represents the result of the operation.
-     *         an instance of {@link TransactionBuffer} is returned
-     *         if the operation succeeds.
-     */
-    CompletableFuture<TransactionBuffer> newTransactionBuffer();
-
-    /**
      * Open the persistent transaction buffer.
      *
      * @param originTopic
+     * @param transactionBufferFuture the transaction buffer future
      * @return
      */
-    CompletableFuture<TransactionBuffer> newTransactionBuffer(Topic originTopic);
+    TransactionBuffer newTransactionBuffer(Topic originTopic, CompletableFuture<Void> transactionBufferFuture);
 }

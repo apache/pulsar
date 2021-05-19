@@ -26,8 +26,9 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
-import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -40,7 +41,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.testng.Assert;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
@@ -48,9 +48,8 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
     ManagedLedgerImpl ml1;
     ManagedLedgerImpl ml2;
 
-    @BeforeMethod
-    public void setup(Method method) throws Exception {
-        super.setUp(method);
+    @Override
+    protected void setUpTestCase() throws Exception {
         OrderedScheduler executor = OrderedScheduler.newSchedulerBuilder().numThreads(1).build();
 
         ml1 = mock(ManagedLedgerImpl.class);
@@ -148,6 +147,38 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         assertEquals(cache1.getSize(), 7);
         assertEquals(cacheManager.getSize(), 7);
     }
+
+    @Test
+    public void cacheSizeUpdate() throws Exception {
+        ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
+        config.setMaxCacheSize(200);
+        config.setCacheEvictionWatermark(0.8);
+
+        factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle(), config);
+
+        EntryCacheManager cacheManager = factory.getEntryCacheManager();
+        EntryCache cache1 = cacheManager.getEntryCache(ml1);
+        List<EntryImpl> entries = new ArrayList<>();
+
+        // Put entries into cache.
+        for (int i = 0; i < 20; i++) {
+            entries.add(EntryImpl.create(1, i, new byte[i + 1]));
+            assertTrue(cache1.insert(entries.get(i)));
+        }
+        assertEquals(210, cacheManager.getSize());
+
+        // Consume some entries.
+        Random random = new Random();
+        for (int i = 0; i < 20; i++) {
+            if (random.nextBoolean()) {
+                (entries.get(i).getDataBuffer()).readBytes(new byte[entries.get(i).getDataBuffer().readableBytes()]);
+            }
+        }
+
+        cacheManager.removeEntryCache(ml1.getName());
+        assertTrue(cacheManager.getSize() > 0);
+    }
+
 
     @Test
     public void cacheDisabled() throws Exception {

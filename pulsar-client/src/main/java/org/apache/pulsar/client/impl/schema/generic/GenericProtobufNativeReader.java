@@ -32,13 +32,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 public class GenericProtobufNativeReader implements SchemaReader<GenericRecord> {
 
-    private Descriptors.Descriptor descriptor;
-    private byte[] schemaVersion;
-    private List<Field> fields;
+    private final Descriptors.Descriptor descriptor;
+    private final byte[] schemaVersion;
+    private final List<Field> fields;
 
     public GenericProtobufNativeReader(Descriptors.Descriptor descriptor) {
         this(descriptor, null);
@@ -77,6 +78,11 @@ public class GenericProtobufNativeReader implements SchemaReader<GenericRecord> 
         } catch (IOException e) {
             throw new SchemaSerializationException(e);
         }
+    }
+
+    @Override
+    public Optional<Object> getNativeSchema() {
+        return Optional.of(descriptor);
     }
 
     private static final Logger log = LoggerFactory.getLogger(GenericProtobufNativeReader.class);

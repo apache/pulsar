@@ -43,6 +43,7 @@ public class PersistentTopicInternalStats {
 
     public List<LedgerInfo> ledgers;
     public Map<String, CursorStats> cursors;
+    public List<LedgerInfo> schemaLedgers;
 
     // LedgerInfo for compacted topic if exist.
     public LedgerInfo compactedLedger;
@@ -56,6 +57,7 @@ public class PersistentTopicInternalStats {
         public long size;
         public boolean offloaded;
         public String metadata;
+        public boolean underReplicated;
     }
 
     /**
@@ -75,6 +77,8 @@ public class PersistentTopicInternalStats {
         public String state;
         public long numberOfEntriesSinceFirstNotAckedMessage;
         public int totalNonContiguousDeletedMessagesRange;
+        public boolean subscriptionHavePendingRead;
+        public boolean subscriptionHavePendingReplayRead;
 
         public Map<String, Long> properties;
     }

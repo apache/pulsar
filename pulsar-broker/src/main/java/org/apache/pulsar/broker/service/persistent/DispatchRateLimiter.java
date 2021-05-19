@@ -143,8 +143,9 @@ public class DispatchRateLimiter {
     }
 
     /**
-     * Update dispatch-throttling-rate. gives first priority to namespace-policy configured dispatch rate else applies
-     * default broker dispatch-throttling-rate
+     * Update dispatch-throttling-rate.
+     * Topic-level has the highest priority, then namespace-level, and finally use dispatch-throttling-rate in
+     * broker-level
      */
     public void updateDispatchRate() {
         Optional<DispatchRate> dispatchRate = getTopicPolicyDispatchRate(brokerService, topicName, type);
@@ -189,9 +190,16 @@ public class DispatchRateLimiter {
                                 .getTopicPolicies(TopicName.get(topicName)))
                                 .map(TopicPolicies::getSubscriptionDispatchRate);
                         break;
+                    case REPLICATOR:
+                        dispatchRate = Optional.ofNullable(brokerService.pulsar().getTopicPoliciesService()
+                                .getTopicPolicies(TopicName.get(topicName)))
+                                .map(TopicPolicies::getReplicatorDispatchRate);
+                        break;
+                    default:
+                        break;
                 }
             } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-                log.debug("Topic {} policies cache have not init.", topicName);
+                log.debug("Topic {} policies have not been initialized yet.", topicName);
             } catch (Exception e) {
                 log.debug("[{}] Failed to get topic dispatch rate. ", topicName, e);
             }

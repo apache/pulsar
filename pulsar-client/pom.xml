@@ -148,6 +148,13 @@
       <artifactId>jcip-annotations</artifactId>
     </dependency>
 
+    <dependency>
+      <groupId>com.github.spotbugs</groupId>
+      <artifactId>spotbugs-annotations</artifactId>
+      <scope>provided</scope>
+      <optional>true</optional>
+    </dependency>
+
     <!-- Testing dependencies -->
     <dependency>
       <groupId>${project.groupId}</groupId>
@@ -162,6 +169,13 @@
       <version>${skyscreamer.version}</version>
       <scope>test</scope>
     </dependency>
+
+    <dependency>
+      <groupId>org.awaitility</groupId>
+      <artifactId>awaitility</artifactId>
+      <scope>test</scope>
+    </dependency>
+
   </dependencies>
 
   <build>
@@ -207,6 +221,22 @@
               <testSourceDirectory>${project.basedir}/src/test/resources/avro</testSourceDirectory>
               <testOutputDirectory>${project.basedir}/src/test/java/</testOutputDirectory>
             </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>com.github.spotbugs</groupId>
+        <artifactId>spotbugs-maven-plugin</artifactId>
+        <configuration>
+          <excludeFilterFile>${basedir}/src/main/resources/findbugsExclude.xml</excludeFilterFile>
+        </configuration>
+        <executions>
+          <execution>
+            <id>spotbugs</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
           </execution>
         </executions>
       </plugin>

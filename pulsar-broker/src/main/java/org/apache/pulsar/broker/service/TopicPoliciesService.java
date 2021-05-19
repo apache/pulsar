@@ -18,10 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
-import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicPoliciesCacheNotInitException;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
@@ -34,7 +31,6 @@ import org.apache.pulsar.common.util.FutureUtil;
 public interface TopicPoliciesService {
 
     TopicPoliciesService DISABLED = new TopicPoliciesServiceDisabled();
-    Map<TopicName, List<TopicPolicyListener<TopicPolicies>>> LISTENERS = new ConcurrentHashMap<>();
 
     /**
      * Update policies for a topic async.
@@ -88,6 +84,14 @@ public interface TopicPoliciesService {
 
     void unregisterListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener);
 
+    /**
+     * clean cache and listeners in TopicPolicies and so on.
+     * @param topicName
+     */
+    default void clean(TopicName topicName) {
+        throw new UnsupportedOperationException("Clean is not supported by default");
+    }
+
     class TopicPoliciesServiceDisabled implements TopicPoliciesService {
 
         @Override
@@ -134,6 +138,11 @@ public interface TopicPoliciesService {
 
         @Override
         public void unregisterListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener) {
+            //No-op
+        }
+
+        @Override
+        public void clean(TopicName topicName) {
             //No-op
         }
     }

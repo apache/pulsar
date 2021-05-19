@@ -55,6 +55,7 @@ class ConsumerImplBase {
     virtual void seekAsync(const MessageId& msgId, ResultCallback callback) = 0;
     virtual void seekAsync(uint64_t timestamp, ResultCallback callback) = 0;
     virtual void negativeAcknowledge(const MessageId& msgId) = 0;
+    virtual bool isConnected() const = 0;
 
    private:
     virtual void setNegativeAcknowledgeEnabledForTesting(bool enabled) = 0;

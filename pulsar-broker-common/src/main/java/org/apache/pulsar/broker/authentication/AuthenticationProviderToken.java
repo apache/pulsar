@@ -24,12 +24,19 @@ import java.io.IOException;
 import java.net.SocketAddress;
 import java.security.Key;
 
+import java.util.Date;
 import java.util.List;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 
+import com.google.common.annotations.VisibleForTesting;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.RequiredTypeException;
+import io.prometheus.client.Counter;
+import io.prometheus.client.Histogram;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.common.api.AuthData;
 
@@ -68,6 +75,17 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
     final static String TOKEN = "token";
 
+    private static final Counter expiredTokenMetrics = Counter.build()
+            .name("pulsar_expired_token_count")
+            .help("Pulsar expired token")
+            .register();
+
+    private static final Histogram expiringTokenMinutesMetrics = Histogram.build()
+            .name("pulsar_expiring_token_minutes")
+            .help("The remaining time of expiring token in minutes")
+            .buckets(5, 10, 60, 240)
+            .register();
+
     private Key validationKey;
     private String roleClaim;
     private SignatureAlgorithm publicKeyAlg;
@@ -85,6 +103,12 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     @Override
     public void close() throws IOException {
         // noop
+    }
+
+    @VisibleForTesting
+    public static void resetMetrics() {
+        expiredTokenMetrics.clear();
+        expiringTokenMinutesMetrics.clear();
     }
 
     @Override
@@ -120,11 +144,18 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
     @Override
     public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
-        // Get Token
-        String token = getToken(authData);
-
-        // Parse Token by validating
-        return getPrincipal(authenticateToken(token));
+        try {
+            // Get Token
+            String token;
+            token = getToken(authData);
+            // Parse Token by validating
+            String role = getPrincipal(authenticateToken(token));
+            AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
+            return role;
+        } catch (AuthenticationException exception) {
+            AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(), exception.getMessage());
+            throw exception;
+        }
     }
 
     @Override
@@ -164,9 +195,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     @SuppressWarnings("unchecked")
     private Jwt<?, Claims> authenticateToken(final String token) throws AuthenticationException {
         try {
-            Jwt<?, Claims> jwt = Jwts.parser()
-                    .setSigningKey(validationKey)
-                    .parse(token);
+            Jwt<?, Claims> jwt = Jwts.parserBuilder().setSigningKey(validationKey).build().parseClaimsJws(token);
 
             if (audienceClaim != null) {
                 Object object = jwt.getBody().get(audienceClaim);
@@ -177,7 +206,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
                 if (object instanceof List) {
                     List<String> audiences = (List<String>) object;
                     // audience not contains this broker, throw exception.
-                    if (!audiences.stream().anyMatch(audienceInToken -> audienceInToken.equals(audience))) {
+                    if (audiences.stream().noneMatch(audienceInToken -> audienceInToken.equals(audience))) {
                         throw new AuthenticationException("Audiences in token: [" + String.join(", ", audiences)
                                                           + "] not contains this broker: " + audience);
                     }
@@ -192,14 +221,28 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
                 }
             }
 
+            if (jwt.getBody().getExpiration() != null) {
+                expiringTokenMinutesMetrics.observe((double) (jwt.getBody().getExpiration().getTime() - new Date().getTime()) / (60 * 1000));
+            }
             return jwt;
         } catch (JwtException e) {
+            if (e instanceof ExpiredJwtException) {
+                expiredTokenMetrics.inc();
+            }
             throw new AuthenticationException("Failed to authentication token: " + e.getMessage());
         }
     }
 
     private String getPrincipal(Jwt<?, Claims> jwt) {
-        return jwt.getBody().get(roleClaim, String.class);
+        try {
+            return jwt.getBody().get(roleClaim, String.class);
+        } catch (RequiredTypeException requiredTypeException) {
+            List list = jwt.getBody().get(roleClaim, List.class);
+            if (list != null && !list.isEmpty() && list.get(0) instanceof String) {
+                return (String) list.get(0);
+            }
+            return null;
+        }
     }
 
     /**

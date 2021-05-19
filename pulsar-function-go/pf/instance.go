@@ -144,6 +144,9 @@ func (gi *goInstance) startFunction(function function) error {
 	servicer := InstanceControlServicer{goInstance: gi}
 	servicer.serve(gi)
 
+	metricsServicer := NewMetricsServicer(gi)
+	metricsServicer.serve()
+	defer metricsServicer.close()
 CLOSE:
 	for {
 		idleTimer.Reset(idleDuration)

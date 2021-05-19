@@ -42,14 +42,17 @@ public class PrometheusMetricsServlet extends HttpServlet {
     private final PulsarService pulsar;
     private final boolean shouldExportTopicMetrics;
     private final boolean shouldExportConsumerMetrics;
+    private final boolean shouldExportProducerMetrics;
     private List<PrometheusRawMetricsProvider> metricsProviders;
 
     private ExecutorService executor = null;
 
-    public PrometheusMetricsServlet(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics) {
+    public PrometheusMetricsServlet(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
+                                    boolean shouldExportProducerMetrics) {
         this.pulsar = pulsar;
         this.shouldExportTopicMetrics = includeTopicMetrics;
         this.shouldExportConsumerMetrics = includeConsumerMetrics;
+        this.shouldExportProducerMetrics = shouldExportProducerMetrics;
     }
 
     @Override
@@ -67,10 +70,10 @@ public class PrometheusMetricsServlet extends HttpServlet {
                 res.setStatus(HttpStatus.OK_200);
                 res.setContentType("text/plain");
                 PrometheusMetricsGenerator.generate(pulsar, shouldExportTopicMetrics, shouldExportConsumerMetrics,
-                        res.getOutputStream(), metricsProviders);
+                        shouldExportProducerMetrics, res.getOutputStream(), metricsProviders);
                 context.complete();
 
-            } catch (IOException e) {
+            } catch (Exception e) {
                 log.error("Failed to generate prometheus stats", e);
                 res.setStatus(HttpStatus.INTERNAL_SERVER_ERROR_500);
                 context.complete();

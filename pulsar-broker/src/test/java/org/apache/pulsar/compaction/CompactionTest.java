@@ -73,6 +73,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+@Test(groups = "flaky")
 public class CompactionTest extends MockedPulsarServiceBaseTest {
     private ScheduledExecutorService compactionScheduler;
     private BookKeeper bk;
@@ -97,7 +98,9 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
     public void cleanup() throws Exception {
         super.internalCleanup();
 
-        compactionScheduler.shutdownNow();
+        if (compactionScheduler != null) {
+            compactionScheduler.shutdownNow();
+        }
     }
 
     @Test

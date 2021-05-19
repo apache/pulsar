@@ -57,9 +57,10 @@ public class TopicLookup extends TopicLookupBase {
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @Suspended AsyncResponse asyncResponse) {
+            @Suspended AsyncResponse asyncResponse,
+            @QueryParam("listenerName") String listenerName) {
         TopicName topicName = getTopicName(topicDomain, property, cluster, namespace, encodedTopic);
-        internalLookupTopicAsync(topicName, authoritative, asyncResponse);
+        internalLookupTopicAsync(topicName, authoritative, asyncResponse, listenerName);
     }
 
     @GET

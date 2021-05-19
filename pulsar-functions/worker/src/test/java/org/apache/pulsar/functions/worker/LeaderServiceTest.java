@@ -61,6 +61,7 @@ public class LeaderServiceTest {
     private CompletableFuture metadataManagerInitFuture;
     private CompletableFuture runtimeManagerInitFuture;
     private CompletableFuture readToTheEndAndExitFuture;
+    private MembershipManager membershipManager;
 
     public LeaderServiceTest() {
         this.workerConfig = new WorkerConfig();
@@ -117,8 +118,10 @@ public class LeaderServiceTest {
         when(functionMetadataManager.getIsInitialized()).thenReturn(metadataManagerInitFuture);
         when(functionRuntimeManager.getIsInitialized()).thenReturn(runtimeManagerInitFuture);
 
+        membershipManager = mock(MembershipManager.class);
+
         leaderService = spy(new LeaderService(workerService, mockClient, functionAssignmentTailer, schedulerManager,
-          functionRuntimeManager, functionMetadataManager,  ErrorNotifier.getDefaultImpl()));
+          functionRuntimeManager, functionMetadataManager,  membershipManager, ErrorNotifier.getDefaultImpl()));
         leaderService.start();
     }
 
@@ -138,15 +141,19 @@ public class LeaderServiceTest {
         verify(functionRuntimeManager, times(1)).getIsInitialized();
         verify(runtimeManagerInitFuture, times(1)).get();
 
+        verify(functionMetadataManager, times(1)).acquireExclusiveWrite(any());
+        verify(schedulerManager, times(1)).acquireExclusiveWrite(any());
+
         verify(functionAssignmentTailer, times(1)).triggerReadToTheEndAndExit();
         verify(functionAssignmentTailer, times(1)).close();
-        verify(schedulerManager, times((1))).initialize();
+        verify(schedulerManager, times((1))).initialize(any());
 
         listenerHolder.get().becameInactive(mockConsumer, 0);
         assertFalse(leaderService.isLeader());
 
         verify(functionAssignmentTailer, times(1)).startFromMessage(messageId);
         verify(schedulerManager, times(1)).close();
+        verify(functionMetadataManager, times(1)).giveupLeadership();
     }
 
     @Test
@@ -159,15 +166,92 @@ public class LeaderServiceTest {
         listenerHolder.get().becameActive(mockConsumer, 0);
         assertTrue(leaderService.isLeader());
 
+        verify(functionMetadataManager, times(1)).acquireExclusiveWrite(any());
+        verify(schedulerManager, times(1)).acquireExclusiveWrite(any());
+
         verify(functionAssignmentTailer, times(1)).triggerReadToTheEndAndExit();
         verify(readToTheEndAndExitFuture, times(1)).get();
         verify(functionAssignmentTailer, times(1)).close();
-        verify(schedulerManager, times((1))).initialize();
+        verify(schedulerManager, times((1))).initialize(any());
 
         listenerHolder.get().becameInactive(mockConsumer, 0);
         assertFalse(leaderService.isLeader());
 
         verify(functionAssignmentTailer, times(1)).start();
         verify(schedulerManager, times(1)).close();
+        verify(functionMetadataManager, times(1)).giveupLeadership();
     }
+
+    @Test
+    public void testAcquireScheduleManagerExclusiveProducerNotLeaderAnymore() throws Exception {
+        MessageId messageId = new MessageIdImpl(1, 2, -1);
+        when(schedulerManager.getLastMessageProduced()).thenReturn(messageId);
+
+        assertFalse(leaderService.isLeader());
+        verify(mockClient, times(1)).newConsumer();
+
+        // acquire exclusive producer failed because no leader anymore
+        when(schedulerManager.acquireExclusiveWrite(any())).thenThrow(new WorkerUtils.NotLeaderAnymore());
+
+        listenerHolder.get().becameActive(mockConsumer, 0);
+        // should have failed to become leader
+        assertFalse(leaderService.isLeader());
+
+        verify(functionMetadataManager, times(1)).getIsInitialized();
+        verify(metadataManagerInitFuture, times(1)).get();
+        verify(functionRuntimeManager, times(1)).getIsInitialized();
+        verify(runtimeManagerInitFuture, times(1)).get();
+
+        verify(schedulerManager, times(1)).acquireExclusiveWrite(any());
+        verify(functionMetadataManager, times(0)).acquireExclusiveWrite(any());
+
+        verify(functionAssignmentTailer, times(0)).triggerReadToTheEndAndExit();
+        verify(functionAssignmentTailer, times(0)).close();
+        verify(schedulerManager, times((0))).initialize(any());
+
+        listenerHolder.get().becameInactive(mockConsumer, 0);
+        assertFalse(leaderService.isLeader());
+
+        verify(functionAssignmentTailer, times(0)).startFromMessage(messageId);
+        verify(functionAssignmentTailer, times(0)).start();
+        verify(schedulerManager, times(0)).close();
+        verify(functionMetadataManager, times(0)).giveupLeadership();
+    }
+
+    @Test
+    public void testAcquireFunctionMetadataManagerExclusiveProducerNotLeaderAnymore() throws Exception {
+        MessageId messageId = new MessageIdImpl(1, 2, -1);
+        when(schedulerManager.getLastMessageProduced()).thenReturn(messageId);
+
+        assertFalse(leaderService.isLeader());
+        verify(mockClient, times(1)).newConsumer();
+
+        // acquire exclusive producer failed because no leader anymore
+        when(functionMetadataManager.acquireExclusiveWrite(any())).thenThrow(new WorkerUtils.NotLeaderAnymore());
+
+        listenerHolder.get().becameActive(mockConsumer, 0);
+        // should have failed to become leader
+        assertFalse(leaderService.isLeader());
+
+        verify(functionMetadataManager, times(1)).getIsInitialized();
+        verify(metadataManagerInitFuture, times(1)).get();
+        verify(functionRuntimeManager, times(1)).getIsInitialized();
+        verify(runtimeManagerInitFuture, times(1)).get();
+
+        verify(schedulerManager, times(1)).acquireExclusiveWrite(any());
+        verify(functionMetadataManager, times(1)).acquireExclusiveWrite(any());
+
+        verify(functionAssignmentTailer, times(0)).triggerReadToTheEndAndExit();
+        verify(functionAssignmentTailer, times(0)).close();
+        verify(schedulerManager, times((0))).initialize(any());
+
+        listenerHolder.get().becameInactive(mockConsumer, 0);
+        assertFalse(leaderService.isLeader());
+
+        verify(functionAssignmentTailer, times(0)).startFromMessage(messageId);
+        verify(functionAssignmentTailer, times(0)).start();
+        verify(schedulerManager, times(0)).close();
+        verify(functionMetadataManager, times(0)).giveupLeadership();
+    }
+
 }

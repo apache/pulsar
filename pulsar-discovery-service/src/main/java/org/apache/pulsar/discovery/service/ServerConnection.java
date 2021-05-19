@@ -104,7 +104,7 @@ public class ServerConnection extends PulsarHandler {
         }
         ctx.writeAndFlush(Commands.newConnected(connect.getProtocolVersion()));
         state = State.Connected;
-        remoteEndpointProtocolVersion = connect.getProtocolVersion();
+        setRemoteEndpointProtocolVersion(connect.getProtocolVersion());
     }
 
     @Override
@@ -152,11 +152,13 @@ public class ServerConnection extends PulsarHandler {
                 .getPartitionedTopicMetadata(service, topicName, authRole, authenticationData)
                 .thenAccept(metadata -> {
             if (LOG.isDebugEnabled()) {
-                LOG.debug("[{}] Total number of partitions for topic {} is {}", authRole, topicName, metadata.partitions);
+                        LOG.debug("[{}] Total number of partitions for topic {} is {}", authRole, topicName,
+                                metadata.partitions);
             }
             ctx.writeAndFlush(Commands.newPartitionMetadataResponse(metadata.partitions, requestId));
         }).exceptionally(ex -> {
-            LOG.warn("[{}] Failed to get partitioned metadata for topic {} {}", remoteAddress, topicName, ex.getMessage(), ex);
+                    LOG.warn("[{}] Failed to get partitioned metadata for topic {} {}", remoteAddress, topicName,
+                            ex.getMessage(), ex);
             ctx.writeAndFlush(
                     Commands.newPartitionMetadataResponse(ServerError.ServiceNotReady, ex.getMessage(), requestId));
             return null;

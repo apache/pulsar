@@ -25,7 +25,6 @@ import io.netty.buffer.ByteBuf;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -37,6 +36,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 
@@ -49,11 +49,11 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
     private volatile boolean waitingOnListenerForZeroQueueSize = false;
 
     public ZeroQueueConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
-            ExecutorService listenerExecutor, int partitionIndex, boolean hasParentConsumer, CompletableFuture<Consumer<T>> subscribeFuture,
-            MessageId startMessageId, Schema<T> schema,
-            ConsumerInterceptors<T> interceptors,
-            boolean createTopicIfDoesNotExist) {
-        super(client, topic, conf, listenerExecutor, partitionIndex, hasParentConsumer, subscribeFuture,
+             ExecutorProvider executorProvider, int partitionIndex, boolean hasParentConsumer,
+             CompletableFuture<Consumer<T>> subscribeFuture, MessageId startMessageId, Schema<T> schema,
+             ConsumerInterceptors<T> interceptors,
+             boolean createTopicIfDoesNotExist) {
+        super(client, topic, conf, executorProvider, partitionIndex, hasParentConsumer, subscribeFuture,
                 startMessageId, 0 /* startMessageRollbackDurationInSec */, schema, interceptors,
                 createTopicIfDoesNotExist);
     }
@@ -85,6 +85,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
         // Just being cautious
         if (incomingMessages.size() > 0) {
             log.error("The incoming message queue should never be greater than 0 when Queue size is 0");
+            incomingMessages.forEach(Message::release);
             incomingMessages.clear();
         }
 
@@ -152,7 +153,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
         checkNotNull(listener, "listener can't be null");
         checkNotNull(message, "unqueued message can't be null");
 
-        listenerExecutor.execute(() -> {
+        pinnedExecutor.execute(() -> {
             stats.updateNumMsgsReceived(message);
             try {
                 if (log.isDebugEnabled()) {
@@ -172,7 +173,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
     }
 
     @Override
-    protected void triggerListener(int numMessages) {
+    protected void triggerListener() {
         // Ignore since it was already triggered in the triggerZeroQueueSizeListener() call
     }
 

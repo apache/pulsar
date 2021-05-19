@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
+import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.Encoded;
 import javax.ws.rs.GET;
@@ -50,9 +51,11 @@ import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,8 +91,7 @@ public class NonPersistentTopics extends PersistentTopics {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Is check configuration required to automatically create topic")
             @QueryParam("checkAllowAutoCreation") @DefaultValue("false") boolean checkAllowAutoCreation) {
-        validateTopicName(tenant, namespace, encodedTopic);
-        return getPartitionedTopicMetadata(topicName, authoritative, checkAllowAutoCreation);
+        return super.getPartitionedMetadata(tenant, namespace, encodedTopic, authoritative, checkAllowAutoCreation);
     }
 
     @GET
@@ -112,12 +114,17 @@ public class NonPersistentTopics extends PersistentTopics {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @ApiParam(value = "Is return precise backlog or imprecise backlog")
-            @QueryParam("getPreciseBacklog") @DefaultValue("false") boolean getPreciseBacklog) {
+            @ApiParam(value = "If return precise backlog or imprecise backlog")
+            @QueryParam("getPreciseBacklog") @DefaultValue("false") boolean getPreciseBacklog,
+            @ApiParam(value = "If return backlog size for each subscription, require locking on ledger so be careful "
+                    + "not to use when there's heavy traffic.")
+            @QueryParam("subscriptionBacklogSize") @DefaultValue("false") boolean subscriptionBacklogSize) {
         validateTopicName(tenant, namespace, encodedTopic);
-        validateAdminOperationOnTopic(topicName, authoritative);
+        validateTopicOwnership(topicName, authoritative);
+        validateTopicOperation(topicName, TopicOperation.GET_STATS);
+
         Topic topic = getTopicReference(topicName);
-        return ((NonPersistentTopic) topic).getStats(getPreciseBacklog);
+        return ((NonPersistentTopic) topic).getStats(getPreciseBacklog, subscriptionBacklogSize);
     }
 
     @GET
@@ -142,7 +149,8 @@ public class NonPersistentTopics extends PersistentTopics {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("metadata") @DefaultValue("false") boolean metadata) {
         validateTopicName(tenant, namespace, encodedTopic);
-        validateAdminOperationOnTopic(topicName, authoritative);
+        validateTopicOwnership(topicName, authoritative);
+        validateTopicOperation(topicName, TopicOperation.GET_STATS);
         Topic topic = getTopicReference(topicName);
         try {
             boolean includeMetadata = metadata && hasSuperUserAccess();
@@ -185,7 +193,6 @@ public class NonPersistentTopics extends PersistentTopics {
         try {
             validateGlobalNamespaceOwnership(tenant, namespace);
             validateTopicName(tenant, namespace, encodedTopic);
-            validateAdminAccessForTenant(topicName.getTenant());
             internalCreatePartitionedTopic(asyncResponse, numPartitions);
         } catch (Exception e) {
             log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
@@ -249,7 +256,7 @@ public class NonPersistentTopics extends PersistentTopics {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] list of topics on namespace {}", clientAppId(), namespaceName);
             }
-            validateAdminAccessForTenant(tenant);
+            validateNamespaceOperation(namespaceName, NamespaceOperation.GET_TOPICS);
             policies = getNamespacePolicies(namespaceName);
 
             // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
@@ -324,7 +331,7 @@ public class NonPersistentTopics extends PersistentTopics {
             log.debug("[{}] list of topics on namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange);
         }
 
-        validateAdminAccessForTenant(tenant);
+        validateNamespaceOperation(namespaceName, NamespaceOperation.GET_BUNDLE);
         Policies policies = getNamespacePolicies(namespaceName);
 
         // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
@@ -336,8 +343,14 @@ public class NonPersistentTopics extends PersistentTopics {
                         bundleRange);
                 asyncResponse.resume(Response.noContent().build());
             } else {
-                NamespaceBundle nsBundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles,
+                NamespaceBundle nsBundle;
+                try {
+                    nsBundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles,
                         bundleRange, true, true);
+                } catch (WebApplicationException wae) {
+                    asyncResponse.resume(wae);
+                    return;
+                }
                 try {
                     final List<String> topicList = Lists.newArrayList();
                     pulsar().getBrokerService().forEachTopic(topic -> {
@@ -348,12 +361,42 @@ public class NonPersistentTopics extends PersistentTopics {
                     });
                     asyncResponse.resume(topicList);
                 } catch (Exception e) {
-                    log.error("[{}] Failed to unload namespace bundle {}/{}", clientAppId(),
+                    log.error("[{}] Failed to list topics on namespace bundle {}/{}", clientAppId(),
                             namespaceName, bundleRange, e);
                     asyncResponse.resume(new RestException(e));
                 }
             }
+        }).exceptionally(ex -> {
+            log.error("[{}] Failed to list topics on namespace bundle {}/{}", clientAppId(),
+                namespaceName, bundleRange, ex);
+            if (ex.getCause() instanceof WebApplicationException) {
+                asyncResponse.resume(ex.getCause());
+            } else {
+                asyncResponse.resume(new RestException(ex.getCause()));
+            }
+            return null;
         });
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/truncate")
+    @ApiOperation(value = "Truncate a topic.",
+            notes = "NonPersistentTopic does not support truncate.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 412, message = "NonPersistentTopic does not support truncate.")
+    })
+    public void truncateTopic(
+            @Suspended final AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative){
+        asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED.getStatusCode(),
+                "unsupport truncate"));
     }
 
     protected void validateAdminOperationOnTopic(TopicName topicName, boolean authoritative) {

@@ -41,6 +41,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.SkipEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedCursorMXBean;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
@@ -76,7 +77,14 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public void asyncReadEntries(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx) {
+        public void asyncReadEntries(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx,
+                                     PositionImpl maxPosition) {
+            callback.readEntriesComplete(null, ctx, EntryCacheCounter.EntryCacheCounterBuilder.getBuilder().build());
+        }
+
+        @Override
+        public void asyncReadEntries(int numberOfEntriesToRead, long maxSizeBytes, ReadEntriesCallback callback,
+                                     Object ctx, PositionImpl maxPosition) {
             callback.readEntriesComplete(null, ctx, EntryCacheCounter.EntryCacheCounterBuilder.getBuilder().build());
         }
 
@@ -119,6 +127,11 @@ public class ManagedCursorContainerTest {
 
         @Override
         public Position getMarkDeletedPosition() {
+            return position;
+        }
+
+        @Override
+        public Position getPersistentMarkDeletedPosition() {
             return position;
         }
 
@@ -254,7 +267,14 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public void asyncReadEntriesOrWait(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx) {
+        public void asyncReadEntriesOrWait(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx,
+                                           PositionImpl maxPosition) {
+        }
+
+        @Override
+        public void asyncReadEntriesOrWait(int maxEntries, long maxSizeBytes, ReadEntriesCallback callback,
+                                           Object ctx, PositionImpl maxPosition) {
+
         }
 
         @Override
@@ -335,6 +355,11 @@ public class ManagedCursorContainerTest {
             return new long[0];
         }
 
+        @Override
+        public ManagedCursorMXBean getStats() {
+            return null;
+        }
+
         public void asyncReadEntriesOrWait(int maxEntries, long maxSizeBytes, ReadEntriesCallback callback,
                 Object ctx) {
         }
@@ -343,6 +368,11 @@ public class ManagedCursorContainerTest {
         public List<Entry> readEntriesOrWait(int maxEntries, long maxSizeBytes)
                 throws InterruptedException, ManagedLedgerException {
             return null;
+        }
+
+        @Override
+        public boolean checkAndUpdateReadPositionChanged() {
+            return false;
         }
     }
 

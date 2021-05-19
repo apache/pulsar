@@ -90,12 +90,13 @@ UnAckedMessageTrackerEnabled::UnAckedMessageTrackerEnabled(long timeoutMs, long 
     timeoutHandler();
 }
 
-bool UnAckedMessageTrackerEnabled::add(const MessageId& m) {
+bool UnAckedMessageTrackerEnabled::add(const MessageId& msgId) {
     std::lock_guard<std::mutex> acquire(lock_);
-    if (messageIdPartitionMap.count(m) == 0) {
+    MessageId id(msgId.partition(), msgId.ledgerId(), msgId.entryId(), -1);
+    if (messageIdPartitionMap.count(id) == 0) {
         std::set<MessageId>& partition = timePartitions.back();
-        bool emplace = messageIdPartitionMap.emplace(m, partition).second;
-        bool insert = partition.insert(m).second;
+        bool emplace = messageIdPartitionMap.emplace(id, partition).second;
+        bool insert = partition.insert(id).second;
         return emplace && insert;
     }
     return false;
@@ -106,13 +107,14 @@ bool UnAckedMessageTrackerEnabled::isEmpty() {
     return messageIdPartitionMap.empty();
 }
 
-bool UnAckedMessageTrackerEnabled::remove(const MessageId& m) {
+bool UnAckedMessageTrackerEnabled::remove(const MessageId& msgId) {
     std::lock_guard<std::mutex> acquire(lock_);
+    MessageId id(msgId.partition(), msgId.ledgerId(), msgId.entryId(), -1);
     bool removed = false;
 
-    std::map<MessageId, std::set<MessageId>&>::iterator exist = messageIdPartitionMap.find(m);
+    std::map<MessageId, std::set<MessageId>&>::iterator exist = messageIdPartitionMap.find(id);
     if (exist != messageIdPartitionMap.end()) {
-        removed = exist->second.erase(m);
+        removed = exist->second.erase(id);
         messageIdPartitionMap.erase(exist);
     }
     return removed;

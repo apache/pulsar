@@ -21,6 +21,8 @@
 <FindBugsFilter>
     <Match>
         <Class name="~org.apache.zookeeper.*"/>
-        <Bug pattern="DM_EXIT,DM_DEFAULT_ENCODING"/>
+    </Match>
+    <Match>
+        <Class name="~org.apache.jute.*"/>
     </Match>
 </FindBugsFilter>

@@ -59,6 +59,7 @@ import java.util.Map.Entry;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import org.apache.bookkeeper.test.ZooKeeperUtil;
 
 /**
  * A class runs several bookie servers for testing.
@@ -91,7 +92,7 @@ public abstract class BookKeeperClusterTestCase {
         this.numBookies = numBookies;
     }
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void setUp() throws Exception {
         executor = Executors.newCachedThreadPool();
         InMemoryMetaStore.reset();
@@ -111,13 +112,13 @@ public abstract class BookKeeperClusterTestCase {
         }
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDown() throws Exception {
         // stop bookkeeper service
         stopBKCluster();
         // stop zookeeper service
         stopZKCluster();
-        executor.shutdown();
+        executor.shutdownNow();
     }
 
     /**
@@ -126,7 +127,7 @@ public abstract class BookKeeperClusterTestCase {
      * @throws Exception
      */
     protected void startZKCluster() throws Exception {
-        zkUtil.startServer();
+        zkUtil.startCluster();
         zkc = zkUtil.getZooKeeperClient();
     }
 
@@ -136,7 +137,7 @@ public abstract class BookKeeperClusterTestCase {
      * @throws Exception
      */
     protected void stopZKCluster() throws Exception {
-        zkUtil.killServer();
+        zkUtil.stopCluster();
     }
 
     /**

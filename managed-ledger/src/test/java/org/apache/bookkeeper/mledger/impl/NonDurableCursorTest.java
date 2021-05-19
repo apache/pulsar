@@ -37,6 +37,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+
+import io.netty.buffer.ByteBuf;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
@@ -323,6 +325,13 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
     }
 
     @Test(timeOut = 20000)
+    void markDeleteGreaterThanLastConfirmedEntry() throws Exception {
+        ManagedLedger ml1 = factory.open("my_test_ledger");
+        ManagedCursor mc1 = ml1.newNonDurableCursor(PositionImpl.get(Long.MAX_VALUE - 1, Long.MAX_VALUE - 1));
+        assertEquals(mc1.getMarkDeletedPosition(), ml1.getLastConfirmedEntry());
+    }
+
+    @Test(timeOut = 20000)
     void testResetCursor() throws Exception {
         ManagedLedger ledger = factory.open("my_test_move_cursor_ledger",
                 new ManagedLedgerConfig().setMaxEntriesPerLedger(10));
@@ -478,7 +487,7 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
                 }
 
                 @Override
-                public void addComplete(Position position, Object ctx) {
+                public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                     lastPosition.set(position);
                     c1.asyncMarkDelete(position, new MarkDeleteCallback() {
                         @Override

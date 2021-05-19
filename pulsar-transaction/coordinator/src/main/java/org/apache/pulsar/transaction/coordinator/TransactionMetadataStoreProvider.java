@@ -59,12 +59,14 @@ public interface TransactionMetadataStoreProvider {
      * @param transactionCoordinatorId {@link TransactionCoordinatorID} the coordinator id.
      * @param managedLedgerFactory {@link ManagedLedgerFactory} the managedLedgerFactory to create managedLedger.
      * @param managedLedgerConfig {@link ManagedLedgerConfig} the managedLedgerConfig to create managedLedger.
-     *
+     * @param timeoutTracker {@link TransactionTimeoutTracker} the timeoutTracker to handle transaction time out.
+     * @param recoverTracker {@link TransactionRecoverTracker} the recoverTracker to handle transaction recover.
      * @return a future represents the result of the operation.
      *         an instance of {@link TransactionMetadataStore} is returned
      *         if the operation succeeds.
      */
     CompletableFuture<TransactionMetadataStore> openStore(
             TransactionCoordinatorID transactionCoordinatorId, ManagedLedgerFactory managedLedgerFactory,
-            ManagedLedgerConfig managedLedgerConfig);
+            ManagedLedgerConfig managedLedgerConfig, TransactionTimeoutTracker timeoutTracker,
+            TransactionRecoverTracker recoverTracker);
 }

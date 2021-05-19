@@ -42,4 +42,4 @@ python setup.py bdist_wheel
 # Audit wheel will make sure no external dependencies are needed for
 # the shared library and that only symbols supported by most linux
 # distributions are used.
-auditwheel repair dist/pulsar_client-*-$PYTHON_SPEC-linux_x86_64.whl
+auditwheel repair dist/pulsar_client*-$PYTHON_SPEC-linux_x86_64.whl

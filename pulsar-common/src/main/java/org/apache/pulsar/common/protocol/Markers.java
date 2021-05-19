@@ -23,7 +23,6 @@ import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.util.concurrent.FastThreadLocal;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -37,7 +36,6 @@ import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshotRequest;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshotResponse;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsUpdate;
-import org.apache.pulsar.common.api.proto.TxnCommitMarker;
 import org.apache.pulsar.common.protocol.Commands.ChecksumType;
 
 @UtilityClass
@@ -228,10 +226,16 @@ public class Markers {
                && msgMetadata.getMarkerType() == MarkerType.TXN_COMMIT.getValue();
     }
 
+    public static boolean isTxnMarker(MessageMetadata msgMetadata) {
+        return msgMetadata != null
+                && msgMetadata.hasMarkerType()
+                && (msgMetadata.getMarkerType() == MarkerType.TXN_COMMIT.getValue()
+                || msgMetadata.getMarkerType() == MarkerType.TXN_ABORT.getValue());
+    }
+
     public static ByteBuf newTxnCommitMarker(long sequenceId, long txnMostBits,
-                                             long txnLeastBits, List<MarkersMessageIdData> messageIdDataList) {
-        return newTxnMarker(
-                MarkerType.TXN_COMMIT, sequenceId, txnMostBits, txnLeastBits, Optional.of(messageIdDataList));
+                                             long txnLeastBits) {
+        return newTxnMarker(MarkerType.TXN_COMMIT, sequenceId, txnMostBits, txnLeastBits);
     }
 
     public static boolean isTxnAbortMarker(MessageMetadata msgMetadata) {
@@ -241,28 +245,13 @@ public class Markers {
     }
 
     public static ByteBuf newTxnAbortMarker(long sequenceId, long txnMostBits,
-                                            long txnLeastBits, List<MarkersMessageIdData> messageIdDataList) {
+                                            long txnLeastBits) {
         return newTxnMarker(
-                MarkerType.TXN_ABORT, sequenceId, txnMostBits, txnLeastBits, Optional.of(messageIdDataList));
+                MarkerType.TXN_ABORT, sequenceId, txnMostBits, txnLeastBits);
     }
-
-    public static TxnCommitMarker parseCommitMarker(ByteBuf payload) throws IOException {
-        TxnCommitMarker commitMarker = LOCAL_TXN_COMMIT_MARKER.get();
-        commitMarker.parseFrom(payload, payload.readableBytes());
-        return commitMarker;
-    }
-
-
-    private static final FastThreadLocal<TxnCommitMarker> LOCAL_TXN_COMMIT_MARKER = //
-            new FastThreadLocal<TxnCommitMarker>() {
-                @Override
-                protected TxnCommitMarker initialValue() throws Exception {
-                    return new TxnCommitMarker();
-                }
-            };
 
     private static ByteBuf newTxnMarker(MarkerType markerType, long sequenceId, long txnMostBits,
-                                        long txnLeastBits, Optional<List<MarkersMessageIdData>> messageIdDataList) {
+                                        long txnLeastBits) {
         MessageMetadata msgMetadata = LOCAL_MESSAGE_METADATA.get()
                 .clear()
                 .setPublishTime(System.currentTimeMillis())
@@ -272,16 +261,11 @@ public class Markers {
                 .setTxnidMostBits(txnMostBits)
                 .setTxnidLeastBits(txnLeastBits);
 
-        TxnCommitMarker commitMarker = LOCAL_TXN_COMMIT_MARKER.get()
-                .clear();
-
-        messageIdDataList.ifPresent(commitMarker::addAllMessageIds);
-
-        ByteBuf payload = PooledByteBufAllocator.DEFAULT.buffer(commitMarker.getSerializedSize());
+        ByteBuf payload = PooledByteBufAllocator.DEFAULT.buffer(0);
 
         try {
-            commitMarker.writeTo(payload);
-            return Commands.serializeMetadataAndPayload(ChecksumType.Crc32c, msgMetadata, payload);
+            return Commands.serializeMetadataAndPayload(ChecksumType.Crc32c,
+                    msgMetadata, payload);
         } finally {
             payload.release();
         }

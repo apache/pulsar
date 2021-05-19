@@ -56,7 +56,7 @@ public abstract class AbstractFileTests {
 
     protected Path directory;
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void init() throws IOException {
         // Create the directory we are going to read from
         directory = Files.createTempDirectory("pulsar-io-file-tests", getPermissions());
@@ -68,7 +68,7 @@ public abstract class AbstractFileTests {
         executor = Executors.newFixedThreadPool(10);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDown() throws Exception {
         // Shutdown all of the processing threads
         stopThreads();

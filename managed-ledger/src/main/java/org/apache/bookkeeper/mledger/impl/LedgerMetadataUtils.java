@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.ImmutableMap;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.common.util.JsonUtil.ParseJsonException;
@@ -116,7 +117,8 @@ public final class LedgerMetadataUtils {
      *          placement policy configuration encode error
      */
     static Map<String, byte[]> buildMetadataForPlacementPolicyConfig(
-        Class<? extends EnsemblePlacementPolicy> className, Map<String, Object> properties) throws ParseJsonException {
+        Class<? extends EnsemblePlacementPolicy> className, Map<String, Object> properties)
+        throws EnsemblePlacementPolicyConfig.ParseEnsemblePlacementPolicyConfigException {
         EnsemblePlacementPolicyConfig config = new EnsemblePlacementPolicyConfig(className, properties);
         return ImmutableMap.of(EnsemblePlacementPolicyConfig.ENSEMBLE_PLACEMENT_POLICY_CONFIG, config.encode());
     }

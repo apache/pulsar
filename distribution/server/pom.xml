@@ -19,7 +19,7 @@
 
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
@@ -115,6 +115,26 @@
     </dependency>
 
     <dependency>
+      <groupId>io.dropwizard.metrics</groupId>
+      <artifactId>metrics-core</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.dropwizard.metrics</groupId>
+      <artifactId>metrics-graphite</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.dropwizard.metrics</groupId>
+      <artifactId>metrics-jvm</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.xerial.snappy</groupId>
+      <artifactId>snappy-java</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>com.fasterxml.jackson.dataformat</groupId>
       <artifactId>jackson-dataformat-yaml</artifactId>
     </dependency>
@@ -147,6 +167,12 @@
       <version>${project.version}</version>
       <!-- make sure the api examples are compiled before assembly -->
       <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>*</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
@@ -173,6 +199,12 @@
       <version>${project.version}</version>
       <!-- make sure the api examples are compiled before assembly -->
       <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>*</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <!-- local-runner -->
@@ -194,6 +226,12 @@
       <artifactId>grpc-all</artifactId>
     </dependency>
 
+    <dependency>
+      <groupId>io.perfmark</groupId>
+      <artifactId>perfmark-api</artifactId>
+      <scope>compile</scope>
+    </dependency>
+
     <!-- bookkeeper http server -->
     <dependency>
       <groupId>org.apache.bookkeeper.http</groupId>
@@ -204,48 +242,23 @@
           <groupId>io.netty</groupId>
           <artifactId>*</artifactId>
         </exclusion>
-        <!--TODO: When pulsar uses https://github.com/apache/bookkeeper/pull/2410 in -->
-        <!--      the next bk version, please remove the following content.-->
-        <exclusion>
-          <groupId>io.vertx</groupId>
-          <artifactId>*</artifactId>
-        </exclusion>
       </exclusions>
     </dependency>
-    <!--TODO: When pulsar uses https://github.com/apache/bookkeeper/pull/2410 in -->
-    <!--      the next bk version, please remove the following content.-->
     <dependency>
       <groupId>io.vertx</groupId>
       <artifactId>vertx-core</artifactId>
-      <version>${vertx.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>com.fasterxml.jackson.core</groupId>
-          <artifactId>jackson-databind</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>com.fasterxml.jackson.core</groupId>
-          <artifactId>jackson-core</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>com.fasterxml.jackson.core</groupId>
-          <artifactId>jackson-annotations</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
     <dependency>
       <groupId>io.vertx</groupId>
       <artifactId>vertx-web</artifactId>
-      <version>${vertx.version}</version>
     </dependency>
-
   </dependencies>
 
   <build>
     <plugins>
       <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-assembly-plugin</artifactId>
-        <version>3.3.0</version>
         <executions>
           <execution>
             <id>distro-assembly</id>
@@ -259,7 +272,6 @@
               <finalName>apache-pulsar-${project.version}</finalName>
               <descriptors>
                 <descriptor>src/assemble/bin.xml</descriptor>
-                <descriptor>src/assemble/src.xml</descriptor>
               </descriptors>
             </configuration>
           </execution>
@@ -302,7 +314,7 @@
                     </goals>
                   </pluginExecutionFilter>
                   <action>
-                    <ignore />
+                    <ignore/>
                   </action>
                 </pluginExecution>
               </pluginExecutions>
@@ -312,4 +324,32 @@
       </plugins>
     </pluginManagement>
   </build>
+  <profiles>
+    <profile>
+      <id>core-modules</id>
+      <!-- allow building the distribution without pulsar-presto-distribution when core-modules is active -->
+    </profile>
+    <profile>
+      <id>main</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <!-- depend on pulsar-presto-distribution by default, unless core-modules profile is active -->
+      <dependencies>
+        <dependency>
+          <groupId>${project.groupId}</groupId>
+          <artifactId>pulsar-presto-distribution</artifactId>
+          <version>${project.version}</version>
+          <type>tar.gz</type>
+          <scope>provided</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>*</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+      </dependencies>
+    </profile>
+  </profiles>
 </project>

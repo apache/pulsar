@@ -74,22 +74,29 @@
             <version>1.8.1</version>
         </dependency>
         <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <scope>test</scope>
-            <version>4.10</version>
-        </dependency>
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-all</artifactId>
-            <scope>test</scope>
-            <version>1.9.0</version>
+            <groupId>org.apache.curator</groupId>
+            <artifactId>curator-framework</artifactId>
+            <version>${curator.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.curator</groupId>
             <artifactId>curator-test</artifactId>
-            <version>4.2.0</version>
+            <version>${curator.version}</version>
+            <scope>test</scope>
         </dependency>
+        <!-- zookeeper server -->
+        <dependency>
+            <groupId>io.dropwizard.metrics</groupId>
+            <artifactId>metrics-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- zookeeper server -->
+        <dependency>
+            <groupId>org.xerial.snappy</groupId>
+            <artifactId>snappy-java</artifactId>
+            <scope>test</scope>
+        </dependency>
+
         <dependency>
             <groupId>com.github.stefanbirkner</groupId>
             <artifactId>system-rules</artifactId>

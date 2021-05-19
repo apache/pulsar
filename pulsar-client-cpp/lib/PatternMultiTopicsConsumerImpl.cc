@@ -33,7 +33,9 @@ PatternMultiTopicsConsumerImpl::PatternMultiTopicsConsumerImpl(ClientImplPtr cli
       patternString_(pattern),
       pattern_(std::regex(pattern)),
       autoDiscoveryTimer_(),
-      autoDiscoveryRunning_(false) {}
+      autoDiscoveryRunning_(false) {
+    namespaceName_ = TopicName::get(pattern)->getNamespaceName();
+}
 
 const std::regex PatternMultiTopicsConsumerImpl::getPattern() { return pattern_; }
 

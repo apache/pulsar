@@ -28,8 +28,9 @@ import static org.slf4j.bridge.SLF4JBridgeHandler.removeHandlersForRootLogger;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
-import org.apache.pulsar.proxy.server.plugin.servlet.ProxyAdditionalServletWithClassLoader;
+import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithClassLoader;
 import org.apache.pulsar.websocket.WebSocketConsumerServlet;
+import org.apache.pulsar.websocket.WebSocketPingPongServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
 import org.apache.pulsar.websocket.WebSocketReaderServlet;
 import org.apache.pulsar.websocket.WebSocketService;
@@ -211,9 +212,9 @@ public class ProxyServiceStarter {
 
         // add proxy additional servlets
         if (service != null && service.getProxyAdditionalServlets() != null) {
-            Collection<ProxyAdditionalServletWithClassLoader> additionalServletCollection =
+            Collection<AdditionalServletWithClassLoader> additionalServletCollection =
                     service.getProxyAdditionalServlets().getServlets().values();
-            for (ProxyAdditionalServletWithClassLoader servletWithClassLoader : additionalServletCollection) {
+            for (AdditionalServletWithClassLoader servletWithClassLoader : additionalServletCollection) {
                 servletWithClassLoader.loadConfig(config);
                 server.addServlet(servletWithClassLoader.getBasePath(), servletWithClassLoader.getServletHolder(),
                         Collections.emptyList(), config.isAuthenticationEnabled());
@@ -243,6 +244,12 @@ public class ProxyServiceStarter {
                     new ServletHolder(readerWebSocketServlet));
             server.addServlet(WebSocketReaderServlet.SERVLET_PATH_V2,
                     new ServletHolder(readerWebSocketServlet));
+
+            final WebSocketServlet pingPongWebSocketServlet = new WebSocketPingPongServlet(webSocketService);
+            server.addServlet(WebSocketPingPongServlet.SERVLET_PATH,
+                    new ServletHolder(pingPongWebSocketServlet));
+            server.addServlet(WebSocketPingPongServlet.SERVLET_PATH_V2,
+                    new ServletHolder(pingPongWebSocketServlet));
         }
     }
 

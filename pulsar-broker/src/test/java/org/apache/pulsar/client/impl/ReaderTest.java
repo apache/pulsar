@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
@@ -30,6 +31,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
@@ -47,6 +49,7 @@ import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -57,6 +60,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
+@Test(groups = "broker-impl")
 public class ReaderTest extends MockedPulsarServiceBaseTest {
 
     private static final String subscription = "reader-sub";
@@ -144,7 +148,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
             Assert.assertTrue(keys.remove(reader.readNext().getKey()));
         }
         // start from latest with start message inclusive should only read the last message in batch
-        Assert.assertTrue(keys.size() == 9);
+        assertEquals(keys.size(), 9);
         Assert.assertFalse(keys.contains("key9"));
         Assert.assertFalse(reader.hasMessageAvailable());
     }
@@ -170,6 +174,46 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         Assert.assertFalse(readLatest.hasMessageAvailable());
     }
 
+    @Test
+    public void testMultiTopicSeekByFunction() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/test" + UUID.randomUUID();
+        int msgNum = 10;
+        publishMessages(topicName, msgNum, false);
+        Reader<byte[]> reader = pulsarClient
+                .newReader().startMessageIdInclusive().startMessageId(MessageId.latest)
+                .topic(topicName).subscriptionName("my-sub").create();
+        long now = System.currentTimeMillis();
+        reader.seek((topic) -> now);
+        assertNull(reader.readNext(1, TimeUnit.SECONDS));
+        // seek by time
+        reader.seek((topic) -> {
+            assertFalse(TopicName.get(topic).isPartitioned());
+            return now - 999999;
+        });
+        int count = 0;
+        while (true) {
+            Message<byte[]> message = reader.readNext(1, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
+            }
+            count++;
+        }
+        assertEquals(count, msgNum);
+        // seek by msg id
+        reader.seek((topic) -> {
+            assertFalse(TopicName.get(topic).isPartitioned());
+            return MessageId.earliest;
+        });
+        count = 0;
+        while (true) {
+            Message<byte[]> message = reader.readNext(1, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
+            }
+            count++;
+        }
+        assertEquals(count, msgNum);
+    }
 
     @Test
     public void testReadFromPartition() throws Exception {
@@ -394,7 +438,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         assertEquals(receivedMessages.size(), expectedMessages);
         for (String receivedMessage : receivedMessages) {
             log.info("Receive message {}", receivedMessage);
-            assertTrue(Integer.valueOf(receivedMessage) <= StickyKeyConsumerSelector.DEFAULT_RANGE_SIZE / 2);
+            assertTrue(Integer.parseInt(receivedMessage) <= StickyKeyConsumerSelector.DEFAULT_RANGE_SIZE / 2);
         }
 
     }
@@ -405,7 +449,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         doTestReaderSubName(false);
     }
 
-    public void doTestReaderSubName(boolean setPrefix) throws Exception {
+    private void doTestReaderSubName(boolean setPrefix) throws Exception {
         final String topic = "persistent://my-property/my-ns/testReaderSubName" + System.currentTimeMillis();
         final String subName = "my-sub-name";
 

@@ -189,7 +189,6 @@ public class OwnershipCache {
                         ownedBundlesCache.put(path, CompletableFuture.completedFuture(ownedBundle));
                     }
                     ownershipReadOnlyCache.invalidate(path);
-                    namespaceService.onNamespaceBundleOwned(ownedBundle.getNamespaceBundle());
                 }
             }
             return optionalOwnerDataWithStat;

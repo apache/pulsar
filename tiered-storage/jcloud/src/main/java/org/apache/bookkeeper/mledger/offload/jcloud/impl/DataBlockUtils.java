@@ -19,11 +19,9 @@
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
 import com.google.common.collect.ImmutableMap;
-
 import java.io.IOException;
 import java.util.Map;
 import java.util.UUID;
-
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.blobstore.domain.BlobBuilder;
 
@@ -57,6 +55,10 @@ public class DataBlockUtils {
 
     public static String indexBlockOffloadKey(long ledgerId, UUID uuid) {
         return String.format("%s-ledger-%d-index", uuid.toString(), ledgerId);
+    }
+
+    public static String indexBlockOffloadKey(UUID uuid) {
+        return String.format("%s-index", uuid.toString());
     }
 
     public static void addVersionInfo(BlobBuilder blobBuilder, Map<String, String> userMetadata) {

@@ -34,6 +34,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
+import lombok.Cleanup;
 import org.apache.bookkeeper.bookie.Bookie;
 import org.apache.bookkeeper.client.BookKeeper;
 import static org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicyImpl.REPP_DNS_RESOLVER_CLASS;
@@ -78,8 +79,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-/**
- */
+@Test(groups = "broker")
 public class BrokerBookieIsolationTest {
 
     private LocalBookkeeperEnsemble bkEnsemble;
@@ -146,6 +146,7 @@ public class BrokerBookieIsolationTest {
         config.setClusterName(cluster);
         config.setWebServicePort(Optional.of(0));
         config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setBrokerShutdownTimeoutMs(0L);
         config.setBrokerServicePort(Optional.of(0));
         config.setAdvertisedAddress("localhost");
         config.setBookkeeperClientIsolationGroups(brokerBookkeeperClientIsolationGroups);
@@ -194,6 +195,7 @@ public class BrokerBookieIsolationTest {
             // Ok
         }
 
+        @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsarService.getBrokerServiceUrl())
                 .statsInterval(-1, TimeUnit.SECONDS).build();
 
@@ -231,7 +233,8 @@ public class BrokerBookieIsolationTest {
         // validate ledgers' ensemble with affinity bookies
         assertAffinityBookies(ledgerManager, ml.getLedgersInfoAsList(), isolatedBookies);
 
-        ManagedLedgerClientFactory mlFactory = pulsarService.getManagedLedgerClientFactory();
+        ManagedLedgerClientFactory mlFactory =
+            (ManagedLedgerClientFactory) pulsarService.getManagedLedgerClientFactory();
         Map<EnsemblePlacementPolicyConfig, BookKeeper> bkPlacementPolicyToBkClientMap = mlFactory
                 .getBkEnsemblePolicyToBookKeeperMap();
 
@@ -255,7 +258,7 @@ public class BrokerBookieIsolationTest {
      * @throws Exception
      */
     @Test
-    public void testBookieIsilationWithSecondaryGroup() throws Exception {
+    public void testBookieIsolationWithSecondaryGroup() throws Exception {
         final String tenant1 = "tenant1";
         final String cluster = "use";
         final String ns1 = String.format("%s/%s/%s", tenant1, cluster, "ns1");
@@ -288,6 +291,7 @@ public class BrokerBookieIsolationTest {
         config.setClusterName(cluster);
         config.setWebServicePort(Optional.of(0));
         config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setBrokerShutdownTimeoutMs(0L);
         config.setBrokerServicePort(Optional.of(0));
         config.setAdvertisedAddress("localhost");
         config.setBookkeeperClientIsolationGroups(brokerBookkeeperClientIsolationGroups);
@@ -334,6 +338,7 @@ public class BrokerBookieIsolationTest {
             // Ok
         }
 
+        @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsarService.getBrokerServiceUrl())
                 .statsInterval(-1, TimeUnit.SECONDS).build();
 
@@ -364,7 +369,8 @@ public class BrokerBookieIsolationTest {
         // validate ledgers' ensemble with affinity bookies
         assertAffinityBookies(ledgerManager, ml.getLedgersInfoAsList(), isolatedBookies);
 
-        ManagedLedgerClientFactory mlFactory = pulsarService.getManagedLedgerClientFactory();
+        ManagedLedgerClientFactory mlFactory =
+            (ManagedLedgerClientFactory) pulsarService.getManagedLedgerClientFactory();
         Map<EnsemblePlacementPolicyConfig, BookKeeper> bkPlacementPolicyToBkClientMap = mlFactory
                 .getBkEnsemblePolicyToBookKeeperMap();
 
@@ -410,6 +416,7 @@ public class BrokerBookieIsolationTest {
         config.setClusterName(cluster);
         config.setWebServicePort(Optional.of(0));
         config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setBrokerShutdownTimeoutMs(0L);
         config.setBrokerServicePort(Optional.of(0));
         config.setAdvertisedAddress("localhost");
         config.setBookkeeperClientIsolationGroups(brokerBookkeeperClientIsolationGroups);

@@ -21,11 +21,13 @@ package org.apache.pulsar.client.impl;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
+import io.netty.util.ReferenceCountUtil;
 import io.netty.util.Recycler.Handle;
 
 import java.io.IOException;
@@ -41,6 +43,8 @@ import java.util.stream.Collectors;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.schema.AbstractSchema;
+import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
@@ -49,6 +53,7 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
 public class MessageImpl<T> implements Message<T> {
@@ -57,17 +62,20 @@ public class MessageImpl<T> implements Message<T> {
     private final MessageMetadata msgMetadata;
     private ClientCnx cnx;
     private ByteBuf payload;
+
     private Schema<T> schema;
     private SchemaState schemaState = SchemaState.None;
     private Optional<EncryptionContext> encryptionCtx = Optional.empty();
 
     private String topic; // only set for incoming messages
     transient private Map<String, String> properties;
-    private final int redeliveryCount;
+    private int redeliveryCount;
     private int uncompressedSize;
 
     private BrokerEntryMetadata brokerEntryMetadata;
 
+    private boolean poolMessage;
+    
     // Constructor for out-going message
     public static <T> MessageImpl<T> create(MessageMetadata msgMetadata, ByteBuffer payload, Schema<T> schema) {
         @SuppressWarnings("unchecked")
@@ -92,93 +100,138 @@ public class MessageImpl<T> implements Message<T> {
 
     MessageImpl(String topic, MessageIdImpl messageId, MessageMetadata msgMetadata, ByteBuf payload,
                 Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema) {
-        this(topic, messageId, msgMetadata, payload, encryptionCtx, cnx, schema, 0);
+        this(topic, messageId, msgMetadata, payload, encryptionCtx, cnx, schema, 0, false);
     }
 
     MessageImpl(String topic, MessageIdImpl messageId, MessageMetadata msgMetadata, ByteBuf payload,
-                Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema, int redeliveryCount) {
-        this.msgMetadata = new MessageMetadata().copyFrom(msgMetadata);
-        this.messageId = messageId;
-        this.topic = topic;
-        this.cnx = cnx;
-        this.redeliveryCount = redeliveryCount;
+                Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema, int redeliveryCount,
+                boolean pooledMessage) {
+        this.msgMetadata = new MessageMetadata();
+        init(this, topic, messageId, msgMetadata, payload, encryptionCtx, cnx, schema, redeliveryCount, pooledMessage);
+    }
 
-        // Need to make a copy since the passed payload is using a ref-count buffer that we don't know when could
-        // release, since the Message is passed to the user. Also, the passed ByteBuf is coming from network and is
-        // backed by a direct buffer which we could not expose as a byte[]
-        this.payload = Unpooled.copiedBuffer(payload);
-        this.encryptionCtx = encryptionCtx;
-
-        if (msgMetadata.getPropertiesCount() > 0) {
-            this.properties = Collections.unmodifiableMap(msgMetadata.getPropertiesList().stream()
-                    .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue,
-                            (oldValue,newValue) -> newValue)));
+    public static <T> MessageImpl<T> create(String topic, MessageIdImpl messageId, MessageMetadata msgMetadata,
+            ByteBuf payload, Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema,
+            int redeliveryCount, boolean pooledMessage) {
+        if (pooledMessage) {
+            @SuppressWarnings("unchecked")
+            MessageImpl<T> msg = (MessageImpl<T>) RECYCLER.get();
+            init(msg, topic, messageId, msgMetadata, payload, encryptionCtx, cnx, schema, redeliveryCount,
+                    pooledMessage);
+            return msg;
         } else {
-            properties = Collections.emptyMap();
+            return new MessageImpl<>(topic, messageId, msgMetadata, payload, encryptionCtx, cnx, schema,
+                    redeliveryCount, pooledMessage);
         }
-        this.schema = schema;
     }
 
     MessageImpl(String topic, BatchMessageIdImpl batchMessageIdImpl, MessageMetadata msgMetadata,
-                SingleMessageMetadata singleMessageMetadata, ByteBuf payload,
-                Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema) {
-        this(topic, batchMessageIdImpl, msgMetadata, singleMessageMetadata, payload, encryptionCtx, cnx, schema, 0);
+            SingleMessageMetadata singleMessageMetadata, ByteBuf payload, Optional<EncryptionContext> encryptionCtx,
+            ClientCnx cnx, Schema<T> schema) {
+        this(topic, batchMessageIdImpl, msgMetadata, singleMessageMetadata, payload, encryptionCtx, cnx, schema, 0,
+                false);
     }
 
     MessageImpl(String topic, BatchMessageIdImpl batchMessageIdImpl, MessageMetadata batchMetadata,
-                SingleMessageMetadata singleMessageMetadata, ByteBuf payload,
-                Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema, int redeliveryCount) {
-        this.msgMetadata = new MessageMetadata().copyFrom(batchMetadata);
-        this.messageId = batchMessageIdImpl;
-        this.topic = topic;
-        this.cnx = cnx;
-        this.redeliveryCount = redeliveryCount;
+            SingleMessageMetadata singleMessageMetadata, ByteBuf payload, Optional<EncryptionContext> encryptionCtx,
+            ClientCnx cnx, Schema<T> schema, int redeliveryCount, boolean keepMessageInDirectMemory) {
+        this.msgMetadata = new MessageMetadata();
+        init(this, topic, batchMessageIdImpl, batchMetadata, singleMessageMetadata, payload, encryptionCtx, cnx, schema,
+                redeliveryCount, keepMessageInDirectMemory);
 
-        this.payload = Unpooled.copiedBuffer(payload);
-        this.encryptionCtx = encryptionCtx;
-
-        if (singleMessageMetadata.getPropertiesCount() > 0) {
-            Map<String, String> properties = Maps.newTreeMap();
-            for (KeyValue entry : singleMessageMetadata.getPropertiesList()) {
-                properties.put(entry.getKey(), entry.getValue());
-            }
-            this.properties = Collections.unmodifiableMap(properties);
-        } else {
-            properties = Collections.emptyMap();
-        }
-        if (singleMessageMetadata.hasPartitionKey()) {
-            msgMetadata.setPartitionKeyB64Encoded(singleMessageMetadata.isPartitionKeyB64Encoded())
-                    .setPartitionKey(singleMessageMetadata.getPartitionKey());
-        } else if (msgMetadata.hasPartitionKey()) {
-            msgMetadata.clearPartitionKey();
-            msgMetadata.clearPartitionKeyB64Encoded();
-        }
-
-        if (singleMessageMetadata.hasOrderingKey()) {
-            msgMetadata.setOrderingKey(singleMessageMetadata.getOrderingKey());
-        } else if (msgMetadata.hasOrderingKey()) {
-            msgMetadata.clearOrderingKey();
-        }
-
-        if (singleMessageMetadata.hasEventTime()) {
-            msgMetadata.setEventTime(singleMessageMetadata.getEventTime());
-        }
-
-        if (singleMessageMetadata.hasSequenceId()) {
-            msgMetadata.setSequenceId(singleMessageMetadata.getSequenceId());
-        }
-
-        if (singleMessageMetadata.hasNullValue()) {
-            msgMetadata.setNullValue(singleMessageMetadata.isNullValue());
-        }
-
-        if (singleMessageMetadata.hasNullPartitionKey()) {
-            msgMetadata.setNullPartitionKey(singleMessageMetadata.isNullPartitionKey());
-        }
-
-        this.schema = schema;
     }
 
+    public static <T> MessageImpl<T> create(String topic, BatchMessageIdImpl batchMessageIdImpl,
+            MessageMetadata batchMetadata, SingleMessageMetadata singleMessageMetadata, ByteBuf payload,
+            Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema, int redeliveryCount,
+            boolean pooledMessage) {
+        if (pooledMessage) {
+            @SuppressWarnings("unchecked")
+            MessageImpl<T> msg = (MessageImpl<T>) RECYCLER.get();
+            init(msg, topic, batchMessageIdImpl, batchMetadata, singleMessageMetadata, payload, encryptionCtx, cnx,
+                    schema, redeliveryCount, pooledMessage);
+            return msg;
+        } else {
+            return new MessageImpl<>(topic, batchMessageIdImpl, batchMetadata, singleMessageMetadata, payload,
+                    encryptionCtx, cnx, schema, redeliveryCount, pooledMessage);
+        }
+    }
+
+    static <T> void init(MessageImpl<T> msg, String topic, MessageIdImpl messageId, MessageMetadata msgMetadata,
+            ByteBuf payload, Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema,
+            int redeliveryCount, boolean poolMessage) {
+        init(msg, topic, null /* batchMessageIdImpl */, msgMetadata, null /* singleMessageMetadata */, payload,
+                encryptionCtx, cnx, schema, redeliveryCount, poolMessage);
+        msg.messageId = messageId;
+    }
+    
+    private static <T> void init(MessageImpl<T> msg, String topic, BatchMessageIdImpl batchMessageIdImpl,
+            MessageMetadata msgMetadata, SingleMessageMetadata singleMessageMetadata, ByteBuf payload,
+            Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema, int redeliveryCount,
+            boolean poolMessage) {
+        msg.msgMetadata.clear();
+        msg.msgMetadata.copyFrom(msgMetadata);
+        msg.messageId = batchMessageIdImpl;
+        msg.topic = topic;
+        msg.cnx = cnx;
+        msg.redeliveryCount = redeliveryCount;
+        msg.encryptionCtx = encryptionCtx;
+        msg.schema = schema;
+
+        msg.poolMessage = poolMessage;
+        // If it's not pool message then need to make a copy since the passed payload is 
+        // using a ref-count buffer that we don't know when could release, since the 
+        // Message is passed to the user. Also, the passed ByteBuf is coming from network 
+        // and is backed by a direct buffer which we could not expose as a byte[]
+        msg.payload = poolMessage ? payload.retain() : Unpooled.copiedBuffer(payload);
+        
+        if (singleMessageMetadata != null) {
+            if (singleMessageMetadata.getPropertiesCount() > 0) {
+                Map<String, String> properties = Maps.newTreeMap();
+                for (KeyValue entry : singleMessageMetadata.getPropertiesList()) {
+                    properties.put(entry.getKey(), entry.getValue());
+                }
+                msg.properties = Collections.unmodifiableMap(properties);
+            } else {
+                msg.properties = Collections.emptyMap();
+            }
+            if (singleMessageMetadata.hasPartitionKey()) {
+                msg.msgMetadata.setPartitionKeyB64Encoded(singleMessageMetadata.isPartitionKeyB64Encoded())
+                        .setPartitionKey(singleMessageMetadata.getPartitionKey());
+            } else if (msg.msgMetadata.hasPartitionKey()) {
+                msg.msgMetadata.clearPartitionKey();
+                msg.msgMetadata.clearPartitionKeyB64Encoded();
+            }
+
+            if (singleMessageMetadata.hasOrderingKey()) {
+                msg.msgMetadata.setOrderingKey(singleMessageMetadata.getOrderingKey());
+            } else if (msg.msgMetadata.hasOrderingKey()) {
+                msg.msgMetadata.clearOrderingKey();
+            }
+
+            if (singleMessageMetadata.hasEventTime()) {
+                msg.msgMetadata.setEventTime(singleMessageMetadata.getEventTime());
+            }
+
+            if (singleMessageMetadata.hasSequenceId()) {
+                msg.msgMetadata.setSequenceId(singleMessageMetadata.getSequenceId());
+            }
+
+            if (singleMessageMetadata.hasNullValue()) {
+                msg.msgMetadata.setNullValue(singleMessageMetadata.isNullValue());
+            }
+
+            if (singleMessageMetadata.hasNullPartitionKey()) {
+                msg.msgMetadata.setNullPartitionKey(singleMessageMetadata.isNullPartitionKey());
+            }
+        } else if (msgMetadata.getPropertiesCount() > 0) {
+            msg.properties = Collections.unmodifiableMap(msgMetadata.getPropertiesList().stream().collect(
+                    Collectors.toMap(KeyValue::getKey, KeyValue::getValue, (oldValue, newValue) -> newValue)));
+        } else {
+            msg.properties = Collections.emptyMap();
+        }
+    }
+    
     public MessageImpl(String topic, String msgId, Map<String, String> properties,
             byte[] payload, Schema<T> schema, MessageMetadata msgMetadata) {
         this(topic, msgId, properties, Unpooled.wrappedBuffer(payload), schema, msgMetadata);
@@ -292,7 +345,7 @@ public class MessageImpl<T> implements Message<T> {
     }
 
     public boolean isExpired(int messageTTLInSeconds) {
-        return messageTTLInSeconds != 0 && (brokerEntryMetadata == null
+        return messageTTLInSeconds != 0 && (brokerEntryMetadata == null || !brokerEntryMetadata.hasBrokerTimestamp()
                 ? (System.currentTimeMillis() >
                     getPublishTime() + TimeUnit.SECONDS.toMillis(messageTTLInSeconds))
                 : (System.currentTimeMillis() >
@@ -300,7 +353,7 @@ public class MessageImpl<T> implements Message<T> {
     }
 
     public boolean publishedEarlierThan(long timestamp) {
-        return brokerEntryMetadata == null ? getPublishTime() < timestamp
+        return brokerEntryMetadata == null || !brokerEntryMetadata.hasBrokerTimestamp() ? getPublishTime() < timestamp
                 : brokerEntryMetadata.getBrokerTimestamp() < timestamp;
     }
 
@@ -308,6 +361,11 @@ public class MessageImpl<T> implements Message<T> {
     public byte[] getData() {
         if (msgMetadata.isNullValue()) {
             return null;
+        }
+        if (payload.isDirect()) {
+            byte[] data = new byte[payload.readableBytes()];
+            payload.getBytes(payload.readerIndex(), data);
+            return data;
         }
         if (payload.arrayOffset() == 0 && payload.capacity() == payload.array().length) {
             return payload.array();
@@ -319,8 +377,35 @@ public class MessageImpl<T> implements Message<T> {
         }
     }
 
-    public Schema<T> getSchema() {
+    @Override
+    public int size() {
+        if (msgMetadata.isNullValue()) {
+            return 0;
+        }
+        return payload.readableBytes();
+    }
+
+    public Schema<T> getSchemaInternal() {
         return this.schema;
+    }
+
+    @Override
+    public Optional<Schema<?>> getReaderSchema() {
+        ensureSchemaIsLoaded();
+        if (schema == null) {
+            return Optional.empty();
+        }
+        if (schema instanceof AutoConsumeSchema) {
+            byte[] schemaVersion = getSchemaVersion();
+            return Optional.of(((AutoConsumeSchema) schema)
+                    .atSchemaVersion(schemaVersion));
+        } else if (schema instanceof AbstractSchema) {
+            byte[] schemaVersion = getSchemaVersion();
+            return Optional.of(((AbstractSchema) schema)
+                    .atSchemaVersion(schemaVersion));
+        } else {
+            return Optional.of(schema);
+        }
     }
 
     @Override
@@ -332,9 +417,20 @@ public class MessageImpl<T> implements Message<T> {
         }
     }
 
+    private void ensureSchemaIsLoaded() {
+        if (schema instanceof AutoConsumeSchema) {
+            ((AutoConsumeSchema) schema).fetchSchemaIfNeeded();
+        }
+    }
+    private SchemaInfo getSchemaInfo() {
+        ensureSchemaIsLoaded();
+        return schema.getSchemaInfo();
+    }
+
     @Override
     public T getValue() {
-        if (schema.getSchemaInfo() != null && SchemaType.KEY_VALUE == schema.getSchemaInfo().getType()) {
+        SchemaInfo schemaInfo = getSchemaInfo();
+        if (schemaInfo != null && SchemaType.KEY_VALUE == schemaInfo.getType()) {
             if (schema.supportSchemaVersioning()) {
                 return getKeyValueBySchemaVersion();
             } else {
@@ -346,35 +442,62 @@ public class MessageImpl<T> implements Message<T> {
             }
             // check if the schema passed in from client supports schema versioning or not
             // this is an optimization to only get schema version when necessary
-            if (schema.supportSchemaVersioning()) {
-                byte[] schemaVersion = getSchemaVersion();
-                if (null == schemaVersion) {
-                    return schema.decode(getData());
-                } else {
-                    return schema.decode(getData(), schemaVersion);
-                }
-            } else {
-                return schema.decode(getData());
-            }
+            return decode(schema.supportSchemaVersioning() ? getSchemaVersion() : null);
         }
     }
 
-    private T getKeyValueBySchemaVersion() {
-        KeyValueSchema kvSchema = (KeyValueSchema) schema;
-        byte[] schemaVersion = getSchemaVersion();
-        if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
-            return (T) kvSchema.decode(getKeyBytes(), getData(), schemaVersion);
+
+    private KeyValueSchema getKeyValueSchema() {
+        if (schema instanceof AutoConsumeSchema) {
+            return (KeyValueSchema) ((AutoConsumeSchema) schema).getInternalSchema();
+        } else {
+            return (KeyValueSchema) schema;
+        }
+    }
+
+
+    private T decode(byte[] schemaVersion) {
+        T value = poolMessage ? schema.decode(payload.nioBuffer(), schemaVersion) : null;
+        if (value != null) {
+            return value;
+        }
+        if (null == schemaVersion) {
+            return schema.decode(getData());
         } else {
             return schema.decode(getData(), schemaVersion);
         }
     }
+    
+    private T getKeyValueBySchemaVersion() {
+        KeyValueSchema kvSchema = getKeyValueSchema();
+        byte[] schemaVersion = getSchemaVersion();
+        if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
+            org.apache.pulsar.common.schema.KeyValue keyValue =
+                    (org.apache.pulsar.common.schema.KeyValue) kvSchema.decode(getKeyBytes(), getData(), schemaVersion);
+            if (schema instanceof AutoConsumeSchema) {
+                return (T) AutoConsumeSchema.wrapPrimitiveObject(keyValue,
+                        schema.getSchemaInfo().getType(), schemaVersion);
+            } else {
+                return (T) keyValue;
+            }
+        } else {
+            return decode(schemaVersion);
+        }
+    }
 
     private T getKeyValue() {
-        KeyValueSchema kvSchema = (KeyValueSchema) schema;
+        KeyValueSchema kvSchema = getKeyValueSchema();
         if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
-            return (T) kvSchema.decode(getKeyBytes(), getData(), null);
+            org.apache.pulsar.common.schema.KeyValue keyValue =
+                    (org.apache.pulsar.common.schema.KeyValue) kvSchema.decode(getKeyBytes(), getData(), null);
+            if (schema instanceof AutoConsumeSchema) {
+                return (T) AutoConsumeSchema.wrapPrimitiveObject(keyValue,
+                        schema.getSchemaInfo().getType(), null);
+            } else {
+                return (T) keyValue;
+            }
         } else {
-            return schema.decode(getData());
+            return decode(null);
         }
     }
 
@@ -400,7 +523,6 @@ public class MessageImpl<T> implements Message<T> {
 
     @Override
     public MessageId getMessageId() {
-        checkNotNull(messageId, "Cannot get the message id of a message that was not received");
         return messageId;
     }
 
@@ -495,17 +617,34 @@ public class MessageImpl<T> implements Message<T> {
     }
 
     public void recycle() {
-        msgMetadata.clear();
+        if (msgMetadata != null) {
+            msgMetadata.clear();
+        }
+        if (brokerEntryMetadata != null) {
+            brokerEntryMetadata.clear();
+        }
+        cnx = null;
         messageId = null;
         topic = null;
         payload = null;
+        encryptionCtx = null;
+        redeliveryCount = 0;
+        uncompressedSize = 0;
         properties = null;
         schema = null;
         schemaState = SchemaState.None;
-        brokerEntryMetadata = null;
+        poolMessage = false;
 
         if (recyclerHandle != null) {
             recyclerHandle.recycle(this);
+        }
+    }
+
+    @Override
+    public void release() {
+        if (poolMessage) {
+            ReferenceCountUtil.safeRelease(payload);
+            recycle();
         }
     }
 
@@ -513,6 +652,7 @@ public class MessageImpl<T> implements Message<T> {
         this.recyclerHandle = recyclerHandle;
         this.redeliveryCount = 0;
         this.msgMetadata = new MessageMetadata();
+        this.brokerEntryMetadata = new BrokerEntryMetadata();
     }
 
     private Handle<MessageImpl<?>> recyclerHandle;
@@ -558,7 +698,15 @@ public class MessageImpl<T> implements Message<T> {
         this.schemaState = schemaState;
     }
 
-
+    /**
+     * used only for unit-test to validate payload's state and ref-cnt.
+     * 
+     * @return
+     */
+    @VisibleForTesting
+    ByteBuf getPayload() {
+        return payload;
+    }
 
     enum SchemaState {
         None, Ready, Broken

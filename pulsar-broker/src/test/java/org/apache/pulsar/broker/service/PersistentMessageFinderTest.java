@@ -19,7 +19,16 @@
 package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.powermock.api.mockito.PowerMockito.doAnswer;
+import static org.powermock.api.mockito.PowerMockito.mock;
+import static org.powermock.api.mockito.PowerMockito.spy;
+import static org.powermock.api.mockito.PowerMockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
@@ -29,6 +38,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.UnpooledByteBufAllocator;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -51,6 +61,8 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.Ledge
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.broker.service.persistent.PersistentMessageExpiryMonitor;
 import org.apache.pulsar.broker.service.persistent.PersistentMessageFinder;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
+import org.apache.pulsar.client.impl.ResetCursorData;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -58,14 +70,16 @@ import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataUtils;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
+import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
-import org.testng.collections.Sets;
 
-/**
- */
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.core.MediaType;
+
+@Test(groups = "broker")
 public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
 
-    public static byte[] createMessageWrittenToLedger(String msg) throws Exception {
+    public static byte[] createMessageWrittenToLedger(String msg) {
         MessageMetadata messageMetadata = new MessageMetadata()
                     .setPublishTime(System.currentTimeMillis())
                     .setProducerName("createMessageWrittenToLedger")
@@ -110,7 +124,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         return byteMessage;
     }
 
-    class Result {
+    static class Result {
         ManagedLedgerException exception = null;
         Position position = null;
 
@@ -329,7 +343,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
      * @throws Exception
      */
     @Test
-    void testMessageExpiryWithNonRecoverableException() throws Exception {
+    void testMessageExpiryWithTimestampNonRecoverableException() throws Exception {
 
         final String ledgerAndCursorName = "testPersistentMessageExpiryWithNonRecoverableLedgers";
         final int entriesPerLedger = 2;
@@ -379,5 +393,90 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         ledger.close();
         factory.shutdown();
 
+    }
+
+    @Test
+    void testMessageExpiryWithPosition() throws Exception {
+        final String ledgerAndCursorName = "testPersistentMessageExpiryWithPositionNonRecoverableLedgers";
+        final int entriesPerLedger = 5;
+        final int totalEntries = 30;
+        List<Position> positions = new ArrayList<>();
+
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setRetentionSizeInMB(10);
+        config.setMaxEntriesPerLedger(entriesPerLedger);
+        config.setRetentionTime(1, TimeUnit.HOURS);
+        config.setAutoSkipNonRecoverableData(true);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(ledgerAndCursorName, config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor(ledgerAndCursorName);
+
+        PersistentSubscription subscription = mock(PersistentSubscription.class);
+        Topic topic = mock(Topic.class);
+        when(subscription.getTopic()).thenReturn(topic);
+
+        for (int i = 0; i < totalEntries; i++) {
+            positions.add(ledger.addEntry(createMessageWrittenToLedger("msg" + i)));
+        }
+        when(topic.getLastPosition()).thenReturn(positions.get(positions.size() - 1));
+
+        PersistentMessageExpiryMonitor monitor = spy(new PersistentMessageExpiryMonitor("topicname",
+                cursor.getName(), cursor, subscription));
+        assertEquals(cursor.getMarkDeletedPosition(), PositionImpl.get(positions.get(0).getLedgerId(), -1));
+        boolean issued;
+
+        // Expire by position and verify mark delete position of cursor.
+        issued = monitor.expireMessages(positions.get(15));
+        Awaitility.await().untilAsserted(() -> verify(monitor, times(1)).findEntryComplete(any(), any()));
+        assertEquals(cursor.getMarkDeletedPosition(), PositionImpl.get(positions.get(15).getLedgerId(), positions.get(15).getEntryId()));
+        assertTrue(issued);
+        clearInvocations(monitor);
+
+        // Expire by position beyond last position and nothing should happen.
+        issued = monitor.expireMessages(PositionImpl.get(100, 100));
+        assertEquals(cursor.getMarkDeletedPosition(), PositionImpl.get(positions.get(15).getLedgerId(), positions.get(15).getEntryId()));
+        assertFalse(issued);
+
+        // Expire by position again and verify mark delete position of cursor didn't change.
+        issued = monitor.expireMessages(positions.get(15));
+        Awaitility.await().untilAsserted(() -> verify(monitor, times(1)).findEntryComplete(any(), any()));
+        assertEquals(cursor.getMarkDeletedPosition(), PositionImpl.get(positions.get(15).getLedgerId(), positions.get(15).getEntryId()));
+        assertTrue(issued);
+        clearInvocations(monitor);
+
+        // Expire by position before current mark delete position and verify mark delete position of cursor didn't change.
+        issued = monitor.expireMessages(positions.get(10));
+        Awaitility.await().untilAsserted(() -> verify(monitor, times(1)).findEntryComplete(any(), any()));
+        assertEquals(cursor.getMarkDeletedPosition(), PositionImpl.get(positions.get(15).getLedgerId(), positions.get(15).getEntryId()));
+        assertTrue(issued);
+        clearInvocations(monitor);
+
+        // Expire by position after current mark delete position and verify mark delete position of cursor move to new position.
+        issued = monitor.expireMessages(positions.get(16));
+        Awaitility.await().untilAsserted(() -> verify(monitor, times(1)).findEntryComplete(any(), any()));
+        assertEquals(cursor.getMarkDeletedPosition(), PositionImpl.get(positions.get(16).getLedgerId(), positions.get(16).getEntryId()));
+        assertTrue(issued);
+        clearInvocations(monitor);
+
+        ManagedCursorImpl mockCursor = mock(ManagedCursorImpl.class);
+        PersistentMessageExpiryMonitor mockMonitor = spy(new PersistentMessageExpiryMonitor("topicname",
+                cursor.getName(), mockCursor, subscription));
+        // Not calling findEntryComplete to clear expirationCheckInProgress condition, so following call to
+        // expire message shouldn't issue.
+        doAnswer(invocation -> null).when(mockCursor).asyncFindNewestMatching(any(), any(), any(), any());
+        issued = mockMonitor.expireMessages(positions.get(15));
+        assertTrue(issued);
+        issued = mockMonitor.expireMessages(positions.get(15));
+        assertFalse(issued);
+
+        cursor.close();
+        ledger.close();
+        factory.shutdown();
+    }
+
+    @Test
+    public void test() {
+        ResetCursorData resetCursorData = new ResetCursorData(1, 1);
+        resetCursorData.setExcluded(true);
+        System.out.println(Entity.entity(resetCursorData, MediaType.APPLICATION_JSON));
     }
 }

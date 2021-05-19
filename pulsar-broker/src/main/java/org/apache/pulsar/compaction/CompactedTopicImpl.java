@@ -50,6 +50,7 @@ import org.slf4j.LoggerFactory;
 
 public class CompactedTopicImpl implements CompactedTopic {
     final static long NEWER_THAN_COMPACTED = -0xfeed0fbaL;
+    final static long COMPACT_LEDGER_EMPTY = -0xfeed0fbbL;
     final static int DEFAULT_STARTPOINT_CACHE_SIZE = 100;
 
     private final BookKeeper bk;
@@ -86,13 +87,21 @@ public class CompactedTopicImpl implements CompactedTopic {
             PositionImpl cursorPosition = (PositionImpl) cursor.getReadPosition();
             if (compactionHorizon == null
                 || compactionHorizon.compareTo(cursorPosition) < 0) {
-                cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback, ctx);
+                cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback, ctx, PositionImpl.latest);
             } else {
                 compactedTopicContext.thenCompose(
                     (context) -> findStartPoint(cursorPosition, context.ledger.getLastAddConfirmed(), context.cache)
                         .thenCompose((startPoint) -> {
+                            // do not need to read the compaction ledger if it is empty.
+                            // the cursor just needs to be set to the compaction horizon
+                            if (startPoint == COMPACT_LEDGER_EMPTY) {
+                                cursor.seek(compactionHorizon.getNext());
+                                callback.readEntriesComplete(Collections.emptyList(), ctx);
+                                return CompletableFuture.completedFuture(null);
+                            }
                             if (startPoint == NEWER_THAN_COMPACTED && compactionHorizon.compareTo(cursorPosition) < 0) {
-                                cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback, ctx);
+                                cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback, ctx,
+                                        PositionImpl.latest);
                                 return CompletableFuture.completedFuture(null);
                             } else {
                                 long endPoint = Math.min(context.ledger.getLastAddConfirmed(),
@@ -126,7 +135,12 @@ public class CompactedTopicImpl implements CompactedTopic {
                                                   long lastEntryId,
                                                   AsyncLoadingCache<Long, MessageIdData> cache) {
         CompletableFuture<Long> promise = new CompletableFuture<>();
-        findStartPointLoop(p, 0, lastEntryId, promise, cache);
+        // if lastEntryId is less than zero it means there are no entries in the compact ledger
+        if (lastEntryId < 0) {
+            promise.complete(COMPACT_LEDGER_EMPTY);
+        } else {
+            findStartPointLoop(p, 0, lastEntryId, promise, cache);
+        }
         return promise;
     }
 

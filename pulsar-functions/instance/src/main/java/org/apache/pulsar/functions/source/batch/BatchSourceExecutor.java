@@ -228,6 +228,7 @@ public class BatchSourceExecutor<T> implements Source<T> {
       discoveryThread.awaitTermination(10, TimeUnit.SECONDS);
     } catch (InterruptedException e) {
       log.warn("Shutdown of discovery thread was interrupted");
+      Thread.currentThread().interrupt();
     }
 
     if (intermediateTopicConsumer != null) {

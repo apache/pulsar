@@ -167,7 +167,11 @@ func (c *FunctionContext) SetCurrentRecord(record pulsar.Message) {
 // GetCurrentRecord gets the current message from the function context
 func (c *FunctionContext) GetCurrentRecord() pulsar.Message {
 	return c.record
+}
 
+//GetMetricsPort returns the port the pulsar function metrics listen on
+func (c *FunctionContext) GetMetricsPort() int {
+	return c.instanceConf.metricsPort
 }
 
 // An unexported type to be used as the key for types in this package. This

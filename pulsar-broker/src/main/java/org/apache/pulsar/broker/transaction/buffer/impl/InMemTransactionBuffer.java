@@ -31,6 +31,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
@@ -39,7 +41,6 @@ import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotSeal
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionSealedException;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionStatusException;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 
@@ -207,9 +208,10 @@ class InMemTransactionBuffer implements TransactionBuffer {
 
     final ConcurrentMap<TxnID, TxnBuffer> buffers;
     final Map<Long, Set<TxnID>> txnIndex;
-    public InMemTransactionBuffer() {
+    public InMemTransactionBuffer(Topic topic, CompletableFuture<Void> transactionBufferFuture) {
         this.buffers = new ConcurrentHashMap<>();
         this.txnIndex = new HashMap<>();
+        transactionBufferFuture.complete(null);
     }
 
     @Override
@@ -280,7 +282,7 @@ class InMemTransactionBuffer implements TransactionBuffer {
     }
 
     @Override
-    public CompletableFuture<Void> commitTxn(TxnID txnID, List<MessageIdData> messageIdDataList) {
+    public CompletableFuture<Void> commitTxn(TxnID txnID, long lowWaterMark) {
         CompletableFuture<Void> commitFuture = new CompletableFuture<>();
         try {
             TxnBuffer txnBuffer = getTxnBufferOrThrowNotFoundException(txnID);
@@ -307,7 +309,7 @@ class InMemTransactionBuffer implements TransactionBuffer {
     }
 
     @Override
-    public CompletableFuture<Void> abortTxn(TxnID txnID, List<MessageIdData> sendMessageIdList) {
+    public CompletableFuture<Void> abortTxn(TxnID txnID, long lowWaterMark) {
         CompletableFuture<Void> abortFuture = new CompletableFuture<>();
 
         try {
@@ -345,6 +347,21 @@ class InMemTransactionBuffer implements TransactionBuffer {
     public CompletableFuture<Void> closeAsync() {
         buffers.values().forEach(TxnBuffer::close);
         return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public boolean isTxnAborted(TxnID txnID) {
+        return false;
+    }
+
+    @Override
+    public void syncMaxReadPositionForNormalPublish(PositionImpl position) {
+        //no-op
+    }
+
+    @Override
+    public PositionImpl getMaxReadPosition() {
+        return PositionImpl.latest;
     }
 
 }

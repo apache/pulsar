@@ -44,6 +44,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
+import org.apache.pulsar.metadata.api.Stat;
 import org.testng.annotations.Test;
 
 public class MetadataStoreTest extends BaseMetadataStoreTest {
@@ -249,9 +250,10 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         assertFalse(store.get(key1).join().isPresent());
 
         // Trigger created notification
-        store.put(key1, "value-1".getBytes(), Optional.empty()).join();
+        Stat stat = store.put(key1, "value-1".getBytes(), Optional.empty()).join();
         assertTrue(store.get(key1).join().isPresent());
         assertEquals(store.getChildren(key1).join(), Collections.emptyList());
+        assertEquals(stat.getVersion(), 0);
 
         Notification n = notifications.poll(3, TimeUnit.SECONDS);
         assertNotNull(n);
@@ -259,11 +261,12 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         assertEquals(n.getPath(), key1);
 
         // Trigger modified notification
-        store.put(key1, "value-2".getBytes(), Optional.empty()).join();
+        stat = store.put(key1, "value-2".getBytes(), Optional.empty()).join();
         n = notifications.poll(3, TimeUnit.SECONDS);
         assertNotNull(n);
         assertEquals(n.getType(), NotificationType.Modified);
         assertEquals(n.getPath(), key1);
+        assertEquals(stat.getVersion(), 1);
 
         // Trigger modified notification on the parent
         String key1Child = key1 + "/xx";

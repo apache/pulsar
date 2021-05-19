@@ -18,101 +18,235 @@
  */
 package org.apache.pulsar.tests.integration.presto;
 
-import com.google.common.base.Stopwatch;
-import java.util.concurrent.TimeUnit;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+
+import java.nio.ByteBuffer;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
+import org.apache.pulsar.client.impl.schema.KeyValueSchema;
+import org.apache.pulsar.client.impl.schema.ProtobufNativeSchema;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
-import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
-import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
-import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
-import org.awaitility.Awaitility;
+import org.testng.Assert;
 import org.testng.annotations.AfterClass;
-import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
-import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.util.LinkedList;
-import java.util.List;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
+/**
+ * Test basic Pulsar SQL query, the Pulsar SQL is standalone mode.
+ */
 @Slf4j
-public class TestBasicPresto extends PulsarTestSuite {
+public class TestBasicPresto extends TestPulsarSQLBase {
 
     private static final int NUM_OF_STOCKS = 10;
 
-    @Override
-    protected PulsarClusterSpec.PulsarClusterSpecBuilder beforeSetupCluster(String clusterName, PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
-        return super.beforeSetupCluster(clusterName, specBuilder.queryLastMessage(true));
-    }
-
-    @BeforeClass
-    public void setupPresto() throws Exception {
-        log.info("[setupPresto]");
+    private void setupPresto() throws Exception {
+        log.info("[TestBasicPresto] setupPresto...");
         pulsarCluster.startPrestoWorker();
     }
 
-    @AfterClass
-    public void teardownPresto() {
-        log.info("tearing down...");
+    private void teardownPresto() {
+        log.info("[TestBasicPresto] tearing down...");
         pulsarCluster.stopPrestoWorker();
     }
 
-    @Test
-    public void testSimpleSQLQueryBatched() throws Exception {
-        testSimpleSQLQuery(true);
+    @Override
+    public void setupCluster() throws Exception {
+        super.setupCluster();
+        setupPresto();
+    }
+
+    @Override
+    public void tearDownCluster() throws Exception {
+        teardownPresto();
+        super.tearDownCluster();
+    }
+
+    @DataProvider(name = "schemaProvider")
+    public Object[][] schemaProvider() {
+        return new Object[][] {
+                { Schema.BYTES},
+                { Schema.BYTEBUFFER},
+                { Schema.STRING},
+                { AvroSchema.of(Stock.class)},
+                { JSONSchema.of(Stock.class)},
+                { ProtobufNativeSchema.of(StockProtoMessage.Stock.class)},
+                { Schema.KeyValue(Schema.AVRO(Stock.class), Schema.AVRO(Stock.class), KeyValueEncodingType.INLINE) },
+                { Schema.KeyValue(Schema.AVRO(Stock.class), Schema.AVRO(Stock.class), KeyValueEncodingType.SEPARATED) }
+        };
+    }
+
+    @Test(dataProvider = "batchingAndCompression")
+    public void testSimpleSQLQuery(boolean batchEnabled, CompressionType compressionType) throws Exception {
+        TopicName topicName = TopicName.get("public/default/stocks_batched_" + randomName(5));
+        pulsarSQLBasicTest(topicName, batchEnabled, false, JSONSchema.of(Stock.class), compressionType);
+    }
+
+    @Test(dataProvider = "schemaProvider")
+    public void testForSchema(Schema schema) throws Exception {
+        String schemaFlag;
+        if (schema.getSchemaInfo().getType().isStruct()) {
+            schemaFlag = schema.getSchemaInfo().getType().name();
+        } else if(schema.getSchemaInfo().getType().equals(SchemaType.KEY_VALUE)) {
+            schemaFlag = schema.getSchemaInfo().getType().name() + "_"
+                    + ((KeyValueSchema) schema).getKeyValueEncodingType();
+        } else {
+            // Because some schema types are same(such as BYTES and BYTEBUFFER), so use the schema name as flag.
+            schemaFlag = schema.getSchemaInfo().getName();
+        }
+        String topic = String.format("public/default/schema_%s_test_%s", schemaFlag, randomName(5)).toLowerCase();
+        pulsarSQLBasicTest(TopicName.get(topic), false, false, schema, CompressionType.NONE);
     }
 
     @Test
-    public void testSimpleSQLQueryNonBatched() throws Exception {
-        testSimpleSQLQuery(false);
+    public void testForUppercaseTopic() throws Exception {
+        TopicName topicName = TopicName.get("public/default/case_UPPER_topic_" + randomName(5));
+        pulsarSQLBasicTest(topicName, false, false, JSONSchema.of(Stock.class), CompressionType.NONE);
     }
-    
-    public void testSimpleSQLQuery(boolean isBatched) throws Exception {
-        // wait until presto worker started
-        ContainerExecResult result;
-        do {
-            try {
-                result = execQuery("show catalogs;");
-                assertThat(result.getExitCode()).isEqualTo(0);
-                assertThat(result.getStdout()).contains("pulsar", "system");
-                break;
-            } catch (ContainerExecException cee) {
-                if (cee.getResult().getStderr().contains("Presto server is still initializing")) {
-                    Thread.sleep(10000);
-                } else {
-                    throw cee;
-                }
-            }
-        } while (true);
 
+    @Test
+    public void testForDifferentCaseTopic() throws Exception {
+        String tableName = "diff_case_topic_" + randomName(5);
+
+        String topic1 = "public/default/" + tableName.toUpperCase();
+        TopicName topicName1 = TopicName.get(topic1);
+        prepareData(topicName1, false, false, JSONSchema.of(Stock.class), CompressionType.NONE);
+
+        String topic2 = "public/default/" + tableName;
+        TopicName topicName2 = TopicName.get(topic2);
+        prepareData(topicName2, false, false, JSONSchema.of(Stock.class), CompressionType.NONE);
+
+        try {
+            String query = "select * from pulsar.\"public/default\".\"" + tableName + "\"";
+            execQuery(query);
+            Assert.fail("The testForDifferentCaseTopic query [" + query + "] should be failed.");
+        } catch (ContainerExecException e) {
+            log.warn("Expected exception. result stderr: {}", e.getResult().getStderr(), e);
+            assertTrue(e.getResult().getStderr().contains("There are multiple topics"));
+            assertTrue(e.getResult().getStderr().contains(topic1));
+            assertTrue(e.getResult().getStderr().contains(topic2));
+            assertTrue(e.getResult().getStderr().contains("matched the table name public/default/" + tableName));
+        }
+    }
+
+    @Test
+    public void testListTopicShouldNotShowNonPersistentTopics() throws Exception {
+        String tableName = "non_persistent" + randomName(5);
+
+        String topic1 = "non-persistent://public/default/" + tableName.toUpperCase();
+        TopicName topicName1 = TopicName.get(topic1);
+        prepareData(topicName1, false, false, JSONSchema.of(Stock.class), CompressionType.NONE);
+
+        String query = "show tables from pulsar.\"public/default\"";
+        ContainerExecResult result = execQuery(query);
+        assertFalse(result.getStdout().contains("non_persistent"));
+    }
+
+    @Override
+    protected int prepareData(TopicName topicName,
+                              boolean isBatch,
+                              boolean useNsOffloadPolices,
+                              Schema schema,
+                              CompressionType compressionType) throws Exception {
         @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder()
-                                    .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
-                                    .build();
+                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+                .build();
 
-        String stocksTopic;
-        if (isBatched) {
-            stocksTopic = "stocks_batched";
-        } else {
-            stocksTopic = "stocks_nonbatched";
+        if (schema.getSchemaInfo().getName().equals(Schema.BYTES.getSchemaInfo().getName())) {
+            prepareDataForBytesSchema(pulsarClient, topicName, isBatch, compressionType);
+        } else if (schema.getSchemaInfo().getName().equals(Schema.BYTEBUFFER.getSchemaInfo().getName())) {
+            prepareDataForByteBufferSchema(pulsarClient, topicName, isBatch, compressionType);
+        } else if (schema.getSchemaInfo().getType().equals(SchemaType.STRING)) {
+            prepareDataForStringSchema(pulsarClient, topicName, isBatch, compressionType);
+        } else if (schema.getSchemaInfo().getType().equals(SchemaType.JSON)
+                || schema.getSchemaInfo().getType().equals(SchemaType.AVRO)) {
+            prepareDataForStructSchema(pulsarClient, topicName, isBatch, schema, compressionType);
+        } else if (schema.getSchemaInfo().getType().equals(SchemaType.PROTOBUF_NATIVE)) {
+            prepareDataForProtobufNativeSchema(pulsarClient, topicName, isBatch, schema, compressionType);
+        } else if (schema.getSchemaInfo().getType().equals(SchemaType.KEY_VALUE)) {
+            prepareDataForKeyValueSchema(pulsarClient, topicName, schema, compressionType);
         }
 
+        return NUM_OF_STOCKS;
+    }
+
+    private void prepareDataForBytesSchema(PulsarClient pulsarClient,
+                                           TopicName topicName,
+                                           boolean isBatch,
+                                           CompressionType compressionType) throws PulsarClientException {
         @Cleanup
-        Producer<Stock> producer = pulsarClient.newProducer(JSONSchema.of(Stock.class))
-                .topic(stocksTopic)
-                .enableBatching(isBatched)
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
+                .topic(topicName.toString())
+                .enableBatching(isBatch)
+                .compressionType(compressionType)
+                .create();
+
+        for (int i = 0 ; i < NUM_OF_STOCKS; ++i) {
+            producer.send(("bytes schema test" + i).getBytes());
+        }
+        producer.flush();
+    }
+
+    private void prepareDataForByteBufferSchema(PulsarClient pulsarClient,
+                                                TopicName topicName,
+                                                boolean isBatch,
+                                                CompressionType compressionType) throws PulsarClientException {
+        @Cleanup
+        Producer<ByteBuffer> producer = pulsarClient.newProducer(Schema.BYTEBUFFER)
+                .topic(topicName.toString())
+                .enableBatching(isBatch)
+                .compressionType(compressionType)
+                .create();
+
+        for (int i = 0 ; i < NUM_OF_STOCKS; ++i) {
+            producer.send(ByteBuffer.wrap(("bytes schema test" + i).getBytes()));
+        }
+        producer.flush();
+    }
+
+    private void prepareDataForStringSchema(PulsarClient pulsarClient,
+                                            TopicName topicName,
+                                            boolean isBatch,
+                                            CompressionType compressionType) throws PulsarClientException {
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName.toString())
+                .enableBatching(isBatch)
+                .compressionType(compressionType)
+                .create();
+
+        for (int i = 0 ; i < NUM_OF_STOCKS; ++i) {
+            producer.send("string" + i);
+        }
+        producer.flush();
+    }
+
+    private void prepareDataForStructSchema(PulsarClient pulsarClient,
+                                            TopicName topicName,
+                                            boolean isBatch,
+                                            Schema<Stock> schema,
+                                            CompressionType compressionType) throws Exception {
+        @Cleanup
+        Producer<Stock> producer = pulsarClient.newProducer(schema)
+                .topic(topicName.toString())
+                .enableBatching(isBatch)
+                .compressionType(compressionType)
                 .create();
 
         for (int i = 0 ; i < NUM_OF_STOCKS; ++i) {
@@ -120,137 +254,94 @@ public class TestBasicPresto extends PulsarTestSuite {
             producer.send(stock);
         }
         producer.flush();
-
-        result = execQuery("show schemas in pulsar;");
-        assertThat(result.getExitCode()).isEqualTo(0);
-        assertThat(result.getStdout()).contains("public/default");
-
-        pulsarCluster.getBroker(0)
-            .execCmd(
-                "/bin/bash",
-                "-c", "bin/pulsar-admin namespaces unload public/default");
-
-        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(
-            () -> {
-                ContainerExecResult r = execQuery("show tables in pulsar.\"public/default\";");
-                assertThat(r.getExitCode()).isEqualTo(0);
-                assertThat(r.getStdout()).contains("stocks");
-            }
-        );
-
-        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(
-            () -> {
-                ContainerExecResult containerExecResult = execQuery(String.format("select * from pulsar.\"public/default\".%s order by entryid;", stocksTopic));
-                assertThat(containerExecResult.getExitCode()).isEqualTo(0);
-                log.info("select sql query output \n{}", containerExecResult.getStdout());
-                String[] split = containerExecResult.getStdout().split("\n");
-                assertThat(split.length).isEqualTo(NUM_OF_STOCKS);
-                String[] split2 = containerExecResult.getStdout().split("\n|,");
-                for (int i = 0; i < NUM_OF_STOCKS; ++i) {
-                    assertThat(split2).contains("\"" + i + "\"");
-                    assertThat(split2).contains("\"" + "STOCK_" + i + "\"");
-                    assertThat(split2).contains("\"" + (100.0 + i * 10) + "\"");
-                }
-            }
-        );
-
-
-        // test predicate pushdown
-
-        String url = String.format("jdbc:presto://%s",  pulsarCluster.getPrestoWorkerContainer().getUrl());
-        Connection connection = DriverManager.getConnection(url, "test", null);
-
-        String query = String.format("select * from pulsar" +
-                ".\"public/default\".%s order by __publish_time__", stocksTopic);
-        log.info("Executing query: {}", query);
-        ResultSet res = connection.createStatement().executeQuery(query);
-
-        List<Timestamp> timestamps = new LinkedList<>();
-        while (res.next()) {
-            printCurrent(res);
-            timestamps.add(res.getTimestamp("__publish_time__"));
-        }
-
-        assertThat(timestamps.size()).isGreaterThan(NUM_OF_STOCKS - 2);
-
-        query = String.format("select * from pulsar" +
-                ".\"public/default\".%s where __publish_time__ > timestamp '%s' order by __publish_time__", stocksTopic, timestamps.get(timestamps.size() / 2));
-        log.info("Executing query: {}", query);
-        res = connection.createStatement().executeQuery(query);
-
-        List<Timestamp> returnedTimestamps = new LinkedList<>();
-        while (res.next()) {
-            printCurrent(res);
-            returnedTimestamps.add(res.getTimestamp("__publish_time__"));
-        }
-
-        assertThat(returnedTimestamps.size() + 1).isEqualTo(timestamps.size() / 2);
-
-        // Try with a predicate that has a earlier time than any entry
-        // Should return all rows
-        query = String.format("select * from pulsar" +
-                ".\"public/default\".%s where __publish_time__ > from_unixtime(%s) order by __publish_time__", stocksTopic, 0);
-        log.info("Executing query: {}", query);
-        res = connection.createStatement().executeQuery(query);
-
-        returnedTimestamps = new LinkedList<>();
-        while (res.next()) {
-            printCurrent(res);
-            returnedTimestamps.add(res.getTimestamp("__publish_time__"));
-        }
-
-        assertThat(returnedTimestamps.size()).isEqualTo(timestamps.size());
-
-        // Try with a predicate that has a latter time than any entry
-        // Should return no rows
-
-        query = String.format("select * from pulsar" +
-                ".\"public/default\".%s where __publish_time__ > from_unixtime(%s) order by __publish_time__", stocksTopic, 99999999999L);
-        log.info("Executing query: {}", query);
-        res = connection.createStatement().executeQuery(query);
-
-        returnedTimestamps = new LinkedList<>();
-        while (res.next()) {
-            printCurrent(res);
-            returnedTimestamps.add(res.getTimestamp("__publish_time__"));
-        }
-
-        assertThat(returnedTimestamps.size()).isEqualTo(0);
     }
 
-    @AfterSuite
+    private void prepareDataForProtobufNativeSchema(PulsarClient pulsarClient,
+                                            TopicName topicName,
+                                            boolean isBatch,
+                                            Schema<StockProtoMessage.Stock> schema,
+                                            CompressionType compressionType) throws Exception {
+        @Cleanup
+        Producer<StockProtoMessage.Stock> producer = pulsarClient.newProducer(schema)
+                .topic(topicName.toString())
+                .enableBatching(isBatch)
+                .compressionType(compressionType)
+                .create();
+
+        for (int i = 0 ; i < NUM_OF_STOCKS; ++i) {
+            final StockProtoMessage.Stock stock = StockProtoMessage.Stock.newBuilder().
+                    setEntryId(i).setSymbol("STOCK_" + i).setSharePrice(100.0 + i * 10).build();
+            producer.send(stock);
+        }
+        producer.flush();
+    }
+
+    private void prepareDataForKeyValueSchema(PulsarClient pulsarClient,
+                                              TopicName topicName,
+                                              Schema<KeyValue<Stock, Stock>> schema,
+                                              CompressionType compressionType) throws Exception {
+        @Cleanup
+        Producer<KeyValue<Stock,Stock>> producer = pulsarClient.newProducer(schema)
+                .topic(topicName.toString())
+                .compressionType(compressionType)
+                .create();
+
+        for (int i = 0 ; i < NUM_OF_STOCKS; ++i) {
+            int j = 100 * i;
+            final Stock stock1 = new Stock(j, "STOCK_" + j , 100.0 + j * 10);
+            final Stock stock2 = new Stock(i, "STOCK_" + i , 100.0 + i * 10);
+            producer.send(new KeyValue<>(stock1, stock2));
+        }
+    }
+
     @Override
-    public void tearDownCluster() {
-        super.tearDownCluster();
+    protected void validateContent(int messageNum, String[] contentArr, Schema schema) {
+        switch (schema.getSchemaInfo().getType()) {
+            case BYTES:
+                log.info("Skip validate content for BYTES schema type.");
+                break;
+            case STRING:
+                validateContentForStringSchema(messageNum, contentArr);
+                log.info("finish validate content for STRING schema type.");
+                break;
+            case JSON:
+            case AVRO:
+            case PROTOBUF_NATIVE:
+                validateContentForStructSchema(messageNum, contentArr);
+                log.info("finish validate content for {} schema type.", schema.getSchemaInfo().getType());
+                break;
+            case KEY_VALUE:
+                validateContentForKeyValueSchema(messageNum, contentArr);
+                log.info("finish validate content for KEY_VALUE {} schema type.",
+                        ((KeyValueSchema) schema).getKeyValueEncodingType());
+        }
     }
 
-    public static ContainerExecResult execQuery(final String query) throws Exception {
-        ContainerExecResult containerExecResult;
-
-        containerExecResult = pulsarCluster.getPrestoWorkerContainer()
-                .execCmd("/bin/bash", "-c", PulsarCluster.PULSAR_COMMAND_SCRIPT + " sql --execute " + "'" + query + "'");
-
-        Stopwatch sw = Stopwatch.createStarted();
-        while (containerExecResult.getExitCode() != 0 && sw.elapsed(TimeUnit.SECONDS) < 120) {
-            TimeUnit.MILLISECONDS.sleep(500);
-            containerExecResult = pulsarCluster.getPrestoWorkerContainer()
-                .execCmd("/bin/bash", "-c", PulsarCluster.PULSAR_COMMAND_SCRIPT + " sql --execute " + "'" + query + "'");
+    private void validateContentForStringSchema(int messageNum, String[] contentArr) {
+        for (int i = 0; i < messageNum; i++) {
+            assertThat(contentArr).contains("\"string" + i + "\"");
         }
-
-        return containerExecResult;
-
     }
 
-    private static void printCurrent(ResultSet rs) throws SQLException {
-        ResultSetMetaData rsmd = rs.getMetaData();
-        int columnsNumber = rsmd.getColumnCount();
-        for (int i = 1; i <= columnsNumber; i++) {
-            if (i > 1) System.out.print(",  ");
-            String columnValue = rs.getString(i);
-            System.out.print(columnValue + " " + rsmd.getColumnName(i));
+    private void validateContentForStructSchema(int messageNum, String[] contentArr) {
+        for (int i = 0; i < messageNum; ++i) {
+            assertThat(contentArr).contains("\"" + i + "\"");
+            assertThat(contentArr).contains("\"" + "STOCK_" + i + "\"");
+            assertThat(contentArr).contains("\"" + (100.0 + i * 10) + "\"");
         }
-        System.out.println("");
+    }
 
+    private void validateContentForKeyValueSchema(int messageNum, String[] contentArr) {
+        for (int i = 0; i < messageNum; ++i) {
+            int j = 100 * i;
+            assertThat(contentArr).contains("\"" + i + "\"");
+            assertThat(contentArr).contains("\"" + "STOCK_" + i + "\"");
+            assertThat(contentArr).contains("\"" + (100.0 + i * 10) + "\"");
+
+            assertThat(contentArr).contains("\"" + j + "\"");
+            assertThat(contentArr).contains("\"" + "STOCK_" + j + "\"");
+            assertThat(contentArr).contains("\"" + (100.0 + j * 10) + "\"");
+        }
     }
 
 }

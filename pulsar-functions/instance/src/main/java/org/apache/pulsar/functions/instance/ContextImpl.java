@@ -21,7 +21,6 @@ package org.apache.pulsar.functions.instance;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Summary;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -33,10 +32,16 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
+
+import lombok.ToString;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.HashingScheme;
 import org.apache.pulsar.client.api.MessageId;
@@ -45,9 +50,13 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
+import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.common.functions.ExternalPulsarConfig;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Record;
@@ -55,6 +64,7 @@ import org.apache.pulsar.functions.api.StateStore;
 import org.apache.pulsar.functions.instance.state.DefaultStateStore;
 import org.apache.pulsar.functions.instance.state.StateManager;
 import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
+import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
 import org.apache.pulsar.functions.instance.stats.FunctionStatsManager;
 import org.apache.pulsar.functions.instance.stats.SinkStatsManager;
 import org.apache.pulsar.functions.instance.stats.SourceStatsManager;
@@ -73,6 +83,7 @@ import static org.apache.pulsar.functions.instance.stats.FunctionStatsManager.US
 /**
  * This class implements the Context interface exposed to the user.
  */
+@ToString
 class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable {
     private InstanceConfig config;
     private Logger logger;
@@ -80,7 +91,9 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     // Per Message related
     private Record<?> record;
 
+    @VisibleForTesting
     private String defaultPulsarCluster;
+    @VisibleForTesting
     private Map<String, PulsarCluster> externalPulsarClusters;
 
     private final SecretsProvider secretsProvider;
@@ -99,7 +112,14 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     private final String[] metricsLabels;
     private final Summary userMetricsSummary;
 
+    private final SubscriptionType subscriptionType;
+
     private final static String[] userMetricsLabelNames;
+
+    private boolean exposePulsarAdminClientEnabled;
+
+    private List<Consumer<?>> inputConsumers;
+    private final Map<TopicName, Consumer> topicConsumers = new ConcurrentHashMap<>();
 
     static {
         // add label to indicate user metric
@@ -110,9 +130,9 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     private final Function.FunctionDetails.ComponentType componentType;
 
     public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
-                       SecretsProvider secretsProvider, CollectorRegistry collectorRegistry, String[] metricsLabels,
+                       SecretsProvider secretsProvider, FunctionCollectorRegistry collectorRegistry, String[] metricsLabels,
                        Function.FunctionDetails.ComponentType componentType, ComponentStatsManager statsManager,
-                       StateManager stateManager) {
+                       StateManager stateManager, PulsarAdmin pulsarAdmin) {
         this.config = config;
         this.logger = logger;
         this.statsManager = statsManager;
@@ -126,6 +146,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
                 try {
                     this.externalPulsarClusters.put(entry.getKey(),
                             new PulsarCluster(InstanceUtils.createPulsarClient(entry.getValue().getServiceURL(), entry.getValue().getAuthConfig()),
+                                    config.isExposePulsarAdminClientEnabled() ? InstanceUtils.createPulsarAdminClient(entry.getValue().getWebServiceURL(), entry.getValue().getAuthConfig()) : null,
                                     ProducerConfigUtils.convert(entry.getValue().getProducerConfig())));
                 } catch (PulsarClientException ex) {
                     throw new RuntimeException("failed to create pulsar client for external cluster: " + entry.getKey(), ex);
@@ -133,7 +154,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
             }
         }
         this.defaultPulsarCluster = "default-" + UUID.randomUUID();
-        this.externalPulsarClusters.put(defaultPulsarCluster, new PulsarCluster(client, config.getFunctionDetails().getSink().getProducerSpec()));
+        this.externalPulsarClusters.put(defaultPulsarCluster, new PulsarCluster(client, config.isExposePulsarAdminClientEnabled() ? pulsarAdmin : null, config.getFunctionDetails().getSink().getProducerSpec()));
 
         if (config.getFunctionDetails().getUserConfig().isEmpty()) {
             userConfigs = new HashMap<>();
@@ -166,15 +187,17 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
             default:
                 throw new RuntimeException("Unknown component type: " + componentType);
         }
-        this.userMetricsSummary = Summary.build()
-                .name(prefix + ComponentStatsManager.USER_METRIC_PREFIX)
-                .help("User defined metric.")
-                .labelNames(userMetricsLabelNames)
-                .quantile(0.5, 0.01)
-                .quantile(0.9, 0.01)
-                .quantile(0.99, 0.01)
-                .quantile(0.999, 0.01)
-                .register(collectorRegistry);
+        this.userMetricsSummary = collectorRegistry.registerIfNotExist(
+                prefix + ComponentStatsManager.USER_METRIC_PREFIX,
+                Summary.build()
+                        .name(prefix + ComponentStatsManager.USER_METRIC_PREFIX)
+                        .help("User defined metric.")
+                        .labelNames(userMetricsLabelNames)
+                        .quantile(0.5, 0.01)
+                        .quantile(0.9, 0.01)
+                        .quantile(0.99, 0.01)
+                        .quantile(0.999, 0.01)
+                        .create());
         this.componentType = componentType;
         this.stateManager = stateManager;
         this.defaultStateStore = (DefaultStateStore) stateManager.getStore(
@@ -182,6 +205,20 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
             config.getFunctionDetails().getNamespace(),
             config.getFunctionDetails().getName()
         );
+        this.exposePulsarAdminClientEnabled = config.isExposePulsarAdminClientEnabled();
+
+        Function.SourceSpec sourceSpec = config.getFunctionDetails().getSource();
+        switch (sourceSpec.getSubscriptionType()) {
+            case FAILOVER:
+                subscriptionType = SubscriptionType.Failover;
+                break;
+            case KEY_SHARED:
+                subscriptionType = SubscriptionType.Key_Shared;
+                break;
+            default:
+                subscriptionType = SubscriptionType.Shared;
+                break;
+        }
     }
 
     public void setCurrentMessageContext(Record<?> record) {
@@ -301,6 +338,26 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     }
 
     @Override
+    public PulsarAdmin getPulsarAdmin() {
+        return getPulsarAdmin(defaultPulsarCluster);
+    }
+
+    @Override
+    public PulsarAdmin getPulsarAdmin(String clusterName) {
+        if (exposePulsarAdminClientEnabled) {
+            PulsarCluster pulsarCluster = externalPulsarClusters.get(clusterName);
+            if (pulsarCluster != null) {
+                return pulsarCluster.getAdminClient();
+            } else {
+                throw new IllegalArgumentException("PulsarAdmin for cluster " + clusterName + " is not available, only "
+                        + externalPulsarClusters.keySet());
+            }
+        } else {
+            throw new IllegalStateException("PulsarAdmin is not enabled in function worker");
+        }
+    }
+
+    @Override
     public <S extends StateStore> S getStateStore(String name) {
         return getStateStore(
             config.getFunctionDetails().getTenant(),
@@ -407,6 +464,11 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     @Override
     public <O> ConsumerBuilder<O> newConsumerBuilder(Schema<O> schema) throws PulsarClientException {
         return this.externalPulsarClusters.get(defaultPulsarCluster).getClient().newConsumer(schema);
+    }
+
+    @Override
+    public SubscriptionType getSubscriptionType() {
+        return subscriptionType;
     }
 
     public <O> CompletableFuture<Void> publish(String topicName, O object, Schema<O> schema) {
@@ -640,6 +702,10 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
                     futures.add(producer.closeAsync());
                 }
             }
+
+            if (exposePulsarAdminClientEnabled && pulsar.getAdminClient() != null) {
+                pulsar.getAdminClient().close();
+            }
         }
 
         try {
@@ -648,4 +714,80 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
             logger.warn("Failed to close producers", e);
         }
     }
+
+    @Override
+    public void seek(String topic, int partition, MessageId messageId) throws PulsarClientException {
+        Consumer<?> consumer = getConsumer(topic, partition);
+        consumer.seek(messageId);
+    }
+
+    @Override
+    public void pause(String topic, int partition) throws PulsarClientException {
+        getConsumer(topic, partition).pause();
+    }
+
+    @Override
+    public void resume(String topic, int partition) throws PulsarClientException {
+        getConsumer(topic, partition).resume();
+    }
+
+    public void setInputConsumers(List<Consumer<?>> inputConsumers) {
+        this.inputConsumers = inputConsumers;
+        inputConsumers.stream()
+            .flatMap(consumer ->
+                    consumer instanceof MultiTopicsConsumerImpl
+                            ? ((MultiTopicsConsumerImpl<?>) consumer).getConsumers().stream()
+                            : Stream.of(consumer))
+            .forEach(consumer -> topicConsumers.putIfAbsent(TopicName.get(consumer.getTopic()), consumer));
+    }
+
+    private void reloadConsumersFromMultiTopicsConsumers() {
+        // MultiTopicsConsumer in the list of inputConsumers could change its nested consumers
+        // if ne partition was created or a new topic added that matches subscription pattern.
+        // Let's update topicConsumers map to match.
+        inputConsumers
+                .stream()
+                .flatMap(c ->
+                        c instanceof MultiTopicsConsumerImpl
+                                ? ((MultiTopicsConsumerImpl<?>) c).getConsumers().stream()
+                                : Stream.empty() // no changes expected in regular consumers
+                ).forEach(c -> topicConsumers.putIfAbsent(TopicName.get(c.getTopic()), c));
+    }
+
+    // returns null if consumer not found
+    private Consumer<?> tryGetConsumer(String topic, int partition) {
+        if (partition == 0) {
+            // maybe a non-partitioned topic
+            Consumer<?> consumer = topicConsumers.get(TopicName.get(topic));
+
+            if (consumer != null) {
+                return consumer;
+            }
+        }
+        // maybe partitioned topic
+        return topicConsumers.get(TopicName.get(topic).getPartition(partition));
+    }
+
+    @VisibleForTesting
+    Consumer<?> getConsumer(String topic, int partition) throws PulsarClientException {
+        if (inputConsumers == null) {
+            throw new PulsarClientException("Getting consumer is not supported");
+        }
+
+        Consumer<?> consumer = tryGetConsumer(topic, partition);
+        if (consumer == null) {
+            // MultiTopicsConsumer's list of consumers could change
+            // if partitions changed or pattern(s) used to subscribe.
+            // Reload and try one more time.
+            reloadConsumersFromMultiTopicsConsumers();
+            consumer = tryGetConsumer(topic, partition);
+        }
+
+        if (consumer != null) {
+            return consumer;
+        }
+        throw new PulsarClientException("Consumer for topic " + topic
+                + " partition " + partition + " is not found");
+    }
+
 }

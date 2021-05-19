@@ -20,10 +20,8 @@ package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Queues;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
@@ -33,11 +31,11 @@ import io.netty.channel.unix.Errors.NativeIoException;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.Promise;
-
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -48,9 +46,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
-
 import javax.net.ssl.SSLSession;
-
 import lombok.Getter;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -58,13 +54,14 @@ import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.PulsarClientException.ConnectException;
 import org.apache.pulsar.client.api.PulsarClientException.TimeoutException;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
-import org.apache.pulsar.client.impl.tls.TlsHostnameVerifier;
+import org.apache.pulsar.common.tls.TlsHostnameVerifier;
+import org.apache.pulsar.client.impl.transaction.TransactionBufferHandler;
+import org.apache.pulsar.client.util.TimedCompletableFuture;
 import org.apache.pulsar.common.api.AuthData;
-import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.api.proto.CommandAckResponse;
 import org.apache.pulsar.common.api.proto.CommandActiveConsumerChange;
 import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxnResponse;
@@ -78,8 +75,8 @@ import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscriptionResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandError;
 import org.apache.pulsar.common.api.proto.CommandGetLastMessageIdResponse;
-import org.apache.pulsar.common.api.proto.CommandGetSchemaResponse;
 import org.apache.pulsar.common.api.proto.CommandGetOrCreateSchemaResponse;
+import org.apache.pulsar.common.api.proto.CommandGetSchemaResponse;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespaceResponse;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.CommandMessage;
@@ -90,15 +87,14 @@ import org.apache.pulsar.common.api.proto.CommandReachedEndOfTopic;
 import org.apache.pulsar.common.api.proto.CommandSendError;
 import org.apache.pulsar.common.api.proto.CommandSendReceipt;
 import org.apache.pulsar.common.api.proto.CommandSuccess;
-import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.api.proto.ServerError;
+import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.PulsarHandler;
+import org.apache.pulsar.common.protocol.schema.SchemaInfoUtil;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
-import org.apache.pulsar.common.protocol.schema.SchemaInfoUtil;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
-import org.apache.pulsar.client.impl.transaction.TransactionBufferHandler;
-import org.apache.pulsar.client.util.TimedCompletableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -146,6 +142,7 @@ public class ClientCnx extends PulsarHandler {
     private ScheduledFuture<?> timeoutTask;
 
     // Added for mutual authentication.
+    @Getter
     protected AuthenticationDataProvider authenticationDataProvider;
     private TransactionBufferHandler transactionBufferHandler;
 
@@ -154,14 +151,19 @@ public class ClientCnx extends PulsarHandler {
     }
 
     private static class RequestTime {
-        final long creationTimeMs;
+        private final long creationTimeNanos;
         final long requestId;
         final RequestType requestType;
 
-        RequestTime(long creationTime, long requestId, RequestType requestType) {
-            this.creationTimeMs = creationTime;
+        RequestTime(long requestId, RequestType requestType) {
+            this.creationTimeNanos = System.nanoTime();
             this.requestId = requestId;
             this.requestType = requestType;
+        }
+
+        boolean isTimedOut(long timeoutMillis) {
+            long requestAgeMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - creationTimeNanos);
+            return requestAgeMillis > timeoutMillis;
         }
     }
 
@@ -170,7 +172,9 @@ public class ClientCnx extends PulsarHandler {
         GetLastMessageId,
         GetTopics,
         GetSchema,
-        GetOrCreateSchema;
+        GetOrCreateSchema,
+        AckResponse,
+        Lookup;
 
         String getDescription() {
             if (this == Command) {
@@ -234,7 +238,7 @@ public class ClientCnx extends PulsarHandler {
         // each channel will have a mutual client/server pair, mutual client evaluateChallenge with init data,
         // and return authData to server.
         authenticationDataProvider = authentication.getAuthData(remoteHostName);
-        AuthData authData = authenticationDataProvider.authenticate(AuthData.of(AuthData.INIT_AUTH_DATA));
+        AuthData authData = authenticationDataProvider.authenticate(AuthData.INIT_AUTH_DATA);
         return Commands.newConnect(authentication.getAuthMethodName(), authData, this.protocolVersion,
                 PulsarVersion.getVersion(), proxyToTargetBrokerAddress, null, null, null);
     }
@@ -247,7 +251,7 @@ public class ClientCnx extends PulsarHandler {
             connectionFuture.completeExceptionally(new PulsarClientException("Connection already closed"));
         }
 
-        PulsarClientException e = new PulsarClientException(
+        ConnectException e = new ConnectException(
                 "Disconnected from server at " + ctx.channel().remoteAddress());
 
         // Fail out all the pending ops
@@ -316,7 +320,7 @@ public class ClientCnx extends PulsarHandler {
             log.debug("{} Connection is ready", ctx.channel());
         }
         // set remote protocol version to the correct version before we complete the connection future
-        remoteEndpointProtocolVersion = connected.getProtocolVersion();
+        setRemoteEndpointProtocolVersion(connected.getProtocolVersion());
         connectionFuture.complete(null);
         state = State.Ready;
     }
@@ -325,6 +329,16 @@ public class ClientCnx extends PulsarHandler {
     protected void handleAuthChallenge(CommandAuthChallenge authChallenge) {
         checkArgument(authChallenge.hasChallenge());
         checkArgument(authChallenge.getChallenge().hasAuthData());
+
+        if (Arrays.equals(AuthData.REFRESH_AUTH_DATA_BYTES, authChallenge.getChallenge().getAuthData())) {
+            try {
+                authenticationDataProvider = authentication.getAuthData(remoteHostName);
+            } catch (PulsarClientException e) {
+                log.error("{} Error when refreshing authentication data provider: {}", ctx.channel(), e);
+                connectionFuture.completeExceptionally(e);
+                return;
+            }
+        }
 
         // mutual authn. If auth not complete, continue auth; if auth complete, complete connectionFuture.
         try {
@@ -399,12 +413,17 @@ public class ClientCnx extends PulsarHandler {
     protected void handleAckResponse(CommandAckResponse ackResponse) {
         checkArgument(state == State.Ready);
         checkArgument(ackResponse.getRequestId() >= 0);
-        long consumerId = ackResponse.getConsumerId();
-        if (!ackResponse.hasError()) {
-            consumers.get(consumerId).ackReceipt(ackResponse.getRequestId());
+        CompletableFuture<?> completableFuture = pendingRequests.remove(ackResponse.getRequestId());
+        if (completableFuture != null && !completableFuture.isDone()) {
+            if (!ackResponse.hasError()) {
+                completableFuture.complete(null);
+            } else {
+                completableFuture.completeExceptionally(
+                        getPulsarClientException(ackResponse.getError(), ackResponse.getMessage()));
+            }
         } else {
-            consumers.get(consumerId).ackError(ackResponse.getRequestId(),
-                    getPulsarClientException(ackResponse.getError(), ackResponse.getMessage()));
+            log.warn("AckResponse has complete when receive response! requestId : {}, consumerId : {}",
+                    ackResponse.getRequestId(), ackResponse.hasConsumerId());
         }
     }
 
@@ -466,9 +485,10 @@ public class ClientCnx extends PulsarHandler {
             log.debug("{} Received success GetLastMessageId response from server: {}", ctx.channel(), success.getRequestId());
         }
         long requestId = success.getRequestId();
-        CompletableFuture<MessageIdData> requestFuture = (CompletableFuture<MessageIdData>) pendingRequests.remove(requestId);
+        CompletableFuture<CommandGetLastMessageIdResponse> requestFuture =
+                (CompletableFuture<CommandGetLastMessageIdResponse>) pendingRequests.remove(requestId);
         if (requestFuture != null) {
-            requestFuture.complete(success.getLastMessageId());
+            requestFuture.complete(new CommandGetLastMessageIdResponse().copyFrom(success));
         } else {
             log.warn("{} Received unknown request id from server: {}", ctx.channel(), success.getRequestId());
         }
@@ -487,7 +507,7 @@ public class ClientCnx extends PulsarHandler {
             // We got a success operation but the producer is not ready. This means that the producer has been queued up
             // in broker. We need to leave the future pending until we get the final confirmation. We just mark that
             // we have received a response, in order to avoid the timeout.
-            TimedCompletableFuture<?> requestFuture = (TimedCompletableFuture<?>) pendingRequests.get(requestId);
+            TimedCompletableFuture<?> requestFuture = pendingRequests.get(requestId);
             if (requestFuture != null) {
                 log.info("{} Producer {} has been queued up at broker. request: {}", ctx.channel(),
                         success.getProducerName(), requestId);
@@ -563,9 +583,10 @@ public class ClientCnx extends PulsarHandler {
             if (!lookupResult.hasResponse()
                     || CommandPartitionedTopicMetadataResponse.LookupType.Failed.equals(lookupResult.getResponse())) {
                 if (lookupResult.hasError()) {
-                    checkServerError(lookupResult.getError(), lookupResult.getMessage());
+                    String message = lookupResult.hasMessage() ? lookupResult.getMessage() : null;
+                    checkServerError(lookupResult.getError(), message);
                     requestFuture.completeExceptionally(
-                            getPulsarClientException(lookupResult.getError(), lookupResult.getMessage()));
+                            getPulsarClientException(lookupResult.getError(), message));
                 } else {
                     requestFuture
                             .completeExceptionally(new PulsarClientException.LookupException("Empty lookup response"));
@@ -594,12 +615,7 @@ public class ClientCnx extends PulsarHandler {
     // caller of this method needs to be protected under pendingLookupRequestSemaphore
     private void addPendingLookupRequests(long requestId, TimedCompletableFuture<LookupDataResult> future) {
         pendingRequests.put(requestId, future);
-        eventLoopGroup.schedule(() -> {
-            if (!future.isDone()) {
-                future.completeExceptionally(new TimeoutException(
-                    requestId + " lookup request timedout after ms " + operationTimeoutMs));
-            }
-        }, operationTimeoutMs, TimeUnit.MILLISECONDS);
+        requestTimeoutQueue.add(new RequestTime(requestId, RequestType.Lookup));
     }
 
     private CompletableFuture<LookupDataResult> getAndRemovePendingLookupRequest(long requestId) {
@@ -741,7 +757,16 @@ public class ClientCnx extends PulsarHandler {
     }
 
     public CompletableFuture<List<String>> newGetTopicsOfNamespace(ByteBuf request, long requestId) {
-        return sendRequestAndHandleTimeout(request, requestId, RequestType.GetTopics);
+        return sendRequestAndHandleTimeout(request, requestId, RequestType.GetTopics, true);
+    }
+
+    public CompletableFuture<Void> newAckForReceipt(ByteBuf request, long requestId) {
+        return sendRequestAndHandleTimeout(request, requestId, RequestType.AckResponse,true);
+    }
+
+    public void newAckForReceiptWithFuture(ByteBuf request, long requestId,
+                                           TimedCompletableFuture<Void> future) {
+        sendRequestAndHandleTimeout(request, requestId, RequestType.AckResponse, false, future);
     }
 
     @Override
@@ -779,7 +804,7 @@ public class ClientCnx extends PulsarHandler {
             log.warn("{} Received unknown request id from server: {}", ctx.channel(), requestId);
             return;
         }
-        future.complete(commandGetSchemaResponse);
+        future.complete(new CommandGetSchemaResponse().copyFrom(commandGetSchemaResponse));
     }
 
     @Override
@@ -792,7 +817,7 @@ public class ClientCnx extends PulsarHandler {
             log.warn("{} Received unknown request id from server: {}", ctx.channel(), requestId);
             return;
         }
-        future.complete(commandGetOrCreateSchemaResponse);
+        future.complete(new CommandGetOrCreateSchemaResponse().copyFrom(commandGetOrCreateSchemaResponse));
     }
 
     Promise<Void> newPromise() {
@@ -816,25 +841,39 @@ public class ClientCnx extends PulsarHandler {
     }
 
     CompletableFuture<ProducerResponse> sendRequestWithId(ByteBuf cmd, long requestId) {
-        return sendRequestAndHandleTimeout(cmd, requestId, RequestType.Command);
+        return sendRequestAndHandleTimeout(cmd, requestId, RequestType.Command, true);
     }
 
-    private <T> CompletableFuture<T> sendRequestAndHandleTimeout(ByteBuf requestMessage, long requestId, RequestType requestType) {
-        TimedCompletableFuture<T> future = new TimedCompletableFuture<>();
+    private <T> void sendRequestAndHandleTimeout(ByteBuf requestMessage, long requestId,
+                                                                 RequestType requestType, boolean flush,
+                                                                 TimedCompletableFuture<T> future) {
         pendingRequests.put(requestId, future);
-        ctx.writeAndFlush(requestMessage).addListener(writeFuture -> {
-            if (!writeFuture.isSuccess()) {
-                log.warn("{} Failed to send {} to broker: {}", ctx.channel(), requestType.getDescription(), writeFuture.cause().getMessage());
-                pendingRequests.remove(requestId);
-                future.completeExceptionally(writeFuture.cause());
-            }
-        });
-        requestTimeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId, requestType));
+        if (flush) {
+            ctx.writeAndFlush(requestMessage).addListener(writeFuture -> {
+                if (!writeFuture.isSuccess()) {
+                    CompletableFuture<?> newFuture = pendingRequests.remove(requestId);
+                    if (newFuture != null && !newFuture.isDone()) {
+                        log.warn("{} Failed to send {} to broker: {}", ctx.channel(),
+                                requestType.getDescription(), writeFuture.cause().getMessage());
+                        future.completeExceptionally(writeFuture.cause());
+                    }
+                }
+            });
+        } else {
+            ctx.write(requestMessage, ctx().voidPromise());
+        }
+        requestTimeoutQueue.add(new RequestTime(requestId, requestType));
+    }
+
+    private <T> CompletableFuture<T> sendRequestAndHandleTimeout(ByteBuf requestMessage, long requestId,
+                                                 RequestType requestType, boolean flush) {
+        TimedCompletableFuture<T> future = new TimedCompletableFuture<>();
+        sendRequestAndHandleTimeout(requestMessage, requestId, requestType, flush, future);
         return future;
     }
 
-    public CompletableFuture<MessageIdData> sendGetLastMessageId(ByteBuf request, long requestId) {
-        return sendRequestAndHandleTimeout(request, requestId, RequestType.GetLastMessageId);
+    public CompletableFuture<CommandGetLastMessageIdResponse> sendGetLastMessageId(ByteBuf request, long requestId) {
+        return sendRequestAndHandleTimeout(request, requestId, RequestType.GetLastMessageId, true);
     }
 
     public CompletableFuture<Optional<SchemaInfo>> sendGetSchema(ByteBuf request, long requestId) {
@@ -856,11 +895,12 @@ public class ClientCnx extends PulsarHandler {
     }
 
     public CompletableFuture<CommandGetSchemaResponse> sendGetRawSchema(ByteBuf request, long requestId) {
-        return sendRequestAndHandleTimeout(request, requestId, RequestType.GetSchema);
+        return sendRequestAndHandleTimeout(request, requestId, RequestType.GetSchema, true);
     }
 
     public CompletableFuture<byte[]> sendGetOrCreateSchema(ByteBuf request, long requestId) {
-        CompletableFuture<CommandGetOrCreateSchemaResponse> future = sendRequestAndHandleTimeout(request, requestId, RequestType.GetOrCreateSchema);
+        CompletableFuture<CommandGetOrCreateSchemaResponse> future = sendRequestAndHandleTimeout(request, requestId,
+                RequestType.GetOrCreateSchema, true);
         return future.thenCompose(response -> {
             if (response.hasErrorCode()) {
                 // Request has failed
@@ -1038,7 +1078,7 @@ public class ClientCnx extends PulsarHandler {
         this.remoteHostName = remoteHostName;
     }
 
-    private PulsarClientException getPulsarClientException(ServerError error, String errorMsg) {
+    public static PulsarClientException getPulsarClientException(ServerError error, String errorMsg) {
         switch (error) {
         case AuthenticationError:
             return new PulsarClientException.AuthenticationException(errorMsg);
@@ -1090,18 +1130,21 @@ public class ClientCnx extends PulsarHandler {
     private void checkRequestTimeout() {
         while (!requestTimeoutQueue.isEmpty()) {
             RequestTime request = requestTimeoutQueue.peek();
-            if (request == null || (System.currentTimeMillis() - request.creationTimeMs) < operationTimeoutMs) {
+            if (request == null || !request.isTimedOut(operationTimeoutMs)) {
                 // if there is no request that is timed out then exit the loop
                 break;
             }
             request = requestTimeoutQueue.poll();
-            TimedCompletableFuture<?> requestFuture = pendingRequests.remove(request.requestId);
+            TimedCompletableFuture<?> requestFuture = pendingRequests.get(request.requestId);
             if (requestFuture != null
-                    && !requestFuture.isDone()
                     && !requestFuture.hasGotResponse()) {
-                String timeoutMessage = String.format("%d %s timedout after ms %d", request.requestId, request.requestType.getDescription(), operationTimeoutMs);
-                if (requestFuture.completeExceptionally(new TimeoutException(timeoutMessage))) {
-                    log.warn("{} {}", ctx.channel(), timeoutMessage);
+                pendingRequests.remove(request.requestId, requestFuture);
+                if (!requestFuture.isDone()) {
+                    String timeoutMessage = String.format("%d %s timedout after ms %d", request.requestId,
+                            request.requestType.getDescription(), operationTimeoutMs);
+                    if (requestFuture.completeExceptionally(new TimeoutException(timeoutMessage))) {
+                        log.warn("{} {}", ctx.channel(), timeoutMessage);
+                    }
                 }
             }
         }

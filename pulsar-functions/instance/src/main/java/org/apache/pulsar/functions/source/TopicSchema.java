@@ -28,7 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
@@ -97,7 +97,7 @@ public class TopicSchema {
      * If the topic is already created, we should be able to fetch the schema type (avro, json, ...)
      */
     private SchemaType getSchemaTypeOrDefault(String topic, Class<?> clazz) {
-        if (GenericRecord.class.isAssignableFrom(clazz)) {
+        if (GenericObject.class.isAssignableFrom(clazz)) {
             return SchemaType.AUTO_CONSUME;
         } else if (byte[].class.equals(clazz)
                 || ByteBuf.class.equals(clazz)
@@ -123,8 +123,8 @@ public class TopicSchema {
             || ByteBuf.class.equals(clazz)
             || ByteBuffer.class.equals(clazz)) {
             return SchemaType.NONE;
-        } else if (GenericRecord.class.isAssignableFrom(clazz)) {
-            // the function is taking generic record, so we do auto schema detection
+        } else if (GenericObject.class.isAssignableFrom(clazz)) {
+            // the function is taking generic record/object, so we do auto schema detection
             return SchemaType.AUTO_CONSUME;
         } else if (String.class.equals(clazz)) {
             // If type is String, then we use schema type string, otherwise we fallback on default schema

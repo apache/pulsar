@@ -18,6 +18,13 @@
  */
 package org.apache.pulsar.tests.integration.cli;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
+import java.util.concurrent.TimeUnit;
+import java.util.UUID;
+import lombok.Cleanup;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -29,6 +36,8 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.functions.api.examples.pojo.Tick;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
@@ -37,13 +46,6 @@ import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import java.util.concurrent.TimeUnit;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 
 /**
  * Test Pulsar CLI.
@@ -73,6 +75,84 @@ public class CLITest extends PulsarTestSuite {
     }
 
     @Test
+    public void testGetTopicListCommand() throws Exception {
+        ContainerExecResult result;
+
+        final String namespaceLocalName = "list-topics-" + randomName(8);
+        result = pulsarCluster.createNamespace(namespaceLocalName);
+        final String namespace = "public/" + namespaceLocalName;
+        assertEquals(0, result.getExitCode());
+
+        PulsarClient client = PulsarClient.builder().serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
+
+        final String persistentTopicName = TopicName.get(
+                "persistent",
+                NamespaceName.get(namespace),
+                "get_topics_mode_" + UUID.randomUUID().toString()).toString();
+
+        final String nonPersistentTopicName = TopicName.get(
+                "non-persistent",
+                NamespaceName.get(namespace),
+                "get_topics_mode_" + UUID.randomUUID().toString()).toString();
+
+        Producer<byte[]> producer1 = client.newProducer()
+                .topic(persistentTopicName)
+                .create();
+
+        Producer<byte[]> producer2 = client.newProducer()
+                .topic(nonPersistentTopicName)
+                .create();
+
+        BrokerContainer container = pulsarCluster.getAnyBroker();
+
+        result = container.execCmd(
+                PulsarCluster.ADMIN_SCRIPT,
+                "topics",
+                "list",
+                namespace);
+
+        assertTrue(result.getStdout().contains(persistentTopicName));
+        assertTrue(result.getStdout().contains(nonPersistentTopicName));
+
+        result = container.execCmd(
+                PulsarCluster.ADMIN_SCRIPT,
+                "topics",
+                "list",
+                "--topic-domain",
+                "persistent",
+                namespace);
+
+        assertTrue(result.getStdout().contains(persistentTopicName));
+        assertFalse(result.getStdout().contains(nonPersistentTopicName));
+
+        result = container.execCmd(
+                PulsarCluster.ADMIN_SCRIPT,
+                "topics",
+                "list",
+                "--topic-domain",
+                "non_persistent",
+                namespace);
+
+        assertFalse(result.getStdout().contains(persistentTopicName));
+        assertTrue(result.getStdout().contains(nonPersistentTopicName));
+
+        try {
+            container.execCmd(
+                PulsarCluster.ADMIN_SCRIPT,
+                "topics",
+                "list",
+                "--topic-domain",
+                "none",
+                namespace);
+            fail();
+        } catch (ContainerExecException ignore) {
+        }
+
+        producer1.close();
+        producer2.close();
+    }
+
+    @Test
     public void testCreateSubscriptionCommand() throws Exception {
         String topic = "testCreateSubscriptionCommmand";
 
@@ -88,8 +168,7 @@ public class CLITest extends PulsarTestSuite {
                 "--subscription",
                 "" + subscriptionPrefix + i
             );
-            assertTrue(result.getStdout().isEmpty());
-            assertTrue(result.getStderr().isEmpty());
+            result.assertNoOutput();
             i++;
         }
     }
@@ -139,6 +218,73 @@ public class CLITest extends PulsarTestSuite {
     }
 
     @Test
+    public void testPropertiesCLI() throws Exception {
+        final BrokerContainer container = pulsarCluster.getAnyBroker();
+        final String namespace = "public/default";
+
+        ContainerExecResult result = container.execCmd(
+                PulsarCluster.ADMIN_SCRIPT,
+                "namespaces",
+                "set-property",
+                "-k",
+                "a",
+                "-v",
+                "a",
+                namespace);
+        assertTrue(result.getStdout().isEmpty());
+
+        result = container.execCmd(
+                PulsarCluster.ADMIN_SCRIPT,
+                "namespaces",
+                "get-property",
+                "-k",
+                "a",
+                namespace);
+        assertTrue(result.getStdout().contains("a"));
+
+        result = container.execCmd(
+                PulsarCluster.ADMIN_SCRIPT,
+                "namespaces",
+                "remove-property",
+                "-k",
+                "a",
+                namespace);
+        assertTrue(result.getStdout().contains("a"));
+
+        result = container.execCmd(
+                PulsarCluster.ADMIN_SCRIPT,
+                "namespaces",
+                "remove-property",
+                "-k",
+                "a",
+                namespace);
+        assertTrue(result.getStdout().contains("null"));
+
+        result = container.execCmd(
+                PulsarCluster.ADMIN_SCRIPT,
+                "namespaces",
+                "set-properties",
+                "-p",
+                "a=a,b=b,c=c",
+                namespace);
+        assertTrue(result.getStdout().isEmpty());
+
+        result = container.execCmd(
+                PulsarCluster.ADMIN_SCRIPT,
+                "namespaces",
+                "get-properties",
+                namespace);
+        assertFalse(result.getStdout().isEmpty());
+
+        result = container.execCmd(
+                PulsarCluster.ADMIN_SCRIPT,
+                "namespaces",
+                "clear-properties",
+                namespace);
+        assertTrue(result.getStdout().isEmpty());
+    }
+
+    @Test
     public void testSchemaCLI() throws Exception {
         BrokerContainer container = pulsarCluster.getAnyBroker();
         String topicName = "persistent://public/default/test-schema-cli";
@@ -161,8 +307,7 @@ public class CLITest extends PulsarTestSuite {
             "-f",
             "/pulsar/conf/schema_example.conf"
         );
-        assertTrue(result.getStdout().isEmpty());
-        assertTrue(result.getStderr().isEmpty());
+        result.assertNoOutput();
 
         // get schema
         result = container.execCmd(
@@ -178,8 +323,7 @@ public class CLITest extends PulsarTestSuite {
             "schemas",
             "delete",
             topicName);
-        assertTrue(result.getStdout().isEmpty());
-        assertTrue(result.getStderr().isEmpty());
+        result.assertNoOutput();
 
         // get schema again
         try {
@@ -208,14 +352,7 @@ public class CLITest extends PulsarTestSuite {
         };
 
         result = pulsarCluster.runAdminCommandOnAnyBroker(setCommand);
-        assertTrue(
-            result.getStdout().isEmpty(),
-            result.getStdout()
-        );
-        assertTrue(
-            result.getStderr().isEmpty(),
-            result.getStdout()
-        );
+        result.assertNoOutput();
 
         String[] getCommand = {
             "namespaces", "get-retention", "public/" + namespace
@@ -281,12 +418,15 @@ public class CLITest extends PulsarTestSuite {
 
     private void testPublishAndConsume(String topic, String sub, Schema type) throws PulsarClientException {
 
+        @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
 
+        @Cleanup
         Producer<Tick> producer = client.newProducer(type)
                 .topic(topic + "-message")
                 .create();
 
+        @Cleanup
         Consumer<Tick> consumer = client.newConsumer(type)
                 .topic(topic + "-message")
                 .subscriptionName(sub)
@@ -303,10 +443,6 @@ public class CLITest extends PulsarTestSuite {
             Message<Tick> receive = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(receive.getValue(), expected);
         }
-
-        producer.close();
-        consumer.close();
-        client.close();
     }
 
     @Test

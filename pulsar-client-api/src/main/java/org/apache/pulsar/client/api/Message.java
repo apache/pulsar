@@ -67,6 +67,13 @@ public interface Message<T> {
     byte[] getData();
 
     /**
+     * Get the uncompressed message payload size in bytes.
+     * 
+     * @return size in bytes. 
+     */
+    int size();
+
+    /**
      * Get the de-serialized value of the message, according the configured {@link Schema}.
      *
      * @return the deserialized value of the message
@@ -202,6 +209,19 @@ public interface Message<T> {
     byte[] getSchemaVersion();
 
     /**
+     * Get the schema associated to the message.
+     * Please note that this schema is usually equal to the Schema you passed
+     * during the construction of the Consumer or the Reader.
+     * But if you are consuming the topic using the GenericObject interface
+     * this method will return the schema associated with the message.
+     * @return The schema used to decode the payload of message.
+     * @see Schema#AUTO_CONSUME()
+     */
+    default Optional<Schema<?>> getReaderSchema() {
+        return Optional.empty();
+    }
+
+    /**
      * Check whether the message is replicated from other cluster.
      *
      * @since 2.4.0
@@ -217,4 +237,12 @@ public interface Message<T> {
      * @return the name of cluster, from which the message is replicated.
      */
     String getReplicatedFrom();
+
+    /**
+     * Release a message back to the pool. This is required only if the consumer was created with the option to pool
+     * messages, otherwise it will have no effect.
+     * 
+     * @since 2.8.0
+     */
+    void release();
 }

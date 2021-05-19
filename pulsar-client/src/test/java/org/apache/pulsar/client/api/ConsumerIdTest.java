@@ -30,31 +30,31 @@ import org.apache.pulsar.client.impl.ConsumerId;
 public class ConsumerIdTest {
     private static final String TOPIC_TEST = "my-topic-1";
     private static final String TOPIC_TEST_2 = "my-topic-2";
-    private static final String SUBCRIBTION_TEST = "my-sub-1";
+    private static final String SUBSCRIPTION_TEST = "my-sub-1";
 
     @Test
     public void getTopicTest() {
-        ConsumerId testConsumerId = new ConsumerId(TOPIC_TEST, SUBCRIBTION_TEST);
+        ConsumerId testConsumerId = new ConsumerId(TOPIC_TEST, SUBSCRIPTION_TEST);
         assertEquals(TOPIC_TEST, testConsumerId.getTopic());
     }
 
     @Test
-    public void getSubscribtionTest() {
-        ConsumerId testConsumerId = new ConsumerId(TOPIC_TEST, SUBCRIBTION_TEST);
-        assertEquals(SUBCRIBTION_TEST, testConsumerId.getSubscription());
+    public void getSubscriptionTest() {
+        ConsumerId testConsumerId = new ConsumerId(TOPIC_TEST, SUBSCRIPTION_TEST);
+        assertEquals(SUBSCRIPTION_TEST, testConsumerId.getSubscription());
     }
 
     @Test
     public void hashCodeTest() {
-        ConsumerId testConsumerId = new ConsumerId(TOPIC_TEST, SUBCRIBTION_TEST);
-        assertEquals(Objects.hashCode(TOPIC_TEST, SUBCRIBTION_TEST), testConsumerId.hashCode());
+        ConsumerId testConsumerId = new ConsumerId(TOPIC_TEST, SUBSCRIPTION_TEST);
+        assertEquals(Objects.hashCode(TOPIC_TEST, SUBSCRIPTION_TEST), testConsumerId.hashCode());
     }
 
     @Test
     public void equalTest() {
-        ConsumerId testConsumerId1 = new ConsumerId(TOPIC_TEST, SUBCRIBTION_TEST);
-        ConsumerId testConsumerId2 = new ConsumerId(TOPIC_TEST, SUBCRIBTION_TEST);
-        ConsumerId testConsumerId3 = new ConsumerId(TOPIC_TEST_2, SUBCRIBTION_TEST);
+        ConsumerId testConsumerId1 = new ConsumerId(TOPIC_TEST, SUBSCRIPTION_TEST);
+        ConsumerId testConsumerId2 = new ConsumerId(TOPIC_TEST, SUBSCRIPTION_TEST);
+        ConsumerId testConsumerId3 = new ConsumerId(TOPIC_TEST_2, SUBSCRIPTION_TEST);
 
         assertEquals(testConsumerId2, testConsumerId1);
 
@@ -65,9 +65,9 @@ public class ConsumerIdTest {
 
     @Test
     public void compareToTest() {
-        ConsumerId testConsumerId1 = new ConsumerId(TOPIC_TEST, SUBCRIBTION_TEST);
-        ConsumerId testConsumerId2 = new ConsumerId(TOPIC_TEST, SUBCRIBTION_TEST);
-        ConsumerId testConsumerId3 = new ConsumerId(TOPIC_TEST_2, SUBCRIBTION_TEST);
+        ConsumerId testConsumerId1 = new ConsumerId(TOPIC_TEST, SUBSCRIPTION_TEST);
+        ConsumerId testConsumerId2 = new ConsumerId(TOPIC_TEST, SUBSCRIPTION_TEST);
+        ConsumerId testConsumerId3 = new ConsumerId(TOPIC_TEST_2, SUBSCRIPTION_TEST);
 
         assertEquals(0, testConsumerId1.compareTo(testConsumerId2));
         assertEquals(-1, testConsumerId1.compareTo(testConsumerId3));

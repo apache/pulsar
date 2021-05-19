@@ -26,7 +26,7 @@
 #include "PartitionedConsumerImpl.h"
 #include "MultiTopicsConsumerImpl.h"
 #include "PatternMultiTopicsConsumerImpl.h"
-#include "SimpleLoggerImpl.h"
+#include <pulsar/SimpleLoggerFactory.h>
 #include <boost/algorithm/string/predicate.hpp>
 #include <sstream>
 #include <lib/HTTPLookupService.h>
@@ -82,6 +82,7 @@ ClientImpl::ClientImpl(const std::string& serviceUrl, const ClientConfiguration&
       state_(Open),
       serviceUrl_(serviceUrl),
       clientConfiguration_(detectTls(serviceUrl, clientConfiguration)),
+      memoryLimitController_(clientConfiguration.getMemoryLimit()),
       ioExecutorProvider_(std::make_shared<ExecutorServiceProvider>(clientConfiguration_.getIOThreads())),
       listenerExecutorProvider_(
           std::make_shared<ExecutorServiceProvider>(clientConfiguration_.getMessageListenerThreads())),
@@ -100,11 +101,11 @@ ClientImpl::ClientImpl(const std::string& serviceUrl, const ClientConfiguration&
             loggerFactory = Log4CxxLoggerFactory::create(clientConfiguration_.getLogConfFilePath());
         } else {
             // Use default simple console logger
-            loggerFactory = SimpleLoggerFactory::create();
+            loggerFactory.reset(new SimpleLoggerFactory);
         }
 #else
         // Use default simple console logger
-        loggerFactory = SimpleLoggerFactory::create();
+        loggerFactory.reset(new SimpleLoggerFactory);
 #endif
     }
     LogUtils::setLoggerFactory(std::move(loggerFactory));
@@ -124,6 +125,8 @@ ClientImpl::ClientImpl(const std::string& serviceUrl, const ClientConfiguration&
 ClientImpl::~ClientImpl() { shutdown(); }
 
 const ClientConfiguration& ClientImpl::conf() const { return clientConfiguration_; }
+
+MemoryLimitController& ClientImpl::getMemoryLimitController() { return memoryLimitController_; }
 
 ExecutorServiceProviderPtr ClientImpl::getIOExecutorProvider() { return ioExecutorProvider_; }
 

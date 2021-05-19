@@ -180,9 +180,6 @@ class SchemaTest(TestCase):
             # Expected
             pass
 
-        try:
-            Record('xyz', a=1, b=2)
-            self.fail('Should have failed')
         except TypeError:
             # Expected
             pass
@@ -410,7 +407,7 @@ class SchemaTest(TestCase):
 
         r = Example()
         self.assertEqual(r.a, 5)
-        self.assertEqual(r.b, 0)
+        self.assertEqual(r.b, None)
         self.assertEqual(r.c, 'hello')
 
     ####
@@ -624,11 +621,214 @@ class SchemaTest(TestCase):
         self.assertEqual(MyEnum.C, msg.value().v)
         client.close()
 
+    def test_avro_map_array(self):
+        class MapArray(Record):
+            values = Map(Array(Integer()))
+
+        class MapMap(Record):
+            values = Map(Map(Integer()))
+
+        class ArrayMap(Record):
+            values = Array(Map(Integer()))
+
+        class ArrayArray(Record):
+            values = Array(Array(Integer()))
+
+        topic_prefix = "my-avro-map-array-topic-"
+        data_list = (
+            (topic_prefix + "0", AvroSchema(MapArray),
+                MapArray(values={"A": [1, 2], "B": [3]})),
+            (topic_prefix + "1", AvroSchema(MapMap),
+                MapMap(values={"A": {"B": 2},})),
+            (topic_prefix + "2", AvroSchema(ArrayMap),
+                ArrayMap(values=[{"A": 1}, {"B": 2}, {"C": 3}])),
+            (topic_prefix + "3", AvroSchema(ArrayArray),
+                ArrayArray(values=[[1, 2, 3], [4]])),
+        )
+
+        client = pulsar.Client(self.serviceUrl)
+        for data in data_list:
+            topic = data[0]
+            schema = data[1]
+            record = data[2]
+
+            producer = client.create_producer(topic, schema=schema)
+            consumer = client.subscribe(topic, 'sub', schema=schema)
+
+            producer.send(record)
+            msg = consumer.receive()
+            self.assertEqual(msg.value().values, record.values)
+            consumer.acknowledge(msg)
+            consumer.close()
+            producer.close()
+
+        client.close()
+
+    def test_avro_required_default(self):
+        class MySubRecord(Record):
+            x = Integer()
+            y = Long()
+            z = String()
+
+        class Example(Record):
+            a = Integer()
+            b = Boolean(required=True)
+            c = Long()
+            d = Float()
+            e = Double()
+            f = String()
+            g = Bytes()
+            h = Array(String())
+            i = Map(String())
+            j = MySubRecord()
+
+        class ExampleRequiredDefault(Record):
+            a = Integer(required_default=True)
+            b = Boolean(required=True, required_default=True)
+            c = Long(required_default=True)
+            d = Float(required_default=True)
+            e = Double(required_default=True)
+            f = String(required_default=True)
+            g = Bytes(required_default=True)
+            h = Array(String(), required_default=True)
+            i = Map(String(), required_default=True)
+            j = MySubRecord(required_default=True)
+        self.assertEqual(ExampleRequiredDefault.schema(), {
+                "name": "ExampleRequiredDefault",
+                "type": "record",
+                "fields": [
+                    {
+                        "name": "a",
+                        "type": [
+                            "null",
+                            "int"
+                        ],
+                        "default": None
+                    },
+                    {
+                        "name": "b",
+                        "type": "boolean",
+                        "default": False
+                    },
+                    {
+                        "name": "c",
+                        "type": [
+                            "null",
+                            "long"
+                        ],
+                        "default": None
+                    },
+                    {
+                        "name": "d",
+                        "type": [
+                            "null",
+                            "float"
+                        ],
+                        "default": None
+                    },
+                    {
+                        "name": "e",
+                        "type": [
+                            "null",
+                            "double"
+                        ],
+                        "default": None
+                    },
+                    {
+                        "name": "f",
+                        "type": [
+                            "null",
+                            "string"
+                        ],
+                        "default": None
+                    },
+                    {
+                        "name": "g",
+                        "type": [
+                            "null",
+                            "bytes"
+                        ],
+                        "default": None
+                    },
+                    {
+                        "name": "h",
+                        "type": [
+                            "null",
+                            {
+                                "type": "array",
+                                "items": "string"
+                            }
+                        ],
+                        "default": None
+                    },
+                    {
+                        "name": "i",
+                        "type": [
+                            "null",
+                            {
+                                "type": "map",
+                                "values": "string"
+                            }
+                        ],
+                        "default": None
+                    },
+                    {
+                        "name": "j",
+                        "type": [
+                            "null",
+                            {
+                                "name": "MySubRecord",
+                                "type": "record",
+                                "fields": [
+                                    {
+                                        "name": "x",
+                                        "type": [
+                                            "null",
+                                            "int"
+                                        ]
+                                    },
+                                    {
+                                        "name": "y",
+                                        "type": [
+                                            "null",
+                                            "long"
+                                        ],
+                                    },
+                                    {
+                                        "name": "z",
+                                        "type": [
+                                            "null",
+                                            "string"
+                                        ]
+                                    }
+                                ]
+                            }
+                        ],
+                        "default": None
+                    }
+                ]
+            })
+
+        client = pulsar.Client(self.serviceUrl)
+        producer = client.create_producer(
+            'my-avro-python-default-topic',
+            schema=AvroSchema(Example))
+
+        producer_default = client.create_producer(
+            'my-avro-python-default-topic',
+            schema=AvroSchema(ExampleRequiredDefault))
+
+        producer.close()
+        producer_default.close()
+
+        client.close()
+
+
     def test_default_value(self):
         class MyRecord(Record):
             A = Integer()
             B = String()
-            C = Boolean()
+            C = Boolean(default=True, required=True)
             D = Double(default=6.4)
 
         topic = "my-default-value-topic"
@@ -646,7 +846,7 @@ class SchemaTest(TestCase):
         msg = consumer.receive()
         self.assertEqual(msg.value().A, 5)
         self.assertEqual(msg.value().B, u'text')
-        self.assertEqual(msg.value().C, False)
+        self.assertEqual(msg.value().C, True)
         self.assertEqual(msg.value().D, 6.4)
 
         producer.close()

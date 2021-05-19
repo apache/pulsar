@@ -65,6 +65,7 @@ public class RuntimeUtilsTest {
         instanceConfig.setFunctionVersion("1.0.0");
         instanceConfig.setMaxBufferedTuples(5);
         instanceConfig.setPort(1337);
+        instanceConfig.setMetricsPort(60000);
 
 
         JSONObject userConfig = new JSONObject();
@@ -151,6 +152,7 @@ public class RuntimeUtilsTest {
         Assert.assertEquals(goInstanceConfig.get("expectedHealthCheckInterval"), 0);
         Assert.assertEquals(goInstanceConfig.get("deadLetterTopic"), "go-func-deadletter");
         Assert.assertEquals(goInstanceConfig.get("userConfig"), userConfig.toString());
+        Assert.assertEquals(goInstanceConfig.get("metricsPort"), 60000);
     }
 
     @DataProvider(name = "k8sRuntime")

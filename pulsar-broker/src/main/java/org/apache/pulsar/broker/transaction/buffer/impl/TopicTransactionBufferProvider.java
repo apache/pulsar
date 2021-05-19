@@ -30,15 +30,7 @@ import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 public class TopicTransactionBufferProvider implements TransactionBufferProvider {
 
     @Override
-    public CompletableFuture<TransactionBuffer> newTransactionBuffer() {
-        CompletableFuture<TransactionBuffer> completableFuture = new CompletableFuture<>();
-        completableFuture.completeExceptionally(new Exception("Unsupported operation new transaction buffer "
-                + "with no arguments for TopicTransactionBufferProvider."));
-        return completableFuture;
-    }
-
-    @Override
-    public CompletableFuture<TransactionBuffer> newTransactionBuffer(Topic originTopic) {
-        return CompletableFuture.completedFuture(new TopicTransactionBuffer((PersistentTopic) originTopic));
+    public TransactionBuffer newTransactionBuffer(Topic originTopic, CompletableFuture<Void> transactionBufferFuture) {
+        return new TopicTransactionBuffer((PersistentTopic) originTopic, transactionBufferFuture);
     }
 }

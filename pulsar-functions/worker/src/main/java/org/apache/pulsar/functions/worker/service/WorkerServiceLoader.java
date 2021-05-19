@@ -20,7 +20,6 @@ package org.apache.pulsar.functions.worker.service;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 
-import com.sun.corba.se.pept.protocol.ProtocolHandler;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -66,7 +65,7 @@ public class WorkerServiceLoader {
     }
 
     /**
-     * Load the worker service according to the handler definition.
+     * Load the worker service according to the worker service definition.
      *
      * @param metadata the worker service definition.
      * @return
@@ -76,7 +75,7 @@ public class WorkerServiceLoader {
         NarClassLoader ncl = NarClassLoader.getFromArchive(
             metadata.getArchivePath().toAbsolutePath().toFile(),
             Collections.emptySet(),
-            ProtocolHandler.class.getClassLoader(), narExtractionDirectory);
+            WorkerService.class.getClassLoader(), narExtractionDirectory);
 
         WorkerServiceDefinition phDef = getWorkerServiceDefinition(ncl);
         if (StringUtils.isBlank(phDef.getHandlerClass())) {

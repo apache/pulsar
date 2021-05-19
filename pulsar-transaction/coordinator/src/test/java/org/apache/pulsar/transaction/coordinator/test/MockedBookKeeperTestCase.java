@@ -68,7 +68,7 @@ public abstract class MockedBookKeeperTestCase {
         this.numBookies = numBookies;
     }
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void setUp(Method method) throws Exception {
         LOG.info(">>>>>> starting {}", method);
         try {
@@ -99,16 +99,16 @@ public abstract class MockedBookKeeperTestCase {
         }
     }
 
-    @BeforeClass
+    @BeforeClass(alwaysRun = true)
     public void setUpClass() {
         executor = OrderedScheduler.newSchedulerBuilder().numThreads(2).name("test").build();
         cachedExecutor = Executors.newCachedThreadPool();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void tearDownClass() {
-        executor.shutdown();
-        cachedExecutor.shutdown();
+        executor.shutdownNow();
+        cachedExecutor.shutdownNow();
     }
 
     /**

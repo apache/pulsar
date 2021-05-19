@@ -147,7 +147,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         log.info("created AuthenticationSasl");
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public static void stopMiniKdc() {
         System.clearProperty("java.security.auth.login.config");
         System.clearProperty("java.security.krb5.conf");
@@ -181,10 +181,10 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
 
         lookupUrl = new URI(pulsar.getWebServiceAddress());
 
-        pulsarClient = PulsarClient.builder()
+        replacePulsarClient(PulsarClient.builder()
             .serviceUrl(lookupUrl.toString())
             .statsInterval(0, TimeUnit.SECONDS)
-            .authentication(authSasl).build();
+            .authentication(authSasl));
 
         // set admin auth, to verify admin web resources
         Map<String, String> clientSaslConfig = Maps.newHashMap();
@@ -200,7 +200,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         super.producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -260,7 +260,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
 
         // auth between server and client.
         // first time auth
-        AuthData initData1 = dataProvider.authenticate(AuthData.of(AuthData.INIT_AUTH_DATA));
+        AuthData initData1 = dataProvider.authenticate(AuthData.INIT_AUTH_DATA);
         AuthData serverData1 = authState.authenticate(initData1);
         boolean complete = authState.isComplete();
         assertFalse(complete);

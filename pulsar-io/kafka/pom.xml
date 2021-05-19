@@ -36,6 +36,13 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-io-core</artifactId>
       <version>${project.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-client-original</artifactId>
+      <version>${project.version}</version>
     </dependency>
 
     <dependency>
@@ -49,9 +56,26 @@
     </dependency>
 
     <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>org.apache.kafka</groupId>
       <artifactId>kafka-clients</artifactId>
       <version>${kafka-client.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>io.confluent</groupId>
+      <artifactId>kafka-schema-registry</artifactId>
+      <version>${kafka.confluent.schemaregistryclient.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>io.confluent</groupId>
+      <artifactId>kafka-avro-serializer</artifactId>
+      <version>${kafka.confluent.avroserializer.version}</version>
     </dependency>
 
   </dependencies>
@@ -61,6 +85,22 @@
       <plugin>
         <groupId>org.apache.nifi</groupId>
         <artifactId>nifi-nar-maven-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>com.github.spotbugs</groupId>
+        <artifactId>spotbugs-maven-plugin</artifactId>
+        <configuration>
+          <excludeFilterFile>${basedir}/src/main/resources/findbugsExclude.xml</excludeFilterFile>
+        </configuration>
+        <executions>
+          <execution>
+            <id>spotbugs</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>

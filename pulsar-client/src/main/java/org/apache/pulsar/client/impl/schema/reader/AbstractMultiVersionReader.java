@@ -71,7 +71,7 @@ public abstract class AbstractMultiVersionReader<T> implements SchemaReader<T> {
     public T read(InputStream inputStream, byte[] schemaVersion) {
         try {
             return schemaVersion == null ? read(inputStream) :
-                    readerCache.get(BytesSchemaVersion.of(schemaVersion)).read(inputStream);
+                    getSchemaReader(schemaVersion).read(inputStream);
         } catch (ExecutionException e) {
             LOG.error("Can't get generic schema for topic {} schema version {}",
                     schemaInfoProvider.getTopicName(), Hex.encodeHexString(schemaVersion), e);
@@ -79,11 +79,15 @@ public abstract class AbstractMultiVersionReader<T> implements SchemaReader<T> {
         }
     }
 
+    public SchemaReader<T> getSchemaReader(byte[] schemaVersion) throws ExecutionException {
+        return readerCache.get(BytesSchemaVersion.of(schemaVersion));
+    }
+
     @Override
     public T read(byte[] bytes, byte[] schemaVersion) {
         try {
             return schemaVersion == null ? read(bytes) :
-                    readerCache.get(BytesSchemaVersion.of(schemaVersion)).read(bytes);
+                    getSchemaReader(schemaVersion).read(bytes);
         } catch (ExecutionException | AvroTypeException e) {
             if (e instanceof AvroTypeException) {
                 throw new SchemaSerializationException(e);

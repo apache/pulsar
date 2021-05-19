@@ -34,14 +34,14 @@ import org.slf4j.LoggerFactory;
 /**
  * System topic for topic policy.
  */
-public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase {
+public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<PulsarEvent> {
 
     public TopicPoliciesSystemTopicClient(PulsarClient client, TopicName topicName) {
         super(client, topicName);
     }
 
     @Override
-    protected CompletableFuture<Writer> newWriterAsyncInternal() {
+    protected  CompletableFuture<Writer<PulsarEvent>> newWriterAsyncInternal() {
         return client.newProducer(Schema.AVRO(PulsarEvent.class))
                 .topic(topicName.toString())
                 .createAsync().thenCompose(producer -> {
@@ -54,7 +54,7 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase {
     }
 
     @Override
-    protected CompletableFuture<Reader> newReaderAsyncInternal() {
+    protected CompletableFuture<Reader<PulsarEvent>> newReaderAsyncInternal() {
         return client.newReader(Schema.AVRO(PulsarEvent.class))
                 .topic(topicName.toString())
                 .startMessageId(MessageId.earliest)
@@ -68,12 +68,12 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase {
                 });
     }
 
-    private static class TopicPolicyWriter implements Writer {
+    private static class TopicPolicyWriter implements Writer<PulsarEvent> {
 
         private final Producer<PulsarEvent> producer;
-        private final SystemTopicClient systemTopicClient;
+        private final SystemTopicClient<PulsarEvent> systemTopicClient;
 
-        private TopicPolicyWriter(Producer<PulsarEvent> producer, SystemTopicClient systemTopicClient) {
+        private TopicPolicyWriter(Producer<PulsarEvent> producer, SystemTopicClient<PulsarEvent> systemTopicClient) {
             this.producer = producer;
             this.systemTopicClient = systemTopicClient;
         }
@@ -110,12 +110,12 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase {
         }
 
         @Override
-        public SystemTopicClient getSystemTopicClient() {
+        public SystemTopicClient<PulsarEvent> getSystemTopicClient() {
             return systemTopicClient;
         }
     }
 
-    private static class TopicPolicyReader implements Reader {
+    private static class TopicPolicyReader implements Reader<PulsarEvent> {
 
         private final org.apache.pulsar.client.api.Reader<PulsarEvent> reader;
         private final TopicPoliciesSystemTopicClient systemTopic;
@@ -161,7 +161,7 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase {
         }
 
         @Override
-        public SystemTopicClient getSystemTopic() {
+        public SystemTopicClient<PulsarEvent> getSystemTopic() {
             return systemTopic;
         }
     }

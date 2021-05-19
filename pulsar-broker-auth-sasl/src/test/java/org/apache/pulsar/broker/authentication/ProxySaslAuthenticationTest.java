@@ -34,6 +34,7 @@ import java.util.concurrent.TimeUnit;
 
 import javax.security.auth.login.Configuration;
 
+import lombok.Cleanup;
 import org.apache.commons.io.FileUtils;
 import org.apache.curator.shaded.com.google.common.collect.Maps;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -160,7 +161,7 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 		log.info("created AuthenticationSasl");
 	}
 
-	@AfterClass
+	@AfterClass(alwaysRun = true)
 	public static void stopMiniKdc() {
 		System.clearProperty("java.security.auth.login.config");
 		System.clearProperty("java.security.krb5.conf");
@@ -206,7 +207,7 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 	}
 
 	@Override
-	@AfterMethod
+	@AfterMethod(alwaysRun = true)
 	protected void cleanup() throws Exception {
 		super.internalCleanup();
 	}
@@ -249,6 +250,7 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 		log.info("1 proxy service started {}", proxyService);
 
 		// Step 3: Pass correct client params
+		@Cleanup
 		PulsarClient proxyClient = createProxyClient(proxyServiceUrl, 1);
 		log.info("2 create proxy client {}, {}", proxyServiceUrl, proxyClient);
 
@@ -277,7 +279,6 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 		consumer.acknowledgeCumulative(msg);
 		consumer.close();
 
-		proxyClient.close();
 		proxyService.close();
 	}
 

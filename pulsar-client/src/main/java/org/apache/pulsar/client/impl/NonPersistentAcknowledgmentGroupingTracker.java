@@ -20,6 +20,8 @@ package org.apache.pulsar.client.impl;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
@@ -42,20 +44,16 @@ public class NonPersistentAcknowledgmentGroupingTracker implements Acknowledgmen
         return false;
     }
 
-    public void addAcknowledgment(MessageIdImpl msgId, AckType ackType, Map<String,
-            Long> properties, TransactionImpl txnImpl) {
+    public CompletableFuture<Void> addAcknowledgment(MessageIdImpl msgId, AckType ackType, Map<String,
+            Long> properties) {
         // no-op
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
-    public void addListAcknowledgment(List<MessageIdImpl> messageIds, AckType ackType, Map<String, Long> properties) {
+    public CompletableFuture<Void> addListAcknowledgment(List<MessageId> messageIds, AckType ackType, Map<String, Long> properties) {
         // no-op
-    }
-
-    @Override
-    public void addBatchIndexAcknowledgment(BatchMessageIdImpl msgId, int batchIndex, int batchSize,
-                                            AckType ackType, Map<String, Long> properties, TransactionImpl transaction) {
-        // no-op
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override

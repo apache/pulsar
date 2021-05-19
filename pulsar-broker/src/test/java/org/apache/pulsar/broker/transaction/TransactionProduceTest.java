@@ -59,6 +59,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.protocol.Commands;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -68,6 +69,7 @@ import org.testng.annotations.Test;
  * Pulsar client transaction test.
  */
 @Slf4j
+@Test(groups = "broker")
 public class TransactionProduceTest extends TransactionTestBase {
 
     private final static int TOPIC_PARTITION = 3;
@@ -99,6 +101,9 @@ public class TransactionProduceTest extends TransactionTestBase {
         admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
         admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), 16);
 
+        if (pulsarClient != null) {
+            pulsarClient.shutdown();
+        }
         pulsarClient = PulsarClient.builder()
                 .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
                 .statsInterval(0, TimeUnit.SECONDS)
@@ -275,6 +280,8 @@ public class TransactionProduceTest extends TransactionTestBase {
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
 
+        Awaitility.await().until(consumer::isConnected);
+
         for (int i = 0; i < incomingMessageCnt; i++) {
             Message<byte[]> message = consumer.receive();
             log.info("receive messageId: {}", message.getMessageId());
@@ -287,10 +294,8 @@ public class TransactionProduceTest extends TransactionTestBase {
         Assert.assertEquals(getPendingAckCount(ACK_COMMIT_TOPIC, subscriptionName), incomingMessageCnt);
 
         consumer.redeliverUnacknowledgedMessages();
-        for (int i = 0; i < incomingMessageCnt; i++) {
-            Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
-            Assert.assertNull(message);
-        }
+        Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
+        Assert.assertNull(message);
 
         // The pending messages count should be the incomingMessageCnt
         Assert.assertEquals(getPendingAckCount(ACK_COMMIT_TOPIC, subscriptionName), incomingMessageCnt);
@@ -304,7 +309,7 @@ public class TransactionProduceTest extends TransactionTestBase {
 
         consumer.redeliverUnacknowledgedMessages();
         for (int i = 0; i < incomingMessageCnt; i++) {
-            Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
+            message = consumer.receive(2, TimeUnit.SECONDS);
             Assert.assertNull(message);
         }
 
@@ -327,7 +332,7 @@ public class TransactionProduceTest extends TransactionTestBase {
                 .create();
         int incomingMessageCnt = 10;
         for (int i = 0; i < incomingMessageCnt; i++) {
-            incomingProducer.newMessage().value("Hello Txn.".getBytes()).sendAsync();
+            incomingProducer.newMessage().value("Hello Txn.".getBytes()).send();
         }
         log.info("prepare incoming messages finished.");
 
@@ -338,6 +343,7 @@ public class TransactionProduceTest extends TransactionTestBase {
                 .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
+        Awaitility.await().until(consumer::isConnected);
 
         for (int i = 0; i < incomingMessageCnt; i++) {
             Message<byte[]> message = consumer.receive();
@@ -351,10 +357,8 @@ public class TransactionProduceTest extends TransactionTestBase {
         Assert.assertEquals(getPendingAckCount(ACK_ABORT_TOPIC, subscriptionName), incomingMessageCnt);
 
         consumer.redeliverUnacknowledgedMessages();
-        for (int i = 0; i < incomingMessageCnt; i++) {
-            Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
-            Assert.assertNull(message);
-        }
+        Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
+        Assert.assertNull(message);
 
         // The pending messages count should be the incomingMessageCnt
         Assert.assertEquals(getPendingAckCount(ACK_ABORT_TOPIC, subscriptionName), incomingMessageCnt);
@@ -368,7 +372,7 @@ public class TransactionProduceTest extends TransactionTestBase {
 
         consumer.redeliverUnacknowledgedMessages();
         for (int i = 0; i < incomingMessageCnt; i++) {
-            Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
+            message = consumer.receive(2, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
             log.info("second receive messageId: {}", message.getMessageId());
         }

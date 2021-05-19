@@ -23,10 +23,12 @@ import java.util.Map;
 import org.apache.bookkeeper.util.ZkUtils;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.ResourceGroup;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -41,6 +43,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+
+import lombok.Getter;
 
 /**
  * ConfigurationCacheService maintains a local in-memory cache of all the configurations and policies stored in
@@ -58,8 +62,11 @@ public class ConfigurationCacheService {
     private ZooKeeperChildrenCache failureDomainListCache;
     private ZooKeeperDataCache<NamespaceIsolationPolicies> namespaceIsolationPoliciesCache;
     private ZooKeeperDataCache<FailureDomain> failureDomainCache;
+    @Getter
+    private PulsarResources pulsarResources;
 
     public static final String POLICIES = "policies";
+    public static final String RESOURCEGROUPS = "resourcegroups";
     public static final String FAILURE_DOMAIN = "failureDomain";
     public final String CLUSTER_FAILURE_DOMAIN_ROOT;
     public static final String POLICIES_ROOT = "/admin/policies";
@@ -67,12 +74,18 @@ public class ConfigurationCacheService {
 
     public static final String PARTITIONED_TOPICS_ROOT = "/admin/partitioned-topics";
 
-    public ConfigurationCacheService(ZooKeeperCache cache) throws PulsarServerException {
-        this(cache, null);
+    public ConfigurationCacheService(ZooKeeperCache cache, String configuredClusterName) throws PulsarServerException {
+        this(cache, configuredClusterName, null);
     }
 
-    public ConfigurationCacheService(ZooKeeperCache cache, String configuredClusterName) throws PulsarServerException {
+    public ConfigurationCacheService(ZooKeeperCache cache, String configuredClusterName,
+            PulsarResources pulsarResources) throws PulsarServerException {
         this.cache = cache;
+        this.pulsarResources = pulsarResources;
+        this.CLUSTER_FAILURE_DOMAIN_ROOT = CLUSTERS_ROOT + "/" + configuredClusterName + "/" + FAILURE_DOMAIN;
+        if (cache == null) {
+            return;
+        }
 
         initZK();
 
@@ -99,7 +112,6 @@ public class ConfigurationCacheService {
 
         this.clustersListCache = new ZooKeeperChildrenCache(cache, CLUSTERS_ROOT);
 
-        CLUSTER_FAILURE_DOMAIN_ROOT = CLUSTERS_ROOT + "/" + configuredClusterName + "/" + FAILURE_DOMAIN;
         if (isNotBlank(configuredClusterName)) {
             createFailureDomainRoot(cache.getZooKeeper(), CLUSTER_FAILURE_DOMAIN_ROOT);
             this.failureDomainListCache = new ZooKeeperChildrenCache(cache, CLUSTER_FAILURE_DOMAIN_ROOT);

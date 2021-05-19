@@ -18,7 +18,29 @@
  */
 package org.apache.pulsar.functions.worker.rest.api;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
+import static org.apache.pulsar.functions.utils.FunctionCommon.isFunctionCodeBuiltin;
+import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
+
 import com.google.protobuf.ByteString;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Supplier;
+import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.UriBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
@@ -44,28 +66,6 @@ import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.service.api.Functions;
 import org.apache.pulsar.packages.management.core.common.PackageType;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
-
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.UriBuilder;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Optional;
-import java.util.function.Supplier;
-
-import static org.apache.commons.lang3.StringUtils.isBlank;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
-import static org.apache.pulsar.functions.worker.WorkerUtils.isFunctionCodeBuiltin;
-import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
 
 @Slf4j
 public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWorkerService> {
@@ -164,7 +164,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
 
                             componentPackageFile = FunctionCommon.extractFileFromPkgURL(functionPkgUrl);
                         } catch (Exception e) {
-                            throw new IllegalArgumentException(String.format("Encountered error \"%s\" when getting %s package from %s", e.getMessage(), ComponentTypeUtils.toString(componentType), functionPkgUrl));
+                            throw new IllegalArgumentException(String.format("Encountered error \"%s\" when getting %s package from %s", e.getMessage(), ComponentTypeUtils.toString(componentType), functionPkgUrl), e);
                         }
                     }
                     functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
@@ -670,14 +670,15 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
                                final InputStream uploadedInputStream,
                                final boolean delete,
                                URI uri,
-                               final String clientRole) {
+                               final String clientRole,
+                               AuthenticationDataSource authenticationData) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
 
         if (worker().getWorkerConfig().isAuthorizationEnabled()) {
-            if (!isSuperUser(clientRole)) {
+            if (!isSuperUser(clientRole, authenticationData)) {
                 log.error("{}/{}/{} Client [{}] is not superuser to update on worker leader {}", tenant, namespace,
                         functionName, clientRole, ComponentTypeUtils.toString(componentType));
                 throw new RestException(Response.Status.UNAUTHORIZED, "client is not authorize to perform operation");
@@ -763,8 +764,19 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
     }
 
     private File downloadPackageFile(String packageName) throws IOException, PulsarAdminException {
-        File file = Files.createTempFile("function", ".tmp").toFile();
-        worker().getBrokerAdmin().packages().download(packageName, file.toString());
+        return downloadPackageFile(worker(), packageName);
+    }
+
+    static File downloadPackageFile(PulsarWorkerService worker, String packageName) throws IOException, PulsarAdminException {
+        Path tempDirectory;
+        if (worker.getWorkerConfig().getDownloadDirectory() != null) {
+            tempDirectory = Paths.get(worker.getWorkerConfig().getDownloadDirectory());
+        } else {
+            // use the Nar extraction directory as a temporary directory for downloaded files
+            tempDirectory = Paths.get(worker.getWorkerConfig().getNarExtractionDirectory());
+        }
+        File file = Files.createTempFile(tempDirectory, "function", ".tmp").toFile();
+        worker.getBrokerAdmin().packages().download(packageName, file.toString());
         return file;
     }
 }

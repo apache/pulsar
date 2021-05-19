@@ -29,7 +29,7 @@ import org.apache.bookkeeper.common.annotation.InterfaceStability.Unstable;
  * The Index block abstraction used for offload a ledger to long term storage.
  */
 @Unstable
-public interface OffloadIndexBlock extends Closeable {
+public interface OffloadIndexBlock extends Closeable, OffloadIndexBlockV2 {
 
     /**
      * Get the content of the index block as InputStream.
@@ -86,5 +86,18 @@ public interface OffloadIndexBlock extends Closeable {
             return streamSize;
         }
     }
+
+    default OffloadIndexEntry getIndexEntryForEntry(long ledgerId, long messageEntryId) throws IOException {
+        return getIndexEntryForEntry(messageEntryId);
+    }
+
+    default long getStartEntryId(long ledgerId) {
+        return 0; //Offload index block v1 always start with 0;
+    }
+
+    default LedgerMetadata getLedgerMetadata(long ledgerId) {
+        return getLedgerMetadata();
+    }
+
 }
 

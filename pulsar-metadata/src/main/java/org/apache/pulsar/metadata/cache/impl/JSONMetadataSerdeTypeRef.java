@@ -23,6 +23,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import java.io.IOException;
 
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.metadata.api.MetadataSerde;
 
 public class JSONMetadataSerdeTypeRef<T> implements MetadataSerde<T> {
 

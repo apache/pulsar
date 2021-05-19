@@ -37,7 +37,7 @@ public interface Subscription {
 
     String getName();
 
-    void addConsumer(Consumer consumer) throws BrokerServiceException;
+    CompletableFuture<Void> addConsumer(Consumer consumer);
 
     default void removeConsumer(Consumer consumer) throws BrokerServiceException {
         removeConsumer(consumer, false);
@@ -83,7 +83,9 @@ public interface Subscription {
 
     CompletableFuture<Entry> peekNthMessage(int messagePosition);
 
-    void expireMessages(int messageTTLInSeconds);
+    boolean expireMessages(int messageTTLInSeconds);
+
+    boolean expireMessages(Position position);
 
     void redeliverUnacknowledgedMessages(Consumer consumer);
 
@@ -103,7 +105,19 @@ public interface Subscription {
         // Default is no-op
     }
 
-    CompletableFuture<Void> endTxn(long txnidMostBits, long txnidLeastBits, int txnAction);
+    CompletableFuture<Void> endTxn(long txnidMostBits, long txnidLeastBits, int txnAction, long lowWaterMark);
+
+    default int getNumberOfSameAddressConsumers(final String clientAddress) {
+        int count = 0;
+        if (clientAddress != null) {
+            for (Consumer consumer : getConsumers()) {
+                if (clientAddress.equals(consumer.getClientAddress())) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
 
     // Subscription utils
     static boolean isCumulativeAckMode(SubType subType) {

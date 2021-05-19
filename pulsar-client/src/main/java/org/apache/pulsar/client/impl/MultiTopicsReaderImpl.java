@@ -22,8 +22,8 @@ package org.apache.pulsar.client.impl;
 import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -40,13 +40,14 @@ import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
+import org.apache.pulsar.client.util.ExecutorProvider;
 
 public class MultiTopicsReaderImpl<T> implements Reader<T> {
 
     private final MultiTopicsConsumerImpl<T> multiTopicsConsumer;
 
     public MultiTopicsReaderImpl(PulsarClientImpl client, ReaderConfigurationData<T> readerConfiguration,
-                                 ExecutorService listenerExecutor, CompletableFuture<Consumer<T>> consumerFuture, Schema<T> schema) {
+                                 ExecutorProvider executorProvider, CompletableFuture<Consumer<T>> consumerFuture, Schema<T> schema) {
         String subscription = "multiTopicsReader-" + DigestUtils.sha1Hex(UUID.randomUUID().toString()).substring(0, 10);
         if (StringUtils.isNotBlank(readerConfiguration.getSubscriptionRolePrefix())) {
             subscription = readerConfiguration.getSubscriptionRolePrefix() + "-" + subscription;
@@ -55,13 +56,12 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
             subscription = readerConfiguration.getSubscriptionName();
         }
         ConsumerConfigurationData<T> consumerConfiguration = new ConsumerConfigurationData<>();
-        consumerConfiguration.getTopicNames().add(readerConfiguration.getTopicName());
+        consumerConfiguration.getTopicNames().addAll(readerConfiguration.getTopicNames());
         consumerConfiguration.setSubscriptionName(subscription);
         consumerConfiguration.setSubscriptionType(SubscriptionType.Exclusive);
         consumerConfiguration.setSubscriptionMode(SubscriptionMode.NonDurable);
         consumerConfiguration.setReceiverQueueSize(readerConfiguration.getReceiverQueueSize());
         consumerConfiguration.setReadCompacted(readerConfiguration.isReadCompacted());
-        consumerConfiguration.getTopicNames().add(readerConfiguration.getTopicName());
 
         if (readerConfiguration.getReaderListener() != null) {
             ReaderListener<T> readerListener = readerConfiguration.getReaderListener();
@@ -98,7 +98,7 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
                             .ranges(readerConfiguration.getKeyHashRanges())
             );
         }
-        multiTopicsConsumer = new MultiTopicsConsumerImpl<>(client, consumerConfiguration, listenerExecutor, consumerFuture, schema,
+        multiTopicsConsumer = new MultiTopicsConsumerImpl<>(client, consumerConfiguration, executorProvider, consumerFuture, schema,
                 null, true, readerConfiguration.getStartMessageId(), readerConfiguration.getStartMessageFromRollbackDurationInSec());
     }
 
@@ -165,6 +165,11 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
     }
 
     @Override
+    public void seek(Function<String, Object> function) throws PulsarClientException {
+        multiTopicsConsumer.seek(function);
+    }
+
+    @Override
     public CompletableFuture<Void> seekAsync(MessageId messageId) {
         return multiTopicsConsumer.seekAsync(messageId);
     }
@@ -172,6 +177,11 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
     @Override
     public CompletableFuture<Void> seekAsync(long timestamp) {
         return multiTopicsConsumer.seekAsync(timestamp);
+    }
+
+    @Override
+    public CompletableFuture<Void> seekAsync(Function<String, Object> function) {
+        return multiTopicsConsumer.seekAsync(function);
     }
 
     @Override

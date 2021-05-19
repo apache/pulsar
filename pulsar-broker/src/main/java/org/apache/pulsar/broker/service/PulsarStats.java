@@ -34,7 +34,6 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.BrokerOperabilityMetrics;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
-import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect.EventType;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
@@ -227,6 +226,10 @@ public class PulsarStats implements Closeable {
         return metricsCollection;
     }
 
+    public BrokerOperabilityMetrics getBrokerOperabilityMetrics() {
+        return brokerOperabilityMetrics;
+    }
+
     public Map<String, NamespaceBundleStats> getBundleStats() {
         return bundleStats;
     }
@@ -239,15 +242,19 @@ public class PulsarStats implements Closeable {
         }
     }
 
-    public void recordZkLatencyTimeValue(EventType eventType, long latencyMs) {
-        try {
-            if (EventType.write.equals(eventType)) {
-                brokerOperabilityMetrics.recordZkWriteLatencyTimeValue(latencyMs);
-            } else if (EventType.read.equals(eventType)) {
-                brokerOperabilityMetrics.recordZkReadLatencyTimeValue(latencyMs);
-            }
-        } catch (Exception ex) {
-            log.warn("Exception while recording zk-latency {}, {}", eventType, ex.getMessage());
-        }
+    public void recordConnectionCreate() {
+        brokerOperabilityMetrics.recordConnectionCreate();
+    }
+
+    public void recordConnectionClose() {
+        brokerOperabilityMetrics.recordConnectionClose();
+    }
+
+    public void recordConnectionCreateSuccess() {
+        brokerOperabilityMetrics.recordConnectionCreateSuccess();
+    }
+
+    public void recordConnectionCreateFail() {
+        brokerOperabilityMetrics.recordConnectionCreateFail();
     }
 }

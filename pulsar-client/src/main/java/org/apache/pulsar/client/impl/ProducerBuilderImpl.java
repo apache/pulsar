@@ -45,6 +45,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.interceptor.ProducerInterceptor;
 import org.apache.pulsar.client.api.interceptor.ProducerInterceptorWrapper;
+import org.apache.pulsar.client.impl.DefaultCryptoKeyReader;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -209,6 +210,18 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     }
 
     @Override
+    public ProducerBuilder<T> defaultCryptoKeyReader(String publicKey) {
+        checkArgument(StringUtils.isNotBlank(publicKey), "publicKey cannot be blank");
+        return cryptoKeyReader(DefaultCryptoKeyReader.builder().defaultPublicKey(publicKey).build());
+    }
+
+    @Override
+    public ProducerBuilder<T> defaultCryptoKeyReader(@NonNull Map<String, String> publicKeys) {
+        checkArgument(!publicKeys.isEmpty(), "publicKeys cannot be empty");
+        return cryptoKeyReader(DefaultCryptoKeyReader.builder().publicKeys(publicKeys).build());
+    }
+
+    @Override
     public ProducerBuilder<T> addEncryptionKey(String key) {
         checkArgument(StringUtils.isNotBlank(key), "Encryption key cannot be blank");
         conf.getEncryptionKeys().add(key);
@@ -329,6 +342,6 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
     @Override
     public String toString() {
-        return conf != null ? conf.toString() : null;
+        return conf != null ? conf.toString() : "";
     }
 }

@@ -45,6 +45,7 @@ import org.testng.collections.Maps;
 import java.util.Map;
 
 @Slf4j
+@Test(groups = "broker")
 public class AdminApiSchemaValidationEnforced extends MockedPulsarServiceBaseTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(AdminApiSchemaValidationEnforced.class);

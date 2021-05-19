@@ -23,9 +23,6 @@ import static org.testng.Assert.assertEquals;
 import io.netty.buffer.ByteBuf;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -36,7 +33,6 @@ import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshotRequest;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshotResponse;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsUpdate;
-import org.apache.pulsar.common.api.proto.TxnCommitMarker;
 import org.testng.annotations.Test;
 
 public class MarkersTest {
@@ -98,7 +94,7 @@ public class MarkersTest {
     }
 
     @Test
-    public void testUpdate() throws Exception {
+    public void testUpdate() {
         Map<String, MarkersMessageIdData> clusters = new TreeMap<>();
         clusters.put("us-east", new MarkersMessageIdData().setLedgerId(10).setEntryId(11));
         clusters.put("us-cent", new MarkersMessageIdData().setLedgerId(20).setEntryId(21));
@@ -127,37 +123,22 @@ public class MarkersTest {
         long mostBits = 1234L;
         long leastBits = 2345L;
 
-        List<String> messageIdInfoList = new ArrayList<>();
-        List<MarkersMessageIdData> messageIdDataList = new ArrayList<>();
-        for (int i = 0; i < 10; i++) {
-            long entryId = i + 1;
-            messageIdInfoList.add(i + ":" + entryId);
-            messageIdDataList.add(new MarkersMessageIdData().setLedgerId(i).setEntryId(entryId));
-        }
-
-        ByteBuf buf = Markers.newTxnCommitMarker(sequenceId, mostBits, leastBits, messageIdDataList);
+        ByteBuf buf = Markers.newTxnCommitMarker(sequenceId, mostBits, leastBits);
         MessageMetadata msgMetadata = Commands.parseMessageMetadata(buf);
 
         assertEquals(msgMetadata.getMarkerType(), MarkerType.TXN_COMMIT_VALUE);
         assertEquals(msgMetadata.getSequenceId(), sequenceId);
         assertEquals(msgMetadata.getTxnidMostBits(), mostBits);
         assertEquals(msgMetadata.getTxnidLeastBits(), leastBits);
-
-        TxnCommitMarker marker = Markers.parseCommitMarker(buf);
-        assertEquals(marker.getMessageIdsList().size(), messageIdInfoList.size());
-        for (int i = 0; i < marker.getMessageIdsCount(); i++) {
-            MarkersMessageIdData messageIdData = marker.getMessageIdAt(i);
-            assertEquals(messageIdData.getLedgerId() + ":" + messageIdData.getEntryId(), messageIdInfoList.get(i));
-        }
     }
 
     @Test
-    public void testTxnAbortMarker() {
+    public void testTxnAbortMarker() throws IOException {
         long sequenceId = 1L;
         long mostBits = 1234L;
         long leastBits = 2345L;
 
-        ByteBuf buf = Markers.newTxnAbortMarker(sequenceId, mostBits, leastBits, Collections.emptyList());
+        ByteBuf buf = Markers.newTxnAbortMarker(sequenceId, mostBits, leastBits);
 
         MessageMetadata msgMetadata = Commands.parseMessageMetadata(buf);
 

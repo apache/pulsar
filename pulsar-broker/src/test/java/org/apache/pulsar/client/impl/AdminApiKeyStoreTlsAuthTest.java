@@ -19,7 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls.mapToString;
-import static org.testng.Assert.fail;
+import static org.testng.AssertJUnit.fail;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
@@ -46,7 +46,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.internal.JacksonConfigurator;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls;
-import org.apache.pulsar.client.impl.tls.NoopHostnameVerifier;
+import org.apache.pulsar.common.tls.NoopHostnameVerifier;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
@@ -60,7 +60,9 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
+@Test(groups = "broker-impl")
 public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
+
     protected final String BROKER_KEYSTORE_FILE_PATH =
             "./src/test/resources/authentication/keystoretls/broker.keystore.jks";
     protected final String BROKER_TRUSTSTORE_FILE_PATH =
@@ -99,6 +101,7 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
 
         conf.setClusterName(clusterName);
         conf.setTlsRequireTrustedClientCertOnConnect(true);
+        tlsProtocols.add("TLSv1.3");
         tlsProtocols.add("TLSv1.2");
         conf.setTlsProtocols(tlsProtocols);
 
@@ -190,7 +193,7 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
                                          new TenantInfo(ImmutableSet.of("proxy"),
                                                         ImmutableSet.of("test")));
             admin.namespaces().createNamespace("tenant1/ns1");
-            admin.namespaces().getNamespaces("tenant1").contains("tenant1/ns1");
+            Assert.assertTrue(admin.namespaces().getNamespaces("tenant1").contains("tenant1/ns1"));
         }
     }
 

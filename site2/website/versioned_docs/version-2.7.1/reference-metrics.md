@@ -62,8 +62,8 @@ in the `bookkeeper.conf` configuration file.
 | bookkeeper_server_READ_ENTRY_count | Counter | The total number of READ_ENTRY requests received at the bookie. The `success` label is used to distinguish successes and failures. |
 | bookie_WRITE_BYTES | Counter | The total number of bytes written to the bookie. |
 | bookie_READ_BYTES | Counter | The total number of bytes read from the bookie. |
-| bookkeeper_server_ADD_ENTRY_REQUEST | Histogram | The histogram of request latency of ADD_ENTRY requests at the bookie. The `success` label is used to distinguish successes and failures. | 
-| bookkeeper_server_READ_ENTRY_REQUEST | Histogram | The histogram of request latency of READ_ENTRY requests at the bookie. The `success` label is used to distinguish successes and failures. | 
+| bookkeeper_server_ADD_ENTRY_REQUEST | Summary | The summary of request latency of ADD_ENTRY requests at the bookie. The `success` label is used to distinguish successes and failures. | 
+| bookkeeper_server_READ_ENTRY_REQUEST | Summary | The summary of request latency of READ_ENTRY requests at the bookie. The `success` label is used to distinguish successes and failures. | 
 
 ### Journal metrics
 
@@ -73,8 +73,8 @@ in the `bookkeeper.conf` configuration file.
 | bookie_journal_JOURNAL_QUEUE_SIZE | Gauge | The total number of requests pending in the journal queue. |
 | bookie_journal_JOURNAL_FORCE_WRITE_QUEUE_SIZE | Gauge | The total number of force write (fsync) requests pending in the force-write queue. |
 | bookie_journal_JOURNAL_CB_QUEUE_SIZE | Gauge | The total number of callbacks pending in the callback queue. |
-| bookie_journal_JOURNAL_ADD_ENTRY | Histogram | The histogram of request latency of adding entries to the journal. |
-| bookie_journal_JOURNAL_SYNC | Histogram | The histogram of fsync latency of syncing data to the journal disk. |
+| bookie_journal_JOURNAL_ADD_ENTRY | Summary | The summary of request latency of adding entries to the journal. |
+| bookie_journal_JOURNAL_SYNC | Summary | The summary of fsync latency of syncing data to the journal disk. |
 
 ### Storage metrics
 
@@ -108,6 +108,8 @@ The following metrics are available for broker:
 * [Subscription metrics](#subscription-metrics)
 * [Consumer metrics](#consumer-metrics)
 * [ManagedLedger bookie client metrics](#managed-ledger-bookie-client-metrics)
+* [Token metrics](#token-metrics)
+* [Authentication metrics](#authentication-metrics) 
 
 ### Namespace metrics
 
@@ -134,7 +136,7 @@ All the namespace metrics are labelled with the following labels:
 | pulsar_storage_write_rate | Gauge | The total message batches (entries) written to the storage for this namespace (message batches / second). |
 | pulsar_storage_read_rate | Gauge | The total message batches (entries) read from the storage for this namespace (message batches / second). |
 | pulsar_subscription_delayed | Gauge | The total message batches (entries) are delayed for dispatching. |
-| pulsar_storage_write_latency_le_* | Histogram | The entry rate of a namespace that the storage write latency is smaller with a given threshold.<br> Available thresholds: <br><ul><li>pulsar_storage_write_latency_le_0_5: <= 0.5ms </li><li>pulsar_storage_write_latency_le_1: <= 1ms</li><li>pulsar_storage_write_latency_le_5: <= 5ms</li><li>pulsar_storage_write_latency_le_10: <= 10ms</li><li>pulsar_storage_write_latency_le_20: <= 20ms</li><li>pulsar_storage_write_latency_le_50: <= 50ms</li><li>pulsar_storage_write_latency_le_100: <= 100ms</li><li>pulsar_storage_write_latency_le_200: <= 200ms</li><li>pulsar_storage_write_latency_le_1000: <= 1s</li><li>pulsar_storage_write_latency_le_overflow: > 1s</li></ul> |
+| pulsar_storage_write_latency_le_* | Histogram | The entry rate of a namespace that the storage write latency is smaller with a given threshold.<br> Available thresholds: <br><ul><li>pulsar_storage_write_latency_le_0_5: <= 0.5ms </li><li>pulsar_storage_write_latency_le_1: <= 1ms</li><li>pulsar_storage_write_latency_le_5: <= 5ms</li><li>pulsar_storage_write_latency_le_10: <= 10ms</li><li>pulsar_storage_write_latency_le_20: <= 20ms</li><li>pulsar_storage_write_latency_le_50: <= 50ms</li><li>pulsar_storage_write_latency_le_100: <= 100ms</li><li>pulsar_storage_write_latency_le_200: <= 200ms</li><li>pulsar_storage_write_latency_le_1000: <= 1s</li><li>pulsar_storage_write_latency_overflow: > 1s</li></ul> |
 | pulsar_entry_size_le_* | Histogram | The entry rate of a namespace that the entry size is smaller with a given threshold.<br> Available thresholds: <br><ul><li>pulsar_entry_size_le_128: <= 128 bytes </li><li>pulsar_entry_size_le_512: <= 512 bytes</li><li>pulsar_entry_size_le_1_kb: <= 1 KB</li><li>pulsar_entry_size_le_2_kb: <= 2 KB</li><li>pulsar_entry_size_le_4_kb: <= 4 KB</li><li>pulsar_entry_size_le_16_kb: <= 16 KB</li><li>pulsar_entry_size_le_100_kb: <= 100 KB</li><li>pulsar_entry_size_le_1_mb: <= 1 MB</li><li>pulsar_entry_size_le_overflow: > 1 MB</li></ul> |
 
 #### Replication metrics
@@ -177,7 +179,7 @@ All the topic metrics are labelled with the following labels:
 | pulsar_storage_write_rate | Gauge | The total message batches (entries) written to the storage for this topic (message batches / second). |
 | pulsar_storage_read_rate | Gauge | The total message batches (entries) read from the storage for this topic (message batches / second). |
 | pulsar_subscription_delayed | Gauge | The total message batches (entries) are delayed for dispatching. |
-| pulsar_storage_write_latency_le_* | Histogram | The entry rate of a topic that the storage write latency is smaller with a given threshold.<br> Available thresholds: <br><ul><li>pulsar_storage_write_latency_le_0_5: <= 0.5ms </li><li>pulsar_storage_write_latency_le_1: <= 1ms</li><li>pulsar_storage_write_latency_le_5: <= 5ms</li><li>pulsar_storage_write_latency_le_10: <= 10ms</li><li>pulsar_storage_write_latency_le_20: <= 20ms</li><li>pulsar_storage_write_latency_le_50: <= 50ms</li><li>pulsar_storage_write_latency_le_100: <= 100ms</li><li>pulsar_storage_write_latency_le_200: <= 200ms</li><li>pulsar_storage_write_latency_le_1000: <= 1s</li><li>pulsar_storage_write_latency_le_overflow: > 1s</li></ul> |
+| pulsar_storage_write_latency_le_* | Histogram | The entry rate of a topic that the storage write latency is smaller with a given threshold.<br> Available thresholds: <br><ul><li>pulsar_storage_write_latency_le_0_5: <= 0.5ms </li><li>pulsar_storage_write_latency_le_1: <= 1ms</li><li>pulsar_storage_write_latency_le_5: <= 5ms</li><li>pulsar_storage_write_latency_le_10: <= 10ms</li><li>pulsar_storage_write_latency_le_20: <= 20ms</li><li>pulsar_storage_write_latency_le_50: <= 50ms</li><li>pulsar_storage_write_latency_le_100: <= 100ms</li><li>pulsar_storage_write_latency_le_200: <= 200ms</li><li>pulsar_storage_write_latency_le_1000: <= 1s</li><li>pulsar_storage_write_latency_overflow: > 1s</li></ul> |
 | pulsar_entry_size_le_* | Histogram | The entry rate of a topic that the entry size is smaller with a given threshold.<br> Available thresholds: <br><ul><li>pulsar_entry_size_le_128: <= 128 bytes </li><li>pulsar_entry_size_le_512: <= 512 bytes</li><li>pulsar_entry_size_le_1_kb: <= 1 KB</li><li>pulsar_entry_size_le_2_kb: <= 2 KB</li><li>pulsar_entry_size_le_4_kb: <= 4 KB</li><li>pulsar_entry_size_le_16_kb: <= 16 KB</li><li>pulsar_entry_size_le_100_kb: <= 100 KB</li><li>pulsar_entry_size_le_1_mb: <= 1 MB</li><li>pulsar_entry_size_le_overflow: > 1 MB</li></ul> |
 | pulsar_in_bytes_total | Counter | The total number of bytes received for this topic |
 | pulsar_in_messages_total | Counter | The total number of messages received for this topic |
@@ -340,6 +342,31 @@ All the managed ledger bookie client metrics are labelled with the following lab
 | pulsar_managedLedger_client_bookkeeper_ml_workers_task_execution | Summary | The worker task execution latency calculated in milliseconds. |
 | pulsar_managedLedger_client_bookkeeper_ml_workers_task_queued | Summary | The worker task queued latency calculated in milliseconds. |
 
+### Token metrics
+
+All the token metrics are labelled with the following labels:
+
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
+
+| Name | Type | Description |
+|---|---|---|
+| pulsar_expired_token_count | Counter | The number of expired tokens in Pulsar. |
+| pulsar_expiring_token_minutes | Histogram | The remaining time of expiring tokens in minutes. |
+
+### Authentication metrics
+
+All the authentication metrics are labelled with the following labels:
+
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
+- *provider_name*: `provider_name=${provider_name}`. `${provider_name}` is the class name of the authentication provider.
+- *auth_method*: `auth_method=${auth_method}`. `${auth_method}` is the authentication method of the authentication provider.
+- *reason*: `reason=${reason}`. `${reason}` is the reason for failing authentication operation. (This label is only for `pulsar_authentication_failures_count`.)
+
+| Name | Type | Description |
+|---|---|---|
+| pulsar_authentication_success_count| Counter | The number of successful authentication operations. |
+| pulsar_authentication_failures_count | Counter | The number of failing authentication operations. |
+
 ## Pulsar Functions
 
 All the Pulsar Functions metrics are labelled with the following labels:
@@ -401,4 +428,4 @@ All the proxy metrics are labelled with the following labels:
 | split_read_latency_per_query | Summary | Total read latency per query. |
 | split_record_deserialize_time | Summary | Time spent on deserializing message to record. For example, Avro, JSON, and so on. |
 | split_record_deserialize_time_per_query | Summary | Time spent on deserializing message to record per query. |
-| split_total_execution_time | Summary | Total execution time . |
+| split_total_execution_time | Summary | The total execution time. |

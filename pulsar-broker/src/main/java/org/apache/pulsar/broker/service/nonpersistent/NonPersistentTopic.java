@@ -59,13 +59,11 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
-import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
-import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
@@ -267,13 +265,24 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
         NonPersistentSubscription subscription = subscriptions.computeIfAbsent(subscriptionName,
                 name -> new NonPersistentSubscription(this, subscriptionName));
-
-        try {
-            Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName, 0,
-                    cnx, cnx.getAuthRole(), metadata, readCompacted, initialPosition, keySharedMeta);
-            addConsumerToSubscription(subscription, consumer);
+        Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName, 0,
+                cnx, cnx.getAuthRole(), metadata, readCompacted, initialPosition, keySharedMeta);
+        addConsumerToSubscription(subscription, consumer).thenRun(() -> {
             if (!cnx.isActive()) {
-                consumer.close();
+                try {
+                    consumer.close();
+                } catch (BrokerServiceException e) {
+                    if (e instanceof ConsumerBusyException) {
+                        log.warn("[{}][{}] Consumer {} {} already connected", topic, subscriptionName, consumerId,
+                                consumerName);
+                    } else if (e instanceof SubscriptionBusyException) {
+                        log.warn("[{}][{}] {}", topic, subscriptionName, e.getMessage());
+                    }
+
+                    decrementUsageCount();
+                    future.completeExceptionally(e);
+                    return;
+                }
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] [{}] [{}] Subscribe failed -- count: {}", topic, subscriptionName,
                             consumer.consumerName(), currentUsageCount());
@@ -284,17 +293,19 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                 log.info("[{}][{}] Created new subscription for {}", topic, subscriptionName, consumerId);
                 future.complete(consumer);
             }
-        } catch (BrokerServiceException e) {
-            if (e instanceof ConsumerBusyException) {
+        }).exceptionally(e -> {
+            Throwable throwable = e.getCause();
+            if (throwable instanceof ConsumerBusyException) {
                 log.warn("[{}][{}] Consumer {} {} already connected", topic, subscriptionName, consumerId,
                         consumerName);
-            } else if (e instanceof SubscriptionBusyException) {
+            } else if (throwable instanceof SubscriptionBusyException) {
                 log.warn("[{}][{}] {}", topic, subscriptionName, e.getMessage());
             }
 
             decrementUsageCount();
-            future.completeExceptionally(e);
-        }
+            future.completeExceptionally(throwable);
+            return null;
+        });
 
         return future;
     }
@@ -591,6 +602,11 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     }
 
     @Override
+    public int getNumberOfSameAddressConsumers(final String clientAddress) {
+        return getNumberOfSameAddressConsumers(clientAddress, subscriptions.values());
+    }
+
+    @Override
     public ConcurrentOpenHashMap<String, NonPersistentSubscription> getSubscriptions() {
         return subscriptions;
     }
@@ -740,7 +756,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     }
 
     @Override
-    public NonPersistentTopicStats getStats(boolean getPreciseBacklog) {
+    public NonPersistentTopicStats getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize) {
 
         NonPersistentTopicStats stats = new NonPersistentTopicStats();
 
@@ -840,11 +856,12 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                     stopReplProducers().thenCompose(v -> delete(true, false, true))
                             .thenRun(() -> log.info("[{}] Topic deleted successfully due to inactivity", topic))
                             .exceptionally(e -> {
-                                if (e.getCause() instanceof TopicBusyException) {
+                                Throwable throwable = e.getCause();
+                                if (throwable instanceof TopicBusyException) {
                                     // topic became active again
                                     if (log.isDebugEnabled()) {
                                         log.debug("[{}] Did not delete busy topic: {}", topic,
-                                                e.getCause().getMessage());
+                                                throwable.getMessage());
                                     }
                                     replicators.forEach((region, replicator) -> replicator.startProducer());
                                 } else {
@@ -975,7 +992,13 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     @Override
     public CompletableFuture<Void> addSchemaIfIdleOrCheckCompatible(SchemaData schema) {
         return hasSchema().thenCompose((hasSchema) -> {
-            if (hasSchema || isActive() || ENTRIES_ADDED_COUNTER_UPDATER.get(this) != 0) {
+            int numActiveConsumers = subscriptions.values().stream()
+                    .mapToInt(subscription -> subscription.getConsumers().size())
+                    .sum();
+            if (hasSchema
+                    || (!producers.isEmpty())
+                    || (numActiveConsumers != 0)
+                    || ENTRIES_ADDED_COUNTER_UPDATER.get(this) != 0) {
                 return checkSchemaCompatibleForConsumer(schema);
             } else {
                 return addSchema(schema).thenCompose(schemaVersion -> CompletableFuture.completedFuture(null));
@@ -984,20 +1007,19 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     }
 
     @Override
-    public CompletableFuture<TransactionBuffer> getTransactionBuffer(boolean createIfMissing) {
-        return FutureUtil.failedFuture(
-                new Exception("Unsupported operation getTransactionBuffer in non-persistent topic."));
-    }
-
-    @Override
     public void publishTxnMessage(TxnID txnID, ByteBuf headersAndPayload, PublishContext publishContext) {
         throw new UnsupportedOperationException("PublishTxnMessage is not supported by non-persistent topic");
     }
 
     @Override
-    public CompletableFuture<Void> endTxn(TxnID txnID, int txnAction, List<MessageIdData> sendMessageIdList) {
+    public CompletableFuture<Void> endTxn(TxnID txnID, int txnAction, long lowWaterMark) {
         return FutureUtil.failedFuture(
                 new Exception("Unsupported operation endTxn in non-persistent topic."));
+    }
+
+    @Override
+    public CompletableFuture<Void> truncate() {
+        return FutureUtil.failedFuture(new NotAllowedException("Unsupported truncate"));
     }
 
     protected boolean isTerminated() {

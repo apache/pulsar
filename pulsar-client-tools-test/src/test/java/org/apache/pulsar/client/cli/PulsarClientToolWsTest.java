@@ -18,9 +18,13 @@
  */
 package org.apache.pulsar.client.cli;
 
+import java.time.Duration;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.websocket.WebSocketService;
 import org.apache.pulsar.websocket.service.ProxyServer;
+import org.awaitility.Awaitility;
+import org.awaitility.pollinterval.PollInterval;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -35,8 +39,6 @@ import java.util.concurrent.Executors;
 
 
 public class PulsarClientToolWsTest extends BrokerTestBase {
-    private ProxyServer proxyServer;
-    private WebSocketService service;
 
     @BeforeMethod
     @Override
@@ -44,14 +46,14 @@ public class PulsarClientToolWsTest extends BrokerTestBase {
         super.internalSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.resetConfig();
         super.internalCleanup();
     }
 
-    @Test(timeOut = 20000)
+    @Test(timeOut = 30000)
     public void testWebSocketNonDurableSubscriptionMode() throws Exception {
         Properties properties = new Properties();
         properties.setProperty("serviceUrl", brokerUrl.toString());
@@ -60,53 +62,45 @@ public class PulsarClientToolWsTest extends BrokerTestBase {
         final String topicName = "persistent://my-property/my-ns/test/topic-" + UUID.randomUUID();
 
         int numberOfMessages = 10;
-        ExecutorService executor = Executors.newSingleThreadExecutor();
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        executor.execute(() -> {
-            try {
-                PulsarClientTool pulsarClientToolConsumer = new PulsarClientTool(properties);
-                String[] args = {"consume", "-t", "Exclusive", "-s", "sub-name", "-n",
-                        Integer.toString(numberOfMessages), "--hex", "-m", "NonDurable", "-r", "30", topicName};
-                Assert.assertEquals(pulsarClientToolConsumer.run(args), 0);
-                future.complete(null);
-            } catch (Throwable t) {
-                future.completeExceptionally(t);
-            }
+        {
+            @Cleanup("shutdown")
+            ExecutorService executor = Executors.newSingleThreadExecutor();
+            CompletableFuture<Void> future = new CompletableFuture<>();
+            executor.execute(() -> {
+                try {
+                    PulsarClientTool pulsarClientToolConsumer = new PulsarClientTool(properties);
+                    String[] args = {"consume", "-t", "Exclusive", "-s", "sub-name", "-n",
+                            Integer.toString(numberOfMessages), "--hex", "-m", "NonDurable", "-r", "30", topicName};
+                    Assert.assertEquals(pulsarClientToolConsumer.run(args), 0);
+                    future.complete(null);
+                } catch (Throwable t) {
+                    future.completeExceptionally(t);
+                }
+            });
+
+            // Make sure subscription has been created
+            Awaitility.await()
+                    .pollInterval(Duration.ofMillis(200))
+                    .ignoreExceptions().untilAsserted(() -> {
+                Assert.assertEquals(admin.topics().getSubscriptions(topicName).size(), 1);
+            });
+
+            PulsarClientTool pulsarClientToolProducer = new PulsarClientTool(properties);
+
+            String[] args = {"produce", "--messages", "Have a nice day", "-n", Integer.toString(numberOfMessages), "-r",
+                    "20", "-p", "key1=value1", "-p", "key2=value2", "-k", "partition_key", topicName};
+            Assert.assertEquals(pulsarClientToolProducer.run(args), 0);
+            future.get();
+            Assert.assertFalse(future.isCompletedExceptionally());
+        }
+
+        Awaitility.await()
+                .ignoreExceptions().untilAsserted(() -> {
+            Assert.assertEquals(admin.topics().getSubscriptions(topicName).size(), 0);
         });
-
-        // Make sure subscription has been created
-        while (true) {
-            try {
-                List<String> subscriptions = admin.topics().getSubscriptions(topicName);
-                if (subscriptions.size() == 1) {
-                    break;
-                }
-            } catch (Exception e) {
-            }
-            Thread.sleep(200);
-        }
-
-        PulsarClientTool pulsarClientToolProducer = new PulsarClientTool(properties);
-
-        String[] args = {"produce", "--messages", "Have a nice day", "-n", Integer.toString(numberOfMessages), "-r",
-                "20", "-p", "key1=value1", "-p", "key2=value2", "-k", "partition_key", topicName};
-        Assert.assertEquals(pulsarClientToolProducer.run(args), 0);
-        Assert.assertFalse(future.isCompletedExceptionally());
-        future.get();
-        executor.shutdown();
-        while (true) {
-            try {
-                List<String> subscriptions = admin.topics().getSubscriptions(topicName);
-                if (subscriptions.size() == 0) {
-                    break;
-                }
-            } catch (Exception e) {
-            }
-            Thread.sleep(200);
-        }
     }
 
-    @Test(timeOut = 20000)
+    @Test(timeOut = 30000)
     public void testWebSocketDurableSubscriptionMode() throws Exception {
         Properties properties = new Properties();
         properties.setProperty("serviceUrl", brokerUrl.toString());
@@ -115,40 +109,37 @@ public class PulsarClientToolWsTest extends BrokerTestBase {
         final String topicName = "persistent://my-property/my-ns/test/topic-" + UUID.randomUUID();
 
         int numberOfMessages = 10;
-        ExecutorService executor = Executors.newSingleThreadExecutor();
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        executor.execute(() -> {
-            try {
-                PulsarClientTool pulsarClientToolConsumer = new PulsarClientTool(properties);
-                String[] args = {"consume", "-t", "Exclusive", "-s", "sub-name", "-n",
-                        Integer.toString(numberOfMessages), "--hex", "-m", "Durable", "-r", "30", topicName};
-                Assert.assertEquals(pulsarClientToolConsumer.run(args), 0);
-                future.complete(null);
-            } catch (Throwable t) {
-                future.completeExceptionally(t);
-            }
-        });
-
-        // Make sure subscription has been created
-        while (true) {
-            try {
-                List<String> subscriptions = admin.topics().getSubscriptions(topicName);
-                if (subscriptions.size() == 1) {
-                    break;
+        {
+            @Cleanup("shutdown")
+            ExecutorService executor = Executors.newSingleThreadExecutor();
+            CompletableFuture<Void> future = new CompletableFuture<>();
+            executor.execute(() -> {
+                try {
+                    PulsarClientTool pulsarClientToolConsumer = new PulsarClientTool(properties);
+                    String[] args = {"consume", "-t", "Exclusive", "-s", "sub-name", "-n",
+                            Integer.toString(numberOfMessages), "--hex", "-m", "Durable", "-r", "30", topicName};
+                    Assert.assertEquals(pulsarClientToolConsumer.run(args), 0);
+                    future.complete(null);
+                } catch (Throwable t) {
+                    future.completeExceptionally(t);
                 }
-            } catch (Exception e) {
-            }
-            Thread.sleep(200);
+            });
+
+            // Make sure subscription has been created
+            Awaitility.await()
+                    .pollInterval(Duration.ofMillis(200))
+                    .ignoreExceptions().untilAsserted(() -> {
+                Assert.assertEquals(admin.topics().getSubscriptions(topicName).size(), 1);
+            });
+
+            PulsarClientTool pulsarClientToolProducer = new PulsarClientTool(properties);
+
+            String[] args = {"produce", "--messages", "Have a nice day", "-n", Integer.toString(numberOfMessages), "-r",
+                    "20", "-p", "key1=value1", "-p", "key2=value2", "-k", "partition_key", topicName};
+            Assert.assertEquals(pulsarClientToolProducer.run(args), 0);
+            future.get();
+            Assert.assertFalse(future.isCompletedExceptionally());
         }
-
-        PulsarClientTool pulsarClientToolProducer = new PulsarClientTool(properties);
-
-        String[] args = {"produce", "--messages", "Have a nice day", "-n", Integer.toString(numberOfMessages), "-r",
-                "20", "-p", "key1=value1", "-p", "key2=value2", "-k", "partition_key", topicName};
-        Assert.assertEquals(pulsarClientToolProducer.run(args), 0);
-        Assert.assertFalse(future.isCompletedExceptionally());
-        future.get();
-        executor.shutdown();
 
         //wait for close
         Thread.sleep(2000);

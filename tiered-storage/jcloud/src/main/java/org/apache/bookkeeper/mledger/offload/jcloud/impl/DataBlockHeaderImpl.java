@@ -19,10 +19,8 @@
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
 import com.google.common.io.CountingInputStream;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
-import io.netty.buffer.PooledByteBufAllocator;
 import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.IOException;
@@ -31,7 +29,7 @@ import org.apache.bookkeeper.mledger.offload.jcloud.DataBlockHeader;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 
 /**
- * The data block header in code storage for each data block.
+ * The data block header in tiered storage for each data block.
  */
 public class DataBlockHeaderImpl implements DataBlockHeader {
     // Magic Word for data block.

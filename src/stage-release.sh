@@ -32,7 +32,7 @@ PULSAR_PATH=$(git rev-parse --show-toplevel)
 VERSION=`./get-project-version.py`
 popd
 
-cp $PULSAR_PATH/distribution/server/target/apache-pulsar-$VERSION-src.tar.gz $DEST_PATH
+cp $PULSAR_PATH/target/apache-pulsar-$VERSION-src.tar.gz $DEST_PATH
 cp $PULSAR_PATH/distribution/server/target/apache-pulsar-$VERSION-bin.tar.gz $DEST_PATH
 cp $PULSAR_PATH/distribution/offloaders/target/apache-pulsar-offloaders-$VERSION-bin.tar.gz $DEST_PATH
 

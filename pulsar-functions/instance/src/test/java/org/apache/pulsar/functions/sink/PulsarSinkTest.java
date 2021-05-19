@@ -29,12 +29,15 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -51,12 +54,21 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
+import org.apache.pulsar.client.api.schema.GenericSchema;
+import org.apache.pulsar.client.api.schema.RecordSchemaBuilder;
+import org.apache.pulsar.client.api.schema.SchemaBuilder;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.instance.SinkRecord;
 import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
+import org.apache.pulsar.functions.sink.PulsarSink.PulsarSinkProcessorBase;
 import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.io.core.SinkContext;
 import org.testng.Assert;
@@ -253,6 +265,62 @@ public class PulsarSinkTest {
     }
 
     @Test
+    public void testInitializeSchema() throws Exception {
+        PulsarClient pulsarClient = getPulsarClient();
+
+        // generic record type (no serde and no schema type)
+        PulsarSinkConfig pulsarSinkConfig = getPulsarConfigs();
+        pulsarSinkConfig.setSerdeClassName(null);
+        pulsarSinkConfig.setTypeClassName(GenericRecord.class.getName());
+        PulsarSink sink = new PulsarSink(
+            pulsarClient, pulsarSinkConfig, new HashMap<>(), mock(ComponentStatsManager.class),
+            Thread.currentThread().getContextClassLoader());
+        Schema<?> schema = sink.initializeSchema();
+        assertTrue(schema instanceof AutoConsumeSchema);
+
+        // generic record type (default serde and no schema type)
+        pulsarSinkConfig = getPulsarConfigs();
+        pulsarSinkConfig.setTypeClassName(GenericRecord.class.getName());
+        sink = new PulsarSink(
+            pulsarClient, pulsarSinkConfig, new HashMap<>(), mock(ComponentStatsManager.class),
+            Thread.currentThread().getContextClassLoader());
+        schema = sink.initializeSchema();
+        assertTrue(schema instanceof AutoConsumeSchema);
+
+        // generic record type (no serde and wrong schema type)
+        pulsarSinkConfig = getPulsarConfigs();
+        pulsarSinkConfig.setSerdeClassName(null);
+        pulsarSinkConfig.setSchemaType(SchemaType.AVRO.toString());
+        pulsarSinkConfig.setTypeClassName(GenericRecord.class.getName());
+        sink = new PulsarSink(
+            pulsarClient, pulsarSinkConfig, new HashMap<>(), mock(ComponentStatsManager.class),
+            Thread.currentThread().getContextClassLoader());
+        schema = sink.initializeSchema();
+        assertTrue(schema instanceof AutoConsumeSchema);
+
+        // generic record type (no serde and AUTO_CONSUME schema type)
+        pulsarSinkConfig = getPulsarConfigs();
+        pulsarSinkConfig.setSerdeClassName(null);
+        pulsarSinkConfig.setSchemaType(SchemaType.AUTO_CONSUME.toString());
+        pulsarSinkConfig.setTypeClassName(GenericRecord.class.getName());
+        sink = new PulsarSink(
+            pulsarClient, pulsarSinkConfig, new HashMap<>(), mock(ComponentStatsManager.class),
+            Thread.currentThread().getContextClassLoader());
+        schema = sink.initializeSchema();
+        assertTrue(schema instanceof AutoConsumeSchema);
+
+        // generic record type (default serde and AUTO_CONSUME schema type)
+        pulsarSinkConfig = getPulsarConfigs();
+        pulsarSinkConfig.setSchemaType(SchemaType.AUTO_CONSUME.toString());
+        pulsarSinkConfig.setTypeClassName(GenericRecord.class.getName());
+        sink = new PulsarSink(
+            pulsarClient, pulsarSinkConfig, new HashMap<>(), mock(ComponentStatsManager.class),
+            Thread.currentThread().getContextClassLoader());
+        schema = sink.initializeSchema();
+        assertTrue(schema instanceof AutoConsumeSchema);
+    }
+
+    @Test
     public void testSinkAndMessageRouting() throws Exception {
 
         String[] topics = {"topic-1", "topic-2", "topic-3", null};
@@ -385,12 +453,18 @@ public class PulsarSinkTest {
                 }
 
                 @Override
+                public Optional<Integer> getPartitionIndex() {
+                    return Optional.of(1);
+                }
+
+                @Override
                 public Optional<Long> getRecordSequence() {
                     return Optional.of(1L);
                 }
             }, "out1");
 
 
+            assertEquals(1, record.getPartitionIndex().get().intValue());
             pulsarSink.write(record);
 
             Assert.assertTrue(pulsarSink.pulsarSinkProcessor instanceof PulsarSink.PulsarSinkEffectivelyOnceProcessor);
@@ -412,6 +486,105 @@ public class PulsarSinkTest {
                     return String.format("%s-id-1", defaultTopic).equals(o);
                 }
             }));
+        }
+    }
+
+    @Test
+    public void testWriteGenericRecordsAtMostOnce() throws Exception {
+        testWriteGenericRecords(ProcessingGuarantees.ATMOST_ONCE);
+    }
+
+    @Test
+    public void testWriteGenericRecordsAtLeastOnce() throws Exception {
+        testWriteGenericRecords(ProcessingGuarantees.ATLEAST_ONCE);
+    }
+
+    @Test
+    public void testWriteGenericRecordsEOS() throws Exception {
+        testWriteGenericRecords(ProcessingGuarantees.EFFECTIVELY_ONCE);
+    }
+
+    private void testWriteGenericRecords(ProcessingGuarantees guarantees) throws Exception {
+        String defaultTopic = "default";
+
+        PulsarSinkConfig sinkConfig = getPulsarConfigs();
+        sinkConfig.setTopic(defaultTopic);
+        sinkConfig.setTypeClassName(GenericRecord.class.getName());
+        sinkConfig.setProcessingGuarantees(guarantees);
+
+        PulsarClient client = getPulsarClient();
+        PulsarSink pulsarSink = new PulsarSink(
+            client, sinkConfig, new HashMap<>(), mock(ComponentStatsManager.class),
+            Thread.currentThread().getContextClassLoader());
+
+        pulsarSink.open(new HashMap<>(), mock(SinkContext.class));
+
+        if (ProcessingGuarantees.ATMOST_ONCE == guarantees) {
+            assertTrue(pulsarSink.pulsarSinkProcessor instanceof PulsarSink.PulsarSinkAtMostOnceProcessor);
+        } else if (ProcessingGuarantees.ATLEAST_ONCE == guarantees) {
+            assertTrue(pulsarSink.pulsarSinkProcessor instanceof PulsarSink.PulsarSinkAtLeastOnceProcessor);
+        } else {
+            assertTrue(pulsarSink.pulsarSinkProcessor instanceof PulsarSink.PulsarSinkEffectivelyOnceProcessor);
+        }
+        PulsarSinkProcessorBase processor = (PulsarSinkProcessorBase) pulsarSink.pulsarSinkProcessor;
+        assertFalse(processor.publishProducers.containsKey(defaultTopic));
+
+        String[] topics = { "topic-1", "topic-2", "topic-3" };
+        for (String topic : topics) {
+
+            RecordSchemaBuilder builder = SchemaBuilder.record("MyRecord");
+            builder.field("number").type(SchemaType.INT32);
+            builder.field("text").type(SchemaType.STRING);
+            GenericSchema<GenericRecord> schema = Schema.generic(builder.build(SchemaType.AVRO));
+
+            GenericRecordBuilder recordBuilder = schema.newRecordBuilder();
+            recordBuilder.set("number", 1);
+            recordBuilder.set("text", topic);
+
+            GenericRecord genericRecord = recordBuilder.build();
+
+            SinkRecord<GenericRecord> record = new SinkRecord<>(new Record<GenericRecord>() {
+
+                @Override
+                public Optional<String> getDestinationTopic() {
+                    return Optional.of(topic);
+                }
+
+                @Override
+                public Schema<GenericRecord> getSchema() {
+                    return schema;
+                }
+
+                @Override
+                public GenericRecord getValue() {
+                    return genericRecord;
+                }
+
+                @Override
+                public Optional<String> getPartitionId() {
+                    return Optional.of(topic + "-id-1");
+                }
+
+                @Override
+                public Optional<Long> getRecordSequence() {
+                    return Optional.of(1L);
+                }
+            }, genericRecord);
+
+            pulsarSink.write(record);
+
+            if (ProcessingGuarantees.EFFECTIVELY_ONCE == guarantees) {
+                assertTrue(processor.publishProducers.containsKey(String.format("%s-%s-id-1", topic, topic)));
+            } else {
+                assertTrue(processor.publishProducers.containsKey(topic));
+            }
+            verify(client.newProducer(), times(1))
+                .topic(argThat(
+                    otherTopic -> topic != null ? topic.equals(otherTopic) : defaultTopic.equals(otherTopic)));
+
+            verify(client, times(1))
+                .newProducer(argThat(
+                    otherSchema -> Objects.equals(otherSchema, schema)));
         }
     }
 
