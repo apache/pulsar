@@ -313,7 +313,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     PositionImpl recoveredPosition = new PositionImpl(info.getMarkDeleteLedgerId(),
                             info.getMarkDeleteEntryId());
                     if (info.getIndividualDeletedMessagesCount() > 0) {
-                        recoverIndividualDeletedMessages(info.getIndividualDeletedMessagesList());
+                        recoverIndividualDeletedMessages(info.getIndividualDeletedMessagesList(), true);
                     }
 
                     Map<String, Long> recoveredProperties = Collections.emptyMap();
@@ -356,12 +356,41 @@ public class ManagedCursorImpl implements ManagedCursor {
         long ledgerId = info.getCursorsLedgerId();
         OpenCallback openCallback = (rc, lh, ctx) -> {
             log.info("[{}] Opened ledger {} for consumer {}. rc={}", ledger.getName(), ledgerId, name, rc);
-            boolean shouldInitFromOldestEntry = shouldInitFromOldestEntry(info, callback, ledgerId, rc, lh);
-            if (shouldInitFromOldestEntry) {
+            if (shouldRecoverFromOldestEntry(info, callback, ledgerId, rc, lh)) {
                 return;
             }
-
-
+            Optional<PositionInfo> optional = getLastAvailableMarker(lh);
+            if (!optional.isPresent()) {
+                initialize(getRollbackPosition(info), Collections.emptyMap(), callback);
+                return;
+            }
+            PositionInfo markerPosition = optional.get();
+            try {
+                for (MLDataFormats.MarkerIndexInfo markerIndexInfo : markerPosition.getMarkerIndexInfoList()) {
+                    MLDataFormats.NestedPositionInfo nestedPositionInfo = markerIndexInfo.getEntryPosition();
+                    Enumeration<LedgerEntry> entryEnumeration = lh.readEntries(nestedPositionInfo.getEntryId(),
+                            nestedPositionInfo.getEntryId());
+                    if (entryEnumeration.hasMoreElements()) {
+                        LedgerEntry entry = entryEnumeration.nextElement();
+                        PositionInfo entryPosition = PositionInfo.parseDelimitedFrom(entry.getEntryInputStream());
+                        if (entryPosition.getIndividualDeletedMessagesCount() > 0) {
+                            recoverIndividualDeletedMessages(entryPosition.getIndividualDeletedMessagesList(), false);
+                        }
+                        if (config.isDeletionAtBatchIndexLevelEnabled() && batchDeletedIndexes != null
+                                && entryPosition.getBatchedEntryDeletionIndexInfoCount() > 0) {
+                            recoverBatchDeletedIndexes(entryPosition.getBatchedEntryDeletionIndexInfoList(), false);
+                        }
+                    }
+                    if (individualDeletedMessages.size() > config.getMaxUnackedRangesInMemoryBytes()) {
+                        break;
+                    }
+                }
+            } catch (Exception e) {
+                initialize(getRollbackPosition(info), Collections.emptyMap(), callback);
+            }
+            recoveredCursor(new PositionImpl(markerPosition.getLedgerId(), markerPosition.getEntryId()),
+                    getRecoveredProperties(markerPosition), lh);
+            callback.operationComplete();
         };
         try {
             bookkeeper.asyncOpenLedger(ledgerId, digestType, config.getPassword(), openCallback, null);
@@ -381,8 +410,8 @@ public class ManagedCursorImpl implements ManagedCursor {
             if (log.isInfoEnabled()) {
                 log.info("[{}] Opened ledger {} for consumer {}. rc={}", ledger.getName(), ledgerId, name, rc);
             }
-            boolean shouldInitFromOldestEntry = shouldInitFromOldestEntry(info, callback, ledgerId, rc, lh);
-            if (shouldInitFromOldestEntry) {
+            boolean shouldFromOldestEntry = shouldRecoverFromOldestEntry(info, callback, ledgerId, rc, lh);
+            if (shouldFromOldestEntry) {
                 return;
             }
 
@@ -415,23 +444,15 @@ public class ManagedCursorImpl implements ManagedCursor {
                     return;
                 }
 
-                Map<String, Long> recoveredProperties = Collections.emptyMap();
-                if (positionInfo.getPropertiesCount() > 0) {
-                    // Recover properties map
-                    recoveredProperties = Maps.newHashMap();
-                    for (int i = 0; i < positionInfo.getPropertiesCount(); i++) {
-                        LongProperty property = positionInfo.getProperties(i);
-                        recoveredProperties.put(property.getName(), property.getValue());
-                    }
-                }
+                Map<String, Long> recoveredProperties = getRecoveredProperties(positionInfo);
 
                 PositionImpl position = new PositionImpl(positionInfo);
                 if (positionInfo.getIndividualDeletedMessagesCount() > 0) {
-                    recoverIndividualDeletedMessages(positionInfo.getIndividualDeletedMessagesList());
+                    recoverIndividualDeletedMessages(positionInfo.getIndividualDeletedMessagesList(), true);
                 }
                 if (config.isDeletionAtBatchIndexLevelEnabled() && batchDeletedIndexes != null
                     && positionInfo.getBatchedEntryDeletionIndexInfoCount() > 0) {
-                    recoverBatchDeletedIndexes(positionInfo.getBatchedEntryDeletionIndexInfoList());
+                    recoverBatchDeletedIndexes(positionInfo.getBatchedEntryDeletionIndexInfoList(), true);
                 }
                 recoveredCursor(position, recoveredProperties, lh);
                 callback.operationComplete();
@@ -446,8 +467,21 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
-    private boolean shouldInitFromOldestEntry(ManagedCursorInfo info, VoidCallback callback, long ledgerId, int rc,
-                                              LedgerHandle lh) {
+    private Map<String, Long> getRecoveredProperties(PositionInfo positionInfo) {
+        Map<String, Long> recoveredProperties = Collections.emptyMap();
+        if (positionInfo.getPropertiesCount() > 0) {
+            // Recover properties map
+            recoveredProperties = Maps.newHashMap();
+            for (int i = 0; i < positionInfo.getPropertiesCount(); i++) {
+                LongProperty property = positionInfo.getProperties(i);
+                recoveredProperties.put(property.getName(), property.getValue());
+            }
+        }
+        return recoveredProperties;
+    }
+
+    private boolean shouldRecoverFromOldestEntry(ManagedCursorInfo info, VoidCallback callback, long ledgerId, int rc,
+                                                 LedgerHandle lh) {
         if (isBkErrorNotRecoverable(rc)) {
             log.error("[{}] Error opening metadata ledger {} for consumer {}: {}", ledger.getName(), ledgerId, name,
                     BKException.getMessage(rc));
@@ -471,10 +505,13 @@ public class ManagedCursorImpl implements ManagedCursor {
         return false;
     }
 
-    private void recoverIndividualDeletedMessages(List<MLDataFormats.MessageRange> individualDeletedMessagesList) {
+    private void recoverIndividualDeletedMessages(List<MLDataFormats.MessageRange> individualDeletedMessagesList,
+                                                  boolean cleanOldData) {
         lock.writeLock().lock();
         try {
-            individualDeletedMessages.clear();
+            if (cleanOldData) {
+                individualDeletedMessages.clear();
+            }
             individualDeletedMessagesList.forEach(messageRange -> {
                 MLDataFormats.NestedPositionInfo lowerEndpoint = messageRange.getLowerEndpoint();
                 MLDataFormats.NestedPositionInfo upperEndpoint = messageRange.getUpperEndpoint();
@@ -508,7 +545,8 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
-    private void recoverBatchDeletedIndexes (List<MLDataFormats.BatchedEntryDeletionIndexInfo> batchDeletedIndexInfoList) {
+    private void recoverBatchDeletedIndexes (List<MLDataFormats.BatchedEntryDeletionIndexInfo> batchDeletedIndexInfoList
+            , boolean cleanOldData) {
         lock.writeLock().lock();
         try {
             this.batchDeletedIndexes.clear();
@@ -2519,7 +2557,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             Map<Long, MLDataFormats.NestedPositionInfo> rangeMarker) {
         MLDataFormats.MarkerIndexInfo.Builder builder = MLDataFormats.MarkerIndexInfo.newBuilder();
         return rangeMarker.entrySet().stream().map((entry) ->
-                builder.setTargetLedgerId(entry.getKey()).addEntryPosition(entry.getValue()).build())
+                builder.setTargetLedgerId(entry.getKey()).setEntryPosition(entry.getValue()).build())
                 .collect(Collectors.toList());
     }
 
