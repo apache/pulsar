@@ -38,7 +38,7 @@ public abstract class ComponentStatsManager implements AutoCloseable {
 
     protected ScheduledFuture<?> scheduledFuture;
 
-    protected final CollectorRegistry collectorRegistry;
+    protected final FunctionCollectorRegistry collectorRegistry;
 
     protected final EvictingQueue EMPTY_QUEUE = EvictingQueue.create(0);
 
@@ -53,7 +53,7 @@ public abstract class ComponentStatsManager implements AutoCloseable {
         exceptionMetricsLabelNames[metricsLabelNames.length] = "error";
     }
 
-    public static ComponentStatsManager getStatsManager(CollectorRegistry collectorRegistry,
+    public static ComponentStatsManager getStatsManager(FunctionCollectorRegistry collectorRegistry,
                                   String[] metricsLabels,
                                   ScheduledExecutorService scheduledExecutorService,
                                   Function.FunctionDetails.ComponentType componentType) {
@@ -69,7 +69,7 @@ public abstract class ComponentStatsManager implements AutoCloseable {
         }
     }
 
-    public ComponentStatsManager(CollectorRegistry collectorRegistry,
+    public ComponentStatsManager(FunctionCollectorRegistry collectorRegistry,
                          String[] metricsLabels,
                          ScheduledExecutorService scheduledExecutorService) {
 

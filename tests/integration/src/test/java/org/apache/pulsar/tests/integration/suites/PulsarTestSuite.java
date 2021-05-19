@@ -23,18 +23,16 @@ import org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 
-public class PulsarTestSuite extends PulsarClusterTestBase {
+public abstract class PulsarTestSuite extends PulsarClusterTestBase {
 
-    @BeforeClass
-    @Override
-    public void setupCluster() throws Exception {
-        super.setupCluster();
+    @BeforeClass(alwaysRun = true)
+    public final void setupBeforeClass() throws Exception {
+        setup();
     }
 
     @AfterClass(alwaysRun = true)
-    @Override
-    public void tearDownCluster() {
-        super.tearDownCluster();
+    public final void tearDownAfterClass() throws Exception {
+        cleanup();
     }
 
     public static void retryStrategically(Predicate<Void> predicate, int retryCount, long intSleepTimeInMillis) throws Exception {

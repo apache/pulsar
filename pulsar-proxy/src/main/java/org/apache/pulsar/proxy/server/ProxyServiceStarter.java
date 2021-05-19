@@ -30,6 +30,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithClassLoader;
 import org.apache.pulsar.websocket.WebSocketConsumerServlet;
+import org.apache.pulsar.websocket.WebSocketPingPongServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
 import org.apache.pulsar.websocket.WebSocketReaderServlet;
 import org.apache.pulsar.websocket.WebSocketService;
@@ -243,6 +244,12 @@ public class ProxyServiceStarter {
                     new ServletHolder(readerWebSocketServlet));
             server.addServlet(WebSocketReaderServlet.SERVLET_PATH_V2,
                     new ServletHolder(readerWebSocketServlet));
+
+            final WebSocketServlet pingPongWebSocketServlet = new WebSocketPingPongServlet(webSocketService);
+            server.addServlet(WebSocketPingPongServlet.SERVLET_PATH,
+                    new ServletHolder(pingPongWebSocketServlet));
+            server.addServlet(WebSocketPingPongServlet.SERVLET_PATH_V2,
+                    new ServletHolder(pingPongWebSocketServlet));
         }
     }
 

@@ -199,7 +199,7 @@ public class DispatchRateLimiter {
                         break;
                 }
             } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-                log.debug("Topic {} policies cache have not init.", topicName);
+                log.debug("Topic {} policies have not been initialized yet.", topicName);
             } catch (Exception e) {
                 log.debug("[{}] Failed to get topic dispatch rate. ", topicName, e);
             }

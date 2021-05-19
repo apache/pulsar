@@ -54,8 +54,6 @@ public interface TransportCnx {
 
     void closeProducer(Producer producer);
 
-    long getMessagePublishBufferSize();
-
     void cancelPublishRateLimiting();
 
     void cancelPublishBufferLimiting();
@@ -77,5 +75,7 @@ public interface TransportCnx {
     boolean hasHAProxyMessage();
 
     HAProxyMessage getHAProxyMessage();
+
+    String clientSourceAddress();
 
 }

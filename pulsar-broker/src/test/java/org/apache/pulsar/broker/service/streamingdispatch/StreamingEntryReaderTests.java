@@ -91,19 +91,8 @@ public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
     private ManagedLedgerImpl ledger;
     private ManagedCursor cursor;
 
-    @BeforeClass
-    public void setUpClass() {
-        super.setUpClass();
-    }
-
-    @AfterClass(alwaysRun = true)
-    public void tearDownClass() {
-        super.tearDownClass();
-    }
-
-    @BeforeMethod
-    public void setup(Method method) throws Exception {
-        super.setUp(method);
+    @Override
+    protected void setUpTestCase() throws Exception {
         scheduledExecutorService = new ScheduledThreadPoolExecutor(1);
         orderedExecutor = OrderedScheduler.newSchedulerBuilder()
                 .numThreads(1)
@@ -125,9 +114,16 @@ public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
         }).when(mockDispatcher).notifyConsumersEndOfTopic();
     }
 
-    @AfterMethod(alwaysRun = true)
-    public void tearDown(Method method) {
-        super.tearDown(method);
+    @Override
+    protected void cleanUpTestCase() {
+        if (scheduledExecutorService != null) {
+            scheduledExecutorService.shutdownNow();
+            scheduledExecutorService = null;
+        }
+        if (orderedExecutor != null) {
+            orderedExecutor.shutdownNow();
+            orderedExecutor = null;
+        }
     }
 
     @Test
@@ -152,14 +148,14 @@ public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
         ).when(mockDispatcher).readEntryComplete(any(Entry.class), any(PendingReadEntryRequest.class));
 
         streamingEntryReader.asyncReadEntries(50, 700, null);
-        await().atMost(500, TimeUnit.MILLISECONDS).until(() -> entryCount.get() == 50);
+        await().until(() -> entryCount.get() == 50);
         // Check cursor's read position has been properly updated
         assertEquals(cursor.getReadPosition(), ledger.getNextValidPosition((PositionImpl) positions.peek()));
         streamingEntryReader.asyncReadEntries(50, 700, null);
-        await().atMost(500, TimeUnit.MILLISECONDS).until(() -> entryCount.get() == 100);
+        await().until(() -> entryCount.get() == 100);
         assertEquals(cursor.getReadPosition(), ledger.getNextValidPosition((PositionImpl) positions.peek()));
         streamingEntryReader.asyncReadEntries(50, 700, null);
-        await().atMost(500, TimeUnit.MILLISECONDS).until(() -> entryCount.get() == 150);
+        await().until(() -> entryCount.get() == 150);
         assertEquals(cursor.getReadPosition(), ledger.getNextValidPosition((PositionImpl) positions.peek()));
     }
 
@@ -207,7 +203,7 @@ public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
 
         // Only 2 entries should be read with this request.
         streamingEntryReader.asyncReadEntries(6, size * 2 + 1, null);
-        await().atMost(1000, TimeUnit.MILLISECONDS).until(() -> readComplete.get());
+        await().until(() -> readComplete.get());
         assertEquals(entries.size(), 2);
         // Assert cursor's read position has been properly updated to the third entry, since we should only read
         // 2 retries with previous request
@@ -215,13 +211,13 @@ public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
         reset(ledger);
         readComplete.set(false);
         streamingEntryReader.asyncReadEntries(6, size * 2 + 1, null);
-        await().atMost(1000, TimeUnit.MILLISECONDS).until(() -> readComplete.get());
+        await().until(() -> readComplete.get());
         readComplete.set(false);
         streamingEntryReader.asyncReadEntries(6, size * 2 + 1, null);
-        await().atMost(1000, TimeUnit.MILLISECONDS).until(() -> readComplete.get());
+        await().until(() -> readComplete.get());
         readComplete.set(false);
         streamingEntryReader.asyncReadEntries(6, size * 2 + 1, null);
-        await().atMost(1000, TimeUnit.MILLISECONDS).until(() -> readComplete.get());
+        await().until(() -> readComplete.get());
         assertEquals(cursor.getReadPosition(), ledger.getNextValidPosition((PositionImpl) positions.peek()));
         assertEquals(entries.size(), 8);
         for (int i = 0; i < entries.size(); i++) {
@@ -254,23 +250,23 @@ public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
         ).when(mockDispatcher).readEntryComplete(any(Entry.class), any(PendingReadEntryRequest.class));
 
         streamingEntryReader.asyncReadEntries(5,  100, null);
-        await().atMost(500, TimeUnit.MILLISECONDS).until(() -> entryCount.get() == 5);
+        await().until(() -> entryCount.get() == 5);
         assertEquals(cursor.getReadPosition(), ledger.getNextValidPosition((PositionImpl) positions.peek()));
         streamingEntryReader.asyncReadEntries(5, 100, null);
         // We only write 7 entries initially so only 7 entries can be read.
-        await().atMost(500, TimeUnit.MILLISECONDS).until(() -> entryCount.get() == 7);
+        await().until(() -> entryCount.get() == 7);
         // Add new entry and await for it to be send to reader.
         entryProcessed.set(false);
         ledger.addEntry("message-7".getBytes(Encoding));
-        await().atMost(500, TimeUnit.MILLISECONDS).until(() -> entryProcessed.get());
+        await().until(() -> entryProcessed.get());
         assertEquals(entries.size(), 8);
         entryProcessed.set(false);
         ledger.addEntry("message-8".getBytes(Encoding));
-        await().atMost(500, TimeUnit.MILLISECONDS).until(() -> entryProcessed.get());
+        await().until(() -> entryProcessed.get());
         assertEquals(entries.size(), 9);
         entryProcessed.set(false);
         ledger.addEntry("message-9".getBytes(Encoding));
-        await().atMost(500, TimeUnit.MILLISECONDS).until(() -> entryProcessed.get());
+        await().until(() -> entryProcessed.get());
         assertEquals(entries.size(), 10);
         assertEquals(cursor.getReadPosition(), ledger.getNextValidPosition((PositionImpl) positions.peek()));
         for (int i = 0; i < entries.size(); i++) {
@@ -320,7 +316,7 @@ public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
 
         streamingEntryReader.asyncReadEntries(20,  200, null);
         streamingEntryReader.cancelReadRequests();
-        await().atMost(10000, TimeUnit.MILLISECONDS).until(() -> streamingEntryReader.getState() == StreamingEntryReader.State.Canceled);
+        await().until(() -> streamingEntryReader.getState() == StreamingEntryReader.State.Canceled);
         // Only have 5 entry as we make ledger only return 5 entries and cancel the request.
         assertEquals(entries.size(), 5);
         assertEquals(cursor.getReadPosition(), ledger.getNextValidPosition((PositionImpl) positions.peek()));
@@ -328,7 +324,7 @@ public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
         reset(ledger);
         streamingEntryReader.asyncReadEntries(15,  200, null);
         streamingEntryReader.cancelReadRequests();
-        await().atMost(10000, TimeUnit.MILLISECONDS).until(() -> streamingEntryReader.getState() == StreamingEntryReader.State.Completed);
+        await().until(() -> streamingEntryReader.getState() == StreamingEntryReader.State.Completed);
         // Only have 5 entry as we make ledger only return 5 entries and cancel the request.
         assertEquals(entries.size(), 20);
         assertEquals(cursor.getReadPosition(), ledger.getNextValidPosition((PositionImpl) positions.peek()));
@@ -386,12 +382,12 @@ public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
         }).when(ledger).asyncReadEntry(any(), any(), any());
 
         streamingEntryReader.asyncReadEntries(6,  100, null);
-        await().atMost(3000, TimeUnit.MILLISECONDS).until(() -> entryProcessed.get());
+        await().until(() -> entryProcessed.get());
         assertEquals(entries.size(), 6);
         assertEquals(cursor.getReadPosition(), ledger.getNextValidPosition((PositionImpl) positions.peek()));
         entryProcessed.set(false);
         streamingEntryReader.asyncReadEntries(6, 100, null);
-        await().atMost(3000, TimeUnit.MILLISECONDS).until(() -> entryProcessed.get());
+        await().until(() -> entryProcessed.get());
         assertEquals(entries.size(), 12);
         assertEquals(cursor.getReadPosition(), ledger.getNextValidPosition((PositionImpl) positions.peek()));
         // Make sure message still returned in order
@@ -443,7 +439,7 @@ public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
         }).when(ledger).asyncReadEntry(any(), any(), any());
 
         streamingEntryReader.asyncReadEntries(5,  100, null);
-        await().atMost(10, TimeUnit.SECONDS).until(() -> streamingEntryReader.getState() == StreamingEntryReader.State.Completed);
+        await().until(() -> streamingEntryReader.getState() == StreamingEntryReader.State.Completed);
         // Issued 5 read, should only have 3 entries as others were canceled after exhausting retries.
         assertEquals(entries.size(), 3);
         for (int i = 0; i < entries.size(); i++) {
@@ -451,7 +447,7 @@ public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
         }
         reset(ledger);
         streamingEntryReader.asyncReadEntries(5,  100, null);
-        await().atMost(500, TimeUnit.MILLISECONDS).until(() -> streamingEntryReader.getState() == StreamingEntryReader.State.Completed);
+        await().until(() -> streamingEntryReader.getState() == StreamingEntryReader.State.Completed);
         assertEquals(entries.size(), 8);
         for (int i = 0; i < entries.size(); i++) {
             assertEquals(String.format("message-%d", i), entries.get(i));

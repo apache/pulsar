@@ -710,6 +710,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
                 Lists.newArrayList("persistent://prop-xyz/use/ns1/" + topicName));
 
         // create consumer and subscription
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsar.getWebServiceAddress())
                 .statsInterval(0, TimeUnit.SECONDS)
@@ -791,11 +792,14 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         List<String> topics = admin.topics().getList("prop-xyz/use/ns1");
         assertEquals(topics.size(), 4);
 
-        assertEquals(
-                admin.topics().getPartitionedTopicMetadata("persistent://prop-xyz/use/ns1/ds2").partitions,
-                0);
+        try {
+            admin.topics().getPartitionedTopicMetadata("persistent://prop-xyz/use/ns1/ds2");
+            fail("getPartitionedTopicMetadata of persistent://prop-xyz/use/ns1/ds2 should not succeed");
+        } catch (NotFoundException expected) {
+        }
 
         // create consumer and subscription
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsar.getWebServiceAddress())
                 .statsInterval(0, TimeUnit.SECONDS)
@@ -906,7 +910,11 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
 
         admin.topics().deletePartitionedTopic(partitionedTopicName);
 
-        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 0);
+        try {
+            admin.topics().getPartitionedTopicMetadata(partitionedTopicName);
+            fail("getPartitionedTopicMetadata of " + partitionedTopicName + " should not succeed");
+        } catch (NotFoundException expected) {
+        }
 
         admin.topics().createPartitionedTopic(partitionedTopicName, 32);
 
@@ -999,6 +1007,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
             assertEquals(bundles.getBundles().get(i).toString(), splitRange[i]);
         }
 
+        @Cleanup("shutdownNow")
         ExecutorService executorService = Executors.newCachedThreadPool();
 
 
@@ -1083,7 +1092,6 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         }
 
         producer.close();
-        executorService.shutdownNow();
     }
 
     @Test
@@ -1639,6 +1647,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topics().getList("prop-xyz/use/ns1"), Lists.newArrayList(topicName));
 
         // create consumer and subscription
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsar.getWebServiceAddress())
                 .statsInterval(0, TimeUnit.SECONDS)
@@ -1776,6 +1785,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.topics().createPartitionedTopic("persistent://prop-xyz/use/ns1/ds1", 4);
 
         // create consumer and subscription
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsar.getWebServiceAddress())
                 .statsInterval(0, TimeUnit.SECONDS)
@@ -1816,8 +1826,6 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
 
         producer.close();
         consumer.close();
-        client.close();
-
     }
 
     /**

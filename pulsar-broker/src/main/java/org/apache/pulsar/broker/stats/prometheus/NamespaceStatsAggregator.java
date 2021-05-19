@@ -97,7 +97,8 @@ public class NamespaceStatsAggregator {
             stats.storageSize = mlStats.getStoredMessagesSize();
             stats.backlogSize = ml.getEstimatedBacklogSize();
             stats.offloadedStorageUsed = ml.getOffloadedSize();
-            stats.backlogQuotaLimit = topic.getBacklogQuota().getLimit();
+            stats.backlogQuotaLimit = topic.getBacklogQuota().getLimitSize();
+            stats.backlogQuotaLimitTime = topic.getBacklogQuota().getLimitTime();
 
             stats.storageWriteLatencyBuckets.addAll(mlStats.getInternalAddEntryLatencyBuckets());
             stats.storageWriteLatencyBuckets.refresh();
@@ -117,6 +118,7 @@ public class NamespaceStatsAggregator {
         stats.bytesInCounter = tStatus.bytesInCounter;
         stats.msgOutCounter = tStatus.msgOutCounter;
         stats.bytesOutCounter = tStatus.bytesOutCounter;
+        stats.averageMsgSize = tStatus.averageMsgSize;
 
         stats.producersCount = 0;
         topic.getProducers().values().forEach(producer -> {

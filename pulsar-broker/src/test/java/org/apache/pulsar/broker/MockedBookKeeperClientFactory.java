@@ -74,6 +74,6 @@ public class MockedBookKeeperClientFactory implements BookKeeperClientFactory {
             mockedBk.close();
         } catch (BKException | InterruptedException ignored) {
         }
-        executor.shutdown();
+        executor.shutdownNow();
     }
 }

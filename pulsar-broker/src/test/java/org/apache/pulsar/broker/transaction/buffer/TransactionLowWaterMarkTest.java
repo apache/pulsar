@@ -79,7 +79,7 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
     private final static String NAMESPACE1 = TENANT + "/ns1";
     private final static String TOPIC = NAMESPACE1 + "/test-topic";
 
-    @BeforeMethod(groups = "broker")
+    @BeforeMethod(alwaysRun = true)
     protected void setup() throws Exception {
         setBrokerCount(1);
         internalSetup();
@@ -96,6 +96,9 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
         admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
         admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), 16);
 
+        if (pulsarClient != null) {
+            pulsarClient.shutdown();
+        }
         pulsarClient = PulsarClient.builder()
                 .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
                 .statsInterval(0, TimeUnit.SECONDS)
@@ -103,7 +106,7 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
                 .build();
         Map<TransactionCoordinatorID, TransactionMetadataStore> stores =
                 getPulsarServiceList().get(0).getTransactionMetadataStoreService().getStores();
-        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> {
+        Awaitility.await().until(() -> {
             if (stores.size() == 16) {
                 for (TransactionCoordinatorID transactionCoordinatorID : stores.keySet()) {
                     if (((MLTransactionMetadataStore) stores.get(transactionCoordinatorID)).getState()
@@ -124,7 +127,7 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
     }
 
     @Test
-    public void testLowWaterMark() throws Exception {
+    public void testTransactionBufferLowWaterMark() throws Exception {
         Transaction txn = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build().get();

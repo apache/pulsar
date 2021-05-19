@@ -22,7 +22,9 @@
 <suite name="Pulsar (Thread Function Worker) Integration Tests" verbose="2" annotations="JDK">
     <test name="pulsar-thread-test-suite" preserve-order="true">
         <classes>
-            <class name="org.apache.pulsar.tests.integration.functions.PulsarFunctionsThreadTest" />
+            <class name="org.apache.pulsar.tests.integration.functions.go.PulsarFunctionsGoThreadTest" />
+            <class name="org.apache.pulsar.tests.integration.functions.java.PulsarFunctionsJavaThreadTest" />
+            <class name="org.apache.pulsar.tests.integration.functions.python.PulsarFunctionsPythonThreadTest" />
         </classes>
     </test>
 </suite>

@@ -23,6 +23,7 @@ import static org.testng.Assert.assertEquals;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import lombok.extern.slf4j.Slf4j;
@@ -46,7 +47,7 @@ import org.testng.collections.Maps;
 public class TestCompaction extends PulsarTestSuite {
 
     @Test(dataProvider = "ServiceUrls", timeOut=300_000)
-    public void testPublishCompactAndConsumeCLI(String serviceUrl) throws Exception {
+    public void testPublishCompactAndConsumeCLI(Supplier<String> serviceUrl) throws Exception {
 
         final String tenant = "compaction-test-cli-" + randomName(4);
         final String namespace = tenant + "/ns1";
@@ -56,7 +57,7 @@ public class TestCompaction extends PulsarTestSuite {
 
         this.createNamespace(namespace);
 
-        try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build()) {
+        try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl.get()).build()) {
             client.newConsumer().topic(topic).subscriptionName("sub1").subscribe().close();
 
             try(Producer<String> producer = client.newProducer(Schema.STRING)
@@ -100,7 +101,7 @@ public class TestCompaction extends PulsarTestSuite {
     }
 
     @Test(dataProvider = "ServiceUrls", timeOut=300_000)
-    public void testPublishCompactAndConsumeRest(String serviceUrl) throws Exception {
+    public void testPublishCompactAndConsumeRest(Supplier<String> serviceUrl) throws Exception {
 
         final String tenant = "compaction-test-rest-" + randomName(4);
         final String namespace = tenant + "/ns1";
@@ -113,7 +114,7 @@ public class TestCompaction extends PulsarTestSuite {
         pulsarCluster.runAdminCommandOnAnyBroker("namespaces",
                 "set-clusters", "--clusters", pulsarCluster.getClusterName(), namespace);
 
-        try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build()) {
+        try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl.get()).build()) {
             client.newConsumer().topic(topic).subscriptionName("sub1").subscribe().close();
 
             try(Producer<String> producer = client.newProducer(Schema.STRING).topic(topic).create()) {
@@ -153,7 +154,7 @@ public class TestCompaction extends PulsarTestSuite {
     }
 
     @Test(dataProvider = "ServiceUrls", timeOut=300_000)
-    public void testPublishCompactAndConsumePartitionedTopics(String serviceUrl) throws Exception {
+    public void testPublishCompactAndConsumePartitionedTopics(Supplier<String> serviceUrl) throws Exception {
 
         final String tenant = "compaction-test-partitioned-topic-" + randomName(4);
         final String namespace = tenant + "/ns1";
@@ -171,7 +172,7 @@ public class TestCompaction extends PulsarTestSuite {
 
         this.createPartitionedTopic(topic, 2);
 
-        try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build()) {
+        try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl.get()).build()) {
             // force creating individual partitions
             client.newConsumer().topic(topic + "-partition-0").subscriptionName(subscriptionName).subscribe().close();
             client.newConsumer().topic(topic + "-partition-1").subscriptionName(subscriptionName).subscribe().close();
@@ -302,7 +303,7 @@ public class TestCompaction extends PulsarTestSuite {
     }
 
     @Test(dataProvider = "ServiceUrls", timeOut=300_000)
-    public void testPublishWithAutoCompaction(String serviceUrl) throws Exception {
+    public void testPublishWithAutoCompaction(Supplier<String> serviceUrl) throws Exception {
 
         final String tenant = "compaction-test-auto-" + randomName(4);
         final String namespace = tenant + "/ns1";
@@ -315,7 +316,7 @@ public class TestCompaction extends PulsarTestSuite {
         pulsarCluster.runAdminCommandOnAnyBroker("namespaces",
                 "set-compaction-threshold", "--threshold", "1", namespace);
 
-        try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build()) {
+        try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl.get()).build()) {
             client.newConsumer(Schema.STRING).topic(topic).subscriptionName("sub1").subscribe().close();
 
             try(Producer<String> producer = client.newProducer(Schema.STRING).topic(topic).create()) {

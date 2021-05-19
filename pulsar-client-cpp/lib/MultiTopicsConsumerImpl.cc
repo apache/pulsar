@@ -613,7 +613,7 @@ void MultiTopicsConsumerImpl::receiveMessages() {
     for (ConsumerMap::const_iterator consumer = consumers_.begin(); consumer != consumers_.end();
          consumer++) {
         ConsumerImplPtr consumerPtr = consumer->second;
-        consumerPtr->receiveMessages(consumerPtr->getCnx().lock(), conf_.getReceiverQueueSize());
+        consumerPtr->sendFlowPermitsToBroker(consumerPtr->getCnx().lock(), conf_.getReceiverQueueSize());
         LOG_DEBUG("Sending FLOW command for consumer - " << consumerPtr->getConsumerId());
     }
 }
@@ -734,4 +734,18 @@ void MultiTopicsConsumerImpl::setNegativeAcknowledgeEnabledForTesting(bool enabl
     for (auto&& c : consumers_) {
         c.second->setNegativeAcknowledgeEnabledForTesting(enabled);
     }
+}
+
+bool MultiTopicsConsumerImpl::isConnected() const {
+    Lock lock(mutex_);
+    if (state_ != Ready) {
+        return false;
+    }
+
+    for (const auto& topicAndConsumer : consumers_) {
+        if (!topicAndConsumer.second->isConnected()) {
+            return false;
+        }
+    }
+    return true;
 }

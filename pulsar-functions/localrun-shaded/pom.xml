@@ -96,7 +96,7 @@
                 <artifactId>maven-shade-plugin</artifactId>
                 <executions>
                     <execution>
-                        <phase>package</phase>
+                        <phase>${shadePluginPhase}</phase>
                         <goals>
                             <goal>shade</goal>
                         </goals>
@@ -203,10 +203,6 @@
                                 <relocation>
                                     <pattern>net.jpountz</pattern>
                                     <shadedPattern>org.apache.pulsar.functions.runtime.shaded.net.jpountz</shadedPattern>
-                                </relocation>
-                                <relocation>
-                                    <pattern>org.aspectj</pattern>
-                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.aspectj</shadedPattern>
                                 </relocation>
                                 <relocation>
                                     <pattern>commons-configuration</pattern>

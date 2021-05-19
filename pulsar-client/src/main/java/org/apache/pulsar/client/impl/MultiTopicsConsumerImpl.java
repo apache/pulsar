@@ -41,6 +41,7 @@ import org.apache.pulsar.client.util.ConsumerName;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.CompletableFutureCancellationHandler;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,6 +65,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -97,8 +99,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     private volatile Timeout partitionsAutoUpdateTimeout = null;
     TopicsPartitionChangedListener topicsPartitionChangedListener;
     CompletableFuture<Void> partitionsAutoUpdateFuture = null;
-
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
+
     private final ConsumerStatsRecorder stats;
     private final UnAckedMessageTracker unAckedMessageTracker;
     private final ConsumerConfigurationData<T> internalConfig;
@@ -386,6 +388,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         } finally {
             lock.writeLock().unlock();
         }
+
         return result;
     }
 
@@ -470,6 +473,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                                                        long delayTime,
                                                        TimeUnit unit) {
         MessageId messageId = message.getMessageId();
+        if (messageId == null) {
+            return FutureUtil.failedFuture(new PulsarClientException
+                    .InvalidMessageException("Cannot handle message with null messageId"));
+        }
         checkArgument(messageId instanceof TopicMessageIdImpl);
         TopicMessageIdImpl topicMessageId = (TopicMessageIdImpl) messageId;
         if (getState() != State.Ready) {
@@ -601,8 +608,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 consumer.redeliverUnacknowledgedMessages();
                 consumer.unAckedChunkedMessageIdSequenceMap.clear();
             });
-            incomingMessages.clear();
-            resetIncomingMessageSize();
+            clearIncomingMessages();
             unAckedMessageTracker.clear();
         } finally {
             lock.writeLock().unlock();
@@ -658,29 +664,39 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     @Override
+    public void seek(Function<String, Object> function) throws PulsarClientException {
+        try {
+            seekAsync(function).get();
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> seekAsync(Function<String, Object> function) {
+        List<CompletableFuture<Void>> futures = new ArrayList<>(consumers.size());
+        consumers.values().forEach(consumer -> futures.add(consumer.seekAsync(function)));
+        unAckedMessageTracker.clear();
+        incomingMessages.clear();
+        resetIncomingMessageSize();
+        return FutureUtil.waitForAll(futures);
+    }
+
+    @Override
     public CompletableFuture<Void> seekAsync(MessageId messageId) {
-        CompletableFuture<Void> seekFuture = new CompletableFuture<>();
         MessageIdImpl targetMessageId = MessageIdImpl.convertToMessageIdImpl(messageId);
         if (targetMessageId == null || isIllegalMultiTopicsMessageId(messageId)) {
-            seekFuture.completeExceptionally(
-                    new PulsarClientException("Illegal messageId, messageId can only be earliest/latest"));
-            return seekFuture;
+            return FutureUtil.failedFuture(
+                    new PulsarClientException("Illegal messageId, messageId can only be earliest/latest")
+            );
         }
         List<CompletableFuture<Void>> futures = new ArrayList<>(consumers.size());
         consumers.values().forEach(consumerImpl -> futures.add(consumerImpl.seekAsync(targetMessageId)));
 
         unAckedMessageTracker.clear();
-        incomingMessages.clear();
-        resetIncomingMessageSize();
+        clearIncomingMessages();
 
-        FutureUtil.waitForAll(futures).whenComplete((result, exception) -> {
-            if (exception != null) {
-                seekFuture.completeExceptionally(exception);
-            } else {
-                seekFuture.complete(result);
-            }
-        });
-        return seekFuture;
+        return FutureUtil.waitForAll(futures);
     }
 
     @Override
@@ -767,6 +783,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     messageIds.add(messageId);
                     break;
                 }
+                message.release();
                 message = incomingMessages.poll();
             }
         }
@@ -928,7 +945,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                                     partitionIndex, true, subFuture,
                                     startMessageId, schema, interceptors,
                                     createIfDoesNotExist, startMessageRollbackDurationInSec);
-                        consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
+                        synchronized (pauseMutex) {
+                            if (paused) {
+                                newConsumer.pause();
+                            }
+                            consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
+                        }
                         return subFuture;
                     })
                 .collect(Collectors.toList());
@@ -948,7 +970,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         client.externalExecutorProvider(), -1,
                         true, subFuture, null, schema, interceptors,
                         createIfDoesNotExist);
+            synchronized (pauseMutex) {
+                if (paused) {
+                    newConsumer.pause();
+                }
                 consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
+            }
 
             futureList = Collections.singletonList(subFuture);
         }

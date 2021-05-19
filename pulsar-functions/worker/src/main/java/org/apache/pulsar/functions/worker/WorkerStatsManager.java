@@ -33,6 +33,7 @@ import org.apache.pulsar.functions.proto.Function;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.List;
+import java.util.function.Supplier;
 
 public class WorkerStatsManager {
 
@@ -65,6 +66,9 @@ public class WorkerStatsManager {
 
   @Setter
   private LeaderService leaderService;
+
+  @Setter
+  private Supplier<Boolean> isLeader;
 
   private CollectorRegistry collectorRegistry = new CollectorRegistry();
 
@@ -279,7 +283,7 @@ public class WorkerStatsManager {
   }
 
   private void generateLeaderMetrics(StringWriter stream) {
-    if (leaderService.isLeader()) {
+    if (isLeader.get()) {
 
       List<Function.FunctionMetaData> metadata = functionMetaDataManager.getAllFunctionMetaData();
       // get total number functions

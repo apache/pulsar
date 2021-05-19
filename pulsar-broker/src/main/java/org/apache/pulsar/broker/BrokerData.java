@@ -20,6 +20,7 @@ package org.apache.pulsar.broker;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import lombok.Data;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 
 /**
@@ -28,6 +29,7 @@ import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
  * bundle data which is written to ZooKeeper by the leader broker (TimeAverageBrokerData). - The preallocated bundles
  * which are not written to ZooKeeper but are maintained by the leader broker (Map<String, BundleData>).
  */
+@Data
 public class BrokerData {
     private LocalBrokerData localData;
     private TimeAverageBrokerData timeAverageData;
@@ -43,29 +45,5 @@ public class BrokerData {
         this.localData = localData;
         timeAverageData = new TimeAverageBrokerData();
         preallocatedBundleData = new ConcurrentHashMap<>();
-    }
-
-    public LocalBrokerData getLocalData() {
-        return localData;
-    }
-
-    public void setLocalData(LocalBrokerData localData) {
-        this.localData = localData;
-    }
-
-    public TimeAverageBrokerData getTimeAverageData() {
-        return timeAverageData;
-    }
-
-    public void setTimeAverageData(TimeAverageBrokerData timeAverageData) {
-        this.timeAverageData = timeAverageData;
-    }
-
-    public Map<String, BundleData> getPreallocatedBundleData() {
-        return preallocatedBundleData;
-    }
-
-    public void setPreallocatedBundleData(Map<String, BundleData> preallocatedBundleData) {
-        this.preallocatedBundleData = preallocatedBundleData;
     }
 }

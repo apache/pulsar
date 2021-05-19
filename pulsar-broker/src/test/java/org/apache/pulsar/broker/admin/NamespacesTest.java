@@ -288,7 +288,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             });
         // clear caches to load data from metadata-store again
         MetadataCacheImpl<TenantInfo> tenantCache = (MetadataCacheImpl<TenantInfo>) pulsar.getPulsarResources()
-                .getTenatResources().getCache();
+                .getTenantResources().getCache();
         AbstractMetadataStore store = (AbstractMetadataStore) tenantCache.getStore();
         tenantCache.invalidateAll();
         store.invalidateAll();
@@ -884,8 +884,11 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         // split bundles
         try {
-            namespaces.splitNamespaceBundle(testTenant, testLocalCluster, bundledNsLocal, "0x00000000_0xffffffff",
+            AsyncResponse response = mock(AsyncResponse.class);
+            namespaces.splitNamespaceBundle(response, testTenant, testLocalCluster, bundledNsLocal, "0x00000000_0xffffffff",
                     false, true);
+            ArgumentCaptor<Response> captor = ArgumentCaptor.forClass(Response.class);
+            verify(response, timeout(5000).times(1)).resume(captor.capture());
             // verify split bundles
             BundlesData bundlesData = namespaces.getBundlesData(testTenant, testLocalCluster, bundledNsLocal);
             assertNotNull(bundlesData);
@@ -915,12 +918,11 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         mockWebUrl(localWebServiceUrl, testNs);
 
         // split bundles
-        try {
-            namespaces.splitNamespaceBundle(testTenant, testLocalCluster, bundledNsLocal, "0x08375b1a_0x08375b1b",
-                    false, false);
-        } catch (RestException re) {
-            assertEquals(re.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
-        }
+        AsyncResponse response = mock(AsyncResponse.class);
+        namespaces.splitNamespaceBundle(response, testTenant, testLocalCluster, bundledNsLocal,
+                "0x08375b1a_0x08375b1b", false, false);
+        ArgumentCaptor<Response> captor = ArgumentCaptor.forClass(Response.class);
+        verify(response, timeout(5000).times(1)).resume(any(RestException.class));
     }
 
     @Test
@@ -1335,6 +1337,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         ManagedLedgerConfig ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
         MockLedgerOffloader offloader = new MockLedgerOffloader(OffloadPolicies.create("S3", "", "", "",
                 null, null,
+                null, null,
                 OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
                 OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
                 admin.namespaces().getOffloadThreshold(namespace),
@@ -1351,6 +1354,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().getOffloadPolicies(namespace);
         offloader = new MockLedgerOffloader(OffloadPolicies.create("S3", "", "", "",
                 null, null,
+                null, null,
                 OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
                 OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
                 admin.namespaces().getOffloadThreshold(namespace),
@@ -1366,6 +1370,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
         offloader = new MockLedgerOffloader(OffloadPolicies.create("S3", "", "", "",
                 null, null,
+                null, null,
                 OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
                 OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
                 admin.namespaces().getOffloadThreshold(namespace),
@@ -1380,6 +1385,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertEquals(-1, admin.namespaces().getOffloadThreshold(namespace));
         ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
         offloader = new MockLedgerOffloader(OffloadPolicies.create("S3", "", "", "",
+                null, null,
                 null, null,
                 OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
                 OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,

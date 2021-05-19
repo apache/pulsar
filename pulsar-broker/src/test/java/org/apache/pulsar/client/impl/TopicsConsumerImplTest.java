@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import io.netty.util.Timeout;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -283,6 +284,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         log.info("start async consume");
         CountDownLatch latch = new CountDownLatch(totalMessages);
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newFixedThreadPool(1);
         executor.execute(() -> IntStream.range(0, totalMessages).forEach(index ->
             consumer.receiveAsync()
@@ -310,7 +312,6 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         producer1.close();
         producer2.close();
         producer3.close();
-        executor.shutdownNow();
     }
 
     @Test(timeOut = testTimeout)
@@ -1140,6 +1141,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
     @Test(timeOut = testTimeout)
     public void testSubscriptionMustCompleteWhenOperationTimeoutOnMultipleTopics() throws PulsarClientException {
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(lookupUrl.toString())
                 .ioThreads(2)
@@ -1183,14 +1185,14 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         admin.topics().deletePartitionedTopic(topicName, true);
         consumer.getPartitionsAutoUpdateTimeout().task().run(consumer.getPartitionsAutoUpdateTimeout());
-        Awaitility.await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().untilAsserted(() -> {
             Assert.assertEquals(consumer.getPartitionsOfTheTopicMap(), 0);
             Assert.assertEquals(consumer.allTopicPartitionsNumber.intValue(), 0);
         });
 
         admin.topics().createPartitionedTopic(topicName, 7);
         consumer.getPartitionsAutoUpdateTimeout().task().run(consumer.getPartitionsAutoUpdateTimeout());
-        Awaitility.await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().untilAsserted(() -> {
             Assert.assertEquals(consumer.getPartitionsOfTheTopicMap(), 7);
             Assert.assertEquals(consumer.allTopicPartitionsNumber.intValue(), 7);
         });
@@ -1216,7 +1218,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         admin.topics().updatePartitionedTopic(topicName0, 5);
         consumer.getPartitionsAutoUpdateTimeout().task().run(consumer.getPartitionsAutoUpdateTimeout());
 
-        Awaitility.await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().untilAsserted(() -> {
             Assert.assertEquals(consumer.getPartitionsOfTheTopicMap(), 5);
             Assert.assertEquals(consumer.allTopicPartitionsNumber.intValue(), 5);
         });
@@ -1227,7 +1229,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         consumer.getRecheckPatternTimeout().task().run(consumer.getRecheckPatternTimeout());
 
-        Awaitility.await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().untilAsserted(() -> {
             Assert.assertEquals(consumer.getPartitionsOfTheTopicMap(), 8);
             Assert.assertEquals(consumer.allTopicPartitionsNumber.intValue(), 8);
         });
@@ -1235,7 +1237,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         admin.topics().updatePartitionedTopic(topicName1, 5);
         consumer.getPartitionsAutoUpdateTimeout().task().run(consumer.getPartitionsAutoUpdateTimeout());
 
-        Awaitility.await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().untilAsserted(() -> {
             Assert.assertEquals(consumer.getPartitionsOfTheTopicMap(), 10);
             Assert.assertEquals(consumer.allTopicPartitionsNumber.intValue(), 10);
         });

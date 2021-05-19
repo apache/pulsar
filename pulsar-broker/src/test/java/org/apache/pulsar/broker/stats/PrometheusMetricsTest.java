@@ -32,10 +32,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.math.RoundingMode;
-import java.util.Date;
+import java.nio.charset.StandardCharsets;
 import java.text.NumberFormat;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,6 +50,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.crypto.SecretKey;
 import javax.naming.AuthenticationException;
+import lombok.Cleanup;
+import org.apache.commons.io.IOUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
@@ -73,7 +76,7 @@ import org.testng.annotations.Test;
 @Test(groups = "flaky")
 public class PrometheusMetricsTest extends BrokerTestBase {
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
@@ -95,12 +98,13 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         String baseTopic1 = "persistent://" + ns1 + "/testMetricsTopicCount";
         String baseTopic2 = "persistent://" + ns2 + "/testMetricsTopicCount";
         for (int i = 0; i < 6; i++) {
-            admin.topics().createNonPartitionedTopic(baseTopic1 + UUID.randomUUID().toString());
+            admin.topics().createNonPartitionedTopic(baseTopic1 + UUID.randomUUID());
         }
         for (int i = 0; i < 3; i++) {
-            admin.topics().createNonPartitionedTopic(baseTopic2 + UUID.randomUUID().toString());
+            admin.topics().createNonPartitionedTopic(baseTopic2 + UUID.randomUUID());
         }
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
+        @Cleanup
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
         String metricsStr = statsOut.toString();
@@ -114,6 +118,35 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                 assertEquals(item.value, 3.0);
             }
         });
+    }
+
+    @Test
+    public void testMetricsAvgMsgSize2() throws Exception {
+        String ns1 = "prop/ns-abc1";
+        admin.namespaces().createNamespace(ns1, 1);
+        String baseTopic1 = "persistent://" + ns1 + "/testMetricsTopicCount";
+        String topicName = baseTopic1 + UUID.randomUUID();
+        Producer producer = pulsarClient.newProducer().producerName("my-pub")
+                .topic(topicName).create();
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
+                .getTopic(topicName, false).get().get();
+        org.apache.pulsar.broker.service.Producer producerInServer = persistentTopic.getProducers().get("my-pub");
+        producerInServer.getStats().msgRateIn = 10;
+        producerInServer.getStats().msgThroughputIn = 100;
+        @Cleanup
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, true, statsOut);
+        String metricsStr = statsOut.toString();
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        assertTrue(metrics.containsKey("pulsar_average_msg_size"));
+        assertEquals(metrics.get("pulsar_average_msg_size").size(), 1);
+        Collection<Metric> avgMsgSizes = metrics.get("pulsar_average_msg_size");
+        avgMsgSizes.forEach(item -> {
+            if (ns1.equals(item.tags.get("namespace"))) {
+                assertEquals(item.value, 10);
+            }
+        });
+        producer.close();
     }
 
     @Test
@@ -248,8 +281,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                 pulsar.getBrokerService().getTopicIfExists(topic1).get().get().getSubscription(subName);
         PersistentSubscription sub2 = (PersistentSubscription)
                 pulsar.getBrokerService().getTopicIfExists(topic2).get().get().getSubscription(subName);
-        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> sub.getExpiredMessageRate() != 0.0);
-        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> sub2.getExpiredMessageRate() != 0.0);
+        Awaitility.await().until(() -> sub.getExpiredMessageRate() != 0.0);
+        Awaitility.await().until(() -> sub2.getExpiredMessageRate() != 0.0);
 
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
@@ -893,9 +926,6 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         provider.close();
     }
 
-    // Investigate issue
-    // java.lang.AssertionError: line pulsar_broker_publish_latency{cluster="test",quantile="0.0"} +Inf does not match pattern
-    // ^(\w+)\{([^\}]+)\}\s(-?[\d\w\.-]+)(\s(\d+))?$ expected [true] but found [false]
     @Test
     public void testExpiringTokenMetrics() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
@@ -957,9 +987,26 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         provider.close();
     }
 
-    // Investigate issue
-    // java.lang.AssertionError: line pulsar_broker_publish_latency{cluster="test",quantile="0.0"} +Inf does not match pattern
-    // ^(\w+)\{([^\}]+)\}\s(-?[\d\w\.-]+)(\s(\d+))?$ expected [true] but found [false]
+    @Test
+    public void testParsingWithPositiveInfinityValue() {
+        Multimap<String, Metric> metrics = parseMetrics("pulsar_broker_publish_latency{cluster=\"test\",quantile=\"0.0\"} +Inf");
+        List<Metric> cm = (List<Metric>) metrics.get("pulsar_broker_publish_latency");
+        assertEquals(cm.size(), 1);
+        assertEquals(cm.get(0).tags.get("cluster"), "test");
+        assertEquals(cm.get(0).tags.get("quantile"), "0.0");
+        assertEquals(cm.get(0).value, Double.POSITIVE_INFINITY);
+    }
+
+    @Test
+    public void testParsingWithNegativeInfinityValue() {
+        Multimap<String, Metric> metrics = parseMetrics("pulsar_broker_publish_latency{cluster=\"test\",quantile=\"0.0\"} -Inf");
+        List<Metric> cm = (List<Metric>) metrics.get("pulsar_broker_publish_latency");
+        assertEquals(cm.size(), 1);
+        assertEquals(cm.get(0).tags.get("cluster"), "test");
+        assertEquals(cm.get(0).tags.get("quantile"), "0.0");
+        assertEquals(cm.get(0).value, Double.NEGATIVE_INFINITY);
+    }
+
     @Test
     public void testManagedCursorPersistStats() throws Exception {
         final String subName = "my-sub";
@@ -1042,8 +1089,9 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         compareBrokerConnectionStateCount(cm, 1.0);
 
         pulsar.getConfiguration().setAuthenticationEnabled(true);
-        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString())
-                .operationTimeout(1, TimeUnit.MILLISECONDS).build();
+
+        replacePulsarClient(PulsarClient.builder().serviceUrl(lookupUrl.toString())
+                .operationTimeout(1, TimeUnit.MILLISECONDS));
 
         try {
             pulsarClient.newProducer()
@@ -1083,6 +1131,12 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(cm.get(0).value, count);
     }
 
+    @Test
+    void testParseMetrics() throws IOException {
+        String sampleMetrics = IOUtils.toString(getClass().getClassLoader()
+                .getResourceAsStream("prometheus_metrics_sample.txt"), StandardCharsets.UTF_8);
+        parseMetrics(sampleMetrics);
+    }
 
     /**
      * Hacky parsing of Prometheus text format. Should be good enough for unit tests
@@ -1095,7 +1149,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         // or
         // pulsar_subscriptions_count{cluster="standalone", namespace="sample/standalone/ns1",
         // topic="persistent://sample/standalone/ns1/test-2"} 0.0 1517945780897
-        Pattern pattern = Pattern.compile("^(\\w+)\\{([^\\}]+)\\}\\s(-?[\\d\\w\\.-]+)(\\s(\\d+))?$");
+        Pattern pattern = Pattern.compile("^(\\w+)\\{([^\\}]+)\\}\\s([+-]?[\\d\\w\\.-]+)(\\s(\\d+))?$");
         Pattern tagsPattern = Pattern.compile("(\\w+)=\"([^\"]+)\"(,\\s?)?");
 
         Splitter.on("\n").split(metrics).forEach(line -> {

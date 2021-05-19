@@ -29,6 +29,9 @@ class PULSAR_PUBLIC TopicMetadata {
    public:
     virtual ~TopicMetadata() {}
 
+    /**
+     * @return the number of partitions
+     */
     virtual int getNumPartitions() const = 0;
 };
 }  // namespace pulsar

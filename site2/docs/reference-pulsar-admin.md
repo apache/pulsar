@@ -1707,6 +1707,8 @@ Options
 |`-e`, `--endpoint`|Alternative endpoint to connect to||
 |`-i`, `--aws-id`|AWS Credential Id to use when using driver S3 or aws-s3||
 |`-s`, `--aws-secret`|AWS Credential Secret to use when using driver S3 or aws-s3||
+|`-ro`, `--s3-role`|S3 Role used for STSAssumeRoleSessionCredentialsProvider using driver S3 or aws-s3||
+|`-rsn`, `--s3-role-session-name`|S3 role session name used for STSAssumeRoleSessionCredentialsProvider using driver S3 or aws-s3||
 |`-mbs`, `--maxBlockSize`|Max block size|64MB|
 |`-rbs`, `--readBufferSize`|Read buffer size|1MB|
 |`-oat`, `--offloadAfterThreshold`|Offload after threshold size (eg: 1M, 5M)||
@@ -2656,4 +2658,3 @@ Options
 |`-c`, `--classname`|The Java class name||
 |`-j`, `--jar`|A path to the JAR file which contains the above Java class||
 |`-t`, `--type`|The type of the schema (avro or json)||
-
