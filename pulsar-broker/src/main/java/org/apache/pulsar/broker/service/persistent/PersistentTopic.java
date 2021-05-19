@@ -696,7 +696,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }).exceptionally(ex -> {
             log.error("[{}] Failed to create subscription: {} error: {}", topic, subscriptionName, ex);
             USAGE_COUNT_UPDATER.decrementAndGet(PersistentTopic.this);
-            future.completeExceptionally(new PersistenceException(ex));
+
             if (ex.getCause() instanceof NotAllowedException) {
                 future.completeExceptionally(ex.getCause());
             } else {
