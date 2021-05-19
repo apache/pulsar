@@ -18,16 +18,16 @@
  */
 package org.apache.pulsar.io.elasticsearch;
 
-public class ElasticsearchConnectionException extends RuntimeException {
-    public ElasticsearchConnectionException(String s) {
+public class ElasticSearchConnectionException extends RuntimeException {
+    public ElasticSearchConnectionException(String s) {
         super(s);
     }
 
-    public ElasticsearchConnectionException(String s, Throwable throwable) {
+    public ElasticSearchConnectionException(String s, Throwable throwable) {
         super(s, throwable);
     }
 
-    public ElasticsearchConnectionException(Throwable throwable) {
+    public ElasticSearchConnectionException(Throwable throwable) {
         super(throwable);
     }
 }

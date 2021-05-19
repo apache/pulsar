@@ -32,7 +32,7 @@ import static org.junit.Assert.assertTrue;
 import static org.testng.Assert.assertEquals;
 
 // see https://www.elastic.co/guide/en/elasticsearch/reference/current/security-settings.html#ssl-tls-settings
-public class ElasticsearchClientSslTests {
+public class ElasticSearchClientSslTests {
 
     public static final String ELASTICSEARCH_IMAGE = Optional.ofNullable(System.getenv("ELASTICSEARCH_IMAGE"))
             .orElse("docker.elastic.co/elasticsearch/elasticsearch:7.10.2-amd64");
@@ -64,16 +64,16 @@ public class ElasticsearchClientSslTests {
                         .withStartupTimeout(Duration.ofMinutes(2)))) {
             container.start();
 
-            ElasticsearchConfig config = new ElasticsearchConfig()
+            ElasticSearchConfig config = new ElasticSearchConfig()
                     .setElasticSearchUrl("https://" + container.getHttpHostAddress())
                     .setIndexName(INDEX)
                     .setUsername("elastic")
                     .setPassword("elastic")
-                    .setSsl(new ElasticsearchSslConfig()
+                    .setSsl(new ElasticSearchSslConfig()
                             .setEnabled(true)
                             .setTruststorePath(sslResourceDir + "/truststore.jks")
                             .setTruststorePassword("changeit"));
-            ElasticsearchClient client = new ElasticsearchClient(config);
+            ElasticSearchClient client = new ElasticSearchClient(config);
             testIndexExists(client);
         }
     }
@@ -101,18 +101,18 @@ public class ElasticsearchClientSslTests {
                         .withStartupTimeout(Duration.ofMinutes(2)))) {
             container.start();
 
-            ElasticsearchConfig config = new ElasticsearchConfig()
+            ElasticSearchConfig config = new ElasticSearchConfig()
                     .setElasticSearchUrl("https://" + container.getHttpHostAddress())
                     .setIndexName(INDEX)
                     .setUsername("elastic")
                     .setPassword("elastic")
-                    .setSsl(new ElasticsearchSslConfig()
+                    .setSsl(new ElasticSearchSslConfig()
                             .setEnabled(true)
                             .setProtocols("TLSv1.2")
                             .setHostnameVerification(true)
                             .setTruststorePath(sslResourceDir + "/truststore.jks")
                             .setTruststorePassword("changeit"));
-            ElasticsearchClient client = new ElasticsearchClient(config);
+            ElasticSearchClient client = new ElasticSearchClient(config);
             testIndexExists(client);
         }
     }
@@ -139,25 +139,25 @@ public class ElasticsearchClientSslTests {
                         .withStartupTimeout(Duration.ofMinutes(3)))) {
             container.start();
 
-            ElasticsearchConfig config = new ElasticsearchConfig()
+            ElasticSearchConfig config = new ElasticSearchConfig()
                     .setElasticSearchUrl("https://" + container.getHttpHostAddress())
                     .setIndexName(INDEX)
                     .setUsername("elastic")
                     .setPassword("elastic")
-                    .setSsl(new ElasticsearchSslConfig()
+                    .setSsl(new ElasticSearchSslConfig()
                             .setEnabled(true)
                             .setHostnameVerification(true)
                             .setTruststorePath(sslResourceDir + "/truststore.jks")
                             .setTruststorePassword("changeit")
                             .setKeystorePath(sslResourceDir + "/keystore.jks")
                             .setKeystorePassword("changeit"));
-            ElasticsearchClient client = new ElasticsearchClient(config);
+            ElasticSearchClient client = new ElasticSearchClient(config);
             testIndexExists(client);
         }
     }
 
 
-    public void testIndexExists(ElasticsearchClient client) throws IOException {
+    public void testIndexExists(ElasticSearchClient client) throws IOException {
         assertFalse(client.indexExists("mynewindex"));
         assertTrue(client.createIndexIfNeeded("mynewindex"));
         assertTrue(client.indexExists("mynewindex"));

@@ -36,7 +36,7 @@ import org.apache.pulsar.io.core.annotations.FieldDoc;
  */
 @Data
 @Accessors(chain = true)
-public class ElasticsearchConfig implements Serializable {
+public class ElasticSearchConfig implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
@@ -207,7 +207,7 @@ public class ElasticsearchConfig implements Serializable {
     )
     private String primaryFields = "";
 
-    private ElasticsearchSslConfig ssl = new ElasticsearchSslConfig();
+    private ElasticSearchSslConfig ssl = new ElasticSearchSslConfig();
 
     @FieldDoc(
             required = false,
@@ -235,14 +235,14 @@ public class ElasticsearchConfig implements Serializable {
         FAIL
     }
 
-    public static ElasticsearchConfig load(String yamlFile) throws IOException {
+    public static ElasticSearchConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-        return mapper.readValue(new File(yamlFile), ElasticsearchConfig.class);
+        return mapper.readValue(new File(yamlFile), ElasticSearchConfig.class);
     }
 
-    public static ElasticsearchConfig load(Map<String, Object> map) throws IOException {
+    public static ElasticSearchConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(new ObjectMapper().writeValueAsString(map), ElasticsearchConfig.class);
+        return mapper.readValue(new ObjectMapper().writeValueAsString(map), ElasticSearchConfig.class);
     }
 
     public void validate() {

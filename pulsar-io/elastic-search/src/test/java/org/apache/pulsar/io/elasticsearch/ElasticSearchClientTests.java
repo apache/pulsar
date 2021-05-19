@@ -34,26 +34,26 @@ import static org.junit.Assert.*;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 
-public class ElasticsearchClientTests {
+public class ElasticSearchClientTests {
 
     public static final String ELASTICSEARCH_IMAGE = Optional.ofNullable(System.getenv("ELASTICSEARCH_IMAGE"))
             .orElse("docker.elastic.co/elasticsearch/elasticsearch-oss:7.10.2-amd64");
     public final static String INDEX = "myindex";
 
     static ElasticsearchContainer container;
-    static ElasticsearchConfig config;
-    static ElasticsearchClient client;
+    static ElasticSearchConfig config;
+    static ElasticSearchClient client;
 
     @BeforeClass
     public static final void initBeforeClass() throws IOException {
         container = new ElasticsearchContainer(ELASTICSEARCH_IMAGE);
         container.start();
 
-        config = new ElasticsearchConfig();
+        config = new ElasticSearchConfig();
         config.setElasticSearchUrl("http://" + container.getHttpHostAddress());
         config.setIndexName(INDEX);
 
-        client = new ElasticsearchClient(config);
+        client = new ElasticSearchClient(config);
     }
 
     @AfterClass
@@ -127,12 +127,12 @@ public class ElasticsearchClientTests {
     @Test
     public void testMalformedDocFails() throws Exception {
         String index = "indexmalformed";
-        ElasticsearchConfig config = new ElasticsearchConfig()
+        ElasticSearchConfig config = new ElasticSearchConfig()
                 .setElasticSearchUrl("http://"+container.getHttpHostAddress())
                 .setIndexName(index)
                 .setBulkEnabled(true)
-                .setMalformedDocAction(ElasticsearchConfig.MalformedDocAction.FAIL);
-        ElasticsearchClient client = new ElasticsearchClient(config);
+                .setMalformedDocAction(ElasticSearchConfig.MalformedDocAction.FAIL);
+        ElasticSearchClient client = new ElasticSearchClient(config);
         MockRecord<GenericObject> mockRecord = new MockRecord<>();
         client.bulkIndex(mockRecord, Pair.of("1","{\"a\":1}"));
         client.bulkIndex(mockRecord, Pair.of("2","{\"a\":\"toto\"}"));
@@ -149,12 +149,12 @@ public class ElasticsearchClientTests {
     @Test
     public void testMalformedDocIgnore() throws Exception {
         String index = "indexmalformed2";
-        ElasticsearchConfig config = new ElasticsearchConfig()
+        ElasticSearchConfig config = new ElasticSearchConfig()
                 .setElasticSearchUrl("http://"+container.getHttpHostAddress())
                 .setIndexName(index)
                 .setBulkEnabled(true)
-                .setMalformedDocAction(ElasticsearchConfig.MalformedDocAction.IGNORE);
-        ElasticsearchClient client = new ElasticsearchClient(config);
+                .setMalformedDocAction(ElasticSearchConfig.MalformedDocAction.IGNORE);
+        ElasticSearchClient client = new ElasticSearchClient(config);
         MockRecord<GenericObject> mockRecord = new MockRecord<>();
         client.bulkIndex(mockRecord, Pair.of("1","{\"a\":1}"));
         client.bulkIndex(mockRecord, Pair.of("2","{\"a\":\"toto\"}"));
@@ -166,8 +166,8 @@ public class ElasticsearchClientTests {
 
     @Test
     public void testBulkRetry() throws Exception {
-        final String index = "indexbulk";
-        ElasticsearchConfig config = new ElasticsearchConfig()
+        final String index = "indexbulktest";
+        ElasticSearchConfig config = new ElasticSearchConfig()
                 .setElasticSearchUrl("http://"+container.getHttpHostAddress())
                 .setIndexName(index)
                 .setBulkEnabled(true)
@@ -175,7 +175,7 @@ public class ElasticsearchClientTests {
                 .setBulkActions(2)
                 .setRetryBackoffInMs(100)
                 .setBulkFlushIntervalInMs(10000);
-        ElasticsearchClient client = new ElasticsearchClient(config);
+        ElasticSearchClient client = new ElasticSearchClient(config);
         client.createIndexIfNeeded(index);
 
         MockRecord<GenericObject> mockRecord = new MockRecord<>();
@@ -207,7 +207,7 @@ public class ElasticsearchClientTests {
     @Test
     public void testBlukBlocking() throws Exception {
         final String index = "indexblocking";
-        ElasticsearchConfig config = new ElasticsearchConfig()
+        ElasticSearchConfig config = new ElasticSearchConfig()
                 .setElasticSearchUrl("http://"+container.getHttpHostAddress())
                 .setIndexName(index)
                 .setBulkEnabled(true)
@@ -216,7 +216,7 @@ public class ElasticsearchClientTests {
                 .setBulkConcurrentRequests(2)
                 .setRetryBackoffInMs(100)
                 .setBulkFlushIntervalInMs(10000);
-        ElasticsearchClient client = new ElasticsearchClient(config);
+        ElasticSearchClient client = new ElasticSearchClient(config);
         client.createIndexIfNeeded(index);
 
         MockRecord<GenericObject> mockRecord = new MockRecord<>();

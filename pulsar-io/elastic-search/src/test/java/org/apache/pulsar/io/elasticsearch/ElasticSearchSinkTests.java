@@ -23,7 +23,6 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
-import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericJsonSchema;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
@@ -50,7 +49,7 @@ import static org.mockito.Mockito.*;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 
-public class ElasticsearchSinkTests {
+public class ElasticSearchSinkTests {
 
     public static final String ELASTICSEARCH_IMAGE = Optional.ofNullable(System.getenv("ELASTICSEARCH_IMAGE"))
             .orElse("docker.elastic.co/elasticsearch/elasticsearch-oss:7.10.2-amd64");
@@ -237,15 +236,15 @@ public class ElasticsearchSinkTests {
 
     @Test(enabled = true)
     public void testNullValueIgnore() throws Exception {
-        testNullValue(ElasticsearchConfig.NullValueAction.IGNORE);
+        testNullValue(ElasticSearchConfig.NullValueAction.IGNORE);
     }
 
     @Test(enabled = true)
     public void testNullValueDelete() throws Exception {
-        testNullValue(ElasticsearchConfig.NullValueAction.DELETE);
+        testNullValue(ElasticSearchConfig.NullValueAction.DELETE);
     }
 
-    public void testNullValue(ElasticsearchConfig.NullValueAction action) throws Exception {
+    public void testNullValue(ElasticSearchConfig.NullValueAction action) throws Exception {
         String index = "testnullvalue" + action.toString().toLowerCase(Locale.ROOT);
         map.put("indexName", index);
         map.put("keyIgnore", "false");
@@ -281,7 +280,7 @@ public class ElasticsearchSinkTests {
         });
         assertEquals(sink.getElasticsearchClient().totalHits(index), 1L);
         sink.write(new MockRecordNullValue());
-        assertEquals(sink.getElasticsearchClient().totalHits(index), action.equals(ElasticsearchConfig.NullValueAction.DELETE) ? 0L : 1L);
+        assertEquals(sink.getElasticsearchClient().totalHits(index), action.equals(ElasticSearchConfig.NullValueAction.DELETE) ? 0L : 1L);
         assertNull(sink.getElasticsearchClient().irrecoverableError.get());
     }
 }

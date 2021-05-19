@@ -29,11 +29,9 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericObject;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
-import org.apache.pulsar.client.impl.schema.generic.GenericAvroRecord;
-import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecord;
 import org.apache.pulsar.common.schema.KeyValue;
-import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Sink;
@@ -41,7 +39,6 @@ import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -55,20 +52,20 @@ import java.util.Map;
         name = "elastic_search",
         type = IOType.SINK,
         help = "A sink connector that sends pulsar messages to elastic search",
-        configClass = ElasticsearchConfig.class
+        configClass = ElasticSearchConfig.class
 )
 @Slf4j
 public class ElasticSearchSink implements Sink<GenericObject> {
 
-    private ElasticsearchConfig elasticSearchConfig;
-    private ElasticsearchClient elasticsearchClient;
+    private ElasticSearchConfig elasticSearchConfig;
+    private ElasticSearchClient elasticsearchClient;
     private ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
-        elasticSearchConfig = ElasticsearchConfig.load(config);
+        elasticSearchConfig = ElasticSearchConfig.load(config);
         elasticSearchConfig.validate();
-        elasticsearchClient = new ElasticsearchClient(elasticSearchConfig);
+        elasticsearchClient = new ElasticSearchClient(elasticSearchConfig);
     }
 
     @Override
@@ -114,7 +111,7 @@ public class ElasticSearchSink implements Sink<GenericObject> {
     }
 
     @VisibleForTesting
-    ElasticsearchClient getElasticsearchClient() {
+    ElasticSearchClient getElasticsearchClient() {
         return this.elasticsearchClient;
     }
 
@@ -143,9 +140,13 @@ public class ElasticSearchSink implements Sink<GenericObject> {
             value = record.getValue() == null ? null : record.getValue().getNativeObject();
         }
 
-        String id = key.toString();
-        if (keySchema != null) {
-            id = stringifyKey(keySchema, key);
+        String id = null;
+        if (key != null) {
+            if (keySchema != null) {
+                id = stringifyKey(keySchema, key);
+            } else {
+                id = key.toString();
+            }
         }
 
         String doc = null;
@@ -159,6 +160,7 @@ public class ElasticSearchSink implements Sink<GenericObject> {
 
         if (elasticSearchConfig.isKeyIgnore()) {
             if (doc == null || Strings.isNullOrEmpty(elasticSearchConfig.getPrimaryFields())) {
+                // use the messageId as the doc id in last resort.
                 id = Hex.encodeHexString(record.getMessage().get().getMessageId().toByteArray());
             } else {
                 try {
@@ -199,22 +201,8 @@ public class ElasticSearchSink implements Sink<GenericObject> {
             case STRING:
                 return (String) val;
             case JSON:
-                try {
-                    GenericJsonRecord genericJsonRecord = (GenericJsonRecord) val;
-                    return stringifyKey(genericJsonRecord.getJsonNode());
-                } catch (JsonProcessingException e) {
-                    log.error("Failed to convert JSON to a JSON string", e);
-                    throw new RuntimeException(e);
-                }
             case AVRO:
-                try {
-                    GenericAvroRecord genericAvroRecord = (GenericAvroRecord) val;
-                    JsonNode jsonNode = JsonConverter.toJson(genericAvroRecord.getAvroRecord());
-                    return stringifyKey(jsonNode);
-                } catch (Exception e) {
-                    log.error("Failed to convert AVRO to a JSON string", e);
-                    throw new RuntimeException(e);
-                }
+                return stringifyValue(schema, val);
             default:
                 throw new UnsupportedOperationException("Unsupported key schemaType=" + schema.getSchemaInfo().getType());
         }
@@ -245,16 +233,16 @@ public class ElasticSearchSink implements Sink<GenericObject> {
         switch (schema.getSchemaInfo().getType()) {
             case JSON:
                 try {
-                    GenericJsonRecord genericJsonRecord = (GenericJsonRecord) val;
-                    return objectMapper.writeValueAsString(genericJsonRecord.getJsonNode());
+                    JsonNode node = (JsonNode) ((GenericRecord) val).getNativeObject();
+                    return objectMapper.writeValueAsString(node);
                 } catch (JsonProcessingException e) {
                     log.error("Failed to convert JSON to a JSON string", e);
                     throw new RuntimeException(e);
                 }
             case AVRO:
                 try {
-                    GenericAvroRecord genericAvroRecord = (GenericAvroRecord) val;
-                    JsonNode jsonNode = JsonConverter.toJson(genericAvroRecord.getAvroRecord());
+                    org.apache.avro.generic.GenericRecord node = (org.apache.avro.generic.GenericRecord) ((GenericRecord) val).getNativeObject();
+                    JsonNode jsonNode = JsonConverter.toJson(node);
                     return objectMapper.writeValueAsString(jsonNode);
                 } catch (Exception e) {
                     log.error("Failed to convert AVRO to a JSON string", e);

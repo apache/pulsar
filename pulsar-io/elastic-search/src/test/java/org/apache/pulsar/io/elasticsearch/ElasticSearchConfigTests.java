@@ -28,12 +28,12 @@ import java.util.Map;
 
 import static org.testng.Assert.*;
 
-public class ElasticsearchConfigTests {
+public class ElasticSearchConfigTests {
 
     @Test
     public final void loadFromYamlFileTest() throws IOException {
         File yamlFile = getFile("sinkConfig.yaml");
-        ElasticsearchConfig config = ElasticsearchConfig.load(yamlFile.getAbsolutePath());
+        ElasticSearchConfig config = ElasticSearchConfig.load(yamlFile.getAbsolutePath());
         assertNotNull(config);
         assertEquals(config.getElasticSearchUrl(), "http://localhost:90902");
         assertEquals(config.getIndexName(), "myIndex");
@@ -53,7 +53,7 @@ public class ElasticsearchConfigTests {
         map.put("password", "go-speedie-go");
         map.put("primaryFields", "x");
 
-        ElasticsearchConfig config = ElasticsearchConfig.load(map);
+        ElasticSearchConfig config = ElasticSearchConfig.load(map);
         assertNotNull(config);
         assertEquals(config.getElasticSearchUrl(), "http://localhost:90902");
         assertEquals(config.getIndexName(), "myIndex");
@@ -65,7 +65,7 @@ public class ElasticsearchConfigTests {
 
     @Test
     public final void defaultValueTest() throws IOException {
-        ElasticsearchConfig config = ElasticsearchConfig.load(Collections.emptyMap());
+        ElasticSearchConfig config = ElasticSearchConfig.load(Collections.emptyMap());
         assertNull(config.getElasticSearchUrl());
         assertNull(config.getIndexName());
         assertEquals(config.getTypeName(), "_doc");
@@ -87,8 +87,8 @@ public class ElasticsearchConfigTests {
         assertEquals(config.getSocketTimeoutInMs(), 60000);
 
         assertEquals(config.isKeyIgnore(), false);
-        assertEquals(config.getMalformedDocAction(), ElasticsearchConfig.MalformedDocAction.FAIL);
-        assertEquals(config.getNullValueAction(), ElasticsearchConfig.NullValueAction.DELETE);
+        assertEquals(config.getMalformedDocAction(), ElasticSearchConfig.MalformedDocAction.FAIL);
+        assertEquals(config.getNullValueAction(), ElasticSearchConfig.NullValueAction.DELETE);
 
         assertEquals(config.getMaxRetries(), -1);
         assertEquals(config.getMaxRetryTimeInSec(), 86400L);
@@ -109,7 +109,7 @@ public class ElasticsearchConfigTests {
         map.put("username", "racerX");
         map.put("password", "go-speedie-go");
 
-        ElasticsearchConfig config = ElasticsearchConfig.load(map);
+        ElasticSearchConfig config = ElasticSearchConfig.load(map);
         assertNotNull(config);
         config.validate();
     }
@@ -123,7 +123,7 @@ public class ElasticsearchConfigTests {
         map.put("password", "go-speedie-go");
         map.put("indexNumberOfReplicas", "0");
 
-        ElasticsearchConfig config = ElasticsearchConfig.load(map);
+        ElasticSearchConfig config = ElasticSearchConfig.load(map);
         config.validate();
     }
 
@@ -133,7 +133,7 @@ public class ElasticsearchConfigTests {
         Map<String, Object> map = new HashMap<String, Object> ();
         map.put("indexName", "toto");
 
-        ElasticsearchConfig config = ElasticsearchConfig.load(map);
+        ElasticSearchConfig config = ElasticSearchConfig.load(map);
         config.validate();
     }
 
@@ -147,7 +147,7 @@ public class ElasticsearchConfigTests {
         map.put("password", "go-speedie-go");
         map.put("indexNumberOfShards", "0");
 
-        ElasticsearchConfig config = ElasticsearchConfig.load(map);
+        ElasticSearchConfig config = ElasticSearchConfig.load(map);
         config.validate();
     }
 
@@ -161,7 +161,7 @@ public class ElasticsearchConfigTests {
         map.put("password", "go-speedie-go");
         map.put("indexNumberOfReplicas", "-1");
 
-        ElasticsearchConfig config = ElasticsearchConfig.load(map);
+        ElasticSearchConfig config = ElasticSearchConfig.load(map);
         config.validate();
     }
 
@@ -173,7 +173,7 @@ public class ElasticsearchConfigTests {
         map.put("indexName", "myindex");
         map.put("username", "racerX");
 
-        ElasticsearchConfig config = ElasticsearchConfig.load(map);
+        ElasticSearchConfig config = ElasticSearchConfig.load(map);
         config.validate();
     }
 
@@ -185,7 +185,7 @@ public class ElasticsearchConfigTests {
         map.put("indexName", "myindex");
         map.put("password", "go-speedie-go");
 
-        ElasticsearchConfig config = ElasticsearchConfig.load(map);
+        ElasticSearchConfig config = ElasticSearchConfig.load(map);
         config.validate();
     }
 
@@ -195,8 +195,8 @@ public class ElasticsearchConfigTests {
         Map<String, Object> map = new HashMap<String, Object> ();
         map.put("elasticSearchUrl", "http://localhost:90902");
         map.put("keyIgnore", true);
-        map.put("nullValueAction", ElasticsearchConfig.NullValueAction.DELETE);
-        ElasticsearchConfig config = ElasticsearchConfig.load(map);
+        map.put("nullValueAction", ElasticSearchConfig.NullValueAction.DELETE);
+        ElasticSearchConfig config = ElasticSearchConfig.load(map);
         config.validate();
     }
 
@@ -206,7 +206,7 @@ public class ElasticsearchConfigTests {
         Map<String, Object> map = new HashMap<String, Object> ();
         map.put("elasticSearchUrl", "http://localhost:90902");
         map.put("connectTimeoutInMs", -1);
-        ElasticsearchConfig config = ElasticsearchConfig.load(map);
+        ElasticSearchConfig config = ElasticSearchConfig.load(map);
         config.validate();
     }
 
@@ -216,7 +216,7 @@ public class ElasticsearchConfigTests {
         Map<String, Object> map = new HashMap<String, Object> ();
         map.put("elasticSearchUrl", "http://localhost:90902");
         map.put("connectionRequestTimeoutInMs", -1);
-        ElasticsearchConfig config = ElasticsearchConfig.load(map);
+        ElasticSearchConfig config = ElasticSearchConfig.load(map);
         config.validate();
     }
 
@@ -226,7 +226,7 @@ public class ElasticsearchConfigTests {
         Map<String, Object> map = new HashMap<String, Object> ();
         map.put("elasticSearchUrl", "http://localhost:90902");
         map.put("socketTimeoutInMs", -1);
-        ElasticsearchConfig config = ElasticsearchConfig.load(map);
+        ElasticSearchConfig config = ElasticSearchConfig.load(map);
         config.validate();
     }
 
@@ -236,7 +236,7 @@ public class ElasticsearchConfigTests {
         Map<String, Object> map = new HashMap<String, Object> ();
         map.put("elasticSearchUrl", "http://localhost:90902");
         map.put("bulkConcurrentRequests", -1);
-        ElasticsearchConfig config = ElasticsearchConfig.load(map);
+        ElasticSearchConfig config = ElasticSearchConfig.load(map);
         config.validate();
     }
 
@@ -262,7 +262,7 @@ public class ElasticsearchConfigTests {
         sslMap.put("provider", "Sun");
         map.put("ssl", sslMap);
 
-        ElasticsearchConfig config = ElasticsearchConfig.load(map);
+        ElasticSearchConfig config = ElasticSearchConfig.load(map);
         config.validate();
         assertEquals(config.getSsl().isEnabled(), true);
         assertEquals(config.getSsl().getTruststorePath(), "/ssl/truststore.jks");

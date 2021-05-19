@@ -33,7 +33,7 @@ import java.util.Optional;
 
 import static org.testng.Assert.assertEquals;
 
-public class ElasticsearchExtractTests {
+public class ElasticSearchExtractTests {
 
     @Test
     public void testAVRO() throws Exception {

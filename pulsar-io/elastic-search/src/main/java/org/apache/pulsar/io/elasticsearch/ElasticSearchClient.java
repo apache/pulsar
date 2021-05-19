@@ -88,7 +88,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
-public class ElasticsearchClient {
+public class ElasticSearchClient {
 
     static final String[] malformedErrors = {
             "mapper_parsing_exception",
@@ -96,7 +96,7 @@ public class ElasticsearchClient {
             "illegal_argument_exception"
     };
 
-    private ElasticsearchConfig config;
+    private ElasticSearchConfig config;
     private ConfigCallback configCallback;
     private RestHighLevelClient client;
 
@@ -109,7 +109,7 @@ public class ElasticsearchClient {
     final AtomicReference<Exception> irrecoverableError = new AtomicReference<>();
     final ScheduledExecutorService executorService;
 
-    ElasticsearchClient(ElasticsearchConfig elasticSearchConfig) throws MalformedURLException {
+    ElasticSearchClient(ElasticSearchConfig elasticSearchConfig) throws MalformedURLException {
         this.config = elasticSearchConfig;
         this.configCallback = new ConfigCallback();
         this.backoffRetry = new RandomExponentialRetry(elasticSearchConfig.getMaxRetryTimeInSec());
@@ -468,7 +468,7 @@ public class ElasticsearchClient {
         try {
             return backoffRetry.retry(callable, config.getMaxRetries(), config.getRetryBackoffInMs(), source);
         } catch (Exception e) {
-            throw new ElasticsearchConnectionException(source + " failed", e);
+            throw new ElasticSearchConnectionException(source + " failed", e);
         }
     }
 
@@ -477,8 +477,8 @@ public class ElasticsearchClient {
         final CredentialsProvider credentialsProvider;
 
         public ConfigCallback() {
-            this.connectionManager = buildConnectionManager(ElasticsearchClient.this.config);
-            this.credentialsProvider = buildCredentialsProvider(ElasticsearchClient.this.config);
+            this.connectionManager = buildConnectionManager(ElasticSearchClient.this.config);
+            this.credentialsProvider = buildCredentialsProvider(ElasticSearchClient.this.config);
         }
 
         @Override
@@ -493,7 +493,7 @@ public class ElasticsearchClient {
             return builder;
         }
 
-        public NHttpClientConnectionManager buildConnectionManager(ElasticsearchConfig config) {
+        public NHttpClientConnectionManager buildConnectionManager(ElasticSearchConfig config) {
             try {
                 IOReactorConfig ioReactorConfig = IOReactorConfig.custom()
                         .setConnectTimeout(config.getConnectTimeoutInMs())
@@ -502,7 +502,7 @@ public class ElasticsearchClient {
                 ConnectingIOReactor ioReactor = new DefaultConnectingIOReactor(ioReactorConfig);
                 PoolingNHttpClientConnectionManager connManager;
                 if (config.getSsl().isEnabled()) {
-                    ElasticsearchSslConfig sslConfig = config.getSsl();
+                    ElasticSearchSslConfig sslConfig = config.getSsl();
                     HostnameVerifier hostnameVerifier = config.getSsl().isHostnameVerification()
                             ? SSLConnectionSocketFactory.getDefaultHostnameVerifier()
                             : new NoopHostnameVerifier();
@@ -528,12 +528,12 @@ public class ElasticsearchClient {
                 }
                 return connManager;
             } catch(Exception e) {
-                throw new ElasticsearchConnectionException(e);
+                throw new ElasticSearchConnectionException(e);
             }
         }
 
-        private SSLContext buildSslContext(ElasticsearchConfig config) throws NoSuchAlgorithmException, KeyManagementException, CertificateException, KeyStoreException, IOException, UnrecoverableKeyException {
-            ElasticsearchSslConfig sslConfig = config.getSsl();
+        private SSLContext buildSslContext(ElasticSearchConfig config) throws NoSuchAlgorithmException, KeyManagementException, CertificateException, KeyStoreException, IOException, UnrecoverableKeyException {
+            ElasticSearchSslConfig sslConfig = config.getSsl();
             SSLContextBuilder sslContextBuilder = SSLContexts.custom();
             if (!Strings.isNullOrEmpty(sslConfig.getProvider())) {
                 sslContextBuilder.setProvider(sslConfig.getProvider());
@@ -552,7 +552,7 @@ public class ElasticsearchClient {
             return sslContextBuilder.build();
         }
 
-        private CredentialsProvider buildCredentialsProvider(ElasticsearchConfig config) {
+        private CredentialsProvider buildCredentialsProvider(ElasticSearchConfig config) {
             if (StringUtils.isEmpty(config.getUsername()) || StringUtils.isEmpty(config.getPassword())) {
                 return null;
             }
