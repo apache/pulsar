@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.io.elasticsearch;
 
-
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 

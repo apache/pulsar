@@ -27,19 +27,18 @@
   </parent>
   <artifactId>pulsar-io-elastic-search</artifactId>
   <name>Pulsar IO :: ElasticSearch</name>
-  
-  <repositories>
-    <repository>
-        <id>jcenter</id>
-        <url>https://jcenter.bintray.com/</url>
-    </repository>
-  </repositories>
 
   <dependencies>
    
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-io-core</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-client</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -52,10 +51,11 @@
       <groupId>com.fasterxml.jackson.dataformat</groupId>
       <artifactId>jackson-dataformat-yaml</artifactId>
     </dependency>
-    
+
     <dependency>
-      <groupId>org.apache.commons</groupId>
-      <artifactId>commons-lang3</artifactId>
+      <groupId>org.apache.avro</groupId>
+      <artifactId>avro</artifactId>
+      <version>${avro.version}</version>
     </dependency>
 
   	<dependency>
@@ -68,13 +68,6 @@
       <artifactId>elasticsearch</artifactId>
       <version>1.15.3</version>
       <scope>test</scope>
-    </dependency>
-
-  	<dependency>
-        <groupId>net.andreinc.mockneat</groupId>
-        <artifactId>mockneat</artifactId>
-        <version>0.2.2</version>
-        <scope>test</scope>
     </dependency>
 
   </dependencies>
