@@ -42,6 +42,7 @@ import io.netty.buffer.Unpooled;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Clock;
@@ -3069,9 +3070,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         String encAlgo = encryptionCtx.getAlgorithm();
         int batchSize = encryptionCtx.getBatchSize().orElse(0);
 
-        ByteBuf payloadBuf = Unpooled.wrappedBuffer(msg.getData());
+        ByteBuffer payloadBuf = ByteBuffer.wrap(msg.getData());
         // try to decrypt use default MessageCryptoBc
-        @SuppressWarnings("rawtypes") MessageCrypto crypto = new MessageCryptoBc("test", false);
+        MessageCrypto<MessageMetadata, MessageMetadata> crypto =
+                new MessageCryptoBc("test", false);
 
         MessageMetadata messageMetadata = new MessageMetadata()
                 .setEncryptionParam(encrParam)
@@ -3087,11 +3089,12 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             messageMetadata.setEncryptionAlgo(encAlgo);
         }
 
-        ByteBuf decryptedPayload = crypto.decrypt(() -> messageMetadata, payloadBuf, reader);
+        ByteBuffer decryptedPayload = ByteBuffer.allocate(crypto.getMaxOutputSize(payloadBuf.remaining()));
+        crypto.decrypt(() -> messageMetadata, payloadBuf, decryptedPayload, reader);
 
         // try to uncompress
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(compressionType);
-        ByteBuf uncompressedPayload = codec.decode(decryptedPayload, uncompressedSize);
+        ByteBuf uncompressedPayload = codec.decode(Unpooled.wrappedBuffer(decryptedPayload), uncompressedSize);
 
         if (batchSize > 0) {
             SingleMessageMetadata singleMessageMetadata = new SingleMessageMetadata();
