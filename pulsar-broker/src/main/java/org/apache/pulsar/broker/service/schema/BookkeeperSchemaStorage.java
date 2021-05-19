@@ -237,7 +237,9 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
     @Override
     public void close() throws Exception {
-        // nothing to do
+        if (bookKeeper != null) {
+            bookKeeper.close();
+        }
     }
 
     @NotNull
