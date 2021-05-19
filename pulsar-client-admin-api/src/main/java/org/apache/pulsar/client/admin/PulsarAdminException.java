@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.admin;
 
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.ServerErrorException;
 import javax.ws.rs.WebApplicationException;
@@ -25,9 +27,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 
 /**
  * Pulsar admin exceptions.
