@@ -26,6 +26,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -33,14 +34,16 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
+import lombok.Cleanup;
 import org.apache.bookkeeper.bookie.Bookie;
 import org.apache.bookkeeper.client.BookKeeper;
+import static org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicyImpl.REPP_DNS_RESOLVER_CLASS;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
+import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.meta.LedgerManager;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl.EnsemblePlacementPolicyConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
-import org.apache.bookkeeper.net.BookieSocketAddress;
+import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.versioning.Versioned;
 import org.apache.pulsar.broker.ManagedLedgerClientFactory;
@@ -60,6 +63,7 @@ import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
@@ -75,8 +79,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-/**
- */
+@Test(groups = "broker")
 public class BrokerBookieIsolationTest {
 
     private LocalBookkeeperEnsemble bkEnsemble;
@@ -93,7 +96,7 @@ public class BrokerBookieIsolationTest {
         bkEnsemble.start();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     protected void cleanup() throws Exception {
         if (pulsarService != null) {
             pulsarService.close();
@@ -116,7 +119,6 @@ public class BrokerBookieIsolationTest {
      */
     @Test
     public void testBookieIsolation() throws Exception {
-
         final String tenant1 = "tenant1";
         final String cluster = "use";
         final String ns1 = String.format("%s/%s/%s", tenant1, cluster, "ns1");
@@ -131,10 +133,10 @@ public class BrokerBookieIsolationTest {
         BookieServer[] bookies = bkEnsemble.getBookies();
         ZooKeeper zkClient = bkEnsemble.getZkClient();
 
-        Set<BookieSocketAddress> defaultBookies = Sets.newHashSet(bookies[0].getLocalAddress(),
-                bookies[1].getLocalAddress());
-        Set<BookieSocketAddress> isolatedBookies = Sets.newHashSet(bookies[2].getLocalAddress(),
-                bookies[3].getLocalAddress());
+        Set<BookieId> defaultBookies = Sets.newHashSet(bookies[0].getBookieId(),
+                bookies[1].getBookieId());
+        Set<BookieId> isolatedBookies = Sets.newHashSet(bookies[2].getBookieId(),
+                bookies[3].getBookieId());
 
         setDefaultIsolationGroup(brokerBookkeeperClientIsolationGroups, zkClient, defaultBookies);
         setDefaultIsolationGroup(tenantNamespaceIsolationGroups, zkClient, isolatedBookies);
@@ -144,6 +146,7 @@ public class BrokerBookieIsolationTest {
         config.setClusterName(cluster);
         config.setWebServicePort(Optional.of(0));
         config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setBrokerShutdownTimeoutMs(0L);
         config.setBrokerServicePort(Optional.of(0));
         config.setAdvertisedAddress("localhost");
         config.setBookkeeperClientIsolationGroups(brokerBookkeeperClientIsolationGroups);
@@ -192,6 +195,7 @@ public class BrokerBookieIsolationTest {
             // Ok
         }
 
+        @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsarService.getBrokerServiceUrl())
                 .statsInterval(-1, TimeUnit.SECONDS).build();
 
@@ -229,12 +233,22 @@ public class BrokerBookieIsolationTest {
         // validate ledgers' ensemble with affinity bookies
         assertAffinityBookies(ledgerManager, ml.getLedgersInfoAsList(), isolatedBookies);
 
-        ManagedLedgerClientFactory mlFactory = pulsarService.getManagedLedgerClientFactory();
+        ManagedLedgerClientFactory mlFactory =
+            (ManagedLedgerClientFactory) pulsarService.getManagedLedgerClientFactory();
         Map<EnsemblePlacementPolicyConfig, BookKeeper> bkPlacementPolicyToBkClientMap = mlFactory
                 .getBkEnsemblePolicyToBookKeeperMap();
 
         // broker should create only 1 bk-client and factory per isolation-group
         assertEquals(bkPlacementPolicyToBkClientMap.size(), 1);
+
+        // make sure bk-isolation group also configure REPP_DNS_RESOLVER_CLASS as ZkBookieRackAffinityMapping to
+        // configure rack-aware policy with in isolated group
+        Map<EnsemblePlacementPolicyConfig, BookKeeper> bkMap = mlFactory.getBkEnsemblePolicyToBookKeeperMap();
+        BookKeeper bk = bkMap.values().iterator().next();
+        Method getConf = BookKeeper.class.getDeclaredMethod("getConf");
+        getConf.setAccessible(true);
+        ClientConfiguration clientConf = (ClientConfiguration) getConf.invoke(bk);
+        assertEquals(clientConf.getProperty(REPP_DNS_RESOLVER_CLASS), ZkBookieRackAffinityMapping.class.getName());
     }
 
     /**
@@ -244,7 +258,7 @@ public class BrokerBookieIsolationTest {
      * @throws Exception
      */
     @Test
-    public void testBookieIsilationWithSecondaryGroup() throws Exception {
+    public void testBookieIsolationWithSecondaryGroup() throws Exception {
         final String tenant1 = "tenant1";
         final String cluster = "use";
         final String ns1 = String.format("%s/%s/%s", tenant1, cluster, "ns1");
@@ -260,12 +274,12 @@ public class BrokerBookieIsolationTest {
         BookieServer[] bookies = bkEnsemble.getBookies();
         ZooKeeper zkClient = bkEnsemble.getZkClient();
 
-        Set<BookieSocketAddress> defaultBookies = Sets.newHashSet(bookies[0].getLocalAddress(),
-                bookies[1].getLocalAddress());
-        Set<BookieSocketAddress> isolatedBookies = Sets.newHashSet(bookies[2].getLocalAddress(),
-                bookies[3].getLocalAddress());
-        Set<BookieSocketAddress> downedBookies = Sets.newHashSet(new BookieSocketAddress("1.1.1.1:1111"),
-                new BookieSocketAddress("1.1.1.1:1112"));
+        Set<BookieId> defaultBookies = Sets.newHashSet(bookies[0].getBookieId(),
+                bookies[1].getBookieId());
+        Set<BookieId> isolatedBookies = Sets.newHashSet(bookies[2].getBookieId(),
+                bookies[3].getBookieId());
+        Set<BookieId> downedBookies = Sets.newHashSet(BookieId.parse("1.1.1.1:1111"),
+                BookieId.parse("1.1.1.1:1112"));
 
         setDefaultIsolationGroup(brokerBookkeeperClientIsolationGroups, zkClient, defaultBookies);
         // primary group empty
@@ -277,6 +291,7 @@ public class BrokerBookieIsolationTest {
         config.setClusterName(cluster);
         config.setWebServicePort(Optional.of(0));
         config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setBrokerShutdownTimeoutMs(0L);
         config.setBrokerServicePort(Optional.of(0));
         config.setAdvertisedAddress("localhost");
         config.setBookkeeperClientIsolationGroups(brokerBookkeeperClientIsolationGroups);
@@ -323,6 +338,7 @@ public class BrokerBookieIsolationTest {
             // Ok
         }
 
+        @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsarService.getBrokerServiceUrl())
                 .statsInterval(-1, TimeUnit.SECONDS).build();
 
@@ -353,7 +369,8 @@ public class BrokerBookieIsolationTest {
         // validate ledgers' ensemble with affinity bookies
         assertAffinityBookies(ledgerManager, ml.getLedgersInfoAsList(), isolatedBookies);
 
-        ManagedLedgerClientFactory mlFactory = pulsarService.getManagedLedgerClientFactory();
+        ManagedLedgerClientFactory mlFactory =
+            (ManagedLedgerClientFactory) pulsarService.getManagedLedgerClientFactory();
         Map<EnsemblePlacementPolicyConfig, BookKeeper> bkPlacementPolicyToBkClientMap = mlFactory
                 .getBkEnsemblePolicyToBookKeeperMap();
 
@@ -384,10 +401,10 @@ public class BrokerBookieIsolationTest {
         BookieServer[] bookies = bkEnsemble.getBookies();
         ZooKeeper zkClient = bkEnsemble.getZkClient();
 
-        Set<BookieSocketAddress> defaultBookies = Sets.newHashSet(bookies[0].getLocalAddress(),
-                bookies[1].getLocalAddress());
-        Set<BookieSocketAddress> isolatedBookies = Sets.newHashSet(bookies[2].getLocalAddress(),
-                bookies[3].getLocalAddress());
+        Set<BookieId> defaultBookies = Sets.newHashSet(bookies[0].getBookieId(),
+                bookies[1].getBookieId());
+        Set<BookieId> isolatedBookies = Sets.newHashSet(bookies[2].getBookieId(),
+                bookies[3].getBookieId());
 
         setDefaultIsolationGroup(brokerBookkeeperClientIsolationGroups, zkClient, defaultBookies);
         // primary group empty
@@ -399,6 +416,7 @@ public class BrokerBookieIsolationTest {
         config.setClusterName(cluster);
         config.setWebServicePort(Optional.of(0));
         config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setBrokerShutdownTimeoutMs(0L);
         config.setBrokerServicePort(Optional.of(0));
         config.setAdvertisedAddress("localhost");
         config.setBookkeeperClientIsolationGroups(brokerBookkeeperClientIsolationGroups);
@@ -449,12 +467,12 @@ public class BrokerBookieIsolationTest {
     }
 
     private void assertAffinityBookies(LedgerManager ledgerManager, List<LedgerInfo> ledgers1,
-            Set<BookieSocketAddress> defaultBookies) throws Exception {
+            Set<BookieId> defaultBookies) throws Exception {
         for (LedgerInfo lInfo : ledgers1) {
             long ledgerId = lInfo.getLedgerId();
             CompletableFuture<Versioned<LedgerMetadata>> ledgerMetaFuture = ledgerManager.readLedgerMetadata(ledgerId);
             LedgerMetadata ledgerMetadata = ledgerMetaFuture.get().getValue();
-            Set<BookieSocketAddress> ledgerBookies = Sets.newHashSet();
+            Set<BookieId> ledgerBookies = Sets.newHashSet();
             ledgerBookies.addAll(ledgerMetadata.getAllEnsembles().values().iterator().next());
             assertEquals(ledgerBookies.size(), defaultBookies.size());
             ledgerBookies.removeAll(defaultBookies);
@@ -482,7 +500,7 @@ public class BrokerBookieIsolationTest {
     }
 
     private void setDefaultIsolationGroup(String brokerBookkeeperClientIsolationGroups, ZooKeeper zkClient,
-            Set<BookieSocketAddress> bookieAddresses) throws Exception {
+            Set<BookieId> bookieAddresses) throws Exception {
         BookiesRackConfiguration bookies = null;
         try {
             byte[] data = zkClient.getData(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false, null);
@@ -498,15 +516,14 @@ public class BrokerBookieIsolationTest {
         }
 
         Map<String, BookieInfo> bookieInfoMap = Maps.newHashMap();
-        for (BookieSocketAddress bkSocket : bookieAddresses) {
-            BookieInfo info = new BookieInfo("use", bkSocket.getHostName() + ":" + bkSocket.getPort());
+        for (BookieId bkSocket : bookieAddresses) {
+            BookieInfo info = new BookieInfo("use", bkSocket.toString());
             bookieInfoMap.put(bkSocket.toString(), info);
         }
         bookies.put(brokerBookkeeperClientIsolationGroups, bookieInfoMap);
 
         zkClient.setData(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookies), -1);
     }
-
     private static final Logger log = LoggerFactory.getLogger(BrokerBookieIsolationTest.class);
 
 }

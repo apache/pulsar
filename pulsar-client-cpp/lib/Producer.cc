@@ -49,6 +49,17 @@ Result Producer::send(const Message& msg) {
     return result;
 }
 
+Result Producer::send(const Message& msg, MessageId& messageId) {
+    Promise<Result, MessageId> promise;
+    sendAsync(msg, WaitForCallbackValue<MessageId>(promise));
+
+    if (!promise.isComplete()) {
+        impl_->triggerFlush();
+    }
+
+    return promise.getFuture().get(messageId);
+}
+
 void Producer::sendAsync(const Message& msg, SendCallback callback) {
     if (!impl_) {
         callback(ResultProducerNotInitialized, msg.getMessageId());
@@ -106,4 +117,7 @@ void Producer::producerFailMessages(Result result) {
         producerImpl->failPendingMessages(result);
     }
 }
+
+bool Producer::isConnected() const { return impl_ && impl_->isConnected(); }
+
 }  // namespace pulsar

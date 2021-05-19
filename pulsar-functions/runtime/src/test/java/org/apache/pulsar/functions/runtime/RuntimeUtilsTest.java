@@ -18,8 +18,18 @@
  */
 package org.apache.pulsar.functions.runtime;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.proto.Function;
+import org.jose4j.json.internal.json_simple.JSONObject;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
+
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.List;
 
 public class RuntimeUtilsTest {
 
@@ -42,5 +52,118 @@ public class RuntimeUtilsTest {
         Assert.assertEquals(result[0], "-Xms314572800");
         Assert.assertEquals(result[1], "-Dbar=foo");
         Assert.assertEquals(result[2], "-Dfoo=\"bar foo\"");
+    }
+
+    @Test(dataProvider = "k8sRuntime")
+    public void getGoInstanceCmd(boolean k8sRuntime) throws IOException {
+        HashMap<String, String> goInstanceConfig;
+
+        InstanceConfig instanceConfig = new InstanceConfig();
+        instanceConfig.setClusterName("kluster");
+        instanceConfig.setInstanceId(3000);
+        instanceConfig.setFunctionId("func-7734");
+        instanceConfig.setFunctionVersion("1.0.0");
+        instanceConfig.setMaxBufferedTuples(5);
+        instanceConfig.setPort(1337);
+        instanceConfig.setMetricsPort(60000);
+
+
+        JSONObject userConfig = new JSONObject();
+        userConfig.put("word-of-the-day", "der Weltschmerz");
+
+        JSONObject secretsMap = new JSONObject();
+        secretsMap.put("secret", "cake is a lie");
+
+        Function.SourceSpec sources = Function.SourceSpec.newBuilder()
+                .setCleanupSubscription(true)
+                .setSubscriptionName("go-func-sub")
+                .setTimeoutMs(500)
+                .putInputSpecs("go-func-input", Function.ConsumerSpec.newBuilder().setIsRegexPattern(false).build())
+                .build();
+
+        Function.RetryDetails retryDetails = Function.RetryDetails.newBuilder()
+                .setDeadLetterTopic("go-func-deadletter")
+                .setMaxMessageRetries(1)
+                .build();
+
+        Function.Resources resources = Function.Resources.newBuilder()
+                .setCpu(2)
+                .setDisk(1024)
+                .setRam(32)
+                .build();
+
+        Function.FunctionDetails functionDetails = Function.FunctionDetails.newBuilder()
+                .setAutoAck(true)
+                .setTenant("public")
+                .setNamespace("default")
+                .setName("go-func")
+                .setLogTopic("go-func-log")
+                .setProcessingGuarantees(Function.ProcessingGuarantees.ATLEAST_ONCE)
+                .setSecretsMap(secretsMap.toJSONString())
+                .setParallelism(1)
+                .setSource(sources)
+                .setRetryDetails(retryDetails)
+                .setResources(resources)
+                .setUserConfig(userConfig.toJSONString())
+                .build();
+
+        instanceConfig.setFunctionDetails(functionDetails);
+
+        List<String> commands = RuntimeUtils.getGoInstanceCmd(instanceConfig, "config", "pulsar://localhost:6650", k8sRuntime);
+        if (k8sRuntime) {
+            goInstanceConfig = new ObjectMapper().readValue(commands.get(2).replaceAll("^\'|\'$", ""), HashMap.class);
+        } else {
+            goInstanceConfig = new ObjectMapper().readValue(commands.get(2), HashMap.class);
+        }
+        Assert.assertEquals(commands.toArray().length, 3);
+        Assert.assertEquals(commands.get(0), "config");
+        Assert.assertEquals(commands.get(1), "-instance-conf");
+        Assert.assertEquals(goInstanceConfig.get("maxBufTuples"), 5);
+        Assert.assertEquals(goInstanceConfig.get("maxMessageRetries"), 1);
+        Assert.assertEquals(goInstanceConfig.get("killAfterIdleMs"), 0);
+        Assert.assertEquals(goInstanceConfig.get("parallelism"), 1);
+        Assert.assertEquals(goInstanceConfig.get("className"), "");
+        Assert.assertEquals(goInstanceConfig.get("sourceSpecsTopic"), "go-func-input");
+        Assert.assertEquals(goInstanceConfig.get("secretsMap"), secretsMap.toString());
+        Assert.assertEquals(goInstanceConfig.get("sourceSchemaType"), "");
+        Assert.assertEquals(goInstanceConfig.get("sinkSpecsTopic"), "");
+        Assert.assertEquals(goInstanceConfig.get("clusterName"), "kluster");
+        Assert.assertEquals(goInstanceConfig.get("nameSpace"), "default");
+        Assert.assertEquals(goInstanceConfig.get("receiverQueueSize"), 0);
+        Assert.assertEquals(goInstanceConfig.get("tenant"), "public");
+        Assert.assertEquals(goInstanceConfig.get("ram"), 32);
+        Assert.assertEquals(goInstanceConfig.get("logTopic"), "go-func-log");
+        Assert.assertEquals(goInstanceConfig.get("processingGuarantees"), 0);
+        Assert.assertEquals(goInstanceConfig.get("autoAck"), true);
+        Assert.assertEquals(goInstanceConfig.get("regexPatternSubscription"), false);
+        Assert.assertEquals(goInstanceConfig.get("pulsarServiceURL"), "pulsar://localhost:6650");
+        Assert.assertEquals(goInstanceConfig.get("runtime"), 0);
+        Assert.assertEquals(goInstanceConfig.get("cpu"), 2.0);
+        Assert.assertEquals(goInstanceConfig.get("funcID"), "func-7734");
+        Assert.assertEquals(goInstanceConfig.get("funcVersion"), "1.0.0");
+        Assert.assertEquals(goInstanceConfig.get("disk"), 1024);
+        Assert.assertEquals(goInstanceConfig.get("instanceID"), 3000);
+        Assert.assertEquals(goInstanceConfig.get("cleanupSubscription"), true);
+        Assert.assertEquals(goInstanceConfig.get("port"), 1337);
+        Assert.assertEquals(goInstanceConfig.get("subscriptionType"), 0);
+        Assert.assertEquals(goInstanceConfig.get("timeoutMs"), 500);
+        Assert.assertEquals(goInstanceConfig.get("subscriptionName"), "go-func-sub");
+        Assert.assertEquals(goInstanceConfig.get("name"), "go-func");
+        Assert.assertEquals(goInstanceConfig.get("expectedHealthCheckInterval"), 0);
+        Assert.assertEquals(goInstanceConfig.get("deadLetterTopic"), "go-func-deadletter");
+        Assert.assertEquals(goInstanceConfig.get("userConfig"), userConfig.toString());
+        Assert.assertEquals(goInstanceConfig.get("metricsPort"), 60000);
+    }
+
+    @DataProvider(name = "k8sRuntime")
+    public static Object[][] k8sRuntimeFlag() {
+        return new Object[][] {
+                {
+                        true
+                },
+                {
+                        false
+                }
+        };
     }
 }

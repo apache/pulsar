@@ -59,6 +59,10 @@ public class ManagedLedgerMBeanTest extends MockedBookKeeperTestCase {
         mbean.addAddEntryLatencySample(1, TimeUnit.MILLISECONDS);
         mbean.addAddEntryLatencySample(10, TimeUnit.MILLISECONDS);
         mbean.addAddEntryLatencySample(1, TimeUnit.SECONDS);
+        
+        mbean.addLedgerAddEntryLatencySample(1, TimeUnit.MILLISECONDS);
+        mbean.addLedgerAddEntryLatencySample(10, TimeUnit.MILLISECONDS);
+        mbean.addLedgerAddEntryLatencySample(1, TimeUnit.SECONDS);
 
         mbean.addLedgerSwitchLatencySample(1, TimeUnit.MILLISECONDS);
         mbean.addLedgerSwitchLatencySample(10, TimeUnit.MILLISECONDS);
@@ -81,6 +85,8 @@ public class ManagedLedgerMBeanTest extends MockedBookKeeperTestCase {
 
         assertEquals(mbean.getAddEntryLatencyBuckets(), new long[] { 0, 1, 0, 1, 0, 0, 0, 0, 1, 0 });
         assertEquals(mbean.getAddEntryLatencyAverageUsec(), 337_000.0);
+        assertEquals(mbean.getLedgerAddEntryLatencyBuckets(), new long[] { 0, 1, 0, 1, 0, 0, 0, 0, 1, 0 });
+        assertEquals(mbean.getLedgerAddEntryLatencyAverageUsec(), 337_000.0);
         assertEquals(mbean.getEntrySizeBuckets(), new long[] { 0, 0, 0, 0, 0, 0, 0, 0, 0 });
 
         assertEquals(mbean.getLedgerSwitchLatencyBuckets(), new long[] { 0, 1, 0, 1, 0, 0, 0, 0, 1, 0 });

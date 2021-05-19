@@ -45,7 +45,7 @@ public class JvmUsage {
         JvmUsage jvmUsage = null;
         if (metrics.containsKey("jvm_thread_cnt")) {
             jvmUsage = new JvmUsage();
-            jvmUsage.threadCount = ((Long) metrics.get("jvm_thread_cnt")).longValue();
+            jvmUsage.threadCount = Long.valueOf(metrics.get("jvm_thread_cnt").toString());
         }
         return jvmUsage;
     }

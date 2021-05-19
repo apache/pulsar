@@ -18,23 +18,17 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
-import java.util.stream.Collectors;
-
 import lombok.extern.slf4j.Slf4j;
-import org.apache.avro.Schema;
-import org.apache.pulsar.client.api.schema.Field;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
-import org.apache.pulsar.client.api.schema.SchemaReader;
-import org.apache.pulsar.client.impl.schema.SchemaUtils;
-import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 /**
  * A generic json schema.
  */
 @Slf4j
-class GenericJsonSchema extends GenericSchemaImpl {
+public class GenericJsonSchema extends GenericSchemaImpl {
 
     public GenericJsonSchema(SchemaInfo schemaInfo) {
         this(schemaInfo, true);
@@ -42,39 +36,25 @@ class GenericJsonSchema extends GenericSchemaImpl {
 
     GenericJsonSchema(SchemaInfo schemaInfo,
                       boolean useProvidedSchemaAsReaderSchema) {
-        super(schemaInfo, useProvidedSchemaAsReaderSchema);
+        super(schemaInfo);
         setWriter(new GenericJsonWriter());
-        setReader(new GenericJsonReader(fields));
-    }
-
-    @Override
-    protected SchemaReader<GenericRecord> loadReader(BytesSchemaVersion schemaVersion) {
-        SchemaInfo schemaInfo = getSchemaInfoByVersion(schemaVersion.get());
-        if (schemaInfo != null) {
-            log.info("Load schema reader for version({}), schema is : {}",
-                SchemaUtils.getStringSchemaVersion(schemaVersion.get()),
-                schemaInfo.getSchemaDefinition());
-            Schema readerSchema;
-            if (useProvidedSchemaAsReaderSchema) {
-                readerSchema = schema;
-            } else {
-                readerSchema = parseAvroSchema(schemaInfo.getSchemaDefinition());
-            }
-            return new GenericJsonReader(schemaVersion.get(),
-                    readerSchema.getFields()
-                            .stream()
-                            .map(f -> new Field(f.name(), f.pos()))
-                            .collect(Collectors.toList()));
-        } else {
-            log.warn("No schema found for version({}), use latest schema : {}",
-                SchemaUtils.getStringSchemaVersion(schemaVersion.get()),
-                this.schemaInfo.getSchemaDefinition());
-            return reader;
-        }
+        setReader(new MultiVersionGenericJsonReader(useProvidedSchemaAsReaderSchema, schema, schemaInfo, fields));
     }
 
     @Override
     public GenericRecordBuilder newRecordBuilder() {
-        throw new UnsupportedOperationException("Json Schema doesn't support record builder yet");
+        return new JsonRecordBuilderImpl(this);
+    }
+
+    public boolean supportSchemaVersioning() {
+        return true;
+    }
+
+    public Schema<GenericRecord> clone() {
+        Schema<GenericRecord> schema = of(this.schemaInfo, ((AbstractMultiVersionGenericReader)this.reader).useProvidedSchemaAsReaderSchema);
+        if (this.schemaInfoProvider != null) {
+            schema.setSchemaInfoProvider(this.schemaInfoProvider);
+        }
+        return schema;
     }
 }

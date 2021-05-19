@@ -19,11 +19,17 @@
 package org.apache.pulsar.functions.utils;
 
 import com.google.gson.Gson;
+
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.util.JsonFormat;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.common.functions.*;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.Field;
@@ -34,11 +40,13 @@ import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuaran
 import static org.apache.pulsar.common.functions.FunctionConfig.Runtime.PYTHON;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
 /**
  * Unit test of {@link Reflections}.
  */
+@Slf4j
 public class FunctionConfigUtilsTest {
 
     @Test
@@ -67,6 +75,7 @@ public class FunctionConfigUtilsTest {
         producerConfig.setMaxPendingMessages(100);
         producerConfig.setMaxPendingMessagesAcrossPartitions(1000);
         producerConfig.setUseThreadLocalProducers(true);
+        producerConfig.setBatchBuilder("DEFAULT");
         functionConfig.setProducerConfig(producerConfig);
         Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, null);
         FunctionConfig convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
@@ -107,6 +116,7 @@ public class FunctionConfigUtilsTest {
         producerConfig.setMaxPendingMessages(100);
         producerConfig.setMaxPendingMessagesAcrossPartitions(1000);
         producerConfig.setUseThreadLocalProducers(true);
+        producerConfig.setBatchBuilder("KEY_BASED");
         functionConfig.setProducerConfig(producerConfig);
         Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, null);
         FunctionConfig convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
@@ -440,6 +450,8 @@ public class FunctionConfigUtilsTest {
         functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
         functionConfig.setRetainOrdering(false);
         functionConfig.setRetainKeyOrdering(false);
+        functionConfig.setSubscriptionPosition(SubscriptionInitialPosition.Earliest);
+        functionConfig.setBatchBuilder("DEFAULT");
         functionConfig.setForwardSourceMessageProperty(false);
         functionConfig.setUserConfig(new HashMap<>());
         functionConfig.setAutoAck(true);
@@ -461,6 +473,28 @@ public class FunctionConfigUtilsTest {
             throw new RuntimeException("Something wrong with the test", e);
         }
         return functionConfig;
+    }
+
+    @Test
+    public void testDisableForwardSourceMessageProperty() throws InvalidProtocolBufferException {
+        FunctionConfig config = new FunctionConfig();
+        config.setTenant("test-tenant");
+        config.setNamespace("test-namespace");
+        config.setName("test-function");
+        config.setParallelism(1);
+        config.setClassName(IdentityFunction.class.getName());
+        Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
+        inputSpecs.put("test-input", ConsumerConfig.builder().isRegexPattern(true).serdeClassName("test-serde").build());
+        config.setInputSpecs(inputSpecs);
+        config.setOutput("test-output");
+        config.setForwardSourceMessageProperty(true);
+        FunctionConfigUtils.inferMissingArguments(config, false);
+        assertNull(config.getForwardSourceMessageProperty());
+        FunctionDetails details = FunctionConfigUtils.convert(config, FunctionConfigUtilsTest.class.getClassLoader());
+        assertFalse(details.getSink().getForwardSourceMessageProperty());
+        String detailsJson = "'" + JsonFormat.printer().omittingInsignificantWhitespace().print(details) + "'";
+        log.info("Function details : {}", detailsJson);
+        assertFalse(detailsJson.contains("forwardSourceMessageProperty"));
     }
 
     @Test
@@ -518,7 +552,7 @@ public class FunctionConfigUtilsTest {
         assertEquals(functionConfig.getName(), name);
         assertEquals(functionConfig.getClassName(), classname);
         assertEquals(functionConfig.getLogTopic(), logTopic);
-        assertEquals(functionConfig.getResources().getCpu(), resources.getCpu());
+        assertEquals((Object) functionConfig.getResources().getCpu(), resources.getCpu());
         assertEquals(functionConfig.getResources().getDisk().longValue(), resources.getDisk());
         assertEquals(functionConfig.getResources().getRam().longValue(), resources.getRam());
         assertEquals(functionConfig.getOutput(), sinkSpec.getTopic());

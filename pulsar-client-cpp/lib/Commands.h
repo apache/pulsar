@@ -23,6 +23,7 @@
 #include <pulsar/defines.h>
 #include <pulsar/Message.h>
 #include <pulsar/Schema.h>
+#include <pulsar/KeySharedPolicy.h>
 
 #include "PulsarApi.pb.h"
 #include "SharedBuffer.h"
@@ -75,7 +76,8 @@ class Commands {
 
     static SharedBuffer newPartitionMetadataRequest(const std::string& topic, uint64_t requestId);
 
-    static SharedBuffer newLookup(const std::string& topic, const bool authoritative, uint64_t requestId);
+    static SharedBuffer newLookup(const std::string& topic, const bool authoritative, uint64_t requestId,
+                                  const std::string& listenerName);
 
     static PairSharedBuffer newSend(SharedBuffer& headers, proto::BaseCommand& cmd, uint64_t producerId,
                                     uint64_t sequenceId, ChecksumType checksumType, const Message& msg);
@@ -86,14 +88,16 @@ class Commands {
                                      SubscriptionMode subscriptionMode, Optional<MessageId> startMessageId,
                                      bool readCompacted, const std::map<std::string, std::string>& metadata,
                                      const SchemaInfo& schemaInfo,
-                                     proto::CommandSubscribe_InitialPosition subscriptionInitialPosition);
+                                     proto::CommandSubscribe_InitialPosition subscriptionInitialPosition,
+                                     KeySharedPolicy keySharedPolicy);
 
     static SharedBuffer newUnsubscribe(uint64_t consumerId, uint64_t requestId);
 
     static SharedBuffer newProducer(const std::string& topic, uint64_t producerId,
                                     const std::string& producerName, uint64_t requestId,
                                     const std::map<std::string, std::string>& metadata,
-                                    const SchemaInfo& schemaInfo);
+                                    const SchemaInfo& schemaInfo, uint64_t epoch,
+                                    bool userProvidedProducerName, bool encrypted);
 
     static SharedBuffer newAck(uint64_t consumerId, const proto::MessageIdData& messageId,
                                proto::CommandAck_AckType ackType, int validationError);
@@ -115,8 +119,8 @@ class Commands {
 
     static void initBatchMessageMetadata(const Message& msg, pulsar::proto::MessageMetadata& batchMetadata);
 
-    static PULSAR_PUBLIC void serializeSingleMessageInBatchWithPayload(
-        const Message& msg, SharedBuffer& batchPayLoad, const unsigned long& maxMessageSizeInBytes);
+    static PULSAR_PUBLIC uint64_t serializeSingleMessageInBatchWithPayload(
+        const Message& msg, SharedBuffer& batchPayLoad, unsigned long maxMessageSizeInBytes);
 
     static Message deSerializeSingleMessageInBatch(Message& batchedMessage, int32_t batchIndex);
 

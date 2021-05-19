@@ -17,9 +17,17 @@
 # under the License.
 #
 
-cmake_minimum_required(VERSION 3.4) 
+cmake_minimum_required(VERSION 3.4)
 project (pulsar-cpp)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake_modules")
+
+if (VCPKG_TRIPLET)
+    message(STATUS "Use vcpkg, triplet is ${VCPKG_TRIPLET}")
+    set(CMAKE_PREFIX_PATH "${CMAKE_SOURCE_DIR}/vcpkg_installed/${VCPKG_TRIPLET}")
+    message(STATUS "Use CMAKE_PREFIX_PATH: ${CMAKE_PREFIX_PATH}")
+    set(PROTOC_PATH "${CMAKE_PREFIX_PATH}/tools/protobuf/protoc")
+    message(STATUS "Use protoc: ${PROTOC_PATH}")
+endif()
 
 find_program(CCACHE_PROGRAM ccache)
 if(CCACHE_PROGRAM)
@@ -29,11 +37,20 @@ endif(CCACHE_PROGRAM)
 
 MESSAGE(STATUS "ARCHITECTURE: ${CMAKE_SYSTEM_PROCESSOR}")
 
+option(BUILD_DYNAMIC_LIB "Build dynamic lib" ON)
+MESSAGE(STATUS "BUILD_DYNAMIC_LIB:  " ${BUILD_DYNAMIC_LIB})
+
+option(BUILD_STATIC_LIB "Build static lib" ON)
+MESSAGE(STATUS "BUILD_STATIC_LIB:  " ${BUILD_STATIC_LIB})
+
 option(BUILD_TESTS "Build tests" ON)
 MESSAGE(STATUS "BUILD_TESTS:  " ${BUILD_TESTS})
 
 option(BUILD_PYTHON_WRAPPER "Build Pulsar Python wrapper" ON)
 MESSAGE(STATUS "BUILD_PYTHON_WRAPPER:  " ${BUILD_PYTHON_WRAPPER})
+
+option(BUILD_PERF_TOOLS "Build Pulsar CLI perf producer/consumer" OFF)
+MESSAGE(STATUS "BUILD_PERF_TOOLS:  " ${BUILD_PERF_TOOLS})
 
 option(LINK_STATIC "Link against static libraries" OFF)
 MESSAGE(STATUS "LINK_STATIC:  " ${LINK_STATIC})
@@ -46,6 +63,10 @@ IF (CMAKE_BUILD_TYPE STREQUAL "")
 ENDIF ()
 
 MESSAGE(STATUS "CMAKE_BUILD_TYPE:  " ${CMAKE_BUILD_TYPE})
+
+set(THREADS_PREFER_PTHREAD_FLAG TRUE)
+find_package(Threads REQUIRED)
+MESSAGE(STATUS "Threads library: " ${CMAKE_THREAD_LIBS_INIT})
 
 set(Boost_NO_BOOST_CMAKE ON)
 set(CMAKE_CXX_STANDARD 11)
@@ -73,14 +94,15 @@ endif(NOT LOG_CATEGORY_NAME)
 
 add_definitions(-DLOG_CATEGORY_NAME=${LOG_CATEGORY_NAME} -DBUILDING_PULSAR -DBOOST_ALL_NO_LIB -DBOOST_ALLOW_DEPRECATED_HEADERS)
 
+set(OPENSSL_ROOT_DIR /usr/lib64/)
+
 ### This part is to find and keep SSL dynamic libs in RECORD_OPENSSL_SSL_LIBRARY and RECORD_OPENSSL_CRYPTO_LIBRARY
 ### After find the libs, will unset related cache, and will not affact another same call to find_package.
 if (APPLE)
-    set(OPENSSL_INCLUDE_DIR /usr/local/opt/openssl/include/)
-    set(OPENSSL_ROOT_DIR /usr/local/opt/openssl/)
+    set(OPENSSL_INCLUDE_DIR /usr/local/opt/openssl/include/ /opt/homebrew/opt/openssl/include)
+    set(OPENSSL_ROOT_DIR /usr/local/opt/openssl/ /opt/homebrew/opt/openssl)
 endif ()
 
-set(OPENSSL_ROOT_DIR /usr/lib64/)
 set(OPENSSL_USE_STATIC_LIBS FALSE)
 find_package(OpenSSL REQUIRED)
 set(RECORD_OPENSSL_SSL_LIBRARY ${OPENSSL_SSL_LIBRARY})
@@ -152,11 +174,33 @@ else()
     endif (USE_LOG4CXX)
 endif (LINK_STATIC)
 
-if (MSVC)
-  find_package(Boost REQUIRED COMPONENTS program_options regex system date_time)
-else()
-  find_package(Boost REQUIRED COMPONENTS program_options regex system)
+
+find_package(Boost)
+
+if (Boost_MAJOR_VERSION EQUAL 1 AND Boost_MINOR_VERSION LESS 69)
+    # Boost System does not require linking since 1.69
+    set(BOOST_COMPONENTS ${BOOST_COMPONENTS} system)
+    MESSAGE(STATUS "Linking with Boost:System")
 endif()
+
+if (MSVC)
+  set(BOOST_COMPONENTS ${BOOST_COMPONENTS} date_time)
+endif()
+
+if (CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9)
+    # GCC 4.8.2 implementation of std::regex is buggy
+    set(BOOST_COMPONENTS ${BOOST_COMPONENTS} regex)
+    set(CMAKE_CXX_FLAGS " -DPULSAR_USE_BOOST_REGEX")
+    MESSAGE(STATUS "Using Boost::Regex")
+else()
+    MESSAGE(STATUS "Using std::regex")
+endif()
+
+if(BUILD_PERF_TOOLS)
+    set(BOOST_COMPONENTS ${BOOST_COMPONENTS} program_options)
+endif()
+
+find_package(Boost REQUIRED COMPONENTS ${BOOST_COMPONENTS})
 
 if (BUILD_PYTHON_WRAPPER)
     find_package(PythonLibs REQUIRED)
@@ -169,7 +213,7 @@ if (BUILD_PYTHON_WRAPPER)
         list(GET PYTHONLIBS_VERSION_NO_LIST 1 PYTHONLIBS_VERSION_MINOR)
         set(BOOST_PYTHON_NAME_POSTFIX ${PYTHONLIBS_VERSION_MAJOR}${PYTHONLIBS_VERSION_MINOR})
         # For python3 the lib name is boost_python3
-        set(BOOST_PYTHON_NAME_LIST python36;python37;python38;python3;python3-mt;python-py${BOOST_PYTHON_NAME_POSTFIX};python${BOOST_PYTHON_NAME_POSTFIX}-mt;python${BOOST_PYTHON_NAME_POSTFIX})
+        set(BOOST_PYTHON_NAME_LIST python36;python37;python38;python39;python3;python3-mt;python-py${BOOST_PYTHON_NAME_POSTFIX};python${BOOST_PYTHON_NAME_POSTFIX}-mt;python${BOOST_PYTHON_NAME_POSTFIX})
     else ()
         # Regular boost_python
         set(BOOST_PYTHON_NAME_LIST python;python-mt;python-py27;python27-mt;python27)
@@ -190,11 +234,6 @@ if (BUILD_PYTHON_WRAPPER)
     find_package(Boost REQUIRED COMPONENTS ${BOOST_PYTHON_NAME_FOUND})
 endif (BUILD_PYTHON_WRAPPER)
 
-if (APPLE)
-    set(OPENSSL_INCLUDE_DIR /usr/local/opt/openssl/include/)
-    set(OPENSSL_ROOT_DIR /usr/local/opt/openssl/)
-endif ()
-
 find_package(OpenSSL REQUIRED)
 
 if (BUILD_TESTS)
@@ -211,7 +250,7 @@ if (NOT APPLE AND NOT MSVC)
     # we don't set options below to build _pulsar.so
     set(CMAKE_CXX_FLAGS_PYTHON "${CMAKE_CXX_FLAGS}")
     # Hide all non-exported symbols to avoid conflicts
-    add_compile_options(-fvisibility=hidden -Wl,--exclude-libs,ALL)
+    set(CMAKE_CXX_FLAGS " -fvisibility=hidden -Wl,--exclude-libs,ALL ${CMAKE_CXX_FLAGS}")
 endif ()
 
 if (LIB_ZSTD)
@@ -250,6 +289,7 @@ include_directories(
 
 set(COMMON_LIBS
   ${COMMON_LIBS}
+  Threads::Threads
   ${Boost_REGEX_LIBRARY}
   ${Boost_SYSTEM_LIBRARY}
   ${CURL_LIBRARIES}
@@ -257,6 +297,7 @@ set(COMMON_LIBS
   ${ZLIB_LIBRARIES}
   ${Protobuf_LITE_LIBRARIES}
   ${ADDITIONAL_LIBRARIES}
+  ${CMAKE_DL_LIBS}
 )
 
 if (MSVC)
@@ -267,14 +308,10 @@ if (MSVC)
 endif()
 
 if (NOT MSVC)
-    set(COMMON_LIBS
-    ${COMMON_LIBS} -lpthread -lm
-    dl
-    pthread
-    )
+    set(COMMON_LIBS ${COMMON_LIBS} m)
 else()
     set(COMMON_LIBS
-    ${COMMON_LIBS} 
+    ${COMMON_LIBS}
     wldap32.lib
     Normaliz.lib)
 endif()
@@ -319,8 +356,13 @@ set(CLIENT_LIBS
 )
 
 add_subdirectory(lib)
-add_subdirectory(perf)
-add_subdirectory(examples)
+if(BUILD_PERF_TOOLS)
+    add_subdirectory(perf)
+endif(BUILD_PERF_TOOLS)
+
+if (BUILD_DYNAMIC_LIB)
+    add_subdirectory(examples)
+endif()
 
 if (BUILD_TESTS)
     add_subdirectory(tests)

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -23,9 +23,9 @@ set -e -x
 
 cd /pulsar/pulsar-client-cpp
 
-find . -name CMakeCache.txt | xargs rm
-find . -name CMakeFiles | xargs rm -rf
-rm lib/*.pb.*
+find . -name CMakeCache.txt | xargs -r rm
+find . -name CMakeFiles | xargs -r rm -rf
+rm -f lib/*.pb.*
 
 cmake . -DBUILD_TESTS=OFF -DLINK_STATIC=ON \
         -DPYTHON_INCLUDE_DIR=/opt/python/$PYTHON_SPEC/include/python$PYTHON_VERSION \

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -34,7 +34,7 @@ ROOT_DIR=$(git rev-parse --show-toplevel)
 cd $ROOT_DIR/pulsar-client-cpp
 
 BUILD_IMAGE_NAME="${BUILD_IMAGE_NAME:-apachepulsar/pulsar-build}"
-BUILD_IMAGE_VERSION="${BUILD_IMAGE_VERSION:-ubuntu-16.04}"
+BUILD_IMAGE_VERSION="${BUILD_IMAGE_VERSION:-ubuntu-16.04-py2}"
 
 IMAGE="$BUILD_IMAGE_NAME:$BUILD_IMAGE_VERSION"
 
@@ -42,20 +42,44 @@ echo "---- Testing Pulsar C++ client using image $IMAGE (type --help for more op
 
 docker pull $IMAGE
 
-DOCKER_CMD="docker run -i -v $ROOT_DIR:/pulsar $IMAGE"
+CONTAINER_LABEL="pulsartests=$$"
+export GTEST_COLOR=${GTEST_COLOR:-no}
+DOCKER_CMD="docker run -e GTEST_COLOR -i -l $CONTAINER_LABEL -v $ROOT_DIR:/pulsar $IMAGE"
 
 
 for args in "$@"
 do
     arg=$(echo $args | cut -f1 -d=)
-    val=$(echo $args | cut -f2 -d=)   
+    val=$(echo $args | cut -f2 -d=)
 
     case "$arg" in
             --tests)   tests=${val} ;;
-            *)   
-    esac    
+            *)
+    esac
 done
 
 # Start 2 Pulsar standalone instances (one with TLS and one without)
 # and execute the tests
-$DOCKER_CMD bash -c "cd /pulsar/pulsar-client-cpp && ./run-unit-tests.sh ${tests}"
+set +e
+DISABLE_COLOR_OUTPUT=""
+if [ "$GTEST_COLOR" = "no" ]; then
+  DISABLE_COLOR_OUTPUT="| cat"
+fi
+$DOCKER_CMD bash -c "cd /pulsar/pulsar-client-cpp && ./run-unit-tests.sh ${tests} $DISABLE_COLOR_OUTPUT"
+RES=$?
+if [ $RES -ne 0 ]; then
+  (
+  cd "$ROOT_DIR"
+  mkdir -p test-logs
+  cd test-logs
+  container_id=$(docker ps -a -q --filter "label=$CONTAINER_LABEL")
+  if [ -n "$container_id" ]; then
+    # copy logs from the container that ran the tests
+    docker commit $container_id pulsartests/$container_id
+    docker run -i --rm pulsartests/$container_id \
+      bash -c "cd /tmp; tar zcf - gtest-parallel-logs gtest_parallel_results.json pulsar-test-dist/logs" \
+      | tar zxvf -
+  fi
+  )
+fi
+exit $RES

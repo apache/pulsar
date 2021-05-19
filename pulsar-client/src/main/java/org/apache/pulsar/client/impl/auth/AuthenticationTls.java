@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl.auth;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.Map;
 import java.util.function.Supplier;
 
@@ -31,6 +30,8 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.AuthenticationUtil;
 
 import com.google.common.annotations.VisibleForTesting;
+
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  *
@@ -45,7 +46,8 @@ public class AuthenticationTls implements Authentication, EncodedAuthenticationP
 
     private String certFilePath;
     private String keyFilePath;
-    private Supplier<ByteArrayInputStream> certStreamProvider, keyStreamProvider;
+    @SuppressFBWarnings(value = "SE_BAD_FIELD", justification = "Using custom serializer which Findbugs can't detect")
+    private Supplier<ByteArrayInputStream> certStreamProvider, keyStreamProvider, trustStoreStreamProvider;
 
     public AuthenticationTls() {
     }
@@ -55,9 +57,16 @@ public class AuthenticationTls implements Authentication, EncodedAuthenticationP
         this.keyFilePath = keyFilePath;
     }
 
-    public AuthenticationTls(Supplier<ByteArrayInputStream> certStreamProvider, Supplier<ByteArrayInputStream> keyStreamProvider) {
+    public AuthenticationTls(Supplier<ByteArrayInputStream> certStreamProvider,
+            Supplier<ByteArrayInputStream> keyStreamProvider) {
+        this(certStreamProvider, keyStreamProvider, null);
+    }
+
+    public AuthenticationTls(Supplier<ByteArrayInputStream> certStreamProvider,
+            Supplier<ByteArrayInputStream> keyStreamProvider, Supplier<ByteArrayInputStream> trustStoreStreamProvider) {
         this.certStreamProvider = certStreamProvider;
         this.keyStreamProvider = keyStreamProvider;
+        this.trustStoreStreamProvider = trustStoreStreamProvider;
     }
 
     @Override
@@ -76,7 +85,7 @@ public class AuthenticationTls implements Authentication, EncodedAuthenticationP
             if (certFilePath != null && keyFilePath != null) {
                 return new AuthenticationDataTls(certFilePath, keyFilePath);
             } else if (certStreamProvider != null && keyStreamProvider != null) {
-                return new AuthenticationDataTls(certStreamProvider, keyStreamProvider);
+                return new AuthenticationDataTls(certStreamProvider, keyStreamProvider, trustStoreStreamProvider);
             }
         } catch (Exception e) {
             throw new PulsarClientException(e);
@@ -124,4 +133,18 @@ public class AuthenticationTls implements Authentication, EncodedAuthenticationP
         return keyFilePath;
     }
 
+    @VisibleForTesting
+    Supplier<ByteArrayInputStream> getCertStreamProvider() {
+        return certStreamProvider;
+    }
+
+    @VisibleForTesting
+    Supplier<ByteArrayInputStream> getKeyStreamProvider() {
+        return keyStreamProvider;
+    }
+
+    @VisibleForTesting
+    Supplier<ByteArrayInputStream> getTrustStoreStreamProvider() {
+        return trustStoreStreamProvider;
+    }
 }

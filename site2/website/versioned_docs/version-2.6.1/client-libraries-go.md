@@ -9,7 +9,7 @@ original_id: client-libraries-go
 
 You can use Pulsar [Go client](https://github.com/apache/pulsar-client-go) to create Pulsar [producers](#producers), [consumers](#consumers), and [readers](#readers) in Go (aka Golang).
 
-> #### API docs available as well
+> **API docs available as well**  
 > For standard API docs, consult the [Godoc](https://godoc.org/github.com/apache/pulsar-client-go/pulsar).
 
 
@@ -233,7 +233,7 @@ canc()
 | CompressionType | CompressionType set the compression type for the producer. | not compressed | 
 | MessageRouter | MessageRouter set a custom message routing policy by passing an implementation of MessageRouter | |
 | DisableBatching | DisableBatching control whether automatic batching of messages is enabled for the producer. | false |
-| BatchingMaxPublishDelay | BatchingMaxPublishDelay set the time period within which the messages sent will be batched | 10ms |
+| BatchingMaxPublishDelay | BatchingMaxPublishDelay set the time period within which the messages sent will be batched | 1ms |
 | BatchingMaxMessages | BatchingMaxMessages set the maximum number of messages permitted in a batch. | 1000 | 
 
 ## Consumers
@@ -668,13 +668,13 @@ This example shows how to configure OAuth2 authentication.
 ```go
 oauth := pulsar.NewAuthenticationOAuth2(map[string]string{
 		"type":       "client_credentials",
-		"issuerUrl":  "https://dev-kt-aa9ne.us.auth0.com/oauth/token",
+		"issuerUrl":  "https://dev-kt-aa9ne.us.auth0.com",
 		"audience":   "https://dev-kt-aa9ne.us.auth0.com/api/v2/",
 		"privateKey": "/path/to/privateKey",
 		"clientId":   "0Xx...Yyxeny",
 	})
 client, err := pulsar.NewClient(pulsar.ClientOptions{
-		URL:              "puslar://my-cluster:6650",
+		URL:              "pulsar://my-cluster:6650",
 		Authentication:   oauth,
 })
 ```

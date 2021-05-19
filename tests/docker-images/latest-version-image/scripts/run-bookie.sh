@@ -18,7 +18,9 @@
 # under the License.
 #
 
-bin/set_python_version.sh
+# sets dbStorage_writeCacheMaxSizeMb and dbStorage_readAheadCacheMaxSizeMb if not already defined
+export dbStorage_writeCacheMaxSizeMb="${dbStorage_writeCacheMaxSizeMb:-16}"
+export dbStorage_readAheadCacheMaxSizeMb="${dbStorage_readAheadCacheMaxSizeMb:-16}"
 
 bin/apply-config-from-env.py conf/bookkeeper.conf && \
     bin/apply-config-from-env.py conf/pulsar_env.sh

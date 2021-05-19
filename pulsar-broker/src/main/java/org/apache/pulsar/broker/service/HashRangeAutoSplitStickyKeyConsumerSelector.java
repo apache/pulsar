@@ -18,14 +18,15 @@
  */
 package org.apache.pulsar.broker.service;
 
-import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
-import org.apache.pulsar.common.util.Murmur3_32Hash;
-
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentSkipListMap;
+import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
+import org.apache.pulsar.common.util.Murmur3_32Hash;
 
 /**
  * This is a consumer selector based fixed hash range.
@@ -112,6 +113,18 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
         }
     }
 
+    @Override
+    public Map<String, List<String>> getConsumerKeyHashRanges() {
+        Map<String, List<String>> result = new HashMap<>();
+        int start = 0;
+        for (Map.Entry<Integer, Consumer> entry: rangeMap.entrySet()) {
+            result.computeIfAbsent(entry.getValue().consumerName(), key -> new ArrayList<>())
+                    .add("[" + start + ", " + entry.getKey() + "]");
+            start = entry.getKey() + 1;
+        }
+        return result;
+    }
+
     private int findBiggestRange() {
         int slots = 0;
         int busiestRange = rangeSize;
@@ -143,12 +156,10 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
     }
 
     private boolean is2Power(int num) {
-        if(num < 2) return false;
+        if (num < 2) {
+            return false;
+        }
         return (num & num - 1) == 0;
-    }
-
-    Map<Consumer, Integer> getConsumerRange() {
-        return Collections.unmodifiableMap(consumerRange);
     }
 
     Map<Integer, Consumer> getRangeConsumer() {

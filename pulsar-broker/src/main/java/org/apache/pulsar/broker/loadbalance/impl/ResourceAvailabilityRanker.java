@@ -18,14 +18,13 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
+import java.util.Comparator;
+import java.util.Map;
 import org.apache.pulsar.broker.loadbalance.LoadRanker;
 import org.apache.pulsar.broker.loadbalance.ResourceDescription;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.Comparator;
-import java.util.Map;
 
 /**
  */

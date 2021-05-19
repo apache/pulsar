@@ -18,33 +18,25 @@
  */
 package org.apache.bookkeeper.mledger.offload.jcloud;
 
+import java.util.Properties;
+
 import org.jclouds.ContextBuilder;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.IObjectFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.ObjectFactory;
 
+public abstract class BlobStoreTestBase {
 
-@PrepareForTest({CredentialsUtil.class})
-@PowerMockIgnore({
-        "org.apache.logging.log4j.*",
-        "org.apache.pulsar.jcloud.shade.com.google.common.*",
-        "org.jclouds.*"})
-public class BlobStoreTestBase {
     private static final Logger log = LoggerFactory.getLogger(BlobStoreTestBase.class);
-
     public final static String BUCKET = "pulsar-unittest";
 
     protected BlobStoreContext context = null;
     protected BlobStore blobStore = null;
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void start() throws Exception {
         if (Boolean.parseBoolean(System.getProperty("testRealAWS", "false"))) {
             log.info("TestReal AWS S3, bucket: {}", BUCKET);
@@ -69,6 +61,7 @@ public class BlobStoreTestBase {
                 .build(BlobStoreContext.class);
             blobStore = context.getBlobStore();
         } else {
+            log.info("Test Transient, bucket: {}", BUCKET);
             context = ContextBuilder.newBuilder("transient").build(BlobStoreContext.class);
             blobStore = context.getBlobStore();
             boolean create = blobStore.createContainerInLocation(null, BUCKET);
@@ -76,10 +69,10 @@ public class BlobStoreTestBase {
         }
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDown() {
         if (blobStore != null &&
-            (!Boolean.parseBoolean(System.getProperty("testRealGCS", "false")) &&
+            (!Boolean.parseBoolean(System.getProperty("testRealAWS", "false")) &&
              !Boolean.parseBoolean(System.getProperty("testRealGCS", "false")))) {
             blobStore.deleteContainer(BUCKET);
         }
@@ -87,12 +80,6 @@ public class BlobStoreTestBase {
         if (context != null) {
             context.close();
         }
-    }
-
-    @ObjectFactory
-    // Necessary to make PowerMockito.mockStatic work with TestNG.
-    public IObjectFactory getObjectFactory() {
-        return new org.powermock.modules.testng.PowerMockObjectFactory();
     }
 
 }

@@ -19,12 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import java.util.concurrent.atomic.AtomicLong;
-
-import org.apache.bookkeeper.util.ZkUtils;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.KeeperException.NodeExistsException;
-import org.apache.zookeeper.ZooDefs;
-import org.apache.zookeeper.ZooKeeper;
+import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,43 +35,24 @@ import org.slf4j.LoggerFactory;
 public class DistributedIdGenerator {
 
     private final String prefix;
-    private final int generatorInstanceId;
+    private final long generatorInstanceId;
     private final AtomicLong counter;
 
     /**
      *
-     * @param zk
+     * @param cs
+     *            {@link CoordinationService}
      * @param path
      *            path of the z-node used to track the generators ids
      * @param prefix
      *            prefix to prepend to the generated id. Having a unique prefix can make the id globally unique
      * @throws Exception
      */
-    public DistributedIdGenerator(ZooKeeper zk, String path, String prefix) throws Exception {
+    public DistributedIdGenerator(CoordinationService cs, String path, String prefix) throws Exception {
         this.prefix = prefix;
         this.counter = new AtomicLong(0);
-
-        // Create base path if it doesn't exist
-        if (zk.exists(path, false) == null) {
-            try {
-                ZkUtils.createFullPathOptimistic(zk, path, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                        CreateMode.PERSISTENT);
-            } catch (NodeExistsException e) {
-                // Ok
-            }
-        }
-
-        // Create an ephemeral sequential z-node that will have a name containing a unique number. We'll use this number
-        // as a prefix for all the generated ids, in addition to the specified prefix.
-        String createdPath = zk.create(path + "/-", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                CreateMode.EPHEMERAL_SEQUENTIAL);
-
-        // Parse the sequential z-node name and extract the unique number
-        String[] parts = createdPath.split("/");
-        String name = parts[parts.length - 1].replace('-', ' ').trim();
-
-        this.generatorInstanceId = Integer.parseInt(name);
-        log.info("Created sequential node at {} -- Generator Id is {}-{}", createdPath, prefix, generatorInstanceId);
+        this.generatorInstanceId = cs.getNextCounterValue(path).get();
+        log.info("Broker distributed id generator started with instance id {}-{}", prefix, generatorInstanceId);
     }
 
     public String getNextId() {

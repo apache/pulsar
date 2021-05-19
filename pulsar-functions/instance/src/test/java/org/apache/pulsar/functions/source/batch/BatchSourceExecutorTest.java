@@ -21,26 +21,30 @@ package org.apache.pulsar.functions.source.batch;
 
 import com.google.gson.Gson;
 import lombok.Getter;
-import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.io.BatchSourceConfig;
 import org.apache.pulsar.functions.api.Record;
-
 import org.apache.pulsar.io.core.BatchPushSource;
 import org.apache.pulsar.io.core.BatchSource;
 import org.apache.pulsar.io.core.BatchSourceTriggerer;
 import org.apache.pulsar.io.core.SourceContext;
 import org.mockito.Mockito;
-import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
+import static org.testng.Assert.fail;
 
 /**
  * Unit tests for {@link org.apache.pulsar.functions.source.batch.BatchSourceExecutor}
@@ -49,13 +53,13 @@ public class BatchSourceExecutorTest {
 
   public static class TestBatchSource implements BatchSource<String> {
     @Getter
-    private static int prepareCount;
+    public static int prepareCount;
     @Getter
-    private static int discoverCount;
+    public static int discoverCount;
     @Getter
-    private static int recordCount;
+    public static int recordCount;
     @Getter
-    private static int closeCount;
+    public static int closeCount;
     private Record record = Mockito.mock(Record.class);
     public TestBatchSource() { }
 
@@ -93,15 +97,22 @@ public class BatchSourceExecutorTest {
     }
   }
 
+  public static class TestBatchSourceFailDiscovery extends TestBatchSource {
+    @Override
+    public void discover(Consumer<byte[]> taskEater) throws Exception {
+      throw new Exception("discovery failed");
+    }
+  }
+
   public static class TestBatchPushSource extends BatchPushSource<String> {
     @Getter
-    private static int prepareCount;
+    public static int prepareCount;
     @Getter
-    private static int discoverCount;
+    public static int discoverCount;
     @Getter
-    private static int recordCount;
+    public static int recordCount;
     @Getter
-    private static int closeCount;
+    public static int closeCount;
     private Record record = Mockito.mock(Record.class);
     public TestBatchPushSource() { }
 
@@ -135,7 +146,10 @@ public class BatchSourceExecutorTest {
     }
   }
 
+  public static LinkedBlockingQueue<String> triggerQueue = new LinkedBlockingQueue<>();
+  public static LinkedBlockingQueue<String> completedQueue = new LinkedBlockingQueue<>();
   public static class TestDiscoveryTriggerer implements BatchSourceTriggerer {
+    @Getter
     private Consumer<String> trigger;
     private Thread thread;
 
@@ -150,12 +164,12 @@ public class BatchSourceExecutorTest {
 
     @Override
     public void start(Consumer<String> trigger) {
+
       this.trigger = trigger;
       thread = new Thread(() -> {
         while(true) {
           try {
-            Thread.sleep(100);
-            trigger.accept("Triggered");
+            trigger.accept(triggerQueue.take());
           } catch (InterruptedException e) {
             break;
           }
@@ -186,7 +200,6 @@ public class BatchSourceExecutorTest {
   private ConsumerBuilder consumerBuilder;
   private org.apache.pulsar.client.api.Consumer<byte[]> consumer;
   private TypedMessageBuilder<byte[]> messageBuilder;
-  private CyclicBarrier discoveryBarrier;
   private Message<byte[]> discoveredTask;
 
   private static Map<String, Object> createConfig(String className, BatchSourceConfig batchConfig) {
@@ -208,6 +221,14 @@ public class BatchSourceExecutorTest {
 
   @BeforeMethod
   public void setUp() throws Exception {
+    TestBatchSource.closeCount = 0;
+    TestBatchSource.discoverCount = 0;
+    TestBatchSource.prepareCount = 0;
+    TestBatchSource.recordCount = 0;
+    TestBatchPushSource.closeCount = 0;
+    TestBatchPushSource.discoverCount = 0;
+    TestBatchPushSource.prepareCount = 0;
+    TestBatchPushSource.recordCount = 0;
     testBatchSource = new TestBatchSource();
     testBatchPushSource = new TestBatchPushSource();
     batchSourceExecutor = new BatchSourceExecutor<>();
@@ -222,11 +243,15 @@ public class BatchSourceExecutorTest {
     consumerBuilder = Mockito.mock(ConsumerBuilder.class);
     Mockito.doReturn(consumerBuilder).when(consumerBuilder).subscriptionName(Mockito.any());
     Mockito.doReturn(consumerBuilder).when(consumerBuilder).subscriptionType(Mockito.any());
+    Mockito.doReturn(consumerBuilder).when(consumerBuilder).properties(Mockito.anyMap());
     Mockito.doReturn(consumerBuilder).when(consumerBuilder).topic(Mockito.any());
     discoveredTask = Mockito.mock(Message.class);
+    Mockito.doReturn(MessageId.latest).when(discoveredTask).getMessageId();
     consumer = Mockito.mock(org.apache.pulsar.client.api.Consumer.class);
     Mockito.doReturn(discoveredTask).when(consumer).receive();
+    Mockito.doReturn(discoveredTask).when(consumer).receive(Mockito.anyInt(), Mockito.any());
     Mockito.doReturn(CompletableFuture.completedFuture(consumer)).when(consumerBuilder).subscribeAsync();
+    Mockito.doReturn(CompletableFuture.completedFuture(null)).when(consumer).acknowledgeAsync(Mockito.any(MessageId.class));
     Mockito.doReturn(consumerBuilder).when(context).newConsumerBuilder(Schema.BYTES);
     messageBuilder = Mockito.mock(TypedMessageBuilder.class);
     Mockito.doReturn(messageBuilder).when(messageBuilder).value(Mockito.any());
@@ -234,20 +259,19 @@ public class BatchSourceExecutorTest {
     Mockito.doReturn(messageBuilder).when(context).newOutputMessage(Mockito.anyString(), Mockito.any());
 
     // Discovery
-    discoveryBarrier = new CyclicBarrier(2);
-    Mockito.doAnswer(new Answer<MessageId>() {
-      @Override public MessageId answer(InvocationOnMock invocation) {
-        try {
-          discoveryBarrier.await();
-        } catch (Exception e) {
-          throw new RuntimeException();
-        }
-        return null;
+    Mockito.doAnswer((Answer<MessageId>) invocation -> {
+      try {
+        completedQueue.put("done");
+      } catch (Exception e) {
+        throw new RuntimeException();
       }
+      return null;
     }).when(messageBuilder).send();
+    triggerQueue.clear();
+    completedQueue.clear();
   }
 
-  @AfterMethod
+  @AfterMethod(alwaysRun = true)
   public void cleanUp() throws Exception {
     batchSourceExecutor.close();
   }
@@ -335,19 +359,18 @@ public class BatchSourceExecutorTest {
   @Test
   public void testLifeCycle() throws Exception {
     batchSourceExecutor.open(config, context);
-    Assert.assertTrue(testBatchSource.getDiscoverCount() < 1);
-    discoveryBarrier.await();
-    Assert.assertTrue(testBatchSource.getDiscoverCount() >= 1);
-    Assert.assertTrue(testBatchSource.getDiscoverCount() <= 2);
+    Assert.assertEquals(testBatchSource.getDiscoverCount(), 0);
+    triggerQueue.put("trigger");
+    completedQueue.take();
+    Assert.assertEquals(testBatchSource.getDiscoverCount(), 1);
     for (int i = 0; i < 5; ++i) {
       batchSourceExecutor.read();
     }
     Assert.assertEquals(testBatchSource.getRecordCount(), 6);
-    Assert.assertTrue(testBatchSource.getDiscoverCount() >= 1);
-    Assert.assertTrue(testBatchSource.getDiscoverCount() <= 2);
-    discoveryBarrier.await();
-    Assert.assertTrue(testBatchSource.getDiscoverCount() >= 2);
-    Assert.assertTrue(testBatchSource.getDiscoverCount() <= 3);
+    Assert.assertEquals(testBatchSource.getDiscoverCount(), 1);
+    triggerQueue.put("trigger");
+    completedQueue.take();
+    Assert.assertTrue(testBatchSource.getDiscoverCount() == 2);
     batchSourceExecutor.close();
     Assert.assertEquals(testBatchSource.getCloseCount(), 1);
   }
@@ -355,20 +378,32 @@ public class BatchSourceExecutorTest {
   @Test
   public void testPushLifeCycle() throws Exception {
     batchSourceExecutor.open(pushConfig, context);
-    Assert.assertTrue(testBatchPushSource.getDiscoverCount() < 1);
-    discoveryBarrier.await();
-    Assert.assertTrue(testBatchPushSource.getDiscoverCount() >= 1);
-    Assert.assertTrue(testBatchPushSource.getDiscoverCount() <= 2);
+    Assert.assertEquals(testBatchPushSource.getDiscoverCount(), 0);
+    triggerQueue.put("trigger");
+    completedQueue.take();
+    Assert.assertEquals(testBatchPushSource.getDiscoverCount(), 1);
     for (int i = 0; i < 5; ++i) {
       batchSourceExecutor.read();
     }
     Assert.assertEquals(testBatchPushSource.getRecordCount(), 5);
-    Assert.assertTrue(testBatchPushSource.getDiscoverCount() >= 1);
-    Assert.assertTrue(testBatchPushSource.getDiscoverCount() <= 2);
-    discoveryBarrier.await();
-    Assert.assertTrue(testBatchPushSource.getDiscoverCount() >= 2);
-    Assert.assertTrue(testBatchPushSource.getDiscoverCount() <= 3);
+    Assert.assertEquals(testBatchPushSource.getDiscoverCount(), 1);
+    triggerQueue.put("trigger");
+    completedQueue.take();
+    Assert.assertEquals(testBatchPushSource.getDiscoverCount(), 2);
     batchSourceExecutor.close();
     Assert.assertEquals(testBatchPushSource.getCloseCount(), 1);
   }
+
+  @Test(expectedExceptions = Exception.class, expectedExceptionsMessageRegExp = "discovery failed")
+  public void testDiscoveryPhaseError() throws Exception {
+    config = createConfig(TestBatchSourceFailDiscovery.class.getName(), testBatchConfig);
+    batchSourceExecutor.open(config, context);
+    triggerQueue.put("trigger");
+    for (int i = 0; i < 100; i++) {
+      batchSourceExecutor.read();
+      Thread.sleep(100);
+    }
+    fail("should have thrown an exception");
+  }
+
 }

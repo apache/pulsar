@@ -20,6 +20,7 @@
 package pf
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"testing"
@@ -91,4 +92,26 @@ func TestTime_EqualsThreeSecondsTimed(t *testing.T) {
 
 	assert.True(t, time.Duration(diff) > time.Second*3)
 	assert.True(t, time.Duration(diff) < time.Millisecond*3100)
+}
+
+type MockHandler struct{}
+
+func (m *MockHandler) process(ctx context.Context, input []byte) ([]byte, error) {
+	return []byte(`output`), nil
+}
+
+func Test_goInstance_handlerMsg(t *testing.T) {
+	handler := &MockHandler{}
+	fc := NewFuncContext()
+	instance := &goInstance{
+		function: handler,
+		context:  fc,
+	}
+	message := &MockMessage{payload: []byte(`{}`)}
+
+	output, err := instance.handlerMsg(message)
+
+	assert.Nil(t, err)
+	assert.Equal(t, "output", string(output))
+	assert.Equal(t, message, fc.record)
 }

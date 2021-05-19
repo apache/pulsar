@@ -309,7 +309,7 @@ message CommandSubscribe {
 Parameters:
  * `topic` → Complete topic name to where you want to create the consumer on
  * `subscription` → Subscription name
- * `subType` → Subscription type: Exclusive, Shared, Failover
+ * `subType` → Subscription type: Exclusive, Shared, Failover, Key_Shared
  * `consumer_id` → Client generated consumer identifier. Needs to be unique
     within the same connection
  * `request_id` → Identifier for this request. Used to match the response with
@@ -442,7 +442,7 @@ reconnect a producer or a consumer. Lookup is used to discover which particular
 broker is serving the topic we are about to use.
 
 Lookup can be done with a REST call as described in the
-[admin API](admin-api-persistent-topics.md#lookup-of-topic)
+[admin API](admin-api-topics.md#lookup-of-topic)
 docs.
 
 Since Pulsar-1.16 it is also possible to perform the lookup within the binary

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -23,6 +23,7 @@ VERSION=`${ROOT_DIR}/src/get-project-version.py`
 
 set -x -e
 
+export NODE_OPTIONS="--max-old-space-size=2048" #increase to 2gb, default is 512mb
 ${ROOT_DIR}/site2/tools/generate-api-docs.sh
 cd ${ROOT_DIR}/site2/website
 yarn

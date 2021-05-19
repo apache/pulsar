@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.loadbalance;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-
 import org.apache.pulsar.broker.BrokerData;
 import org.apache.pulsar.broker.BundleData;
 

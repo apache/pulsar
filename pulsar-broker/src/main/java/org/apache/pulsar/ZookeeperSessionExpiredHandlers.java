@@ -24,7 +24,7 @@ import org.apache.pulsar.zookeeper.ZooKeeperSessionWatcher.ShutdownService;
 import org.apache.pulsar.zookeeper.ZookeeperSessionExpiredHandler;
 
 /**
- * Handlers for broker service to handle Zookeeper session expired
+ * Handlers for broker service to handle Zookeeper session expired.
  */
 public class ZookeeperSessionExpiredHandlers {
 
@@ -35,7 +35,8 @@ public class ZookeeperSessionExpiredHandlers {
         return new ShutDownWhenSessionExpired(shutdownService);
     }
 
-    public static ZookeeperSessionExpiredHandler reconnectWhenZookeeperSessionExpired(PulsarService pulsarService, ShutdownService shutdownService) {
+    public static ZookeeperSessionExpiredHandler reconnectWhenZookeeperSessionExpired(
+            PulsarService pulsarService, ShutdownService shutdownService) {
         return new ReconnectWhenSessionExpired(pulsarService, shutdownService);
     }
 

@@ -18,15 +18,25 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.apache.pulsar.client.internal.DefaultImplementation.getBytes;
 import java.nio.ByteBuffer;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.Date;
+import java.util.Optional;
+
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
+import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.internal.DefaultImplementation;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -35,6 +45,8 @@ import org.apache.pulsar.common.schema.SchemaType;
 /**
  * Message schema definition.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface Schema<T> extends Cloneable{
 
     /**
@@ -110,6 +122,22 @@ public interface Schema<T> extends Cloneable{
     }
 
     /**
+     * Decode a ByteBuffer into an object using a given version. <br/>
+     *
+     * @param data
+     *            the ByteBuffer to decode
+     * @param schemaVersion
+     *            the schema version to decode the object. null indicates using latest version.
+     * @return the deserialized object
+     */
+    default T decode(ByteBuffer data, byte[] schemaVersion) {
+        if (data == null) {
+            return null;
+        }
+        return decode(getBytes(data), schemaVersion);
+    }
+
+    /**
      * @return an object that represents the Schema associated metadata
      */
     SchemaInfo getSchemaInfo();
@@ -147,6 +175,15 @@ public interface Schema<T> extends Cloneable{
      * Schema that doesn't perform any encoding on the message payloads. Accepts a byte array and it passes it through.
      */
     Schema<byte[]> BYTES = DefaultImplementation.newBytesSchema();
+
+    /**
+     * Return the native schema that is wrapped by Pulsar API.
+     * For instance with this method you can access the Avro schema
+     * @return the internal schema or null if not present
+     */
+    default Optional<Object> getNativeSchema() {
+        return Optional.empty();
+    }
 
     /**
      * ByteBuffer Schema.
@@ -208,6 +245,23 @@ public interface Schema<T> extends Cloneable{
      */
     Schema<Timestamp> TIMESTAMP = DefaultImplementation.newTimestampSchema();
 
+    /**
+     * Instant Schema.
+     */
+    Schema<Instant> INSTANT = DefaultImplementation.newInstantSchema();
+    /**
+     * LocalDate Schema.
+     */
+    Schema<LocalDate> LOCAL_DATE = DefaultImplementation.newLocalDateSchema();
+    /**
+     * LocalTime Schema.
+     */
+    Schema<LocalTime> LOCAL_TIME = DefaultImplementation.newLocalTimeSchema();
+    /**
+     * LocalDateTime Schema.
+     */
+    Schema<LocalDateTime> LOCAL_DATE_TIME = DefaultImplementation.newLocalDateTimeSchema();
+
     // CHECKSTYLE.OFF: MethodName
 
     /**
@@ -228,6 +282,27 @@ public interface Schema<T> extends Cloneable{
      */
     static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> PROTOBUF(SchemaDefinition<T> schemaDefinition) {
         return DefaultImplementation.newProtobufSchema(schemaDefinition);
+    }
+
+    /**
+     * Create a Protobuf-Native schema type by extracting the fields of the specified class.
+     *
+     * @param clazz the Protobuf generated class to be used to extract the schema
+     * @return a Schema instance
+     */
+    static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> PROTOBUF_NATIVE(Class<T> clazz) {
+        return DefaultImplementation.newProtobufNativeSchema(SchemaDefinition.builder().withPojo(clazz).build());
+    }
+
+    /**
+     * Create a Protobuf-Native schema type with schema definition.
+     *
+     * @param schemaDefinition schemaDefinition the definition of the schema
+     * @return a Schema instance
+     */
+    static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> PROTOBUF_NATIVE(
+            SchemaDefinition<T> schemaDefinition) {
+        return DefaultImplementation.newProtobufNativeSchema(schemaDefinition);
     }
 
     /**
@@ -315,9 +390,8 @@ public interface Schema<T> extends Cloneable{
      * Create a schema instance that automatically deserialize messages
      * based on the current topic schema.
      *
-     * <p>The messages values are deserialized into a {@link GenericRecord} object.
-     *
-     * <p>Currently this is only supported with Avro and JSON schema types.
+     * <p>The messages values are deserialized into a {@link GenericRecord} object,
+     * that extends the {@link GenericObject} interface.
      *
      * @return the auto schema instance
      */

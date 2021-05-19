@@ -19,8 +19,6 @@
 package org.apache.pulsar.client.impl.auth;
 
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.security.KeyManagementException;
 import java.security.PrivateKey;
@@ -28,7 +26,6 @@ import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.function.Supplier;
 
-import org.apache.commons.compress.utils.IOUtils;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.common.util.FileModifiedTimeUpdater;
 import org.apache.pulsar.common.util.SecurityUtility;
@@ -36,12 +33,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class AuthenticationDataTls implements AuthenticationDataProvider {
+    private static final long serialVersionUID = 1L;
     protected X509Certificate[] tlsCertificates;
     protected PrivateKey tlsPrivateKey;
-    private FileModifiedTimeUpdater certFile, keyFile;
+    private transient FileModifiedTimeUpdater certFile, keyFile;
     // key and cert using stream
-    private InputStream certStream, keyStream;
-    private Supplier<ByteArrayInputStream> certStreamProvider, keyStreamProvider;
+    private transient InputStream certStream, keyStream;
+    private transient Supplier<ByteArrayInputStream> certStreamProvider, keyStreamProvider, trustStoreStreamProvider;
 
     public AuthenticationDataTls(String certFilePath, String keyFilePath) throws KeyManagementException {
         if (certFilePath == null) {
@@ -58,6 +56,12 @@ public class AuthenticationDataTls implements AuthenticationDataProvider {
 
     public AuthenticationDataTls(Supplier<ByteArrayInputStream> certStreamProvider,
             Supplier<ByteArrayInputStream> keyStreamProvider) throws KeyManagementException {
+        this(certStreamProvider, keyStreamProvider, null);
+    }
+
+    public AuthenticationDataTls(Supplier<ByteArrayInputStream> certStreamProvider,
+            Supplier<ByteArrayInputStream> keyStreamProvider, Supplier<ByteArrayInputStream> trustStoreStreamProvider)
+            throws KeyManagementException {
         if (certStreamProvider == null || certStreamProvider.get() == null) {
             throw new IllegalArgumentException("certStream provider or stream must not be null");
         }
@@ -66,12 +70,12 @@ public class AuthenticationDataTls implements AuthenticationDataProvider {
         }
         this.certStreamProvider = certStreamProvider;
         this.keyStreamProvider = keyStreamProvider;
+        this.trustStoreStreamProvider = trustStoreStreamProvider;
         this.certStream = certStreamProvider.get();
         this.keyStream = keyStreamProvider.get();
         this.tlsCertificates = SecurityUtility.loadCertificatesFromPemStream(certStream);
         this.tlsPrivateKey = SecurityUtility.loadPrivateKeyFromPemStream(keyStream);
     }
-
     /*
      * TLS
      */
@@ -119,6 +123,21 @@ public class AuthenticationDataTls implements AuthenticationDataProvider {
             }
         }
         return this.tlsPrivateKey;
+    }
+
+    @Override
+    public InputStream getTlsTrustStoreStream() {
+        return trustStoreStreamProvider != null ? trustStoreStreamProvider.get() : null;
+    }
+
+    @Override
+    public String getTlsCerificateFilePath() {
+        return certFile != null ? certFile.getFileName() : null;
+    }
+
+    @Override
+    public String getTlsPrivateKeyFilePath() {
+        return keyFile != null ? keyFile.getFileName() : null;
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(AuthenticationDataTls.class);

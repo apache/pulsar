@@ -17,11 +17,14 @@
  * under the License.
  */
 
-#include <lib/ProducerImpl.h>
-#include <lib/PartitionedProducerImpl.h>
-#include <lib/ConsumerImpl.h>
-#include <lib/ClientImpl.h>
 #include <string>
+
+#include "lib/ClientImpl.h"
+#include "lib/ProducerImpl.h"
+#include "lib/PartitionedProducerImpl.h"
+#include "lib/ConsumerImpl.h"
+#include "lib/PartitionedConsumerImpl.h"
+#include "lib/MultiTopicsConsumerImpl.h"
 
 using std::string;
 
@@ -37,21 +40,6 @@ class PulsarFriend {
     static ProducerStatsImplPtr getProducerStatsPtr(Producer producer) {
         ProducerImpl* producerImpl = static_cast<ProducerImpl*>(producer.impl_.get());
         return std::static_pointer_cast<ProducerStatsImpl>(producerImpl->producerStatsBasePtr_);
-    }
-
-    static std::vector<ProducerImpl::MessageQueue*> getProducerMessageQueue(Producer producer,
-                                                                            ConsumerTopicType type) {
-        ProducerImplBasePtr producerBaseImpl = producer.impl_;
-        if (type == Partitioned) {
-            std::vector<ProducerImpl::MessageQueue*> queues;
-            for (const auto& producer :
-                 std::static_pointer_cast<PartitionedProducerImpl>(producerBaseImpl)->producers_) {
-                queues.emplace_back(&producer->pendingMessagesQueue_);
-            }
-            return queues;
-        } else {
-            return {&std::static_pointer_cast<ProducerImpl>(producerBaseImpl)->pendingMessagesQueue_};
-        }
     }
 
     template <typename T>
@@ -80,6 +68,18 @@ class PulsarFriend {
     static ConsumerImpl& getConsumerImpl(Consumer consumer) {
         ConsumerImpl* consumerImpl = static_cast<ConsumerImpl*>(consumer.impl_.get());
         return *consumerImpl;
+    }
+
+    static std::shared_ptr<ConsumerImpl> getConsumerImplPtr(Consumer consumer) {
+        return std::static_pointer_cast<ConsumerImpl>(consumer.impl_);
+    }
+
+    static std::shared_ptr<PartitionedConsumerImpl> getPartitionedConsumerImplPtr(Consumer consumer) {
+        return std::static_pointer_cast<PartitionedConsumerImpl>(consumer.impl_);
+    }
+
+    static std::shared_ptr<MultiTopicsConsumerImpl> getMultiTopicsConsumerImplPtr(Consumer consumer) {
+        return std::static_pointer_cast<MultiTopicsConsumerImpl>(consumer.impl_);
     }
 
     static std::shared_ptr<ClientImpl> getClientImplPtr(Client client) { return client.impl_; }

@@ -20,8 +20,11 @@ package org.apache.pulsar.client.impl;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
+
+import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 
 /**
  * Acknowledgments grouping tracker.
@@ -30,11 +33,10 @@ public interface AcknowledgmentsGroupingTracker extends AutoCloseable {
 
     boolean isDuplicate(MessageId messageId);
 
-    void addAcknowledgment(MessageIdImpl msgId, AckType ackType, Map<String, Long> properties);
+    CompletableFuture<Void> addAcknowledgment(MessageIdImpl msgId, AckType ackType, Map<String, Long> properties);
 
-    void addListAcknowledgment(List<MessageIdImpl> messageIds, AckType ackType, Map<String, Long> properties);
-
-    void addBatchIndexAcknowledgment(BatchMessageIdImpl msgId, int batchIndex, int batchSize, AckType ackType, Map<String, Long> properties);
+    CompletableFuture<Void> addListAcknowledgment(List<MessageId> messageIds, AckType ackType,
+                                                  Map<String, Long> properties);
 
     void flush();
 

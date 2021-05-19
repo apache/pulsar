@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import com.google.common.collect.Sets;
-
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
@@ -32,9 +31,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-
 import org.apache.bookkeeper.mledger.ManagedLedger;
-import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.ImmutableTriple;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -44,16 +41,18 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "flaky")
 public class RawReaderTest extends MockedPulsarServiceBaseTest {
-    private static final int BATCH_MAX_MESSAGES = 10;
+
     private static final String subscription = "foobar-sub";
 
     @BeforeMethod
@@ -68,7 +67,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
@@ -101,7 +100,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         return keys;
     }
 
-    public static String extractKey(RawMessage m) throws Exception {
+    public static String extractKey(RawMessage m) {
         ByteBuf headersAndPayload = m.getHeadersAndPayload();
         MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
         return msgMetadata.getPartitionKey();
@@ -360,14 +359,14 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
         ManagedLedger ledger = topicRef.getManagedLedger();
-        for (int i = 0; i < 30; i++) {
-            if (ledger.openCursor(subscription).getProperties().get("foobar") == Long.valueOf(0xdeadbeefdecaL)) {
-                break;
-            }
-            Thread.sleep(100);
-        }
-        Assert.assertEquals(ledger.openCursor(subscription).getProperties().get("foobar"),
-                Long.valueOf(0xdeadbeefdecaL));
+
+        Awaitility.await()
+                
+                .untilAsserted(() ->
+                        Assert.assertEquals(
+                                ledger.openCursor(subscription).getProperties().get("foobar"),
+                                Long.valueOf(0xdeadbeefdecaL)));
+
     }
 
     @Test

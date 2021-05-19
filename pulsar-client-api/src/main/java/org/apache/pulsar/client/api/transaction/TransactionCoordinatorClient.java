@@ -22,10 +22,14 @@ import java.io.Closeable;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Transaction coordinator client.
  */
+@InterfaceAudience.Private
+@InterfaceStability.Evolving
 public interface TransactionCoordinatorClient extends Closeable {
 
     /**
@@ -124,6 +128,27 @@ public interface TransactionCoordinatorClient extends Closeable {
      * @return a future represents the result of add publish partition to txn.
      */
     CompletableFuture<Void> addPublishPartitionToTxnAsync(TxnID txnID, List<String> partitions);
+
+    /**
+     * Add ack subscription to txn.
+     *
+     * @param txnID transaction id
+     * @param topic topic name
+     * @param subscription subscription name
+     * @throws TransactionCoordinatorClientException while transaction is conflict
+     */
+    void addSubscriptionToTxn(TxnID txnID, String topic, String subscription)
+            throws TransactionCoordinatorClientException;
+
+    /**
+     * Add ack subscription to txn asynchronously.
+     *
+     * @param txnID transaction id
+     * @param topic topic name
+     * @param subscription subscription name
+     * @return the future of the result
+     */
+    CompletableFuture<Void> addSubscriptionToTxnAsync(TxnID txnID, String topic, String subscription);
 
     /**
      * Commit txn.

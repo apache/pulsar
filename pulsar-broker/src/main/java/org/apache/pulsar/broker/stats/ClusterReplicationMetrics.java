@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.stats;
 
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 

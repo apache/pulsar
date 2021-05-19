@@ -19,11 +19,15 @@
 package org.apache.pulsar.client.api;
 
 import java.util.Map;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * EncryptionKeyInfo contains the encryption key and corresponding metadata which contains additional information about
  * the key such as version, timestamp.
  */
+@InterfaceAudience.Private
+@InterfaceStability.Stable
 public class EncryptionKeyInfo {
 
     private Map<String, String> metadata = null;

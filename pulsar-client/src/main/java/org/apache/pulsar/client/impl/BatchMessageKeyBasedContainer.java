@@ -20,17 +20,9 @@ package org.apache.pulsar.client.impl;
 
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Lists;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.util.ReferenceCountUtil;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.compression.CompressionCodec;
-import org.apache.pulsar.common.protocol.ByteBufPair;
-import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -39,6 +31,16 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.apache.pulsar.common.api.proto.CompressionType;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.compression.CompressionCodec;
+import org.apache.pulsar.common.protocol.ByteBufPair;
+import org.apache.pulsar.common.protocol.Commands;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Key based batch message container
@@ -72,6 +74,14 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
             part.topicName = topicName;
             part.producerName = producerName;
             batches.putIfAbsent(key, part);
+
+            if (msg.getMessageBuilder().hasTxnidMostBits() && currentTxnidMostBits == -1) {
+                currentTxnidMostBits = msg.getMessageBuilder().getTxnidMostBits();
+            }
+            if (msg.getMessageBuilder().hasTxnidLeastBits() && currentTxnidLeastBits == -1) {
+                currentTxnidLeastBits = msg.getMessageBuilder().getTxnidLeastBits();
+            }
+
         } else {
             part.addMsg(msg, callback);
         }
@@ -83,6 +93,8 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
         numMessagesInBatch = 0;
         currentBatchSizeBytes = 0;
         batches = new HashMap<>();
+        currentTxnidMostBits = -1L;
+        currentTxnidLeastBits = -1L;
     }
 
     @Override
@@ -121,8 +133,14 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
             currentBatchSizeBytes += message.getDataBuffer().readableBytes();
         }
         keyedBatch.messageMetadata.setNumMessagesInBatch(numMessagesInBatch);
+        if (currentTxnidMostBits != -1) {
+            keyedBatch.messageMetadata.setTxnidMostBits(currentTxnidMostBits);
+        }
+        if (currentTxnidLeastBits != -1) {
+            keyedBatch.messageMetadata.setTxnidLeastBits(currentTxnidLeastBits);
+        }
         ByteBufPair cmd = producer.sendMessage(producer.producerId, keyedBatch.sequenceId, numMessagesInBatch,
-                keyedBatch.messageMetadata.build(), encryptedPayload);
+                keyedBatch.messageMetadata, encryptedPayload);
 
         ProducerImpl.OpSendMsg op = ProducerImpl.OpSendMsg.create(keyedBatch.messages, cmd, keyedBatch.sequenceId, keyedBatch.firstCallback);
 
@@ -158,7 +176,7 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
             return msg.getSchemaVersion() == null;
         }
         return Arrays.equals(msg.getSchemaVersion(),
-                             part.messageMetadata.getSchemaVersion().toByteArray());
+                             part.messageMetadata.getSchemaVersion());
     }
 
     private String getKey(MessageImpl<?> msg) {
@@ -169,13 +187,13 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
     }
 
     private static class KeyedBatch {
-        private PulsarApi.MessageMetadata.Builder messageMetadata = PulsarApi.MessageMetadata.newBuilder();
+        private final MessageMetadata messageMetadata = new MessageMetadata();
         // sequence id for this batch which will be persisted as a single entry by broker
         private long sequenceId = -1;
         private ByteBuf batchedMessageMetadataAndPayload;
         private List<MessageImpl<?>> messages = Lists.newArrayList();
         private SendCallback previousCallback = null;
-        private PulsarApi.CompressionType compressionType;
+        private CompressionType compressionType;
         private CompressionCodec compressor;
         private int maxBatchSize;
         private String topicName;
@@ -186,15 +204,13 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
 
         private ByteBuf getCompressedBatchMetadataAndPayload() {
             for (MessageImpl<?> msg : messages) {
-                PulsarApi.MessageMetadata.Builder msgBuilder = msg.getMessageBuilder();
-                batchedMessageMetadataAndPayload = Commands.serializeSingleMessageInBatchWithPayload(msgBuilder,
+                batchedMessageMetadataAndPayload = Commands.serializeSingleMessageInBatchWithPayload(msg.getMessageBuilder(),
                         msg.getDataBuffer(), batchedMessageMetadataAndPayload);
-                msgBuilder.recycle();
             }
             int uncompressedSize = batchedMessageMetadataAndPayload.readableBytes();
             ByteBuf compressedPayload = compressor.encode(batchedMessageMetadataAndPayload);
             batchedMessageMetadataAndPayload.release();
-            if (compressionType != PulsarApi.CompressionType.NONE) {
+            if (compressionType != CompressionType.NONE) {
                 messageMetadata.setCompression(compressionType);
                 messageMetadata.setUncompressedSize(uncompressedSize);
             }

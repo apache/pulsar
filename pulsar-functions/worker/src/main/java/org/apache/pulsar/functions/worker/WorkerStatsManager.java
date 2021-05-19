@@ -19,9 +19,13 @@
 
 package org.apache.pulsar.functions.worker;
 
+import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
+
+import io.netty.util.internal.PlatformDependent;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Summary;
+import io.prometheus.client.hotspot.DefaultExports;
 import lombok.Setter;
 import org.apache.pulsar.functions.instance.stats.PrometheusTextFormat;
 import org.apache.pulsar.functions.proto.Function;
@@ -29,8 +33,13 @@ import org.apache.pulsar.functions.proto.Function;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.List;
+import java.util.function.Supplier;
 
 public class WorkerStatsManager {
+
+  static {
+    DefaultExports.initialize();
+  }
 
   private static final String PULSAR_FUNCTION_WORKER_METRICS_PREFIX = "pulsar_function_worker_";
   private static final String START_UP_TIME = "start_up_time_ms";
@@ -58,6 +67,9 @@ public class WorkerStatsManager {
   @Setter
   private LeaderService leaderService;
 
+  @Setter
+  private Supplier<Boolean> isLeader;
+
   private CollectorRegistry collectorRegistry = new CollectorRegistry();
 
   private final Summary statWorkerStartupTime;
@@ -79,7 +91,7 @@ public class WorkerStatsManager {
   private final Summary.Child _stopInstanceProcessTime;
   private final Summary.Child _startInstanceProcessTime;
 
-  public WorkerStatsManager(WorkerConfig workerConfig) {
+  public WorkerStatsManager(WorkerConfig workerConfig, boolean runAsStandalone) {
 
     metricsLabels = new String[]{workerConfig.getPulsarFunctionsCluster()};
 
@@ -156,6 +168,22 @@ public class WorkerStatsManager {
       .quantile(1, 0.01)
       .register(collectorRegistry);
     _startInstanceProcessTime = startInstanceProcessTime.labels(metricsLabels);
+
+    if (runAsStandalone) {
+      Gauge.build("jvm_memory_direct_bytes_used", "-").create().setChild(new Gauge.Child() {
+        @Override
+        public double get() {
+          return getJvmDirectMemoryUsed();
+        }
+      }).register(CollectorRegistry.defaultRegistry);
+
+      Gauge.build("jvm_memory_direct_bytes_max", "-").create().setChild(new Gauge.Child() {
+        @Override
+        public double get() {
+          return PlatformDependent.maxDirectMemory();
+        }
+      }).register(CollectorRegistry.defaultRegistry);
+    }
   }
 
   private Long startupTimeStart;
@@ -255,7 +283,7 @@ public class WorkerStatsManager {
   }
 
   private void generateLeaderMetrics(StringWriter stream) {
-    if (leaderService.isLeader()) {
+    if (isLeader.get()) {
 
       List<Function.FunctionMetaData> metadata = functionMetaDataManager.getAllFunctionMetaData();
       // get total number functions

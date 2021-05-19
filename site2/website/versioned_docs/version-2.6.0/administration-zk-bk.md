@@ -156,30 +156,29 @@ The [`conf/zookeeper.conf`](reference-configuration.md#zookeeper) file handles t
 
 The [`conf/global-zookeeper.conf`](reference-configuration.md#configuration-store) file handles the configuration for configuration store. The table below shows the available parameters:
 
-
 ## BookKeeper
 
-BookKeeper is responsible for all durable message storage in Pulsar. BookKeeper is a distributed [write-ahead log](https://en.wikipedia.org/wiki/Write-ahead_logging) WAL system that guarantees read consistency of independent message logs calls ledgers. Individual BookKeeper servers are also called *bookies*.
+BookKeeper stores all durable message in Pulsar. BookKeeper is a distributed [write-ahead log](https://en.wikipedia.org/wiki/Write-ahead_logging) WAL system that guarantees read consistency of independent message logs calls ledgers. Individual BookKeeper servers are also called *bookies*.
 
-> For a guide to managing message persistence, retention, and expiry in Pulsar, see [this cookbook](cookbooks-retention-expiry.md).
+> To manage message persistence, retention, and expiry in Pulsar, refer to [cookbook](cookbooks-retention-expiry.md).
 
-### Hardware considerations
+### Hardware requirements
 
-Bookie hosts are responsible for storing message data on disk. In order for bookies to provide optimal performance, ensuring that the bookies have a suitable hardware configuration is essential. You can choose two key dimensions to bookie hardware capacity:
+Bookie hosts store message data on disk. To provide optimal performance, ensure that the bookies have a suitable hardware configuration. The following are two key dimensions of bookie hardware capacity:
 
-* Disk I/O capacity read/write
-* Storage capacity
+- Disk I/O capacity read/write
+- Storage capacity
 
-Message entries written to bookies are always synced to disk before returning an acknowledgement to the Pulsar broker. To ensure low write latency, BookKeeper is designed to use multiple devices:
+Message entries written to bookies are always synced to disk before returning an acknowledgement to the Pulsar broker by default. To ensure low write latency, BookKeeper is designed to use multiple devices:
 
-* A **journal** to ensure durability. For sequential writes, having fast [fsync](https://linux.die.net/man/2/fsync) operations on bookie hosts is critical. Typically, small and fast [solid-state drives](https://en.wikipedia.org/wiki/Solid-state_drive) (SSDs) should suffice, or [hard disk drives](https://en.wikipedia.org/wiki/Hard_disk_drive) (HDDs) with a [RAID](https://en.wikipedia.org/wiki/RAID)s controller and a battery-backed write cache. Both solutions can reach fsync latency of ~0.4 ms.
-* A **ledger storage device** is where data is stored until all consumers have acknowledged the message. Writes happen in the background, so write I/O is not a big concern. Reads happen sequentially most of the time and the backlog is drained only in case of consumer drain. To store large amounts of data, a typical configuration involves multiple HDDs with a RAID controller.
+- A **journal** to ensure durability. For sequential writes, it is critical to have fast [fsync](https://linux.die.net/man/2/fsync) operations on bookie hosts. Typically, small and fast [solid-state drives](https://en.wikipedia.org/wiki/Solid-state_drive) (SSDs) should suffice, or [hard disk drives](https://en.wikipedia.org/wiki/Hard_disk_drive) (HDDs) with a [RAID](https://en.wikipedia.org/wiki/RAID) controller and a battery-backed write cache. Both solutions can reach fsync latency of ~0.4 ms.
+- A **ledger storage device** stores data. Writes happen in the background, so write I/O is not a big concern. Reads happen sequentially most of the time and the backlog is drained only in case of consumer drain. To store large amounts of data, a typical configuration involves multiple HDDs with a RAID controller.
 
 ### Configure BookKeeper
 
-You can configure BookKeeper bookies using the [`conf/bookkeeper.conf`](reference-configuration.md#bookkeeper) configuration file. The most important aspect of configuring each bookie is ensuring that the [`zkServers`](reference-configuration.md#bookkeeper-zkServers) parameter is set to the connection string for local ZooKeeper of the Pulsar cluster.
+You can configure BookKeeper bookies using the [`conf/bookkeeper.conf`](reference-configuration.md#bookkeeper) configuration file. When you configure each bookie, ensure that the [`zkServers`](reference-configuration.md#bookkeeper-zkServers) parameter is set to the connection string for local ZooKeeper of the Pulsar cluster.
 
-Minimum configuration changes required in `conf/bookkeeper.conf` are:
+The minimum configuration changes required in `conf/bookkeeper.conf` are as follows:
 
 ```properties
 # Change to point to journal disk mount point
@@ -190,26 +189,21 @@ ledgerDirectories=data/bookkeeper/ledgers
 
 # Point to local ZK quorum
 zkServers=zk1.example.com:2181,zk2.example.com:2181,zk3.example.com:2181
-
-# Change the ledger manager type
-ledgerManagerType=hierarchical
 ```
 
-To change the zookeeper root path that Bookkeeper uses, use zkLedgersRootPath=/MY-PREFIX/ledgers instead of zkServers=localhost:2181/MY-PREFIX
+To change the ZooKeeper root path that BookKeeper uses, use `zkLedgersRootPath=/MY-PREFIX/ledgers` instead of `zkServers=localhost:2181/MY-PREFIX`.
 
-> Consult the official [BookKeeper docs](http://bookkeeper.apache.org) for more information about BookKeeper.
+> For more information about BookKeeper, refer to the official [BookKeeper docs](http://bookkeeper.apache.org).
 
 ### Deploy BookKeeper
 
-BookKeeper provides [persistent message storage](concepts-architecture-overview.md#persistent-storage) for Pulsar.
+BookKeeper provides [persistent message storage](concepts-architecture-overview.md#persistent-storage) for Pulsar. Each Pulsar broker has its own cluster of bookies. The BookKeeper cluster shares a local ZooKeeper quorum with the Pulsar cluster.
 
-Each Pulsar broker needs to have its own cluster of bookies. The BookKeeper cluster shares a local ZooKeeper quorum with the Pulsar cluster.
+### Start bookies manually
 
-### Starting bookies manually
+You can start a bookie in the foreground or as a background daemon.
 
-You can start up a bookie in two ways: in the foreground or as a background daemon.
-
-To start up a bookie in the foreground, use the [`bookeeper`](reference-cli-tools.md#bookkeeper) CLI tool:
+To start a bookie in the foreground, use the [`bookkeeper`](reference-cli-tools.md#bookkeeper) CLI tool:
 
 ```bash
 $ bin/bookkeeper bookie
@@ -221,48 +215,42 @@ To start a bookie in the background, use the [`pulsar-daemon`](reference-cli-too
 $ bin/pulsar-daemon start bookie
 ```
 
-You can verify that the bookie works properly using the `bookiesanity` command for the [BookKeeper shell](reference-cli-tools.md#bookkeeper-shell):
+You can verify whether the bookie works properly with the `bookiesanity` command for the [BookKeeper shell](reference-cli-tools.md#bookkeeper-shell):
 
 ```shell
 $ bin/bookkeeper shell bookiesanity
 ```
 
-This command creates a new ledger on the local bookie, writes a few entries, reads them back and finally deletes the ledger.
+When you use this command, you create a new ledger on the local bookie, write a few entries, read them back and finally delete the ledger.
 
-### Decommissioning bookies cleanly
+### Decommission bookies cleanly
 
+Before you decommission a bookie, you need to check your environment and meet the following requirements.
 
-In case the user wants to decommission a bookie, the following process is useful to follow in order to verify if the
-decommissioning was safely done.
+1. Ensure the state of your cluster supports decommissioning the target bookie. Check if `EnsembleSize >= Write Quorum >= Ack Quorum` is `true` with one less bookie.
 
-#### Before we decommission
-1. Ensure state of your cluster can support the decommissioning of the target bookie.
-Check if `EnsembleSize >= Write Quorum >= Ack Quorum` stays true with one less bookie
+2. Ensure the target bookie is listed after using the `listbookies` command.
 
-2. Ensure target bookie shows up in the listbookies command.
+3. Ensure that no other process is ongoing (upgrade etc).
 
-3. Ensure that there is no other process ongoing (upgrade etc).
+And then you can decommission bookies safely. To decommission bookies, complete the following steps.
 
-#### Process of Decommissioning
-1. Log on to the bookie node, check if there are underreplicated ledgers.
-
-If there are, the decommission command will force them to be replicated.
+1. Log in to the bookie node, check if there are underreplicated ledgers. The decommission command force to replicate the underreplicated ledgers.
 `$ bin/bookkeeper shell listunderreplicated`
 
-2. Stop the bookie by killing the bookie process. Make sure there are no liveness / readiness probes setup for the bookies to spin them back up if you are deployed in a kubernetes environment.
+2. Stop the bookie by killing the bookie process. Make sure that no liveness/readiness probes setup for the bookies to spin them back up if you deploy it in a Kubernetes environment.
 
 3. Run the decommission command.
-If you have logged onto the node you wish to decommission, you don't need to provide `-bookieid`
-If you are running the decommission command for target bookie node from another bookie node you should mention 
-the target bookie id in the arguments for `-bookieid`
-`$ bin/bookkeeper shell decommissionbookie`
-or
-`$ bin/bookkeeper shell decommissionbookie -bookieid <target bookieid>`
+   - If you have logged in to the node to be decommissioned, you do not need to provide `-bookieid`.
+   - If you are running the decommission command for the target bookie node from another bookie node, you should mention the target bookie ID in the arguments for `-bookieid`
+    `$ bin/bookkeeper shell decommissionbookie`
+    or
+    `$ bin/bookkeeper shell decommissionbookie -bookieid <target bookieid>`
 
-4. Validate that there are no ledgers on decommissioned bookie
+4. Validate that no ledgers are on the decommissioned bookie.   
 `$ bin/bookkeeper shell listledgers -bookieid <target bookieid>`
 
-Last step to verify is you could run this command to check if the bookie you decommissioned doesn’t show up in list bookies:
+You can run the following command to check if the bookie you have decommissioned is listed in the bookies list:
 
 ```bash
 ./bookkeeper shell listbookies -rw -h
@@ -271,7 +259,7 @@ Last step to verify is you could run this command to check if the bookie you dec
 
 ## BookKeeper persistence policies
 
-In Pulsar, you can set *persistence policies*, at the namespace level, that determine how BookKeeper handles persistent storage of messages. Policies determine four things:
+In Pulsar, you can set *persistence policies* at the namespace level, which determines how BookKeeper handles persistent storage of messages. Policies determine four things:
 
 * The number of acks (guaranteed copies) to wait for each ledger entry.
 * The number of bookies to use for a topic.
@@ -303,7 +291,7 @@ $ pulsar-admin namespaces set-persistence my-tenant/my-ns \
 
 #### REST API
 
-{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/persistence|operation/setPersistence}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/persistence|operation/setPersistence?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -339,7 +327,7 @@ $ pulsar-admin namespaces get-persistence my-tenant/my-ns
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/persistence|operation/getPersistence}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/persistence|operation/getPersistence?version=[[pulsar:version_number]]}
 
 #### Java
 

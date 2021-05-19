@@ -18,24 +18,19 @@
  */
 package org.apache.pulsar.broker.transaction.coordinator;
 
-import org.apache.pulsar.broker.PulsarService;
-import org.testng.Assert;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.pulsar.broker.PulsarService;
+import org.awaitility.Awaitility;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class TransactionMetaStoreAssignmentTest extends TransactionMetaStoreTestBase {
 
-    @BeforeClass
-    public void init() throws Exception {
-        super.setup();
-    }
-
-    @Test
-    public void testTransactionMetaStoreAssignAndFailover() throws IOException, InterruptedException {
+    @Test(groups = "broker")
+    public void testTransactionMetaStoreAssignAndFailover() throws IOException {
 
         int transactionMetaStoreCount = 0;
         for (PulsarService pulsarService : pulsarServices) {
@@ -64,15 +59,18 @@ public class TransactionMetaStoreAssignmentTest extends TransactionMetaStoreTest
             pulsarServices[i] = services.get(i);
         }
         crashedMetaStore.close();
-        
-        Thread.sleep(3000);
 
-        transactionMetaStoreCount = 0;
-        for (PulsarService pulsarService : pulsarServices) {
-            transactionMetaStoreCount += pulsarService.getTransactionMetadataStoreService().getStores().size();
-        }
+        Awaitility.await()
+                .untilAsserted(() -> {
 
-        Assert.assertEquals(transactionMetaStoreCount, 16);
+                    int transactionMetaStoreCount2 = 0;
+                    for (PulsarService pulsarService : pulsarServices) {
+                        transactionMetaStoreCount2 += pulsarService.getTransactionMetadataStoreService().getStores()
+                                .size();
+                    }
+
+                    Assert.assertEquals(transactionMetaStoreCount2, 16);
+                });
 
         transactionCoordinatorClient.close();
     }

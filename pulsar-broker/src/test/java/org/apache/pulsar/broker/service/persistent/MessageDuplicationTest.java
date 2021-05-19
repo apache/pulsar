@@ -27,7 +27,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -49,6 +49,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
 @Slf4j
+@Test(groups = "broker")
 public class MessageDuplicationTest {
 
     private final static int BROKER_DEDUPLICATION_ENTRIES_INTERVAL = 10;
@@ -81,13 +82,13 @@ public class MessageDuplicationTest {
         assertEquals(status, MessageDeduplication.MessageDupStatus.NotDup);
 
         Long lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
-        assertTrue(lastSequenceIdPushed != null);
+        assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 0);
 
         status = messageDeduplication.isDuplicate(publishContext2, byteBuf2);
         assertEquals(status, MessageDeduplication.MessageDupStatus.NotDup);
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName2);
-        assertTrue(lastSequenceIdPushed != null);
+        assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 1);
 
         byteBuf1 = getMessage(producerName1, 1);
@@ -95,7 +96,7 @@ public class MessageDuplicationTest {
         status = messageDeduplication.isDuplicate(publishContext1, byteBuf1);
         assertEquals(status, MessageDeduplication.MessageDupStatus.NotDup);
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
-        assertTrue(lastSequenceIdPushed != null);
+        assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 1);
 
         byteBuf1 = getMessage(producerName1, 5);
@@ -103,7 +104,7 @@ public class MessageDuplicationTest {
         status = messageDeduplication.isDuplicate(publishContext1, byteBuf1);
         assertEquals(status, MessageDeduplication.MessageDupStatus.NotDup);
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
-        assertTrue(lastSequenceIdPushed != null);
+        assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 5);
 
         byteBuf1 = getMessage(producerName1, 0);
@@ -112,7 +113,7 @@ public class MessageDuplicationTest {
         // should expect unknown because highestSequencePersisted is empty
         assertEquals(status, MessageDeduplication.MessageDupStatus.Unknown);
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
-        assertTrue(lastSequenceIdPushed != null);
+        assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 5);
 
         // update highest sequence persisted
@@ -124,7 +125,7 @@ public class MessageDuplicationTest {
         // now that highestSequencedPersisted, message with seqId of zero can be classified as a dup
         assertEquals(status, MessageDeduplication.MessageDupStatus.Dup);
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
-        assertTrue(lastSequenceIdPushed != null);
+        assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 5);
 
         // update highest sequence persisted
@@ -166,7 +167,7 @@ public class MessageDuplicationTest {
 
         doAnswer(new Answer() {
             @Override
-            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+            public Object answer(InvocationOnMock invocationOnMock) {
                 Object[] args = invocationOnMock.getArguments();
                 Runnable test = (Runnable) args[0];
                 test.run();
@@ -189,47 +190,47 @@ public class MessageDuplicationTest {
         Topic.PublishContext publishContext2 = getPublishContext(producerName2, 1);
 
         persistentTopic.publishMessage(byteBuf1, publishContext1);
-        persistentTopic.addComplete(new PositionImpl(0, 1), publishContext1);
+        persistentTopic.addComplete(new PositionImpl(0, 1), null, publishContext1);
         verify(managedLedger, times(1)).asyncAddEntry(any(ByteBuf.class), any(), any());
         Long lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
-        assertTrue(lastSequenceIdPushed != null);
+        assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 0);
         lastSequenceIdPushed = messageDeduplication.highestSequencedPersisted.get(producerName1);
-        assertTrue(lastSequenceIdPushed != null);
+        assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 0);
 
         persistentTopic.publishMessage(byteBuf2, publishContext2);
-        persistentTopic.addComplete(new PositionImpl(0, 2), publishContext2);
+        persistentTopic.addComplete(new PositionImpl(0, 2), null, publishContext2);
         verify(managedLedger, times(2)).asyncAddEntry(any(ByteBuf.class), any(), any());
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName2);
-        assertTrue(lastSequenceIdPushed != null);
+        assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 1);
         lastSequenceIdPushed = messageDeduplication.highestSequencedPersisted.get(producerName2);
-        assertTrue(lastSequenceIdPushed != null);
+        assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 1);
 
         byteBuf1 = getMessage(producerName1, 1);
         publishContext1 = getPublishContext(producerName1, 1);
         persistentTopic.publishMessage(byteBuf1, publishContext1);
-        persistentTopic.addComplete(new PositionImpl(0, 3), publishContext1);
+        persistentTopic.addComplete(new PositionImpl(0, 3), null, publishContext1);
         verify(managedLedger, times(3)).asyncAddEntry(any(ByteBuf.class), any(), any());
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
-        assertTrue(lastSequenceIdPushed != null);
+        assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 1);
         lastSequenceIdPushed = messageDeduplication.highestSequencedPersisted.get(producerName1);
-        assertTrue(lastSequenceIdPushed != null);
+        assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 1);
 
         byteBuf1 = getMessage(producerName1, 5);
         publishContext1 = getPublishContext(producerName1, 5);
         persistentTopic.publishMessage(byteBuf1, publishContext1);
-        persistentTopic.addComplete(new PositionImpl(0, 4), publishContext1);
+        persistentTopic.addComplete(new PositionImpl(0, 4), null, publishContext1);
         verify(managedLedger, times(4)).asyncAddEntry(any(ByteBuf.class), any(), any());
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
-        assertTrue(lastSequenceIdPushed != null);
+        assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 5);
         lastSequenceIdPushed = messageDeduplication.highestSequencedPersisted.get(producerName1);
-        assertTrue(lastSequenceIdPushed != null);
+        assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 5);
 
         // publish dup
@@ -238,7 +239,7 @@ public class MessageDuplicationTest {
         persistentTopic.publishMessage(byteBuf1, publishContext1);
         verify(managedLedger, times(4)).asyncAddEntry(any(ByteBuf.class), any(), any());
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
-        assertTrue(lastSequenceIdPushed != null);
+        assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 5);
         verify(publishContext1, times(1)).completed(eq(null), eq(-1L), eq(-1L));
 
@@ -249,10 +250,10 @@ public class MessageDuplicationTest {
         persistentTopic.publishMessage(byteBuf1, publishContext1);
         verify(managedLedger, times(5)).asyncAddEntry(any(ByteBuf.class), any(), any());
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
-        assertTrue(lastSequenceIdPushed != null);
+        assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 6);
         lastSequenceIdPushed = messageDeduplication.highestSequencedPersisted.get(producerName1);
-        assertTrue(lastSequenceIdPushed != null);
+        assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 5);
 
         // publish same message again
@@ -263,7 +264,7 @@ public class MessageDuplicationTest {
         verify(publishContext1, times(1)).completed(any(MessageDeduplication.MessageDupUnknownException.class), eq(-1L), eq(-1L));
 
         // complete seq 6 message eventually
-        persistentTopic.addComplete(new PositionImpl(0, 5), publishContext1);
+        persistentTopic.addComplete(new PositionImpl(0, 5), null, publishContext1);
 
         // simulate failure
         byteBuf1 = getMessage(producerName1, 7);
@@ -292,7 +293,7 @@ public class MessageDuplicationTest {
         verify(managedLedger, times(6)).asyncAddEntry(any(ByteBuf.class), any(), any());
         verify(publishContext1, times(1)).completed(eq(null), eq(-1L), eq(-1L));
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
-        assertTrue(lastSequenceIdPushed != null);
+        assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 6);
 
         // try new message
@@ -300,25 +301,24 @@ public class MessageDuplicationTest {
         publishContext1 = getPublishContext(producerName1, 8);
         persistentTopic.publishMessage(byteBuf1, publishContext1);
         verify(managedLedger, times(7)).asyncAddEntry(any(ByteBuf.class), any(), any());
-        persistentTopic.addComplete(new PositionImpl(0, 5), publishContext1);
+        persistentTopic.addComplete(new PositionImpl(0, 5), null, publishContext1);
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
-        assertTrue(lastSequenceIdPushed != null);
+        assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 8);
         lastSequenceIdPushed = messageDeduplication.highestSequencedPersisted.get(producerName1);
-        assertTrue(lastSequenceIdPushed != null);
+        assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 8);
 
     }
 
     public ByteBuf getMessage(String producerName, long seqId) {
-        PulsarApi.MessageMetadata messageMetadata = PulsarApi.MessageMetadata.newBuilder()
-                .setProducerName(producerName).setSequenceId(seqId)
-                .setPublishTime(System.currentTimeMillis()).build();
+        MessageMetadata messageMetadata = new MessageMetadata()
+                .setProducerName(producerName)
+                .setSequenceId(seqId)
+                .setPublishTime(System.currentTimeMillis());
 
-        ByteBuf byteBuf = serializeMetadataAndPayload(
+        return serializeMetadataAndPayload(
                 Commands.ChecksumType.Crc32c, messageMetadata, io.netty.buffer.Unpooled.copiedBuffer(new byte[0]));
-
-        return byteBuf;
     }
 
     public Topic.PublishContext getPublishContext(String producerName, long seqId) {

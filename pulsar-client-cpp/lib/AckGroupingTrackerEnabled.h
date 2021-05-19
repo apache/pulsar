@@ -42,14 +42,15 @@ class AckGroupingTrackerEnabled : public AckGroupingTracker {
     /**
      * Constructing ACK grouping tracker for peresistent topics.
      * @param[in] clientPtr pointer to client object.
-     * @param[in] handler the connection handler.
+     * @param[in] handlerPtr the shared pointer to connection handler.
      * @param[in] consumerId consumer ID that this tracker belongs to.
      * @param[in] ackGroupingTimeMs ACK grouping time window in milliseconds.
      * @param[in] ackGroupingMaxSize max. number of ACK requests can be grouped.
      */
-    AckGroupingTrackerEnabled(ClientImplPtr clientPtr, HandlerBase& handler, uint64_t consumerId,
+    AckGroupingTrackerEnabled(ClientImplPtr clientPtr, const HandlerBasePtr& handlerPtr, uint64_t consumerId,
                               long ackGroupingTimeMs, long ackGroupingMaxSize);
 
+    void start() override;
     bool isDuplicate(const MessageId& msgId) override;
     void addAcknowledge(const MessageId& msgId) override;
     void addAcknowledgeCumulative(const MessageId& msgId) override;
@@ -62,7 +63,7 @@ class AckGroupingTrackerEnabled : public AckGroupingTracker {
     void scheduleTimer();
 
     //! The connection handler.
-    HandlerBase& handler_;
+    HandlerBaseWeakPtr handlerWeakPtr_;
 
     //! ID of the consumer that this tracker belongs to.
     uint64_t consumerId_;

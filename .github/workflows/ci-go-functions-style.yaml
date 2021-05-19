@@ -32,6 +32,9 @@ on:
       - '.github/workflows/**'
       - 'pulsar-function-go/**'
 
+env:
+  MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3
+
 jobs:
   check-style:
 
@@ -44,38 +47,42 @@ jobs:
     steps:
       - name: Check out code into the Go module directory
         uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha }}
 
-      - name: Check if this pull request only changes documentation
-        id:   docs
-        uses: apache/pulsar-test-infra/diff-only@master
+      - name: Tune Runner VM
+        uses: ./.github/actions/tune-runner-vm
+
+      - name: Detect changed files
+        id:   changes
+        uses: apache/pulsar-test-infra/paths-filter@master
         with:
-          args: site2 deployment .asf.yaml .ci ct.yaml
+          filters: .github/changes-filter.yaml
+
+      - name: Check changed files
+        id: check_changes
+        run: echo "::set-output name=docs_only::${{ fromJSON(steps.changes.outputs.all_count) == fromJSON(steps.changes.outputs.docs_count) && fromJSON(steps.changes.outputs.docs_count) > 0 }}"
 
       - name: Set up Go
         uses: actions/setup-go@v2
-        if: steps.docs.outputs.changed_only == 'no'
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         with:
           go-version: ${{ matrix.go-version }}
         id: go
 
       - name: InstallTool
-        if: steps.docs.outputs.changed_only == 'no'
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         run: |
           cd pulsar-function-go
           wget -O - -q https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s v1.18.0
           ./bin/golangci-lint --version
 
       - name: Build
-        if: steps.docs.outputs.changed_only == 'no'
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         run: |
           cd pulsar-function-go
           go build ./...
 
       - name: CheckStyle
-        if: steps.docs.outputs.changed_only == 'no'
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         run: |
           cd pulsar-function-go
           ./bin/golangci-lint run -c ./golangci.yml ./pf

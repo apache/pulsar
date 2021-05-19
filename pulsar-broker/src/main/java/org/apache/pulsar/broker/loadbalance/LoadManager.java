@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.loadbalance;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -30,8 +29,6 @@ import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
-import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
-import org.apache.pulsar.zookeeper.ZooKeeperCache.Deserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,7 +40,7 @@ import org.slf4j.LoggerFactory;
  * Concrete Load Manager is also return the least loaded broker that should own the new namespace.
  */
 public interface LoadManager {
-    Logger log = LoggerFactory.getLogger(LoadManager.class);
+    Logger LOG = LoggerFactory.getLogger(LoadManager.class);
 
     String LOADBALANCE_BROKERS_ROOT = "/loadbalance/brokers";
 
@@ -55,49 +52,50 @@ public interface LoadManager {
     boolean isCentralized();
 
     /**
-     * Returns the Least Loaded Resource Unit decided by some algorithm or criteria which is implementation specific
+     * Returns the Least Loaded Resource Unit decided by some algorithm or criteria which is implementation specific.
      */
     Optional<ResourceUnit> getLeastLoaded(ServiceUnitId su) throws Exception;
 
     /**
-     * Generate the load report
+     * Generate the load report.
      */
     LoadManagerReport generateLoadReport() throws Exception;
 
     /**
-     * Returns {@link Deserializer} to deserialize load report
-     *
-     * @return
-     */
-    Deserializer<? extends ServiceLookupData> getLoadReportDeserializer();
-
-    /**
-     * Set flag to force load report update
+     * Set flag to force load report update.
      */
     void setLoadReportForceUpdateFlag();
 
     /**
-     * Publish the current load report on ZK
+     * Publish the current load report on ZK.
      */
     void writeLoadReportOnZookeeper() throws Exception;
 
     /**
-     * Update namespace bundle resource quota on ZK
+     * Publish the current load report on ZK, forced or not.
+     * By default rely on method writeLoadReportOnZookeeper().
+     */
+    default void writeLoadReportOnZookeeper(boolean force) throws Exception {
+        writeLoadReportOnZookeeper();
+    }
+
+    /**
+     * Update namespace bundle resource quota on ZK.
      */
     void writeResourceQuotasToZooKeeper() throws Exception;
 
     /**
-     * Generate load balancing stats metrics
+     * Generate load balancing stats metrics.
      */
     List<Metrics> getLoadBalancingMetrics();
 
     /**
-     * Unload a candidate service unit to balance the load
+     * Unload a candidate service unit to balance the load.
      */
     void doLoadShedding();
 
     /**
-     * Namespace bundle split
+     * Namespace bundle split.
      */
     void doNamespaceBundleSplit() throws Exception;
 
@@ -108,12 +106,12 @@ public interface LoadManager {
      * @throws Exception
      */
     void disableBroker() throws Exception;
-    
+
     /**
-     * Get list of available brokers in cluster
-     * 
+     * Get list of available brokers in cluster.
+     *
      * @return
-     * @throws Exception 
+     * @throws Exception
      */
     Set<String> getAvailableBrokers() throws Exception;
 
@@ -143,7 +141,7 @@ public interface LoadManager {
                 return casted;
             }
         } catch (Exception e) {
-            log.warn("Error when trying to create load manager: ", e);
+            LOG.warn("Error when trying to create load manager: ", e);
         }
         // If we failed to create a load manager, default to SimpleLoadManagerImpl.
         return new SimpleLoadManagerImpl(pulsar);

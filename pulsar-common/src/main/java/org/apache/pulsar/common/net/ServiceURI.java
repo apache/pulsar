@@ -21,14 +21,14 @@ package org.apache.pulsar.common.net;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
-
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
-
 import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -66,6 +66,39 @@ public class ServiceURI {
      */
     public static ServiceURI create(String uriStr) {
         checkNotNull(uriStr, "service uri string is null");
+
+        if (uriStr.contains("[") && uriStr.contains("]")) {
+            // deal with ipv6 address
+            Splitter splitter = Splitter.on(CharMatcher.anyOf(",;"));
+            List<String> hosts = splitter.splitToList(uriStr);
+
+            if (hosts.size() > 1) {
+                // deal with multi ipv6 hosts
+                String firstHost = hosts.get(0);
+                String lastHost = hosts.get(hosts.size() - 1);
+                boolean hasPath = lastHost.contains("/");
+                String path = hasPath ? lastHost.substring(lastHost.indexOf("/")) : "";
+                firstHost += path;
+
+                URI uri = URI.create(firstHost);
+                ServiceURI serviceURI = create(uri);
+
+                List<String> multiHosts = new ArrayList<>();
+                multiHosts.add(serviceURI.getServiceHosts()[0]);
+                multiHosts.addAll(hosts.subList(1, hosts.size()));
+                multiHosts = multiHosts
+                        .stream()
+                        .map(host -> validateHostName(serviceURI.getServiceName(), serviceURI.getServiceInfos(), host))
+                        .collect(Collectors.toList());
+                return new ServiceURI(
+                        serviceURI.getServiceName(),
+                        serviceURI.getServiceInfos(),
+                        serviceURI.getServiceUser(),
+                        multiHosts.toArray(new String[multiHosts.size()]),
+                        serviceURI.getServicePath(),
+                        serviceURI.getUri());
+            }
+        }
 
         // a service uri first should be a valid java.net.URI
         URI uri = URI.create(uriStr);
@@ -188,7 +221,8 @@ public class ServiceURI {
                 } else if (serviceInfos.length == 1 && serviceInfos[0].toLowerCase().equals(SSL_SERVICE)) {
                     port = BINARY_TLS_PORT;
                 } else {
-                    throw new IllegalArgumentException("Invalid pulsar service : " + serviceName + "+" + serviceInfos);
+                    throw new IllegalArgumentException("Invalid pulsar service : " + serviceName + "+"
+                        + Arrays.toString(serviceInfos));
                 }
                 break;
             case HTTP_SERVICE:

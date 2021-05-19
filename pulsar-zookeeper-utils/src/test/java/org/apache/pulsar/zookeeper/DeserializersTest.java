@@ -33,7 +33,7 @@ public class DeserializersTest {
     void setup() throws Exception {
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     void teardown() throws Exception {
     }
 
@@ -49,7 +49,7 @@ public class DeserializersTest {
     public void testSimplePolicyDeserialize() throws Exception {
         String key = "test_key";
         String jsonPolicy = "{\"auth_policies\":{\"namespace_auth\":{},\"destination_auth\":{}},\"replication_clusters\":[],"
-                + "\"bundles_activated\":true,\"backlog_quota_map\":{},\"persistence\":null,\"latency_stats_sample_rate\":{},\"message_ttl_in_seconds\":0}";
+                + "\"bundles_activated\":true,\"backlog_quota_map\":{},\"persistence\":null,\"latency_stats_sample_rate\":{},\"message_ttl_in_seconds\":null}";
         byte[] content = jsonPolicy.getBytes(StandardCharsets.UTF_8);
         Policies result = Deserializers.POLICY_DESERIALIZER.deserialize(key, content);
         assertEquals(result, new Policies());

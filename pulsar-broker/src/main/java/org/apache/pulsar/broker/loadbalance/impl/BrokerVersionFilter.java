@@ -18,21 +18,17 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
-import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import com.github.zafarkhaja.semver.Version;
+import java.util.Iterator;
+import java.util.Set;
 import org.apache.pulsar.broker.BrokerData;
 import org.apache.pulsar.broker.BundleData;
-import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.BrokerFilter;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterBadVersionException;
 import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import com.github.zafarkhaja.semver.Version;
 
 public class BrokerVersionFilter implements BrokerFilter {
 
@@ -45,25 +41,27 @@ public class BrokerVersionFilter implements BrokerFilter {
      * @param brokers
      *            The brokers to choose the latest version string from.
      * @param loadData
-     *            The load data from the leader broker (contains the load reports which in turn contain the version string).
+     *            The load data from the leader broker (contains the load reports which
+     *            in turn contain the version string).
      * @return The most recent broker version
      * @throws BrokerFilterBadVersionException
      *            If the most recent version is undefined (e.g., a bad broker version was encountered or a broker
      *            does not have a version string in its load report.
      */
-    public Version getLatestVersionNumber(Set<String> brokers, LoadData loadData) throws BrokerFilterBadVersionException {
-        if ( null == brokers ) {
+    public Version getLatestVersionNumber(Set<String> brokers, LoadData loadData)
+            throws BrokerFilterBadVersionException {
+        if (null == brokers) {
             throw new BrokerFilterBadVersionException("Unable to determine latest version since broker set was null");
         }
-        if ( brokers.size() == 0 ) {
+        if (brokers.size() == 0) {
             throw new BrokerFilterBadVersionException("Unable to determine latest version since broker set was empty");
         }
-        if ( null == loadData ) {
+        if (null == loadData) {
             throw new BrokerFilterBadVersionException("Unable to determine latest version since loadData was null");
         }
 
         Version latestVersion = null;
-        for ( String broker : brokers ) {
+        for (String broker : brokers) {
             BrokerData data = loadData.getBrokerData().get(broker);
             if (null == data) {
                 LOG.warn("No broker data for broker [{}]; disabling PreferLaterVersions feature", broker);
@@ -73,28 +71,33 @@ public class BrokerVersionFilter implements BrokerFilter {
 
             String brokerVersion = data.getLocalData().getBrokerVersionString();
             if (null == brokerVersion || brokerVersion.length() == 0) {
-                LOG.warn("No version string in load report for broker [{}]; disabling PreferLaterVersions feature", broker);
+                LOG.warn("No version string in load report for broker [{}]; disabling PreferLaterVersions feature",
+                        broker);
                 // trigger the ModularLoadManager to reset all the brokers to the original set
-                throw new BrokerFilterBadVersionException("No version string in load report for broker \"" + broker + "\"");
+                throw new BrokerFilterBadVersionException("No version string in load report for broker \""
+                        + broker + "\"");
             }
 
             Version brokerVersionVersion = null;
             try {
                 brokerVersionVersion = Version.valueOf(brokerVersion);
             } catch (Exception x) {
-                LOG.warn("Invalid version string in load report for broker [{}]: [{}]; disabling PreferLaterVersions feature", broker, brokerVersion);
+                LOG.warn("Invalid version string in load report for broker [{}]: [{}];"
+                                + " disabling PreferLaterVersions feature",
+                        broker, brokerVersion);
                 // trigger the ModularLoadManager to reset all the brokers to the original set
-                throw new BrokerFilterBadVersionException("Invalid version string in load report for broker \"" + broker + "\": \"" + brokerVersion + "\")");
+                throw new BrokerFilterBadVersionException("Invalid version string in load report for broker \""
+                        + broker + "\": \"" + brokerVersion + "\")");
             }
 
-            if ( null == latestVersion ) {
+            if (null == latestVersion) {
                 latestVersion = brokerVersionVersion;
             } else if (Version.BUILD_AWARE_ORDER.compare(latestVersion, brokerVersionVersion) < 0) {
                 latestVersion = brokerVersionVersion;
             }
         }
 
-        if ( null == latestVersion ) {
+        if (null == latestVersion) {
             throw new BrokerFilterBadVersionException("Unable to determine latest broker version");
         }
 
@@ -116,7 +119,7 @@ public class BrokerVersionFilter implements BrokerFilter {
     public void filter(Set<String> brokers, BundleData bundleToAssign, LoadData loadData, ServiceConfiguration conf)
             throws BrokerFilterBadVersionException {
 
-        if ( !conf.isPreferLaterVersions()) {
+        if (!conf.isPreferLaterVersions()) {
             return;
         }
 
@@ -124,30 +127,31 @@ public class BrokerVersionFilter implements BrokerFilter {
         try {
             latestVersion = getLatestVersionNumber(brokers, loadData);
             LOG.info("Latest broker version found was [{}]", latestVersion);
-        } catch ( Exception x ) {
+        } catch (Exception x) {
             LOG.warn("Disabling PreferLaterVersions feature; reason: " + x.getMessage());
             throw new BrokerFilterBadVersionException("Cannot determine newest broker version: " + x.getMessage());
         }
 
-        int numBrokersLatestVersion=0;
-        int numBrokersOlderVersion=0;
+        int numBrokersLatestVersion = 0;
+        int numBrokersOlderVersion = 0;
         Iterator<String> brokerIterator = brokers.iterator();
-        while ( brokerIterator.hasNext() ) {
+        while (brokerIterator.hasNext()) {
             String broker = brokerIterator.next();
             BrokerData data = loadData.getBrokerData().get(broker);
             String brokerVersion = data.getLocalData().getBrokerVersionString();
             com.github.zafarkhaja.semver.Version brokerVersionVersion = Version.valueOf(brokerVersion);
 
-            if ( brokerVersionVersion.equals(latestVersion) ) {
+            if (brokerVersionVersion.equals(latestVersion)) {
                 LOG.debug("Broker [{}] is running the latest version ([{}])", broker, brokerVersion);
                 ++numBrokersLatestVersion;
             } else {
-                LOG.info("Broker [{}] is running an older version ([{}]); latest version is [{}]", broker, brokerVersion, latestVersion);
+                LOG.info("Broker [{}] is running an older version ([{}]); latest version is [{}]",
+                        broker, brokerVersion, latestVersion);
                 ++numBrokersOlderVersion;
                 brokerIterator.remove();
             }
         }
-        if ( numBrokersOlderVersion == 0 ) {
+        if (numBrokersOlderVersion == 0) {
             LOG.info("All {} brokers are running the latest version [{}]", numBrokersLatestVersion, latestVersion);
         }
     }

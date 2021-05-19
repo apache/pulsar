@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.lookup.v2;
 
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
-
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.Encoded;
 import javax.ws.rs.GET;
@@ -31,9 +30,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
-
 import org.apache.pulsar.broker.lookup.TopicLookupBase;
-import org.apache.pulsar.broker.web.NoSwaggerDocumentation;
 import org.apache.pulsar.common.naming.TopicName;
 
 @Path("/v2/topic")
@@ -42,13 +39,15 @@ public class TopicLookup extends TopicLookupBase {
     @GET
     @Path("{topic-domain}/{tenant}/{namespace}/{topic}")
     @Produces(MediaType.APPLICATION_JSON)
-    @ApiResponses(value = { @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic") })
+    @ApiResponses(value = { @ApiResponse(code = 307,
+            message = "Current broker doesn't serve the namespace of this topic") })
     public void lookupTopicAsync(@PathParam("topic-domain") String topicDomain, @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @Suspended AsyncResponse asyncResponse) {
+            @Suspended AsyncResponse asyncResponse,
+            @QueryParam("listenerName") String listenerName) {
         TopicName topicName = getTopicName(topicDomain, tenant, namespace, encodedTopic);
-        internalLookupTopicAsync(topicName, authoritative, asyncResponse);
+        internalLookupTopicAsync(topicName, authoritative, asyncResponse, listenerName);
     }
 
     @GET

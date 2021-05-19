@@ -21,12 +21,10 @@ package org.apache.pulsar.broker.cache;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES_ROOT;
 import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
-
 import com.google.common.collect.Maps;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
@@ -34,8 +32,9 @@ import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
-import org.apache.pulsar.zookeeper.ZooKeeperManagedLedgerCache;
+import org.apache.pulsar.zookeeper.ZooKeeperChildrenCache;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
+import org.apache.pulsar.zookeeper.ZooKeeperManagedLedgerCache;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooDefs.Ids;
@@ -50,6 +49,7 @@ public class LocalZooKeeperCacheService {
     private static final String MANAGED_LEDGER_ROOT = "/managed-ledgers";
     public static final String OWNER_INFO_ROOT = "/namespace";
     public static final String LOCAL_POLICIES_ROOT = "/admin/local-policies";
+    public static final String AVAILABLE_BOOKIES_ROOT = "/ledgers/available";
 
     private final ZooKeeperCache cache;
 
@@ -57,6 +57,7 @@ public class LocalZooKeeperCacheService {
     private ZooKeeperManagedLedgerCache managedLedgerListCache;
     private ResourceQuotaCache resourceQuotaCache;
     private ZooKeeperDataCache<LocalPolicies> policiesCache;
+    private ZooKeeperChildrenCache availableBookiesCache;
 
     private ConfigurationCacheService configurationCacheService;
 
@@ -121,6 +122,7 @@ public class LocalZooKeeperCacheService {
         this.managedLedgerListCache = new ZooKeeperManagedLedgerCache(cache, MANAGED_LEDGER_ROOT);
         this.resourceQuotaCache = new ResourceQuotaCache(cache);
         this.resourceQuotaCache.initZK();
+        this.availableBookiesCache = new ZooKeeperChildrenCache(cache, AVAILABLE_BOOKIES_ROOT);
     }
 
     private void initZK() throws PulsarServerException {
@@ -147,12 +149,11 @@ public class LocalZooKeeperCacheService {
     }
 
     /**
-     * Create LocalPolicies with bundle-data in LocalZookeeper by fetching it from GlobalZookeeper
+     * Create LocalPolicies with bundle-data in LocalZookeeper by fetching it from GlobalZookeeper.
      *
-     * @param path
-     *            znode path
-     * @param readFromGlobal
-     *            if true copy policies from global zk to local zk else create a new znode with empty {@link Policies}
+     * @param path           znode path
+     * @param readFromGlobal if true copy policies from global zk to local zk else create a new znode with empty {@link
+     *                       Policies}
      * @throws Exception
      */
     @SuppressWarnings("deprecation")
@@ -178,8 +179,10 @@ public class LocalZooKeeperCacheService {
             configurationCacheService.policiesCache().getAsync(globalPath).thenAccept(policies -> {
                 if (policies.isPresent()) {
                     // Copying global bundles information to local policies
-                    LocalPolicies localPolicies = new LocalPolicies();
-                    localPolicies.bundles = policies.get().bundles;
+                    LocalPolicies localPolicies = new LocalPolicies(policies.get().bundles,
+                            null,
+                            null);
+
                     readFromGlobalFuture.complete(Optional.of(localPolicies));
                 } else {
                     // Policies are not present in global zk
@@ -246,6 +249,10 @@ public class LocalZooKeeperCacheService {
 
     public ZooKeeperManagedLedgerCache managedLedgerListCache() {
         return this.managedLedgerListCache;
+    }
+
+    public ZooKeeperChildrenCache availableBookiesCache() {
+        return this.availableBookiesCache;
     }
 
     public CompletableFuture<Boolean> managedLedgerExists(String persistentPath) {

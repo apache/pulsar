@@ -22,16 +22,21 @@ package org.apache.pulsar.broker.service.persistent;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
-import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 
 public class SystemTopic extends PersistentTopic {
 
-    public SystemTopic(String topic, ManagedLedger ledger, BrokerService brokerService) throws BrokerServiceException.NamingException {
+    public SystemTopic(String topic, ManagedLedger ledger, BrokerService brokerService)
+            throws BrokerServiceException.NamingException {
         super(topic, ledger, brokerService);
     }
 
     @Override
-    public boolean isBacklogExceeded() {
+    public boolean isSizeBacklogExceeded() {
+        return false;
+    }
+
+    @Override
+    public boolean isTimeBacklogExceeded() {
         return false;
     }
 

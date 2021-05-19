@@ -37,13 +37,12 @@ import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.zookeeper.LocalZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
-import org.apache.pulsar.zookeeper.ZookeeperBkClientFactoryImpl;
 import org.apache.zookeeper.MockZooKeeper;
-import org.apache.zookeeper.ZooKeeper;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class ResourceQuotaCacheTest {
 
     private PulsarService pulsar;
@@ -63,19 +62,19 @@ public class ResourceQuotaCacheTest {
 
         // set mock pulsar localzkcache
         LocalZooKeeperCacheService localZkCache = mock(LocalZooKeeperCacheService.class);
-        ZooKeeperDataCache<LocalPolicies> poilciesCache = mock(ZooKeeperDataCache.class);
+        ZooKeeperDataCache<LocalPolicies> policiesCache = mock(ZooKeeperDataCache.class);
         when(pulsar.getLocalZkCacheService()).thenReturn(localZkCache);
-        when(localZkCache.policiesCache()).thenReturn(poilciesCache);
-        doNothing().when(poilciesCache).registerListener(any());
+        when(localZkCache.policiesCache()).thenReturn(policiesCache);
+        doNothing().when(policiesCache).registerListener(any());
         bundleFactory = new NamespaceBundleFactory(pulsar, Hashing.crc32());
 
         doReturn(zkCache).when(pulsar).getLocalZkCache();
         doReturn(localCache).when(pulsar).getLocalZkCacheService();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void teardown() throws Exception{
-        executor.shutdown();
+        executor.shutdownNow();
         zkCache.stop();
         zkc.shutdown();
     }

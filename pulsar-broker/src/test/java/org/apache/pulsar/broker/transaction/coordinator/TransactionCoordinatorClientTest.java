@@ -20,8 +20,9 @@ package org.apache.pulsar.broker.transaction.coordinator;
 
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
-
 import com.google.common.collect.Lists;
+import java.lang.reflect.Field;
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
@@ -32,28 +33,22 @@ import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientExce
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.mockito.Mockito;
 import org.testng.Assert;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import java.lang.reflect.Field;
-import java.util.concurrent.CompletableFuture;
-
-
+@Test(groups = "broker")
 public class TransactionCoordinatorClientTest extends TransactionMetaStoreTestBase {
 
-    @BeforeClass
-    public void init() throws Exception {
-        super.setup();
-
+    @Override
+    protected void afterSetup() throws Exception {
         for (PulsarService pulsarService : pulsarServices) {
             TransactionBufferClient tbClient = Mockito.mock(TransactionBufferClientImpl.class);
-            Mockito.when(tbClient.commitTxnOnTopic(anyString(), anyLong(), anyLong()))
+            Mockito.when(tbClient.commitTxnOnTopic(anyString(), anyLong(), anyLong(), anyLong()))
                     .thenReturn(CompletableFuture.completedFuture(null));
-            Mockito.when(tbClient.abortTxnOnTopic(anyString(), anyLong(), anyLong()))
+            Mockito.when(tbClient.abortTxnOnTopic(anyString(), anyLong(), anyLong(), anyLong()))
                     .thenReturn(CompletableFuture.completedFuture(null));
-            Mockito.when(tbClient.commitTxnOnSubscription(anyString(), anyString(), anyLong(), anyLong()))
+            Mockito.when(tbClient.commitTxnOnSubscription(anyString(), anyString(), anyLong(), anyLong(), anyLong()))
                     .thenReturn(CompletableFuture.completedFuture(null));
-            Mockito.when(tbClient.abortTxnOnSubscription(anyString(), anyString(), anyLong(), anyLong()))
+            Mockito.when(tbClient.abortTxnOnSubscription(anyString(), anyString(), anyLong(), anyLong(), anyLong()))
                     .thenReturn(CompletableFuture.completedFuture(null));
 
             TransactionMetadataStoreService metadataStoreService = pulsarService.getTransactionMetadataStoreService();
@@ -92,7 +87,7 @@ public class TransactionCoordinatorClientTest extends TransactionMetaStoreTestBa
         try {
             transactionCoordinatorClient.abort(txnID);
             Assert.fail("Should be fail, because the txn is in committing state, can't abort now.");
-        } catch (TransactionCoordinatorClientException.InvalidTxnStatusException ignore) {
+        } catch (TransactionCoordinatorClientException ignore) {
            // Ok here
         }
     }

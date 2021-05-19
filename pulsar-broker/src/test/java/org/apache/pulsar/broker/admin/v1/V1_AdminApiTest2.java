@@ -41,7 +41,6 @@ import lombok.Cleanup;
 
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.v1.V1_AdminApiTest.MockedPulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
@@ -76,6 +75,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
     private MockedPulsarService mockPulsarSetup;
@@ -83,6 +83,7 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     public void setup() throws Exception {
+        resetConfig();
         conf.setLoadBalancerEnabled(true);
         super.internalSetup();
 
@@ -98,7 +99,7 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("prop-xyz/use/ns1");
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
@@ -128,7 +129,6 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
      *
      * </pre>
      *
-     * @param topicName
      * @throws Exception
      */
     @Test
@@ -160,8 +160,6 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
         // (1) update partitions
         admin.topics().updatePartitionedTopic(partitionedTopicName, newPartitions);
-        // invalidate global-cache to make sure that mock-zk-cache reds fresh data
-        pulsar.getGlobalZkCache().invalidateAll();
         // verify new partitions have been created
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions,
                 newPartitions);
@@ -236,6 +234,7 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
         publishMessagesOnTopic("non-persistent://prop-xyz/use/ns1/" + topicName, 0, 0);
 
         // create consumer and subscription
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsar.getWebServiceAddress())
                 .statsInterval(0, TimeUnit.SECONDS)
@@ -293,7 +292,7 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
         final String namespace = "prop-xyz/use/ns2";
         admin.namespaces().createNamespace(namespace);
 
-        assertEquals(admin.namespaces().getPersistence(namespace), new PersistencePolicies(2, 2, 2, 0.0));
+        assertEquals(admin.namespaces().getPersistence(namespace), null);
         admin.namespaces().setPersistence(namespace, new PersistencePolicies(3, 3, 3, 10.0));
         assertEquals(admin.namespaces().getPersistence(namespace), new PersistencePolicies(3, 3, 3, 10.0));
 
@@ -534,21 +533,15 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
         this.conf.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
         MockedPulsarService mockPulsarSetup1 = new MockedPulsarService(this.conf);
         mockPulsarSetup1.setup();
-        PulsarService simpleLoadManager = mockPulsarSetup1.getPulsar();
         PulsarAdmin simpleLoadManagerAdmin = mockPulsarSetup1.getAdmin();
         assertNotNull(simpleLoadManagerAdmin.brokerStats().getLoadReport());
 
         this.conf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         MockedPulsarService mockPulsarSetup2 = new MockedPulsarService(this.conf);
         mockPulsarSetup2.setup();
-        PulsarService modularLoadManager = mockPulsarSetup2.getPulsar();
         PulsarAdmin modularLoadManagerAdmin = mockPulsarSetup2.getAdmin();
         assertNotNull(modularLoadManagerAdmin.brokerStats().getLoadReport());
 
-        simpleLoadManagerAdmin.close();
-        simpleLoadManager.close();
-        modularLoadManagerAdmin.close();
-        modularLoadManager.close();
         mockPulsarSetup1.cleanup();
         mockPulsarSetup2.cleanup();
     }

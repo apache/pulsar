@@ -18,18 +18,39 @@
  */
 package org.apache.pulsar.websocket.data;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import static com.google.common.base.Joiner.on;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.apache.pulsar.websocket.WebSocketError;
 
+/**
+ * Represent result of publishing a single message.
+ */
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 @JsonInclude(Include.NON_NULL)
 public class ProducerAck {
+
+    // Message publishing result
     public String result;
+
+    // Error message if fail to publish a message.
     public String errorMsg;
+
     public String messageId;
+
     public String context;
+
+    // Indicating if error is retriable error.
+    public int errorCode;
+
+    // Version of schema used to encode the message.
+    public long schemaVersion;
 
     public ProducerAck(String messageId, String context) {
         this.result = "ok";

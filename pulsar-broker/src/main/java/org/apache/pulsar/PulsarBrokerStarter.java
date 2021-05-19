@@ -24,37 +24,36 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.configuration.PulsarConfigurationLoader.create;
 import static org.apache.pulsar.common.configuration.PulsarConfigurationLoader.isComplete;
-
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.google.common.annotations.VisibleForTesting;
-
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.nio.file.Paths;
-import java.util.Date;
-import java.util.Arrays;
-import java.util.Optional;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-
+import java.util.Arrays;
+import java.util.Date;
+import java.util.Optional;
+import org.apache.bookkeeper.common.util.ReflectionUtils;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.replication.AutoRecoveryMain;
 import org.apache.bookkeeper.stats.StatsProvider;
-import org.apache.bookkeeper.common.util.ReflectionUtils;
 import org.apache.bookkeeper.util.DirectMemoryUtils;
 import org.apache.commons.configuration.ConfigurationException;
+import org.apache.logging.log4j.LogManager;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
+import org.apache.pulsar.functions.worker.service.WorkerServiceLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.bridge.SLF4JBridgeHandler;
@@ -64,31 +63,37 @@ public class PulsarBrokerStarter {
     private static ServiceConfiguration loadConfig(String configFile) throws Exception {
         SLF4JBridgeHandler.removeHandlersForRootLogger();
         SLF4JBridgeHandler.install();
-        ServiceConfiguration config = create((new FileInputStream(configFile)), ServiceConfiguration.class);
-        // it validates provided configuration is completed
-        isComplete(config);
-        return config;
+        try (InputStream inputStream = new FileInputStream(configFile)) {
+            ServiceConfiguration config = create(inputStream, ServiceConfiguration.class);
+            // it validates provided configuration is completed
+            isComplete(config);
+            return config;
+        }
     }
 
     @VisibleForTesting
     private static class StarterArguments {
         @Parameter(names = {"-c", "--broker-conf"}, description = "Configuration file for Broker")
-        private String brokerConfigFile = Paths.get("").toAbsolutePath().normalize().toString() + "/conf/broker.conf";
+        private String brokerConfigFile =
+                Paths.get("").toAbsolutePath().normalize().toString() + "/conf/broker.conf";
 
         @Parameter(names = {"-rb", "--run-bookie"}, description = "Run Bookie together with Broker")
         private boolean runBookie = false;
 
-        @Parameter(names = {"-ra", "--run-bookie-autorecovery"}, description = "Run Bookie Autorecovery together with broker")
+        @Parameter(names = {"-ra", "--run-bookie-autorecovery"},
+                description = "Run Bookie Autorecovery together with broker")
         private boolean runBookieAutoRecovery = false;
 
         @Parameter(names = {"-bc", "--bookie-conf"}, description = "Configuration file for Bookie")
-        private String bookieConfigFile = Paths.get("").toAbsolutePath().normalize().toString() + "/conf/bookkeeper.conf";
+        private String bookieConfigFile =
+                Paths.get("").toAbsolutePath().normalize().toString() + "/conf/bookkeeper.conf";
 
         @Parameter(names = {"-rfw", "--run-functions-worker"}, description = "Run functions worker with Broker")
         private boolean runFunctionsWorker = false;
 
         @Parameter(names = {"-fwc", "--functions-worker-conf"}, description = "Configuration file for Functions Worker")
-        private String fnWorkerConfigFile = Paths.get("").toAbsolutePath().normalize().toString() + "/conf/functions_worker.yml";
+        private String fnWorkerConfigFile =
+                Paths.get("").toAbsolutePath().normalize().toString() + "/conf/functions_worker.yml";
 
         @Parameter(names = {"-h", "--help"}, description = "Show this help message")
         private boolean help = false;
@@ -127,6 +132,7 @@ public class PulsarBrokerStarter {
         private final StatsProvider bookieStatsProvider;
         private final ServerConfiguration bookieConfig;
         private final WorkerService functionsWorkerService;
+        private final WorkerConfig workerConfig;
 
         BrokerStarter(String[] args) throws Exception{
             StarterArguments starterArguments = new StarterArguments();
@@ -153,60 +159,33 @@ public class PulsarBrokerStarter {
                 throw new IllegalArgumentException("Max message size need smaller than jvm directMemory");
             }
 
-            if (!NamespaceBundleSplitAlgorithm.availableAlgorithms.containsAll(brokerConfig.getSupportedNamespaceBundleSplitAlgorithms())) {
-                throw new IllegalArgumentException("The given supported namespace bundle split algorithm has unavailable algorithm. " +
-                    "Available algorithms are " + NamespaceBundleSplitAlgorithm.availableAlgorithms);
+            if (!NamespaceBundleSplitAlgorithm.AVAILABLE_ALGORITHMS.containsAll(
+                    brokerConfig.getSupportedNamespaceBundleSplitAlgorithms())) {
+                throw new IllegalArgumentException(
+                        "The given supported namespace bundle split algorithm has unavailable algorithm. "
+                                + "Available algorithms are " + NamespaceBundleSplitAlgorithm.AVAILABLE_ALGORITHMS);
             }
 
-            if (!brokerConfig.getSupportedNamespaceBundleSplitAlgorithms().contains(brokerConfig.getDefaultNamespaceBundleSplitAlgorithm())) {
-                throw new IllegalArgumentException("Supported namespace bundle split algorithms must contains the default namespace bundle split algorithm");
+            if (!brokerConfig.getSupportedNamespaceBundleSplitAlgorithms().contains(
+                    brokerConfig.getDefaultNamespaceBundleSplitAlgorithm())) {
+                throw new IllegalArgumentException("Supported namespace bundle split algorithms "
+                        + "must contains the default namespace bundle split algorithm");
             }
 
             // init functions worker
             if (starterArguments.runFunctionsWorker || brokerConfig.isFunctionsWorkerEnabled()) {
-                WorkerConfig workerConfig;
-                if (isBlank(starterArguments.fnWorkerConfigFile)) {
-                    workerConfig = new WorkerConfig();
-                } else {
-                    workerConfig = WorkerConfig.load(starterArguments.fnWorkerConfigFile);
-                }
-                // worker talks to local broker
-                String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(
-                    brokerConfig.getAdvertisedAddress());
-                workerConfig.setWorkerHostname(hostname);
-                workerConfig.setWorkerPort(brokerConfig.getWebServicePort().get());
-                workerConfig.setWorkerId(
-                    "c-" + brokerConfig.getClusterName()
-                        + "-fw-" + hostname
-                        + "-" + workerConfig.getWorkerPort());
-                // inherit broker authorization setting
-                workerConfig.setAuthenticationEnabled(brokerConfig.isAuthenticationEnabled());
-                workerConfig.setAuthenticationProviders(brokerConfig.getAuthenticationProviders());
-
-                workerConfig.setAuthorizationEnabled(brokerConfig.isAuthorizationEnabled());
-                workerConfig.setAuthorizationProvider(brokerConfig.getAuthorizationProvider());
-                workerConfig.setConfigurationStoreServers(brokerConfig.getConfigurationStoreServers());
-                workerConfig.setZooKeeperSessionTimeoutMillis(brokerConfig.getZooKeeperSessionTimeoutMillis());
-                workerConfig.setZooKeeperOperationTimeoutSeconds(brokerConfig.getZooKeeperOperationTimeoutSeconds());
-
-                workerConfig.setTlsAllowInsecureConnection(brokerConfig.isTlsAllowInsecureConnection());
-                workerConfig.setTlsEnableHostnameVerification(false);
-                workerConfig.setBrokerClientTrustCertsFilePath(brokerConfig.getTlsTrustCertsFilePath());
-
-                // client in worker will use this config to authenticate with broker
-                workerConfig.setBrokerClientAuthenticationPlugin(brokerConfig.getBrokerClientAuthenticationPlugin());
-                workerConfig.setBrokerClientAuthenticationParameters(brokerConfig.getBrokerClientAuthenticationParameters());
-
-                // inherit super users
-                workerConfig.setSuperUserRoles(brokerConfig.getSuperUserRoles());
-
-                functionsWorkerService = new WorkerService(workerConfig);
+                workerConfig = PulsarService.initializeWorkerConfigFromBrokerConfig(
+                    brokerConfig, starterArguments.fnWorkerConfigFile
+                );
+                functionsWorkerService = WorkerServiceLoader.load(workerConfig);
             } else {
+                workerConfig = null;
                 functionsWorkerService = null;
             }
 
             // init pulsar service
             pulsarService = new PulsarService(brokerConfig,
+                                              workerConfig,
                                               Optional.ofNullable(functionsWorkerService),
                                               (exitCode) -> {
                                                   log.info("Halting broker process with code {}",
@@ -216,13 +195,13 @@ public class PulsarBrokerStarter {
 
             // if no argument to run bookie in cmd line, read from pulsar config
             if (!argsContains(args, "-rb") && !argsContains(args, "--run-bookie")) {
-                checkState(starterArguments.runBookie == false,
-                    "runBookie should be false if has no argument specified");
+                checkState(!starterArguments.runBookie,
+                        "runBookie should be false if has no argument specified");
                 starterArguments.runBookie = brokerConfig.isEnableRunBookieTogether();
             }
             if (!argsContains(args, "-ra") && !argsContains(args, "--run-bookie-autorecovery")) {
-                checkState(starterArguments.runBookieAutoRecovery == false,
-                    "runBookieAutoRecovery should be false if has no argument specified");
+                checkState(!starterArguments.runBookieAutoRecovery,
+                        "runBookieAutoRecovery should be false if has no argument specified");
                 starterArguments.runBookieAutoRecovery = brokerConfig.isEnableRunBookieAutoRecoveryTogether();
             }
 
@@ -248,7 +227,8 @@ public class PulsarBrokerStarter {
             if (starterArguments.runBookie) {
                 checkNotNull(bookieConfig, "No ServerConfiguration for Bookie");
                 checkNotNull(bookieStatsProvider, "No Stats Provider for Bookie");
-                bookieServer = new BookieServer(bookieConfig, bookieStatsProvider.getStatsLogger(""));
+                bookieServer = new BookieServer(
+                        bookieConfig, bookieStatsProvider.getStatsLogger(""), null);
             } else {
                 bookieServer = null;
             }
@@ -325,7 +305,10 @@ public class PulsarBrokerStarter {
     public static void main(String[] args) throws Exception {
         DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss,SSS");
         Thread.setDefaultUncaughtExceptionHandler((thread, exception) -> {
-            System.out.println(String.format("%s [%s] error Uncaught exception in thread %s: %s", dateFormat.format(new Date()), thread.getContextClassLoader(), thread.getName(), exception.getMessage()));
+            System.out.println(String.format("%s [%s] error Uncaught exception in thread %s: %s",
+                    dateFormat.format(new Date()), thread.getContextClassLoader(),
+                    thread.getName(), exception.getMessage()));
+            exception.printStackTrace(System.out);
         });
 
         BrokerStarter starter = new BrokerStarter(args);
@@ -348,6 +331,7 @@ public class PulsarBrokerStarter {
             starter.start();
         } catch (Throwable t) {
             log.error("Failed to start pulsar service.", t);
+            LogManager.shutdown();
             Runtime.getRuntime().halt(1);
         } finally {
             starter.join();

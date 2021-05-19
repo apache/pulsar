@@ -86,8 +86,8 @@ components in the Pulsar ecosystem, including connectors, adapters, and other la
 ## Build Pulsar
 
 Requirements:
- * Java JDK 1.8 or Java JDK 11
- * Maven 3.3.9+
+ * Java [JDK 11](https://adoptopenjdk.net/?variant=openjdk11) or [JDK 8](https://adoptopenjdk.net/?variant=openjdk8)
+ * Maven 3.6.1+
 
 Compile and install:
 
@@ -97,7 +97,7 @@ $ mvn install -DskipTests
 
 ## Minimal build (This skips most of external connectors and tiered storage handlers)
 ```
-mvn install -Pcore-modules
+mvn install -Pcore-modules,-main
 ```
 
 Run Unit Tests:
@@ -128,6 +128,35 @@ $ bin/pulsar standalone
 
 Check https://pulsar.apache.org for documentation and examples.
 
+## Build custom docker images
+
+Docker images must be built with Java 8 for `branch-2.7` or previous branches because of
+[issue 8445](https://github.com/apache/pulsar/issues/8445).
+Java 11 is the recommended JDK version in `master`/`branch-2.8`.
+
+This builds the docker images `apachepulsar/pulsar-all:latest` and `apachepulsar/pulsar:latest`.
+
+```bash
+mvn clean install -DskipTests
+mvn package -Pdocker,-main -am -pl docker/pulsar-all -DskipTests
+```
+
+After the images are built, they can be tagged and pushed to your custom repository. 
+Here's an example of a bash script that tags the docker images with the current version and git revision and 
+pushes them to `localhost:32000/apachepulsar`.
+
+```bash
+image_repo_and_project=localhost:32000/apachepulsar
+pulsar_version=$(mvn initialize help:evaluate -Dexpression=project.version -pl . -q -DforceStdout)
+gitrev=$(git rev-parse HEAD | colrm 10)
+tag="${pulsar_version}-${gitrev}"
+echo "Using tag $tag"
+docker tag apachepulsar/pulsar-all:latest ${image_repo_and_project}/pulsar-all:$tag
+docker push ${image_repo_and_project}/pulsar-all:$tag
+docker tag apachepulsar/pulsar:latest ${image_repo_and_project}/pulsar:$tag
+docker push ${image_repo_and_project}/pulsar:$tag
+```
+
 ## Setting up your IDE
 
 Apache Pulsar is using [lombok](https://projectlombok.org/) so you have to ensure your IDE setup with
@@ -135,23 +164,100 @@ required plugins.
 
 ### Intellij
 
-To configure annotation processing in IntelliJ:
+#### Configure Project JDK to Java 11 JDK
+
+1. Open **Project Settings**. 
+
+    Click **File** -> **Project Structure** -> **Project Settings** -> **Project**.
+   
+2. Select the JDK version.
+    
+    From the JDK version drop-down list, select **Download JDK...** or choose an existing recent Java 11 JDK version.
+
+3. In the download dialog, select version **11**. You can pick a version from many vendors. Unless you have a specific preference, choose **AdoptOpenJDK (Hotspot)**.
+ 
+
+#### Configure Java version for Maven in IntelliJ
+
+1. Open Maven Importing Settings dialog by going to 
+   **Settings** -> **Build, Execution, Deployment** -> **Build Tools** -> **Maven** -> **Importing**.
+
+2. Choose **Use Project JDK** for **JDK for Importer** setting. This uses the Java 11 JDK for running Maven 
+   when importing the project to IntelliJ. Some of the configuration in the Maven build is conditional based on 
+   the JDK version. Incorrect configuration gets chosen when the "JDK for Importer" isn't the same as the "Project JDK".
+
+3. Validate that the JRE setting in **Maven** -> **Runner** dialog is set to **Use Project JDK**.
+
+#### Configure annotation processing in IntelliJ
 
 1. Open Annotation Processors Settings dialog box by going to
-   `Settings -> Build, Execution, Deployment -> Compiler -> Annotation Processors`.
+   **Settings** -> **Build, Execution, Deployment** -> **Compiler** -> **Annotation Processors**.
 
 2. Select the following buttons:
-   1. "Enable annotation processing"
-   2. "Obtain processors from project classpath"
-   3. "Store generated sources relative to: Module content root"
+   1. **Enable annotation processing**
+   2. **Obtain processors from project classpath**
+   3. Store generated sources relative to: **Module content root**
 
 3. Set the generated source directories to be equal to the Maven directories:
    1. Set "Production sources directory:" to "target/generated-sources/annotations".
    2. Set "Test sources directory:" to "target/generated-test-sources/test-annotations".
 
-4. Click "OK".
+4. Click **OK**.
 
 5. Install the lombok plugin in intellij.
+
+#### Configure code style
+
+1. Open Code Style Settings dialog box by going to **Settings** -> **Editor** -> **Code Style**.
+
+2. Click on the :gear: symbol -> **Import scheme** -> **Intellij IDEA code style XML**
+
+3. Pick the file `${pulsar_dir}/src/idea-code-style.xml`
+
+4. On the dialog box that opens, click **OK**.
+
+5. Ensure the scheme you just created is selected in **Scheme** dropdown then click **OK**.
+
+#### Configure Checkstyle
+
+1. Install the Checkstyle-IDEA plugin.
+
+2. Open Checkstyle Settings dialog box by going to **Settings** -> **Tools** -> **Checkstyle**.
+
+3. Set **Checkstyle version** to **8.37**.
+
+4. Set **Scan scope** to **Only Java sources (including tests)**.
+
+5. Click **+** button in the **Configuration** section to open a dialog to choose the checkfile file.
+   1. Enter a **Description**. For example, Pulsar.
+   2. Select **Use a local checkstyle file**.
+   3. Set **File** to **buildtools/src/main/resources/pulsar/checkstyle.xml**.
+   4. Select **Store relative to project location**.
+   5. Click **Next** -> **Next** -> **Finish**.
+
+6. Activate the configuration you just added by toggling the corresponding box.
+
+7. Click **OK**.
+
+#### Further configuration in IntelliJ 
+
+* When working on the Pulsar core modules in IntelliJ, reduce the number of active projects in IntelliJ to speed up IDE actions and reduce unrelated IDE warnings.
+  * In IntelliJ's Maven UI's tree view under "Profiles"
+    * Activate "core-modules" Maven profile
+    * De-activate "main" Maven profile
+    * Run the "Reload All Maven Projects" action from the Maven UI toolbar. You can also find the action by the name in the IntelliJ "Search Everywhere" window that gets activated by pressing the **Shift** key twice.
+
+* Run the "Generate Sources and Update Folders For All Projects" action from the Maven UI toolbar. You can also find the action by the name in the IntelliJ "Search Everywhere" window that gets activated by pressing the **Shift** key twice. Running the action takes about 10 minutes for all projects. This is faster when the "core-modules" profile is the only active profile.
+
+
+#### IntelliJ usage tips
+
+* In the case of compilation errors with missing Protobuf classes, ensure to run the "Generate Sources and Update Folders For All Projects" action.
+
+* All of the Pulsar source code doesn't compile properly in IntelliJ and there are compilation errors.
+  * Use the "core-modules" profile if working on the Pulsar core modules since the source code for those modules can be compiled in IntelliJ.
+  * Sometimes it might help to mark a specific project ignored in IntelliJ Maven UI by right-clicking the project name and select **Ignore Projects** from the menu.
+  * Currently, it is not always possible to run unit tests directly from the IDE because of the compilation issues. As a workaround, individual test classes can be run by using the `mvn test -Dtest=TestClassName` command.
 
 ### Eclipse
 
@@ -188,4 +294,3 @@ This distribution includes cryptographic software. The country in which you curr
 The U.S. Government Department of Commerce, Bureau of Industry and Security (BIS), has classified this software as Export Commodity Control Number (ECCN) 5D002.C.1, which includes information security software using or performing cryptographic functions with asymmetric algorithms. The form and manner of this Apache Software Foundation distribution makes it eligible for export under the License Exception ENC Technology Software Unrestricted (TSU) exception (see the BIS Export Administration Regulations, Section 740.13) for both object code and source code.
 
 The following provides more details on the included cryptographic software: Pulsar uses the SSL library from Bouncy Castle written by http://www.bouncycastle.org.
-

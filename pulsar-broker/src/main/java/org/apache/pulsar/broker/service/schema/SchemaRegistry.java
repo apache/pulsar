@@ -19,11 +19,9 @@
 package org.apache.pulsar.broker.service.schema;
 
 import com.google.common.base.MoreObjects;
-
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
@@ -40,6 +38,10 @@ public interface SchemaRegistry extends AutoCloseable {
                                                        SchemaCompatibilityStrategy strategy);
 
     CompletableFuture<SchemaVersion> deleteSchema(String schemaId, String user);
+
+    CompletableFuture<SchemaVersion> deleteSchemaStorage(String schemaId);
+
+    CompletableFuture<SchemaVersion> deleteSchemaStorage(String schemaId, boolean forcefully);
 
     CompletableFuture<Boolean> isCompatible(String schemaId, SchemaData schema,
                                             SchemaCompatibilityStrategy strategy);
@@ -79,9 +81,9 @@ public interface SchemaRegistry extends AutoCloseable {
                 return false;
             }
             SchemaAndMetadata that = (SchemaAndMetadata) o;
-            return version == that.version &&
-                Objects.equals(id, that.id) &&
-                Objects.equals(schema, that.schema);
+            return version == that.version
+                    && Objects.equals(id, that.id)
+                    && Objects.equals(schema, that.schema);
         }
 
         @Override

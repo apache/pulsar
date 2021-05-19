@@ -267,7 +267,7 @@ Here are examples of the `schema-definition-file` for a JSON schema.
 
 <!--REST API-->
 
-Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v2/schemas/:tenant/:namespace/:topic/schema|operation/uploadSchema}
+Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v2/schemas/:tenant/:namespace/:topic/schema|operation/uploadSchema?version=[[pulsar:version_number]]}
 
 The post payload is in JSON format.
 
@@ -399,7 +399,7 @@ $ pulsar-admin schemas get <topic-name>
 
 <!--REST API-->
 
-Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v2/schemas/:tenant/:namespace/:topic/schema|operation/getSchema}
+Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v2/schemas/:tenant/:namespace/:topic/schema|operation/getSchema?version=[[pulsar:version_number]]}
 
 Here is an example of a response, which is returned in JSON format.
 
@@ -543,7 +543,7 @@ $ pulsar-admin schemas get <topic-name> --version=<version>
 
 <!--REST API-->
 
-Send a `GET` request to a schema endpoint: {@inject: endpoint|GET|/admin/v2/schemas/:tenant/:namespace/:topic/schema/:version|operation/getSchema}
+Send a `GET` request to a schema endpoint: {@inject: endpoint|GET|/admin/v2/schemas/:tenant/:namespace/:topic/schema/:version|operation?version=[[pulsar:version_number]]/getSchema}
 
 Here is an example of a response, which is returned in JSON format.
 
@@ -705,7 +705,7 @@ $ pulsar-admin schemas delete <topic-name>
 
 <!--REST API-->
 
-Send a `DELETE` request to a schema endpoint: {@inject: endpoint|DELETE|/admin/v2/schemas/:tenant/:namespace/:topic/schema|operation/deleteSchema} 
+Send a `DELETE` request to a schema endpoint: {@inject: endpoint|DELETE|/admin/v2/schemas/:tenant/:namespace/:topic/schema|operation?version=[[pulsar:version_number]]/deleteSchema} 
 
 Here is an example of a response, which is returned in JSON format.
 

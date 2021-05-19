@@ -20,7 +20,7 @@ package org.apache.pulsar.broker.transaction.buffer.impl;
 
 import io.netty.buffer.ByteBuf;
 import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.impl.EntryImpl;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.transaction.buffer.TransactionEntry;
 import org.apache.pulsar.client.api.transaction.TxnID;
 
@@ -34,17 +34,21 @@ public class TransactionEntryImpl implements TransactionEntry {
     private final long committedAtLedgerId;
     private final long committedAtEntryId;
     private final Entry entry;
+    private final int numMessageInTxn;
+    private int startBatchIndex;
 
     public TransactionEntryImpl(TxnID txnId,
-                         long sequenceId,
-                         Entry entry,
-                         long committedAtLedgerId,
-                         long committedAtEntryId) {
+                                long sequenceId,
+                                Entry entry,
+                                long committedAtLedgerId,
+                                long committedAtEntryId,
+                                int numMessageInTxn) {
         this.txnId = txnId;
         this.sequenceId = sequenceId;
         this.entry = entry;
         this.committedAtLedgerId = committedAtLedgerId;
         this.committedAtEntryId = committedAtEntryId;
+        this.numMessageInTxn = numMessageInTxn;
     }
 
     @Override
@@ -55,6 +59,11 @@ public class TransactionEntryImpl implements TransactionEntry {
     @Override
     public long sequenceId() {
         return sequenceId;
+    }
+
+    @Override
+    public int numMessageInTxn() {
+        return numMessageInTxn;
     }
 
     @Override
@@ -72,11 +81,59 @@ public class TransactionEntryImpl implements TransactionEntry {
         return entry;
     }
 
+    public void setStartBatchIndex(int startBatchIndex) {
+        this.startBatchIndex = startBatchIndex;
+    }
+
+    public int getStartBatchIndex() {
+        return startBatchIndex;
+    }
+
     @Override
     public void close() {
         if (null != entry) {
             entry.getDataBuffer().release();
             entry.release();
         }
+    }
+
+    @Override
+    public byte[] getData() {
+        return entry.getData();
+    }
+
+    @Override
+    public byte[] getDataAndRelease() {
+        return entry.getDataAndRelease();
+    }
+
+    @Override
+    public int getLength() {
+        return entry.getLength();
+    }
+
+    @Override
+    public ByteBuf getDataBuffer() {
+        return entry.getDataBuffer();
+    }
+
+    @Override
+    public Position getPosition() {
+        return entry.getPosition();
+    }
+
+    @Override
+    public long getLedgerId() {
+        return committedAtLedgerId;
+    }
+
+    @Override
+    public long getEntryId() {
+        return committedAtEntryId;
+    }
+
+    @Override
+    public boolean release() {
+        return this.entry.release();
     }
 }

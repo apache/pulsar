@@ -22,13 +22,16 @@ import static org.apache.pulsar.client.internal.ReflectionUtils.catchExceptions;
 import static org.apache.pulsar.client.internal.ReflectionUtils.getConstructor;
 import static org.apache.pulsar.client.internal.ReflectionUtils.getStaticMethod;
 import static org.apache.pulsar.client.internal.ReflectionUtils.newClassInstance;
-
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.Date;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -219,6 +222,30 @@ public class DefaultImplementation {
                   "org.apache.pulsar.client.impl.schema.TimestampSchema", "of", null)
                     .invoke(null, null));
     }
+    public static Schema<Instant> newInstantSchema() {
+        return catchExceptions(
+              () -> (Schema<Instant>) getStaticMethod(
+                  "org.apache.pulsar.client.impl.schema.InstantSchema", "of", null)
+                    .invoke(null, null));
+    }
+    public static Schema<LocalDate> newLocalDateSchema() {
+        return catchExceptions(
+              () -> (Schema<LocalDate>) getStaticMethod(
+                  "org.apache.pulsar.client.impl.schema.LocalDateSchema", "of", null)
+                    .invoke(null, null));
+    }
+    public static Schema<LocalTime> newLocalTimeSchema() {
+        return catchExceptions(
+              () -> (Schema<LocalTime>) getStaticMethod(
+                  "org.apache.pulsar.client.impl.schema.LocalTimeSchema", "of", null)
+                    .invoke(null, null));
+    }
+    public static Schema<LocalDateTime> newLocalDateTimeSchema() {
+        return catchExceptions(
+              () -> (Schema<LocalDateTime>) getStaticMethod(
+                  "org.apache.pulsar.client.impl.schema.LocalDateTimeSchema", "of", null)
+                    .invoke(null, null));
+    }
 
     public static <T> Schema<T> newAvroSchema(SchemaDefinition schemaDefinition) {
         return catchExceptions(
@@ -233,6 +260,14 @@ public class DefaultImplementation {
             () -> (Schema<T>) getStaticMethod(
                 "org.apache.pulsar.client.impl.schema.ProtobufSchema", "of", SchemaDefinition.class)
                 .invoke(null, schemaDefinition));
+    }
+
+    public static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> newProtobufNativeSchema(
+            SchemaDefinition schemaDefinition) {
+        return catchExceptions(
+                () -> (Schema<T>) getStaticMethod(
+                        "org.apache.pulsar.client.impl.schema.ProtobufNativeSchema", "of", SchemaDefinition.class)
+                        .invoke(null, schemaDefinition));
     }
 
     public static <T> Schema<T> newJSONSchema(SchemaDefinition schemaDefinition) {
@@ -298,10 +333,22 @@ public class DefaultImplementation {
     }
 
     public static GenericSchema<GenericRecord> getGenericSchema(SchemaInfo schemaInfo) {
-        return catchExceptions(
-            () -> (GenericSchema) getStaticMethod(
-                "org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl",
-                "of", SchemaInfo.class).invoke(null, schemaInfo));
+        switch (schemaInfo.getType()) {
+            case PROTOBUF_NATIVE:
+                return (GenericSchema) ReflectionUtils.catchExceptions(() -> {
+                    return (GenericSchema) ReflectionUtils.getStaticMethod(
+                            "org.apache.pulsar.client.impl.schema.generic.GenericProtobufNativeSchema",
+                            "of", new Class[]{SchemaInfo.class}).invoke((Object) null, schemaInfo);
+                });
+            default:
+                return (GenericSchema) ReflectionUtils.catchExceptions(() -> {
+                    return (GenericSchema) ReflectionUtils.getStaticMethod(
+                            "org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl",
+                            "of", new Class[]{SchemaInfo.class}).invoke((Object) null, schemaInfo);
+
+                });
+        }
+
     }
 
     public static RecordSchemaBuilder newRecordSchemaBuilder(String name) {
@@ -446,5 +493,25 @@ public class DefaultImplementation {
         return catchExceptions(
                 () -> (BatcherBuilder) getConstructor("org.apache.pulsar.client.impl.KeyBasedBatcherBuilder")
                         .newInstance());
+    }
+
+    /**
+     * Retrieves ByteBuffer data into byte[].
+     * 
+     * @param byteBuffer
+     * @return
+     */
+    public static byte[] getBytes(ByteBuffer byteBuffer) {
+        if (byteBuffer == null) {
+            return null;
+        }
+        if (byteBuffer.hasArray() && byteBuffer.arrayOffset() == 0
+                && byteBuffer.array().length == byteBuffer.remaining()) {
+            return byteBuffer.array();
+        }
+        // Direct buffer is not backed by array and it needs to be read from direct memory
+        byte[] array = new byte[byteBuffer.remaining()];
+        byteBuffer.get(array);
+        return array;
     }
 }

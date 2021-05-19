@@ -19,10 +19,14 @@
 package org.apache.bookkeeper.mledger;
 
 import lombok.Data;
+import org.apache.bookkeeper.common.annotation.InterfaceAudience;
+import org.apache.bookkeeper.common.annotation.InterfaceStability;
 
 /**
  * Configuration for a {@link ManagedLedgerFactory}.
  */
+@InterfaceAudience.LimitedPrivate
+@InterfaceStability.Stable
 @Data
 public class ManagedLedgerFactoryConfig {
     private static final long MB = 1024 * 1024;
@@ -61,6 +65,11 @@ public class ManagedLedgerFactoryConfig {
      * Managed ledger prometheus stats Latency Rollover Seconds
      */
     private int prometheusStatsLatencyRolloverSeconds = 60;
+
+    /**
+     * How frequently to flush the cursor positions that were accumulated due to rate limiting.
+     */
+    private int cursorPositionFlushSeconds = 60;
 
     /**
      * cluster name for prometheus stats

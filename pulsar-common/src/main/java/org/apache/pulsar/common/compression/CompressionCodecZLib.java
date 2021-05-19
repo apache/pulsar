@@ -19,15 +19,12 @@
 package org.apache.pulsar.common.compression;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
-
 import java.io.IOException;
 import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
 import java.util.zip.Inflater;
-
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 
 /**

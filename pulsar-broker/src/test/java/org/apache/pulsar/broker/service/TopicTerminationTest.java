@@ -23,7 +23,6 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BrokenBarrierException;
@@ -32,7 +31,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAllowedException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -48,14 +46,16 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class TopicTerminationTest extends BrokerTestBase {
+
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -85,7 +85,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         }
     }
 
-    @Test
+    @Test(groups = "broker")
     public void testCreateProducerOnTerminatedTopic() throws Exception {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
@@ -155,7 +155,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         }
     }
 
-    @Test
+    @Test(groups = "broker")
     public void testDoubleTerminate() throws Exception {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
@@ -174,7 +174,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         assertEquals(lastMessageId, msgId3);
     }
 
-    @Test
+    @Test(groups = "broker")
     public void testTerminatePartitionedTopic() throws Exception {
         admin.topics().createPartitionedTopic(topicName, 4);
 

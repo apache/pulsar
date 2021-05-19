@@ -39,16 +39,16 @@ import com.scurrilous.circe.checksum.Crc32cIntChecksum;
 
 import io.netty.buffer.ByteBuf;
 
-/**
- */
+@Test(groups = "broker")
 public class ChecksumTest extends BrokerTestBase {
+
     @BeforeClass
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

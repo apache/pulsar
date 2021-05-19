@@ -200,6 +200,12 @@ PULSAR_PUBLIC const char *pulsar_message_get_topic_name(pulsar_message_t *messag
 
 PULSAR_PUBLIC int pulsar_message_get_redelivery_count(pulsar_message_t *message);
 
+PULSAR_PUBLIC int pulsar_message_has_schema_version(pulsar_message_t *message);
+
+PULSAR_PUBLIC const char *pulsar_message_get_schemaVersion(pulsar_message_t *message);
+
+PULSAR_PUBLIC void pulsar_message_set_schema_version(pulsar_message_t *message, const char *schemaVersion);
+
 #ifdef __cplusplus
 }
 #endif

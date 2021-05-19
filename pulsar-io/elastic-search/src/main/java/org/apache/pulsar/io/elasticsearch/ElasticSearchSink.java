@@ -41,10 +41,7 @@ import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
-import org.elasticsearch.client.Requests;
-import org.elasticsearch.client.RestClient;
-import org.elasticsearch.client.RestClientBuilder;
-import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.client.*;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentType;
 
@@ -86,7 +83,7 @@ public class ElasticSearchSink implements Sink<byte[]> {
         indexRequest.source(keyValue.getValue(), XContentType.JSON);
 
         try {
-        IndexResponse indexResponse = getClient().index(indexRequest);
+        IndexResponse indexResponse = getClient().index(indexRequest, RequestOptions.DEFAULT);
             if (indexResponse.getResult().equals(DocWriteResponse.Result.CREATED)) {
                 record.ack();
             } else {
@@ -105,7 +102,7 @@ public class ElasticSearchSink implements Sink<byte[]> {
     private void createIndexIfNeeded() throws IOException {
         GetIndexRequest request = new GetIndexRequest();
         request.indices(elasticSearchConfig.getIndexName());
-        boolean exists = getClient().indices().exists(request);
+        boolean exists = getClient().indices().exists(request, RequestOptions.DEFAULT);
 
         if (!exists) {
             CreateIndexRequest cireq = new CreateIndexRequest(elasticSearchConfig.getIndexName());
@@ -114,7 +111,7 @@ public class ElasticSearchSink implements Sink<byte[]> {
                .put("index.number_of_shards", elasticSearchConfig.getIndexNumberOfShards())
                .put("index.number_of_replicas", elasticSearchConfig.getIndexNumberOfReplicas()));
 
-            CreateIndexResponse ciresp = getClient().indices().create(cireq);
+            CreateIndexResponse ciresp = getClient().indices().create(cireq, RequestOptions.DEFAULT);
             if (!ciresp.isAcknowledged() || !ciresp.isShardsAcknowledged()) {
                 throw new RuntimeException("Unable to create index.");
             }

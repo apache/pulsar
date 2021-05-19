@@ -23,12 +23,16 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Builder interface that is used to configure and construct a {@link PulsarClient} instance.
  *
  * @since 2.0.0
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface ClientBuilder extends Cloneable {
 
     /**
@@ -354,12 +358,27 @@ public interface ClientBuilder extends Cloneable {
     /**
      * The SSL protocol used to generate the SSLContext.
      * Default setting is TLS, which is fine for most cases.
-     * Allowed values in recent JVMs are TLS, TLSv1.1 and TLSv1.2. SSL, SSLv2.
+     * Allowed values in recent JVMs are TLS, TLSv1.3, TLSv1.2 and TLSv1.1.
      *
      * @param tlsProtocols
      * @return the client builder instance
      */
     ClientBuilder tlsProtocols(Set<String> tlsProtocols);
+
+    /**
+     * Configure a limit on the amount of direct memory that will be allocated by this client instance.
+     * <p>
+     * <b>Note: at this moment this is only limiting the memory for producers.</b>
+     * <p>
+     * Setting this to 0 will disable the limit.
+     *
+     * @param memoryLimit
+     *            the limit
+     * @param unit
+     *            the memory limit size unit
+     * @return the client builder instance
+     */
+    ClientBuilder memoryLimit(long memoryLimit, SizeUnit unit);
 
     /**
      * Set the interval between each stat info <i>(default: 60 seconds)</i> Stats will be activated with positive

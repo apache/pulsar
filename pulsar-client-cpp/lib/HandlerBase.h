@@ -48,7 +48,7 @@ class HandlerBase {
      * get method for derived class to access weak ptr to connection so that they
      * have to check if they can get a shared_ptr out of it or not
      */
-    ClientConnectionWeakPtr getCnx() { return connection_; }
+    ClientConnectionWeakPtr getCnx() const { return connection_; }
 
    protected:
     /*
@@ -87,7 +87,8 @@ class HandlerBase {
     ClientImplWeakPtr client_;
     const std::string topic_;
     ClientConnectionWeakPtr connection_;
-    std::mutex mutex_;
+    ExecutorServicePtr executor_;
+    mutable std::mutex mutex_;
     std::mutex pendingReceiveMutex_;
     ptime creationTimestamp_;
 
@@ -105,6 +106,7 @@ class HandlerBase {
 
     State state_;
     Backoff backoff_;
+    uint64_t epoch_;
 
    private:
     DeadlineTimerPtr timer_;

@@ -20,11 +20,9 @@ package org.apache.pulsar.broker.namespace;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -38,7 +36,7 @@ public class OwnedBundle {
 
     /**
      * {@link #nsLock} is used to protect read/write access to {@link #active} flag and the corresponding code section
-     * based on {@link #active} flag
+     * based on {@link #active} flag.
      */
     private final ReentrantReadWriteLock nsLock = new ReentrantReadWriteLock();
     private static final int FALSE = 0;
@@ -48,9 +46,9 @@ public class OwnedBundle {
     private volatile int isActive = TRUE;
 
     /**
-     * constructor
+     * constructor.
      *
-     * @param nsname
+     * @param suName
      */
     public OwnedBundle(NamespaceBundle suName) {
         this.bundle = suName;
@@ -58,10 +56,9 @@ public class OwnedBundle {
     };
 
     /**
-     * Constructor to allow set initial active flag
+     * Constructor to allow set initial active flag.
      *
-     * @param nsname
-     * @param nssvc
+     * @param suName
      * @param active
      */
     public OwnedBundle(NamespaceBundle suName, boolean active) {
@@ -70,7 +67,7 @@ public class OwnedBundle {
     }
 
     /**
-     * Access to the namespace name
+     * Access to the namespace name.
      *
      * @return NamespaceName
      */
@@ -125,7 +122,7 @@ public class OwnedBundle {
         LOG.info("Disabling ownership: {}", this.bundle);
 
         // close topics forcefully
-        CompletableFuture<Void> future = pulsar.getNamespaceService().getOwnershipCache()
+        return pulsar.getNamespaceService().getOwnershipCache()
                 .updateBundleState(this.bundle, false)
                 .thenCompose(v -> pulsar.getBrokerService().unloadServiceUnit(bundle, true, timeout, timeoutUnit))
                 .handle((numUnloadedTopics, ex) -> {
@@ -135,28 +132,23 @@ public class OwnedBundle {
                     } else {
                         unloadedTopics.set(numUnloadedTopics);
                     }
+                    // clean up topics that failed to unload from the broker ownership cache
+                    pulsar.getBrokerService().cleanUnloadedTopicFromCache(bundle);
                     return null;
                 })
                 .thenCompose(v -> {
                     // delete ownership node on zk
                     return pulsar.getNamespaceService().getOwnershipCache().removeOwnership(bundle);
-                }).thenAccept(v -> {
+                }).whenComplete((ignored, ex) -> {
                     double unloadBundleTime = TimeUnit.NANOSECONDS
                             .toMillis((System.nanoTime() - unloadBundleStartTime));
                     LOG.info("Unloading {} namespace-bundle with {} topics completed in {} ms", this.bundle,
-                            unloadedTopics, unloadBundleTime);
+                            unloadedTopics, unloadBundleTime, ex);
                 });
-
-        future.exceptionally(ex -> {
-            // Failed to remove ownership node: enable namespace-bundle again so, it can serve new topics
-            pulsar.getNamespaceService().getOwnershipCache().updateBundleState(this.bundle, true);
-            return null;
-        });
-        return future;
     }
 
     /**
-     * Access method to the namespace state to check whether the namespace is active or not
+     * Access method to the namespace state to check whether the namespace is active or not.
      *
      * @return boolean value indicate that the namespace is active or not.
      */

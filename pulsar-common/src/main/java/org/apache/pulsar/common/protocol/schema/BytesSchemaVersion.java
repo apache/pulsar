@@ -152,8 +152,8 @@ public class BytesSchemaVersion implements SchemaVersion, Comparable<BytesSchema
      */
     public interface ByteArrayComparator extends Comparator<byte[]>, Serializable {
 
-        int compare(final byte[] buffer1, int offset1, int length1,
-                    final byte[] buffer2, int offset2, int length2);
+        int compare(byte[] buffer1, int offset1, int length1,
+                    byte[] buffer2, int offset2, int length2);
     }
 
     private static class LexicographicByteArrayComparator implements ByteArrayComparator {

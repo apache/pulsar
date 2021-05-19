@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -48,6 +49,7 @@ import com.google.common.collect.Sets;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 
+@Test(groups = "broker-api")
 public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(PartitionedProducerConsumerTest.class);
 
@@ -62,11 +64,11 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         executor = Executors.newFixedThreadPool(1, new DefaultThreadFactory("PartitionedProducerConsumerTest"));
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
-        executor.shutdown();
+        executor.shutdownNow();
     }
 
     @Test(timeOut = 30000)
@@ -332,6 +334,58 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         producer.close();
         pulsarClient.close();
         log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test(timeOut = 30000)
+    public void testPauseAndResumeWithUnloading() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/pause-and-resume-with-unloading"
+                + System.currentTimeMillis();
+        final String subName = "sub";
+        final int receiverQueueSize = 20;
+        final int numPartitions = 2;
+        final int numMessages = receiverQueueSize * numPartitions;
+
+        PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
+        admin.topics().createPartitionedTopic(topicName, numPartitions);
+
+        AtomicReference<CountDownLatch> latch = new AtomicReference<>(new CountDownLatch(numMessages));
+        AtomicInteger received = new AtomicInteger();
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                .receiverQueueSize(receiverQueueSize).messageListener((c1, msg) -> {
+                    assertNotNull(msg, "Message cannot be null");
+                    c1.acknowledgeAsync(msg);
+                    received.incrementAndGet();
+                    latch.get().countDown();
+                }).subscribe();
+        consumer.pause();
+
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).enableBatching(false).create();
+
+        for (int i = 0; i < numMessages * 2; i++) {
+            producer.send(("my-message-" + i).getBytes());
+        }
+
+        // Paused consumer receives only `numMessages` messages
+        assertTrue(latch.get().await(numMessages, TimeUnit.SECONDS), "Timed out waiting for message listener acks");
+
+        // Make sure no flow permits are sent when the consumer reconnects to the topic
+        for (int i = 0; i < numPartitions; i++) {
+            String partition = TopicName.get(topicName).getPartition(i).toString();
+            admin.topics().unload(partition);
+        }
+
+        Thread.sleep(2000);
+        assertEquals(received.intValue(), numMessages, "Consumer received messages while paused");
+
+        latch.set(new CountDownLatch(numMessages));
+        consumer.resume();
+        assertTrue(latch.get().await(numMessages, TimeUnit.SECONDS), "Timed out waiting for message listener acks");
+
+        consumer.unsubscribe();
+        producer.close();
+        pulsarClient.close();
+        admin.topics().deletePartitionedTopic(topicName, true);
     }
 
     @Test(timeOut = 30000)
@@ -846,7 +900,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
     }
 
 
-    private class AlwaysTwoMessageRouter implements MessageRouter {
+    private static class AlwaysTwoMessageRouter implements MessageRouter {
         @Override
         public int choosePartition(Message<?> msg, TopicMetadata metadata) {
             return 2;

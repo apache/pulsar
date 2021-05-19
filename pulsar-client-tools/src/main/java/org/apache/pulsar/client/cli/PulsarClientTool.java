@@ -26,6 +26,7 @@ import java.util.Arrays;
 import java.util.Properties;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -33,6 +34,8 @@ import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
 
+import com.beust.jcommander.DefaultUsageFormatter;
+import com.beust.jcommander.IUsageFormatter;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
@@ -63,6 +66,9 @@ public class PulsarClientTool {
             "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
     String authParams = null;
 
+    @Parameter(names = { "-v", "--version" }, description = "Get version of pulsar client")
+    boolean version;
+
     @Parameter(names = { "-h", "--help", }, help = true, description = "Show this help.")
     boolean help;
 
@@ -77,8 +83,10 @@ public class PulsarClientTool {
     String tlsTrustStorePassword = null;
 
     JCommander commandParser;
+    IUsageFormatter usageFormatter;
     CmdProduce produceCommand;
     CmdConsume consumeCommand;
+    CmdGenerateDocumentation generateDocumentation;
 
     public PulsarClientTool(Properties properties) {
         this.serviceURL = StringUtils.isNotBlank(properties.getProperty("brokerServiceUrl"))
@@ -103,12 +111,15 @@ public class PulsarClientTool {
 
         produceCommand = new CmdProduce();
         consumeCommand = new CmdConsume();
+        generateDocumentation = new CmdGenerateDocumentation();
 
         this.commandParser = new JCommander();
+        this.usageFormatter = new DefaultUsageFormatter(this.commandParser);
         commandParser.setProgramName("pulsar-client");
         commandParser.addObject(this);
         commandParser.addCommand("produce", produceCommand);
         commandParser.addCommand("consume", consumeCommand);
+        commandParser.addCommand("generate_documentation", generateDocumentation);
     }
 
     private void updateConfig() throws UnsupportedAuthenticationException {
@@ -123,6 +134,7 @@ public class PulsarClientTool {
         }
         clientBuilder.allowTlsInsecureConnection(this.tlsAllowInsecureConnection);
         clientBuilder.tlsTrustCertsFilePath(this.tlsTrustCertsFilePath);
+        clientBuilder.enableTlsHostnameVerification(this.tlsEnableHostnameVerification);
         clientBuilder.serviceUrl(serviceURL);
 
         clientBuilder.useKeyStoreTls(useKeyStoreTls)
@@ -150,6 +162,11 @@ public class PulsarClientTool {
                 return -1;
             }
 
+            if (version) {
+                System.out.println("Current version of pulsar client is: " + PulsarVersion.getVersion());
+                return 0;
+            }
+
             if (help) {
                 commandParser.usage();
                 return 0;
@@ -169,6 +186,8 @@ public class PulsarClientTool {
                 return produceCommand.run();
             } else if ("consume".equals(chosenCommand)) {
                 return consumeCommand.run();
+            } else if ("generate_documentation".equals(chosenCommand)) {
+                return generateDocumentation.run();
             } else {
                 commandParser.usage();
                 return -1;
@@ -177,7 +196,7 @@ public class PulsarClientTool {
             System.out.println(e.getMessage());
             String chosenCommand = commandParser.getParsedCommand();
             if (e instanceof ParameterException) {
-                commandParser.usage(chosenCommand);
+                usageFormatter.usage(chosenCommand);
             } else {
                 e.printStackTrace();
             }

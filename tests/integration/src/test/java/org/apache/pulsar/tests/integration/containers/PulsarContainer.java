@@ -22,8 +22,10 @@ import static java.time.temporal.ChronoUnit.SECONDS;
 
 import java.time.Duration;
 import java.util.Objects;
+import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.tests.integration.utils.DockerUtils;
+import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy;
 import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
 
@@ -40,13 +42,24 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
     public static final int BROKER_PORT = 6650;
     public static final int BROKER_HTTP_PORT = 8080;
 
-    public static final String DEFAULT_IMAGE_NAME = "apachepulsar/pulsar-test-latest-version:latest";
+    public static final String DEFAULT_IMAGE_NAME = System.getenv().getOrDefault("PULSAR_TEST_IMAGE_NAME",
+            "apachepulsar/pulsar-test-latest-version:latest");
     public static final String PULSAR_2_5_IMAGE_NAME = "apachepulsar/pulsar:2.5.0";
     public static final String PULSAR_2_4_IMAGE_NAME = "apachepulsar/pulsar:2.4.0";
     public static final String PULSAR_2_3_IMAGE_NAME = "apachepulsar/pulsar:2.3.0";
     public static final String PULSAR_2_2_IMAGE_NAME = "apachepulsar/pulsar:2.2.0";
     public static final String PULSAR_2_1_IMAGE_NAME = "apachepulsar/pulsar:2.1.0";
     public static final String PULSAR_2_0_IMAGE_NAME = "apachepulsar/pulsar:2.0.0";
+
+    /**
+     * For debugging purposes, it is useful to have the ability to leave containers running.
+     * This mode can be activated by setting environment variables
+     * PULSAR_CONTAINERS_LEAVE_RUNNING=true and TESTCONTAINERS_REUSE_ENABLE=true
+     * After debugging, one can use this command to kill all containers that were left running:
+     * docker kill $(docker ps -q --filter "label=pulsarcontainer=true")
+     */
+    public static final boolean PULSAR_CONTAINERS_LEAVE_RUNNING =
+            Boolean.parseBoolean(System.getenv("PULSAR_CONTAINERS_LEAVE_RUNNING"));
 
     private final String hostname;
     private final String serviceName;
@@ -71,13 +84,8 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
                            int servicePort,
                            int httpPort,
                            String httpPath) {
-        super(clusterName, DEFAULT_IMAGE_NAME);
-        this.hostname = hostname;
-        this.serviceName = serviceName;
-        this.serviceEntryPoint = serviceEntryPoint;
-        this.servicePort = servicePort;
-        this.httpPort = httpPort;
-        this.httpPath = httpPath;
+        this(clusterName, hostname, serviceName, serviceEntryPoint, servicePort, httpPort, httpPath,
+                DEFAULT_IMAGE_NAME);
     }
 
     public PulsarContainer(String clusterName,
@@ -95,18 +103,41 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
         this.servicePort = servicePort;
         this.httpPort = httpPort;
         this.httpPath = httpPath;
+
+        configureLeaveContainerRunning(this);
+    }
+
+    public static void configureLeaveContainerRunning(
+            GenericContainer<?> container) {
+        if (PULSAR_CONTAINERS_LEAVE_RUNNING) {
+            // use Testcontainers reuse containers feature to leave the container running
+            container.withReuse(true);
+            // add label that can be used to find containers that are left running.
+            container.withLabel("pulsarcontainer", "true");
+            // add a random label to prevent reuse of containers
+            container.withLabel("pulsarcontainer.random", UUID.randomUUID().toString());
+        }
     }
 
     @Override
     protected void beforeStop() {
         super.beforeStop();
-        if (null != containerId) {
+        if (null != getContainerId()) {
             DockerUtils.dumpContainerDirToTargetCompressed(
                 getDockerClient(),
-                containerId,
+                getContainerId(),
                 "/var/log/pulsar"
             );
         }
+    }
+
+    @Override
+    public void stop() {
+        if (PULSAR_CONTAINERS_LEAVE_RUNNING) {
+            log.warn("Ignoring stop due to PULSAR_CONTAINERS_LEAVE_RUNNING=true.");
+            return;
+        }
+        super.stop();
     }
 
     @Override
@@ -125,6 +156,8 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
     }
 
     protected void beforeStart() {}
+
+    protected void afterStart() {}
 
     @Override
     public void start() {
@@ -146,7 +179,8 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
 
         beforeStart();
         super.start();
-        log.info("Start pulsar service {} at container {}", serviceName, containerName);
+        afterStart();
+        log.info("[{}] Start pulsar service {} at container {}", getContainerName(), serviceName, getContainerId());
     }
 
     @Override
@@ -156,13 +190,13 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
         }
 
         PulsarContainer another = (PulsarContainer) o;
-        return containerName.equals(another.containerName)
+        return getContainerId().equals(another.getContainerId())
             && super.equals(another);
     }
 
     @Override
     public int hashCode() {
         return 31 * super.hashCode() + Objects.hash(
-            containerName);
+                getContainerId());
     }
 }

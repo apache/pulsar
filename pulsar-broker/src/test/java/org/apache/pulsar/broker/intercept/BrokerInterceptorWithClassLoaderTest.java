@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.intercept;
 
-import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.testng.annotations.Test;
 
@@ -30,17 +30,17 @@ import static org.mockito.Mockito.verify;
 /**
  * Unit test {@link BrokerInterceptorWithClassLoader}.
  */
+@Test(groups = "broker")
 public class BrokerInterceptorWithClassLoaderTest {
 
-    @Test
     public void testWrapper() throws Exception {
         BrokerInterceptor h = mock(BrokerInterceptor.class);
         NarClassLoader loader = mock(NarClassLoader.class);
         BrokerInterceptorWithClassLoader wrapper = new BrokerInterceptorWithClassLoader(h, loader);
 
-        ServiceConfiguration conf = new ServiceConfiguration();
-        wrapper.initialize(conf);
-        verify(h, times(1)).initialize(same(conf));
+        PulsarService pulsarService = mock(PulsarService.class);
+        wrapper.initialize(pulsarService);
+        verify(h, times(1)).initialize(same(pulsarService));
     }
 
 }

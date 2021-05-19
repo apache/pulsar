@@ -54,6 +54,8 @@ class ClientCredentialsFlow extends FlowBase {
 
     private transient ClientCredentialsExchanger exchanger;
 
+    private boolean initialized = false;
+
     @Builder
     public ClientCredentialsFlow(URL issuerUrl, String audience, String privateKey) {
         super(issuerUrl);
@@ -68,6 +70,7 @@ class ClientCredentialsFlow extends FlowBase {
 
         URL tokenUrl = this.metadata.getTokenEndpoint();
         this.exchanger = new TokenClient(tokenUrl);
+        initialized = true;
     }
 
     public TokenResult authenticate() throws PulsarClientException {
@@ -86,6 +89,9 @@ class ClientCredentialsFlow extends FlowBase {
                 .audience(this.audience)
                 .build();
         TokenResult tr;
+        if (!initialized) {
+            initialize();
+        }
         try {
             tr = this.exchanger.exchangeClientCredentials(req);
         } catch (TokenExchangeException | IOException e) {

@@ -27,20 +27,20 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class NonDurableCursorImpl extends ManagedCursorImpl {
 
     NonDurableCursorImpl(BookKeeper bookkeeper, ManagedLedgerConfig config, ManagedLedgerImpl ledger, String cursorName,
-                         PositionImpl startCursorPosition, PulsarApi.CommandSubscribe.InitialPosition initialPosition) {
+                         PositionImpl startCursorPosition, CommandSubscribe.InitialPosition initialPosition) {
         super(bookkeeper, config, ledger, cursorName);
 
         // Compare with "latest" position marker by using only the ledger id. Since the C++ client is using 48bits to
         // store the entryId, it's not able to pass a Long.max() as entryId. In this case there's no point to require
         // both ledgerId and entryId to be Long.max()
-        if (startCursorPosition == null || startCursorPosition.getLedgerId() == PositionImpl.latest.getLedgerId()) {
+        if (startCursorPosition == null || startCursorPosition.compareTo(ledger.lastConfirmedEntry) > 0) {
             // Start from last entry
             switch (initialPosition) {
                 case Latest:

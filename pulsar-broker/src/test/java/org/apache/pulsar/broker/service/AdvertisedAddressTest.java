@@ -33,6 +33,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class AdvertisedAddressTest {
 
     LocalBookkeeperEnsemble bkEnsemble;
@@ -42,23 +43,27 @@ public class AdvertisedAddressTest {
 
     @BeforeMethod
     public void setup() throws Exception {
-        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble = new LocalBookkeeperEnsemble(1, 0, () -> 0);
         bkEnsemble.start();
 
         ServiceConfiguration config = new ServiceConfiguration();
+        config.setBrokerShutdownTimeoutMs(0L);
         config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
         config.setWebServicePort(Optional.ofNullable(0));
         config.setClusterName("usc");
         config.setAdvertisedAddress("localhost");
         config.setBrokerServicePort(Optional.ofNullable(0));
         config.setAdvertisedAddress(advertisedAddress);
+        config.setManagedLedgerDefaultEnsembleSize(1);
+        config.setManagedLedgerDefaultWriteQuorum(1);
+        config.setManagedLedgerDefaultAckQuorum(1);
         config.setManagedLedgerMaxEntriesPerLedger(5);
         config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
         pulsar = new PulsarService(config);
         pulsar.start();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void shutdown() throws Exception {
         pulsar.close();
         bkEnsemble.stop();

@@ -45,6 +45,8 @@ struct ConsumerConfigurationImpl {
     InitialPosition subscriptionInitialPosition;
     int patternAutoDiscoveryPeriod;
     std::map<std::string, std::string> properties;
+    KeySharedPolicy keySharedPolicy;
+
     ConsumerConfigurationImpl()
         : schemaInfo(),
           unAckedMessagesTimeoutMs(0),
@@ -63,7 +65,8 @@ struct ConsumerConfigurationImpl {
           readCompacted(false),
           subscriptionInitialPosition(InitialPosition::InitialPositionLatest),
           patternAutoDiscoveryPeriod(60),
-          properties() {}
+          properties(),
+          keySharedPolicy() {}
 };
 }  // namespace pulsar
 #endif /* LIB_CONSUMERCONFIGURATIONIMPL_H_ */

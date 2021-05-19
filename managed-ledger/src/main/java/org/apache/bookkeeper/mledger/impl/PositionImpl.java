@@ -19,7 +19,6 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-
 import com.google.common.base.Objects;
 import com.google.common.collect.ComparisonChain;
 import org.apache.bookkeeper.mledger.Position;
@@ -73,6 +72,14 @@ public class PositionImpl implements Position, Comparable<PositionImpl> {
         return new PositionImpl(other);
     }
 
+    public long[] getAckSet() {
+        return ackSet;
+    }
+
+    public void setAckSet(long[] ackSet) {
+        this.ackSet = ackSet;
+    }
+
     public long getLedgerId() {
         return ledgerId;
     }
@@ -117,8 +124,11 @@ public class PositionImpl implements Position, Comparable<PositionImpl> {
             PositionImpl other = (PositionImpl) obj;
             return ledgerId == other.ledgerId && entryId == other.entryId;
         }
-
         return false;
+    }
+
+    public boolean hasAckSet() {
+        return ackSet != null;
     }
 
     public PositionInfo getPositionInfo() {

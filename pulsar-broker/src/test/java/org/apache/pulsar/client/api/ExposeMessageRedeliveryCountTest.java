@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+@Test(groups = "broker-api")
 public class ExposeMessageRedeliveryCountTest extends ProducerConsumerBase {
 
     @BeforeMethod
@@ -37,7 +38,7 @@ public class ExposeMessageRedeliveryCountTest extends ProducerConsumerBase {
         super.producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -118,7 +119,7 @@ public class ExposeMessageRedeliveryCountTest extends ProducerConsumerBase {
     }
 
     @Test(timeOut = 30000)
-    public void testRedeliveryCountWhenConsumerDisconnected() throws PulsarClientException, InterruptedException {
+    public void testRedeliveryCountWhenConsumerDisconnected() throws PulsarClientException {
 
         String topic = "persistent://my-property/my-ns/testRedeliveryCountWhenConsumerDisconnected";
 

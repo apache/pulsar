@@ -11,7 +11,8 @@ Permissions in Pulsar are managed at the [namespace](reference-terminology.md#na
 
 You can grant permissions to specific roles for lists of operations such as `produce` and `consume`.
 
-### pulsar-admin
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
 
 Use the [`grant-permission`](reference-pulsar-admin.md#grant-permission) subcommand and specify a namespace, actions using the `--actions` flag, and a role using the `--role` flag:
 
@@ -52,21 +53,23 @@ $ pulsar-admin namespaces grant-permission test-tenant/ns1 \
 In this case, only the role `my.*.role` has permissions.  
 Roles `my.1.role`, `my.2.role`, `my.foo.role`, `my.bar.role`, etc. **cannot** produce and consume.
 
-### REST API
+<!--REST API-->
 
-{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/permissions/:role|operation/grantPermissionOnNamespace}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/permissions/:role|operation/grantPermissionOnNamespace?version=[[pulsar:version_number]]}
 
-### Java
+<!--Java-->
 
 ```java
 admin.namespaces().grantPermissionOnNamespace(namespace, role, getAuthActions(actions));
 ```
+<!--END_DOCUSAURUS_CODE_TABS-->
 
 ## Get permissions
 
 You can see which permissions have been granted to which roles in a namespace.
 
-### pulsar-admin
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
 
 Use the [`permissions`](reference-pulsar-admin#permissions) subcommand and specify a namespace:
 
@@ -80,21 +83,23 @@ $ pulsar-admin namespaces permissions test-tenant/ns1
 }   
 ```
 
-### REST API
+<!--REST API-->
 
-{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/permissions|operation/getPermissions}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/permissions|operation/getPermissions?version=[[pulsar:version_number]]}
 
-### Java
+<!--Java-->
 
 ```java
 admin.namespaces().getPermissions(namespace);
 ```
+<!--END_DOCUSAURUS_CODE_TABS-->
 
 ## Revoke permissions
 
 You can revoke permissions from specific roles, which means that those roles will no longer have access to the specified namespace.
 
-### pulsar-admin
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
 
 Use the [`revoke-permission`](reference-pulsar-admin.md#revoke-permission) subcommand and specify a namespace and a role using the `--role` flag:
 
@@ -103,12 +108,13 @@ $ pulsar-admin namespaces revoke-permission test-tenant/ns1 \
   --role admin10
 ```
 
-### REST API
+<!--REST API-->
 
-{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/permissions/:role|operation/revokePermissionsOnNamespace}
+{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/permissions/:role|operation/revokePermissionsOnNamespace?version=[[pulsar:version_number]]}
 
-### Java
+<!--Java-->
 
 ```java
 admin.namespaces().revokePermissionsOnNamespace(namespace, role);
 ```
+<!--END_DOCUSAURUS_CODE_TABS-->

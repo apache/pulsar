@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl;
 
 import com.google.common.annotations.VisibleForTesting;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 
 import java.time.Clock;
 import java.util.Random;

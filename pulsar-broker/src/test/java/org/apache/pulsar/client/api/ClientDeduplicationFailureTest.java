@@ -20,14 +20,11 @@ package org.apache.pulsar.client.api;
 
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
 import static org.mockito.Mockito.spy;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
+import static org.testng.Assert.*;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.LinkedList;
@@ -40,9 +37,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
@@ -61,6 +56,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
+@Test(groups = "quarantine")
 public class ClientDeduplicationFailureTest {
     LocalBookkeeperEnsemble bkEnsemble;
 
@@ -73,7 +69,7 @@ public class ClientDeduplicationFailureTest {
     final String tenant = "external-repl-prop";
     String primaryHost;
 
-    @BeforeMethod(timeOut = 300000)
+    @BeforeMethod(timeOut = 300000, alwaysRun = true)
     void setup(Method method) throws Exception {
         log.info("--- Setting up method {} ---", method.getName());
 
@@ -85,6 +81,7 @@ public class ClientDeduplicationFailureTest {
         config.setClusterName("use");
         config.setWebServicePort(Optional.of(0));
         config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setBrokerShutdownTimeoutMs(0L);
         config.setBrokerServicePort(Optional.of(0));
         config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
         config.setTlsAllowInsecureConnection(true);
@@ -112,6 +109,9 @@ public class ClientDeduplicationFailureTest {
         ClusterData clusterData = new ClusterData(url.toString());
         admin.clusters().createCluster(config.getClusterName(), clusterData);
 
+        if (pulsarClient != null) {
+            pulsarClient.shutdown();
+        }
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).maxBackoffInterval(1, TimeUnit.SECONDS);
         pulsarClient = clientBuilder.build();
 
@@ -120,7 +120,7 @@ public class ClientDeduplicationFailureTest {
         admin.tenants().createTenant(tenant, tenantInfo);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
         pulsarClient.close();
@@ -135,7 +135,7 @@ public class ClientDeduplicationFailureTest {
         private Thread thread;
         private Producer<String> producer;
         private long i = 1;
-        private AtomicLong atomicLong = new AtomicLong(0);
+        private final AtomicLong atomicLong = new AtomicLong(0);
         private CompletableFuture<MessageId> lastMessageFuture;
 
         public ProducerThread(Producer<String> producer) {
@@ -184,7 +184,7 @@ public class ClientDeduplicationFailureTest {
         }
     }
 
-    @Test(timeOut = 300000)
+    @Test(timeOut = 300000, groups = "quarantine")
     public void testClientDeduplicationCorrectnessWithFailure() throws Exception {
         final String namespacePortion = "dedup";
         final String replNamespace = tenant + "/" + namespacePortion;
@@ -234,7 +234,8 @@ public class ClientDeduplicationFailureTest {
         producer.newMessage().sequenceId(producerThread.getLastSeqId() + 1).value("end").send();
         producer.close();
 
-        Reader<String> reader = pulsarClient.newReader(Schema.STRING).startMessageId(MessageId.earliest).topic(sourceTopic).create();
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING).startMessageId(MessageId.earliest)
+                .topic(sourceTopic).create();
         Message<String> prevMessage = null;
         Message<String> message = null;
         int count = 0;
@@ -259,7 +260,7 @@ public class ClientDeduplicationFailureTest {
 
         log.info("# of messages read: {}", count);
 
-        assertTrue(prevMessage != null);
+        assertNotNull(prevMessage);
         assertEquals(prevMessage.getSequenceId(), producerThread.getLastSeqId());
     }
 
@@ -317,13 +318,13 @@ public class ClientDeduplicationFailureTest {
         }, 5, 200);
 
         TopicStats topicStats1 = admin.topics().getStats(sourceTopic);
-        assertTrue(topicStats1!= null);
-        assertTrue(topicStats1.subscriptions.get(subscriptionName1) != null);
+        assertNotNull(topicStats1);
+        assertNotNull(topicStats1.subscriptions.get(subscriptionName1));
         assertEquals(topicStats1.subscriptions.get(subscriptionName1).consumers.size(), 1);
         assertEquals(topicStats1.subscriptions.get(subscriptionName1).consumers.get(0).consumerName, consumerName1);
         TopicStats topicStats2 = admin.topics().getStats(sourceTopic);
-        assertTrue(topicStats2!= null);
-        assertTrue(topicStats2.subscriptions.get(subscriptionName2) != null);
+        assertNotNull(topicStats2);
+        assertNotNull(topicStats2.subscriptions.get(subscriptionName2));
         assertEquals(topicStats2.subscriptions.get(subscriptionName2).consumers.size(), 1);
         assertEquals(topicStats2.subscriptions.get(subscriptionName2).consumers.get(0).consumerName, consumerName2);
 
@@ -398,11 +399,11 @@ public class ClientDeduplicationFailureTest {
         retryStrategically((test) -> msgRecvd.size() >= 20, 5, 200);
 
         assertEquals(msgRecvd.size(), 20);
-        for (int i=0; i<10; i++) {
+        for (int i = 0; i < 10; i++) {
             assertEquals(msgRecvd.get(i).getValue(), "foo-" + i);
             assertEquals(msgRecvd.get(i).getSequenceId(), i);
         }
-        for (int i=10; i<20; i++) {
+        for (int i = 10; i <20; i++) {
             assertEquals(msgRecvd.get(i).getValue(), "foo-" + (i + 10));
             assertEquals(msgRecvd.get(i).getSequenceId(), i + 10);
         }

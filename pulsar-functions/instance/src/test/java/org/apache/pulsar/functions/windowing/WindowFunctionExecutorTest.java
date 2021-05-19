@@ -121,7 +121,7 @@ public class WindowFunctionExecutorTest {
         Mockito.doReturn("test-sink-topic").when(context).getOutputTopic();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void cleanUp() {
         testWindowedPulsarFunction.shutdown();
     }

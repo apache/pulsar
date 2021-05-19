@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service.schema.validator;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 

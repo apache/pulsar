@@ -115,4 +115,4 @@ The following example shows how to define an Avro schema using the `GenericSchem
 
 ## Managing Schemas
 
-You can use Pulsar's [admin tools](admin-api-schemas.md) for managing schemas for topics.
+You can use Pulsar admin tools to manage schemas for topics.

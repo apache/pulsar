@@ -107,13 +107,17 @@ class PULSAR_PUBLIC Message {
      * Set the unique message ID.
      *
      */
-    void setMessageId(const MessageId& messageID) const;
+    void setMessageId(const MessageId& messageId) const;
 
     /**
      * Get the partition key for this message
      * @return key string that is hashed to determine message's topic partition
      */
     const std::string& getPartitionKey() const;
+
+    /**
+     * @return true if the message has a partition key
+     */
     bool hasPartitionKey() const;
 
     /**
@@ -152,6 +156,16 @@ class PULSAR_PUBLIC Message {
      */
     const int getRedeliveryCount() const;
 
+    /**
+     * Check if schema version exists
+     */
+    bool hasSchemaVersion() const;
+
+    /**
+     * Get the schema version
+     */
+    const std::string& getSchemaVersion() const;
+
     bool operator==(const Message& msg) const;
 
    private:
@@ -162,7 +176,7 @@ class PULSAR_PUBLIC Message {
     Message(const proto::CommandMessage& msg, proto::MessageMetadata& data, SharedBuffer& payload,
             int32_t partition);
     /// Used for Batch Messages
-    Message(const MessageId& messageID, proto::MessageMetadata& metadata, SharedBuffer& payload,
+    Message(const MessageId& messageId, proto::MessageMetadata& metadata, SharedBuffer& payload,
             proto::SingleMessageMetadata& singleMetadata, const std::string& topicName);
     friend class PartitionedProducerImpl;
     friend class PartitionedConsumerImpl;
@@ -171,10 +185,11 @@ class PULSAR_PUBLIC Message {
     friend class ConsumerImpl;
     friend class ProducerImpl;
     friend class Commands;
-    friend class BatchMessageContainer;
+    friend class BatchMessageContainerBase;
     friend class BatchAcknowledgementTracker;
     friend class PulsarWrapper;
     friend class MessageBatch;
+    friend struct OpSendMsg;
 
     friend PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, const StringMap& map);
     friend PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, const Message& msg);

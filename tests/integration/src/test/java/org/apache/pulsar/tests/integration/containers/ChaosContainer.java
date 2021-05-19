@@ -47,14 +47,14 @@ public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends Generic
     }
 
     protected void beforeStop() {
-        if (null == containerId) {
+        if (null == getContainerId()) {
             return;
         }
 
         // dump the container log
         DockerUtils.dumpContainerLogToTarget(
             getDockerClient(),
-            containerId
+            getContainerId()
         );
     }
 
@@ -64,43 +64,8 @@ public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends Generic
         super.stop();
     }
 
-    public void tailContainerLog() {
-        CompletableFuture.runAsync(() -> {
-            while (null == containerId) {
-                try {
-                    TimeUnit.MILLISECONDS.sleep(100);
-                } catch (InterruptedException e) {
-                    return;
-                }
-            }
-
-            LogContainerCmd logContainerCmd = this.dockerClient.logContainerCmd(containerId);
-            logContainerCmd.withStdOut(true).withStdErr(true).withFollowStream(true);
-            logContainerCmd.exec(new LogContainerResultCallback() {
-                @Override
-                public void onNext(Frame item) {
-                    log.info(new String(item.getPayload(), UTF_8));
-                }
-            });
-        });
-    }
-
-    public String getContainerLog() {
-        StringBuilder sb = new StringBuilder();
-
-        LogContainerCmd logContainerCmd = this.dockerClient.logContainerCmd(containerId);
-        logContainerCmd.withStdOut(true).withStdErr(true);
-        try {
-            logContainerCmd.exec(new LogContainerResultCallback() {
-                @Override
-                public void onNext(Frame item) {
-                    sb.append(new String(item.getPayload(), UTF_8));
-                }
-            }).awaitCompletion();
-        } catch (InterruptedException e) {
-
-        }
-        return sb.toString();
+    protected void tailContainerLog() {
+        withLogConsumer(item -> log.info(item.getUtf8String()));
     }
 
     public void putFile(String path, byte[] contents) throws Exception {

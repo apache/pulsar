@@ -18,37 +18,37 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicPoliciesCacheNotInitException;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.FutureUtil;
 
-import java.util.concurrent.CompletableFuture;
-
 /**
- * Topic policies service
+ * Topic policies service.
  */
 public interface TopicPoliciesService {
 
     TopicPoliciesService DISABLED = new TopicPoliciesServiceDisabled();
 
     /**
-     * Update policies for a topic async
+     * Update policies for a topic async.
+     *
      * @param topicName topic name
-     * @param policies policies for the topic name
+     * @param policies  policies for the topic name
      */
     CompletableFuture<Void> updateTopicPoliciesAsync(TopicName topicName, TopicPolicies policies);
 
     /**
-     * Get policies for a topic async
+     * Get policies for a topic async.
      * @param topicName topic name
      * @return future of the topic policies
      */
     TopicPolicies getTopicPolicies(TopicName topicName) throws TopicPoliciesCacheNotInitException;
 
     /**
-     * Get policies for a topic without cache async
+     * Get policies for a topic without cache async.
      * @param topicName topic name
      * @return future of the topic policies
      */
@@ -72,6 +72,25 @@ public interface TopicPoliciesService {
      * Start the topic policy service.
      */
     void start();
+
+    /**
+     * whether the cache has been initialized.
+     * @param topicName
+     * @return
+     */
+    boolean cacheIsInitialized(TopicName topicName);
+
+    void registerListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener);
+
+    void unregisterListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener);
+
+    /**
+     * clean cache and listeners in TopicPolicies and so on.
+     * @param topicName
+     */
+    default void clean(TopicName topicName) {
+        throw new UnsupportedOperationException("Clean is not supported by default");
+    }
 
     class TopicPoliciesServiceDisabled implements TopicPoliciesService {
 
@@ -104,6 +123,26 @@ public interface TopicPoliciesService {
 
         @Override
         public void start() {
+            //No-op
+        }
+
+        @Override
+        public boolean cacheIsInitialized(TopicName topicName) {
+            return false;
+        }
+
+        @Override
+        public void registerListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener) {
+            //No-op
+        }
+
+        @Override
+        public void unregisterListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener) {
+            //No-op
+        }
+
+        @Override
+        public void clean(TopicName topicName) {
             //No-op
         }
     }

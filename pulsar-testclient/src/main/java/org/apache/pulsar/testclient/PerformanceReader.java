@@ -18,9 +18,18 @@
  */
 package org.apache.pulsar.testclient;
 
+import org.HdrHistogram.Histogram;
+import org.HdrHistogram.Recorder;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
+import com.beust.jcommander.Parameters;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
+import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.RateLimiter;
 import java.io.FileInputStream;
 import java.text.DecimalFormat;
 import java.util.List;
@@ -28,7 +37,6 @@ import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
-
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -41,19 +49,18 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectWriter;
-import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.RateLimiter;
-
 public class PerformanceReader {
     private static final LongAdder messagesReceived = new LongAdder();
     private static final LongAdder bytesReceived = new LongAdder();
     private static final DecimalFormat dec = new DecimalFormat("0.000");
 
+    private static final LongAdder totalMessagesReceived = new LongAdder();
+    private static final LongAdder totalBytesReceived = new LongAdder();
+
+    private static Recorder recorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
+    private static Recorder cumulativeRecorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
+
+    @Parameters(commandDescription = "Test pulsar reader performance.")
     static class Arguments {
 
         @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)
@@ -117,6 +124,10 @@ public class PerformanceReader {
         @Parameter(names = { "-time",
                 "--test-duration" }, description = "Test duration in secs. If 0, it will keep consuming")
         public long testTime = 0;
+
+        @Parameter(names = {"-ioThreads", "--num-io-threads"}, description = "Set the number of threads to be " +
+                "used for handling connections to brokers, default is 1 thread")
+        public int ioThreads = 1;
     }
 
     public static void main(String[] args) throws Exception {
@@ -129,18 +140,28 @@ public class PerformanceReader {
         } catch (ParameterException e) {
             System.out.println(e.getMessage());
             jc.usage();
-            System.exit(-1);
+            PerfClientUtils.exit(-1);
         }
 
         if (arguments.help) {
             jc.usage();
-            System.exit(-1);
+            PerfClientUtils.exit(-1);
         }
 
-        if (arguments.topic.size() != 1) {
-            System.out.println("Only one topic name is allowed");
-            jc.usage();
-            System.exit(-1);
+        if (arguments.topic != null && arguments.topic.size() != arguments.numTopics) {
+            // keep compatibility with the previous version
+            if (arguments.topic.size() == 1) {
+                String prefixTopicName = arguments.topic.get(0);
+                List<String> defaultTopics = Lists.newArrayList();
+                for (int i = 0; i < arguments.numTopics; i++) {
+                    defaultTopics.add(String.format("%s-%d", prefixTopicName, i));
+                }
+                arguments.topic = defaultTopics;
+            } else {
+                System.out.println("The size of topics list should be equal to --num-topics");
+                jc.usage();
+                PerfClientUtils.exit(-1);
+            }
         }
 
         if (arguments.confFile != null) {
@@ -183,11 +204,10 @@ public class PerformanceReader {
         }
 
         // Dump config variables
+        PerfClientUtils.printJVMInformation(log);
         ObjectMapper m = new ObjectMapper();
         ObjectWriter w = m.writerWithDefaultPrettyPrinter();
         log.info("Starting Pulsar performance reader with config: {}", w.writeValueAsString(arguments));
-
-        final TopicName prefixTopicName = TopicName.get(arguments.topic.get(0));
 
         final RateLimiter limiter = arguments.rate > 0 ? RateLimiter.create(arguments.rate) : null;
         long startTime = System.nanoTime();
@@ -196,14 +216,23 @@ public class PerformanceReader {
             if (arguments.testTime > 0) {
                 if (System.nanoTime() > testEndTime) {
                     log.info("------------------- DONE -----------------------");
-                    System.exit(0);
+                    PerfClientUtils.exit(0);
                 }
             }
             messagesReceived.increment();
             bytesReceived.add(msg.getData().length);
 
+            totalMessagesReceived.increment();
+            totalBytesReceived.add(msg.getData().length);
+
             if (limiter != null) {
                 limiter.acquire();
+            }
+
+            long latencyMillis = System.currentTimeMillis() - msg.getPublishTime();
+            if (latencyMillis >= 0) {
+                recorder.recordValue(latencyMillis);
+                cumulativeRecorder.recordValue(latencyMillis);
             }
         };
 
@@ -211,7 +240,7 @@ public class PerformanceReader {
                 .serviceUrl(arguments.serviceURL) //
                 .connectionsPerBroker(arguments.maxConnections) //
                 .statsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS) //
-                .ioThreads(Runtime.getRuntime().availableProcessors()) //
+                .ioThreads(arguments.ioThreads) //
                 .enableTls(arguments.useTls) //
                 .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
 
@@ -247,8 +276,7 @@ public class PerformanceReader {
                 .startMessageId(startMessageId);
 
         for (int i = 0; i < arguments.numTopics; i++) {
-            final TopicName topicName = (arguments.numTopics == 1) ? prefixTopicName
-                    : TopicName.get(String.format("%s-%d", prefixTopicName, i));
+            final TopicName topicName = TopicName.get(arguments.topic.get(i));
 
             futures.add(readerBuilder.clone().topic(topicName.toString()).createAsync());
         }
@@ -257,7 +285,14 @@ public class PerformanceReader {
 
         log.info("Start reading from {} topics", arguments.numTopics);
 
+        final long start = System.nanoTime();
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            printAggregatedThroughput(start);
+            printAggregatedStats();
+        }));
+
         long oldTime = System.nanoTime();
+        Histogram reportHistogram = null;
 
         while (true) {
             try {
@@ -271,11 +306,41 @@ public class PerformanceReader {
             double rate = messagesReceived.sumThenReset() / elapsed;
             double throughput = bytesReceived.sumThenReset() / elapsed * 8 / 1024 / 1024;
 
-            log.info("Read throughput: {}  msg/s -- {} Mbit/s", dec.format(rate), dec.format(throughput));
+            reportHistogram = recorder.getIntervalHistogram(reportHistogram);
+            log.info(
+                    "Read throughput: {}  msg/s -- {} Mbit/s --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
+                    dec.format(rate), dec.format(throughput), dec.format(reportHistogram.getMean()),
+                    reportHistogram.getValueAtPercentile(50), reportHistogram.getValueAtPercentile(95),
+                    reportHistogram.getValueAtPercentile(99), reportHistogram.getValueAtPercentile(99.9),
+                    reportHistogram.getValueAtPercentile(99.99), reportHistogram.getMaxValue());
+
+            reportHistogram.reset();
             oldTime = now;
         }
 
         pulsarClient.close();
+    }
+
+    private static void printAggregatedThroughput(long start) {
+        double elapsed = (System.nanoTime() - start) / 1e9;
+        double rate = totalMessagesReceived.sum() / elapsed;
+        double throughput = totalBytesReceived.sum() / elapsed * 8 / 1024 / 1024;
+        log.info(
+                "Aggregated throughput stats --- {} records received --- {} msg/s --- {} Mbit/s",
+                totalMessagesReceived,
+                dec.format(rate),
+                dec.format(throughput));
+    }
+
+    private static void printAggregatedStats() {
+        Histogram reportHistogram = cumulativeRecorder.getIntervalHistogram();
+
+        log.info(
+                "Aggregated latency stats --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - 99.999pct: {} - Max: {}",
+                dec.format(reportHistogram.getMean()), reportHistogram.getValueAtPercentile(50),
+                reportHistogram.getValueAtPercentile(95), reportHistogram.getValueAtPercentile(99),
+                reportHistogram.getValueAtPercentile(99.9), reportHistogram.getValueAtPercentile(99.99),
+                reportHistogram.getValueAtPercentile(99.999), reportHistogram.getMaxValue());
     }
 
     private static final Logger log = LoggerFactory.getLogger(PerformanceReader.class);

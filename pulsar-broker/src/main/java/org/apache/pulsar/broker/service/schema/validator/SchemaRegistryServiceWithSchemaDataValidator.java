@@ -20,9 +20,9 @@ package org.apache.pulsar.broker.service.schema.validator;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -102,7 +102,18 @@ public class SchemaRegistryServiceWithSchemaDataValidator implements SchemaRegis
     }
 
     @Override
-    public CompletableFuture<Boolean> isCompatible(String schemaId, SchemaData schema, SchemaCompatibilityStrategy strategy) {
+    public CompletableFuture<SchemaVersion> deleteSchemaStorage(String schemaId) {
+        return deleteSchemaStorage(schemaId, false);
+    }
+
+    @Override
+    public CompletableFuture<SchemaVersion> deleteSchemaStorage(String schemaId, boolean forcefully) {
+        return service.deleteSchemaStorage(schemaId, forcefully);
+    }
+
+    @Override
+    public CompletableFuture<Boolean> isCompatible(String schemaId, SchemaData schema,
+                                                   SchemaCompatibilityStrategy strategy) {
         try {
             SchemaDataValidator.validateSchemaData(schema);
         } catch (InvalidSchemaDataException e) {

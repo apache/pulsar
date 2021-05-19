@@ -20,6 +20,9 @@ package org.apache.pulsar.client.impl;
 
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.client.api.DigestType;
+import org.apache.bookkeeper.client.api.LedgerMetadata;
+import org.apache.bookkeeper.net.BookieId;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -33,15 +36,22 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.NavigableMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doReturn;
+
 @Slf4j
+@Test(groups = "broker-impl")
 public class BatchMessageIndexAckTest extends ProducerConsumerBase {
 
     @BeforeMethod
@@ -50,16 +60,112 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
         conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
         super.internalSetup();
         super.producerBaseSetup();
+        doReturn(CompletableFuture.completedFuture(new LedgerMetadata() {
+            @Override
+            public long getLedgerId() {
+                return 0;
+            }
+
+            @Override
+            public int getEnsembleSize() {
+                return 0;
+            }
+
+            @Override
+            public int getWriteQuorumSize() {
+                return 0;
+            }
+
+            @Override
+            public int getAckQuorumSize() {
+                return 0;
+            }
+
+            @Override
+            public long getLastEntryId() {
+                return 0;
+            }
+
+            @Override
+            public long getLength() {
+                return 0;
+            }
+
+            @Override
+            public boolean hasPassword() {
+                return false;
+            }
+
+            @Override
+            public byte[] getPassword() {
+                return new byte[0];
+            }
+
+            @Override
+            public DigestType getDigestType() {
+                return null;
+            }
+
+            @Override
+            public long getCtime() {
+                return 0;
+            }
+
+            @Override
+            public boolean isClosed() {
+                return false;
+            }
+
+            @Override
+            public Map<String, byte[]> getCustomMetadata() {
+                return null;
+            }
+
+            @Override
+            public List<BookieId> getEnsembleAt(long entryId) {
+                return null;
+            }
+
+            @Override
+            public NavigableMap<Long, ? extends List<BookieId>> getAllEnsembles() {
+                return null;
+            }
+
+            @Override
+            public State getState() {
+                return null;
+            }
+
+            @Override
+            public String toSafeString() {
+                return null;
+            }
+
+            @Override
+            public int getMetadataFormatVersion() {
+                return 0;
+            }
+
+            @Override
+            public long getCToken() {
+                return 0;
+            }
+        })).when(mockBookKeeper).getLedgerMetadata(anyLong());
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
-    @Test
-    public void testBatchMessageIndexAckForSharedSubscription() throws Exception {
+    @DataProvider(name = "ackReceiptEnabled")
+    public Object[][] ackReceiptEnabled() {
+        return new Object[][] { { true }, { false } };
+    }
+
+    @Test(dataProvider = "ackReceiptEnabled")
+    public void testBatchMessageIndexAckForSharedSubscription(boolean ackReceiptEnabled) throws Exception {
         final String topic = "testBatchMessageIndexAckForSharedSubscription";
         final String subscriptionName = "sub";
 
@@ -68,6 +174,7 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
             .topic(topic)
             .subscriptionName(subscriptionName)
             .receiverQueueSize(100)
+            .isAckReceiptEnabled(ackReceiptEnabled)
             .subscriptionType(SubscriptionType.Shared)
             .enableBatchIndexAcknowledgment(true)
             .negativeAckRedeliveryDelay(2, TimeUnit.SECONDS)
@@ -119,7 +226,7 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
 
         // check the mark delete position was changed
         BatchMessageIdImpl ackedMessageId = (BatchMessageIdImpl) received.get(0);
-        PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
+        PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic, false);
         String markDeletePosition = stats.cursors.get(subscriptionName).markDeletePosition;
         Assert.assertEquals(ackedMessageId.ledgerId + ":" + ackedMessageId.entryId, markDeletePosition);
 
@@ -138,8 +245,9 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
         Assert.assertEquals(received.size(), 100);
     }
 
-    @Test
-    public void testBatchMessageIndexAckForExclusiveSubscription() throws PulsarClientException, ExecutionException, InterruptedException {
+    @Test(dataProvider = "ackReceiptEnabled")
+    public void testBatchMessageIndexAckForExclusiveSubscription(boolean ackReceiptEnabled) throws
+            PulsarClientException, ExecutionException, InterruptedException {
         final String topic = "testBatchMessageIndexAckForExclusiveSubscription";
 
         @Cleanup
@@ -147,6 +255,7 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
             .topic(topic)
             .subscriptionName("sub")
             .receiverQueueSize(100)
+            .isAckReceiptEnabled(ackReceiptEnabled)
             .enableBatchIndexAcknowledgment(true)
             .subscribe();
 

@@ -13,7 +13,8 @@ module.exports = [
     {
         name: 'Giggso',
         url: 'https://giggso.com/',
-        logo: 'https://pbs.twimg.com/profile_banners/4179602009/1470596851/600x200'
+        logo: 'https://www.giggso.com/wp-content/uploads/2019/11/logo-2.png',
+        logo_white: true
     },
     {
         name: 'STICorp',
@@ -61,7 +62,7 @@ module.exports = [
     {
         name: 'The Hut Group',
         url: 'https://www.thg.com',
-        logo: 'https://s3-eu-west-1.amazonaws.com/thehutgroup-uploads-test/app/uploads/2016/10/THG.jpg'
+        logo: 'https://1000logos.net/wp-content/uploads/2020/09/THG-Logo-1024x640.png'
     },
     {
         name: 'Turtlequeue',
@@ -84,9 +85,10 @@ module.exports = [
         logo: 'https://quantel.ai/wp-content/uploads/2019/09/Quantel-AI-Black-Font-Trans-1024x1024.png'
     },
     {
-        name: 'Streamlio',
-        url: 'https://streaml.io/',
-        logo: 'https://streaml.io/media/logo/Streamlio-Logo.svg'
+        name: 'Splunk',
+        url: 'https://splunk.com/',
+        logo: 'https://www.splunk.com/content/dam/splunk-blogs/images/2017/02/splunk-logo.png',
+        featured: 5
     },
     {
         name: 'Stream Native',
@@ -96,7 +98,8 @@ module.exports = [
     {
         name: 'EMQ',
         url: 'https://www.emqx.io/',
-        logo: 'https://www.emqx.io/static/img/logo.svg'
+        logo: 'https://www.emqx.io/static/img/logo.svg',
+        logo_white: true
     },
     {
         name: 'Tencent',
@@ -118,6 +121,11 @@ module.exports = [
         name: 'VipKid',
         url: 'https://t.vipkid.com.cn/',
         logo: 'https://s.vipkidstatic.com/fe-static/teacher/mkt-pc/img/e74f189.svg'
+    },
+    {
+        name: 'Vivy',
+        url: 'https://www.vivy.com/de/startseite/',
+        logo: 'https://www.vivy.com/fileadmin/vivy-startpage/vivy_logo.svg'
     },
     {
         name: 'IoTium',
@@ -148,8 +156,7 @@ module.exports = [
     {
         name: 'OKCoin',
         url: 'https://www.okcoin.com/',
-        logo: 'http://img.bafang.com/cdn/assets/imgs/MjAxOTM/784CCB28D9026D43DA6A5F257DA74BF2.png',
-        logo_white: true
+        logo: 'https://static.bafang.com/cdn/assets/imgs/206/BC3E3ADD7E55C085.png',
     },
     {
         name: 'BestPay',
@@ -237,5 +244,98 @@ module.exports = [
         name: 'BIGO',
         url: 'https://www.bigo.sg/',
         logo: 'https://static-web.bigolive.tv/as/bigo-static/official_website/pc/img/about/logo-blue-big.png',
+    },
+    {
+        name: 'Keytop',
+        url: 'https://www.ikeytop.com/',
+        logo: 'https://static.wixstatic.com/media/ecbdea_434ae22f85ed4e93ba3fdc39c7141c3f~mv2.png/v1/fill/w_424,h_116,al_c,usm_0.66_1.00_0.01/Keytop_logo.png',
+    },
+    {
+        name: 'Zhihu',
+        url: 'https://www.zhihu.com/',
+        logo: 'https://pic4.zhimg.com/80/v2-a47051e92cf74930bedd7469978e6c08_hd.png',
+    },
+    {
+        name: 'Newland',
+        url: 'http://www.nlsoft.com.cn/',
+        logo: 'http://www.nlsoft.com.cn/images/common/logo.png',
+    },
+    {
+        name: 'PalFish',
+        url: 'https://www.ipalfish.com/',
+        logo: 'https://s04.cdn.ipalfish.com/kid/img/logo.ad4731cb.png',
+    },
+    {
+        name: 'Dada Group',
+        url: 'https://about.imdada.cn',
+        logo: 'https://fe.imdada.cn/alaskan/static/logo_color-aaed10c6738b703ad2b54c17f4c3f114.png',
+    },
+    {
+        name: 'Huawei Cloud',
+        url: 'https://www.huaweicloud.com',
+        logo: 'https://res.hc-cdn.com/cnpm-common-resource/2.0.2/base/header/components/images/logo.png',
+    },
+    {
+        name: 'Su Ning',
+        url: 'https://www.suning.com',
+        logo: 'https://image1.suning.cn/uimg/cms/img/159642507148437980.png',
+    },
+    {
+        name: 'Pingan Securites',
+        url: 'https://stock.pingan.com',
+        logo: 'https://stock.pingan.com/static/uploads/softdowm/2018-10-9/upload_c9ac4929e293f5109623b541740618ba.png',
+    },
+    {
+        name: 'Ge Tui',
+        url: 'https://www.getui.com',
+        logo: 'https://gt-static.getui.com/getui_pc/client/img/e33ecd9.svg',
+        logo_white: true
+    },
+    {
+        name: 'DataStax',
+        url: 'https://datastax.com',
+        logo: 'https://www.datastax.com/sites/default/files/inline-images/datastax-logotype-negative.png',
+        logo_white: false
+    },
+    {
+        name: 'KAISA',
+        url: 'https://www.kaisafin.com',
+        logo: 'https://www.kaisafin.com/images/logo.svg',
+    },
+    {
+        name: 'Bairong.Inc',
+        url: 'http://www.brgroup.com',
+        logo: 'http://www.brgroup.com/_nuxt/img/logo.d2a976e.png',
+          logo_white: true
+    },
+    {
+        name: 'Itcast.cn',
+        url: 'http://www.itcast.cn',
+        logo: 'http://www.itcast.cn/2018czgw/images/logo2.png',
+    },
+    {
+        name: 'Appen',
+        url: 'https://www.appen.com.cn/',
+        logo: 'https://resources.appen.com/wp-content/uploads/2020/03/no-tagline.svg',
+    },
+    {
+        name: 'Pandio',
+        url: 'https://pandio.com',
+        logo: 'https://pandio-public-assets.s3-us-west-2.amazonaws.com/pandio_225-05.png',
+    },
+    {
+        name: 'Deposit-Solutions',
+        url: 'https://www.deposit-solutions.com/',
+        logo: 'https://www.deposit-solutions.com/wp-content/uploads/2017/05/ds_logo_light_horiz.png'
+    },
+    {
+        name: 'Macrometa',
+        url: 'https://macrometa.com',
+        logo: 'https://uploads-ssl.webflow.com/5fa9e94bc848ae335afdd627/602ae50ae801b44f15185683_logo-moc-blue.png',
+    },
+    {
+        name: 'Softtech',
+        url: 'https://softtech.com.tr/en/homepage/',
+        logo: 'https://softtech.com.tr/wp-content/uploads/2017/12/SOFTTECH-LOGO.png',
     }
 ].sort((a, b) => (a.name > b.name) ? 1 : -1);

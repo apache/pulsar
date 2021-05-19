@@ -26,12 +26,17 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URL;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.client.impl.auth.oauth2.protocol.DefaultMetadataResolver;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenResult;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -112,6 +117,12 @@ public class AuthenticationOAuth2Test {
         data = this.auth.getAuthData();
         verify(this.flow, times(2)).authenticate();
         assertEquals(data.getCommandData(), tr.getAccessToken());
+    }
+
+    @Test
+    public void testMetadataResolver() throws MalformedURLException {
+        URL url = DefaultMetadataResolver.getWellKnownMetadataUrl(URI.create("http://localhost/path/oauth").toURL());
+        assertEquals("http://localhost/path/oauth/.well-known/openid-configuration", url.toString());
     }
 
     @Test

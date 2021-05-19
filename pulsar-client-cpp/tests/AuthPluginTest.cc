@@ -171,26 +171,20 @@ TEST(AuthPluginTest, testTlsDetectHttps) {
 }
 
 TEST(AuthPluginTest, testTlsDetectHttpsWithHostNameValidation) {
-    try {
-        ClientConfiguration config = ClientConfiguration();
-        config.setUseTls(true);  // shouldn't be needed soon
-        config.setTlsTrustCertsFilePath(caPath);
-        config.setTlsAllowInsecureConnection(false);
-        config.setAuth(pulsar::AuthTls::create(clientPublicKeyPath, clientPrivateKeyPath));
-        config.setValidateHostName(true);
+    ClientConfiguration config = ClientConfiguration();
+    config.setUseTls(true);  // shouldn't be needed soon
+    config.setTlsTrustCertsFilePath(caPath);
+    config.setTlsAllowInsecureConnection(false);
+    config.setAuth(pulsar::AuthTls::create(clientPublicKeyPath, clientPrivateKeyPath));
+    config.setValidateHostName(true);
 
-        Client client(serviceUrlHttps, config);
+    Client client(serviceUrlHttps, config);
 
-        std::string topicName = "persistent://private/auth/test-tls-detect-https";
+    std::string topicName = "persistent://private/auth/test-tls-detect-https-with-hostname-validation";
 
-        Producer producer;
-        Promise<Result, Producer> producerPromise;
-        client.createProducerAsync(topicName, WaitForCallbackValue<Producer>(producerPromise));
-    } catch (const std::exception& ex) {
-        EXPECT_EQ(ex.what(), std::string("handshake: certificate verify failed"));
-    } catch (...) {
-        FAIL() << "Expected handshake: certificate verify failed";
-    }
+    Producer producer;
+    Result res = client.createProducer(topicName, producer);
+    ASSERT_NE(ResultOk, res);
 }
 
 namespace testAthenz {
@@ -350,6 +344,7 @@ TEST(AuthPluginTest, testOauth2) {
     int expectedTokenLength = 3379;
     LOG_INFO("PARAMS: " << params);
     pulsar::AuthenticationPtr auth = pulsar::AuthOauth2::create(params);
+
     ASSERT_EQ(auth->getAuthMethodName(), "token");
     ASSERT_EQ(auth->getAuthData(data), pulsar::ResultOk);
     ASSERT_EQ(data->hasDataForHttp(), true);

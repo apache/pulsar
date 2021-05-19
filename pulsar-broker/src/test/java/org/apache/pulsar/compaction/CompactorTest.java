@@ -33,7 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -53,6 +52,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker-compaction")
 public class CompactorTest extends MockedPulsarServiceBaseTest {
 
     private ScheduledExecutorService compactionScheduler;
@@ -72,11 +72,10 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
                 new ThreadFactoryBuilder().setNameFormat("compactor").setDaemon(true).build());
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
-
         compactionScheduler.shutdownNow();
     }
 

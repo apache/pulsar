@@ -18,8 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static org.junit.Assert.assertTrue;
-
+import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.AtomicDouble;
@@ -30,6 +29,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.PublishRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -42,20 +42,21 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test
 public class MessagePublishThrottlingTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(MessagePublishThrottlingTest.class);
 
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
         this.conf.setClusterName("test");
         this.conf.setTopicPublisherThrottlingTickTimeMillis(1);
         this.conf.setBrokerPublisherThrottlingTickTimeMillis(1);
+        super.internalSetup();
+        super.producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -452,6 +453,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         }
 
         List<Callable<Void>> topicRatesCounter = Lists.newArrayListWithExpectedSize(3);
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newSingleThreadExecutor();
         final AtomicDouble topicsRateIn = new AtomicDouble(0);
         final AtomicInteger index = new AtomicInteger(0);

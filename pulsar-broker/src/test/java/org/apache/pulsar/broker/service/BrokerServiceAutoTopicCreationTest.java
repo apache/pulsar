@@ -18,12 +18,13 @@
  */
 package org.apache.pulsar.broker.service;
 
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.PulsarClientException;
-import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.TopicType;
@@ -32,6 +33,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
 
     @BeforeClass
@@ -40,17 +42,16 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         super.baseSetup();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     protected void cleanupTest() throws Exception {
         pulsar.getAdminClient().namespaces().removeAutoTopicCreation("prop/ns-abc");
     }
-
 
     @Test
     public void testAutoNonPartitionedTopicCreation() throws Exception{
@@ -124,7 +125,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
     }
 
     @Test
-    public void testAutoTopicCreationDisableIfNonPartitionedTopicAlreadyExist() throws Exception{
+    public void testAutoTopicCreationDisableIfNonPartitionedTopicAlreadyExist() throws Exception {
         pulsar.getConfiguration().setAllowAutoTopicCreation(true);
         pulsar.getConfiguration().setAllowAutoTopicCreationType("partitioned");
         pulsar.getConfiguration().setDefaultNumPartitions(3);
@@ -153,8 +154,10 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         pulsar.getConfiguration().setDefaultNumPartitions(3);
 
         final String topicString = "persistent://prop/ns-abc/test-topic-3";
-        int partitions = admin.topics().getPartitionedTopicMetadata(topicString).partitions;
-        assertEquals(partitions, 0);
+        try {
+            admin.topics().getPartitionedTopicMetadata(topicString);
+        } catch (PulsarAdminException.NotFoundException expected) {
+        }
         assertFalse(admin.namespaces().getTopics("prop/ns-abc").contains(topicString));
     }
 

@@ -35,12 +35,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import lombok.Cleanup;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.ZooDefs;
@@ -48,8 +48,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-/**
- */
+@Test(groups = "broker")
 public class BrokerServiceThrottlingTest extends BrokerTestBase {
 
     @BeforeMethod
@@ -58,7 +57,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         super.baseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -89,6 +88,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
 
         final String topicName = "persistent://prop/ns-abc/newTopic";
 
+        @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder()
                 .serviceUrl(pulsar.getBrokerServiceUrl())
                 .statsInterval(0, TimeUnit.SECONDS)
@@ -131,6 +131,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
     public void testLookupThrottlingForClientByBroker() throws Exception {
         final String topicName = "persistent://prop/ns-abc/newTopic";
 
+        @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder()
                 .serviceUrl(pulsar.getBrokerServiceUrl())
                 .statsInterval(0, TimeUnit.SECONDS)
@@ -148,6 +149,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         }
 
         List<Consumer<byte[]>> successfulConsumers = Collections.synchronizedList(Lists.newArrayList());
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newFixedThreadPool(10);
         final int totalConsumers = 20;
         CountDownLatch latch = new CountDownLatch(totalConsumers);
@@ -171,8 +173,6 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
                 c.close();
             }
         }
-        pulsarClient.close();
-        executor.shutdown();
         assertNotEquals(successfulConsumers.size(), totalConsumers);
     }
 
@@ -194,12 +194,14 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
     public void testLookupThrottlingForClientByBrokerInternalRetry() throws Exception {
         final String topicName = "persistent://prop/ns-abc/newTopic-" + UUID.randomUUID().toString();
 
+        @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder()
                 .serviceUrl(pulsar.getBrokerServiceUrl())
                 .statsInterval(0, TimeUnit.SECONDS)
                 .ioThreads(20).connectionsPerBroker(20).build();
         upsertLookupPermits(100);
         List<Consumer<byte[]>> consumers = Collections.synchronizedList(Lists.newArrayList());
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newFixedThreadPool(10);
         final int totalConsumers = 8;
         CountDownLatch latch = new CountDownLatch(totalConsumers);
@@ -225,22 +227,19 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         retryStrategically((test) -> areAllConsumersConnected(consumers), 5, 500);
 
         int totalConnectedConsumers = 0;
-        for (int i = 0; i < consumers.size(); i++) {
-            if (((ConsumerImpl<?>) consumers.get(i)).isConnected()) {
+        for (Consumer<byte[]> consumer : consumers) {
+            if (consumer.isConnected()) {
                 totalConnectedConsumers++;
             }
-            consumers.get(i).close();
+            consumer.close();
 
         }
         assertEquals(totalConnectedConsumers, totalConsumers);
-
-        executor.shutdown();
-        pulsarClient.close();
     }
 
     private boolean areAllConsumersConnected(List<Consumer<byte[]>> consumers) {
-        for (int i = 0; i < consumers.size(); i++) {
-            if (!((ConsumerImpl<?>) consumers.get(i)).isConnected()) {
+        for (Consumer<byte[]> consumer : consumers) {
+            if (!consumer.isConnected()) {
                 return false;
             }
         }

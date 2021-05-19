@@ -18,12 +18,16 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import org.apache.bookkeeper.common.annotation.InterfaceAudience;
+import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.proto.PendingBookieOpsStats;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
 
 /**
  * Management Bean for a {@link ManagedLedger}.
  */
+@InterfaceAudience.LimitedPrivate
+@InterfaceStability.Stable
 public interface ManagedLedgerMXBean {
 
     /**
@@ -107,4 +111,10 @@ public interface ManagedLedgerMXBean {
     StatsBuckets getInternalEntrySizeBuckets();
 
     PendingBookieOpsStats getPendingBookieOpsStats();
+
+    double getLedgerAddEntryLatencyAverageUsec();
+
+    long[] getLedgerAddEntryLatencyBuckets();
+
+    StatsBuckets getInternalLedgerAddEntryLatencyBuckets();
 }

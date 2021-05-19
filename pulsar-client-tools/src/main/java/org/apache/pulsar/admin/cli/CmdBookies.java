@@ -24,6 +24,8 @@ import org.apache.pulsar.common.policies.data.BookieInfo;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 
+import java.util.function.Supplier;
+
 @Parameters(commandDescription = "Operations about bookies rack placement")
 public class CmdBookies extends CmdBase {
 
@@ -32,7 +34,7 @@ public class CmdBookies extends CmdBase {
 
         @Override
         void run() throws Exception {
-            print(admin.bookies().getBookiesRackInfo());
+            print(getAdmin().bookies().getBookiesRackInfo());
         }
     }
 
@@ -44,7 +46,16 @@ public class CmdBookies extends CmdBase {
 
         @Override
         void run() throws Exception {
-            print(admin.bookies().getBookieRackInfo(bookieAddress));
+            print(getAdmin().bookies().getBookieRackInfo(bookieAddress));
+        }
+    }
+
+    @Parameters(commandDescription = "List bookies")
+    private class ListBookies extends CliCommand {
+
+        @Override
+        void run() throws Exception {
+            print(getAdmin().bookies().getBookies());
         }
     }
 
@@ -56,16 +67,16 @@ public class CmdBookies extends CmdBase {
 
         @Override
         void run() throws Exception {
-            admin.bookies().deleteBookieRackInfo(bookieAddress);
+            getAdmin().bookies().deleteBookieRackInfo(bookieAddress);
         }
     }
 
-    @Parameters(commandDescription = "Updates the rack placement information for a specific bookie in the cluster")
+    @Parameters(commandDescription = "Updates the rack placement information for a specific bookie in the cluster (note. bookie address format:`address:port`)")
     private class UpdateBookie extends CliCommand {
         @Parameter(names = { "-g", "--group" }, description = "Bookie group name", required = false)
         private String group = "default";
 
-        @Parameter(names = { "-b", "--bookie" }, description = "Bookie address", required = true)
+        @Parameter(names = { "-b", "--bookie" }, description = "Bookie address (format: `address:port`)", required = true)
         private String bookieAddress;
 
         @Parameter(names = { "-r", "--rack" }, description = "Bookie rack name", required = true)
@@ -76,13 +87,14 @@ public class CmdBookies extends CmdBase {
 
         @Override
         void run() throws Exception {
-            admin.bookies().updateBookieRackInfo(bookieAddress, group, new BookieInfo(bookieRack, bookieHost));
+            getAdmin().bookies().updateBookieRackInfo(bookieAddress, group, new BookieInfo(bookieRack, bookieHost));
         }
     }
 
-    public CmdBookies(PulsarAdmin admin) {
+    public CmdBookies(Supplier<PulsarAdmin> admin) {
         super("bookies", admin);
         jcommander.addCommand("racks-placement", new GetAll());
+        jcommander.addCommand("list-bookies", new ListBookies());
         jcommander.addCommand("get-bookie-rack", new GetBookie());
         jcommander.addCommand("delete-bookie-rack", new RemoveBookie());
         jcommander.addCommand("set-bookie-rack", new UpdateBookie());

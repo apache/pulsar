@@ -45,6 +45,6 @@ class UnAckedMessageTrackerInterface {
     virtual void removeTopicMessage(const std::string& topic) = 0;
 };
 
-typedef std::unique_ptr<UnAckedMessageTrackerInterface> UnAckedMessageTrackerScopedPtr;
+using UnAckedMessageTrackerPtr = std::shared_ptr<UnAckedMessageTrackerInterface>;
 }  // namespace pulsar
 #endif /* LIB_UNACKEDMESSAGETRACKERINTERFACE_H_ */

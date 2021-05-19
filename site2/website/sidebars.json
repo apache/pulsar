@@ -1,11 +1,9 @@
 {
   "docs": {
     "Get started": [
-      "pulsar-2.0",
       "standalone",
       "standalone-docker",
-      "kubernetes-helm",
-      "client-libraries"
+      "kubernetes-helm"
     ],
     "Concepts and Architecture": [
       "concepts-overview",
@@ -16,7 +14,8 @@
       "concepts-multi-tenancy",
       "concepts-authentication",
       "concepts-topic-compaction",
-      "concepts-proxy-sni-routing"
+      "concepts-proxy-sni-routing",
+      "concepts-multiple-advertised-listeners"
     ],
     "Pulsar Schema": [
       "schema-get-started",
@@ -29,6 +28,7 @@
       "functions-worker",
       "functions-runtime",
       "functions-develop",
+      "functions-package",
       "functions-debug",
       "functions-deploy",
       "functions-cli",
@@ -54,7 +54,14 @@
      "tiered-storage-overview",
      "tiered-storage-aws",
      "tiered-storage-gcs",
-     "tiered-storage-filesystem"
+     "tiered-storage-filesystem",
+     "tiered-storage-azure",
+     "tiered-storage-aliyun"
+  ],
+  "Transactions": [
+    "transactions",
+    "transactions-guarantee",
+    "transactions-api"
   ],
     "Kubernetes (Helm)": [
       "helm-overview",
@@ -80,7 +87,8 @@
       "administration-stats",
       "administration-load-balance",
       "administration-proxy",
-      "administration-upgrade"
+      "administration-upgrade",
+      "administration-isolation"
     ],
     "Security": [
       "security-overview",
@@ -100,6 +108,7 @@
       "performance-pulsar-perf"
     ],
     "Client libraries": [
+      "client-libraries",
       "client-libraries-java",
       "client-libraries-go",
       "client-libraries-python",
@@ -115,12 +124,9 @@
       "admin-api-brokers",
       "admin-api-namespaces",
       "admin-api-permissions",
-      "admin-api-persistent-topics",
-      "admin-api-non-persistent-topics",
-      "admin-api-partitioned-topics",
-      "admin-api-non-partitioned-topics",
-      "admin-api-schemas",
-      "admin-api-functions"
+      "admin-api-topics",
+      "admin-api-functions",
+      "admin-api-packages"
     ],
     "Adaptors": [
       "adaptors-kafka",
@@ -131,7 +137,6 @@
       "cookbooks-compaction",
       "cookbooks-deduplication",
       "cookbooks-non-persistent",
-      "cookbooks-partitioned",
       "cookbooks-retention-expiry",
       "cookbooks-encryption",
       "cookbooks-message-queue",
@@ -141,8 +146,7 @@
       "develop-tools",
       "develop-binary-protocol",
       "develop-schema",
-      "develop-load-manager",
-      "develop-cpp"
+      "develop-load-manager"
     ],
     "Reference": [
       "reference-terminology",

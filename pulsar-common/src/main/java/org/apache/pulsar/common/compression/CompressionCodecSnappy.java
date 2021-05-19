@@ -24,10 +24,8 @@ import io.airlift.compress.snappy.SnappyRawCompressor;
 import io.airlift.compress.snappy.SnappyRawDecompressor;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
-
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 
 /**
@@ -103,6 +101,7 @@ public class CompressionCodecSnappy implements CompressionCodec {
             ByteBuffer uncompressedNio = uncompressed.nioBuffer(0, uncompressedLength);
             ByteBuffer encodedNio = encoded.nioBuffer(encoded.readerIndex(), encoded.readableBytes());
 
+            encodedNio = AirliftUtils.ensureAirliftSupported(encodedNio);
             SNAPPY_DECOMPRESSOR.get().decompress(encodedNio, uncompressedNio);
         }
 

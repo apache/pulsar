@@ -90,6 +90,8 @@ In the exclusive and failover subscription modes, consumers only negatively ackn
 
 In the shared and Key_Shared subscription modes, you can negatively acknowledge messages individually.
 
+Be aware that negative acknowledgment on ordered subscription types, such as Exclusive, Failover and Key_Shared, can cause failed messages to arrive consumers out of the original order.
+
 ### Acknowledgement timeout
 
 When a message is not consumed successfully, and you want to trigger the broker to redeliver the message automatically, you can adopt the unacknowledged message automatic re-delivery mechanism. Client will track the unacknowledged messages within the entire `acktimeout` time range, and send a `redeliver unacknowledged messages` request to the broker automatically when the acknowledgement timeout is specified.
@@ -183,9 +185,11 @@ In the diagram below, only **Consumer A-0** is allowed to consume messages.
 
 ### Failover
 
-In *failover* mode, multiple consumers can attach to the same subscription. In failover mode, the broker selects the master consumer based on the priority level and the lexicographical sorting of a consumer name. If two consumers have an identical priority level, the broker selects the master consumer based on the lexicographical sorting. If these two consumers have different priority levels, the broker selects the consumer with a higher priority level as the master consumer. The master consumer is initially the only one receiving messages. When the master consumer disconnects, all (non-acknowledged and subsequent) messages are delivered to the next consumer in line.
+In *failover* mode, multiple consumers can attach to the same subscription. A master consumer is picked for non-partitioned topic or each partition of partitioned topic and receives messages. When the master consumer disconnects, all (non-acknowledged and subsequent) messages are delivered to the next consumer in line.
 
-For partitioned topics, the broker assigns partitioned topics to the consumer with the highest priority level. If multiple consumers have the highest priority level, the broker evenly assigns topics to consumers with these consumers.
+For partitioned topics, broker will sort consumers by priority level and lexicographical order of consumer name. Then broker will try to evenly assigns topics to consumers with the highest priority level.
+
+For non-partitioned topic, broker will pick consumer in the order they subscribe to the non partitioned topic.
 
 In the diagram below, **Consumer-B-0** is the master consumer while **Consumer-B-1** would be the next consumer in line to receive messages if **Consumer-B-0** is disconnected.
 

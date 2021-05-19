@@ -18,9 +18,14 @@
  */
 package org.apache.pulsar.client.api;
 
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+
 /**
  * Support for encoded authentication configuration parameters.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface EncodedAuthenticationParameterSupport {
 
     /**

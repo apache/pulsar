@@ -24,10 +24,8 @@ import io.airlift.compress.lz4.Lz4RawCompressor;
 import io.airlift.compress.lz4.Lz4RawDecompressor;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
-
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 
 /**
@@ -96,11 +94,12 @@ public class CompressionCodecLZ4 implements CompressionCodec {
         } else {
             ByteBuffer uncompressedNio = uncompressed.nioBuffer(0, uncompressedLength);
             ByteBuffer encodedNio = encoded.nioBuffer(encoded.readerIndex(), encoded.readableBytes());
-
+            encodedNio = AirliftUtils.ensureAirliftSupported(encodedNio);
             LZ4_DECOMPRESSOR.get().decompress(encodedNio, uncompressedNio);
         }
 
         uncompressed.writerIndex(uncompressedLength);
         return uncompressed;
     }
+
 }

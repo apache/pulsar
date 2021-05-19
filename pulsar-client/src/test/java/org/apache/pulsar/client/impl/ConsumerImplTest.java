@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -28,7 +27,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import io.netty.util.Timer;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
@@ -37,40 +35,55 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.client.util.ExecutorProvider;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class ConsumerImplTest {
 
 
-    private final ExecutorService executorService = Executors.newSingleThreadExecutor();
-    private ConsumerImpl<ConsumerImpl> consumer;
+    private ExecutorProvider executorProvider;
+    private ConsumerImpl<byte[]> consumer;
     private ConsumerConfigurationData consumerConf;
+    private ExecutorService executorService;
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void setUp() {
+        executorProvider = new ExecutorProvider(1, "ConsumerImplTest");
         consumerConf = new ConsumerConfigurationData<>();
-        ClientConfigurationData clientConf = new ClientConfigurationData();
-        PulsarClientImpl client = mock(PulsarClientImpl.class);
-        CompletableFuture<ClientCnx> clientCnxFuture = new CompletableFuture<>();
+        PulsarClientImpl client = ClientTestFixtures.createPulsarClientMock();
+        executorService = Executors.newSingleThreadExecutor();
+        when(client.getInternalExecutorService()).thenReturn(executorService);
+        ClientConfigurationData clientConf = client.getConfiguration();
+        clientConf.setOperationTimeoutMs(100);
+        clientConf.setStatsIntervalSeconds(0);
         CompletableFuture<Consumer<ConsumerImpl>> subscribeFuture = new CompletableFuture<>();
         String topic = "non-persistent://tenant/ns1/my-topic";
 
-        // Mock connection for grabCnx()
-        when(client.getConnection(anyString())).thenReturn(clientCnxFuture);
-        clientConf.setOperationTimeoutMs(100);
-        clientConf.setStatsIntervalSeconds(0);
-        when(client.getConfiguration()).thenReturn(clientConf);
-        when(client.timer()).thenReturn(mock(Timer.class));
-
         consumerConf.setSubscriptionName("test-sub");
         consumer = ConsumerImpl.newConsumerImpl(client, topic, consumerConf,
-                executorService, -1, false, subscribeFuture, null, null, null,
+                executorProvider, -1, false, subscribeFuture, null, null, null,
                 true);
+        consumer.setState(HandlerState.State.Ready);
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void cleanup() {
+        if (executorProvider != null) {
+            executorProvider.shutdownNow();
+            executorProvider = null;
+        }
+        if (executorService != null) {
+            executorService.shutdownNow();
+            executorService = null;
+        }
     }
 
     @Test(invocationTimeOut = 1000)
@@ -88,7 +101,7 @@ public class ConsumerImplTest {
 
     @Test(invocationTimeOut = 1000)
     public void testNotifyPendingReceivedCallback_CompleteWithException() {
-        CompletableFuture<Message<ConsumerImpl>> receiveFuture = new CompletableFuture<>();
+        CompletableFuture<Message<byte[]>> receiveFuture = new CompletableFuture<>();
         consumer.pendingReceives.add(receiveFuture);
         Exception exception = new PulsarClientException.InvalidMessageException("some random exception");
         consumer.notifyPendingReceivedCallback(null, exception);
@@ -105,7 +118,7 @@ public class ConsumerImplTest {
 
     @Test(invocationTimeOut = 1000)
     public void testNotifyPendingReceivedCallback_CompleteWithExceptionWhenMessageIsNull() {
-        CompletableFuture<Message<ConsumerImpl>> receiveFuture = new CompletableFuture<>();
+        CompletableFuture<Message<byte[]>> receiveFuture = new CompletableFuture<>();
         consumer.pendingReceives.add(receiveFuture);
         consumer.notifyPendingReceivedCallback(null, null);
 
@@ -120,15 +133,15 @@ public class ConsumerImplTest {
 
     @Test(invocationTimeOut = 1000)
     public void testNotifyPendingReceivedCallback_InterceptorsWorksWithPrefetchDisabled() {
-        CompletableFuture<Message<ConsumerImpl>> receiveFuture = new CompletableFuture<>();
+        CompletableFuture<Message<byte[]>> receiveFuture = new CompletableFuture<>();
         MessageImpl message = mock(MessageImpl.class);
-        ConsumerImpl<ConsumerImpl> spy = spy(consumer);
+        ConsumerImpl<byte[]> spy = spy(consumer);
 
         consumer.pendingReceives.add(receiveFuture);
         consumerConf.setReceiverQueueSize(0);
         doReturn(message).when(spy).beforeConsume(any());
         spy.notifyPendingReceivedCallback(message, null);
-        Message<ConsumerImpl> receivedMessage = receiveFuture.join();
+        Message<byte[]> receivedMessage = receiveFuture.join();
 
         verify(spy, times(1)).beforeConsume(message);
         Assert.assertTrue(receiveFuture.isDone());
@@ -138,20 +151,42 @@ public class ConsumerImplTest {
 
     @Test(invocationTimeOut = 1000)
     public void testNotifyPendingReceivedCallback_WorkNormally() {
-        CompletableFuture<Message<ConsumerImpl>> receiveFuture = new CompletableFuture<>();
+        CompletableFuture<Message<byte[]>> receiveFuture = new CompletableFuture<>();
         MessageImpl message = mock(MessageImpl.class);
-        ConsumerImpl<ConsumerImpl> spy = spy(consumer);
+        ConsumerImpl<byte[]> spy = spy(consumer);
 
         consumer.pendingReceives.add(receiveFuture);
         doReturn(message).when(spy).beforeConsume(any());
         doNothing().when(spy).messageProcessed(message);
         spy.notifyPendingReceivedCallback(message, null);
-        Message<ConsumerImpl> receivedMessage = receiveFuture.join();
+        Message<byte[]> receivedMessage = receiveFuture.join();
 
         verify(spy, times(1)).beforeConsume(message);
         verify(spy, times(1)).messageProcessed(message);
         Assert.assertTrue(receiveFuture.isDone());
         Assert.assertFalse(receiveFuture.isCompletedExceptionally());
         Assert.assertEquals(receivedMessage, message);
+    }
+
+    @Test
+    public void testReceiveAsyncCanBeCancelled() {
+        // given
+        CompletableFuture<Message<byte[]>> future = consumer.receiveAsync();
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(consumer.peekPendingReceive(), future));
+        // when
+        future.cancel(true);
+        // then
+        Assert.assertTrue(consumer.pendingReceives.isEmpty());
+    }
+
+    @Test
+    public void testBatchReceiveAsyncCanBeCancelled() {
+        // given
+        CompletableFuture<Messages<byte[]>> future = consumer.batchReceiveAsync();
+        Awaitility.await().untilAsserted(() -> Assert.assertTrue(consumer.hasPendingBatchReceive()));
+        // when
+        future.cancel(true);
+        // then
+        Assert.assertFalse(consumer.hasPendingBatchReceive());
     }
 }

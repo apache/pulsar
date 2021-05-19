@@ -44,7 +44,7 @@ public abstract class MessagingBase extends PulsarTestSuite {
 
     protected String methodName;
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void beforeMethod(Method m) throws Exception {
         methodName = m.getName();
     }

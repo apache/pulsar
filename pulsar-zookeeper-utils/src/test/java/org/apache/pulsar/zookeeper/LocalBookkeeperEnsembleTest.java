@@ -37,7 +37,7 @@ public class LocalBookkeeperEnsembleTest {
     void setup() throws Exception {
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     void teardown() throws Exception {
     }
 

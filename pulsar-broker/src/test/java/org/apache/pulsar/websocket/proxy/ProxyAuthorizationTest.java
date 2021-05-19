@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.websocket.proxy;
 
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertFalse;
@@ -35,12 +37,14 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.websocket.WebSocketService;
 import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+@Test(groups = "websocket")
 public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
     private WebSocketService service;
     private final String configClusterName = "c1";
@@ -62,16 +66,19 @@ public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
         config.setSuperUserRoles(superUser);
         config.setClusterName("c1");
         config.setWebServicePort(Optional.of(0));
+        config.setConfigurationStoreServers(GLOBAL_DUMMY_VALUE);
         service = spy(new WebSocketService(config));
-        doReturn(mockZooKeeperClientFactory).when(service).getZooKeeperClientFactory();
+        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(service).createMetadataStore(anyString(), anyInt());
         service.start();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         internalCleanup();
-        service.close();
+        if (service != null) {
+            service.close();
+        }
     }
 
     @Test

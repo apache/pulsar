@@ -69,4 +69,6 @@ public class SourceConfig {
 
     // If this is a BatchSource, its batch related configs are stored here
     private BatchSourceConfig batchSourceConfig;
+    // batchBuilder provides two types of batch construction methods, DEFAULT and KEY_BASED
+    private String batchBuilder;
 }

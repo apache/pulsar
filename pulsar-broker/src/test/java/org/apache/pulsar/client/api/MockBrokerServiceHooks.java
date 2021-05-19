@@ -18,55 +18,63 @@
  */
 package org.apache.pulsar.client.api;
 
-import org.apache.pulsar.common.api.proto.PulsarApi;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 
-/**
- */
+import org.apache.pulsar.common.api.proto.CommandAck;
+import org.apache.pulsar.common.api.proto.CommandCloseConsumer;
+import org.apache.pulsar.common.api.proto.CommandCloseProducer;
+import org.apache.pulsar.common.api.proto.CommandConnect;
+import org.apache.pulsar.common.api.proto.CommandFlow;
+import org.apache.pulsar.common.api.proto.CommandLookupTopic;
+import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadata;
+import org.apache.pulsar.common.api.proto.CommandProducer;
+import org.apache.pulsar.common.api.proto.CommandSend;
+import org.apache.pulsar.common.api.proto.CommandSubscribe;
+import org.apache.pulsar.common.api.proto.CommandUnsubscribe;
+
 public interface MockBrokerServiceHooks {
-    public interface CommandConnectHook {
-        public void apply(ChannelHandlerContext ctx, PulsarApi.CommandConnect connect);
+    interface CommandConnectHook {
+        void apply(ChannelHandlerContext ctx, CommandConnect connect);
     }
 
-    public interface CommandPartitionLookupHook {
-        public void apply(ChannelHandlerContext ctx, PulsarApi.CommandPartitionedTopicMetadata connect);
+    interface CommandPartitionLookupHook {
+        void apply(ChannelHandlerContext ctx, CommandPartitionedTopicMetadata connect);
     }
 
-    public interface CommandTopicLookupHook {
-        public void apply(ChannelHandlerContext ctx, PulsarApi.CommandLookupTopic connect);
+    interface CommandTopicLookupHook {
+        void apply(ChannelHandlerContext ctx, CommandLookupTopic connect);
     }
 
-    public interface CommandSubscribeHook {
-        public void apply(ChannelHandlerContext ctx, PulsarApi.CommandSubscribe subscribe);
+    interface CommandSubscribeHook {
+        void apply(ChannelHandlerContext ctx, CommandSubscribe subscribe);
     }
 
-    public interface CommandProducerHook {
-        public void apply(ChannelHandlerContext ctx, PulsarApi.CommandProducer producer);
+    interface CommandProducerHook {
+        void apply(ChannelHandlerContext ctx, CommandProducer producer);
     }
 
-    public interface CommandSendHook {
-        public void apply(ChannelHandlerContext ctx, PulsarApi.CommandSend send, ByteBuf headersAndPayload);
+    interface CommandSendHook {
+        void apply(ChannelHandlerContext ctx, CommandSend send, ByteBuf headersAndPayload);
     }
 
-    public interface CommandAckHook {
-        public void apply(ChannelHandlerContext ctx, PulsarApi.CommandAck ack);
+    interface CommandAckHook {
+        void apply(ChannelHandlerContext ctx, CommandAck ack);
     }
 
-    public interface CommandFlowHook {
-        public void apply(ChannelHandlerContext ctx, PulsarApi.CommandFlow flow);
+    interface CommandFlowHook {
+        void apply(ChannelHandlerContext ctx, CommandFlow flow);
     }
 
-    public interface CommandUnsubscribeHook {
-        public void apply(ChannelHandlerContext ctx, PulsarApi.CommandUnsubscribe unsubscribe);
+    interface CommandUnsubscribeHook {
+        void apply(ChannelHandlerContext ctx, CommandUnsubscribe unsubscribe);
     }
 
-    public interface CommandCloseProducerHook {
-        public void apply(ChannelHandlerContext ctx, PulsarApi.CommandCloseProducer closeProducer);
+    interface CommandCloseProducerHook {
+        void apply(ChannelHandlerContext ctx, CommandCloseProducer closeProducer);
     }
 
-    public interface CommandCloseConsumerHook {
-        public void apply(ChannelHandlerContext ctx, PulsarApi.CommandCloseConsumer closeConsumer);
+    interface CommandCloseConsumerHook {
+        void apply(ChannelHandlerContext ctx, CommandCloseConsumer closeConsumer);
     }
 }

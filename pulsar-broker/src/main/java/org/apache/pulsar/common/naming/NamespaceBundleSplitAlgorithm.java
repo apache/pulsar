@@ -19,34 +19,32 @@
 package org.apache.pulsar.common.naming;
 
 import com.google.common.collect.Lists;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.broker.namespace.NamespaceService;
-
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 
 /**
  * Algorithm interface for namespace bundle split.
  */
 public interface NamespaceBundleSplitAlgorithm {
 
-    String rangeEquallyDivideName = "range_equally_divide";
-    String topicCountEquallyDivideName = "topic_count_equally_divide";
+    String RANGE_EQUALLY_DIVIDE_NAME = "range_equally_divide";
+    String TOPIC_COUNT_EQUALLY_DIVIDE = "topic_count_equally_divide";
 
-    List<String> availableAlgorithms = Lists.newArrayList(rangeEquallyDivideName, topicCountEquallyDivideName);
+    List<String> AVAILABLE_ALGORITHMS = Lists.newArrayList(RANGE_EQUALLY_DIVIDE_NAME, TOPIC_COUNT_EQUALLY_DIVIDE);
 
-    NamespaceBundleSplitAlgorithm rangeEquallyDivide = new RangeEquallyDivideBundleSplitAlgorithm();
-    NamespaceBundleSplitAlgorithm topicCountEquallyDivide = new TopicCountEquallyDivideBundleSplitAlgorithm();
+    NamespaceBundleSplitAlgorithm RANGE_EQUALLY_DIVIDE_ALGO = new RangeEquallyDivideBundleSplitAlgorithm();
+    NamespaceBundleSplitAlgorithm TOPIC_COUNT_EQUALLY_DIVIDE_ALGO = new TopicCountEquallyDivideBundleSplitAlgorithm();
 
     static NamespaceBundleSplitAlgorithm of(String algorithmName) {
         if (algorithmName == null) {
             return null;
         }
         switch (algorithmName) {
-            case  rangeEquallyDivideName:
-                return rangeEquallyDivide;
-            case topicCountEquallyDivideName:
-                return topicCountEquallyDivide;
+            case RANGE_EQUALLY_DIVIDE_NAME:
+                return RANGE_EQUALLY_DIVIDE_ALGO;
+            case TOPIC_COUNT_EQUALLY_DIVIDE:
+                return TOPIC_COUNT_EQUALLY_DIVIDE_ALGO;
             default:
                 return null;
         }

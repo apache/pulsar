@@ -18,28 +18,24 @@
  */
 package org.apache.pulsar.tests.integration.suites;
 
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.tests.integration.containers.BrokerContainer;
-import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
-import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
-import org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase;
-import org.testng.ITest;
-import org.testng.annotations.AfterSuite;
-import org.testng.annotations.BeforeSuite;
-
+import static java.util.stream.Collectors.joining;
 import java.util.Map;
 import java.util.stream.Stream;
-
-import static java.util.stream.Collectors.joining;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.tests.integration.containers.BrokerContainer;
+import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
+import org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 
 @Slf4j
-public abstract class PulsarTieredStorageTestSuite extends PulsarClusterTestBase implements ITest {
+public abstract class PulsarTieredStorageTestSuite extends PulsarClusterTestBase {
 
     protected static final int ENTRIES_PER_LEDGER = 1024;
 
-    @BeforeSuite
+    @BeforeClass(alwaysRun = true)
     @Override
-    public void setupCluster() throws Exception {
+    public final void setupCluster() throws Exception {
         final String clusterName = Stream.of(this.getClass().getSimpleName(), randomName(5))
                 .filter(s -> s != null && !s.isEmpty())
                 .collect(joining("-"));
@@ -50,28 +46,22 @@ public abstract class PulsarTieredStorageTestSuite extends PulsarClusterTestBase
             .clusterName(clusterName)
             .build();
 
-        log.info("Setting up cluster {} with {} bookies, {} brokers",
-                spec.clusterName(), spec.numBookies(), spec.numBrokers());
-        pulsarCluster = PulsarCluster.forSpec(spec);
-        for(BrokerContainer brokerContainer : pulsarCluster.getBrokers()){
-            getEnv().forEach(brokerContainer::withEnv);
-        }
-
-        pulsarCluster.start();
-
-        log.info("Cluster {} is setup", spec.clusterName());
+        setupCluster(spec);
     }
 
-    @AfterSuite
+    @AfterClass(alwaysRun = true)
     @Override
-    public void tearDownCluster() {
+    public final void tearDownCluster() throws Exception {
         super.tearDownCluster();
     }
 
-    @Override
-    public String getTestName() {
-        return "tiered-storage-test-suite";
-    }
-
     protected abstract Map<String, String> getEnv();
+
+    @Override
+    protected void beforeStartCluster() throws Exception {
+        super.beforeStartCluster();
+        for (BrokerContainer brokerContainer : pulsarCluster.getBrokers()) {
+            getEnv().forEach(brokerContainer::withEnv);
+        }
+    }
 }

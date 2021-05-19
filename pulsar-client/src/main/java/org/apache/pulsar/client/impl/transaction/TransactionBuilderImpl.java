@@ -18,13 +18,12 @@
  */
 package org.apache.pulsar.client.impl.transaction;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TransactionBuilder;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
-
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 
 /**
  * The default implementation of transaction builder to build transactions.
@@ -34,8 +33,8 @@ public class TransactionBuilderImpl implements TransactionBuilder {
 
     private final PulsarClientImpl client;
     private final TransactionCoordinatorClientImpl transactionCoordinatorClient;
-    private long txnTimeoutMs = 60000; // 1 minute
-    private static final long txnRequestTimeoutMs = 1000 * 30; // 30 seconds
+    private long txnTimeout = 60000; // 1 minute
+    private TimeUnit timeUnit = TimeUnit.MILLISECONDS;
 
     public TransactionBuilderImpl(PulsarClientImpl client, TransactionCoordinatorClientImpl tcClient) {
         this.client = client;
@@ -43,8 +42,9 @@ public class TransactionBuilderImpl implements TransactionBuilder {
     }
 
     @Override
-    public TransactionBuilder withTransactionTimeout(long timeout, TimeUnit timeoutUnit) {
-        this.txnTimeoutMs = timeoutUnit.toMillis(timeout);
+    public TransactionBuilder withTransactionTimeout(long txnTimeout, TimeUnit timeoutUnit) {
+        this.txnTimeout = txnTimeout;
+        this.timeUnit = timeoutUnit;
         return this;
     }
 
@@ -57,7 +57,7 @@ public class TransactionBuilderImpl implements TransactionBuilder {
         //       `TransactionImpl`
         CompletableFuture<Transaction> future = new CompletableFuture<>();
         transactionCoordinatorClient
-                .newTransactionAsync(txnRequestTimeoutMs, TimeUnit.MILLISECONDS)
+                .newTransactionAsync(txnTimeout, timeUnit)
                 .whenComplete((txnID, throwable) -> {
                     if (log.isDebugEnabled()) {
                         log.debug("Success to new txn. txnID: {}", txnID);
@@ -67,7 +67,7 @@ public class TransactionBuilderImpl implements TransactionBuilder {
                         future.completeExceptionally(throwable);
                         return;
                     }
-                    future.complete(new TransactionImpl(client, txnTimeoutMs,
+                    future.complete(new TransactionImpl(client, txnTimeout,
                             txnID.getLeastSigBits(), txnID.getMostSigBits()));
                 });
         return future;

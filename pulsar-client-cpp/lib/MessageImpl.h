@@ -43,6 +43,8 @@ class MessageImpl {
     ClientConnection* cnx_;
     const std::string* topicName_;
     int redeliveryCount_;
+    bool hasSchemaVersion_;
+    const std::string* schemaVersion_;
 
     const std::string& getPartitionKey() const;
     bool hasPartitionKey() const;
@@ -65,6 +67,10 @@ class MessageImpl {
 
     int getRedeliveryCount();
     void setRedeliveryCount(int count);
+
+    bool hasSchemaVersion() const;
+    const std::string& getSchemaVersion() const;
+    void setSchemaVersion(const std::string& value);
 
     friend class PulsarWrapper;
     friend class MessageBuilder;

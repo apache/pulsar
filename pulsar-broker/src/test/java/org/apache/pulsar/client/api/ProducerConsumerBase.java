@@ -21,6 +21,7 @@ package org.apache.pulsar.client.api;
 import com.google.common.collect.Sets;
 
 import java.lang.reflect.Method;
+import java.util.Random;
 import java.util.Set;
 
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -32,12 +33,12 @@ import org.testng.annotations.BeforeMethod;
 public abstract class ProducerConsumerBase extends MockedPulsarServiceBaseTest {
     protected String methodName;
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void beforeMethod(Method m) throws Exception {
         methodName = m.getName();
     }
 
-    public void producerBaseSetup() throws Exception {
+    protected void producerBaseSetup() throws Exception {
         admin.clusters().createCluster("test", new ClusterData(pulsar.getWebServiceAddress()));
         admin.tenants().createTenant("my-property",
                 new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
@@ -59,6 +60,12 @@ public abstract class ProducerConsumerBase extends MockedPulsarServiceBaseTest {
 
         // Make sure that there are no duplicates
         Assert.assertTrue(messagesReceived.add(receivedMessage), "Received duplicate message " + receivedMessage);
+    }
+
+    private static final Random random = new Random();
+
+    protected String newTopicName() {
+        return "my-property/my-ns/topic-" + Long.toHexString(random.nextLong());
     }
 
 }

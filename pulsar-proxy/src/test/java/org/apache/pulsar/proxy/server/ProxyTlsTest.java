@@ -24,6 +24,7 @@ import static org.mockito.Mockito.doReturn;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
+import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.api.Consumer;
@@ -34,6 +35,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -44,7 +46,6 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
     private final String TLS_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/cacert.pem";
     private final String TLS_PROXY_CERT_FILE_PATH = "./src/test/resources/authentication/tls/server-cert.pem";
     private final String TLS_PROXY_KEY_FILE_PATH = "./src/test/resources/authentication/tls/server-key.pem";
-    private final String DUMMY_VALUE = "DUMMY_VALUE";
 
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
@@ -62,17 +63,18 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setTlsCertificateFilePath(TLS_PROXY_CERT_FILE_PATH);
         proxyConfig.setTlsKeyFilePath(TLS_PROXY_KEY_FILE_PATH);
         proxyConfig.setZookeeperServers(DUMMY_VALUE);
-        proxyConfig.setConfigurationStoreServers(DUMMY_VALUE);
+        proxyConfig.setConfigurationStoreServers(GLOBAL_DUMMY_VALUE);
 
         proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
                                                             PulsarConfigurationLoader.convertFrom(proxyConfig))));
-        doReturn(mockZooKeeperClientFactory).when(proxyService).getZooKeeperClientFactory();
+        doReturn(new ZKMetadataStore(mockZooKeeper)).when(proxyService).createLocalMetadataStore();
+        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(proxyService).createConfigurationMetadataStore();
 
         proxyService.start();
     }
 
     @Override
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     protected void cleanup() throws Exception {
         internalCleanup();
 
@@ -81,6 +83,7 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testProducer() throws Exception {
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(proxyService.getServiceUrlTls())
                 .allowTlsInsecureConnection(false).tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).build();
@@ -89,12 +92,11 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
         for (int i = 0; i < 10; i++) {
             producer.send("test".getBytes());
         }
-
-        client.close();
     }
 
     @Test
     public void testPartitions() throws Exception {
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(proxyService.getServiceUrlTls())
                 .allowTlsInsecureConnection(false).tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).build();
@@ -117,8 +119,6 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
             Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
             checkNotNull(msg);
         }
-
-        client.close();
     }
 
 }

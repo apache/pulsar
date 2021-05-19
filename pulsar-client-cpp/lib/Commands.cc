@@ -108,7 +108,8 @@ SharedBuffer Commands::newPartitionMetadataRequest(const std::string& topic, uin
     return buffer;
 }
 
-SharedBuffer Commands::newLookup(const std::string& topic, const bool authoritative, uint64_t requestId) {
+SharedBuffer Commands::newLookup(const std::string& topic, const bool authoritative, uint64_t requestId,
+                                 const std::string& listenerName) {
     static BaseCommand cmd;
     static std::mutex mutex;
     std::lock_guard<std::mutex> lock(mutex);
@@ -117,6 +118,7 @@ SharedBuffer Commands::newLookup(const std::string& topic, const bool authoritat
     lookup->set_topic(topic);
     lookup->set_authoritative(authoritative);
     lookup->set_request_id(requestId);
+    lookup->set_advertised_listener_name(listenerName);
     const SharedBuffer buffer = writeMessageWithSize(cmd);
     cmd.clear_lookuptopic();
     return buffer;
@@ -253,7 +255,8 @@ SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string&
                                     Optional<MessageId> startMessageId, bool readCompacted,
                                     const std::map<std::string, std::string>& metadata,
                                     const SchemaInfo& schemaInfo,
-                                    CommandSubscribe_InitialPosition subscriptionInitialPosition) {
+                                    CommandSubscribe_InitialPosition subscriptionInitialPosition,
+                                    KeySharedPolicy keySharedPolicy) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::SUBSCRIBE);
     CommandSubscribe* subscribe = cmd.mutable_subscribe();
@@ -288,6 +291,19 @@ SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string&
         subscribe->mutable_metadata()->AddAllocated(keyValue);
     }
 
+    if (subType == CommandSubscribe_SubType_Key_Shared) {
+        KeySharedMeta ksm;
+        switch (keySharedPolicy.getKeySharedMode()) {
+            case pulsar::AUTO_SPLIT:
+                ksm.set_keysharedmode(proto::KeySharedMode::AUTO_SPLIT);
+                break;
+            case pulsar::STICKY:
+                ksm.set_keysharedmode(proto::KeySharedMode::STICKY);
+        }
+
+        ksm.set_allowoutoforderdelivery(keySharedPolicy.isAllowOutOfOrderDelivery());
+    }
+
     return writeMessageWithSize(cmd);
 }
 
@@ -304,13 +320,18 @@ SharedBuffer Commands::newUnsubscribe(uint64_t consumerId, uint64_t requestId) {
 SharedBuffer Commands::newProducer(const std::string& topic, uint64_t producerId,
                                    const std::string& producerName, uint64_t requestId,
                                    const std::map<std::string, std::string>& metadata,
-                                   const SchemaInfo& schemaInfo) {
+                                   const SchemaInfo& schemaInfo, uint64_t epoch,
+                                   bool userProvidedProducerName, bool encrypted) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::PRODUCER);
     CommandProducer* producer = cmd.mutable_producer();
     producer->set_topic(topic);
     producer->set_producer_id(producerId);
     producer->set_request_id(requestId);
+    producer->set_epoch(epoch);
+    producer->set_user_provided_producer_name(userProvidedProducerName);
+    producer->set_encrypted(encrypted);
+
     for (std::map<std::string, std::string>::const_iterator it = metadata.begin(); it != metadata.end();
          it++) {
         proto::KeyValue* keyValue = proto::KeyValue().New();
@@ -617,21 +638,34 @@ std::string Commands::messageType(BaseCommand_Type type) {
 }
 
 void Commands::initBatchMessageMetadata(const Message& msg, pulsar::proto::MessageMetadata& batchMetadata) {
-    if (msg.impl_->metadata.has_publish_time()) {
-        batchMetadata.set_publish_time(msg.impl_->metadata.publish_time());
-    }
+    // metadata has already been set in ProducerImpl::setMessageMetadata
+    const proto::MessageMetadata& metadata = msg.impl_->metadata;
 
-    if (msg.impl_->metadata.has_sequence_id()) {
-        batchMetadata.set_sequence_id(msg.impl_->metadata.sequence_id());
-    }
+    // required fields
+    batchMetadata.set_producer_name(metadata.producer_name());
+    batchMetadata.set_sequence_id(metadata.sequence_id());
+    batchMetadata.set_publish_time(metadata.publish_time());
 
-    if (msg.impl_->metadata.has_replicated_from()) {
-        batchMetadata.set_replicated_from(msg.impl_->metadata.replicated_from());
+    // optional fields
+    if (metadata.has_partition_key()) {
+        batchMetadata.set_partition_key(metadata.partition_key());
     }
+    if (metadata.has_ordering_key()) {
+        batchMetadata.set_ordering_key(metadata.ordering_key());
+    }
+    if (metadata.has_replicated_from()) {
+        batchMetadata.set_replicated_from(metadata.replicated_from());
+    }
+    if (metadata.replicate_to_size() > 0) {
+        for (int i = 0; i < metadata.replicate_to_size(); i++) {
+            batchMetadata.add_replicate_to(metadata.replicate_to(i));
+        }
+    }
+    // TODO: set other optional fields
 }
 
-void Commands::serializeSingleMessageInBatchWithPayload(const Message& msg, SharedBuffer& batchPayLoad,
-                                                        const unsigned long& maxMessageSizeInBytes) {
+uint64_t Commands::serializeSingleMessageInBatchWithPayload(const Message& msg, SharedBuffer& batchPayLoad,
+                                                            unsigned long maxMessageSizeInBytes) {
     SingleMessageMetadata metadata;
     if (msg.impl_->hasPartitionKey()) {
         metadata.set_partition_key(msg.impl_->getPartitionKey());
@@ -662,8 +696,10 @@ void Commands::serializeSingleMessageInBatchWithPayload(const Message& msg, Shar
         LOG_DEBUG("remaining size of batchPayLoad buffer ["
                   << batchPayLoad.writableBytes() << "] can't accomodate new payload [" << requiredSpace
                   << "] - expanding the batchPayload buffer");
-        SharedBuffer buffer = SharedBuffer::allocate(batchPayLoad.readableBytes() +
-                                                     std::max(requiredSpace, maxMessageSizeInBytes));
+        uint32_t new_size =
+            std::min(batchPayLoad.readableBytes() * 2, static_cast<uint32_t>(maxMessageSizeInBytes));
+        new_size = std::max(new_size, batchPayLoad.readableBytes() + static_cast<uint32_t>(requiredSpace));
+        SharedBuffer buffer = SharedBuffer::allocate(new_size);
         // Adding batch created so far
         buffer.write(batchPayLoad.data(), batchPayLoad.readableBytes());
         batchPayLoad = buffer;
@@ -673,6 +709,8 @@ void Commands::serializeSingleMessageInBatchWithPayload(const Message& msg, Shar
     metadata.SerializeToArray(batchPayLoad.mutableData(), msgMetadataSize);
     batchPayLoad.bytesWritten(msgMetadataSize);
     batchPayLoad.write(msg.impl_->payload.data(), payloadSize);
+
+    return msg.impl_->metadata.sequence_id();
 }
 
 Message Commands::deSerializeSingleMessageInBatch(Message& batchedMessage, int32_t batchIndex) {

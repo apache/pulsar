@@ -21,7 +21,6 @@ package org.apache.pulsar.common.policies.impl;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.SortedSet;
-
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.NamespaceIsolationPolicy;
 import org.apache.pulsar.common.policies.data.BrokerAssignment;

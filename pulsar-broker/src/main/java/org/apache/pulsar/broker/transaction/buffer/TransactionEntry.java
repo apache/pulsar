@@ -19,8 +19,6 @@
 package org.apache.pulsar.broker.transaction.buffer;
 
 import com.google.common.annotations.Beta;
-import io.netty.buffer.ByteBuf;
-
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.client.api.transaction.TxnID;
 
@@ -28,7 +26,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
  * A class represents an entry appended to a transaction.
  */
 @Beta
-public interface TransactionEntry extends AutoCloseable {
+public interface TransactionEntry extends Entry, AutoCloseable {
 
     /**
      * The transaction id that the entry is appended to.
@@ -43,6 +41,8 @@ public interface TransactionEntry extends AutoCloseable {
      * @return the sequence id
      */
     long sequenceId();
+
+    int numMessageInTxn();
 
     /**
      * The ledger id that the transaction is committed to.
@@ -59,9 +59,9 @@ public interface TransactionEntry extends AutoCloseable {
     long committedAtEntryId();
 
     /**
-     * Returns the entry saved in {@link TransactionBuffer}.
+     * Returns the entry saved in the {@link TransactionBuffer}.
      *
-     * @return the {@link Entry}
+     * @return the {@link Entry}.
      */
     Entry getEntry();
 

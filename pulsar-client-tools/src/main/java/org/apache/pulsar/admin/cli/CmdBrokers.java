@@ -23,32 +23,43 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 
+import java.util.function.Supplier;
+
 @Parameters(commandDescription = "Operations about brokers")
 public class CmdBrokers extends CmdBase {
 
     @Parameters(commandDescription = "List active brokers of the cluster")
     private class List extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
 
         @Override
         void run() throws Exception {
             String cluster = getOneArgument(params);
-            print(admin.brokers().getActiveBrokers(cluster));
+            print(getAdmin().brokers().getActiveBrokers(cluster));
+        }
+    }
+
+    @Parameters(commandDescription = "Get the information of the leader broker")
+    private class LeaderBroker extends CliCommand {
+
+        @Override
+        void run() throws Exception {
+            print(getAdmin().brokers().getLeaderBroker());
         }
     }
 
     @Parameters(commandDescription = "List namespaces owned by the broker")
     private class Namespaces extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
-        @Parameter(names = "--url", description = "broker-url\n", required = true)
+        @Parameter(names = "--url", description = "broker-url", required = true)
         private String brokerUrl;
 
         @Override
         void run() throws Exception {
             String cluster = getOneArgument(params);
-            print(admin.brokers().getOwnedNamespaces(cluster, brokerUrl));
+            print(getAdmin().brokers().getOwnedNamespaces(cluster, brokerUrl));
         }
     }
 
@@ -61,7 +72,7 @@ public class CmdBrokers extends CmdBase {
 
         @Override
         void run() throws Exception {
-            admin.brokers().updateDynamicConfiguration(configName, configValue);
+            getAdmin().brokers().updateDynamicConfiguration(configName, configValue);
         }
     }
 
@@ -72,25 +83,25 @@ public class CmdBrokers extends CmdBase {
 
         @Override
         void run() throws Exception {
-            admin.brokers().deleteDynamicConfiguration(configName);
+            getAdmin().brokers().deleteDynamicConfiguration(configName);
         }
     }
-    
+
     @Parameters(commandDescription = "Get all overridden dynamic-configuration values")
     private class GetAllConfigurationsCmd extends CliCommand {
 
         @Override
         void run() throws Exception {
-            print(admin.brokers().getAllDynamicConfigurations());
+            print(getAdmin().brokers().getAllDynamicConfigurations());
         }
     }
-    
+
     @Parameters(commandDescription = "Get list of updatable configuration name")
     private class GetUpdatableConfigCmd extends CliCommand {
 
         @Override
         void run() throws Exception {
-            print(admin.brokers().getDynamicConfigurationNames());
+            print(getAdmin().brokers().getDynamicConfigurationNames());
         }
     }
 
@@ -99,7 +110,7 @@ public class CmdBrokers extends CmdBase {
 
         @Override
         void run() throws Exception {
-            print(admin.brokers().getRuntimeConfigurations());
+            print(getAdmin().brokers().getRuntimeConfigurations());
         }
     }
 
@@ -108,7 +119,7 @@ public class CmdBrokers extends CmdBase {
 
         @Override
         void run() throws Exception {
-            print(admin.brokers().getInternalConfigurationData());
+            print(getAdmin().brokers().getInternalConfigurationData());
         }
 
     }
@@ -118,15 +129,36 @@ public class CmdBrokers extends CmdBase {
 
         @Override
         void run() throws Exception {
-            admin.brokers().healthcheck();
+            getAdmin().brokers().healthcheck();
             System.out.println("ok");
         }
 
     }
 
-    public CmdBrokers(PulsarAdmin admin) {
+    @Parameters(commandDescription = "Manually trigger backlogQuotaCheck")
+    private class BacklogQuotaCheckCmd extends CliCommand {
+
+        @Override
+        void run() throws Exception {
+            getAdmin().brokers().backlogQuotaCheckAsync();
+            System.out.println("ok");
+        }
+
+    }
+
+    @Parameters(commandDescription = "Get the version of the currently connected broker")
+    private class PulsarVersion extends CliCommand {
+
+        @Override
+        void run() throws Exception {
+            System.out.println(getAdmin().brokers().getVersion());
+        }
+    }
+
+    public CmdBrokers(Supplier<PulsarAdmin> admin) {
         super("brokers", admin);
         jcommander.addCommand("list", new List());
+        jcommander.addCommand("leader-broker", new LeaderBroker());
         jcommander.addCommand("namespaces", new Namespaces());
         jcommander.addCommand("update-dynamic-config", new UpdateConfigurationCmd());
         jcommander.addCommand("delete-dynamic-config", new DeleteConfigurationCmd());
@@ -135,5 +167,7 @@ public class CmdBrokers extends CmdBase {
         jcommander.addCommand("get-internal-config", new GetInternalConfigurationCmd());
         jcommander.addCommand("get-runtime-config", new GetRuntimeConfigCmd());
         jcommander.addCommand("healthcheck", new HealthcheckCmd());
+        jcommander.addCommand("backlog-quota-check", new BacklogQuotaCheckCmd());
+        jcommander.addCommand("version", new PulsarVersion());
     }
 }

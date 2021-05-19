@@ -48,6 +48,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 
+import lombok.Cleanup;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.zookeeper.AsyncCallback.DataCallback;
 import org.apache.zookeeper.KeeperException.Code;
@@ -73,26 +75,26 @@ public class ZookeeperCacheTest {
     private OrderedScheduler executor;
     private ScheduledExecutorService scheduledExecutor;
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     void setup() throws Exception {
         zkClient = MockZooKeeper.newInstance(MoreExecutors.newDirectExecutorService());
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     void teardown() throws Exception {
         zkClient.shutdown();
     }
 
-    @BeforeClass
+    @BeforeClass(alwaysRun = true)
     void classSetup() throws Exception {
         executor = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("ZookeeperCacheTest").build();
         scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     void classTeardown() throws Exception {
-        executor.shutdown();
-        scheduledExecutor.shutdown();
+        executor.shutdownNow();
+        scheduledExecutor.shutdownNow();
     }
 
 
@@ -410,8 +412,11 @@ public class ZookeeperCacheTest {
      */
     @Test(timeOut = 2000)
     public void testZkCallbackThreadStuck() throws Exception {
+        @Cleanup("shutdownNow")
         OrderedScheduler executor = OrderedScheduler.newSchedulerBuilder().build();
+        @Cleanup("shutdownNow")
         ScheduledExecutorService scheduledExecutor = Executors.newScheduledThreadPool(2);
+        @Cleanup("shutdownNow")
         ExecutorService zkExecutor = Executors.newSingleThreadExecutor(new DefaultThreadFactory("mockZk"));
         // add readOpDelayMs so, main thread will not serve zkCacahe-returned future and let zkExecutor-thread handle
         // callback-result process
@@ -444,9 +449,6 @@ public class ZookeeperCacheTest {
         });
 
         latch.await();
-        executor.shutdown();
-        zkExecutor.shutdown();
-        scheduledExecutor.shutdown();
     }
 
     /**
@@ -460,6 +462,7 @@ public class ZookeeperCacheTest {
      */
     @Test(timeOut = 10000)
     public void testInvalidateCacheOnFailure() throws Exception {
+        @Cleanup("shutdownNow")
         ExecutorService zkExecutor = Executors.newSingleThreadExecutor(new DefaultThreadFactory("mockZk"));
         // add readOpDelayMs so, main thread will not serve zkCacahe-returned future and let zkExecutor-thread handle
         // callback-result process
@@ -514,7 +517,6 @@ public class ZookeeperCacheTest {
         Thread.sleep(1000);
         // (6) now, cache should be invalidate failed-future and should refetch the data
         assertEquals(zkCache.getAsync(key1).get().get(), value);
-        zkExecutor.shutdown();
     }
 
     /**
@@ -525,9 +527,11 @@ public class ZookeeperCacheTest {
      */
     @Test
     public void testTimedOutZKCacheRequestInvalidates() throws Exception {
-
+        @Cleanup("shutdownNow")
         OrderedScheduler executor = OrderedScheduler.newSchedulerBuilder().build();
+        @Cleanup("shutdownNow")
         ScheduledExecutorService scheduledExecutor = Executors.newScheduledThreadPool(2);
+        @Cleanup("shutdownNow")
         ExecutorService zkExecutor = Executors.newSingleThreadExecutor(new DefaultThreadFactory("mockZk"));
         MockZooKeeper zkSession = spy(MockZooKeeper.newInstance(MoreExecutors.newDirectExecutorService()));
 
@@ -557,10 +561,62 @@ public class ZookeeperCacheTest {
         }, 5, 1000);
 
         assertNull(zkCacheService.dataCache.getIfPresent(path));
+    }
 
-        executor.shutdown();
-        zkExecutor.shutdown();
-        scheduledExecutor.shutdown();
+    /**
+     * Test to verify {@link ZooKeeperCache} renews cache data after expiry time in background.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testZKRefreshExpiredEntry() throws Exception {
+        int cacheExpiryTimeSec = 1;
+        @Cleanup("shutdownNow")
+        OrderedScheduler executor = OrderedScheduler.newSchedulerBuilder().build();
+        @Cleanup("shutdownNow")
+        ScheduledExecutorService scheduledExecutor = Executors.newScheduledThreadPool(2);
+        @Cleanup("shutdownNow")
+        ExecutorService zkExecutor = Executors.newSingleThreadExecutor(new DefaultThreadFactory("mockZk"));
+
+        String path = "/test";
+        String val1 = "test-1";
+        String val2 = "test-2";
+        zkClient.create(path, val1.getBytes(), null, null);
+
+        // add readOpDelayMs so, main thread will not serve zkCacahe-returned future and let zkExecutor-thread handle
+        // callback-result process
+        ZooKeeperCache zkCacheService = new ZooKeeperCacheTest("test", zkClient, 30, executor, cacheExpiryTimeSec);
+        ZooKeeperDataCache<String> zkCache = new ZooKeeperDataCache<String>(zkCacheService) {
+            @Override
+            public String deserialize(String key, byte[] content) throws Exception {
+                return new String(content);
+            }
+        };
+
+        // try to do get on the path which will time-out and async-cache will have non-completed Future
+        assertEquals(zkCache.get(path).get(), val1);
+
+        zkClient.setData(path, val2.getBytes(), -1);
+
+        retryStrategically((test) -> {
+            try {
+                return zkCache.get(path).get().equalsIgnoreCase(val2);
+            } catch (Exception e) {
+                log.warn("Failed to get date for path {}", path);
+            }
+            return false;
+        }, 5, 1000);
+
+        assertEquals(zkCache.get(path).get(), val2);
+    }
+
+    static class ZooKeeperCacheTest extends ZooKeeperCache {
+
+        public ZooKeeperCacheTest(String cacheName, ZooKeeper zkSession, int zkOperationTimeoutSeconds,
+                OrderedExecutor executor, int cacheExpirySeconds) {
+            super(cacheName, zkSession, zkOperationTimeoutSeconds, executor, cacheExpirySeconds);
+        }
+
     }
 
     private static void retryStrategically(Predicate<Void> predicate, int retryCount, long intSleepTimeInMillis)

@@ -19,7 +19,7 @@
 package org.apache.pulsar.functions.secretsproviderconfigurator;
 
 import com.google.gson.reflect.TypeToken;
-import io.kubernetes.client.models.V1PodSpec;
+import io.kubernetes.client.openapi.models.V1PodSpec;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
 

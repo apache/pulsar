@@ -40,7 +40,6 @@ import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.stats.StatsLogger;
-import org.apache.bookkeeper.test.PortManager;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
 import org.apache.pulsar.broker.PulsarService;
@@ -50,17 +49,20 @@ import org.apache.pulsar.broker.intercept.CounterBrokerInterceptor;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
+import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
+import org.apache.zookeeper.data.ACL;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.MockZooKeeper;
+import org.apache.zookeeper.MockZooKeeperSession;
 import org.apache.zookeeper.ZooKeeper;
-import org.apache.zookeeper.data.ACL;
 
 @Slf4j
-public class TransactionTestBase {
+public abstract class TransactionTestBase extends TestRetrySupport {
 
-    private final static String CLUSTER_NAME = "test";
+    public final static String CLUSTER_NAME = "test";
 
     @Setter
     private int brokerCount = 3;
@@ -79,13 +81,18 @@ public class TransactionTestBase {
     private NonClosableMockBookKeeper mockBookKeeper;
 
     public void internalSetup() throws Exception {
+        incrementSetupNumber();
         init();
 
-        int webServicePort = serviceConfigurationList.get(0).getWebServicePort().get();
-        admin = spy(PulsarAdmin.builder().serviceHttpUrl("http://localhost:" + webServicePort).build());
+        if (admin != null) {
+            admin.close();
+        }
+        admin = spy(PulsarAdmin.builder().serviceHttpUrl(pulsarServiceList.get(0).getWebServiceAddress()).build());
 
-        int brokerPort = serviceConfigurationList.get(0).getBrokerServicePort().get();
-        pulsarClient = PulsarClient.builder().serviceUrl("pulsar://localhost:" + brokerPort).build();
+        if (pulsarClient != null) {
+            pulsarClient.shutdown();
+        }
+        pulsarClient = PulsarClient.builder().serviceUrl(pulsarServiceList.get(0).getBrokerServiceUrl()).build();
     }
 
     private void init() throws Exception {
@@ -111,14 +118,19 @@ public class TransactionTestBase {
             conf.setConfigurationStoreServers("localhost:3181");
             conf.setAllowAutoTopicCreationType("non-partitioned");
             conf.setBookkeeperClientExposeStatsToPrometheus(true);
+            conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
 
-            Integer brokerServicePort = PortManager.nextFreePort();
-            conf.setBrokerServicePort(Optional.of(brokerServicePort));
-
-            conf.setBrokerServicePortTls(Optional.of(PortManager.nextFreePort()));
+            conf.setBrokerShutdownTimeoutMs(0L);
+            conf.setBrokerServicePort(Optional.of(0));
+            conf.setBrokerServicePortTls(Optional.of(0));
             conf.setAdvertisedAddress("localhost");
-            conf.setWebServicePort(Optional.of(PortManager.nextFreePort()));
-            conf.setWebServicePortTls(Optional.of(PortManager.nextFreePort()));
+            conf.setWebServicePort(Optional.of(0));
+            conf.setWebServicePortTls(Optional.of(0));
+            conf.setTransactionCoordinatorEnabled(true);
+            conf.setBrokerDeduplicationEnabled(true);
+            conf.setSystemTopicEnabled(true);
+            conf.setTransactionBufferSnapshotMaxTransactionCount(2);
+            conf.setTransactionBufferSnapshotMinTimeInMillis(2000);
             serviceConfigurationList.add(conf);
 
             PulsarService pulsar = spy(new PulsarService(conf));
@@ -134,6 +146,9 @@ public class TransactionTestBase {
         doReturn(mockZooKeeperClientFactory).when(pulsar).getZooKeeperClientFactory();
         doReturn(mockBookKeeperClientFactory).when(pulsar).newBookKeeperClientFactory();
 
+        MockZooKeeperSession mockZooKeeperSession = MockZooKeeperSession.newInstance(mockZooKeeper);
+        doReturn(new ZKMetadataStore(mockZooKeeperSession)).when(pulsar).createLocalMetadataStore();
+        doReturn(new ZKMetadataStore(mockZooKeeperSession)).when(pulsar).createConfigurationMetadataStore();
         Supplier<NamespaceService> namespaceServiceSupplier = () -> spy(new NamespaceService(pulsar));
         doReturn(namespaceServiceSupplier).when(pulsar).getNamespaceServiceProvider();
 
@@ -219,6 +234,7 @@ public class TransactionTestBase {
     };
 
     protected final void internalCleanup() {
+        markCurrentSetupNumberCleaned();
         try {
             // if init fails, some of these could be null, and if so would throw
             // an NPE in shutdown, obscuring the real error
@@ -234,6 +250,10 @@ public class TransactionTestBase {
                 for (PulsarService pulsarService : pulsarServiceList) {
                     pulsarService.close();
                 }
+                pulsarServiceList.clear();
+            }
+            if (serviceConfigurationList.size() > 0) {
+                serviceConfigurationList.clear();
             }
             if (mockBookKeeper != null) {
                 mockBookKeeper.reallyShutdown();

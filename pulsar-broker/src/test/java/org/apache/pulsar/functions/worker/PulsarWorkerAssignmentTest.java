@@ -19,21 +19,19 @@
 package org.apache.pulsar.functions.worker;
 
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
+import static org.apache.pulsar.functions.worker.PulsarFunctionLocalRunTest.getPulsarApiExamplesJar;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.gson.Gson;
-
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
@@ -46,7 +44,6 @@ import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -63,6 +60,7 @@ import org.testng.annotations.Test;
  *
  */
 @Slf4j
+@Test(groups = "functions-worker")
 public class PulsarWorkerAssignmentTest {
     LocalBookkeeperEnsemble bkEnsemble;
 
@@ -72,11 +70,12 @@ public class PulsarWorkerAssignmentTest {
     PulsarAdmin admin;
     PulsarClient pulsarClient;
     BrokerStats brokerStatsClient;
-    WorkerService functionsWorkerService;
+    PulsarWorkerService functionsWorkerService;
     final String tenant = "external-repl-prop";
     final String pulsarFunctionsNamespace = tenant + "/pulsar-function-admin";
     String primaryHost;
     String workerId;
+    private PulsarFunctionTestTemporaryDirectory tempDirectory;
 
     @BeforeMethod(timeOut = 60000)
     void setup(Method method) throws Exception {
@@ -89,17 +88,18 @@ public class PulsarWorkerAssignmentTest {
 
         config = spy(new ServiceConfiguration());
         config.setClusterName("use");
-        final Set<String> superUsers = Sets.newHashSet("superUser");
+        final Set<String> superUsers = Sets.newHashSet("superUser", "admin");
         config.setSuperUserRoles(superUsers);
         config.setWebServicePort(Optional.of(0));
         config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setBrokerShutdownTimeoutMs(0L);
         config.setBrokerServicePort(Optional.of(0));
         config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
         config.setAdvertisedAddress("localhost");
 
         functionsWorkerService = createPulsarFunctionWorker(config);
         final Optional<WorkerService> functionWorkerService = Optional.of(functionsWorkerService);
-        pulsar = new PulsarService(config, functionWorkerService, (exitCode) -> {});
+        pulsar = new PulsarService(config, workerConfig, functionWorkerService, (exitCode) -> {});
         pulsar.start();
 
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(pulsar.getWebServiceAddress()).build());
@@ -112,6 +112,9 @@ public class PulsarWorkerAssignmentTest {
         admin.clusters().updateCluster(config.getClusterName(), clusterData);
 
         final ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(this.workerConfig.getPulsarServiceUrl());
+        if (pulsarClient != null) {
+            pulsarClient.close();
+        }
         pulsarClient = clientBuilder.build();
 
         final TenantInfo propAdmin = new TenantInfo();
@@ -122,7 +125,7 @@ public class PulsarWorkerAssignmentTest {
         Thread.sleep(100);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     void shutdown() {
         log.info("--- Shutting down ---");
         try {
@@ -133,11 +136,17 @@ public class PulsarWorkerAssignmentTest {
             bkEnsemble.stop();
         } catch (Exception e) {
             log.warn("Encountered errors at shutting down PulsarWorkerAssignmentTest", e);
+        } finally {
+            if (tempDirectory != null) {
+                tempDirectory.delete();
+            }
         }
     }
 
-    private WorkerService createPulsarFunctionWorker(ServiceConfiguration config) {
+    private PulsarWorkerService createPulsarFunctionWorker(ServiceConfiguration config) {
         workerConfig = new WorkerConfig();
+        tempDirectory = PulsarFunctionTestTemporaryDirectory.create(getClass().getSimpleName());
+        tempDirectory.useTemporaryDirectoriesForWorkerConfig(workerConfig);
         workerConfig.setPulsarFunctionsNamespace(pulsarFunctionsNamespace);
         workerConfig.setSchedulerClassName(
                 org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler.class.getName());
@@ -161,7 +170,9 @@ public class PulsarWorkerAssignmentTest {
         workerConfig.setWorkerId(workerId);
         workerConfig.setTopicCompactionFrequencySec(1);
 
-        return new WorkerService(workerConfig);
+        PulsarWorkerService workerService = new PulsarWorkerService();
+        workerService.init(workerConfig, null, false);
+        return workerService;
     }
 
     @Test(timeOut = 60000, enabled = false)
@@ -176,7 +187,7 @@ public class PulsarWorkerAssignmentTest {
         final Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
 
-        final String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
+        final String jarFilePathUrl = getPulsarApiExamplesJar().toURI().toString();
         FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion,
                 functionName, "my.*", sinkTopic, subscriptionName);
         functionConfig.setParallelism(2);
@@ -230,7 +241,7 @@ public class PulsarWorkerAssignmentTest {
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
         final FunctionRuntimeManager runtimeManager = functionsWorkerService.getFunctionRuntimeManager();
 
-        final String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
+        final String jarFilePathUrl = getPulsarApiExamplesJar().toURI().toString();
         FunctionConfig functionConfig;
         // (1) Register functions with 2 instances
         for (int i = 0; i < totalFunctions; i++) {
@@ -286,8 +297,11 @@ public class PulsarWorkerAssignmentTest {
         // (3) Restart worker service and check registered functions
         final URI dlUri = functionsWorkerService.getDlogUri();
         functionsWorkerService.stop();
-        functionsWorkerService = new WorkerService(workerConfig);
-        functionsWorkerService.start(dlUri, new AuthenticationService(PulsarConfigurationLoader.convertFrom(workerConfig)), null, ErrorNotifier.getDefaultImpl());
+        functionsWorkerService = new PulsarWorkerService();
+        functionsWorkerService.init(workerConfig, dlUri, false);
+        functionsWorkerService.start(new AuthenticationService(PulsarConfigurationLoader.convertFrom(workerConfig)),
+                null,
+                ErrorNotifier.getDefaultImpl());
         final FunctionRuntimeManager runtimeManager2 = functionsWorkerService.getFunctionRuntimeManager();
         retryStrategically((test) -> {
             try {
@@ -309,8 +323,12 @@ public class PulsarWorkerAssignmentTest {
         }
     }
 
-    protected static FunctionConfig createFunctionConfig(String tenant, String namespace,
-                                                         String functionName, String sourceTopic, String sinkTopic, String subscriptionName) {
+    protected static FunctionConfig createFunctionConfig(String tenant,
+                                                         String namespace,
+                                                         String functionName,
+                                                         String sourceTopic,
+                                                         String sinkTopic,
+                                                         String subscriptionName) {
 
         final String sourceTopicPattern = String.format("persistent://%s/%s/%s", tenant, namespace, sourceTopic);
 

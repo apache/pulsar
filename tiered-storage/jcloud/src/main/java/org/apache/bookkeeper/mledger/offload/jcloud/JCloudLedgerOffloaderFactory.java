@@ -23,6 +23,8 @@ import java.util.Map;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.LedgerOffloaderFactory;
 import org.apache.bookkeeper.mledger.offload.jcloud.impl.BlobStoreManagedLedgerOffloader;
+import org.apache.bookkeeper.mledger.offload.jcloud.provider.JCloudBlobStoreProvider;
+import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 
 /**
@@ -38,13 +40,15 @@ public class JCloudLedgerOffloaderFactory implements LedgerOffloaderFactory<Blob
 
     @Override
     public boolean isDriverSupported(String driverName) {
-        return BlobStoreManagedLedgerOffloader.driverSupported(driverName);
+        return JCloudBlobStoreProvider.driverSupported(driverName);
     }
 
     @Override
-    public BlobStoreManagedLedgerOffloader create(OffloadPolicies offloadPolicies,
-                                                  Map<String, String> userMetadata,
-                                                  OrderedScheduler scheduler) throws IOException  {
-        return BlobStoreManagedLedgerOffloader.create(offloadPolicies, userMetadata, scheduler);
+    public BlobStoreManagedLedgerOffloader create(OffloadPolicies offloadPolicies, Map<String, String> userMetadata,
+            OrderedScheduler scheduler) throws IOException {
+        
+        TieredStorageConfiguration config =
+                TieredStorageConfiguration.create(offloadPolicies.toProperties());
+        return BlobStoreManagedLedgerOffloader.create(config, userMetadata, scheduler);
     }
 }

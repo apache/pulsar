@@ -52,7 +52,9 @@ public class PulsarConfigurationLoader {
     public static <T extends PulsarConfiguration> T create(String configFile,
             Class<? extends PulsarConfiguration> clazz) throws IOException, IllegalArgumentException {
         checkNotNull(configFile);
-        return create(new FileInputStream(configFile), clazz);
+        try (InputStream inputStream = new FileInputStream(configFile)) {
+            return create(inputStream, clazz);
+        }
     }
 
     /**
@@ -106,7 +108,7 @@ public class PulsarConfigurationLoader {
      * and value of the element is null or number value is not in a provided (min,max) range then consider as incomplete
      * object and throws exception with incomplete parameters
      *
-     * @param object
+     * @param obj
      * @return
      * @throws IllegalArgumentException
      *             if object is field values are not completed according to {@link FieldContext} constraints.

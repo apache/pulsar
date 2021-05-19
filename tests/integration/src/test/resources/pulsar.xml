@@ -18,7 +18,7 @@
     under the License.
 
 -->
-<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd" >
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd" >
 <!-- TODO: we have to put suite files in one file to avoid executing TESTNG test suites multiple times.
            see {@link https://github.com/cbeust/testng/issues/508} -->
 <suite name="Pulsar Test Suite" parallel="instances" thread-count="1">
@@ -30,8 +30,10 @@
         <suite-file path="./pulsar-thread.xml" />
         <suite-file path="./tiered-jcloud-storage.xml" />
         <suite-file path="./tiered-filesystem-storage.xml"/>
-        <suite-file path="./pulsar-function-state.xml" />
+        <suite-file path="./pulsar-function.xml" />
         <suite-file path="./pulsar-messaging.xml" />
         <suite-file path="./pulsar-backwards-compatibility.xml" />
+        <suite-file path="./pulsar-io-sinks.xml" />
+        <suite-file path="./pulsar-io-sources.xml" />
     </suite-files>
 </suite>

@@ -28,6 +28,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import lombok.Cleanup;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -135,7 +136,7 @@ public class ProxyWithAuthorizationNegTest extends ProducerConsumerBase {
         proxyService.start();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -162,6 +163,7 @@ public class ProxyWithAuthorizationNegTest extends ProducerConsumerBase {
 
         createAdminClient();
         // create a client which connects to proxy over tls and pass authData
+        @Cleanup
         PulsarClient proxyClient = createPulsarClient("pulsar+ssl://localhost:" + proxyService.getListenPortTls().get());
 
         String namespaceName = "my-property/proxy-authorization-neg/my-ns";

@@ -19,8 +19,9 @@
 package org.apache.pulsar.tests.integration.topologies;
 
 import static org.testng.Assert.assertEquals;
-
+import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.IOUtils;
 import org.apache.pulsar.tests.integration.containers.StandaloneContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.testcontainers.containers.Network;
@@ -38,23 +39,42 @@ import org.testng.annotations.DataProvider;
 public abstract class PulsarStandaloneTestBase extends PulsarTestBase {
 
     @DataProvider(name = "StandaloneServiceUrlAndTopics")
-    public static Object[][] serviceUrlAndTopics() {
+    public Object[][] serviceUrlAndTopics() {
         return new Object[][] {
                 // plain text, persistent topic
                 {
-                        container.getPlainTextServiceUrl(),
+                        stringSupplier(() -> getContainer().getPlainTextServiceUrl()),
                         true,
                 },
                 // plain text, non-persistent topic
                 {
-                        container.getPlainTextServiceUrl(),
+                        stringSupplier(() -> getContainer().getPlainTextServiceUrl()),
                         false
                 }
         };
     }
 
-    protected static Network network;
-    protected static StandaloneContainer container;
+    @DataProvider(name = "StandaloneServiceUrlAndHttpUrl")
+    public Object[][] serviceUrlAndHttpUrl() {
+        return new Object[][] {
+                {
+                        stringSupplier(() -> getContainer().getPlainTextServiceUrl()),
+                        stringSupplier(() -> getContainer().getHttpServiceUrl()),
+                }
+        };
+    }
+
+    protected Network network;
+
+    protected StandaloneContainer container;
+
+    public StandaloneContainer getContainer() {
+        return container;
+    }
+
+    private static Supplier<String> stringSupplier(Supplier<String> supplier) {
+        return supplier;
+    }
 
     protected void startCluster(final String pulsarImageName) throws Exception {
         network = Network.newNetwork();
@@ -76,8 +96,28 @@ public abstract class PulsarStandaloneTestBase extends PulsarTestBase {
     }
 
     protected void stopCluster() throws Exception {
-        container.stop();
-        network.close();
+        if (container != null) {
+            container.stop();
+            container = null;
+        }
+        if (network != null) {
+            network.close();
+            network = null;
+        }
+    }
+
+
+
+    protected void dumpFunctionLogs(String name) {
+        try {
+            String logFile = "/pulsar/logs/functions/public/default/" + name + "/" + name + "-0.log";
+            String logs = container.<String>copyFileFromContainer(logFile, (inputStream) -> {
+                return IOUtils.toString(inputStream, "utf-8");
+            });
+            log.info("Function {} logs {}", name, logs);
+        } catch (Throwable err) {
+            log.info("Cannot download {} logs", name, err);
+        }
     }
 
 }

@@ -18,9 +18,8 @@
  */
 package org.apache.pulsar.utils;
 
-import java.util.Stack;
-
 import io.netty.buffer.ByteBuf;
+import java.util.Stack;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 
 public class StatsOutputStream extends SimpleTextOutputStream {

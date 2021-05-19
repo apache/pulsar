@@ -19,6 +19,7 @@
 package org.apache.pulsar.proxy.server;
 
 import com.google.common.collect.Lists;
+
 import io.prometheus.client.jetty.JettyStatisticsCollector;
 import java.io.IOException;
 import java.net.URI;
@@ -34,6 +35,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.broker.web.JsonMapperProvider;
+import org.apache.pulsar.broker.web.RateLimitingFilter;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
@@ -77,7 +79,7 @@ public class WebServer {
     private ServerConnector connector;
     private ServerConnector connectorTls;
 
-    public WebServer(ProxyConfiguration config, AuthenticationService authenticationService) {
+    public WebServer(ProxyConfiguration config, AuthenticationService authenticationService) throws IOException {
         this.webServiceExecutor = new WebExecutorThreadPool(config.getHttpNumThreads(), "pulsar-external-web");
         this.server = new Server(webServiceExecutor);
         this.authenticationService = authenticationService;
@@ -164,6 +166,11 @@ public class WebServer {
         if (config.isAuthenticationEnabled() && requireAuthentication) {
             FilterHolder filter = new FilterHolder(new AuthenticationFilter(authenticationService));
             context.addFilter(filter, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
+        }
+
+        if (config.isHttpRequestsLimitEnabled()) {
+            context.addFilter(new FilterHolder(new RateLimitingFilter(config.getHttpRequestsMaxPerSecond())), MATCH_ALL,
+                    EnumSet.allOf(DispatcherType.class));
         }
 
         handlers.add(context);

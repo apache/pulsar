@@ -44,13 +44,13 @@ The credentials file contains service account credentials used with the client a
 
 In the above example, the authentication type is set to `client_credentials` by default. And the fields "client_id" and "client_secret" are required.
 
-### Typical original Oauth2 request mapping
+### Typical original OAuth2 request mapping
 
-The following shows a typical original Oauth2 request, which is used to obtain the access token from the Oauth2 server.
+The following shows a typical original OAuth2 request, which is used to obtain the access token from the OAuth2 server.
 
 ```bash
 curl --request POST \
-  --url https://dev-kt-aa9ne.us.auth0.com/oauth/token \
+  --url https://dev-kt-aa9ne.us.auth0.com \
   --header 'content-type: application/json' \
   --data '{
   "client_id":"Xd23RHsUnvUlP7wchjNYOaIfazgeHd9x",
@@ -61,20 +61,20 @@ curl --request POST \
 
 In the above example, the mapping relationship is shown as below.
 
-- The `issuerUrl` parameter in this plugin is mapped to `--url https://dev-kt-aa9ne.us.auth0.com/oauth/token`.
+- The `issuerUrl` parameter in this plugin is mapped to `--url https://dev-kt-aa9ne.us.auth0.com`.
 - The `privateKey` file parameter in this plugin should at least contains the `client_id` and `client_secret` fields.
 - The `audience` parameter in this plugin is mapped to  `"audience":"https://dev-kt-aa9ne.us.auth0.com/api/v2/"`.
 
 ## Client Configuration
 
-You can use the Oauth2 authentication provider with the following Pulsar clients.
+You can use the OAuth2 authentication provider with the following Pulsar clients.
 
 ### Java
 
 You can use the factory method to configure authentication for Pulsar Java client.
 
 ```java
-String issuerUrl = "https://dev-kt-aa9ne.us.auth0.com/oauth/token";
+String issuerUrl = "https://dev-kt-aa9ne.us.auth0.com";
 String credentialsUrl = "file:///path/to/KeyFile.json";
 String audience = "https://dev-kt-aa9ne.us.auth0.com/api/v2/";
 
@@ -105,7 +105,7 @@ The C++ client is similar to the Java client. You need to provide parameters of 
 
 pulsar::ClientConfiguration config;
 std::string params = R"({
-    "issuer_url": "https://dev-kt-aa9ne.us.auth0.com/oauth/token",
+    "issuer_url": "https://dev-kt-aa9ne.us.auth0.com",
     "private_key": "../../pulsar-broker/src/test/resources/authentication/token/cpp_credentials_file.json",
     "audience": "https://dev-kt-aa9ne.us.auth0.com/api/v2/"})";
     
@@ -122,13 +122,85 @@ This example shows how to configure OAuth2 authentication in Go client.
 ```go
 oauth := pulsar.NewAuthenticationOAuth2(map[string]string{
 		"type":       "client_credentials",
-		"issuerUrl":  "https://dev-kt-aa9ne.us.auth0.com/oauth/token",
+		"issuerUrl":  "https://dev-kt-aa9ne.us.auth0.com",
 		"audience":   "https://dev-kt-aa9ne.us.auth0.com/api/v2/",
 		"privateKey": "/path/to/privateKey",
 		"clientId":   "0Xx...Yyxeny",
 	})
 client, err := pulsar.NewClient(pulsar.ClientOptions{
-		URL:              "puslar://my-cluster:6650",
+		URL:              "pulsar://my-cluster:6650",
 		Authentication:   oauth,
 })
 ```
+
+### Python client
+
+To enable OAuth2 authentication in Python client, you need to configure OAuth2 authentication.
+This example shows how to configure OAuth2 authentication in Python client.
+
+```python
+from pulsar import Client, AuthenticationOauth2
+
+params = '''
+{
+    "issuer_url": "https://dev-kt-aa9ne.us.auth0.com",
+    "private_key": "/path/to/privateKey",
+    "audience": "https://dev-kt-aa9ne.us.auth0.com/api/v2/"
+}
+'''
+
+client = Client("pulsar://my-cluster:6650", authentication=AuthenticationOauth2(params))
+```
+
+## CLI configuration
+
+This section describes how to use Pulsar CLI tools to connect a cluster through OAuth2 authentication plugin.
+
+### pulsar-admin
+
+This example shows how to use pulsar-admin to connect to a cluster through OAuth2 authentication plugin.
+
+```shell script
+bin/pulsar-admin --admin-url https://streamnative.cloud:443 \
+--auth-plugin org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2 \
+--auth-params '{"privateKey":"file:///path/to/key/file.json",
+    "issuerUrl":"https://dev-kt-aa9ne.us.auth0.com",
+    "audience":"https://dev-kt-aa9ne.us.auth0.com/api/v2/"}' \
+tenants list
+```
+
+Set the `admin-url` parameter to the Web service URL. A Web service URLis a combination of the protocol, hostname and port ID, such as `pulsar://localhost:6650`.
+Set the `privateKey`, `issuerUrl`, and `audience` parameters to the values based on the configuration in the key file. For details, see [authentication types](#authentication-types).
+
+### pulsar-client
+
+This example shows how to use pulsar-client to connect to a cluster through OAuth2 authentication plugin.
+
+```shell script
+bin/pulsar-client \
+--url SERVICE_URL \
+--auth-plugin org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2 \
+--auth-params '{"privateKey":"file:///path/to/key/file.json",
+    "issuerUrl":"https://dev-kt-aa9ne.us.auth0.com",
+    "audience":"https://dev-kt-aa9ne.us.auth0.com/api/v2/"}' \
+produce test-topic -m "test-message" -n 10
+```
+
+Set the `admin-url` parameter to the Web service URL. A Web service URLis a combination of the protocol, hostname and port ID, such as `pulsar://localhost:6650`.
+Set the `privateKey`, `issuerUrl`, and `audience` parameters to the values based on the configuration in the key file. For details, see [authentication types](#authentication-types).
+
+### pulsar-perf
+
+This example shows how to use pulsar-perf to connect to a cluster through OAuth2 authentication plugin.
+
+```shell script
+bin/pulsar-perf produce --service-url pulsar+ssl://streamnative.cloud:6651 \
+--auth_plugin org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2 \
+--auth-params '{"privateKey":"file:///path/to/key/file.json",
+    "issuerUrl":"https://dev-kt-aa9ne.us.auth0.com",
+    "audience":"https://dev-kt-aa9ne.us.auth0.com/api/v2/"}' \
+-r 1000 -s 1024 test-topic
+```
+
+Set the `admin-url` parameter to the Web service URL. A Web service URLis a combination of the protocol, hostname and port ID, such as `pulsar://localhost:6650`.
+Set the `privateKey`, `issuerUrl`, and `audience` parameters to the values based on the configuration in the key file. For details, see [authentication types](#authentication-types).

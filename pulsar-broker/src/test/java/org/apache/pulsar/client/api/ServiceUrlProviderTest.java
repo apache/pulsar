@@ -21,6 +21,7 @@ package org.apache.pulsar.client.api;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.pulsar.broker.PulsarService;
@@ -33,6 +34,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
+@Test(groups = "broker-api")
 public class ServiceUrlProviderTest extends ProducerConsumerBase {
 
     @BeforeClass
@@ -43,7 +45,7 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
 
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -52,6 +54,7 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
     @Test
     public void testCreateClientWithServiceUrlProvider() throws Exception {
 
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrlProvider(new TestServiceUrlProvider(pulsar.getSafeBrokerServiceUrl()))
                 .statsInterval(1, TimeUnit.SECONDS)
@@ -80,7 +83,6 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
         Assert.assertEquals(200, received);
         producer.close();
         consumer.close();
-        client.close();
     }
 
     @Test
@@ -88,6 +90,7 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
 
         AutoChangedServiceUrlProvider serviceUrlProvider = new AutoChangedServiceUrlProvider(pulsar.getSafeBrokerServiceUrl());
 
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrlProvider(serviceUrlProvider)
                 .statsInterval(1, TimeUnit.SECONDS)
@@ -103,6 +106,7 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
                 .subscribe();
 
         PulsarService pulsarService1 = pulsar;
+        conf.setBrokerShutdownTimeoutMs(0L);
         conf.setBrokerServicePort(Optional.of(0));
         conf.setWebServicePort(Optional.of(0));
         restartBroker();
@@ -130,14 +134,13 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
         Assert.assertEquals(consumer.getClient().getLookup().getServiceUrl(), pulsarService2.getSafeBrokerServiceUrl());
         producer.close();
         consumer.close();
-        client.close();
     }
 
-    class TestServiceUrlProvider implements ServiceUrlProvider {
+    static class TestServiceUrlProvider implements ServiceUrlProvider {
 
         private PulsarClient pulsarClient;
 
-        private String serviceUrl;
+        private final String serviceUrl;
 
         public TestServiceUrlProvider(String serviceUrl) {
             this.serviceUrl = serviceUrl;
@@ -158,7 +161,7 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
         }
     }
 
-    class AutoChangedServiceUrlProvider extends TestServiceUrlProvider {
+    static class AutoChangedServiceUrlProvider extends TestServiceUrlProvider {
 
         public AutoChangedServiceUrlProvider(String serviceUrl) {
             super(serviceUrl);

@@ -20,10 +20,14 @@
 package pf
 
 import (
+	"fmt"
+	"net/http"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
+	log "github.com/apache/pulsar/pulsar-function-go/logutil"
+	"github.com/prometheus/client_golang/prometheus"
 	prometheus_client "github.com/prometheus/client_model/go"
 )
 
@@ -119,6 +123,11 @@ var (
 			Name: PulsarFunctionMetricsPrefix + "system_exception",
 			Help: "Exception from system code."}, exceptionMetricsLabelNames)
 )
+
+type MetricsServicer struct {
+	goInstance *goInstance
+	server     *http.Server
+}
 
 var reg *prometheus.Registry
 
@@ -234,7 +243,7 @@ func (stat *StatWithLabelValues) processTimeEnd() {
 	if stat.processStartTime != 0 {
 		now := time.Now()
 		duration := now.UnixNano() - stat.processStartTime
-		stat.statProcessLatencyMs.Observe(float64(duration))
+		stat.statProcessLatencyMs.Observe(float64(duration) / 1e6)
 	}
 }
 
@@ -303,4 +312,42 @@ func (stat *StatWithLabelValues) reset() {
 	stat.statTotalUserExceptions1min.Set(0.0)
 	stat.statTotalSysExceptions1min.Set(0.0)
 	stat.statTotalReceived1min.Set(0.0)
+}
+
+func NewMetricsServicer(goInstance *goInstance) *MetricsServicer {
+	serveMux := http.NewServeMux()
+	pHandler := promhttp.HandlerFor(
+		reg,
+		promhttp.HandlerOpts{
+			EnableOpenMetrics: true,
+		},
+	)
+	serveMux.Handle("/", pHandler)
+	serveMux.Handle("/metrics", pHandler)
+	server := &http.Server{
+		Addr:    fmt.Sprintf(":%d", goInstance.context.GetMetricsPort()),
+		Handler: serveMux,
+	}
+	return &MetricsServicer{
+		goInstance,
+		server,
+	}
+}
+
+func (s *MetricsServicer) serve() {
+	go func() {
+		// create a listener on metrics port
+		log.Infof("Starting metrics server on port %d", s.goInstance.context.GetMetricsPort())
+		err := s.server.ListenAndServe()
+		if err != nil {
+			log.Fatalf("failed to start metrics server: %v", err)
+		}
+	}()
+}
+
+func (s *MetricsServicer) close() {
+	err := s.server.Close()
+	if err != nil {
+		log.Fatalf("failed to close metrics server: %v", err)
+	}
 }

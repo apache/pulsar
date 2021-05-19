@@ -19,6 +19,8 @@
 package org.apache.pulsar.websocket.proxy;
 
 import static java.util.concurrent.Executors.newFixedThreadPool;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
@@ -48,9 +50,16 @@ import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import lombok.Cleanup;
+import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.stats.Metrics;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.websocket.WebSocketService;
 import org.apache.pulsar.websocket.service.ProxyServer;
 import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
@@ -58,6 +67,7 @@ import org.apache.pulsar.websocket.service.WebSocketServiceStarter;
 import org.apache.pulsar.websocket.stats.ProxyTopicStat;
 import org.apache.pulsar.websocket.stats.ProxyTopicStat.ConsumerStats;
 import org.apache.pulsar.websocket.stats.ProxyTopicStat.ProducerStats;
+import org.awaitility.Awaitility;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.UpgradeException;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
@@ -66,10 +76,12 @@ import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.logging.LoggingFeature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "websocket")
 public class ProxyPublishConsumeTest extends ProducerConsumerBase {
     protected String methodName;
 
@@ -88,20 +100,24 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         WebSocketProxyConfiguration config = new WebSocketProxyConfiguration();
         config.setWebServicePort(Optional.of(0));
         config.setClusterName("test");
-        config.setConfigurationStoreServers("dummy-zk-servers");
+        config.setConfigurationStoreServers(GLOBAL_DUMMY_VALUE);
         service = spy(new WebSocketService(config));
-        doReturn(mockZooKeeperClientFactory).when(service).getZooKeeperClientFactory();
+        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(service).createMetadataStore(anyString(), anyInt());
         proxyServer = new ProxyServer(config);
         WebSocketServiceStarter.start(proxyServer, service);
         log.info("Proxy Server Started");
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     protected void cleanup() throws Exception {
         super.resetConfig();
         super.internalCleanup();
-        service.close();
-        proxyServer.stop();
+        if (service != null) {
+            service.close();
+        }
+        if (proxyServer != null) {
+            proxyServer.stop();
+        }
         log.info("Finished Cleaning Up Test setup");
     }
 
@@ -182,9 +198,112 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
     }
 
     @Test(timeOut = 10000)
-    public void emptySubcriptionConsumerTest() throws Exception {
+    public void socketTestEndOfTopic() throws Exception {
+        final String topic = "my-property/my-ns/my-topic8";
+        final String subscription = "my-sub";
+        final String consumerUri = String.format(
+                "ws://localhost:%d/ws/v2/consumer/persistent/%s/%s?pullMode=true&subscriptionType=Shared",
+                proxyServer.getListenPortHTTP().get(), topic, subscription
+        );
+        final String producerUri = String.format("ws://localhost:%d/ws/v2/producer/persistent/%s", proxyServer.getListenPortHTTP().get(), topic);
 
-        // Empty subcription name
+        URI consumeUri = URI.create(consumerUri);
+        URI produceUri = URI.create(producerUri);
+
+        WebSocketClient consumeClient = new WebSocketClient();
+        SimpleConsumerSocket consumeSocket = new SimpleConsumerSocket();
+        WebSocketClient produceClient = new WebSocketClient();
+        SimpleProducerSocket produceSocket = new SimpleProducerSocket();
+
+        try {
+            consumeClient.start();
+            ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest();
+            Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeUri, consumeRequest);
+            log.info("Connecting to : {}", consumeUri);
+
+            // let it connect
+            assertTrue(consumerFuture.get().isOpen());
+
+            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
+            produceClient.start();
+            Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
+            assertTrue(producerFuture.get().isOpen());
+            // Send 30 message in total.
+            produceSocket.sendMessage(20);
+            // Send 10 permits, should receive 10 message
+            consumeSocket.sendPermits(10);
+            Awaitility.await().untilAsserted(() ->
+                    assertEquals(consumeSocket.getReceivedMessagesCount(), 10));
+            consumeSocket.isEndOfTopic();
+            // Wait till get response
+            Awaitility.await().untilAsserted(() ->
+                    assertEquals(consumeSocket.getBuffer().size(), 11));
+            // Assert not reach end of topic yet
+            assertEquals(consumeSocket.getBuffer().get(consumeSocket.getBuffer().size() - 1), "{\"endOfTopic\":false}");
+
+            // Send 20 more permits, should receive all message
+            consumeSocket.sendPermits(20);
+            // 31 includes previous of end of topic request.
+            Awaitility.await().untilAsserted(() ->
+                    assertEquals(consumeSocket.getReceivedMessagesCount(), 31));
+            consumeSocket.isEndOfTopic();
+            // Wait till get response
+            Awaitility.await().untilAsserted(() ->
+                    assertEquals(consumeSocket.getReceivedMessagesCount(), 32));
+            // Assert not reached end of topic.
+            assertEquals(consumeSocket.getBuffer().get(consumeSocket.getBuffer().size() - 1), "{\"endOfTopic\":false}");
+
+            admin.topics().terminateTopicAsync(topic).get();
+            consumeSocket.isEndOfTopic();
+            // Wait till get response
+            Awaitility.await().untilAsserted(() ->
+                    assertEquals(consumeSocket.getReceivedMessagesCount(), 33));
+            // Assert reached end of topic.
+            assertEquals(consumeSocket.getBuffer().get(consumeSocket.getBuffer().size() - 1), "{\"endOfTopic\":true}");
+        } finally {
+            stopWebSocketClient(consumeClient, produceClient);
+        }
+    }
+
+    @Test
+    public void unsubscribeTest() throws Exception {
+        final String namespace = "my-property/my-ns";
+        final String topic = namespace + "/" + "my-topic7";
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + topic);
+        admin.topics().createPartitionedTopic(topicName, 3);
+
+        final String subscription = "my-sub";
+        final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/v2/consumer/persistent/" + topic + "/" + subscription;
+
+        URI consumeUri = URI.create(consumerUri);
+        WebSocketClient consumeClient = new WebSocketClient();
+        SimpleConsumerSocket consumeSocket = new SimpleConsumerSocket();
+        Thread.sleep(500);
+
+        try {
+            // setup a consumer
+            consumeClient.start();
+            ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest();
+            Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeUri, consumeRequest);
+            consumerFuture.get();
+            List<String> subs = admin.topics().getSubscriptions(topic);
+            Assert.assertEquals(subs.size(), 1);
+            Assert.assertEquals(subs.get(0), subscription);
+            // do unsubscribe
+            consumeSocket.unsubscribe();
+            //wait for delete
+            Thread.sleep(1000);
+            subs = admin.topics().getSubscriptions(topic);
+            Assert.assertEquals(subs.size(), 0);
+        } finally {
+            stopWebSocketClient(consumeClient);
+        }
+    }
+
+    @Test(timeOut = 10000)
+    public void emptySubscriptionConsumerTest() {
+
+        // Empty subscription name
         final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
                 + "/ws/v2/consumer/persistent/my-property/my-ns/my-topic2/?subscriptionType=Exclusive";
         URI consumeUri = URI.create(consumerUri);
@@ -345,6 +464,120 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             admin.topics().delete("persistent://" + topic);
             admin.namespaces().removeBacklogQuota(namespace);
             admin.namespaces().deleteNamespace(namespace);
+        }
+    }
+
+    @Test(timeOut = 10000)
+    public void topicDoesNotExistTest() throws Exception {
+        final String namespace = "my-property/ns-topic-creation-not-allowed";
+        admin.namespaces().createNamespace(namespace);
+        admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("test"));
+        admin.namespaces().setAutoTopicCreation(namespace,
+                new AutoTopicCreationOverride(false, TopicType.NON_PARTITIONED.toString(), null));
+
+        final String topic = namespace + "/my-topic";
+        final String subscription = "my-sub";
+        final String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
+                + "/ws/v2/producer/persistent/" + topic;
+        final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
+                + "/ws/v2/consumer/persistent/" + topic + "/" + subscription;
+
+        URI produceUri = URI.create(producerUri);
+        URI consumeUri = URI.create(consumerUri);
+
+        WebSocketClient produceClient = new WebSocketClient();
+        WebSocketClient consumeClient = new WebSocketClient();
+
+        SimpleProducerSocket produceSocket = new SimpleProducerSocket();
+        SimpleConsumerSocket consumeSocket = new SimpleConsumerSocket();
+
+        try {
+            produceClient.start();
+            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
+            Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
+            producerFuture.get();
+            fail("should fail: topic does not exist");
+        } catch (Exception e) {
+            // Expected
+            assertTrue(e.getCause() instanceof UpgradeException);
+            assertEquals(((UpgradeException) e.getCause()).getResponseStatusCode(), HttpServletResponse.SC_NOT_FOUND);
+        } finally {
+            stopWebSocketClient(produceClient);
+        }
+
+        try {
+            consumeClient.start();
+            ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest();
+            Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeUri, consumeRequest);
+            consumerFuture.get();
+            fail("should fail: topic does not exist");
+        } catch (Exception e) {
+            // Expected
+            assertTrue(e.getCause() instanceof UpgradeException);
+            assertEquals(((UpgradeException) e.getCause()).getResponseStatusCode(), HttpServletResponse.SC_NOT_FOUND);
+        } finally {
+            stopWebSocketClient(consumeClient);
+        }
+
+        admin.namespaces().deleteNamespace(namespace);
+    }
+
+    @Test(timeOut = 10000)
+    public void producerFencedTest() throws Exception {
+        final String topic = "my-property/my-ns/producer-fenced-test";
+        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://" + topic)
+                .accessMode(ProducerAccessMode.Exclusive).create();
+
+        final String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
+                + "/ws/v2/producer/persistent/" + topic;
+        URI produceUri = URI.create(producerUri);
+
+        WebSocketClient produceClient = new WebSocketClient();
+        SimpleProducerSocket produceSocket = new SimpleProducerSocket();
+
+        try {
+            produceClient.start();
+            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
+            Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
+            producerFuture.get();
+            fail("should fail: producer fenced");
+        } catch (Exception e) {
+            // Expected
+            assertTrue(e.getCause() instanceof UpgradeException);
+            assertEquals(((UpgradeException) e.getCause()).getResponseStatusCode(), HttpServletResponse.SC_CONFLICT);
+        } finally {
+            stopWebSocketClient(produceClient);
+            producer.close();
+        }
+    }
+
+    @Test(timeOut = 10000)
+    public void topicTerminatedTest() throws Exception {
+        final String topic = "my-property/my-ns/topic-terminated-test";
+        admin.topics().createNonPartitionedTopic("persistent://" + topic);
+        admin.topics().terminateTopic("persistent://" + topic);
+
+        final String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
+                + "/ws/v2/producer/persistent/" + topic;
+        URI produceUri = URI.create(producerUri);
+
+        WebSocketClient produceClient = new WebSocketClient();
+        SimpleProducerSocket produceSocket = new SimpleProducerSocket();
+
+        try {
+            produceClient.start();
+            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
+            Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
+            producerFuture.get();
+            fail("should fail: topic terminated");
+        } catch (Exception e) {
+            // Expected
+            assertTrue(e.getCause() instanceof UpgradeException);
+            assertEquals(((UpgradeException) e.getCause()).getResponseStatusCode(),
+                    HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+        } finally {
+            stopWebSocketClient(produceClient);
+            admin.topics().delete("persistent://" + topic);
         }
     }
 
@@ -547,7 +780,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         String statUrl = baseUrl + "metrics";
         WebTarget webTarget = client.target(statUrl);
         Invocation.Builder invocationBuilder = webTarget.request(MediaType.APPLICATION_JSON);
-        Response response = (Response) invocationBuilder.get();
+        Response response = invocationBuilder.get();
         String responseStr = response.readEntity(String.class);
         final Gson gson = new Gson();
         List<Metrics> data = gson.fromJson(responseStr, new TypeToken<List<Metrics>>() {
@@ -556,7 +789,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         // re-generate metrics
         service.getProxyStats().generate();
         invocationBuilder = webTarget.request(MediaType.APPLICATION_JSON);
-        response = (Response) invocationBuilder.get();
+        response = invocationBuilder.get();
         responseStr = response.readEntity(String.class);
         data = gson.fromJson(responseStr, new TypeToken<List<Metrics>>() {
         }.getType());
@@ -568,7 +801,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         String statUrl = baseUrl + "stats";
         WebTarget webTarget = client.target(statUrl);
         Invocation.Builder invocationBuilder = webTarget.request(MediaType.APPLICATION_JSON);
-        Response response = (Response) invocationBuilder.get();
+        Response response = invocationBuilder.get();
         String responseStr = response.readEntity(String.class);
         final Gson gson = new Gson();
         final Map<String, ProxyTopicStat> data = gson.fromJson(responseStr,
@@ -593,6 +826,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
     }
 
     private void stopWebSocketClient(WebSocketClient... clients) {
+        @Cleanup("shutdownNow")
         ExecutorService executor = newFixedThreadPool(1);
         try {
             executor.submit(() -> {
@@ -608,7 +842,6 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         } catch (Exception e) {
             log.error("failed to close proxy clients", e);
         }
-        executor.shutdownNow();
     }
 
     private static final Logger log = LoggerFactory.getLogger(ProxyPublishConsumeTest.class);

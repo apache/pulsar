@@ -25,18 +25,19 @@ namespace pulsar {
 struct ReaderConfigurationImpl {
     SchemaInfo schemaInfo;
     ReaderListener readerListener;
-    bool hasReaderListener;
-    int receiverQueueSize;
+    bool hasReaderListener{false};
+    int receiverQueueSize{1000};
     std::string readerName;
     std::string subscriptionRolePrefix;
-    bool readCompacted;
-    ReaderConfigurationImpl()
-        : schemaInfo(),
-          hasReaderListener(false),
-          receiverQueueSize(1000),
-          readerName(),
-          subscriptionRolePrefix(),
-          readCompacted(false) {}
+    bool readCompacted{false};
+    std::string internalSubscriptionName;
+    long unAckedMessagesTimeoutMs{0};
+    long tickDurationInMs{1000};
+    long ackGroupingTimeMs{100};
+    long ackGroupingMaxSize{1000};
+    CryptoKeyReaderPtr cryptoKeyReader;
+    ConsumerCryptoFailureAction cryptoFailureAction;
+    std::map<std::string, std::string> properties;
 };
 }  // namespace pulsar
 #endif /* LIB_READERCONFIGURATIONIMPL_H_ */

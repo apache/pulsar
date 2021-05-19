@@ -86,9 +86,7 @@ public class TopicName implements ServiceUnitId {
     public static TopicName get(String topic) {
         try {
             return cache.get(topic);
-        } catch (ExecutionException e) {
-            throw (RuntimeException) e.getCause();
-        } catch (UncheckedExecutionException e) {
+        } catch (ExecutionException | UncheckedExecutionException e) {
             throw (RuntimeException) e.getCause();
         }
     }
@@ -292,10 +290,15 @@ public class TopicName implements ServiceUnitId {
      * @return topic rest path
      */
     public String getRestPath() {
+        return getRestPath(true);
+    }
+
+    public String getRestPath(boolean includeDomain) {
+        String domainName = includeDomain ? domain + "/" : "";
         if (isV2()) {
-            return String.format("%s/%s/%s/%s", domain, tenant, namespacePortion, getEncodedLocalName());
+            return String.format("%s%s/%s/%s", domainName, tenant, namespacePortion, getEncodedLocalName());
         } else {
-            return String.format("%s/%s/%s/%s/%s", domain, tenant, cluster, namespacePortion, getEncodedLocalName());
+            return String.format("%s%s/%s/%s/%s", domainName, tenant, cluster, namespacePortion, getEncodedLocalName());
         }
     }
 

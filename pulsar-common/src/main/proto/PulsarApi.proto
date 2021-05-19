@@ -40,6 +40,11 @@ message Schema {
         Time = 13;
         Timestamp = 14;
         KeyValue = 15;
+        Instant = 16;
+        LocalDate = 17;
+        LocalTime = 18;
+        LocalDateTime = 19;
+        ProtobufNative = 20;
     }
 
     required string name = 1;
@@ -55,6 +60,7 @@ message MessageIdData {
     optional int32 partition = 3 [default = -1];
     optional int32 batch_index = 4 [default = -1];
     repeated int64 ack_set = 5;
+    optional int32 batch_size = 6;
 }
 
 message KeyValue {
@@ -84,6 +90,12 @@ enum CompressionType {
     ZLIB   = 2;
     ZSTD   = 3;
     SNAPPY   = 4;
+}
+
+enum ProducerAccessMode {
+    Shared = 0; // By default multiple producers can publish on a topic
+    Exclusive = 1; // Require exclusive access for producer. Fail immediately if there's already a producer connected.
+    WaitForExclusive = 2; // Producer creation is pending until it can acquire exclusive access
 }
 
 message MessageMetadata {
@@ -138,11 +150,11 @@ message MessageMetadata {
     optional uint64 highest_sequence_id = 24 [default = 0];
 
     // Indicate if the message payload value is set
-    optional bool null_value = 25 [ default = false ];
+    optional bool null_value = 25 [default = false];
     optional string uuid = 26;
-	optional int32 num_chunks_from_msg = 27;
-	optional int32 total_chunk_msg_size = 28;
-	optional int32 chunk_id = 29;
+    optional int32 num_chunks_from_msg = 27;
+    optional int32 total_chunk_msg_size = 28;
+    optional int32 chunk_id = 29;
 
     // Indicate if the message partition key is set
     optional bool null_partition_key = 30 [default = false];
@@ -166,6 +178,12 @@ message SingleMessageMetadata {
     optional bool null_value = 9 [ default = false ];
     // Indicate if the message partition key is set
     optional bool null_partition_key = 10 [ default = false];
+}
+
+// metadata added for entry from broker
+message BrokerEntryMetadata {
+    optional uint64 broker_timestamp = 1;
+    optional uint64 index = 2;
 }
 
 enum ServerError {
@@ -197,6 +215,15 @@ enum ServerError {
     TransactionCoordinatorNotFound = 20; // Transaction coordinator not found error
     InvalidTxnStatus = 21; // Invalid txn status error
     NotAllowedError = 22; // Not allowed error
+
+    TransactionConflict = 23; // Ack with transaction conflict
+    TransactionNotFound = 24; // Transaction not found
+
+    ProducerFenced = 25; // When a producer asks and fail to get exclusive producer access,
+                         // or loses the eclusive status after a reconnection, the broker will
+                         // use this error to indicate that this producer is now permanently
+                         // fenced. Applications are now supposed to close it and create a
+                         // new producer
 }
 
 enum AuthMethod {
@@ -227,6 +254,8 @@ enum ProtocolVersion {
     v14 = 14; // Add CommandAuthChallenge and CommandAuthResponse for mutual auth
               // Added Key_Shared subscription
     v15 = 15; // Add CommandGetOrCreateSchema and CommandGetOrCreateSchemaResponse
+    v16 = 16; // Add support for raw message metadata
+    v17 = 17; // Added support ack receipt
 }
 
 message CommandConnect {
@@ -257,6 +286,7 @@ message CommandConnect {
 
 message FeatureFlags {
   optional bool supports_auth_refresh = 1 [default = false];
+  optional bool supports_broker_entry_metadata = 2 [default = false];
 }
 
 message CommandConnected {
@@ -441,6 +471,16 @@ message CommandProducer {
     // Indicate the name of the producer is generated or user provided
     // Use default true here is in order to be forward compatible with the client
     optional bool user_provided_producer_name = 9 [default = true];
+
+    // Require that this producers will be the only producer allowed on the topic
+    optional ProducerAccessMode producer_access_mode = 10 [default = Shared];
+
+    // Topic epoch is used to fence off producers that reconnects after a new
+    // exclusive producer has already taken over. This id is assigned by the
+    // broker on the CommandProducerSuccess. The first time, the client will
+    // leave it empty and then it will always carry the same epoch number on
+    // the subsequent reconnections.
+    optional uint64 topic_epoch = 11;
 }
 
 message CommandSend {
@@ -504,6 +544,7 @@ message CommandAck {
 
     optional uint64 txnid_least_bits = 6 [default = 0];
     optional uint64 txnid_most_bits = 7 [default = 0];
+    optional uint64 request_id = 8;
 }
 
 message CommandAckResponse {
@@ -512,6 +553,7 @@ message CommandAckResponse {
     optional uint64 txnid_most_bits = 3 [default = 0];
     optional ServerError error = 4;
     optional string message = 5;
+    optional uint64 request_id = 6;
 }
 
 // changes on active consumer
@@ -578,6 +620,15 @@ message CommandProducerSuccess {
     // This will only be meaningful if deduplication has been enabled.
     optional int64  last_sequence_id = 3 [default = -1];
     optional bytes schema_version = 4;
+
+    // The topic epoch assigned by the broker. This field will only be set if we
+    // were requiring exclusive access when creating the producer.
+    optional uint64 topic_epoch = 5;
+
+    // If producer is not "ready", the client will avoid to timeout the request
+    // for creating the producer. Instead it will wait indefinitely until it gets
+    // a subsequent  `CommandProducerSuccess` with `producer_ready==true`.
+    optional bool producer_ready = 6 [default = true];
 }
 
 message CommandError {
@@ -651,6 +702,7 @@ message CommandGetLastMessageId {
 message CommandGetLastMessageIdResponse {
     required MessageIdData last_message_id = 1;
     required uint64 request_id  = 2;
+    optional MessageIdData consumer_mark_delete_position = 3;
 }
 
 message CommandGetTopicsOfNamespace {
@@ -775,6 +827,7 @@ message CommandEndTxnOnPartition {
     optional uint64 txnid_most_bits = 3 [default = 0];
     optional string topic = 4;
     optional TxnAction txn_action = 5;
+    optional uint64 txnid_least_bits_of_low_watermark = 6;
 }
 
 message CommandEndTxnOnPartitionResponse {
@@ -791,6 +844,7 @@ message CommandEndTxnOnSubscription {
     optional uint64 txnid_most_bits = 3 [default = 0];
     optional Subscription subscription= 4;
     optional TxnAction txn_action = 5;
+    optional uint64 txnid_least_bits_of_low_watermark = 6;
 }
 
 message CommandEndTxnOnSubscriptionResponse {

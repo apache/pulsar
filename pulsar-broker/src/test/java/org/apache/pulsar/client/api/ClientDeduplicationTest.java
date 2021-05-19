@@ -19,18 +19,20 @@
 package org.apache.pulsar.client.api;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+@Test(groups = "flaky")
 public class ClientDeduplicationTest extends ProducerConsumerBase {
+
     @BeforeClass
     @Override
     protected void setup() throws Exception {
@@ -38,15 +40,27 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         super.producerBaseSetup();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
     @Test
+    public void testNamespaceDeduplicationApi() throws Exception {
+        final String namespace = "my-property/my-ns";
+        assertNull(admin.namespaces().getDeduplicationStatus(namespace));
+        admin.namespaces().setDeduplicationStatus(namespace, true);
+        Awaitility.await().untilAsserted(() -> assertTrue(admin.namespaces().getDeduplicationStatus(namespace)));
+        admin.namespaces().setDeduplicationStatus(namespace, false);
+        Awaitility.await().untilAsserted(() -> assertFalse(admin.namespaces().getDeduplicationStatus(namespace)));
+        admin.namespaces().removeDeduplicationStatus(namespace);
+        Awaitility.await().untilAsserted(() -> assertNull(admin.namespaces().getDeduplicationStatus(namespace)));
+    }
+
+    @Test
     public void testProducerSequenceAfterReconnect() throws Exception {
-        String topic = "persistent://my-property/my-ns/testProducerSequenceAfterReconnect";
+        final String topic = "persistent://my-property/my-ns/testProducerSequenceAfterReconnect";
         admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topic)
@@ -166,8 +180,14 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);
 
         // Set infinite timeout
-        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topic)
-                .producerName("my-producer-name").enableBatching(true).batchingMaxMessages(10).sendTimeout(0, TimeUnit.SECONDS);
+        ProducerBuilder<byte[]> producerBuilder =
+                pulsarClient.newProducer()
+                        .topic(topic)
+                        .producerName("my-producer-name")
+                        .enableBatching(true)
+                        .batchingMaxMessages(10)
+                        .sendTimeout(0, TimeUnit.SECONDS);
+
         Producer<byte[]> producer = producerBuilder.create();
 
         assertEquals(producer.getLastSequenceId(), -1L);

@@ -24,15 +24,20 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
+import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.eclipse.jetty.http.HttpStatus;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
+@Test(groups = "broker")
 public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
 
     private final String testTenant = "my-tenant";
@@ -57,7 +62,7 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
         admin.topics().createPartitionedTopic(testTopic, 2);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
@@ -72,21 +77,21 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
             admin.topics().setBacklogQuota(testTopic, backlogQuota);
             Assert.fail();
         } catch (PulsarAdminException e) {
-            Assert.assertEquals(e.getStatusCode(), 405);
+            Assert.assertEquals(e.getStatusCode(), HttpStatus.METHOD_NOT_ALLOWED_405);
         }
 
         try {
             admin.topics().removeBacklogQuota(testTopic);
             Assert.fail();
         } catch (PulsarAdminException e) {
-            Assert.assertEquals(e.getStatusCode(), 405);
+            Assert.assertEquals(e.getStatusCode(), HttpStatus.METHOD_NOT_ALLOWED_405);
         }
 
         try {
             admin.topics().getBacklogQuotaMap(testTopic);
             Assert.fail();
         } catch (PulsarAdminException e) {
-            Assert.assertEquals(e.getStatusCode(), 405);
+            Assert.assertEquals(e.getStatusCode(), HttpStatus.METHOD_NOT_ALLOWED_405);
         }
     }
 
@@ -99,14 +104,14 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
             admin.topics().setRetention(testTopic, retention);
             Assert.fail();
         } catch (PulsarAdminException e) {
-            Assert.assertEquals(e.getStatusCode(), 405);
+            Assert.assertEquals(e.getStatusCode(), HttpStatus.METHOD_NOT_ALLOWED_405);
         }
 
         try {
             admin.topics().getRetention(testTopic);
             Assert.fail();
         } catch (PulsarAdminException e) {
-            Assert.assertEquals(e.getStatusCode(), 405);
+            Assert.assertEquals(e.getStatusCode(), HttpStatus.METHOD_NOT_ALLOWED_405);
         }
     }
 
@@ -119,11 +124,175 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
             admin.topics().setPersistence(testTopic, persistencePolicies);
             Assert.fail();
         } catch (PulsarAdminException e) {
-            Assert.assertEquals(e.getStatusCode(), 405);
+            Assert.assertEquals(e.getStatusCode(), HttpStatus.METHOD_NOT_ALLOWED_405);
         }
 
         try {
             admin.topics().getPersistence(testTopic);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), HttpStatus.METHOD_NOT_ALLOWED_405);
+        }
+    }
+
+    @Test
+    public void testDispatchRateDisabled() throws Exception {
+        DispatchRate dispatchRate = new DispatchRate();
+        log.info("Dispatch Rate: {} will set to the topic: {}", dispatchRate, testTopic);
+
+        try {
+            admin.topics().setDispatchRate(testTopic, dispatchRate);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), HttpStatus.METHOD_NOT_ALLOWED_405);
+        }
+
+        try {
+            admin.topics().getDispatchRate(testTopic);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), HttpStatus.METHOD_NOT_ALLOWED_405);
+        }
+    }
+
+    @Test
+    public void testSubscriptionDispatchRateDisabled() throws Exception {
+        DispatchRate dispatchRate = new DispatchRate(1000,
+                1020*1024, 1);
+        log.info("Dispatch Rate: {} will set to the topic: {}", dispatchRate, testTopic);
+
+        try {
+            admin.topics().setSubscriptionDispatchRate(testTopic, dispatchRate);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 405);
+        }
+
+        try {
+            admin.topics().getSubscriptionDispatchRate(testTopic);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 405);
+        }
+    }
+
+    @Test
+    public void testCompactionThresholdDisabled() {
+        Long compactionThreshold = 10000L;
+        log.info("Compaction threshold: {} will set to the topic: {}", compactionThreshold, testTopic);
+
+        try {
+            admin.topics().setCompactionThreshold(testTopic, compactionThreshold);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), HttpStatus.METHOD_NOT_ALLOWED_405);
+        }
+
+        try {
+            admin.topics().getCompactionThreshold(testTopic);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), HttpStatus.METHOD_NOT_ALLOWED_405);
+        }
+    }
+
+    @Test
+    public void testMaxConsumersPerSubscription() throws Exception {
+        int maxConsumersPerSubscription = 10;
+        log.info("MaxConsumersPerSubscription: {} will set to the topic: {}", maxConsumersPerSubscription, testTopic);
+
+        try {
+            admin.topics().setMaxConsumersPerSubscription(testTopic, maxConsumersPerSubscription);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), HttpStatus.METHOD_NOT_ALLOWED_405);
+        }
+
+        try {
+            admin.topics().getMaxConsumersPerSubscription(testTopic);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), HttpStatus.METHOD_NOT_ALLOWED_405);
+        }
+
+        try {
+            admin.topics().removeMaxConsumersPerSubscription(testTopic);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), HttpStatus.METHOD_NOT_ALLOWED_405);
+        }
+    }
+
+    @Test
+    public void testPublishRateDisabled() throws Exception {
+        PublishRate publishRate = new PublishRate(10000, 1024 * 1024 * 5);
+        log.info("Publish Rate: {} will set to the topic: {}", publishRate, testTopic);
+
+        try {
+            admin.topics().setPublishRate(testTopic, publishRate);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), HttpStatus.METHOD_NOT_ALLOWED_405);
+        }
+
+        try {
+            admin.topics().getPublishRate(testTopic);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), HttpStatus.METHOD_NOT_ALLOWED_405);
+        }
+    }
+
+    @Test
+    public void testMaxProducersDisabled() {
+        log.info("MaxProducers will set to the topic: {}", testTopic);
+        try {
+            admin.topics().setMaxProducers(testTopic, 2);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), HttpStatus.METHOD_NOT_ALLOWED_405);
+        }
+
+        try {
+            admin.topics().getMaxProducers(testTopic);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), HttpStatus.METHOD_NOT_ALLOWED_405);
+        }
+    }
+
+    @Test
+    public void testMaxConsumersDisabled() {
+        log.info("MaxConsumers will set to the topic: {}", testTopic);
+        try {
+            admin.topics().setMaxConsumers(testTopic, 2);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), HttpStatus.METHOD_NOT_ALLOWED_405);
+        }
+
+        try {
+            admin.topics().getMaxConsumers(testTopic);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), HttpStatus.METHOD_NOT_ALLOWED_405);
+        }
+    }
+
+    @Test
+    public void testSubscribeRateDisabled() throws Exception {
+        SubscribeRate subscribeRate = new SubscribeRate(10, 30);
+        log.info("Subscribe Rate: {} will set to the topic: {}", subscribeRate, testTopic);
+
+        try {
+            admin.topics().setSubscribeRate(testTopic, subscribeRate);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 405);
+        }
+
+        try {
+            admin.topics().getSubscribeRate(testTopic);
             Assert.fail();
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), 405);

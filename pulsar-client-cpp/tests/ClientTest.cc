@@ -73,3 +73,16 @@ TEST(ClientTest, testSwHwChecksum) {
     ASSERT_EQ(hwIncrementalChecksum, hwDoubleChecksum);
     ASSERT_EQ(hwIncrementalChecksum, swIncrementalChecksum);
 }
+
+TEST(ClientTest, testServerConnectError) {
+    const std::string topic = "test-server-connect-error";
+    Client client("pulsar://localhost:65535");
+    Producer producer;
+    ASSERT_EQ(ResultConnectError, client.createProducer(topic, producer));
+    Consumer consumer;
+    ASSERT_EQ(ResultConnectError, client.subscribe(topic, "sub", consumer));
+    Reader reader;
+    ReaderConfiguration readerConf;
+    ASSERT_EQ(ResultConnectError, client.createReader(topic, MessageId::earliest(), readerConf, reader));
+    client.close();
+}

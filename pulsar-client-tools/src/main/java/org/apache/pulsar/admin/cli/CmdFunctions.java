@@ -41,6 +41,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -49,8 +50,11 @@ import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.functions.ConsumerConfig;
+import org.apache.pulsar.common.functions.ExternalPulsarConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.functions.Utils;
@@ -92,7 +96,7 @@ public class CmdFunctions extends CmdBase {
                 System.err.println(e.getMessage());
                 System.err.println();
                 String chosenCommand = jcommander.getParsedCommand();
-                jcommander.usage(chosenCommand);
+                getUsageFormatter().usage(chosenCommand);
                 return;
             }
             runCmd();
@@ -218,6 +222,8 @@ public class CmdFunctions extends CmdBase {
 
         @Parameter(names = {"-o", "--output"}, description = "The output topic of a Pulsar Function (If none is specified, no output is written)")
         protected String output;
+        @Parameter(names = "--producer-config", description = "The custom producer configuration (as a JSON string)" )
+        protected String producerConfig;
         // for backwards compatibility purposes
         @Parameter(names = "--logTopic", description = "The topic to which the logs of a Pulsar Function are produced", hidden = true)
         protected String DEPRECATED_logTopic;
@@ -262,10 +268,16 @@ public class CmdFunctions extends CmdBase {
         protected Boolean DEPRECATED_retainOrdering;
         @Parameter(names = "--retain-ordering", description = "Function consumes and processes messages in order")
         protected Boolean retainOrdering;
+        @Parameter(names = "--retain-key-ordering", description = "Function consumes and processes messages in key order")
+        protected Boolean retainKeyOrdering;
+        @Parameter(names = "--batch-builder", description = "BatcherBuilder provides two types of batch construction methods, DEFAULT and KEY_BASED. The default value is: DEFAULT")
+        protected String batchBuilder;
         @Parameter(names = "--forward-source-message-property", description = "Forwarding input message's properties to output topic when processing")
         protected Boolean forwardSourceMessageProperty = true;
         @Parameter(names = "--subs-name", description = "Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer")
         protected String subsName;
+        @Parameter(names = "--subs-position", description = "Pulsar source subscription position if user wants to consume messages from the specified location")
+        protected SubscriptionInitialPosition subsPosition;
         @Parameter(names = "--parallelism", description = "The parallelism factor of a Pulsar Function (i.e. the number of function instances to run)")
         protected Integer parallelism;
         @Parameter(names = "--cpu", description = "The cpu in cores that need to be allocated per function instance(applicable only to docker runtime)")
@@ -310,6 +322,8 @@ public class CmdFunctions extends CmdBase {
         protected String customRuntimeOptions;
         @Parameter(names = "--dead-letter-topic", description = "The topic where messages that are not processed successfully are sent to")
         protected String deadLetterTopic;
+        @Parameter(names = "--external-pulsars", description = "The map of external pulsar cluster name to its configuration (as a JSON string)")
+        protected String externalPulsars;
         protected FunctionConfig functionConfig;
         protected String userCodeFile;
 
@@ -388,6 +402,15 @@ public class CmdFunctions extends CmdBase {
             if (null != output) {
                 functionConfig.setOutput(output);
             }
+            if (null != externalPulsars) {
+                Type type = new TypeToken<Map<String, ExternalPulsarConfig>>() {
+                }.getType();
+                functionConfig.setExternalPulsars(new Gson().fromJson(externalPulsars, type));
+            }
+            if (null != producerConfig) {
+                Type type = new TypeToken<ProducerConfig>() {}.getType();
+                functionConfig.setProducerConfig(new Gson().fromJson(producerConfig, type));
+            }
             if (null != logTopic) {
                 functionConfig.setLogTopic(logTopic);
             }
@@ -409,12 +432,24 @@ public class CmdFunctions extends CmdBase {
                 functionConfig.setRetainOrdering(retainOrdering);
             }
 
+            if (null != retainKeyOrdering) {
+                functionConfig.setRetainKeyOrdering(retainKeyOrdering);
+            }
+
+            if (isNotBlank(batchBuilder)) {
+                functionConfig.setBatchBuilder(batchBuilder);
+            }
+
             if (null != forwardSourceMessageProperty) {
                 functionConfig.setForwardSourceMessageProperty(forwardSourceMessageProperty);
             }
 
             if (isNotBlank(subsName)) {
                 functionConfig.setSubName(subsName);
+            }
+
+            if (null != subsPosition) {
+                functionConfig.setSubscriptionPosition(subsPosition);
             }
 
             if (null != userConfigString) {
@@ -583,6 +618,8 @@ public class CmdFunctions extends CmdBase {
         protected String DEPRECATED_brokerServiceUrl;
         @Parameter(names = "--broker-service-url", description = "The URL for Pulsar broker")
         protected String brokerServiceUrl;
+        @Parameter(names = "--web-service-url", description = "The URL for Pulsar web service")
+        protected String webServiceUrl = null;
         // for backwards compatibility purposes
         @Parameter(names = "--clientAuthPlugin", description = "Client authentication plugin using which function-process can connect to broker", hidden = true)
         protected String DEPRECATED_clientAuthPlugin;
@@ -594,14 +631,14 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--client-auth-params", description = "Client authentication param")
         protected String clientAuthParams;
         // for backwards compatibility purposes
-        @Parameter(names = "--use_tls", description = "Use tls connection\n", hidden = true)
+        @Parameter(names = "--use_tls", description = "Use tls connection", hidden = true)
         protected Boolean DEPRECATED_useTls = null;
-        @Parameter(names = "--use-tls", description = "Use tls connection\n")
+        @Parameter(names = "--use-tls", description = "Use tls connection")
         protected boolean useTls;
         // for backwards compatibility purposes
-        @Parameter(names = "--tls_allow_insecure", description = "Allow insecure tls connection\n", hidden = true)
+        @Parameter(names = "--tls_allow_insecure", description = "Allow insecure tls connection", hidden = true)
         protected Boolean DEPRECATED_tlsAllowInsecureConnection = null;
-        @Parameter(names = "--tls-allow-insecure", description = "Allow insecure tls connection\n")
+        @Parameter(names = "--tls-allow-insecure", description = "Allow insecure tls connection")
         protected boolean tlsAllowInsecureConnection;
         // for backwards compatibility purposes
         @Parameter(names = "--hostname_verification_enabled", description = "Enable hostname verification", hidden = true)
@@ -620,6 +657,12 @@ public class CmdFunctions extends CmdBase {
         protected Integer instanceIdOffset = 0;
         @Parameter(names = "--runtime", description = "either THREAD or PROCESS. Only applies for Java functions")
         protected String runtime;
+        @Parameter(names = "--secrets-provider-classname", description = "Whats the classname for secrets provider")
+        protected String secretsProviderClassName;
+        @Parameter(names = "--secrets-provider-config", description = "Config that needs to be passed to secrets provider")
+        protected String secretsProviderConfig;
+        @Parameter(names = "--metrics-port-start", description = "The starting port range for metrics server")
+        protected String metricsPortStart;
 
         private void mergeArgs() {
             if (!StringUtils.isBlank(DEPRECATED_stateStorageServiceUrl)) stateStorageServiceUrl = DEPRECATED_stateStorageServiceUrl;
@@ -661,9 +704,13 @@ public class CmdFunctions extends CmdBase {
         @Override
         void runCmd() throws Exception {
             if (Utils.isFunctionPackageUrlSupported(functionConfig.getJar())) {
-                admin.functions().createFunctionWithUrl(functionConfig, functionConfig.getJar());
+                getAdmin().functions().createFunctionWithUrl(functionConfig, functionConfig.getJar());
+            } else if (Utils.isFunctionPackageUrlSupported(functionConfig.getPy())) {
+                getAdmin().functions().createFunctionWithUrl(functionConfig, functionConfig.getPy());
+            } else if (Utils.isFunctionPackageUrlSupported(functionConfig.getGo())) {
+                getAdmin().functions().createFunctionWithUrl(functionConfig, functionConfig.getGo());
             } else {
-                admin.functions().createFunction(functionConfig, userCodeFile);
+                getAdmin().functions().createFunction(functionConfig, userCodeFile);
             }
 
             print("Created successfully");
@@ -674,7 +721,7 @@ public class CmdFunctions extends CmdBase {
     class GetFunction extends FunctionCommand {
         @Override
         void runCmd() throws Exception {
-            FunctionConfig functionConfig = admin.functions().getFunction(tenant, namespace, functionName);
+            FunctionConfig functionConfig = getAdmin().functions().getFunction(tenant, namespace, functionName);
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             System.out.println(gson.toJson(functionConfig));
         }
@@ -689,9 +736,9 @@ public class CmdFunctions extends CmdBase {
         @Override
         void runCmd() throws Exception {
             if (isBlank(instanceId)) {
-                print(admin.functions().getFunctionStatus(tenant, namespace, functionName));
+                print(getAdmin().functions().getFunctionStatus(tenant, namespace, functionName));
             } else {
-                print(admin.functions().getFunctionStatus(tenant, namespace, functionName, Integer.parseInt(instanceId)));
+                print(getAdmin().functions().getFunctionStatus(tenant, namespace, functionName, Integer.parseInt(instanceId)));
             }
         }
     }
@@ -706,9 +753,9 @@ public class CmdFunctions extends CmdBase {
         void runCmd() throws Exception {
 
             if (isBlank(instanceId)) {
-                print(admin.functions().getFunctionStats(tenant, namespace, functionName));
+                print(getAdmin().functions().getFunctionStats(tenant, namespace, functionName));
             } else {
-               print(admin.functions().getFunctionStats(tenant, namespace, functionName, Integer.parseInt(instanceId)));
+               print(getAdmin().functions().getFunctionStats(tenant, namespace, functionName, Integer.parseInt(instanceId)));
             }
         }
     }
@@ -723,12 +770,12 @@ public class CmdFunctions extends CmdBase {
         void runCmd() throws Exception {
             if (isNotBlank(instanceId)) {
                 try {
-                    admin.functions().restartFunction(tenant, namespace, functionName, Integer.parseInt(instanceId));
+                    getAdmin().functions().restartFunction(tenant, namespace, functionName, Integer.parseInt(instanceId));
                 } catch (NumberFormatException e) {
                     System.err.println("instance-id must be a number");
                 }
             } else {
-                admin.functions().restartFunction(tenant, namespace, functionName);
+                getAdmin().functions().restartFunction(tenant, namespace, functionName);
             }
             System.out.println("Restarted successfully");
         }
@@ -744,12 +791,12 @@ public class CmdFunctions extends CmdBase {
         void runCmd() throws Exception {
             if (isNotBlank(instanceId)) {
                 try {
-                    admin.functions().stopFunction(tenant, namespace, functionName, Integer.parseInt(instanceId));
+                    getAdmin().functions().stopFunction(tenant, namespace, functionName, Integer.parseInt(instanceId));
                 } catch (NumberFormatException e) {
                     System.err.println("instance-id must be a number");
                 }
             } else {
-                admin.functions().stopFunction(tenant, namespace, functionName);
+                getAdmin().functions().stopFunction(tenant, namespace, functionName);
             }
             System.out.println("Stopped successfully");
         }
@@ -765,12 +812,12 @@ public class CmdFunctions extends CmdBase {
         void runCmd() throws Exception {
             if (isNotBlank(instanceId)) {
                 try {
-                    admin.functions().startFunction(tenant, namespace, functionName, Integer.parseInt(instanceId));
+                    getAdmin().functions().startFunction(tenant, namespace, functionName, Integer.parseInt(instanceId));
                 } catch (NumberFormatException e) {
                     System.err.println("instance-id must be a number");
                 }
             } else {
-                admin.functions().startFunction(tenant, namespace, functionName);
+                getAdmin().functions().startFunction(tenant, namespace, functionName);
             }
             System.out.println("Started successfully");
         }
@@ -780,7 +827,7 @@ public class CmdFunctions extends CmdBase {
     class DeleteFunction extends FunctionCommand {
         @Override
         void runCmd() throws Exception {
-            admin.functions().deleteFunction(tenant, namespace, functionName);
+            getAdmin().functions().deleteFunction(tenant, namespace, functionName);
             print("Deleted successfully");
         }
     }
@@ -814,9 +861,9 @@ public class CmdFunctions extends CmdBase {
             UpdateOptions updateOptions = new UpdateOptions();
             updateOptions.setUpdateAuthData(updateAuthData);
             if (Utils.isFunctionPackageUrlSupported(functionConfig.getJar())) {
-                admin.functions().updateFunctionWithUrl(functionConfig, functionConfig.getJar(), updateOptions);
+                getAdmin().functions().updateFunctionWithUrl(functionConfig, functionConfig.getJar(), updateOptions);
             } else {
-                admin.functions().updateFunction(functionConfig, userCodeFile, updateOptions);
+                getAdmin().functions().updateFunction(functionConfig, userCodeFile, updateOptions);
             }
             print("Updated successfully");
         }
@@ -826,7 +873,7 @@ public class CmdFunctions extends CmdBase {
     class ListFunctions extends NamespaceCommand {
         @Override
         void runCmd() throws Exception {
-            print(admin.functions().getFunctions(tenant, namespace));
+            print(getAdmin().functions().getFunctions(tenant, namespace));
         }
     }
 
@@ -846,7 +893,7 @@ public class CmdFunctions extends CmdBase {
             }
             do {
                 try {
-                    FunctionState functionState = admin.functions()
+                    FunctionState functionState = getAdmin().functions()
                                                        .getFunctionState(tenant, namespace, functionName, key);
                     Gson gson = new GsonBuilder().setPrettyPrinting().create();
                     System.out.println(gson.toJson(functionState));
@@ -875,7 +922,7 @@ public class CmdFunctions extends CmdBase {
             TypeReference<FunctionState> typeRef
                     = new TypeReference<FunctionState>() {};
             FunctionState stateRepr = ObjectMapperFactory.getThreadLocal().readValue(state, typeRef);
-            admin.functions()
+            getAdmin().functions()
                     .putFunctionState(tenant, namespace, functionName, stateRepr);
         }
     }
@@ -907,7 +954,7 @@ public class CmdFunctions extends CmdBase {
             if (triggerFile == null && triggerValue == null) {
                 throw new ParameterException("Either a trigger value or a trigger filepath needs to be specified");
             }
-            String retval = admin.functions().triggerFunction(tenant, namespace, functionName, topic, triggerValue, triggerFile);
+            String retval = getAdmin().functions().triggerFunction(tenant, namespace, functionName, topic, triggerValue, triggerFile);
             System.out.println(retval);
         }
     }
@@ -942,7 +989,7 @@ public class CmdFunctions extends CmdBase {
             if (StringUtils.isBlank(sourceFile)) {
                 throw new ParameterException("--source-file needs to be specified");
             }
-            admin.functions().uploadFunction(sourceFile, path);
+            getAdmin().functions().uploadFunction(sourceFile, path);
             print("Uploaded successfully");
         }
     }
@@ -985,15 +1032,15 @@ public class CmdFunctions extends CmdBase {
                 throw new ParameterException("--destination-file needs to be specified");
             }
             if (path != null) {
-                admin.functions().downloadFunction(destinationFile, path);
+                getAdmin().functions().downloadFunction(destinationFile, path);
             } else {
-                admin.functions().downloadFunction(destinationFile, tenant, namespace, functionName);
+                getAdmin().functions().downloadFunction(destinationFile, tenant, namespace, functionName);
             }
             print("Downloaded successfully");
         }
     }
 
-    public CmdFunctions(PulsarAdmin admin) throws PulsarClientException {
+    public CmdFunctions(Supplier<PulsarAdmin> admin) throws PulsarClientException {
         super("functions", admin);
         localRunner = new LocalRunner();
         creater = new CreateFunction();

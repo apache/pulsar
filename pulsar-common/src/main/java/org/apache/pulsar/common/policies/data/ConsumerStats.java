@@ -19,7 +19,7 @@
 package org.apache.pulsar.common.policies.data;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -41,8 +41,15 @@ public class ConsumerStats {
     /** Total rate of messages redelivered by this consumer (msg/s). */
     public double msgRateRedeliver;
 
-    /** Total chunked messages dispatched. */
+    /**
+     * Total chunked messages dispatched.
+     * @deprecated use {@link chunkedMessageRate)}
+     */
+    @Deprecated
     public double chuckedMessageRate;
+
+    /** Total chunked messages dispatched. */
+    public double chunkedMessageRate;
 
     /** Name of the consumer. */
     public String consumerName;
@@ -59,6 +66,9 @@ public class ConsumerStats {
     /** Flag to verify if consumer is blocked due to reaching threshold of unacked messages. */
     public boolean blockedConsumerOnUnackedMsgs;
 
+    /** The read position of the cursor when the consumer joining. */
+    public String readPositionWhenJoining;
+
     /** Address of this consumer. */
     private int addressOffset = -1;
     private int addressLength;
@@ -73,6 +83,9 @@ public class ConsumerStats {
 
     public long lastAckedTimestamp;
     public long lastConsumedTimestamp;
+
+    /** Hash ranges assigned to this consumer if is Key_Shared sub mode. **/
+    public List<String> keyHashRanges;
 
     /** Metadata (key/value strings) associated with this consumer. */
     public Map<String, String> metadata;
@@ -93,6 +106,7 @@ public class ConsumerStats {
         this.availablePermits += stats.availablePermits;
         this.unackedMessages += stats.unackedMessages;
         this.blockedConsumerOnUnackedMsgs = stats.blockedConsumerOnUnackedMsgs;
+        this.readPositionWhenJoining = stats.readPositionWhenJoining;
         return this;
     }
 
@@ -138,5 +152,9 @@ public class ConsumerStats {
         this.clientVersionOffset = this.stringBuffer.length();
         this.clientVersionLength = clientVersion.length();
         this.stringBuffer.append(clientVersion);
+    }
+
+    public String getReadPositionWhenJoining() {
+        return readPositionWhenJoining;
     }
 }

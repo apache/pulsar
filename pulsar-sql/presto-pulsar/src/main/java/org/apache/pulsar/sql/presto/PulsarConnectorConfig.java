@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Matcher;
 import javax.validation.constraints.NotNull;
+import javax.ws.rs.client.ClientBuilder;
 import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
@@ -46,6 +47,7 @@ public class PulsarConnectorConfig implements AutoCloseable {
     private int targetNumSplits = 2;
     private int maxSplitMessageQueueSize = 10000;
     private int maxSplitEntryQueueSize = 1000;
+    private long maxSplitQueueSizeBytes = -1;
     private int maxMessageSize = Commands.DEFAULT_MAX_MESSAGE_SIZE;
     private String statsProvider = NullStatsProvider.class.getName();
 
@@ -71,6 +73,8 @@ public class PulsarConnectorConfig implements AutoCloseable {
     private int bookkeeperThrottleValue = 0;
     private int bookkeeperNumIOThreads = 2 * Runtime.getRuntime().availableProcessors();
     private int bookkeeperNumWorkerThreads = Runtime.getRuntime().availableProcessors();
+    private boolean bookkeeperUseV2Protocol = true;
+    private int bookkeeperExplicitInterval = 0;
 
     // --- ManagedLedger
     private long managedLedgerCacheSizeMB = 0L;
@@ -153,6 +157,17 @@ public class PulsarConnectorConfig implements AutoCloseable {
     @Config("pulsar.max-split-entry-queue-size")
     public PulsarConnectorConfig setMaxSplitEntryQueueSize(int maxSplitEntryQueueSize) {
         this.maxSplitEntryQueueSize = maxSplitEntryQueueSize;
+        return this;
+    }
+
+    @NotNull
+    public long getMaxSplitQueueSizeBytes() {
+        return this.maxSplitQueueSizeBytes;
+    }
+
+    @Config("pulsar.max-split-queue-cache-size")
+    public PulsarConnectorConfig setMaxSplitQueueSizeBytes(long maxSplitQueueSizeBytes) {
+        this.maxSplitQueueSizeBytes = maxSplitQueueSizeBytes;
         return this;
     }
 
@@ -333,6 +348,26 @@ public class PulsarConnectorConfig implements AutoCloseable {
         return this;
     }
 
+    public boolean getBookkeeperUseV2Protocol() {
+        return bookkeeperUseV2Protocol;
+    }
+
+    @Config("pulsar.bookkeeper-use-v2-protocol")
+    public PulsarConnectorConfig setBookkeeperUseV2Protocol(boolean bookkeeperUseV2Protocol) {
+        this.bookkeeperUseV2Protocol = bookkeeperUseV2Protocol;
+        return this;
+    }
+
+    public int getBookkeeperExplicitInterval() {
+        return bookkeeperExplicitInterval;
+    }
+
+    @Config("pulsar.bookkeeper-explicit-interval")
+    public PulsarConnectorConfig setBookkeeperExplicitInterval(int bookkeeperExplicitInterval) {
+        this.bookkeeperExplicitInterval = bookkeeperExplicitInterval;
+        return this;
+    }
+
     // --- ManagedLedger
     public long getManagedLedgerCacheSizeMB() {
         return managedLedgerCacheSizeMB;
@@ -396,6 +431,7 @@ public class PulsarConnectorConfig implements AutoCloseable {
                 builder.tlsTrustCertsFilePath(getTlsTrustCertsFilePath());
             }
 
+            builder.setContextClassLoader(ClientBuilder.class.getClassLoader());
             this.pulsarAdmin = builder.serviceHttpUrl(getBrokerServiceUrl()).build();
         }
         return this.pulsarAdmin;

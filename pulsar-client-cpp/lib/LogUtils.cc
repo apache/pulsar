@@ -20,8 +20,8 @@
 
 #include <atomic>
 #include <iostream>
+#include <pulsar/SimpleLoggerFactory.h>
 
-#include "SimpleLoggerImpl.h"
 #include "Log4CxxLogger.h"
 
 namespace pulsar {
@@ -62,5 +62,7 @@ std::string LogUtils::getLoggerName(const std::string& path) {
     int endIdx = path.find_last_of(".");
     return path.substr(startIdx + 1, endIdx - startIdx - 1);
 }
+
+void LogUtils::resetLoggerFactory() { s_loggerFactory.exchange(nullptr, std::memory_order_release); }
 
 }  // namespace pulsar

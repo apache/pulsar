@@ -4,7 +4,7 @@ title: Develop Pulsar Functions
 sidebar_label: "How-to: Develop"
 ---
 
-This tutorial walks you through how to develop Pulsar Functions.
+You learn how to develop Pulsar Functions with different APIs for Java, Python and Go.
 
 ## Available APIs
 In Java and Python, you have two options to write Pulsar Functions. In Go, you can use Pulsar Functions SDK for Go.
@@ -99,27 +99,19 @@ func main() {
 	pf.Start(HandleRequest)
 }
 ```
-For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsar-function-go/examples/inputFunc.go#L20-L36).
+For complete code, see [here](https://github.com/apache/pulsar/blob/77cf09eafa4f1626a53a1fe2e65dd25f377c1127/pulsar-function-go/examples/inputFunc/inputFunc.go#L20-L36).
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
 ## Schema registry
-Pulsar has a built in schema registry and comes bundled with a variety of popular schema types(avro, json and protobuf). Pulsar Functions can leverage existing schema information from input topics and derive the input type. The schema registry applies for output topic as well.
+Pulsar has a built-in schema registry and is bundled with popular schema types, such as Avro, JSON and Protobuf. Pulsar Functions can leverage the existing schema information from input topics and derive the input type. The schema registry applies for output topic as well.
 
 ## SerDe
 SerDe stands for **Ser**ialization and **De**serialization. Pulsar Functions uses SerDe when publishing data to and consuming data from Pulsar topics. How SerDe works by default depends on the language you use for a particular function.
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--Java-->
-When you write Pulsar Functions in Java, the following basic Java types are built in and supported by default:
-
-* `String`
-* `Double`
-* `Integer`
-* `Float`
-* `Long`
-* `Short`
-* `Byte`
+When you write Pulsar Functions in Java, the following basic Java types are built in and supported by default: `String`, `Double`, `Integer`, `Float`, `Long`, `Short`, and `Byte`.
 
 To customize Java types, you need to implement the following interface.
 
@@ -129,6 +121,12 @@ public interface SerDe<T> {
     byte[] serialize(T input);
 }
 ```
+SerDe works in the following ways in Java Functions.
+- If the input and output topics have schema, Pulsar Functions use schema for SerDe.
+- If the input or output topics do not exist, Pulsar Functions adopt the following rules to determine SerDe:
+  - If the schema type is specified, Pulsar Functions use the specified schema type.
+  - If SerDe is specified, Pulsar Functions use the specified SerDe, and the schema type for input and output topics is `Byte`.
+  - If neither the schema type nor SerDe is specified, Pulsar Functions use the built-in SerDe. For non-primitive schema type, the built-in SerDe serializes and deserializes objects in the `JSON` format. 
 
 <!--Python-->
 In Python, the default SerDe is identity, meaning that the type is serialized as whatever type the producer function returns.
@@ -277,6 +275,7 @@ Java, Python and Go SDKs provide access to a **context object** that can be used
 * An interface for storing and retrieving state in [state storage](#state-storage).
 * A function to publish new messages onto arbitrary topics.
 * A function to ack the message being processed (if auto-ack is disabled).
+* (Java) get Pulsar admin client.
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--Java-->
@@ -310,6 +309,10 @@ public interface Context {
     void recordMetric(String metricName, double value);
     <O> CompletableFuture<Void> publish(String topicName, O object, String schemaOrSerdeClassName);
     <O> CompletableFuture<Void> publish(String topicName, O object);
+    <O> TypedMessageBuilder<O> newOutputMessage(String topicName, Schema<O> schema) throws PulsarClientException;
+    <O> ConsumerBuilder<O> newConsumerBuilder(Schema<O> schema) throws PulsarClientException;
+    PulsarAdmin getPulsarAdmin();
+    PulsarAdmin getPulsarAdmin(String clusterName);
 }
 ```
 
@@ -447,6 +450,18 @@ func (c *FunctionContext) GetUserConfValue(key string) interface{} {
 func (c *FunctionContext) GetUserConfMap() map[string]interface{} {
 	return c.userConfigs
 }
+
+func (c *FunctionContext) SetCurrentRecord(record pulsar.Message) {
+  c.record = record
+}
+
+func (c *FunctionContext) GetCurrentRecord() pulsar.Message {
+  return c.record
+}
+
+func (c *FunctionContext) NewOutputMessage(topic string) pulsar.Producer {
+	return c.outputMessage(topic)
+}
 ```
 
 The following example uses several methods available via the `Context` object.
@@ -467,7 +482,7 @@ func contextFunc(ctx context.Context) {
 }
 ```
 
-For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsar-function-go/examples/contextFunc.go#L29-L34).
+For complete code, see [here](https://github.com/apache/pulsar/blob/77cf09eafa4f1626a53a1fe2e65dd25f377c1127/pulsar-function-go/examples/contextFunc/contextFunc.go#L29-L34).
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
@@ -570,8 +585,34 @@ class UserConfigFunction(Function):
         else:
             logger.info("The word of the day is {0}".format(wotd))
 ```
-<!--Go--> 
-Currently, the feature is not available in Go.
+<!--Go-->
+
+The Go SDK [`Context`](#context) object enables you to access key/value pairs provided to Pulsar Functions via the command line (as JSON). The following example passes a key/value pair.
+
+```bash
+$ bin/pulsar-admin functions create \
+  --go path/to/go/binary
+  --user-config '{"word-of-the-day":"lackadaisical"}'
+```
+
+To access that value in a Go function:
+
+```go
+func contextFunc(ctx context.Context) {
+  fc, ok := pf.FromContext(ctx)
+  if !ok {
+    logutil.Fatal("Function context is not defined")
+  }
+
+  wotd := fc.GetUserConfValue("word-of-the-day")
+
+  if wotd == nil {
+    logutil.Warn("The word of the day is empty")
+  } else {
+    logutil.Infof("The word of the day is %s", wotd.(string))
+  }
+}
+```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
@@ -615,6 +656,185 @@ $ bin/pulsar-admin functions create \
 
 All logs produced by `LoggingFunction` above can be accessed via the `persistent://public/default/logging-function-logs` topic.
 
+#### Customize Function log level
+Additionally, you can use the XML file, `functions_log4j2.xml`, to customize the function log level. 
+To customize the function log level, create or update `functions_log4j2.xml` in your Pulsar conf directory (for example, `/etc/pulsar/` on bare-metal, or `/pulsar/conf` on Kubernetes) to contain contents such as:
+
+```xml
+<Configuration>
+    <name>pulsar-functions-instance</name>
+    <monitorInterval>30</monitorInterval>
+    <Properties>
+        <Property>
+            <name>pulsar.log.appender</name>
+            <value>RollingFile</value>
+        </Property>
+        <Property>
+            <name>pulsar.log.level</name>
+            <value>debug</value>
+        </Property>
+        <Property>
+            <name>bk.log.level</name>
+            <value>debug</value>
+        </Property>
+    </Properties>
+    <Appenders>
+        <Console>
+            <name>Console</name>
+            <target>SYSTEM_OUT</target>
+            <PatternLayout>
+                <Pattern>%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n</Pattern>
+            </PatternLayout>
+        </Console>
+        <RollingFile>
+            <name>RollingFile</name>
+            <fileName>${sys:pulsar.function.log.dir}/${sys:pulsar.function.log.file}.log</fileName>
+            <filePattern>${sys:pulsar.function.log.dir}/${sys:pulsar.function.log.file}-%d{MM-dd-yyyy}-%i.log.gz</filePattern>
+            <immediateFlush>true</immediateFlush>
+            <PatternLayout>
+                <Pattern>%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n</Pattern>
+            </PatternLayout>
+            <Policies>
+                <TimeBasedTriggeringPolicy>
+                    <interval>1</interval>
+                    <modulate>true</modulate>
+                </TimeBasedTriggeringPolicy>
+                <SizeBasedTriggeringPolicy>
+                    <size>1 GB</size>
+                </SizeBasedTriggeringPolicy>
+                <CronTriggeringPolicy>
+                    <schedule>0 0 0 * * ?</schedule>
+                </CronTriggeringPolicy>
+            </Policies>
+            <DefaultRolloverStrategy>
+                <Delete>
+                    <basePath>${sys:pulsar.function.log.dir}</basePath>
+                    <maxDepth>2</maxDepth>
+                    <IfFileName>
+                        <glob>*/${sys:pulsar.function.log.file}*log.gz</glob>
+                    </IfFileName>
+                    <IfLastModified>
+                        <age>30d</age>
+                    </IfLastModified>
+                </Delete>
+            </DefaultRolloverStrategy>
+        </RollingFile>
+        <RollingRandomAccessFile>
+            <name>BkRollingFile</name>
+            <fileName>${sys:pulsar.function.log.dir}/${sys:pulsar.function.log.file}.bk</fileName>
+            <filePattern>${sys:pulsar.function.log.dir}/${sys:pulsar.function.log.file}.bk-%d{MM-dd-yyyy}-%i.log.gz</filePattern>
+            <immediateFlush>true</immediateFlush>
+            <PatternLayout>
+                <Pattern>%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n</Pattern>
+            </PatternLayout>
+            <Policies>
+                <TimeBasedTriggeringPolicy>
+                    <interval>1</interval>
+                    <modulate>true</modulate>
+                </TimeBasedTriggeringPolicy>
+                <SizeBasedTriggeringPolicy>
+                    <size>1 GB</size>
+                </SizeBasedTriggeringPolicy>
+                <CronTriggeringPolicy>
+                    <schedule>0 0 0 * * ?</schedule>
+                </CronTriggeringPolicy>
+            </Policies>
+            <DefaultRolloverStrategy>
+                <Delete>
+                    <basePath>${sys:pulsar.function.log.dir}</basePath>
+                    <maxDepth>2</maxDepth>
+                    <IfFileName>
+                        <glob>*/${sys:pulsar.function.log.file}.bk*log.gz</glob>
+                    </IfFileName>
+                    <IfLastModified>
+                        <age>30d</age>
+                    </IfLastModified>
+                </Delete>
+            </DefaultRolloverStrategy>
+        </RollingRandomAccessFile>
+    </Appenders>
+    <Loggers>
+        <Logger>
+            <name>org.apache.pulsar.functions.runtime.shaded.org.apache.bookkeeper</name>
+            <level>${sys:bk.log.level}</level>
+            <additivity>false</additivity>
+            <AppenderRef>
+                <ref>BkRollingFile</ref>
+            </AppenderRef>
+        </Logger>
+        <Root>
+            <level>${sys:pulsar.log.level}</level>
+            <AppenderRef>
+                <ref>${sys:pulsar.log.appender}</ref>
+                <level>${sys:pulsar.log.level}</level>
+            </AppenderRef>
+        </Root>
+    </Loggers>
+</Configuration>
+```
+
+The properties set like:
+```xml
+        <Property>
+            <name>pulsar.log.level</name>
+            <value>debug</value>
+        </Property>
+```
+propagate to places where they are referenced, such as:
+```xml
+        <Root>
+            <level>${sys:pulsar.log.level}</level>
+            <AppenderRef>
+                <ref>${sys:pulsar.log.appender}</ref>
+                <level>${sys:pulsar.log.level}</level>
+            </AppenderRef>
+        </Root>
+```
+In the above example, debug level logging would be applied to ALL function logs. 
+This may be more verbose than you desire. To be more selective, you can apply different log levels to different classes or modules. For example:
+
+```xml
+        <Logger>
+            <name>com.example.module</name>
+            <level>info</level>
+            <additivity>false</additivity>
+            <AppenderRef>
+                <ref>${sys:pulsar.log.appender}</ref>
+            </AppenderRef>
+        </Logger>
+```
+You can be more specific as well, such as applying a more verbose log level to a class in the module, such as:
+```xml
+        <Logger>
+            <name>com.example.module.className</name>
+            <level>debug</level>
+            <additivity>false</additivity>
+            <AppenderRef>
+                <ref>Console</ref>
+            </AppenderRef>
+        </Logger>
+```
+
+Each `<AppenderRef>` entry allows you to output the log to a target specified in the definition of the Appender.
+
+Additivity pertains to whether log messages will be duplicated if multiple Logger entries overlap.
+To disable additivity, specify
+```xml 
+<additivity>false</additivity>
+```
+as shown in examples above. Disabling additivity prevents duplication of log messages when one or more `<Logger>` entries contain classes or modules that overlap.
+
+The `<AppenderRef>` is defined in the `<Appenders>` section, such as:
+```xml
+<Console>
+  <name>Console</name>
+  <target>SYSTEM_OUT</target>
+  <PatternLayout>
+    <Pattern>%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n</Pattern>
+  </PatternLayout>
+</Console>
+```
+
 <!--Python-->
 Pulsar Functions that use the Python SDK have access to a logging object that can be used to produce logs at the chosen log level. The following example function that logs either a `WARNING`- or `INFO`-level log based on whether the incoming string contains the word `danger`.
 
@@ -642,6 +862,7 @@ $ bin/pulsar-admin functions create \
 ```
 
 All logs produced by `LoggingFunction` above can be accessed via the `logging-function-logs` topic.
+Additionally, you can specify the function log level through the broker XML file as described in [Customize Function log level](#customize-function-log-level).
 
 <!--Go-->
 The following Go Function example shows different log levels based on the function input.
@@ -668,14 +889,84 @@ func main() {
 }
 ```
 
-When you use `logTopic` related functionalities in Go Function, import `github.com/apache/pulsar/pulsar-function-go/logutil`, and you do not have to use the `getLogger()` context object. 
+When you use `logTopic` related functionalities in Go Function, import `github.com/apache/pulsar/pulsar-function-go/logutil`, and you do not have to use the `getLogger()` context object.
+
+Additionally, you can specify the function log level through the broker XML file, as described here: [Customize Function log level](#customize-function-log-level)
+
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+### Pulsar admin
+
+Pulsar Functions using the Java SDK has access to the Pulsar admin client, which allows the Pulsar admin client to manage API calls to current Pulsar clusters or external clusters (if `external-pulsars` is provided).
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Java-->
+
+Below is an example of how to use the Pulsar admin client exposed from the Function `context`.
+
+```
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.Function;
+
+/**
+ * In this particular example, for every input message,
+ * the function resets the cursor of the current function's subscription to a
+ * specified timestamp.
+ */
+public class CursorManagementFunction implements Function<String, String> {
+
+    @Override
+    public String process(String input, Context context) throws Exception {
+        PulsarAdmin adminClient = context.getPulsarAdmin();
+        if (adminClient != null) {
+            String topic = context.getCurrentRecord().getTopicName().isPresent() ?
+                    context.getCurrentRecord().getTopicName().get() : null;
+            String subName = context.getTenant() + "/" + context.getNamespace() + "/" + context.getFunctionName();
+            if (topic != null) {
+                // 1578188166 below is a random-pick timestamp
+                adminClient.topics().resetCursor(topic, subName, 1578188166);
+                return "reset cursor successfully";
+            }
+        }
+        return null;
+    }
+}
+```
+
+If you want your function to get access to the Pulsar admin client, you need to enable this feature by setting `exposeAdminClientEnabled=true` in the `functions_worker.yml` file. You can test whether this feature is enabled or not using the command `pulsar-admin functions localrun` with the flag `--web-service-url`.
+
+```
+$ bin/pulsar-admin functions localrun \
+ --jar my-functions.jar \
+ --classname my.package.CursorManagementFunction \
+ --web-service-url http://pulsar-web-service:8080 \
+ # Other function configs
+```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
 ## Metrics
-Pulsar Functions can publish arbitrary metrics to the metrics interface which can be queried. 
 
+Pulsar Functions allows you to deploy and manage processing functions that consume messages from and publish messages to Pulsar topics easily. It is important to ensure that the running functions are healthy at any time. Pulsar Functions can publish arbitrary metrics to the metrics interface which can be queried. 
+
+> **Note**
+> 
 > If a Pulsar Function uses the language-native interface for Java or Python, that function is not able to publish metrics and stats to Pulsar.
+
+You can monitor Pulsar Functions that have been deployed with the following methods:
+
+- Check the metrics provided by Pulsar.
+
+  Pulsar Functions expose the metrics that can be collected and used for monitoring the health of **Java, Python, and Go** functions. You can check the metrics by following the [monitoring](deploy-monitoring.md) guide.
+
+  For the complete list of the function metrics, see [here](reference-metrics.md#pulsar-functions).
+
+- Set and check your customized metrics.
+
+  In addition to the metrics provided by Pulsar, Pulsar allows you to customize metrics for **Java and Python** functions. Function workers collect user-defined metrics to Prometheus automatically and you can check them in Grafana.
+
+Here are examples of how to customize metrics for Java and Python functions.
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--Java-->
@@ -701,8 +992,6 @@ public class MetricRecorderFunction implements Function<Integer, Void> {
 }
 ```
 
-> For instructions on reading and using metrics, see the [Monitoring](deploy-monitoring.md) guide.
-
 <!--Python-->
 You can record metrics using the [`Context`](#context) object on a per-key basis. For example, you can set a metric for the `process-count` key and a different metric for the `elevens-count` key every time the function processes a message. The following is an example.
 
@@ -720,9 +1009,6 @@ class MetricRecorderFunction(Function):
 Currently, the feature is not available in Go.
 
 <!--END_DOCUSAURUS_CODE_TABS-->
-
-### Access metrics
-To access metrics created by Pulsar Functions, refer to [Monitoring](deploy-monitoring.md) in Pulsar. 
 
 ## Security
 

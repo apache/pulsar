@@ -21,7 +21,6 @@
 
 #include <pulsar/Authentication.h>
 #include <string>
-#include <boost/function.hpp>
 
 namespace pulsar {
 
@@ -40,6 +39,7 @@ class ClientCredentialFlow : public Oauth2Flow {
     void close();
 
    private:
+    std::string tokenEndPoint_;
     std::string issuerUrl_;
     std::string clientId_;
     std::string clientSecret_;

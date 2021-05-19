@@ -21,32 +21,30 @@ package org.apache.pulsar.broker.lookup;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.pulsar.common.protocol.Commands.newLookupErrorResponse;
 import static org.apache.pulsar.common.protocol.Commands.newLookupResponse;
-
 import io.netty.buffer.ByteBuf;
-
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-
 import javax.ws.rs.Encoded;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
-import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
+import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse.LookupType;
+import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.NamespaceOperation;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,7 +54,8 @@ public class TopicLookupBase extends PulsarWebResource {
     private static final String LOOKUP_PATH_V1 = "/lookup/v2/destination/";
     private static final String LOOKUP_PATH_V2 = "/lookup/v2/topic/";
 
-    protected void internalLookupTopicAsync(TopicName topicName, boolean authoritative, AsyncResponse asyncResponse) {
+    protected void internalLookupTopicAsync(TopicName topicName, boolean authoritative,
+                                            AsyncResponse asyncResponse, String listenerName) {
         if (!pulsar().getBrokerService().getLookupRequestSemaphore().tryAcquire()) {
             log.warn("No broker was found available for topic {}", topicName);
             asyncResponse.resume(new WebApplicationException(Response.Status.SERVICE_UNAVAILABLE));
@@ -65,7 +64,7 @@ public class TopicLookupBase extends PulsarWebResource {
 
         try {
             validateClusterOwnership(topicName.getCluster());
-            checkConnect(topicName);
+            validateAdminAndClientPermission(topicName);
             validateGlobalNamespaceOwnership(topicName.getNamespaceObject());
         } catch (WebApplicationException we) {
             // Validation checks failed
@@ -80,7 +79,9 @@ public class TopicLookupBase extends PulsarWebResource {
         }
 
         CompletableFuture<Optional<LookupResult>> lookupFuture = pulsar().getNamespaceService()
-                .getBrokerServiceUrlAsync(topicName, LookupOptions.builder().authoritative(authoritative).loadTopicsInBundle(false).build());
+                .getBrokerServiceUrlAsync(topicName,
+                        LookupOptions.builder().advertisedListenerName(listenerName)
+                                .authoritative(authoritative).loadTopicsInBundle(false).build());
 
         lookupFuture.thenAccept(optionalResult -> {
             if (optionalResult == null || !optionalResult.isPresent()) {
@@ -100,8 +101,10 @@ public class TopicLookupBase extends PulsarWebResource {
                             : result.getLookupData().getHttpUrl();
                     checkNotNull(redirectUrl, "Redirected cluster's service url is not configured");
                     String lookupPath = topicName.isV2() ? LOOKUP_PATH_V2 : LOOKUP_PATH_V1;
-                    redirect = new URI(String.format("%s%s%s?authoritative=%s", redirectUrl, lookupPath,
-                            topicName.getLookupName(), newAuthoritative));
+                    String path = String.format("%s%s%s?authoritative=%s",
+                            redirectUrl, lookupPath, topicName.getLookupName(), newAuthoritative);
+                    path = listenerName == null ? path : path + "&listenerName=" + listenerName;
+                    redirect = new URI(path);
                 } catch (URISyntaxException | NullPointerException e) {
                     log.error("Error in preparing redirect url for {}: {}", topicName, e.getMessage(), e);
                     completeLookupResponseExceptionally(asyncResponse, e);
@@ -127,8 +130,17 @@ public class TopicLookupBase extends PulsarWebResource {
         });
     }
 
+    private void validateAdminAndClientPermission(TopicName topic) throws RestException, Exception {
+        try {
+            validateTopicOperation(topic, TopicOperation.LOOKUP);
+        } catch (Exception e) {
+            // unknown error marked as internal server error
+            throw new RestException(e);
+        }
+    }
+
     protected String internalGetNamespaceBundle(TopicName topicName) {
-        validateSuperUserAccess();
+        validateNamespaceOperation(topicName.getNamespaceObject(), NamespaceOperation.GET_BUNDLE);
         try {
             NamespaceBundle bundle = pulsar().getNamespaceService().getBundle(topicName);
             return bundle.getBundleRange();
@@ -139,16 +151,17 @@ public class TopicLookupBase extends PulsarWebResource {
     }
 
     /**
-     *
      * Lookup broker-service address for a given namespace-bundle which contains given topic.
      *
      * a. Returns broker-address if namespace-bundle is already owned by any broker
      * b. If current-broker receives lookup-request and if it's not a leader then current broker redirects request
-     *    to leader by returning leader-service address.
-     * c. If current-broker is leader then it finds out least-loaded broker to own namespace bundle and redirects request
-     *    by returning least-loaded broker.
-     * d. If current-broker receives request to own the namespace-bundle then it owns a bundle and returns success(connect)
-     *    response to client.
+     * to leader by returning leader-service address.
+     * c. If current-broker is leader then it finds out least-loaded broker to
+     * own namespace bundle and redirects request
+     * by returning least-loaded broker.
+     * d. If current-broker receives request to own the namespace-bundle then
+     * it owns a bundle and returns success(connect)
+     * response to client.
      *
      * @param pulsarService
      * @param topicName
@@ -159,7 +172,8 @@ public class TopicLookupBase extends PulsarWebResource {
      */
     public static CompletableFuture<ByteBuf> lookupTopicAsync(PulsarService pulsarService, TopicName topicName,
             boolean authoritative, String clientAppId, AuthenticationDataSource authenticationData, long requestId) {
-        return lookupTopicAsync(pulsarService, topicName, authoritative, clientAppId, authenticationData, requestId, null);
+        return lookupTopicAsync(pulsarService, topicName, authoritative, clientAppId,
+                authenticationData, requestId, null);
     }
 
     /**
@@ -169,9 +183,11 @@ public class TopicLookupBase extends PulsarWebResource {
      * a. Returns broker-address if namespace-bundle is already owned by any broker
      * b. If current-broker receives lookup-request and if it's not a leader then current broker redirects request
      *    to leader by returning leader-service address.
-     * c. If current-broker is leader then it finds out least-loaded broker to own namespace bundle and redirects request
+     * c. If current-broker is leader then it finds out least-loaded broker
+     *    to own namespace bundle and redirects request
      *    by returning least-loaded broker.
-     * d. If current-broker receives request to own the namespace-bundle then it owns a bundle and returns success(connect)
+     * d. If current-broker receives request to own the namespace-bundle then
+     *    it owns a bundle and returns success(connect)
      *    response to client.
      *
      * @param pulsarService
@@ -184,8 +200,8 @@ public class TopicLookupBase extends PulsarWebResource {
      */
     public static CompletableFuture<ByteBuf> lookupTopicAsync(PulsarService pulsarService, TopicName topicName,
                                                               boolean authoritative, String clientAppId,
-                                                              AuthenticationDataSource authenticationData, long requestId,
-                                                              final String advertisedListenerName) {
+                                                              AuthenticationDataSource authenticationData,
+                                                              long requestId, final String advertisedListenerName) {
 
         final CompletableFuture<ByteBuf> validationFuture = new CompletableFuture<>();
         final CompletableFuture<ByteBuf> lookupfuture = new CompletableFuture<>();

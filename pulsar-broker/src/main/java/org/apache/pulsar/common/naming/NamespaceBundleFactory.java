@@ -24,7 +24,14 @@ import static java.lang.String.format;
 import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
 import static org.apache.pulsar.common.policies.data.Policies.FIRST_BOUNDARY;
 import static org.apache.pulsar.common.policies.data.Policies.LAST_BOUNDARY;
-
+import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.google.common.base.Charsets;
+import com.google.common.base.Joiner;
+import com.google.common.base.Splitter;
+import com.google.common.collect.BoundType;
+import com.google.common.collect.Range;
+import com.google.common.hash.HashFunction;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
@@ -34,12 +41,10 @@ import java.util.SortedSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
-
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.stats.CacheMetricsCollector;
@@ -47,15 +52,6 @@ import org.apache.pulsar.zookeeper.ZooKeeperCacheListener;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
-import com.github.benmanes.caffeine.cache.Caffeine;
-import com.google.common.base.Charsets;
-import com.google.common.base.Joiner;
-import com.google.common.base.Splitter;
-import com.google.common.collect.BoundType;
-import com.google.common.collect.Range;
-import com.google.common.hash.HashFunction;
 
 public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolicies> {
     private static final Logger LOG = LoggerFactory.getLogger(NamespaceBundleFactory.class);
@@ -136,7 +132,7 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
     }
 
     /**
-     * checks if the local broker is the owner of the namespace bundle
+     * checks if the local broker is the owner of the namespace bundle.
      *
      * @param nsBundle
      * @return
@@ -180,6 +176,10 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
 
     public NamespaceBundle getFullBundle(NamespaceName fqnn) throws Exception {
         return bundlesCache.synchronous().get(fqnn).getFullBundle();
+    }
+
+    public CompletableFuture<NamespaceBundle> getFullBundleAsync(NamespaceName fqnn) throws Exception {
+        return bundlesCache.get(fqnn).thenApply(NamespaceBundles::getFullBundle);
     }
 
     public long getLongHashCode(String name) {
@@ -227,11 +227,13 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
      * @return List of split {@link NamespaceBundle} and {@link NamespaceBundles} that contains final bundles including
      *         split bundles for a given namespace
      */
-    public Pair<NamespaceBundles, List<NamespaceBundle>> splitBundles(NamespaceBundle targetBundle, int numBundles, Long splitBoundary) {
+    public Pair<NamespaceBundles, List<NamespaceBundle>> splitBundles(
+            NamespaceBundle targetBundle, int numBundles, Long splitBoundary) {
         checkArgument(canSplitBundle(targetBundle), "%s bundle can't be split further", targetBundle);
         if (splitBoundary != null) {
-            checkArgument(splitBoundary > targetBundle.getLowerEndpoint() && splitBoundary < targetBundle.getUpperEndpoint(),
-                "The given fixed key must between the key range of the %s bundle", targetBundle);
+            checkArgument(splitBoundary > targetBundle.getLowerEndpoint()
+                            && splitBoundary < targetBundle.getUpperEndpoint(),
+                    "The given fixed key must between the key range of the %s bundle", targetBundle);
             numBundles = 2;
         }
         checkNotNull(targetBundle, "can't split null bundle");
@@ -265,7 +267,8 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
         partitions[pos] = sourceBundle.partitions[lastIndex];
         if (splitPartition != -1) {
             // keep version of sourceBundle
-            NamespaceBundles splittedNsBundles = new NamespaceBundles(nsname, partitions, this, sourceBundle.getVersion());
+            NamespaceBundles splittedNsBundles =
+                    new NamespaceBundles(nsname, partitions, this, sourceBundle.getVersion());
             List<NamespaceBundle> splittedBundles = splittedNsBundles.getBundles().subList(splitPartition,
                     (splitPartition + numBundles));
             return new ImmutablePair<NamespaceBundles, List<NamespaceBundle>>(splittedNsBundles, splittedBundles);

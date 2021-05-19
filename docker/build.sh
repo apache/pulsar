@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -21,5 +21,5 @@
 ROOT_DIR=$(git rev-parse --show-toplevel)
 cd $ROOT_DIR/docker
 
-mvn -f ../dashboard/pom.xml package -Pdocker
-mvn package -Pdocker 
+mvn -f ../dashboard/pom.xml package -Pdocker,-main
+mvn package -Pdocker,-main

@@ -19,6 +19,7 @@
 #ifndef LIB_BLOCKINGQUEUE_H_
 #define LIB_BLOCKINGQUEUE_H_
 
+#include <assert.h>
 #include <mutex>
 #include <condition_variable>
 #include <boost/circular_buffer.hpp>
@@ -125,7 +126,7 @@ class BlockingQueue {
         lock.unlock();
         if (wasEmpty) {
             // Notify that an element is pushed
-            queueEmptyCondition.notify_one();
+            queueEmptyCondition.notify_all();
         }
     }
 
@@ -144,7 +145,7 @@ class BlockingQueue {
 
         if (wasEmpty) {
             // Notify that an element is pushed
-            queueEmptyCondition.notify_one();
+            queueEmptyCondition.notify_all();
         }
     }
 
@@ -162,7 +163,7 @@ class BlockingQueue {
 
         if (wasEmpty) {
             // Notify that an element is pushed
-            queueEmptyCondition.notify_one();
+            queueEmptyCondition.notify_all();
         }
 
         return true;
@@ -179,7 +180,7 @@ class BlockingQueue {
 
         if (wasFull) {
             // Notify that an element is popped
-            queueFullCondition.notify_one();
+            queueFullCondition.notify_all();
         }
     }
 
@@ -195,7 +196,7 @@ class BlockingQueue {
 
         if (wasFull) {
             // Notify that an element is popped
-            queueFullCondition.notify_one();
+            queueFullCondition.notify_all();
         }
     }
 
@@ -273,7 +274,7 @@ class BlockingQueue {
 
         if (wasFull) {
             // Notify that one spot is now available
-            queueFullCondition.notify_one();
+            queueFullCondition.notify_all();
         }
     }
 

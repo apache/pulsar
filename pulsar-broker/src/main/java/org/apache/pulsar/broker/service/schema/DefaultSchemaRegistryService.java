@@ -19,11 +19,9 @@
 package org.apache.pulsar.broker.service.schema;
 
 import static java.util.concurrent.CompletableFuture.completedFuture;
-
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
@@ -74,6 +72,16 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
 
     @Override
     public CompletableFuture<SchemaVersion> deleteSchema(String schemaId, String user) {
+        return completedFuture(null);
+    }
+
+    @Override
+    public CompletableFuture<SchemaVersion> deleteSchemaStorage(String schemaId) {
+        return completedFuture(null);
+    }
+
+    @Override
+    public CompletableFuture<SchemaVersion> deleteSchemaStorage(String schemaId, boolean forcefully) {
         return completedFuture(null);
     }
 

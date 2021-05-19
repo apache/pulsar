@@ -18,9 +18,14 @@
  */
 package org.apache.pulsar.client.api;
 
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+
 /**
  * Batch message container for individual messages being published until they are batched and sent to broker.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface BatchMessageContainer {
 
     /**

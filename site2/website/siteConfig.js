@@ -29,11 +29,31 @@ const createVariableInjectionPlugin = variables => {
           return renderUrl(initializedPlugin, sourceApiUrl + "#", keyparts);
       } else if (keyparts[0] == 'sink') {
         return renderUrl(initializedPlugin, sinkApiUrl + "#", keyparts);
+      } else if (keyparts[0] == 'packages') {
+        return renderUrl(initializedPlugin, packagesApiUrl + "#", keyparts);
       } else {
         keyparts = key.split("|");
         // endpoint api: endpoint|<op>
         if (keyparts[0] == 'endpoint') {
-            return renderEndpoint(initializedPlugin, restApiUrl + "#", keyparts);
+            const restPath = keyparts[2].split('/')
+            const restApiVersion = restPath[2]
+            const restApiType = restPath[3]
+            let restBaseUrl = restApiUrl
+            if (restApiType == 'functions') {
+              restBaseUrl = functionsApiUrl
+            } else if (restApiType == 'source') {
+              restBaseUrl = sourceApiUrl
+            } else if (restApiType == 'sink') {
+              restBaseUrl = sinkApiUrl
+            } 
+            const suffix = keyparts[keyparts.length - 1]
+            restUrl = ''
+            if (suffix.indexOf('?version') >= 0) {
+              restUrl = keyparts[keyparts.length - 1] + '&apiVersion=' + restApiVersion
+            } else {
+              restUrl = keyparts[keyparts.length - 1] + 'version=master&apiVersion=' + restApiVersion
+            }
+            return renderEndpoint(initializedPlugin, restBaseUrl + "#", keyparts, restUrl);
         }
       }
       return initializedPlugin.render(variables[key])
@@ -60,8 +80,8 @@ const renderUrl = (initializedPlugin, baseUrl, keyparts) => {
     return rendered_content;
 };
 
-const renderEndpoint = (initializedPlugin, baseUrl, keyparts) => {
-    content = '[<b>' + keyparts[1] + '</b> <i>' + keyparts[2] + '</i>](' + baseUrl + keyparts[3] + ')';
+const renderEndpoint = (initializedPlugin, baseUrl, keyparts, restUrl) => {
+    content = '[<b>' + keyparts[1] + '</b> <i>' + keyparts[2] + '</i>](' + baseUrl + restUrl + ')';
     rendered_content = initializedPlugin.render(content);
     rendered_content = rendered_content.replace('<p>', '');
     rendered_content = rendered_content.replace('</p>', '');
@@ -70,10 +90,11 @@ const renderEndpoint = (initializedPlugin, baseUrl, keyparts) => {
 
 const url = 'https://pulsar.incubator.apache.org';
 const javadocUrl = url + '/api';
-const restApiUrl = url + '/en' + "/admin-rest-api";
-const functionsApiUrl = url + '/en' + "/functions-rest-api";
-const sourceApiUrl = url + '/en' + "/source-rest-api";
-const sinkApiUrl = url + '/en' + "/sink-rest-api";
+const restApiUrl = url + "/admin-rest-api";
+const functionsApiUrl = url + "/functions-rest-api";
+const sourceApiUrl = url + "/source-rest-api";
+const sinkApiUrl = url + "/sink-rest-api";
+const packagesApiUrl = url + "/packages-rest-api";
 const githubUrl = 'https://github.com/apache/incubator-pulsar';
 const baseUrl = '/';
 
@@ -179,8 +200,8 @@ const siteConfig = {
   githubUrl: githubUrl,
 
   projectDescription: `
-    Apache Pulsar is an open-source distributed pub-sub messaging system originally
-    created at Yahoo and now part of the Apache Software Foundation
+    Apache Pulsar is a cloud-native, distributed messaging and streaming platform originally
+    created at Yahoo! and now a top-level Apache Software Foundation project
   `,
 
   markdownPlugins: [

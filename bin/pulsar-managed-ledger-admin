@@ -98,16 +98,21 @@ def deleteLedgerIdsFromManagedLedgerInfo(zk, mlPath, deletLedgerIds):
         
         ledgerInfoList = mlInfo.ledgerInfo
         
-        for ledgerInfo in ledgerInfoList:
+        i = 0
+        while i < len(ledgerInfoList):
+            ledgerInfo = ledgerInfoList[i]
             if ledgerInfo.ledgerId in deletLedgerIds:
                 ledgerInfoList.remove(ledgerInfo)
-                updatedMlInfo = None
-                if isTextFormat:
-                    updatedMlInfo = MessageToString(mlInfo, True)
-                else:
-                    updatedMlInfo = mlInfo.SerializeToString(); 
-                zk.set(mlPath, updatedMlInfo, version=mlStat.version)
-                print('Updated {} with value\n{}'.format(mlPath, str(mlInfo)))
+            else:
+                i += 1
+        
+        updatedMlInfo = None
+        if isTextFormat:
+            updatedMlInfo = MessageToString(mlInfo, True)
+        else:
+            updatedMlInfo = mlInfo.SerializeToString(); 
+        zk.set(mlPath, updatedMlInfo, version=mlStat.version)
+        print('Updated {} with value\n{}'.format(mlPath, str(mlInfo)))
         
     except Exception as e:
             traceback.print_exc()

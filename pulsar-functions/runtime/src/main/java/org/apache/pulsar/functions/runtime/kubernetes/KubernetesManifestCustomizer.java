@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.functions.runtime.kubernetes;
 
-import io.kubernetes.client.models.V1Service;
-import io.kubernetes.client.models.V1StatefulSet;
+import io.kubernetes.client.openapi.models.V1Service;
+import io.kubernetes.client.openapi.models.V1StatefulSet;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.runtime.RuntimeCustomizer;
 
@@ -35,5 +35,9 @@ public interface KubernetesManifestCustomizer extends RuntimeCustomizer {
 
     default String customizeNamespace(Function.FunctionDetails funcDetails, String currentNamespace) {
         return currentNamespace;
+    }
+    
+    default String customizeName(Function.FunctionDetails funcDetails, String currentName) {
+        return currentName;
     }
 }

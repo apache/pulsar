@@ -45,6 +45,7 @@ import org.testng.collections.Maps;
 import java.util.Map;
 
 @Slf4j
+@Test(groups = "broker")
 public class AdminApiSchemaValidationEnforced extends MockedPulsarServiceBaseTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(AdminApiSchemaValidationEnforced.class);
@@ -59,7 +60,7 @@ public class AdminApiSchemaValidationEnforced extends MockedPulsarServiceBaseTes
         admin.tenants().createTenant("schema-validation-enforced", tenantInfo);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();

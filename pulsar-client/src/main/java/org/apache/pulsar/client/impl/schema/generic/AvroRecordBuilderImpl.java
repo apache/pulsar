@@ -22,7 +22,6 @@ import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
 
-import java.util.List;
 
 /**
  * Builder to build {@link org.apache.pulsar.client.api.schema.GenericRecord}.

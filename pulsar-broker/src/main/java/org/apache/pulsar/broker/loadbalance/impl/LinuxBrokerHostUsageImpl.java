@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.loadbalance.impl;
 
 import com.google.common.base.Charsets;
 import com.sun.management.OperatingSystemMXBean;
-
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
@@ -34,9 +33,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.BrokerHostUsage;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
@@ -78,8 +75,6 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
         this.lastCollection = 0L;
         this.usage = new SystemResourceUsage();
         this.overrideBrokerNicSpeedGbps = overrideBrokerNicSpeedGbps;
-        executorService.scheduleAtFixedRate(this::calculateBrokerHostUsage, 0,
-                hostUsageCheckIntervalMin, TimeUnit.MINUTES);
 
         boolean isCGroupsEnabled = false;
         try {
@@ -87,9 +82,12 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
         } catch (Exception e) {
             log.warn("Failed to check cgroup CPU usage file: {}", e.getMessage());
         }
-
         this.isCGroupsEnabled = isCGroupsEnabled;
+
+        // Call now to initialize values before the constructor returns
         calculateBrokerHostUsage();
+        executorService.scheduleAtFixedRate(this::calculateBrokerHostUsage, hostUsageCheckIntervalMin,
+                hostUsageCheckIntervalMin, TimeUnit.MINUTES);
     }
 
     @Override
@@ -214,6 +212,10 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
             log.error("Failed to find NICs", e);
             return Collections.emptyList();
         }
+    }
+
+    public int getNicCount() {
+        return getNics().size();
     }
 
     private boolean isPhysicalNic(Path path) {

@@ -23,7 +23,6 @@ import io.netty.buffer.ByteBufAllocator;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.exporter.common.TextFormat;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
-import org.apache.pulsar.functions.worker.FunctionsStatsGenerator;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.FunctionApiResource;
 
@@ -55,7 +54,7 @@ public class FunctionsMetricsResource extends FunctionApiResource {
 
         try {
             SimpleTextOutputStream stream = new SimpleTextOutputStream(buf);
-            FunctionsStatsGenerator.generate(workerService,"default", stream);
+            workerService.generateFunctionsStats(stream);
             byte[] payload = buf.array();
             int arrayOffset = buf.arrayOffset();
             int readableBytes = buf.readableBytes();

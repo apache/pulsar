@@ -20,29 +20,28 @@ package org.apache.pulsar.broker.namespace;
 
 import lombok.Builder;
 import lombok.Data;
-
 import org.apache.commons.lang3.StringUtils;
 
 @Data
 @Builder
 public class LookupOptions {
     /**
-     * If authoritative, it means the lookup had already been redirected here by a different broker
+     * If authoritative, it means the lookup had already been redirected here by a different broker.
      */
     private final boolean authoritative;
 
     /**
-     * If read-only, do not attempt to acquire ownership
+     * If read-only, do not attempt to acquire ownership.
      */
     private final boolean readOnly;
 
     /**
-     * After acquiring the ownership, load all the topics
+     * After acquiring the ownership, load all the topics.
      */
     private final boolean loadTopicsInBundle;
 
     /**
-     * The lookup request was made through HTTPs
+     * The lookup request was made through HTTPs.
      */
     private final boolean requestHttps;
 

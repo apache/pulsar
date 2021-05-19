@@ -21,10 +21,6 @@ package org.apache.pulsar.broker.loadbalance.impl;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-//import org.apache.pulsar.broker.MessageData;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.TimeAverageMessageData;
@@ -33,6 +29,8 @@ import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Determines which bundles should be split based on various thresholds.
@@ -43,7 +41,7 @@ public class BundleSplitterTask implements BundleSplitStrategy {
 
     /**
      * Construct a BundleSplitterTask.
-     * 
+     *
      * @param pulsar
      *            Service to construct from.
      */
@@ -53,12 +51,10 @@ public class BundleSplitterTask implements BundleSplitStrategy {
 
     /**
      * Determines which bundles should be split based on various thresholds.
-     * 
+     *
      * @param loadData
      *            Load data to base decisions on (does not have benefit of preallocated data since this may not be the
      *            leader broker).
-     * @param localData
-     *            Local data for the broker we are splitting on.
      * @param pulsar
      *            Service to use.
      * @return All bundles who have exceeded configured thresholds in number of topics, number of sessions, total

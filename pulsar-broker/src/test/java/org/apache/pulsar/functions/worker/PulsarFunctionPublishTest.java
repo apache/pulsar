@@ -21,12 +21,26 @@ package org.apache.pulsar.functions.worker;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
 import static org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry.JAVA_INSTANCE_JAR_PROPERTY;
+import static org.apache.pulsar.functions.worker.PulsarFunctionLocalRunTest.getPulsarApiExamplesJar;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import java.io.File;
+import java.lang.reflect.Method;
+import java.net.URI;
+import java.net.URL;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.distributedlog.api.namespace.Namespace;
@@ -49,7 +63,6 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
@@ -65,26 +78,11 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.io.File;
-import java.lang.reflect.Method;
-import java.net.URI;
-import java.net.URL;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-
 /**
  * Test Pulsar function state
- *
  */
 @Slf4j
+@Test(groups = "functions-worker")
 public class PulsarFunctionPublishTest {
     LocalBookkeeperEnsemble bkEnsemble;
 
@@ -95,7 +93,7 @@ public class PulsarFunctionPublishTest {
     PulsarAdmin admin;
     PulsarClient pulsarClient;
     BrokerStats brokerStatsClient;
-    WorkerService functionsWorkerService;
+    PulsarWorkerService functionsWorkerService;
     final String tenant = "external-repl-prop";
     String pulsarFunctionsNamespace = tenant + "/pulsar-function-admin";
     String primaryHost;
@@ -106,6 +104,7 @@ public class PulsarFunctionPublishTest {
     private final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/authentication/tls/client-cert.pem";
     private final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/authentication/tls/client-key.pem";
     private final String TLS_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/cacert.pem";
+    private PulsarFunctionTestTemporaryDirectory tempDirectory;
 
     @DataProvider(name = "validRoleName")
     public Object[][] validRoleName() {
@@ -114,15 +113,6 @@ public class PulsarFunctionPublishTest {
 
     @BeforeMethod
     void setup(Method method) throws Exception {
-
-        // delete all function temp files
-        File dir = new File(System.getProperty("java.io.tmpdir"));
-        File[] foundFiles = dir.listFiles((ignoredDir, name) -> name.startsWith("function"));
-
-        for (File file : foundFiles) {
-            file.delete();
-        }
-
         log.info("--- Setting up method {} ---", method.getName());
 
         // Start local bookkeeper ensemble
@@ -131,11 +121,12 @@ public class PulsarFunctionPublishTest {
 
         config = spy(new ServiceConfiguration());
         config.setClusterName("use");
-        Set<String> superUsers = Sets.newHashSet("superUser");
+        Set<String> superUsers = Sets.newHashSet("superUser", "admin");
         config.setSuperUserRoles(superUsers);
         config.setWebServicePort(Optional.of(0));
         config.setWebServicePortTls(Optional.of(0));
         config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setBrokerShutdownTimeoutMs(0L);
         config.setBrokerServicePort(Optional.of(0));
         config.setBrokerServicePortTls(Optional.of(0));
         config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
@@ -164,7 +155,7 @@ public class PulsarFunctionPublishTest {
         functionsWorkerService = createPulsarFunctionWorker(config);
 
         Optional<WorkerService> functionWorkerService = Optional.of(functionsWorkerService);
-        pulsar = new PulsarService(config, functionWorkerService, (exitCode) -> {});
+        pulsar = new PulsarService(config, workerConfig, functionWorkerService, (exitCode) -> {});
         pulsar.start();
 
         String brokerServiceUrl = pulsar.getWebServiceAddressTls();
@@ -196,6 +187,9 @@ public class PulsarFunctionPublishTest {
             clientBuilder.authentication(workerConfig.getBrokerClientAuthenticationPlugin(),
                     workerConfig.getBrokerClientAuthenticationParameters());
         }
+        if (pulsarClient != null) {
+            pulsarClient.close();
+        }
         pulsarClient = clientBuilder.build();
 
         TenantInfo propAdmin = new TenantInfo();
@@ -206,24 +200,32 @@ public class PulsarFunctionPublishTest {
         System.setProperty(JAVA_INSTANCE_JAR_PROPERTY,
                 FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath());
 
-        while(!functionWorkerService.get().getLeaderService().isLeader()) {
+        while(!functionsWorkerService.getLeaderService().isLeader()) {
             Thread.sleep(1000);
         }
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     void shutdown() throws Exception {
-        log.info("--- Shutting down ---");
-        pulsarClient.close();
-        admin.close();
-        functionsWorkerService.stop();
-        pulsar.close();
-        bkEnsemble.stop();
+        try {
+            log.info("--- Shutting down ---");
+            pulsarClient.close();
+            admin.close();
+            functionsWorkerService.stop();
+            pulsar.close();
+            bkEnsemble.stop();
+        } finally {
+            if (tempDirectory != null) {
+                tempDirectory.delete();
+            }
+        }
     }
 
-    private WorkerService createPulsarFunctionWorker(ServiceConfiguration config) {
+    private PulsarWorkerService createPulsarFunctionWorker(ServiceConfiguration config) {
 
         workerConfig = new WorkerConfig();
+        tempDirectory = PulsarFunctionTestTemporaryDirectory.create(getClass().getSimpleName());
+        tempDirectory.useTemporaryDirectoriesForWorkerConfig(workerConfig);
         workerConfig.setPulsarFunctionsNamespace(pulsarFunctionsNamespace);
         workerConfig.setSchedulerClassName(
                 org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler.class.getName());
@@ -256,7 +258,9 @@ public class PulsarFunctionPublishTest {
         workerConfig.setAuthenticationEnabled(true);
         workerConfig.setAuthorizationEnabled(true);
 
-        return new WorkerService(workerConfig);
+        PulsarWorkerService workerService = new PulsarWorkerService();
+        workerService.init(workerConfig, null, false);
+        return workerService;
     }
 
     protected static FunctionConfig createFunctionConfig(String tenant, String namespace, String functionName, String sourceTopic, String publishTopic, String subscriptionName) {
@@ -300,7 +304,7 @@ public class PulsarFunctionPublishTest {
         FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
                 sourceTopic, publishTopic, subscriptionName);
 
-        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
+        String jarFilePathUrl = getPulsarApiExamplesJar().toURI().toString();
         admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
 
         retryStrategically((test) -> {
@@ -363,11 +367,56 @@ public class PulsarFunctionPublishTest {
         // make sure subscriptions are cleanup
         assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 0);
 
-        // make sure all temp files are deleted
-        File dir = new File(System.getProperty("java.io.tmpdir"));
-        File[] foundFiles = dir.listFiles((dir1, name) -> name.startsWith("function"));
+        tempDirectory.assertThatFunctionDownloadTempFilesHaveBeenDeleted();
+    }
 
-        Assert.assertEquals(foundFiles.length, 0, "Temporary files left over: " + Arrays.asList(foundFiles));
+    @Test
+    public void testMultipleAddress() throws Exception {
+        final String namespacePortion = "io";
+        final String replNamespace = tenant + "/" + namespacePortion;
+        final String sourceTopic = "persistent://" + replNamespace + "/input";
+        final String publishTopic = "persistent://" + replNamespace + "/publishtopic";
+        final String functionName = "PulsarFunction-test";
+        final String subscriptionName = "test-sub";
+        admin.namespaces().createNamespace(replNamespace);
+        Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+
+        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
+                sourceTopic, publishTopic, subscriptionName);
+
+        Map<String, String> authParams = new HashMap<>();
+        authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
+        authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
+        Authentication authTls = new AuthenticationTls();
+        authTls.configure(authParams);
+        String secondAddress = pulsar.getWebServiceAddressTls().replace("https://","");
+
+        //set multi webService url
+        PulsarAdmin pulsarAdmin = PulsarAdmin.builder().serviceHttpUrl(pulsar.getWebServiceAddressTls() + "," + secondAddress)
+                .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH)
+                .allowTlsInsecureConnection(true).authentication(authTls)
+                .build();
+
+        File jarFile = getPulsarApiExamplesJar();
+        Assert.assertTrue(jarFile.exists() && jarFile.isFile());
+        pulsarAdmin.functions().createFunction(functionConfig, jarFile.getAbsolutePath());
+        retryStrategically((test) -> {
+            try {
+                return admin.topics().getStats(sourceTopic).subscriptions.size() == 1;
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 50, 150);
+        assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 1);
+        admin.functions().deleteFunction(tenant, namespacePortion, functionName);
+        retryStrategically((test) -> {
+            try {
+                return admin.topics().getStats(sourceTopic).subscriptions.size() == 0;
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 50, 150);
     }
 
     @Test(timeOut = 20000)
@@ -391,10 +440,9 @@ public class PulsarFunctionPublishTest {
         FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
           sourceTopic, publishTopic, subscriptionName);
 
-        String jarFilePath = getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
-        File jarFile = new File(jarFilePath);
+        File jarFile = getPulsarApiExamplesJar();
         Assert.assertTrue(jarFile.exists() && jarFile.isFile());
-        admin.functions().createFunction(functionConfig, jarFilePath);
+        admin.functions().createFunction(functionConfig, jarFile.getAbsolutePath());
 
         retryStrategically((test) -> {
             try {
@@ -456,11 +504,7 @@ public class PulsarFunctionPublishTest {
         // make sure subscriptions are cleanup
         assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 0);
 
-        // make sure all temp files are deleted
-        File dir = new File(System.getProperty("java.io.tmpdir"));
-        File[] foundFiles = dir.listFiles((dir1, name) -> name.startsWith("function"));
-
-        Assert.assertEquals(foundFiles.length, 0, "Temporary files left over: " + Arrays.asList(foundFiles));
+        tempDirectory.assertThatFunctionDownloadTempFilesHaveBeenDeleted();
 
         DistributedLogConfiguration dlogConf = WorkerUtils.getDlogConf(workerConfig);
 

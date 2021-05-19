@@ -32,6 +32,7 @@ import org.testng.annotations.Test;
 /**
  * Unit test {@link AdminResource}.
  */
+@Test(groups = "broker")
 public class AdminResourceTest extends BrokerTestBase {
 
     @BeforeClass
@@ -40,7 +41,7 @@ public class AdminResourceTest extends BrokerTestBase {
         super.baseSetup();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

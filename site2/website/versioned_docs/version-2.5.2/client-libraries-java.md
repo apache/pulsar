@@ -278,7 +278,7 @@ Type | Name| <div style="width:300px">Description</div>|  Default
 Set&lt;String&gt;|	`topicNames`|	Topic name|	Sets.newTreeSet()
 Pattern|   `topicsPattern`|	Topic pattern	|None
 String|	`subscriptionName`|	Subscription name|	None
-SubscriptionType| `subscriptionType`|	Subscription type <br/><br/>Three subscription types are available:<li>Exclusive</li><li>Failover</li><li>Shared</li>|SubscriptionType.Exclusive
+SubscriptionType| `subscriptionType`|	Subscription type <br/><br/>Four subscription types are available:<li>Exclusive</li><li>Failover</li><li>Shared</li><li>Key_Shared</li>|SubscriptionType.Exclusive
 int | `receiverQueueSize` | Size of a consumer's receiver queue. <br/><br/>For example, the number of messages accumulated by a consumer before an application calls `Receive`. <br/><br/>A value higher than the default value increases consumer throughput, though at the expense of more memory utilization.| 1000
 long|`acknowledgementsGroupTimeMicros`|Group a consumer acknowledgment for a specified time.<br/><br/>By default, a consumer uses 100ms grouping time to send out acknowledgments to a broker.<br/><br/>Setting a group time of 0 sends out acknowledgments immediately. <br/><br/>A longer ack group time is more efficient at the expense of a slight increase in message re-deliveries after a failure.|TimeUnit.MILLISECONDS.toMicros(100)
 long|`negativeAckRedeliveryDelayMicros`|Delay to wait before redelivering messages that failed to be processed.<br/><br/> When an application uses {@link Consumer#negativeAcknowledge(Message)}, failed messages are redelivered after a fixed timeout. |TimeUnit.MINUTES.toMicros(1)
@@ -330,7 +330,7 @@ The following is an example.
 
 ```java
 Messages messages = consumer.batchReceive();
-for (message in messages) {
+for (Object message : messages) {
   // do something
 }
 consumer.acknowledge(messages)
@@ -407,7 +407,7 @@ Consumer multiTopicConsumer = consumerBuilder
 
 // Alternatively:
 Consumer multiTopicConsumer = consumerBuilder
-        .topics(
+        .topic(
             "topic-1",
             "topic-2",
             "topic-3"
@@ -424,8 +424,8 @@ consumerBuilder
         .subscribeAsync()
         .thenAccept(this::receiveMessageFromConsumer);
 
-private void receiveMessageFromConsumer(Consumer consumer) {
-    consumer.receiveAsync().thenAccept(message -> {
+private void receiveMessageFromConsumer(Object consumer) {
+    ((Consumer)consumer).receiveAsync().thenAccept(message -> {
                 // Do something with the received message
                 receiveMessageFromConsumer(consumer);
             });
@@ -644,7 +644,7 @@ When you create a reader, you can use the `loadConf` configuration. The followin
 String|`topicName`|Topic name. |None
 int|`receiverQueueSize`|Size of a consumer's receiver queue.<br/><br/>For example, the number of messages that can be accumulated by a consumer before an application calls `Receive`.<br/><br/>A value higher than the default value increases consumer throughput, though at the expense of more memory utilization.|1000
 ReaderListener&lt;T&gt;|`readerListener`|A listener that is called for message received.|None
-String|`readerName`|Read name.|null
+String|`readerName`|Reader name.|null
 String|`subscriptionRolePrefix`|Prefix of subscription role. |null
 CryptoKeyReader|`cryptoKeyReader`|Interface that abstracts the access to a key store.|null
 ConsumerCryptoFailureAction|`cryptoFailureAction`|Consumer should take action when it receives a message that can not be decrypted.<br/><br/><li>**FAIL**: this is the default option to fail messages until crypto succeeds.</li><br/><li> **DISCARD**: silently acknowledge and not deliver message to an application.</li><br/><li>**CONSUME**: deliver encrypted messages to applications. It is the application's responsibility to decrypt the message.<br/><br/>The message decompression fails. <br/><br/>If messages contain batch messages, a client is not be able to retrieve individual messages in batch.<br/><br/>Delivered encrypted message contains {@link EncryptionContext} which contains encryption and compression information in it using which application can decrypt consumed message payload.|ConsumerCryptoFailureAction.FAIL</li>

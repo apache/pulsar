@@ -19,18 +19,15 @@
 package org.apache.pulsar.client.admin.internal;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
-
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
-
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Schemas;
 import org.apache.pulsar.client.api.Authentication;
@@ -48,11 +45,13 @@ import org.apache.pulsar.common.schema.SchemaType;
 
 public class SchemasImpl extends BaseResource implements Schemas {
 
-    private final WebTarget target;
+    private final WebTarget adminV2;
+    private final WebTarget adminV1;
 
     public SchemasImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
         super(auth, readTimeoutMs);
-        this.target = web.path("/admin/v2/schemas");
+        this.adminV1 = web.path("/admin/schemas");
+        this.adminV2 = web.path("/admin/v2/schemas");
     }
 
     @Override
@@ -410,35 +409,26 @@ public class SchemasImpl extends BaseResource implements Schemas {
     }
 
     private WebTarget schemaPath(TopicName topicName) {
-        return target
-            .path(topicName.getTenant())
-            .path(topicName.getNamespacePortion())
-            .path(topicName.getEncodedLocalName())
-            .path("schema");
+        return topicPath(topicName, "schema");
     }
 
     private WebTarget versionPath(TopicName topicName) {
-        return target
-                .path(topicName.getTenant())
-                .path(topicName.getNamespacePortion())
-                .path(topicName.getEncodedLocalName())
-                .path("version");
+        return topicPath(topicName, "version");
     }
 
     private WebTarget schemasPath(TopicName topicName) {
-        return target
-                .path(topicName.getTenant())
-                .path(topicName.getNamespacePortion())
-                .path(topicName.getEncodedLocalName())
-                .path("schemas");
+        return topicPath(topicName, "schemas");
     }
 
     private WebTarget compatibilityPath(TopicName topicName) {
-        return target
-                .path(topicName.getTenant())
-                .path(topicName.getNamespacePortion())
-                .path(topicName.getEncodedLocalName())
-                .path("compatibility");
+        return topicPath(topicName, "compatibility");
+    }
+
+    private WebTarget topicPath(TopicName topic, String... parts) {
+        final WebTarget base = topic.isV2() ? adminV2 : adminV1;
+        WebTarget topicPath = base.path(topic.getRestPath(false));
+        topicPath = WebTargets.addParts(topicPath, parts);
+        return topicPath;
     }
 
     // the util function converts `GetSchemaResponse` to `SchemaInfo`

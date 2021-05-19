@@ -33,7 +33,6 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -43,6 +42,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
+@Test(groups = "broker")
 public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
     protected String methodName;
 
@@ -83,7 +83,7 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
         conf.setNumExecutorThreadPoolSize(5);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
@@ -113,6 +113,7 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
 
         /***** Start Broker 2 ******/
         ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setBrokerShutdownTimeoutMs(0L);
         conf.setBrokerServicePort(Optional.of(0));
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePort(Optional.of(0));
@@ -120,6 +121,7 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
         conf.setAdvertisedAddress("localhost");
         conf.setClusterName(this.conf.getClusterName());
         conf.setZookeeperServers("localhost:2181");
+        conf.setConfigurationStoreServers("localhost:3181");
         buildConf(conf);
 
         @Cleanup
@@ -135,7 +137,6 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
             Policies policies = new Policies();
             policies.bundles = new BundlesData(4);
-            policies.auth_policies.namespace_auth.put("admin", ImmutableSet.of(AuthAction.produce, AuthAction.consume));
             policies.replication_clusters = ImmutableSet.of("test");
             admin.namespaces().createNamespace("tenant/ns", policies);
             try {
@@ -144,6 +145,8 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
                 ex.printStackTrace();
                 fail("Should not have thrown an exception");
             }
+            String topicName = String.format("persistent://%s/t1", "tenant/ns");
+            admin.lookups().lookupTopic(topicName);
         }
 
     }

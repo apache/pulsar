@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ComparisonChain;
 
 import io.netty.buffer.ByteBuf;
@@ -56,7 +57,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
         return entry;
     }
 
-    // Used just for tests
+    @VisibleForTesting
     public static EntryImpl create(long ledgerId, long entryId, byte[] data) {
         EntryImpl entry = RECYCLER.get();
         entry.timestamp = System.nanoTime();

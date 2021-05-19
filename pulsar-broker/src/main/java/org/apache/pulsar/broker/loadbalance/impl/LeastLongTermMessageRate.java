@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
-
 import org.apache.pulsar.broker.BrokerData;
 import org.apache.pulsar.broker.BundleData;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -92,8 +91,9 @@ public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
      * @return The name of the selected broker as it appears on ZooKeeper.
      */
     @Override
-    public Optional<String> selectBroker(final Set<String> candidates, final BundleData bundleToAssign, final LoadData loadData,
-            final ServiceConfiguration conf) {
+    public Optional<String> selectBroker(final Set<String> candidates, final BundleData bundleToAssign,
+                                         final LoadData loadData,
+                                         final ServiceConfiguration conf) {
         bestBrokers.clear();
         double minScore = Double.POSITIVE_INFINITY;
         // Maintain of list of all the best scoring brokers and then randomly

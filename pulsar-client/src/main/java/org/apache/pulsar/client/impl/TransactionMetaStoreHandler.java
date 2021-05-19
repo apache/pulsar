@@ -26,8 +26,14 @@ import io.netty.util.TimerTask;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.client.impl.ClientCnx.RequestTime;
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.BaseCommand;
+import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxnResponse;
+import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxnResponse;
+import org.apache.pulsar.common.api.proto.CommandEndTxnResponse;
+import org.apache.pulsar.common.api.proto.CommandNewTxnResponse;
+import org.apache.pulsar.common.api.proto.ServerError;
+import org.apache.pulsar.common.api.proto.Subscription;
+import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 
@@ -50,17 +56,30 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
     private static final Logger LOG = LoggerFactory.getLogger(TransactionMetaStoreHandler.class);
 
     private final long transactionCoordinatorId;
-    private ConnectionHandler connectionHandler;
+    private final ConnectionHandler connectionHandler;
     private final ConcurrentLongHashMap<OpBase<?>> pendingRequests =
         new ConcurrentLongHashMap<>(16, 1);
     private final ConcurrentLinkedQueue<RequestTime> timeoutQueue;
+
+    private static class RequestTime {
+        final long creationTimeMs;
+        final long requestId;
+
+        public RequestTime(long creationTime, long requestId) {
+            this.creationTimeMs = creationTime;
+            this.requestId = requestId;
+        }
+    }
 
     private final boolean blockIfReachMaxPendingOps;
     private final Semaphore semaphore;
 
     private Timeout requestTimeout;
 
-    public TransactionMetaStoreHandler(long transactionCoordinatorId, PulsarClientImpl pulsarClient, String topic) {
+    private final CompletableFuture<Void> connectFuture;
+
+    public TransactionMetaStoreHandler(long transactionCoordinatorId, PulsarClientImpl pulsarClient, String topic,
+                                       CompletableFuture<Void> connectFuture) {
         super(pulsarClient, topic);
         this.transactionCoordinatorId = transactionCoordinatorId;
         this.timeoutQueue = new ConcurrentLinkedQueue<>();
@@ -76,6 +95,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                 .create(),
             this);
         this.connectionHandler.grabCnx();
+        this.connectFuture = connectFuture;
     }
 
     @Override
@@ -83,6 +103,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         LOG.error("Transaction meta handler with transaction coordinator id {} connection failed.",
             transactionCoordinatorId, exception);
         setState(State.Failed);
+        this.connectFuture.completeExceptionally(exception);
     }
 
     @Override
@@ -94,6 +115,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         if (!changeToReadyState()) {
             cnx.channel().close();
         }
+        this.connectFuture.complete(null);
     }
 
     public CompletableFuture<TxnID> newTransactionAsync(long timeout, TimeUnit unit) {
@@ -115,7 +137,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         return callback;
     }
 
-    void handleNewTxnResponse(PulsarApi.CommandNewTxnResponse response) {
+    void handleNewTxnResponse(CommandNewTxnResponse response) {
         OpForTxnIdCallBack op = (OpForTxnIdCallBack) pendingRequests.remove(response.getRequestId());
         if (op == null) {
             if (LOG.isDebugEnabled()) {
@@ -131,6 +153,10 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             }
             op.callback.complete(txnID);
         } else {
+            if (response.getError() == ServerError.TransactionCoordinatorNotFound) {
+                connectionHandler.reconnectLater(
+                        new TransactionCoordinatorClientException.CoordinatorNotFoundException(response.getMessage()));
+            }
             LOG.error("Got new txn for request {} error {}", response.getRequestId(), response.getError());
             op.callback.completeExceptionally(getExceptionByServerError(response.getError(), response.getMessage()));
         }
@@ -158,7 +184,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         return callback;
     }
 
-    void handleAddPublishPartitionToTxnResponse(PulsarApi.CommandAddPartitionToTxnResponse response) {
+    void handleAddPublishPartitionToTxnResponse(CommandAddPartitionToTxnResponse response) {
         OpForVoidCallBack op = (OpForVoidCallBack) pendingRequests.remove(response.getRequestId());
         if (op == null) {
             if (LOG.isDebugEnabled()) {
@@ -173,6 +199,10 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             }
             op.callback.complete(null);
         } else {
+            if (response.getError() == ServerError.TransactionCoordinatorNotFound) {
+                connectionHandler.reconnectLater(
+                        new TransactionCoordinatorClientException.CoordinatorNotFoundException(response.getMessage()));
+            }
             LOG.error("Add publish partition for request {} error {}.", response.getRequestId(), response.getError());
             op.callback.completeExceptionally(getExceptionByServerError(response.getError(), response.getMessage()));
         }
@@ -180,17 +210,19 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         onResponse(op);
     }
 
-    public CompletableFuture<Void> commitAsync(TxnID txnID) {
+    public CompletableFuture<Void> addSubscriptionToTxn(TxnID txnID, List<Subscription> subscriptionList) {
         if (LOG.isDebugEnabled()) {
-            LOG.debug("Commit txn {}", txnID);
+            LOG.debug("Add subscription {} to txn {}.", subscriptionList, txnID);
         }
+
         CompletableFuture<Void> callback = new CompletableFuture<>();
 
         if (!canSendRequest(callback)) {
             return callback;
         }
         long requestId = client.newRequestId();
-        ByteBuf cmd = Commands.newEndTxn(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), PulsarApi.TxnAction.COMMIT);
+        ByteBuf cmd = Commands.newAddSubscriptionToTxn(
+                requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), subscriptionList);
         OpForVoidCallBack op = OpForVoidCallBack.create(cmd, callback);
         pendingRequests.put(requestId, op);
         timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
@@ -199,9 +231,34 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         return callback;
     }
 
-    public CompletableFuture<Void> abortAsync(TxnID txnID) {
+    public void handleAddSubscriptionToTxnResponse(CommandAddSubscriptionToTxnResponse response) {
+        OpForVoidCallBack op = (OpForVoidCallBack) pendingRequests.remove(response.getRequestId());
+        if (op == null) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Add subscription to txn timeout for request {}.", response.getRequestId());
+            }
+            return;
+        }
+        if (!response.hasError()) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Add subscription to txn success for request {}.", response.getRequestId());
+            }
+            op.callback.complete(null);
+        } else {
+            if (response.getError() == ServerError.TransactionCoordinatorNotFound) {
+                connectionHandler.reconnectLater(
+                        new TransactionCoordinatorClientException.CoordinatorNotFoundException(response.getMessage()));
+            }
+            LOG.error("Add subscription to txn failed for request {} error {}.",
+                    response.getRequestId(), response.getError());
+            op.callback.completeExceptionally(getExceptionByServerError(response.getError(), response.getMessage()));
+        }
+        onResponse(op);
+    }
+
+    public CompletableFuture<Void> endTxnAsync(TxnID txnID, TxnAction action) {
         if (LOG.isDebugEnabled()) {
-            LOG.debug("Abort txn {}", txnID);
+            LOG.debug("End txn {}, action {}", txnID, action);
         }
         CompletableFuture<Void> callback = new CompletableFuture<>();
 
@@ -209,16 +266,17 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             return callback;
         }
         long requestId = client.newRequestId();
-        ByteBuf cmd = Commands.newEndTxn(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), PulsarApi.TxnAction.ABORT);
-        OpForVoidCallBack op = OpForVoidCallBack.create(cmd, callback);
+        BaseCommand cmd = Commands.newEndTxn(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), action);
+        ByteBuf buf = Commands.serializeWithSize(cmd);
+        OpForVoidCallBack op = OpForVoidCallBack.create(buf, callback);
         pendingRequests.put(requestId, op);
         timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
-        cmd.retain();
-        cnx().ctx().writeAndFlush(cmd, cnx().ctx().voidPromise());
+        buf.retain();
+        cnx().ctx().writeAndFlush(buf, cnx().ctx().voidPromise());
         return callback;
     }
 
-    void handleEndTxnResponse(PulsarApi.CommandEndTxnResponse response) {
+    void handleEndTxnResponse(CommandEndTxnResponse response) {
         OpForVoidCallBack op = (OpForVoidCallBack) pendingRequests.remove(response.getRequestId());
         if (op == null) {
             if (LOG.isDebugEnabled()) {
@@ -233,6 +291,10 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             }
             op.callback.complete(null);
         } else {
+            if (response.getError() == ServerError.TransactionCoordinatorNotFound) {
+                connectionHandler.reconnectLater(
+                        new TransactionCoordinatorClientException.CoordinatorNotFoundException(response.getMessage()));
+            }
             LOG.error("Got end txn response for request {} error {}", response.getRequestId(), response.getError());
             op.callback.completeExceptionally(getExceptionByServerError(response.getError(), response.getMessage()));
         }
@@ -300,12 +362,14 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         };
     }
 
-    private TransactionCoordinatorClientException getExceptionByServerError(PulsarApi.ServerError serverError, String msg) {
+    private TransactionCoordinatorClientException getExceptionByServerError(ServerError serverError, String msg) {
         switch (serverError) {
             case TransactionCoordinatorNotFound:
                 return new TransactionCoordinatorClientException.CoordinatorNotFoundException(msg);
             case InvalidTxnStatus:
                 return new TransactionCoordinatorClientException.InvalidTxnStatusException(msg);
+            case TransactionNotFound:
+                return new TransactionCoordinatorClientException.TransactionNotFoundException(msg);
             default:
                 return new TransactionCoordinatorClientException(msg);
         }
@@ -388,7 +452,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             RequestTime lastPolled = timeoutQueue.poll();
             if (lastPolled != null) {
                 OpBase<?> op = pendingRequests.remove(lastPolled.requestId);
-                if (!op.callback.isDone()) {
+                if (op != null && !op.callback.isDone()) {
                     op.callback.completeExceptionally(new PulsarClientException.TimeoutException(
                             "Could not get response from transaction meta store within given timeout."));
                     if (LOG.isDebugEnabled()) {
@@ -425,6 +489,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
 
     @Override
     public void close() throws IOException {
+        this.requestTimeout.cancel();
     }
 
     @Override

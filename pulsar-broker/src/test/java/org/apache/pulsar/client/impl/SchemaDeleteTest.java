@@ -34,9 +34,8 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker-impl")
 public class SchemaDeleteTest extends MockedPulsarServiceBaseTest {
-
-    private static final String subscription = "reader-sub";
 
     @BeforeMethod
     @Override
@@ -52,7 +51,7 @@ public class SchemaDeleteTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

@@ -40,6 +40,7 @@ type instanceConf struct {
 	pulsarServiceURL            string
 	killAfterIdle               time.Duration
 	expectedHealthCheckInterval int32
+	metricsPort                 int
 }
 
 func newInstanceConf() *instanceConf {
@@ -48,6 +49,7 @@ func newInstanceConf() *instanceConf {
 	if cfg == nil {
 		panic("config file is nil.")
 	}
+
 	instanceConf := &instanceConf{
 		instanceID:                  cfg.InstanceID,
 		funcID:                      cfg.FuncID,
@@ -58,6 +60,7 @@ func newInstanceConf() *instanceConf {
 		pulsarServiceURL:            cfg.PulsarServiceURL,
 		killAfterIdle:               cfg.KillAfterIdleMs,
 		expectedHealthCheckInterval: cfg.ExpectedHealthCheckInterval,
+		metricsPort:                 cfg.MetricsPort,
 		funcDetails: pb.FunctionDetails{
 			Tenant:               cfg.Tenant,
 			Namespace:            cfg.NameSpace,
@@ -96,6 +99,7 @@ func newInstanceConf() *instanceConf {
 				MaxMessageRetries: cfg.MaxMessageRetries,
 				DeadLetterTopic:   cfg.DeadLetterTopic,
 			},
+			UserConfig: cfg.UserConfig,
 		},
 	}
 	return instanceConf

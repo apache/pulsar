@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.functions.api;
 
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+
 /**
  * This is the core interface of the function api. The process is called
  * for every message of the input topic of the function. The incoming input bytes
@@ -25,6 +28,8 @@ package org.apache.pulsar.functions.api;
  * Map, and List types) and for org.Json type. If this serialization approach does not
  * meet your needs, you can use the byte stream handler defined in RawRequestHandler.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 @FunctionalInterface
 public interface Function<I, O> {
     /**

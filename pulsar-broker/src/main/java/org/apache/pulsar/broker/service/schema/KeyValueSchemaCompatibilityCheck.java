@@ -18,17 +18,16 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
-import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
-import org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo;
-import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
-import org.apache.pulsar.common.schema.KeyValue;
-import org.apache.pulsar.common.protocol.schema.SchemaData;
-import org.apache.pulsar.common.schema.SchemaInfo;
-import org.apache.pulsar.common.schema.SchemaType;
-
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.Map;
+import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
+import org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
+import org.apache.pulsar.common.protocol.schema.SchemaData;
+import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 
 /**
  * {@link KeyValueSchemaCompatibilityCheck} for {@link SchemaType#KEY_VALUE}.
@@ -56,12 +55,14 @@ public class KeyValueSchemaCompatibilityCheck implements SchemaCompatibilityChec
     }
 
     @Override
-    public void checkCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy) throws IncompatibleSchemaException {
+    public void checkCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy)
+            throws IncompatibleSchemaException {
         checkCompatible(Collections.singletonList(from), to, strategy);
     }
 
     @Override
-    public void checkCompatible(Iterable<SchemaData> from, SchemaData to, SchemaCompatibilityStrategy strategy) throws IncompatibleSchemaException  {
+    public void checkCompatible(Iterable<SchemaData> from, SchemaData to, SchemaCompatibilityStrategy strategy)
+            throws IncompatibleSchemaException {
         if (strategy == SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE) {
             return;
         }
@@ -81,12 +82,14 @@ public class KeyValueSchemaCompatibilityCheck implements SchemaCompatibilityChec
             }
             fromKeyValue = decodeKeyValueSchemaData(schemaData);
             if (fromKeyValue.getKey().getType() != toKeyType || fromKeyValue.getValue().getType() != toValueType) {
-                throw new IncompatibleSchemaException(String.format("Key schemas or Value schemas are different schema type, " +
-                        "from key schema type is %s and to key schema is %s, from value schema is %s and to value schema is %s",
-                        fromKeyValue.getKey().getType(),
-                        toKeyType,
-                        fromKeyValue.getValue().getType(),
-                        toValueType));
+                throw new IncompatibleSchemaException(
+                        String.format("Key schemas or Value schemas are different schema type, "
+                                        + "from key schema type is %s and to key schema is %s,"
+                                        + " from value schema is %s and to value schema is %s",
+                                fromKeyValue.getKey().getType(),
+                                toKeyType,
+                                fromKeyValue.getValue().getType(),
+                                toValueType));
             }
             fromKeyList.addFirst(fromKeyValue.getKey());
             fromValueList.addFirst(fromKeyValue.getValue());

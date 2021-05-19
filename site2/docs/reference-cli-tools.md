@@ -174,10 +174,15 @@ Options
 |`-ub` , `--broker-service-url`|The broker service URL for the new cluster||
 |`-tb` , `--broker-service-url-tls`|The broker service URL for the new cluster with TLS encryption||
 |`-c` , `--cluster`|Cluster name||
-|`--configuration-store`|The configuration store quorum connection string||
+|`-cs` , `--configuration-store`|The configuration store quorum connection string||
+|`--existing-bk-metadata-service-uri`|The metadata service URI of the existing BookKeeper cluster that you want to use||
+|`-h` , `--help`|Cluster name|false|
+|`--initial-num-stream-storage-containers`|The number of storage containers of BookKeeper stream storage|16|
+|`--initial-num-transaction-coordinators`|The number of transaction coordinators assigned in a cluster|16|
 |`-uw` , `--web-service-url`|The web service URL for the new cluster||
 |`-tw` , `--web-service-url-tls`|The web service URL for the new cluster with TLS encryption||
 |`-zk` , `--zookeeper`|The local ZooKeeper quorum connection string||
+|`--zookeeper-session-timeout-ms`|The local ZooKeeper session timeout. The time unit is in millisecond(ms)|30000|
 
 
 ### `proxy`
@@ -293,6 +298,7 @@ Options
 |`--auth-plugin`|Authentication plugin class name|org.apache.pulsar.client.impl.auth.AuthenticationSasl|
 |`--listener-name`|Listener name for the broker||
 |`--url`|Broker URL to which to connect|pulsar://localhost:6650/ </br> ws://localhost:8080 |
+| `-v`, `--version` | Get the version of the Pulsar client
 
 
 ### `produce`
@@ -310,6 +316,10 @@ Options
 |`-m`, `--messages`|Comma-separated string of messages to send; either -m or -f must be specified|[]|
 |`-n`, `--num-produce`|The number of times to send the message(s); the count of messages/files * num-produce should be below 1000|1|
 |`-r`, `--rate`|Rate (in messages per second) at which to produce; a value 0 means to produce messages as fast as possible|0.0|
+|`-c`, `--chunking`|Split the message and publish in chunks if the message size is larger than the allowed max size|false|
+|`-s`, `--separator`|Character to split messages string with.|","|
+|`-k`, `--key`|Message key to add|key=value string, like k1=v1,k2=v2.|
+|`-p`, `--properties`|Properties to add. If you want to add multiple properties, use the comma as the separator, e.g. `k1=v1,k2=v2`.| |
 
 
 ### `consume`
@@ -330,8 +340,12 @@ Options
 |`-s`, `--subscription-name`|Subscription name||
 |`-t`, `--subscription-type`|The type of the subscription. Possible values: Exclusive, Shared, Failover, Key_Shared.|Exclusive|
 |`-p`, `--subscription-position`|The position of the subscription. Possible values: Latest, Earliest.|Latest|
-
-
+|`-m`, `--subscription-mode`|Subscription mode.|Durable|
+|`-q`, `--queue-size`|The size of consumer's receiver queue.|0|
+|`-mc`, `--max_chunked_msg`|Max pending chunk messages.|0|
+|`-ac`, `--auto_ack_chunk_q_full`|Auto ack for the oldest message in consumer's receiver queue if the queue full.|false|
+|`--hide-content`|Do not print the message to the console.|false|
+|`-st`, `--schema-type`|Set the schema type. Use `auto_consume` to dump AVRO and other structured data types. Possible values: bytes, auto_consume.|bytes|
 
 ## `pulsar-daemon`
 A wrapper around the pulsar tool that’s used to start and stop processes, such as ZooKeeper, bookies, and Pulsar brokers, in the background using nohup.
@@ -417,19 +431,20 @@ Options
 |`--auth_params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class, for example "key1:val1,key2:val2" or "{"key1":"val1","key2":"val2"}.||
 |`--auth_plugin`|Authentication plugin class name||
 |`--listener-name`|Listener name for the broker||
-|`--acks-delay-millis`|Acknowlegments grouping delay in millis|100|
+|`--acks-delay-millis`|Acknowledgements grouping delay in millis|100|
 |`-k`, `--encryption-key-name`|The private key name to decrypt payload||
 |`-v`, `--encryption-key-value-file`|The file which contains the private key to decrypt payload||
 |`-h`, `--help`|Help message|false|
 |`--conf-file`|Configuration file||
 |`-c`, `--max-connections`|Max number of TCP connections to a single broker|100|
 |`-n`, `--num-consumers`|Number of consumers (per topic)|1|
-|`-t`, `--num-topic`|The number of topics|1|
+|`-t`, `--num-topics`|The number of topics|1|
 |`-r`, `--rate`|Simulate a slow message consumer (rate in msg/s)|0|
 |`-q`, `--receiver-queue-size`|Size of the receiver queue|1000|
 |`-u`, `--service-url`|Pulsar service URL||
 |`-i`, `--stats-interval-seconds`|Statistics interval seconds. If 0, statistics will be disabled|0|
 |`-s`, `--subscriber-name`|Subscriber name prefix|sub|
+|`-ss`, `--subscriptions`|A list of subscriptions to consume on (e.g. sub1,sub2)|sub|
 |`-st`, `--subscription-type`|Subscriber type. Possible values are Exclusive, Shared, Failover, Key_Shared.|Exclusive|
 |`-sp`, `--subscription-position`|Subscriber position. Possible values are Latest, Earliest.|Latest|
 |`--trust-cert-file`|Path for the trusted TLS certificate file||
@@ -492,7 +507,7 @@ Options
 |`--conf-file`|Configuration file||
 |`-h`, `--help`|Help message|false|
 |`-c`, `--max-connections`|Max number of TCP connections to a single broker|100|
-|`-t`, `--num-topic`|The number of topics|1|
+|`-t`, `--num-topics`|The number of topics|1|
 |`-r`, `--rate`|Simulate a slow message reader (rate in msg/s)|0|
 |`-q`, `--receiver-queue-size`|Size of the receiver queue|1000|
 |`-u`, `--service-url`|Pulsar service URL||

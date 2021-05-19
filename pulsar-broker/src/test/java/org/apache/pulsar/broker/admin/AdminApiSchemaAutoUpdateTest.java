@@ -44,6 +44,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
+@Test(groups = "broker")
 public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(AdminApiSchemaAutoUpdateTest.class);
@@ -63,7 +64,7 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("prop-xyz/test/ns2");
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();

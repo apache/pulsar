@@ -19,6 +19,7 @@
 #include <pulsar/MessageBuilder.h>
 
 #include <memory>
+#include <stdexcept>
 
 #include "MessageImpl.h"
 #include "SharedBuffer.h"
@@ -109,7 +110,7 @@ MessageBuilder& MessageBuilder::setEventTimestamp(uint64_t eventTimestamp) {
 
 MessageBuilder& MessageBuilder::setSequenceId(int64_t sequenceId) {
     if (sequenceId < 0) {
-        throw "sequenceId needs to be >= 0";
+        throw std::invalid_argument("sequenceId needs to be >= 0");
     }
     checkMetadata();
     impl_->metadata.set_sequence_id(sequenceId);

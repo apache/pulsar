@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -31,16 +30,12 @@ import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 import java.util.Properties;
-
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.testng.annotations.Test;
 
-/**
- *
- *
- */
+@Test(groups = "broker-naming")
 public class ServiceConfigurationTest {
 
     final String fileName = "configurations/pulsar_broker_test.conf"; // test-resource file
@@ -64,6 +59,7 @@ public class ServiceConfigurationTest {
         assertEquals(config.getDefaultNamespaceBundleSplitAlgorithm(), "topic_count_equally_divide");
         assertEquals(config.getSupportedNamespaceBundleSplitAlgorithms().size(), 1);
         assertEquals(config.getMaxMessagePublishBufferSizeInMB(), -1);
+        assertEquals(config.getManagedLedgerDataReadPriority(), "bookkeeper-first");
     }
 
     @Test
@@ -90,7 +86,7 @@ public class ServiceConfigurationTest {
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testInitFailure() throws Exception {
         final String zookeeperServer = "localhost:2184";
-        InputStream newStream = updateProp(zookeeperServer, String.valueOf("invalid-string"), null);
+        InputStream newStream = updateProp(zookeeperServer, "invalid-string", null);
         PulsarConfigurationLoader.create(newStream, ServiceConfiguration.class);
     }
 

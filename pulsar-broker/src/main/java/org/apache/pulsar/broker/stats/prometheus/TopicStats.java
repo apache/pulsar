@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.stats.prometheus;
 
 import java.util.HashMap;
 import java.util.Map;
-
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
@@ -38,6 +37,7 @@ class TopicStats {
     long bytesInCounter;
     long msgOutCounter;
     long bytesOutCounter;
+    double averageMsgSize;
 
     long storageSize;
     public long msgBacklog;
@@ -46,14 +46,17 @@ class TopicStats {
     long offloadedStorageUsed;
 
     long backlogQuotaLimit;
+    long backlogQuotaLimitTime;
 
     StatsBuckets storageWriteLatencyBuckets = new StatsBuckets(ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC);
+    StatsBuckets storageLedgerWriteLatencyBuckets = new StatsBuckets(ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC);
     StatsBuckets entrySizeBuckets = new StatsBuckets(ManagedLedgerMBeanImpl.ENTRY_SIZE_BUCKETS_BYTES);
     double storageWriteRate;
     double storageReadRate;
 
     Map<String, AggregatedReplicationStats> replicationStats = new HashMap<>();
     Map<String, AggregatedSubscriptionStats> subscriptionStats = new HashMap<>();
+    Map<String, AggregatedProducerStats> producerStats = new HashMap<>();
 
     // Used for tracking duplicate TYPE definitions
     static Map<String, String> metricWithTypeDefinition = new HashMap<>();
@@ -79,10 +82,13 @@ class TopicStats {
         backlogSize = 0;
         offloadedStorageUsed = 0;
         backlogQuotaLimit = 0;
+        backlogQuotaLimitTime = -1;
 
         replicationStats.clear();
         subscriptionStats.clear();
+        producerStats.clear();
         storageWriteLatencyBuckets.reset();
+        storageLedgerWriteLatencyBuckets.reset();
         entrySizeBuckets.reset();
     }
 
@@ -100,12 +106,15 @@ class TopicStats {
         metric(stream, cluster, namespace, topic, "pulsar_rate_out", stats.rateOut);
         metric(stream, cluster, namespace, topic, "pulsar_throughput_in", stats.throughputIn);
         metric(stream, cluster, namespace, topic, "pulsar_throughput_out", stats.throughputOut);
+        metric(stream, cluster, namespace, topic, "pulsar_average_msg_size", stats.averageMsgSize);
 
         metric(stream, cluster, namespace, topic, "pulsar_storage_size", stats.storageSize);
         metric(stream, cluster, namespace, topic, "pulsar_msg_backlog", stats.msgBacklog);
         metric(stream, cluster, namespace, topic, "pulsar_storage_backlog_size", stats.backlogSize);
         metric(stream, cluster, namespace, topic, "pulsar_storage_offloaded_size", stats.offloadedStorageUsed);
         metric(stream, cluster, namespace, topic, "pulsar_storage_backlog_quota_limit", stats.backlogQuotaLimit);
+        metric(stream, cluster, namespace, topic, "pulsar_storage_backlog_quota_limit_time",
+                stats.backlogQuotaLimitTime);
 
         long[] latencyBuckets = stats.storageWriteLatencyBuckets.getBuckets();
         metric(stream, cluster, namespace, topic, "pulsar_storage_write_latency_le_0_5", latencyBuckets[0]);
@@ -123,6 +132,32 @@ class TopicStats {
         metric(stream, cluster, namespace, topic, "pulsar_storage_write_latency_sum",
                 stats.storageWriteLatencyBuckets.getSum());
 
+        long[] ledgerWritelatencyBuckets = stats.storageLedgerWriteLatencyBuckets.getBuckets();
+        metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_le_0_5",
+                ledgerWritelatencyBuckets[0]);
+        metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_le_1",
+                ledgerWritelatencyBuckets[1]);
+        metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_le_5",
+                ledgerWritelatencyBuckets[2]);
+        metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_le_10",
+                ledgerWritelatencyBuckets[3]);
+        metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_le_20",
+                ledgerWritelatencyBuckets[4]);
+        metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_le_50",
+                ledgerWritelatencyBuckets[5]);
+        metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_le_100",
+                ledgerWritelatencyBuckets[6]);
+        metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_le_200",
+                ledgerWritelatencyBuckets[7]);
+        metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_le_1000",
+                ledgerWritelatencyBuckets[8]);
+        metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_overflow",
+                ledgerWritelatencyBuckets[9]);
+        metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_count",
+                stats.storageLedgerWriteLatencyBuckets.getCount());
+        metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_sum",
+                stats.storageLedgerWriteLatencyBuckets.getSum());
+
         long[] entrySizeBuckets = stats.entrySizeBuckets.getBuckets();
         metric(stream, cluster, namespace, topic, "pulsar_entry_size_le_128", entrySizeBuckets[0]);
         metric(stream, cluster, namespace, topic, "pulsar_entry_size_le_512", entrySizeBuckets[1]);
@@ -136,26 +171,68 @@ class TopicStats {
         metric(stream, cluster, namespace, topic, "pulsar_entry_size_count", stats.entrySizeBuckets.getCount());
         metric(stream, cluster, namespace, topic, "pulsar_entry_size_sum", stats.entrySizeBuckets.getSum());
 
+        stats.producerStats.forEach((p, producerStats) -> {
+            metric(stream, cluster, namespace, topic, p, producerStats.producerId, "pulsar_producer_msg_rate_in",
+                    producerStats.msgRateIn);
+            metric(stream, cluster, namespace, topic, p, producerStats.producerId, "pulsar_producer_msg_throughput_in",
+                    producerStats.msgThroughputIn);
+            metric(stream, cluster, namespace, topic, p, producerStats.producerId, "pulsar_producer_msg_average_Size",
+                    producerStats.averageMsgSize);
+        });
+
         stats.subscriptionStats.forEach((n, subsStats) -> {
-            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_back_log", subsStats.msgBacklog);
-            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_back_log_no_delayed", subsStats.msgBacklogNoDelayed);
-            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_delayed", subsStats.msgDelayed);
-            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_msg_rate_redeliver", subsStats.msgRateRedeliver);
-            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_unacked_messages", subsStats.unackedMessages);
-            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_blocked_on_unacked_messages", subsStats.blockedSubscriptionOnUnackedMsgs ? 1 : 0);
-            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_msg_rate_out", subsStats.msgRateOut);
-            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_msg_throughput_out", subsStats.msgThroughputOut);
-            metric(stream, cluster, namespace, topic, n, "pulsar_out_bytes_total", subsStats.bytesOutCounter);
-            metric(stream, cluster, namespace, topic, n, "pulsar_out_messages_total", subsStats.msgOutCounter);
+            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_back_log",
+                    subsStats.msgBacklog);
+            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_back_log_no_delayed",
+                    subsStats.msgBacklogNoDelayed);
+            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_delayed",
+                    subsStats.msgDelayed);
+            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_msg_rate_redeliver",
+                    subsStats.msgRateRedeliver);
+            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_unacked_messages",
+                    subsStats.unackedMessages);
+            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_blocked_on_unacked_messages",
+                    subsStats.blockedSubscriptionOnUnackedMsgs ? 1 : 0);
+            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_msg_rate_out",
+                    subsStats.msgRateOut);
+            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_msg_throughput_out",
+                    subsStats.msgThroughputOut);
+            metric(stream, cluster, namespace, topic, n, "pulsar_out_bytes_total",
+                    subsStats.bytesOutCounter);
+            metric(stream, cluster, namespace, topic, n, "pulsar_out_messages_total",
+                    subsStats.msgOutCounter);
+            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_last_expire_timestamp",
+                    subsStats.lastExpireTimestamp);
+            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_last_acked_timestamp",
+                subsStats.lastAckedTimestamp);
+            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_last_consumed_flow_timestamp",
+                subsStats.lastConsumedFlowTimestamp);
+            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_last_consumed_timestamp",
+                subsStats.lastConsumedTimestamp);
+            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_last_mark_delete_advanced_timestamp",
+                subsStats.lastMarkDeleteAdvancedTimestamp);
+            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_msg_rate_expired",
+                    subsStats.msgRateExpired);
+            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_total_msg_expired",
+                    subsStats.totalMsgExpired);
             subsStats.consumerStat.forEach((c, consumerStats) -> {
-                metric(stream, cluster, namespace, topic, n, c.consumerName(), c.consumerId(), "pulsar_consumer_msg_rate_redeliver", consumerStats.msgRateRedeliver);
-                metric(stream, cluster, namespace, topic, n, c.consumerName(), c.consumerId(), "pulsar_consumer_unacked_messages", consumerStats.unackedMessages);
-                metric(stream, cluster, namespace, topic, n, c.consumerName(), c.consumerId(), "pulsar_consumer_blocked_on_unacked_messages", consumerStats.blockedSubscriptionOnUnackedMsgs ? 1 : 0);
-                metric(stream, cluster, namespace, topic, n, c.consumerName(), c.consumerId(), "pulsar_consumer_msg_rate_out", consumerStats.msgRateOut);
-                metric(stream, cluster, namespace, topic, n, c.consumerName(), c.consumerId(), "pulsar_consumer_msg_throughput_out", consumerStats.msgThroughputOut);
-                metric(stream, cluster, namespace, topic, n, c.consumerName(), c.consumerId(), "pulsar_consumer_available_permits", consumerStats.availablePermits);
-                metric(stream, cluster, namespace, topic, n, c.consumerName(), c.consumerId(), "pulsar_out_bytes_total", consumerStats.bytesOutCounter);
-                metric(stream, cluster, namespace, topic, n, c.consumerName(), c.consumerId(), "pulsar_out_messages_total", consumerStats.msgOutCounter);
+                metric(stream, cluster, namespace, topic, n, c.consumerName(), c.consumerId(),
+                        "pulsar_consumer_msg_rate_redeliver", consumerStats.msgRateRedeliver);
+                metric(stream, cluster, namespace, topic, n, c.consumerName(), c.consumerId(),
+                        "pulsar_consumer_unacked_messages", consumerStats.unackedMessages);
+                metric(stream, cluster, namespace, topic, n, c.consumerName(), c.consumerId(),
+                        "pulsar_consumer_blocked_on_unacked_messages",
+                        consumerStats.blockedSubscriptionOnUnackedMsgs ? 1 : 0);
+                metric(stream, cluster, namespace, topic, n, c.consumerName(), c.consumerId(),
+                        "pulsar_consumer_msg_rate_out", consumerStats.msgRateOut);
+                metric(stream, cluster, namespace, topic, n, c.consumerName(), c.consumerId(),
+                        "pulsar_consumer_msg_throughput_out", consumerStats.msgThroughputOut);
+                metric(stream, cluster, namespace, topic, n, c.consumerName(), c.consumerId(),
+                        "pulsar_consumer_available_permits", consumerStats.availablePermits);
+                metric(stream, cluster, namespace, topic, n, c.consumerName(), c.consumerId(),
+                        "pulsar_out_bytes_total", consumerStats.bytesOutCounter);
+                metric(stream, cluster, namespace, topic, n, c.consumerName(), c.consumerId(),
+                        "pulsar_out_messages_total", consumerStats.msgOutCounter);
             });
         });
 
@@ -197,42 +274,53 @@ class TopicStats {
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
     }
 
-    private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String topic, String subscription,
-                               String name, long value) {
+    private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String topic,
+                               String subscription, String name, long value) {
         metricType(stream, name);
         stream.write(name).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace)
                 .write("\",topic=\"").write(topic).write("\",subscription=\"").write(subscription).write("\"} ");
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
     }
 
-    private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String topic, String subscription,
-                               String name, double value) {
+    private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String topic,
+                               String producerName, long produceId, String name, double value) {
+        metricType(stream, name);
+        stream.write(name).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace)
+                .write("\",topic=\"").write(topic).write("\",producer_name=\"").write(producerName)
+                .write("\",producer_id=\"").write(produceId).write("\"} ");
+        stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
+    }
+
+    private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String topic,
+                               String subscription, String name, double value) {
         metricType(stream, name);
         stream.write(name).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace)
                 .write("\",topic=\"").write(topic).write("\",subscription=\"").write(subscription).write("\"} ");
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
     }
 
-    private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String topic, String subscription,
-                               String consumerName, long consumerId, String name, long value) {
+    private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String topic,
+                               String subscription, String consumerName, long consumerId, String name, long value) {
         metricType(stream, name);
         stream.write(name).write("{cluster=\"").write(cluster).write("\", namespace=\"").write(namespace)
                 .write("\",topic=\"").write(topic).write("\",subscription=\"").write(subscription)
-                .write("\",consumer_name=\"").write(consumerName).write("\",consumer_id=\"").write(consumerId).write("\"} ");
+                .write("\",consumer_name=\"").write(consumerName).write("\",consumer_id=\"").write(consumerId)
+                .write("\"} ");
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
     }
 
-    private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String topic, String subscription,
-                               String consumerName, long consumerId, String name, double value) {
+    private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String topic,
+                               String subscription, String consumerName, long consumerId, String name, double value) {
         metricType(stream, name);
         stream.write(name).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace)
                 .write("\",topic=\"").write(topic).write("\",subscription=\"").write(subscription)
-                .write("\",consumer_name=\"").write(consumerName).write("\",consumer_id=\"").write(consumerId).write("\"} ");
+                .write("\",consumer_name=\"").write(consumerName).write("\",consumer_id=\"")
+                .write(consumerId).write("\"} ");
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
     }
 
     private static void metricWithRemoteCluster(SimpleTextOutputStream stream, String cluster, String namespace,
-            String topic,
+                                                String topic,
             String name, String remoteCluster, double value) {
         metricType(stream, name);
         stream.write(name).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace);

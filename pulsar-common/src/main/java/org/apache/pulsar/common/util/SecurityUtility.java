@@ -29,6 +29,8 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
 import java.security.KeyManagementException;
@@ -49,6 +51,8 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.Set;
+import java.util.concurrent.ScheduledExecutorService;
+import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
@@ -56,6 +60,10 @@ import javax.net.ssl.SSLException;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+import org.apache.pulsar.common.tls.TlsHostnameVerifier;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 
 /**
@@ -67,6 +75,9 @@ public class SecurityUtility {
     public static final Provider BC_PROVIDER = getProvider();
     public static final String BC_FIPS_PROVIDER_CLASS = "org.bouncycastle.jcajce.provider.BouncyCastleFipsProvider";
     public static final String BC_NON_FIPS_PROVIDER_CLASS = "org.bouncycastle.jce.provider.BouncyCastleProvider";
+    public static final String CONSCRYPT_PROVIDER_CLASS = "org.conscrypt.OpenSSLProvider";
+    public static final Provider CONSCRYPT_PROVIDER = loadConscryptProvider();
+
     // Security.getProvider("BC") / Security.getProvider("BCFIPS").
     // also used to get Factories. e.g. CertificateFactory.getInstance("X.509", "BCFIPS")
     public static final String BC_FIPS = "BCFIPS";
@@ -100,15 +111,56 @@ public class SecurityUtility {
             return getBCProviderFromClassPath();
         } catch (Exception e) {
             log.warn("Not able to get Bouncy Castle provider for both FIPS and Non-FIPS from class path:", e);
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static Provider loadConscryptProvider() {
+        Provider provider;
+        try {
+            provider = (Provider) Class.forName(CONSCRYPT_PROVIDER_CLASS).newInstance();
+        } catch (ReflectiveOperationException e) {
+            log.warn("Unable to get security provider for class {}", CONSCRYPT_PROVIDER_CLASS, e);
+            return null;
         }
 
-        // failed to get from class path. try to get from Nar file.
+        // Configure Conscrypt's default hostname verifier to use Pulsar's TlsHostnameVerifier which
+        // is more relaxed than the Conscrypt HostnameVerifier checking for RFC 2818 conformity.
+        //
+        // Certificates used in Pulsar docs and examples aren't strictly RFC 2818 compliant since they use the
+        // deprecated way of specifying the hostname in the CN field of the subject DN of the certificate.
+        // RFC 2818 recommends the use of SAN (subjectAltName) extension for specifying the hostname in the dNSName
+        // field of the subjectAltName extension.
+        //
+        // Conscrypt's default HostnameVerifier has dropped support for the deprecated method of specifying the hostname
+        // in the CN field. Pulsar's TlsHostnameVerifier continues to support the CN field.
+        //
+        // more details of Conscrypt's hostname verification:
+        // https://github.com/google/conscrypt/blob/master/IMPLEMENTATION_NOTES.md#hostname-verification
+        // there's a bug in Conscrypt while setting a custom HostnameVerifier,
+        // https://github.com/google/conscrypt/issues/1015 and therefore this solution alone
+        // isn't sufficient to configure Conscrypt's hostname verifier. The method processConscryptTrustManager
+        // contains the workaround.
         try {
-            // User need set the bc nar path in java env.
-            return SearchBcNarUtils.getBcProvider(System.getProperty("BcPath"));
-        } catch (IOException ioe) {
-            throw new RuntimeException(ioe);
+            HostnameVerifier hostnameVerifier = new TlsHostnameVerifier();
+            Class<?> conscryptClazz = Class.forName("org.conscrypt.Conscrypt");
+            Object wrappedHostnameVerifier = conscryptClazz
+                    .getMethod("wrapHostnameVerifier",
+                            new Class[]{HostnameVerifier.class}).invoke(null, hostnameVerifier);
+            Method setDefaultHostnameVerifierMethod =
+                    conscryptClazz
+                            .getMethod("setDefaultHostnameVerifier",
+                                    new Class[]{Class.forName("org.conscrypt.ConscryptHostnameVerifier")});
+            setDefaultHostnameVerifierMethod.invoke(null, wrappedHostnameVerifier);
+        } catch (Exception e) {
+            log.warn("Unable to set default hostname verifier for Conscrypt", e);
         }
+
+        Security.addProvider(provider);
+        if (log.isDebugEnabled()) {
+            log.debug("Added security provider '{}' from class {}", provider.getName(), CONSCRYPT_PROVIDER_CLASS);
+        }
+        return provider;
     }
 
     /**
@@ -154,6 +206,37 @@ public class SecurityUtility {
         return createSslContext(allowInsecureConnection, trustCertificates, certificates, privateKey);
     }
 
+    /**
+     * Creates {@link SslContext} with capability to do auto-cert refresh.
+     * @param allowInsecureConnection
+     * @param trustCertsFilePath
+     * @param certFilePath
+     * @param keyFilePath
+     * @param sslContextAlgorithm
+     * @param refreshDurationSec
+     * @param executor
+     * @return
+     * @throws GeneralSecurityException
+     * @throws SSLException
+     * @throws FileNotFoundException
+     * @throws IOException
+     */
+    public static SslContext createAutoRefreshSslContextForClient(boolean allowInsecureConnection,
+            String trustCertsFilePath, String certFilePath, String keyFilePath, String sslContextAlgorithm,
+            int refreshDurationSec, ScheduledExecutorService executor)
+            throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
+        KeyManagerProxy keyManager = new KeyManagerProxy(certFilePath, keyFilePath, refreshDurationSec, executor);
+        SslContextBuilder sslContexBuilder = SslContextBuilder.forClient();
+        sslContexBuilder.keyManager(keyManager);
+        if (allowInsecureConnection) {
+            sslContexBuilder.trustManager(InsecureTrustManagerFactory.INSTANCE);
+        } else {
+            TrustManagerProxy trustManager = new TrustManagerProxy(trustCertsFilePath, refreshDurationSec, executor);
+            sslContexBuilder.trustManager(trustManager);
+        }
+        return sslContexBuilder.build();
+    }
+
     public static SslContext createNettySslContextForClient(boolean allowInsecureConnection, String trustCertsFilePath,
             String certFilePath, String keyFilePath)
             throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
@@ -165,8 +248,23 @@ public class SecurityUtility {
     public static SslContext createNettySslContextForClient(boolean allowInsecureConnection, String trustCertsFilePath,
             Certificate[] certificates, PrivateKey privateKey)
             throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
+
+        if (StringUtils.isNotBlank(trustCertsFilePath)) {
+            try (FileInputStream trustCertsStream = new FileInputStream(trustCertsFilePath)) {
+                return createNettySslContextForClient(allowInsecureConnection, trustCertsStream, certificates,
+                        privateKey);
+            }
+        } else {
+            return createNettySslContextForClient(allowInsecureConnection, (InputStream) null, certificates,
+                    privateKey);
+        }
+    }
+
+    public static SslContext createNettySslContextForClient(boolean allowInsecureConnection,
+            InputStream trustCertsStream, Certificate[] certificates, PrivateKey privateKey)
+            throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
         SslContextBuilder builder = SslContextBuilder.forClient();
-        setupTrustCerts(builder, allowInsecureConnection, trustCertsFilePath);
+        setupTrustCerts(builder, allowInsecureConnection, trustCertsStream);
         setupKeyManager(builder, privateKey, (X509Certificate[]) certificates);
         return builder.build();
     }
@@ -181,7 +279,13 @@ public class SecurityUtility {
         SslContextBuilder builder = SslContextBuilder.forServer(privateKey, (X509Certificate[]) certificates);
         setupCiphers(builder, ciphers);
         setupProtocols(builder, protocols);
-        setupTrustCerts(builder, allowInsecureConnection, trustCertsFilePath);
+        if (StringUtils.isNotBlank(trustCertsFilePath)) {
+            try (FileInputStream trustCertsStream = new FileInputStream(trustCertsFilePath)) {
+                setupTrustCerts(builder, allowInsecureConnection, trustCertsStream);
+            }
+        } else {
+            setupTrustCerts(builder, allowInsecureConnection, null);
+        }
         setupKeyManager(builder, privateKey, certificates);
         setupClientAuthentication(builder, requireTrustedClientCertOnConnect);
         return builder.build();
@@ -193,10 +297,11 @@ public class SecurityUtility {
         TrustManager[] trustManagers = null;
         KeyManager[] keyManagers = null;
 
-        trustManagers = setupTrustCerts(ksh, allowInsecureConnection, trustCertficates);
+        trustManagers = setupTrustCerts(ksh, allowInsecureConnection, trustCertficates, CONSCRYPT_PROVIDER);
         keyManagers = setupKeyManager(ksh, privateKey, certificates);
 
-        SSLContext sslCtx = SSLContext.getInstance("TLS");
+        SSLContext sslCtx = CONSCRYPT_PROVIDER != null ? SSLContext.getInstance("TLS", CONSCRYPT_PROVIDER)
+                : SSLContext.getInstance("TLS");
         sslCtx.init(keyManagers, trustManagers, new SecureRandom());
         sslCtx.getDefaultSSLParameters();
         return sslCtx;
@@ -215,12 +320,15 @@ public class SecurityUtility {
     }
 
     private static TrustManager[] setupTrustCerts(KeyStoreHolder ksh, boolean allowInsecureConnection,
-            Certificate[] trustCertficates) throws NoSuchAlgorithmException, KeyStoreException {
+                                                  Certificate[] trustCertficates, Provider securityProvider)
+            throws NoSuchAlgorithmException, KeyStoreException {
         TrustManager[] trustManagers;
         if (allowInsecureConnection) {
             trustManagers = InsecureTrustManagerFactory.INSTANCE.getTrustManagers();
         } else {
-            TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+            TrustManagerFactory tmf = securityProvider != null
+                    ? TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm(), securityProvider)
+                    : TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
 
             if (trustCertficates == null || trustCertficates.length == 0) {
                 tmf.init((KeyStore) null);
@@ -232,8 +340,52 @@ public class SecurityUtility {
             }
 
             trustManagers = tmf.getTrustManagers();
+
+            for (TrustManager trustManager : trustManagers) {
+                processConscryptTrustManager(trustManager);
+            }
         }
         return trustManagers;
+    }
+
+    /***
+     * Conscrypt TrustManager instances will be configured to use the Pulsar {@link TlsHostnameVerifier}
+     * class.
+     * This method is used as a workaround for https://github.com/google/conscrypt/issues/1015
+     * when Conscrypt / OpenSSL is used as the TLS security provider.
+     *
+     * @param trustManagers the array of TrustManager instances to process.
+     * @return same instance passed as parameter
+     */
+    @InterfaceAudience.Private
+    public static TrustManager[] processConscryptTrustManagers(TrustManager[] trustManagers) {
+        for (TrustManager trustManager : trustManagers) {
+            processConscryptTrustManager(trustManager);
+        }
+        return trustManagers;
+    }
+
+    // workaround https://github.com/google/conscrypt/issues/1015
+    private static void processConscryptTrustManager(TrustManager trustManager) {
+        if (trustManager.getClass().getName().equals("org.conscrypt.TrustManagerImpl")) {
+            try {
+                Class<?> conscryptClazz = Class.forName("org.conscrypt.Conscrypt");
+                Object hostnameVerifier = conscryptClazz.getMethod("getHostnameVerifier",
+                        new Class[]{TrustManager.class}).invoke(null, trustManager);
+                if (hostnameVerifier == null) {
+                    Object defaultHostnameVerifier = conscryptClazz.getMethod("getDefaultHostnameVerifier",
+                            new Class[]{TrustManager.class}).invoke(null, trustManager);
+                    if (defaultHostnameVerifier != null) {
+                        conscryptClazz.getMethod("setHostnameVerifier", new Class[]{
+                                TrustManager.class,
+                                Class.forName("org.conscrypt.ConscryptHostnameVerifier")
+                        }).invoke(null, trustManager, defaultHostnameVerifier);
+                    }
+                }
+            } catch (ReflectiveOperationException e) {
+                log.warn("Unable to set hostname verifier for Conscrypt TrustManager implementation", e);
+            }
+        }
     }
 
     public static X509Certificate[] loadCertificatesFromPemFile(String certFilePath) throws KeyManagementException {
@@ -292,7 +444,7 @@ public class SecurityUtility {
             return privateKey;
         }
 
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(inStream))) {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(inStream, StandardCharsets.UTF_8))) {
             if (inStream.markSupported()) {
                 inStream.reset();
             }
@@ -300,7 +452,7 @@ public class SecurityUtility {
             String currentLine = null;
 
             // Jump to the first line after -----BEGIN [RSA] PRIVATE KEY-----
-            while (!reader.readLine().startsWith("-----BEGIN")) {
+            while ((currentLine = reader.readLine()) != null && !currentLine.startsWith("-----BEGIN")) {
                 reader.readLine();
             }
 
@@ -320,14 +472,12 @@ public class SecurityUtility {
     }
 
     private static void setupTrustCerts(SslContextBuilder builder, boolean allowInsecureConnection,
-            String trustCertsFilePath) throws IOException, FileNotFoundException {
+            InputStream trustCertsStream) throws IOException, FileNotFoundException {
         if (allowInsecureConnection) {
             builder.trustManager(InsecureTrustManagerFactory.INSTANCE);
         } else {
-            if (trustCertsFilePath != null && trustCertsFilePath.length() != 0) {
-                try (FileInputStream input = new FileInputStream(trustCertsFilePath)) {
-                    builder.trustManager(input);
-                }
+            if (trustCertsStream != null) {
+                builder.trustManager(trustCertsStream);
             } else {
                 builder.trustManager((File) null);
             }
@@ -397,6 +547,9 @@ public class SecurityUtility {
             super();
             sslCtxRefresher = new DefaultSslContextBuilder(tlsAllowInsecureConnection, tlsTrustCertsFilePath,
                     tlsCertificateFilePath, tlsKeyFilePath, tlsRequireTrustedClientCertOnConnect, certRefreshInSec);
+            if (CONSCRYPT_PROVIDER != null) {
+                setProvider(CONSCRYPT_PROVIDER.getName());
+            }
         }
 
         @Override

@@ -21,6 +21,8 @@ package org.apache.pulsar.websocket.proxy;
 import static java.util.concurrent.Executors.newFixedThreadPool;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.anyInt;
 
 import com.google.common.collect.Sets;
 
@@ -37,7 +39,9 @@ import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import lombok.Cleanup;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.websocket.WebSocketService;
 import org.apache.pulsar.websocket.service.ProxyServer;
 import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
@@ -52,6 +56,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "websocket")
 public class ProxyAuthenticationTest extends ProducerConsumerBase {
 
     private ProxyServer proxyServer;
@@ -69,7 +74,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
         config.setClusterName("test");
         config.setAuthenticationEnabled(true);
         // If this is not set, 500 error occurs.
-        config.setConfigurationStoreServers("dummy");
+        config.setConfigurationStoreServers(GLOBAL_DUMMY_VALUE);
         config.setSuperUserRoles(Sets.newHashSet("pulsar.super_user"));
 
         if (methodName.equals("authenticatedSocketTest") || methodName.equals("statsTest")) {
@@ -82,14 +87,15 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
         }
 
         service = spy(new WebSocketService(config));
-        doReturn(mockZooKeeperClientFactory).when(service).getZooKeeperClientFactory();
+        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(service).createMetadataStore(anyString(), anyInt());
         proxyServer = new ProxyServer(config);
         WebSocketServiceStarter.start(proxyServer, service);
         log.info("Proxy Server Started");
     }
 
-    @AfterMethod
-    protected void cleanup() throws Exception {
+    @AfterMethod(alwaysRun = true)
+    public void cleanup() throws Exception {
+        @Cleanup("shutdownNow")
         ExecutorService executor = newFixedThreadPool(1);
         try {
             executor.submit(() -> {
@@ -104,16 +110,18 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
         } catch (Exception e) {
             log.error("failed to close clients ", e);
         }
-        executor.shutdownNow();
 
         super.internalCleanup();
-        service.close();
-        proxyServer.stop();
+        if (service != null) {
+            service.close();
+        }
+        if (proxyServer != null) {
+            proxyServer.stop();
+        }
         log.info("Finished Cleaning Up Test setup");
-
     }
 
-    public void checkSocket() throws Exception {
+    private void checkSocket() throws Exception {
         final String topic = "my-property/my-ns/my-topic1";
         final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/v2/consumer/persistent/" + topic + "/my-sub";
         final String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/v2/producer/persistent/" + topic;
@@ -142,18 +150,18 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
         Assert.assertEquals(produceSocket.getBuffer(), consumeSocket.getBuffer());
     }
 
-    @Test(timeOut=10000)
+    @Test(timeOut = 10000)
     public void authenticatedSocketTest() throws Exception {
         checkSocket();
     }
 
-    @Test(timeOut=10000)
+    @Test(timeOut = 10000)
     public void anonymousSocketTest() throws Exception {
         checkSocket();
     }
 
-    @Test(timeOut=10000)
-    public void unauthenticatedSocketTest() throws Exception{
+    @Test(timeOut = 10000)
+    public void unauthenticatedSocketTest() {
         Exception exception = null;
         try {
             checkSocket();
@@ -163,7 +171,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
         Assert.assertTrue(exception instanceof java.util.concurrent.ExecutionException);
     }
 
-    @Test(timeOut=10000)
+    @Test(timeOut = 10000)
     public void statsTest() throws Exception {
         final String topic = "persistent/my-property/my-ns/my-topic2";
         final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/v2/consumer/" + topic + "/my-sub";
@@ -214,7 +222,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
     private void verifyResponseStatus(Client client, String url) {
         WebTarget webTarget = client.target(url);
         Invocation.Builder invocationBuilder = webTarget.request(MediaType.APPLICATION_JSON);
-        Response response = (Response) invocationBuilder.get();
+        Response response = invocationBuilder.get();
         Assert.assertEquals(response.getStatus(), 200);
     }
 

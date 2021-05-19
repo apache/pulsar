@@ -18,10 +18,15 @@
  */
 package org.apache.pulsar.client.api;
 
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+
 /**
  * Protcol type to determine type of proxy routing when client connects to proxy using
  * {@link ClientBuilder::proxyServiceUrl}.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public enum ProxyProtocol {
     /**
      * Follows SNI-routing

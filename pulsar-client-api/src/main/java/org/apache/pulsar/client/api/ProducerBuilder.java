@@ -22,6 +22,8 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.PulsarClientException.ProducerQueueIsFullError;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * {@link ProducerBuilder} is used to configure and create instances of {@link Producer}.
@@ -29,6 +31,8 @@ import org.apache.pulsar.client.api.PulsarClientException.ProducerQueueIsFullErr
  * @see PulsarClient#newProducer()
  * @see PulsarClient#newProducer(Schema)
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface ProducerBuilder<T> extends Cloneable {
 
     /**
@@ -120,6 +124,25 @@ public interface ProducerBuilder<T> extends Cloneable {
      * @return the producer builder instance
      */
     ProducerBuilder<T> producerName(String producerName);
+
+    /**
+     * Configure the type of access mode that the producer requires on the topic.
+     *
+     * <p>Possible values are:
+     * <ul>
+     * <li>{@link ProducerAccessMode#Shared}: By default multiple producers can publish on a topic
+     * <li>{@link ProducerAccessMode#Exclusive}: Require exclusive access for producer. Fail immediately if there's
+     * already a producer connected.
+     * <li>{@link ProducerAccessMode#WaitForExclusive}: Producer creation is pending until it can acquire exclusive
+     * access
+     * </ul>
+     *
+     * @see ProducerAccessMode
+     * @param accessMode
+     *            The type of access to the topic that the producer requires
+     * @return the producer builder instance
+     */
+    ProducerBuilder<T> accessMode(ProducerAccessMode accessMode);
 
     /**
      * Set the send timeout <i>(default: 30 seconds)</i>.
@@ -312,7 +335,7 @@ public interface ProducerBuilder<T> extends Cloneable {
      * so, consumer will not be able to consume and ack those messages. So, those messages can
      * be only discared by msg ttl) Or configure
      * {@link ConsumerBuilder#expireTimeOfIncompleteChunkedMessage()}
-     * 5. Consumer configuration: consumer should also configure receiverQueueSize and maxPendingChuckedMessage
+     * 5. Consumer configuration: consumer should also configure receiverQueueSize and maxPendingChunkedMessage
      * </pre>
      * @param enableChunking
      * @return
@@ -329,6 +352,30 @@ public interface ProducerBuilder<T> extends Cloneable {
      * @return the producer builder instance
      */
     ProducerBuilder<T> cryptoKeyReader(CryptoKeyReader cryptoKeyReader);
+
+    /**
+     * Sets the default implementation of {@link CryptoKeyReader}.
+     *
+     * <p>Configure the key reader to be used to encrypt the message payloads.
+     *
+     * @param publicKey
+     *            the public key that is always used to encrypt message payloads.
+     * @return the producer builder instance
+     * @since 2.8.0
+     */
+    ProducerBuilder<T> defaultCryptoKeyReader(String publicKey);
+
+    /**
+     * Sets the default implementation of {@link CryptoKeyReader}.
+     *
+     * <p>Configure the key reader to be used to encrypt the message payloads.
+     *
+     * @param publicKeys
+     *            the map of public key names and their URIs used to encrypt message payloads.
+     * @return the producer builder instance
+     * @since 2.8.0
+     */
+    ProducerBuilder<T> defaultCryptoKeyReader(Map<String, String> publicKeys);
 
     /**
      * Add public encryption key, used by producer to encrypt the data key.

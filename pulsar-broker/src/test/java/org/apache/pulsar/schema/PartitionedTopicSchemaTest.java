@@ -38,6 +38,7 @@ import org.testng.annotations.Test;
 /**
  * Test get partitioned topic schema.
  */
+@Test(groups = "schema")
 public class PartitionedTopicSchemaTest extends MockedPulsarServiceBaseTest {
 
     private final static String PARTITIONED_TOPIC = "public/default/partitioned-schema-topic";
@@ -64,7 +65,7 @@ public class PartitionedTopicSchemaTest extends MockedPulsarServiceBaseTest {
         admin.topics().createPartitionedTopic(PARTITIONED_TOPIC, TOPIC_PARTITION);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

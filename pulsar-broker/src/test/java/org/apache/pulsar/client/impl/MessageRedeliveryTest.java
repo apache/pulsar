@@ -31,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -52,6 +53,7 @@ import com.google.common.collect.Sets;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 
+@Test(groups = "broker-impl")
 public class MessageRedeliveryTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(MessageRedeliveryTest.class);
 
@@ -62,7 +64,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         super.producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -76,7 +78,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
     /**
      * It tests that ManagedCursor tracks individually deleted messages and markDeletePosition correctly with different
      * range-set implementation and re-delivers messages as expected.
-     * 
+     *
      * @param useOpenRangeSet
      * @throws Exception
      */
@@ -86,138 +88,136 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         this.conf.setManagedLedgerMaxEntriesPerLedger(5);
         this.conf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
         this.conf.setManagedLedgerUnackedRangesOpenCacheSetEnabled(useOpenRangeSet);
+        @Cleanup("shutdownNow")
         final ScheduledExecutorService executor = Executors.newScheduledThreadPool(20,
                 new DefaultThreadFactory("pulsar"));
-        try {
-            final String ns1 = "my-property/brok-ns1";
-            final String subName = "my-subscriber-name";
-            final int numMessages = 50;
-            admin.namespaces().createNamespace(ns1, Sets.newHashSet("test"));
+        final String ns1 = "my-property/brok-ns1";
+        final String subName = "my-subscriber-name";
+        final int numMessages = 50;
+        admin.namespaces().createNamespace(ns1, Sets.newHashSet("test"));
 
-            final String topic1 = "persistent://" + ns1 + "/my-topic";
+        final String topic1 = "persistent://" + ns1 + "/my-topic";
 
-            ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topic1)
-                    .subscriptionName(subName).subscriptionType(SubscriptionType.Shared).receiverQueueSize(10)
-                    .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS).subscribe();
-            ConsumerImpl<byte[]> consumer2 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topic1)
-                    .subscriptionName(subName).subscriptionType(SubscriptionType.Shared).receiverQueueSize(10)
-                    .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS).subscribe();
-            ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topic1).create();
+        ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topic1)
+                .subscriptionName(subName).subscriptionType(SubscriptionType.Shared).receiverQueueSize(10)
+                .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS).subscribe();
+        ConsumerImpl<byte[]> consumer2 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topic1)
+                .subscriptionName(subName).subscriptionType(SubscriptionType.Shared).receiverQueueSize(10)
+                .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS).subscribe();
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topic1).create();
 
-            for (int i = 0; i < numMessages; i++) {
-                String message = "my-message-" + i;
-                producer.send(message.getBytes());
+        for (int i = 0; i < numMessages; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        CountDownLatch latch = new CountDownLatch(numMessages);
+        AtomicBoolean consume1 = new AtomicBoolean(true);
+        AtomicBoolean consume2 = new AtomicBoolean(true);
+        Set<String> ackedMessages = Sets.newConcurrentHashSet();
+        AtomicInteger counter = new AtomicInteger(0);
+
+        // (1) ack alternate message from consumer-1 which creates ack-hole.
+        executor.submit(() -> {
+            while (true) {
+                try {
+                    Message<byte[]> msg = consumer1.receive(1000, TimeUnit.MILLISECONDS);
+                    if (msg != null) {
+                        if (counter.getAndIncrement() % 2 == 0) {
+                            try {
+                                consumer1.acknowledge(msg);
+                                // ack alternate messages
+                                ackedMessages.add(new String(msg.getData()));
+                            } catch (PulsarClientException e1) {
+                                log.warn("Failed to ack message {}", e1.getMessage());
+                            }
+                        }
+                    } else {
+                        break;
+                    }
+                } catch (PulsarClientException e2) {
+                    // Ok
+                    break;
+                }
+                latch.countDown();
+            }
+        });
+
+        // (2) ack all the consumed messages from consumer-2
+        executor.submit(() -> {
+            while (consume2.get()) {
+                try {
+                    Message<byte[]> msg = consumer2.receive(1000, TimeUnit.MILLISECONDS);
+                    if (msg != null) {
+                        consumer2.acknowledge(msg);
+                        // ack alternate messages
+                        ackedMessages.add(new String(msg.getData()));
+                    } else {
+                        break;
+                    }
+                } catch (PulsarClientException e2) {
+                    // Ok
+                    break;
+                }
+                latch.countDown();
+            }
+        });
+
+        latch.await(10000, TimeUnit.MILLISECONDS);
+        consume1.set(false);
+
+        // (3) sleep so, consumer2 should timeout on it's pending read operation and not consume more messages
+        Thread.sleep(1000);
+
+        // (4) here we consume all messages but consumer1 only acked alternate messages.
+        assertNotEquals(ackedMessages.size(), numMessages);
+
+        PersistentTopic pTopic = (PersistentTopic) this.pulsar.getBrokerService().getTopicIfExists(topic1).get()
+                .get();
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) pTopic.getManagedLedger();
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ml.getCursors().iterator().next();
+
+        // (5) now, close consumer1 and let broker deliver consumer1's unack messages to consumer2
+        consumer1.close();
+
+        // (6) broker should redeliver all unack messages of consumer-1 and consumer-2 should ack all of them
+        CountDownLatch latch2 = new CountDownLatch(1);
+        executor.submit(() -> {
+            while (true) {
+                try {
+                    Message<byte[]> msg = consumer2.receive(1000, TimeUnit.MILLISECONDS);
+                    if (msg != null) {
+                        consumer2.acknowledge(msg);
+                        // ack alternate messages
+                        ackedMessages.add(new String(msg.getData()));
+                    } else {
+                        break;
+                    }
+                } catch (PulsarClientException e2) {
+                    // Ok
+                    break;
+                }
+                if (ackedMessages.size() == numMessages)
+                    latch2.countDown();
             }
 
-            CountDownLatch latch = new CountDownLatch(numMessages);
-            AtomicBoolean consume1 = new AtomicBoolean(true);
-            AtomicBoolean consume2 = new AtomicBoolean(true);
-            Set<String> ackedMessages = Sets.newConcurrentHashSet();
-            AtomicInteger counter = new AtomicInteger(0);
+        });
 
-            // (1) ack alternate message from consumer-1 which creates ack-hole.
-            executor.submit(() -> {
-                while (true) {
-                    try {
-                        Message<byte[]> msg = consumer1.receive(1000, TimeUnit.MILLISECONDS);
-                        if (msg != null) {
-                            if (counter.getAndIncrement() % 2 == 0) {
-                                try {
-                                    consumer1.acknowledge(msg);
-                                    // ack alternate messages
-                                    ackedMessages.add(new String(msg.getData()));
-                                } catch (PulsarClientException e1) {
-                                    log.warn("Failed to ack message {}", e1.getMessage());
-                                }
-                            }
-                        } else {
-                            break;
-                        }
-                    } catch (PulsarClientException e2) {
-                        // Ok
-                        break;
-                    }
-                    latch.countDown();
-                }
-            });
+        latch2.await(20000, TimeUnit.MILLISECONDS);
 
-            // (2) ack all the consumed messages from consumer-2
-            executor.submit(() -> {
-                while (consume2.get()) {
-                    try {
-                        Message<byte[]> msg = consumer2.receive(1000, TimeUnit.MILLISECONDS);
-                        if (msg != null) {
-                            consumer2.acknowledge(msg);
-                            // ack alternate messages
-                            ackedMessages.add(new String(msg.getData()));
-                        } else {
-                            break;
-                        }
-                    } catch (PulsarClientException e2) {
-                        // Ok
-                        break;
-                    }
-                    latch.countDown();
-                }
-            });
+        consumer2.close();
 
-            latch.await(10000, TimeUnit.MILLISECONDS);
-            consume1.set(false);
+        assertEquals(ackedMessages.size(), numMessages);
 
-            // (3) sleep so, consumer2 should timeout on it's pending read operation and not consume more messages
-            Thread.sleep(1000);
+        // (7) acked message set should be empty
+        assertEquals(cursor.getIndividuallyDeletedMessagesSet().size(), 0);
 
-            // (4) here we consume all messages but consumer1 only acked alternate messages.
-            assertNotEquals(ackedMessages.size(), numMessages);
+        // markDelete position should be one position behind read position
+        assertEquals(cursor.getReadPosition(), cursor.getMarkDeletedPosition().getNext());
 
-            PersistentTopic pTopic = (PersistentTopic) this.pulsar.getBrokerService().getTopicIfExists(topic1).get()
-                    .get();
-            ManagedLedgerImpl ml = (ManagedLedgerImpl) pTopic.getManagedLedger();
-            ManagedCursorImpl cursor = (ManagedCursorImpl) ml.getCursors().iterator().next();
+        producer.close();
+        consumer2.close();
 
-            // (5) now, close consumer1 and let broker deliver consumer1's unack messages to consumer2
-            consumer1.close();
-
-            // (6) broker should redeliver all unack messages of consumer-1 and consumer-2 should ack all of them
-            CountDownLatch latch2 = new CountDownLatch(1);
-            executor.submit(() -> {
-                while (true) {
-                    try {
-                        Message<byte[]> msg = consumer2.receive(1000, TimeUnit.MILLISECONDS);
-                        if (msg != null) {
-                            consumer2.acknowledge(msg);
-                            // ack alternate messages
-                            ackedMessages.add(new String(msg.getData()));
-                        } else {
-                            break;
-                        }
-                    } catch (PulsarClientException e2) {
-                        // Ok
-                        break;
-                    }
-                    if (ackedMessages.size() == numMessages)
-                        latch2.countDown();
-                }
-
-            });
-
-            latch2.await(20000, TimeUnit.MILLISECONDS);
-
-            consumer2.close();
-
-            assertEquals(ackedMessages.size(), numMessages);
-
-            // (7) acked message set should be empty
-            assertEquals(cursor.getIndividuallyDeletedMessagesSet().size(), 0);
-
-            // markDelete position should be one position behind read position
-            assertEquals(cursor.getReadPosition(), cursor.getMarkDeletedPosition().getNext());
-
-            producer.close();
-            consumer2.close();
-        } finally {
-            executor.shutdown();
-        }
 
     }
 

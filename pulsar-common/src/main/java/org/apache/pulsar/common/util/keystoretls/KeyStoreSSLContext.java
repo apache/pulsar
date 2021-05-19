@@ -19,7 +19,6 @@
 package org.apache.pulsar.common.util.keystoretls;
 
 import static org.apache.pulsar.common.util.SecurityUtility.getProvider;
-
 import com.google.common.base.Strings;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import java.io.FileInputStream;
@@ -40,6 +39,7 @@ import javax.net.ssl.SSLException;
 import javax.net.ssl.TrustManagerFactory;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.common.util.SecurityUtility;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 
 /**
@@ -49,7 +49,7 @@ import org.eclipse.jetty.util.ssl.SslContextFactory;
 public class KeyStoreSSLContext {
     public static final String DEFAULT_KEYSTORE_TYPE = "JKS";
     public static final String DEFAULT_SSL_PROTOCOL = "TLS";
-    public static final String DEFAULT_SSL_ENABLED_PROTOCOLS = "TLSv1.2,TLSv1.1,TLSv1";
+    public static final String DEFAULT_SSL_ENABLED_PROTOCOLS = "TLSv1.3,TLSv1.2";
     public static final String DEFAULT_SSL_KEYMANGER_ALGORITHM = KeyManagerFactory.getDefaultAlgorithm();
     public static final String DEFAULT_SSL_TRUSTMANAGER_ALGORITHM = TrustManagerFactory.getDefaultAlgorithm();
 
@@ -77,7 +77,6 @@ public class KeyStoreSSLContext {
     private boolean needClientAuth;
     private Set<String> ciphers;
     private Set<String> protocols;
-    @Getter
     private SSLContext sslContext;
 
     private String protocol = DEFAULT_SSL_PROTOCOL;
@@ -142,7 +141,9 @@ public class KeyStoreSSLContext {
             KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(kmfAlgorithm);
             KeyStore keyStore = KeyStore.getInstance(keyStoreTypeString);
             char[] passwordChars = keyStorePassword.toCharArray();
-            keyStore.load(new FileInputStream(keyStorePath), passwordChars);
+            try (FileInputStream inputStream = new FileInputStream(keyStorePath)) {
+                keyStore.load(inputStream, passwordChars);
+            }
             keyManagerFactory.init(keyStore, passwordChars);
             keyManagers = keyManagerFactory.getKeyManagers();
         }
@@ -152,23 +153,42 @@ public class KeyStoreSSLContext {
         if (this.allowInsecureConnection) {
             trustManagerFactory = InsecureTrustManagerFactory.INSTANCE;
         } else {
-            trustManagerFactory = TrustManagerFactory.getInstance(tmfAlgorithm);
+            trustManagerFactory = sslProviderString != null
+                    ? TrustManagerFactory.getInstance(tmfAlgorithm, sslProviderString)
+                    : TrustManagerFactory.getInstance(tmfAlgorithm);
             KeyStore trustStore = KeyStore.getInstance(trustStoreTypeString);
             char[] passwordChars = trustStorePassword.toCharArray();
-            trustStore.load(new FileInputStream(trustStorePath), passwordChars);
+            try (FileInputStream inputStream = new FileInputStream(trustStorePath)) {
+                trustStore.load(inputStream, passwordChars);
+            }
             trustManagerFactory.init(trustStore);
         }
 
         // init
-        sslContext.init(keyManagers, trustManagerFactory.getTrustManagers(), new SecureRandom());
+        sslContext.init(keyManagers, SecurityUtility
+                        .processConscryptTrustManagers(trustManagerFactory.getTrustManagers()),
+                new SecureRandom());
         this.sslContext = sslContext;
         return sslContext;
     }
 
-    public SSLEngine createSSLEngine() {
-        SSLEngine sslEngine = sslContext.createSSLEngine();
+    public SSLContext getSslContext() {
+        if (sslContext == null) {
+            throw new IllegalStateException("createSSLContext hasn't been called.");
+        }
+        return sslContext;
+    }
 
-        sslEngine.setEnabledProtocols(sslEngine.getSupportedProtocols());
+    public SSLEngine createSSLEngine() {
+        return configureSSLEngine(getSslContext().createSSLEngine());
+    }
+
+    public SSLEngine createSSLEngine(String peerHost, int peerPort) {
+        return configureSSLEngine(getSslContext().createSSLEngine(peerHost, peerPort));
+    }
+
+    private SSLEngine configureSSLEngine(SSLEngine sslEngine) {
+        sslEngine.setEnabledProtocols(protocols.toArray(new String[0]));
         sslEngine.setEnabledCipherSuites(sslEngine.getSupportedCipherSuites());
 
         if (this.mode == Mode.SERVER) {
@@ -177,7 +197,6 @@ public class KeyStoreSSLContext {
         } else {
             sslEngine.setUseClientMode(true);
         }
-
         return sslEngine;
     }
 
@@ -331,6 +350,13 @@ public class KeyStoreSSLContext {
             throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
         SslContextFactory sslCtxFactory;
 
+        if (sslProviderString == null) {
+            Provider provider = SecurityUtility.CONSCRYPT_PROVIDER;
+            if (provider != null) {
+                sslProviderString = provider.getName();
+            }
+        }
+
         sslCtxFactory = new SslContextFactoryWithAutoRefresh(
                 sslProviderString,
                 keyStoreTypeString,
@@ -353,3 +379,4 @@ public class KeyStoreSSLContext {
         return sslCtxFactory;
     }
 }
+

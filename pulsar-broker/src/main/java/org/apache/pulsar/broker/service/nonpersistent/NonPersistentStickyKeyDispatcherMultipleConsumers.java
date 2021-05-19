@@ -19,12 +19,10 @@
 package org.apache.pulsar.broker.service.nonpersistent;
 
 import io.netty.util.concurrent.FastThreadLocal;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Consumer;
@@ -32,7 +30,7 @@ import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.SendMessageInfo;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Subscription;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 
 public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersistentDispatcherMultipleConsumers {
 
@@ -67,16 +65,17 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
         return SubType.Key_Shared;
     }
 
-    private static final FastThreadLocal<Map<Consumer, List<Entry>>> localGroupedEntries = new FastThreadLocal<Map<Consumer, List<Entry>>>() {
-        @Override
-        protected Map<Consumer, List<Entry>> initialValue() throws Exception {
-            return new HashMap<>();
-        }
-    };
+    private static final FastThreadLocal<Map<Consumer, List<Entry>>> localGroupedEntries =
+            new FastThreadLocal<Map<Consumer, List<Entry>>>() {
+                @Override
+                protected Map<Consumer, List<Entry>> initialValue() throws Exception {
+                    return new HashMap<>();
+                }
+            };
 
     @Override
     public void sendMessages(List<Entry> entries) {
-        if (!entries.isEmpty()) {
+        if (entries.isEmpty()) {
             return;
         }
 
@@ -99,7 +98,7 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
 
             SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesForConsumer.size());
-            filterEntriesForConsumer(entriesForConsumer, batchSizes, sendMessageInfo, null, null);
+            filterEntriesForConsumer(entriesForConsumer, batchSizes, sendMessageInfo, null, null, false);
             consumer.sendMessages(entriesForConsumer, batchSizes, null, sendMessageInfo.getTotalMessages(),
                     sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(), getRedeliveryTracker());
             TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -sendMessageInfo.getTotalMessages());

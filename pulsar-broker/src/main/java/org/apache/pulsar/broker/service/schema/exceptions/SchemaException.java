@@ -26,6 +26,12 @@ import org.apache.pulsar.broker.service.BrokerServiceException;
 public class SchemaException extends BrokerServiceException {
 
     private static final long serialVersionUID = -6587520779026691815L;
+    private boolean recoverable;
+
+    public SchemaException(boolean recoverable, String message) {
+        super(message);
+        this.recoverable = recoverable;
+    }
 
     public SchemaException(String message) {
         super(message);
@@ -37,5 +43,9 @@ public class SchemaException extends BrokerServiceException {
 
     public SchemaException(String message, Throwable cause) {
         super(message, cause);
+    }
+
+    public boolean isRecoverable() {
+        return recoverable;
     }
 }

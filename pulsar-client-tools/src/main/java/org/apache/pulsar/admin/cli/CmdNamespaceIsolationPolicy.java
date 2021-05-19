@@ -21,6 +21,7 @@ package org.apache.pulsar.admin.cli;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 
 import org.apache.pulsar.admin.cli.utils.NameValueParameterSplitter;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -39,13 +40,13 @@ import com.beust.jcommander.converters.CommaParameterSplitter;
 public class CmdNamespaceIsolationPolicy extends CmdBase {
     @Parameters(commandDescription = "Create/Update a namespace isolation policy for a cluster. This operation requires Pulsar super-user privileges")
     private class SetPolicy extends CliCommand {
-        @Parameter(description = "cluster-name policy-name\n", required = true)
+        @Parameter(description = "cluster-name policy-name", required = true)
         private List<String> params;
 
         @Parameter(names = "--namespaces", description = "comma separated namespaces-regex list", required = true, splitter = CommaParameterSplitter.class)
         private List<String> namespaces;
 
-        @Parameter(names = "--primary", description = "comma separated  primary-broker-regex list", required = true, splitter = CommaParameterSplitter.class)
+        @Parameter(names = "--primary", description = "comma separated  primary-broker-regex list. In Pulsar, when namespaces (more specifically, namespace bundles) are assigned dynamically to brokers, the namespace isolation policy limits the set of brokers that can be used for assignment. Before topics are assigned to brokers, you can set the namespace isolation policy with a primary or a secondary regex to select desired brokers. If no broker matches the specified regex, you cannot create a topic. If there are not enough primary brokers, topics are assigned to secondary brokers. If there are not enough secondary brokers, topics are assigned to other brokers which do not have any isolation policies.", required = true, splitter = CommaParameterSplitter.class)
         private List<String> primary;
 
         @Parameter(names = "--secondary", description = "comma separated secondary-broker-regex list", required = false, splitter = CommaParameterSplitter.class)
@@ -65,19 +66,19 @@ public class CmdNamespaceIsolationPolicy extends CmdBase {
             NamespaceIsolationData namespaceIsolationData = createNamespaceIsolationData(namespaces, primary, secondary,
                     autoFailoverPolicyTypeName, autoFailoverPolicyParams);
 
-            admin.clusters().createNamespaceIsolationPolicy(clusterName, policyName, namespaceIsolationData);
+            getAdmin().clusters().createNamespaceIsolationPolicy(clusterName, policyName, namespaceIsolationData);
         }
     }
 
     @Parameters(commandDescription = "List all namespace isolation policies of a cluster. This operation requires Pulsar super-user privileges")
     private class GetAllPolicies extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private List<String> params;
 
         void run() throws PulsarAdminException {
             String clusterName = getOneArgument(params);
 
-            Map<String, NamespaceIsolationData> policyMap = admin.clusters().getNamespaceIsolationPolicies(clusterName);
+            Map<String, NamespaceIsolationData> policyMap = getAdmin().clusters().getNamespaceIsolationPolicies(clusterName);
 
             print(policyMap);
         }
@@ -85,13 +86,13 @@ public class CmdNamespaceIsolationPolicy extends CmdBase {
 
     @Parameters(commandDescription = "List all brokers with namespace-isolation policies attached to it. This operation requires Pulsar super-user privileges")
     private class GetAllBrokersWithPolicies extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private List<String> params;
 
         void run() throws PulsarAdminException {
             String clusterName = getOneArgument(params);
 
-            List<BrokerNamespaceIsolationData> brokers = admin.clusters()
+            List<BrokerNamespaceIsolationData> brokers = getAdmin().clusters()
                     .getBrokersWithNamespaceIsolationPolicy(clusterName);
 
             print(brokers);
@@ -100,7 +101,7 @@ public class CmdNamespaceIsolationPolicy extends CmdBase {
 
     @Parameters(commandDescription = "Get broker with namespace-isolation policies attached to it. This operation requires Pulsar super-user privileges")
     private class GetBrokerWithPolicies extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private List<String> params;
 
         @Parameter(names = "--broker", description = "Broker-name to get namespace-isolation policies attached to it", required = true)
@@ -109,7 +110,7 @@ public class CmdNamespaceIsolationPolicy extends CmdBase {
         void run() throws PulsarAdminException {
             String clusterName = getOneArgument(params);
 
-            BrokerNamespaceIsolationData brokerData = admin.clusters()
+            BrokerNamespaceIsolationData brokerData = getAdmin().clusters()
                     .getBrokerWithNamespaceIsolationPolicy(clusterName, broker);
 
             print(brokerData);
@@ -118,14 +119,14 @@ public class CmdNamespaceIsolationPolicy extends CmdBase {
 
     @Parameters(commandDescription = "Get namespace isolation policy of a cluster. This operation requires Pulsar super-user privileges")
     private class GetPolicy extends CliCommand {
-        @Parameter(description = "cluster-name policy-name\n", required = true)
+        @Parameter(description = "cluster-name policy-name", required = true)
         private List<String> params;
 
         void run() throws PulsarAdminException {
             String clusterName = getOneArgument(params, 0, 2);
             String policyName = getOneArgument(params, 1, 2);
 
-            NamespaceIsolationData nsIsolationData = admin.clusters().getNamespaceIsolationPolicy(clusterName,
+            NamespaceIsolationData nsIsolationData = getAdmin().clusters().getNamespaceIsolationPolicy(clusterName,
                     policyName);
 
             print(nsIsolationData);
@@ -134,14 +135,14 @@ public class CmdNamespaceIsolationPolicy extends CmdBase {
 
     @Parameters(commandDescription = "Delete namespace isolation policy of a cluster. This operation requires Pulsar super-user privileges")
     private class DeletePolicy extends CliCommand {
-        @Parameter(description = "cluster-name policy-name\n", required = true)
+        @Parameter(description = "cluster-name policy-name", required = true)
         private List<String> params;
 
         void run() throws PulsarAdminException {
             String clusterName = getOneArgument(params, 0, 2);
             String policyName = getOneArgument(params, 1, 2);
 
-            admin.clusters().deleteNamespaceIsolationPolicy(clusterName, policyName);
+            getAdmin().clusters().deleteNamespaceIsolationPolicy(clusterName, policyName);
         }
     }
 
@@ -223,7 +224,7 @@ public class CmdNamespaceIsolationPolicy extends CmdBase {
         return nsIsolationData;
     }
 
-    public CmdNamespaceIsolationPolicy(PulsarAdmin admin) {
+    public CmdNamespaceIsolationPolicy(Supplier<PulsarAdmin> admin) {
         super("ns-isolation-policy", admin);
         jcommander.addCommand("set", new SetPolicy());
         jcommander.addCommand("get", new GetPolicy());

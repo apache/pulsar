@@ -19,17 +19,14 @@
 package org.apache.pulsar;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
-
+import com.beust.jcommander.JCommander;
 import java.io.FileInputStream;
 import java.util.Arrays;
-
+import org.apache.logging.log4j.LogManager;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.beust.jcommander.JCommander;
 
 public class PulsarStandaloneStarter extends PulsarStandalone {
 
@@ -57,7 +54,10 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
             return;
         }
 
-        this.config = PulsarConfigurationLoader.create((new FileInputStream(this.getConfigFile())), ServiceConfiguration.class);
+        try (FileInputStream inputStream = new FileInputStream(this.getConfigFile())) {
+            this.config = PulsarConfigurationLoader.create(
+                    inputStream, ServiceConfiguration.class);
+        }
 
         String zkServers = "127.0.0.1";
 
@@ -65,16 +65,16 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
             // Use advertised address from command line
             config.setAdvertisedAddress(this.getAdvertisedAddress());
             zkServers = this.getAdvertisedAddress();
-        } else if (isBlank(config.getAdvertisedAddress())) {
+        } else if (isBlank(config.getAdvertisedAddress()) && isBlank(config.getAdvertisedListeners())) {
             // Use advertised address as local hostname
             config.setAdvertisedAddress("localhost");
         } else {
-            // Use advertised address from config file
+            // Use advertised or advertisedListeners address from config file
         }
 
         // Set ZK server's host to localhost
         // Priority: args > conf > default
-        if (argsContains(args,"--zookeeper-port")) {
+        if (argsContains(args, "--zookeeper-port")) {
             config.setZookeeperServers(zkServers + ":" + this.getZkPort());
             config.setConfigurationStoreServers(zkServers + ":" + this.getZkPort());
         } else {
@@ -101,6 +101,8 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
                     if (bkEnsemble != null) {
                         bkEnsemble.stop();
                     }
+
+                    LogManager.shutdown();
                 } catch (Exception e) {
                     log.error("Shutdown failed: {}", e.getMessage(), e);
                 }
@@ -119,6 +121,7 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
             standalone.start();
         } catch (Throwable th) {
             log.error("Failed to start pulsar service.", th);
+            LogManager.shutdown();
             Runtime.getRuntime().exit(1);
         }
 

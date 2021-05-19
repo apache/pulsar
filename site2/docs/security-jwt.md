@@ -217,12 +217,24 @@ authenticationEnabled=true
 authorizationEnabled=true
 authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderToken
 
-# If using secret key
+# Authentication settings of the broker itself. Used when the broker connects to other brokers, either in same or other clusters
+brokerClientTlsEnabled=true
+brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationToken
+brokerClientAuthenticationParameters={"token":"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0LXVzZXIifQ.9OHgE9ZUDeBTZs7nSMEFIuGNEX18FLR3qvy8mqxSxXw"}
+# Or, alternatively, read token from file
+# brokerClientAuthenticationParameters={"file":"///path/to/proxy-token.txt"}
+brokerClientTrustCertsFilePath=/path/my-ca/certs/ca.cert.pem
+
+# If this flag is set then the broker authenticates the original Auth data
+# else it just accepts the originalPrincipal and authorizes it (if required).
+authenticateOriginalAuthData=true
+
+# If using secret key (Note: key files must be DER-encoded)
 tokenSecretKey=file:///path/to/secret.key
 # The key can also be passed inline:
 # tokenSecretKey=data:;base64,FLFyW0oLJ2Fi22KKCm21J18mbAdztfSHN/lAT5ucEKU=
 
-# If using public/private
+# If using public/private (Note: key files must be DER-encoded)
 # tokenPublicKey=file:///path/to/public.key
 ```
 
@@ -241,7 +253,11 @@ tokenSecretKey=file:///path/to/secret.key
 
 # For the proxy to connect to brokers
 brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationToken
-brokerClientAuthenticationParameters=token:eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0LXVzZXIifQ.9OHgE9ZUDeBTZs7nSMEFIuGNEX18FLR3qvy8mqxSxXw
+brokerClientAuthenticationParameters={"token":"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0LXVzZXIifQ.9OHgE9ZUDeBTZs7nSMEFIuGNEX18FLR3qvy8mqxSxXw"}
 # Or, alternatively, read token from file
-# brokerClientAuthenticationParameters=file:///path/to/proxy-token.txt
+# brokerClientAuthenticationParameters={"file":"///path/to/proxy-token.txt"}
+
+# Whether client authorization credentials are forwared to the broker for re-authorization.
+# Authentication must be enabled via authenticationEnabled=true for this to take effect.
+forwardAuthorizationCredentials=true
 ```

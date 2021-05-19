@@ -186,3 +186,30 @@ void pulsar_producer_configuration_set_property(pulsar_producer_configuration_t 
                                                 const char *value) {
     conf->conf.setProperty(name, value);
 }
+
+int pulsar_producer_is_encryption_enabled(pulsar_producer_configuration_t *conf) {
+    return conf->conf.isEncryptionEnabled();
+}
+
+void pulsar_producer_configuration_set_default_crypto_key_reader(pulsar_producer_configuration_t *conf,
+                                                                 const char *public_key_path,
+                                                                 const char *private_key_path) {
+    std::shared_ptr<pulsar::DefaultCryptoKeyReader> keyReader =
+        std::make_shared<pulsar::DefaultCryptoKeyReader>(public_key_path, private_key_path);
+    conf->conf.setCryptoKeyReader(keyReader);
+}
+
+pulsar_producer_crypto_failure_action pulsar_producer_configuration_set_crypto_failure_action(
+    pulsar_producer_configuration_t *conf) {
+    return (pulsar_producer_crypto_failure_action)conf->conf.getCryptoFailureAction();
+}
+
+void pulsar_producer_configuration_set_crypto_failure_action(
+    pulsar_producer_configuration_t *conf, pulsar_producer_crypto_failure_action cryptoFailureAction) {
+    conf->conf.setCryptoFailureAction((pulsar::ProducerCryptoFailureAction)cryptoFailureAction);
+}
+
+void pulsar_producer_configuration_set_encryption_key(pulsar_producer_configuration_t *conf,
+                                                      const char *key) {
+    conf->conf.addEncryptionKey(key);
+}

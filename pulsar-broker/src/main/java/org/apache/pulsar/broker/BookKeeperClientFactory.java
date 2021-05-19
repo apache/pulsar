@@ -21,15 +21,13 @@ package org.apache.pulsar.broker;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
-
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.stats.StatsLogger;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.zookeeper.ZooKeeper;
 
 /**
- * Provider of a new BookKeeper client instance
+ * Provider of a new BookKeeper client instance.
  */
 public interface BookKeeperClientFactory {
     BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient,
