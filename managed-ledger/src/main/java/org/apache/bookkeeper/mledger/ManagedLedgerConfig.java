@@ -46,6 +46,8 @@ public class ManagedLedgerConfig {
     private boolean createIfMissing = true;
     private int maxUnackedRangesToPersist = 10000;
     private int maxBatchDeletedIndexToPersist = 10000;
+    private boolean enableLruCacheMaxUnackedRanges = false;
+    private long maxUnackedRangesInMemoryBytes = 3145728;
     private boolean deletionAtBatchIndexLevelEnabled = true;
     private int maxUnackedRangesToPersistInZk = 1000;
     private int maxEntriesPerLedger = 50000;
@@ -486,6 +488,24 @@ public class ManagedLedgerConfig {
 
     public void setMaxUnackedRangesToPersistInZk(int maxUnackedRangesToPersistInZk) {
         this.maxUnackedRangesToPersistInZk = maxUnackedRangesToPersistInZk;
+    }
+
+    public boolean isEnableLruCacheMaxUnackedRanges() {
+        return enableLruCacheMaxUnackedRanges;
+    }
+
+    public ManagedLedgerConfig setEnableLruCacheMaxUnackedRanges(boolean enableLruCacheMaxUnackedRanges) {
+        this.enableLruCacheMaxUnackedRanges = enableLruCacheMaxUnackedRanges;
+        return this;
+    }
+
+    public long getMaxUnackedRangesInMemoryBytes() {
+        return maxUnackedRangesInMemoryBytes;
+    }
+
+    public ManagedLedgerConfig setMaxUnackedRangesInMemoryBytes(long maxUnackedRangesInMemoryBytes) {
+        this.maxUnackedRangesInMemoryBytes = maxUnackedRangesInMemoryBytes;
+        return this;
     }
 
     /**

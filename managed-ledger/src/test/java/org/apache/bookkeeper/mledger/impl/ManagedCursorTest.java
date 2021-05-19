@@ -2732,7 +2732,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     /**
      * <pre>
-     * Verifies that {@link ManagedCursorImpl#createNewMetadataLedger()} cleans up orphan ledgers if fails to switch new
+     * Verifies that {@link ManagedCursorImpl#createNewMetadataLedgerAndSwitch()} cleans up orphan ledgers if fails to switch new
      * ledger
      * </pre>
      * @throws Exception
@@ -2745,7 +2745,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
         CountDownLatch latch = new CountDownLatch(1);
-        c1.createNewMetadataLedger(new VoidCallback() {
+        c1.createNewMetadataLedgerAndSwitch(new VoidCallback() {
             @Override
             public void operationComplete() {
                 latch.countDown();
@@ -2771,7 +2771,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         CountDownLatch latch2 = new CountDownLatch(1);
         // create ledger will create ledgerId = 6
         long ledgerId = 6;
-        c1.createNewMetadataLedger(new VoidCallback() {
+        c1.createNewMetadataLedgerAndSwitch(new VoidCallback() {
             @Override
             public void operationComplete() {
                 latch2.countDown();

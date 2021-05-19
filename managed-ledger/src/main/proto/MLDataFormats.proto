@@ -82,6 +82,8 @@ message PositionInfo {
 
     // Store which index in the batch message has been deleted
     repeated BatchedEntryDeletionIndexInfo batchedEntryDeletionIndexInfo = 5;
+
+    repeated MarkerIndexInfo markerIndexInfo = 6;
 }
 
 message NestedPositionInfo {
@@ -97,6 +99,13 @@ message MessageRange {
 message BatchedEntryDeletionIndexInfo {
     required NestedPositionInfo position = 1;
     repeated int64 deleteSet = 2;
+}
+
+message MarkerIndexInfo {
+    // the ledger we are acknowledging
+    required int64 targetLedgerId = 1;
+    // the position that saves the ack information
+    repeated NestedPositionInfo entryPosition= 2;
 }
 
 // Generic string and long tuple

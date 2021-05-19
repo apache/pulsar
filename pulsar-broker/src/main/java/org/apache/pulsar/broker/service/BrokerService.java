@@ -1349,6 +1349,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             managedLedgerConfig.setMaxUnackedRangesToPersist(serviceConfig.getManagedLedgerMaxUnackedRangesToPersist());
             managedLedgerConfig.setMaxUnackedRangesToPersistInZk(
                     serviceConfig.getManagedLedgerMaxUnackedRangesToPersistInZooKeeper());
+            managedLedgerConfig.setEnableLruCacheMaxUnackedRanges(serviceConfig.isEnableLruCacheMaxUnackedRanges());
+            managedLedgerConfig.setMaxUnackedRangesInMemoryBytes(serviceConfig.getMaxLruUnackedRangesInMemoryBytes());
             managedLedgerConfig.setMaxEntriesPerLedger(serviceConfig.getManagedLedgerMaxEntriesPerLedger());
             managedLedgerConfig.setMinimumRolloverTime(serviceConfig.getManagedLedgerMinLedgerRolloverTimeMinutes(),
                     TimeUnit.MINUTES);

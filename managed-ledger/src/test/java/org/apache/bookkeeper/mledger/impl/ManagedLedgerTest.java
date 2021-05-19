@@ -52,7 +52,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
@@ -2745,7 +2744,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         MutableObject<Boolean> failed = new MutableObject<>();
         failed.setValue(false);
         CountDownLatch createLedgerDoneLatch = new CountDownLatch(1);
-        cursor2.getValue().createNewMetadataLedger(new VoidCallback() {
+        cursor2.getValue().createNewMetadataLedgerAndSwitch(new VoidCallback() {
 
             @Override
             public void operationComplete() {

@@ -1518,6 +1518,17 @@ public class ServiceConfiguration implements PulsarConfiguration {
         )
     private boolean managedLedgerUnackedRangesOpenCacheSetEnabled = true;
     @FieldContext(
+            category = CATEGORY_STORAGE_OFFLOADING,
+            doc = "If enabled, the maximum \"acknowledgment holes\" will not be limited. \n" +
+                  "Only part of hotspot data will keep in memory by using LRU."
+        )
+    private boolean enableLruCacheMaxUnackedRanges = true;
+    @FieldContext(
+            category = CATEGORY_STORAGE_OFFLOADING,
+            doc = "Max Bytes of UnackedRanges can keep in memory, only use for lru cache"
+        )
+    private long maxLruUnackedRangesInMemoryBytes = 3145728;
+    @FieldContext(
         dynamic = true,
         category = CATEGORY_STORAGE_ML,
         doc = "Skip reading non-recoverable/unreadable data-ledger under managed-ledger's list.\n\n"
