@@ -134,15 +134,9 @@ public class ElasticSearchSink implements Sink<GenericObject> {
             KeyValueSchema<GenericObject,GenericObject> keyValueSchema = (KeyValueSchema) record.getSchema();
             keySchema = keyValueSchema.getKeySchema();
             valueSchema = keyValueSchema.getValueSchema();
-            if (KeyValueEncodingType.SEPARATED.equals(keyValueSchema.getKeyValueEncodingType()) && record.getKey().isPresent()) {
-                key = keySchema.decode(record.getKey().get().getBytes(StandardCharsets.UTF_8));
-            }
-            if (record.getValue() != null) {
-                value = ((KeyValue) record.getValue().getNativeObject()).getValue();
-                if (KeyValueEncodingType.INLINE.equals(keyValueSchema.getKeyValueEncodingType())) {
-                    key = ((KeyValue) record.getValue().getNativeObject()).getKey();
-                }
-            }
+            KeyValue keyValue = (KeyValue) record.getValue().getNativeObject();
+            key = keyValue.getKey();
+            value = keyValue.getValue();
         } else {
             key = record.getKey().orElse(null);
             valueSchema = record.getSchema();
@@ -178,15 +172,17 @@ public class ElasticSearchSink implements Sink<GenericObject> {
             }
         }
 
-        SchemaType schemaType = null;
-        if (record.getSchema() != null && record.getSchema().getSchemaInfo() != null) {
-            schemaType = record.getSchema().getSchemaInfo().getType();
+        if (log.isDebugEnabled()) {
+            SchemaType schemaType = null;
+            if (record.getSchema() != null && record.getSchema().getSchemaInfo() != null) {
+                schemaType = record.getSchema().getSchemaInfo().getType();
+            }
+            log.debug("recordType={} schemaType={} id={} doc={}",
+                    record.getClass().getName(),
+                    schemaType,
+                    id,
+                    doc);
         }
-        log.debug("recordType={} schemaType={} id={} doc={}",
-                record.getClass().getName(),
-                schemaType,
-                id,
-                doc);
         return Pair.of(id, doc);
     }
 

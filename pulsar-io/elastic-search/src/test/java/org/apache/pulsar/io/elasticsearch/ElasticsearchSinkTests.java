@@ -23,6 +23,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
+import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericJsonSchema;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
@@ -64,14 +65,24 @@ public class ElasticsearchSinkTests {
     protected Map<String, Object> map;
     protected ElasticSearchSink sink;
 
-    Schema kvSchema;
-    Schema<UserProfile> valueSchema;
-    GenericSchema<GenericRecord> genericSchema;
-    GenericRecord userProfile;
+    static Schema kvSchema;
+    static Schema<UserProfile> valueSchema;
+    static GenericSchema<GenericRecord> genericSchema;
+    static GenericRecord userProfile;
 
     @BeforeClass
     public static final void initBeforeClass() {
         container = new ElasticsearchContainer(ELASTICSEARCH_IMAGE);
+
+        valueSchema = Schema.JSON(UserProfile.class);
+        genericSchema = GenericJsonSchema.of(valueSchema.getSchemaInfo());
+        userProfile = genericSchema.newRecordBuilder()
+                .set("name", "bob")
+                .set("userName", "boby")
+                .set("email", "bob@bob.com")
+                .build();
+        kvSchema = Schema.KeyValue(Schema.STRING, genericSchema, KeyValueEncodingType.SEPARATED);
+
     }
 
     @AfterClass
@@ -97,14 +108,6 @@ public class ElasticsearchSinkTests {
                 return Optional.of( "key-" + sequenceCounter++);
             }});
 
-        valueSchema = Schema.JSON(UserProfile.class);
-        genericSchema = GenericJsonSchema.of(valueSchema.getSchemaInfo());
-        userProfile = genericSchema.newRecordBuilder()
-                .set("name", "bob")
-                .set("userName", "boby")
-                .set("email", "bob@bob.com")
-                .build();
-        kvSchema = Schema.KeyValue(Schema.STRING, genericSchema, KeyValueEncodingType.SEPARATED);
 
         when(mockRecord.getValue()).thenAnswer(new Answer<GenericObject>() {
             public GenericObject answer(InvocationOnMock invocation) throws Throwable {
@@ -116,7 +119,7 @@ public class ElasticsearchSinkTests {
 
                     @Override
                     public Object getNativeObject() {
-                        return new KeyValue<String, GenericObject>("x", userProfile);
+                        return new KeyValue<String, GenericObject>((String) userProfile.getField("name"), userProfile);
                     }
                 };
             }});
@@ -196,13 +199,28 @@ public class ElasticsearchSinkTests {
 
     static class MockRecordNullValue implements Record<GenericObject> {
         @Override
+        public Schema getSchema() {
+            return  kvSchema;
+        }
+
+        @Override
         public Optional<String> getKey() {
-            return Optional.of("key-1");
+            return Optional.of((String)userProfile.getField("name"));
         }
 
         @Override
         public GenericObject getValue() {
-            return null;
+            return new GenericObject() {
+                @Override
+                public SchemaType getSchemaType() {
+                    return SchemaType.KEY_VALUE;
+                }
+
+                @Override
+                public Object getNativeObject() {
+                    return new KeyValue<>((String)userProfile.getField("name"), null);
+                }
+            };
         }
     }
 
@@ -243,7 +261,7 @@ public class ElasticsearchSinkTests {
 
             @Override
             public Optional<String> getKey() {
-                return Optional.of("key-1");
+                return Optional.of((String)userProfile.getField("name"));
             }
 
             @Override
@@ -256,7 +274,7 @@ public class ElasticsearchSinkTests {
 
                     @Override
                     public Object getNativeObject() {
-                        return new KeyValue<String, GenericRecord>("key-1", userProfile);
+                        return new KeyValue<String, GenericRecord>((String)userProfile.getField("name"), userProfile);
                     }
                 };
             }
