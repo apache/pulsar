@@ -22,6 +22,7 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import java.util.function.Supplier;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.transaction.TxnID;
 
 @Parameters(commandDescription = "Operations on transactions")
 public class CmdTransactions extends CmdBase {
@@ -41,8 +42,26 @@ public class CmdTransactions extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get transaction in buffer stats")
+    private class GetTransactionInBufferStats extends CliCommand {
+        @Parameter(names = {"-c", "--coordinator-id"}, description = "the coordinator id", required = true)
+        private int coordinatorId;
+
+        @Parameter(names = {"-id", "--sequence-id"}, description = "the sequence id", required = true)
+        private int sequenceId;
+
+        @Parameter(names = {"-t", "--topic"}, description = "the topic", required = true)
+        private String topic;
+
+        @Override
+        void run() throws Exception {
+            getAdmin().transactions().getTransactionInBufferStats(new TxnID(coordinatorId, sequenceId), topic);
+        }
+    }
+
     public CmdTransactions(Supplier<PulsarAdmin> admin) {
         super("transactions", admin);
         jcommander.addCommand("coordinator-status", new GetCoordinatorStatus());
+        jcommander.addCommand("transaction-in-buffer-stats", new GetTransactionInBufferStats());
     }
 }

@@ -93,7 +93,8 @@ public abstract class TransactionsBase extends AdminResource {
                 });
             }
         } else {
-            asyncResponse.resume(new RestException(503, "Broker don't support transaction!"));
+            asyncResponse.resume(new RestException(503,
+                    "This Broker is not configured with transactionCoordinatorEnabled=true."));
         }
     }
 
