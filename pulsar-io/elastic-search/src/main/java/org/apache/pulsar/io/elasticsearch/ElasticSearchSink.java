@@ -26,6 +26,7 @@ import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericObject;
@@ -99,6 +100,21 @@ public class ElasticSearchSink implements Sink<GenericObject> {
                         elasticsearchClient.indexDocument(record, idAndDoc);
                     }
                 }
+            } catch(JsonProcessingException jsonProcessingException) {
+                switch(elasticSearchConfig.getMalformedDocAction()) {
+                    case IGNORE:
+                        break;
+                    case WARN:
+                        log.warn("Ignoring malformed document messageId={}",
+                                record.getMessage().map(Message::getMessageId).orElse(null),
+                                jsonProcessingException);
+                    case FAIL:
+                        log.error("Malformed document messageId={}",
+                                record.getMessage().map(Message::getMessageId).orElse(null),
+                                jsonProcessingException);
+                        elasticsearchClient.failed(jsonProcessingException);
+                        throw jsonProcessingException;
+                }
             } catch (Exception e) {
                 log.error("write error:", e);
                 throw e;
@@ -117,7 +133,7 @@ public class ElasticSearchSink implements Sink<GenericObject> {
      * @param record
      * @return A pair for _id and _source
      */
-    public Pair<String, String> extractIdAndDocument(Record<GenericObject> record) {
+    public Pair<String, String> extractIdAndDocument(Record<GenericObject> record) throws JsonProcessingException {
         Object key = null;
         Object value = null;
         Schema<?> keySchema = null;
@@ -184,7 +200,7 @@ public class ElasticSearchSink implements Sink<GenericObject> {
         return Pair.of(id, doc);
     }
 
-    public String stringifyKey(Schema<?> schema, Object val) {
+    public String stringifyKey(Schema<?> schema, Object val) throws JsonProcessingException {
         switch (schema.getSchemaInfo().getType()) {
             case INT8:
                 return Byte.toString((Byte) val);
@@ -198,7 +214,7 @@ public class ElasticSearchSink implements Sink<GenericObject> {
                 return (String) val;
             case JSON:
             case AVRO:
-                return stringifyValue(schema, val);
+                return stringifyKey(extractJsonNode(schema, val));
             default:
                 throw new UnsupportedOperationException("Unsupported key schemaType=" + schema.getSchemaInfo().getType());
         }
@@ -225,25 +241,18 @@ public class ElasticSearchSink implements Sink<GenericObject> {
         }
     }
 
-    public String stringifyValue(Schema<?> schema, Object val) {
+    public String stringifyValue(Schema<?> schema, Object val) throws JsonProcessingException {
+        JsonNode jsonNode = extractJsonNode(schema, val);
+        return objectMapper.writeValueAsString(jsonNode);
+    }
+
+    public JsonNode extractJsonNode(Schema<?> schema, Object val) {
         switch (schema.getSchemaInfo().getType()) {
             case JSON:
-                try {
-                    JsonNode node = (JsonNode) ((GenericRecord) val).getNativeObject();
-                    return objectMapper.writeValueAsString(node);
-                } catch (JsonProcessingException e) {
-                    log.error("Failed to convert JSON to a JSON string", e);
-                    throw new RuntimeException(e);
-                }
+                return (JsonNode) ((GenericRecord) val).getNativeObject();
             case AVRO:
-                try {
-                    org.apache.avro.generic.GenericRecord node = (org.apache.avro.generic.GenericRecord) ((GenericRecord) val).getNativeObject();
-                    JsonNode jsonNode = JsonConverter.toJson(node);
-                    return objectMapper.writeValueAsString(jsonNode);
-                } catch (Exception e) {
-                    log.error("Failed to convert AVRO to a JSON string", e);
-                    throw new RuntimeException(e);
-                }
+                org.apache.avro.generic.GenericRecord node = (org.apache.avro.generic.GenericRecord) ((GenericRecord) val).getNativeObject();
+                return JsonConverter.toJson(node);
             default:
                 throw new UnsupportedOperationException("Unsupported value schemaType=" + schema.getSchemaInfo().getType());
         }

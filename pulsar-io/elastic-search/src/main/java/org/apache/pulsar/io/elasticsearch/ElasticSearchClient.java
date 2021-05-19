@@ -401,7 +401,9 @@ public class ElasticSearchClient {
             if (indexName.length() <= 0 || !indexName.matches("[a-zA-Z\\.0-9][a-zA-Z_\\.\\-\\+0-9]*")) {
                 throw new RuntimeException(new IOException("Cannot convert the topic name='" + topicName + "' to a valid elasticsearch index name"));
             }
-            log.debug("Translate topic={} to index={}", k, indexName);
+            if (log.isDebugEnabled()) {
+                log.debug("Translate topic={} to index={}", k, indexName);
+            }
             return indexName;
         });
     }
