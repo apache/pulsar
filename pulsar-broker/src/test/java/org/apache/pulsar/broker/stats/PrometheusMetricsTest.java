@@ -32,13 +32,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.math.RoundingMode;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
 import java.nio.charset.StandardCharsets;
 import java.text.NumberFormat;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -59,23 +57,16 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.broker.service.BrokerTestBase;
-import org.apache.pulsar.broker.service.PulsarStats;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentMessageExpiryMonitor;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.api.proto.TxnAction;
-import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
-import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
-import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -88,9 +79,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
-        ServiceConfiguration configuration = getDefaultConf();
-        configuration.setTransactionCoordinatorEnabled(true);
-        super.baseSetup(configuration);
+        super.baseSetup();
+        AuthenticationProviderToken.resetMetrics();
     }
 
     @AfterMethod(alwaysRun = true)
@@ -1066,126 +1056,6 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     }
 
     @Test
-    public void testTransactionCoordinatorMetrics() throws Exception{
-        long timeout = 10000;
-        TransactionCoordinatorID transactionCoordinatorIDOne = TransactionCoordinatorID.get(1);
-        TransactionCoordinatorID transactionCoordinatorIDTwo = TransactionCoordinatorID.get(2);
-        pulsar.getTransactionMetadataStoreService().addTransactionMetadataStore(transactionCoordinatorIDOne);
-        pulsar.getTransactionMetadataStoreService().addTransactionMetadataStore(transactionCoordinatorIDTwo);
-
-        Awaitility.await().atMost(2000,  TimeUnit.MILLISECONDS).until(() ->
-                pulsar.getTransactionMetadataStoreService().getStores().size() == 2);
-        pulsar.getTransactionMetadataStoreService().getStores()
-                .get(transactionCoordinatorIDOne).newTransaction(timeout).get();
-        pulsar.getTransactionMetadataStoreService().getStores()
-                .get(transactionCoordinatorIDTwo).newTransaction(timeout).get();
-        pulsar.getTransactionMetadataStoreService().getStores()
-                .get(transactionCoordinatorIDTwo).newTransaction(timeout).get();
-        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
-        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
-        String metricsStr = statsOut.toString();
-        Multimap<String, PrometheusMetricsTest.Metric> metrics = parseMetrics(metricsStr);
-        Collection<PrometheusMetricsTest.Metric> metric = metrics.get("pulsar_txn_active_count");
-        assertEquals(metric.size(), 2);
-        metric.forEach(item -> {
-            if ("1".equals(item.tags.get("coordinator_id"))) {
-                assertEquals(item.value, 1);
-            } else {
-                assertEquals(item.value, 2);
-            }
-        });
-    }
-
-    @Test
-    public void testTransactionCoordinatorRateMetrics() throws Exception{
-        long timeout = 10000;
-        int txnCount = 120;
-        String ns1 = "prop/ns-abc1";
-        admin.namespaces().createNamespace(ns1);
-        String topic = "persistent://" + ns1 + "/test_coordinator_metrics";
-        String subName = "test_coordinator_metrics";
-        TransactionCoordinatorID transactionCoordinatorIDOne = TransactionCoordinatorID.get(1);
-        pulsar.getTransactionMetadataStoreService().addTransactionMetadataStore(transactionCoordinatorIDOne);
-        admin.topics().createNonPartitionedTopic(topic);
-        admin.topics().createSubscription(topic, subName, MessageId.earliest);
-        Awaitility.await().atMost(2000,  TimeUnit.MILLISECONDS).until(() ->
-                pulsar.getTransactionMetadataStoreService().getStores().size() == 1);
-
-        List<TxnID> list = new ArrayList<>();
-        for (int i = 0; i < txnCount; i++) {
-            TxnID txnID = pulsar.getTransactionMetadataStoreService().getStores()
-                    .get(transactionCoordinatorIDOne).newTransaction(timeout).get();
-            list.add(txnID);
-
-            if (i % 2 == 0) {
-                pulsar.getTransactionMetadataStoreService().addProducedPartitionToTxn(list.get(i), Collections.singletonList(topic)).get();
-            } else {
-                pulsar.getTransactionMetadataStoreService().addAckedPartitionToTxn(list.get(i),
-                        Collections.singletonList(TransactionSubscription.builder().topic(topic)
-                                .subscription(subName).build())).get();
-            }
-        }
-
-        for (int i = 0; i < txnCount; i++) {
-            if (i % 2 == 0) {
-                pulsar.getTransactionMetadataStoreService().endTransaction(list.get(i), TxnAction.COMMIT_VALUE, false).get();
-            } else {
-                pulsar.getTransactionMetadataStoreService().endTransaction(list.get(i), TxnAction.ABORT_VALUE, false).get();
-            }
-        }
-
-        pulsar.getBrokerService().updateRates();
-
-        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
-        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
-        String metricsStr = statsOut.toString();
-        Multimap<String, PrometheusMetricsTest.Metric> metrics = parseMetrics(metricsStr);
-
-        Collection<PrometheusMetricsTest.Metric> metric = metrics.get("pulsar_txn_created_count");
-        assertEquals(metric.size(), 1);
-        metric.forEach(item -> assertEquals(item.value, txnCount));
-
-        metric = metrics.get("pulsar_txn_committed_count");
-        assertEquals(metric.size(), 1);
-        metric.forEach(item -> assertEquals(item.value, txnCount / 2));
-
-        metric = metrics.get("pulsar_txn_aborted_count");
-        assertEquals(metric.size(), 1);
-        metric.forEach(item -> assertEquals(item.value, txnCount / 2));
-
-        TxnID txnID = pulsar.getTransactionMetadataStoreService().getStores()
-                .get(transactionCoordinatorIDOne).newTransaction(1000).get();
-
-        Awaitility.await().atMost(2000, TimeUnit.SECONDS).until(() -> {
-            try {
-                TxnMeta txnMeta = pulsar.getTransactionMetadataStoreService()
-                        .getStores().get(transactionCoordinatorIDOne).getTxnMeta(txnID).get();
-            } catch (Exception e) {
-                return true;
-            }
-            return false;
-        });
-
-        statsOut = new ByteArrayOutputStream();
-        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
-        metricsStr = statsOut.toString();
-        metrics = parseMetrics(metricsStr);
-
-        metric = metrics.get("pulsar_txn_timeout_count");
-        assertEquals(metric.size(), 1);
-        metric.forEach(item -> assertEquals(item.value, 1));
-
-        metric = metrics.get("pulsar_txn_append_log_count");
-        assertEquals(metric.size(), 1);
-        metric.forEach(item -> assertEquals(item.value, txnCount * 4 + 3));
-
-        metric = metrics.get("pulsar_txn_execution_latency_le_5000");
-        assertEquals(metric.size(), 1);
-        metric.forEach(item -> assertEquals(item.value, 1));
-
-    }
-
-    @Test
     public void testBrokerConnection() throws Exception {
         final String topicName = "persistent://my-namespace/use/my-ns/my-topic1";
 
@@ -1197,19 +1067,17 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
         String metricsStr = statsOut.toString();
         Multimap<String, Metric> metrics = parseMetrics(metricsStr);
-        // enable transaction will create transaction buffer snapshot connect so create count should add 1
-        // so change some metrics check count
         List<Metric> cm = (List<Metric>) metrics.get("pulsar_connection_created_total_count");
-        compareBrokerConnectionStateCount(cm, 2.0);
+        compareBrokerConnectionStateCount(cm, 1.0);
 
         cm = (List<Metric>) metrics.get("pulsar_connection_create_success_count");
-        compareBrokerConnectionStateCount(cm, 2.0);
+        compareBrokerConnectionStateCount(cm, 1.0);
 
         cm = (List<Metric>) metrics.get("pulsar_connection_closed_total_count");
         compareBrokerConnectionStateCount(cm, 0.0);
 
         cm = (List<Metric>) metrics.get("pulsar_active_connections");
-        compareBrokerConnectionStateCount(cm, 2.0);
+        compareBrokerConnectionStateCount(cm, 1.0);
 
         pulsarClient.close();
         statsOut = new ByteArrayOutputStream();
@@ -1247,13 +1115,13 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         compareBrokerConnectionStateCount(cm, 1.0);
 
         cm = (List<Metric>) metrics.get("pulsar_connection_create_success_count");
-        compareBrokerConnectionStateCount(cm, 2.0);
-
-        cm = (List<Metric>) metrics.get("pulsar_active_connections");
         compareBrokerConnectionStateCount(cm, 1.0);
 
+        cm = (List<Metric>) metrics.get("pulsar_active_connections");
+        compareBrokerConnectionStateCount(cm, 0.0);
+
         cm = (List<Metric>) metrics.get("pulsar_connection_created_total_count");
-        compareBrokerConnectionStateCount(cm, 3.0);
+        compareBrokerConnectionStateCount(cm, 2.0);
     }
 
     private void compareBrokerConnectionStateCount(List<Metric> cm, double count) {
@@ -1273,7 +1141,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     /**
      * Hacky parsing of Prometheus text format. Should be good enough for unit tests
      */
-    private static Multimap<String, Metric> parseMetrics(String metrics) {
+    public static Multimap<String, Metric> parseMetrics(String metrics) {
         Multimap<String, Metric> parsed = ArrayListMultimap.create();
 
         // Example of lines are
