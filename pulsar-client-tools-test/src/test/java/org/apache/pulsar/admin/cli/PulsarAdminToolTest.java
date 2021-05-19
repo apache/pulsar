@@ -35,6 +35,7 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
@@ -54,6 +55,7 @@ import org.apache.pulsar.client.admin.ResourceQuotas;
 import org.apache.pulsar.client.admin.Schemas;
 import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.client.admin.Topics;
+import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -88,6 +90,7 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicType;
+import org.apache.pulsar.common.policies.data.TransactionCoordinatorStatus;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mockito;
@@ -1407,6 +1410,26 @@ public class PulsarAdminToolTest {
 
         proxyStats.run(split("topics"));
         verify(mockProxyStats).getTopics();
+    }
+
+    @Test
+    void transactions() throws Exception {
+        PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
+        Transactions transactions = Mockito.mock(Transactions.class);
+        CompletableFuture<TransactionCoordinatorStatus> transactionMetadataStoreInfo = mock(CompletableFuture.class);
+        CompletableFuture<List<TransactionCoordinatorStatus>> lists = mock(CompletableFuture.class);
+        doReturn(transactions).when(admin).transactions();
+        doReturn(transactionMetadataStoreInfo).when(transactions).getCoordinatorStatusById(1);
+        doReturn(lists).when(transactions).getCoordinatorStatusList();
+
+        CmdTransactions cmdTransactions = new CmdTransactions(() -> admin);
+
+        cmdTransactions.run(split("coordinator-status -c 1"));
+        verify(transactions).getCoordinatorStatusById(1);
+
+        cmdTransactions = new CmdTransactions(() -> admin);
+        cmdTransactions.run(split("coordinator-status"));
+        verify(transactions).getCoordinatorStatusList();
     }
 
     String[] split(String s) {
