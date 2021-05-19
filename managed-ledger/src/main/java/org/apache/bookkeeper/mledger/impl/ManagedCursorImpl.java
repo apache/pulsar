@@ -344,6 +344,35 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     protected void recoverFromLedger(final ManagedCursorInfo info, final VoidCallback callback) {
+        if (config.isEnableLruCacheMaxUnackedRanges()) {
+            recoverFromMultiEntry(info, callback);
+        } else {
+            recoverFromSingleEntry(info, callback);
+        }
+    }
+
+    private void recoverFromMultiEntry(ManagedCursorInfo info, VoidCallback callback) {
+        ledger.mbean.startCursorLedgerOpenOp();
+        long ledgerId = info.getCursorsLedgerId();
+        OpenCallback openCallback = (rc, lh, ctx) -> {
+            log.info("[{}] Opened ledger {} for consumer {}. rc={}", ledger.getName(), ledgerId, name, rc);
+            boolean shouldInitFromOldestEntry = shouldInitFromOldestEntry(info, callback, ledgerId, rc, lh);
+            if (shouldInitFromOldestEntry) {
+                return;
+            }
+
+
+        };
+        try {
+            bookkeeper.asyncOpenLedger(ledgerId, digestType, config.getPassword(), openCallback, null);
+        } catch (Throwable t) {
+            log.error("[{}] Encountered error on opening cursor ledger {} for cursor {}",
+                    ledger.getName(), ledgerId, name, t);
+            openCallback.openComplete(BKException.Code.UnexpectedConditionException, null, null);
+        }
+    }
+
+    private void recoverFromSingleEntry(ManagedCursorInfo info, VoidCallback callback) {
         // Read the acknowledged position from the metadata ledger, then create
         // a new ledger and write the position into it
         ledger.mbean.startCursorLedgerOpenOp();
@@ -352,30 +381,13 @@ public class ManagedCursorImpl implements ManagedCursor {
             if (log.isInfoEnabled()) {
                 log.info("[{}] Opened ledger {} for consumer {}. rc={}", ledger.getName(), ledgerId, name, rc);
             }
-            if (isBkErrorNotRecoverable(rc)) {
-                log.error("[{}] Error opening metadata ledger {} for consumer {}: {}", ledger.getName(), ledgerId, name,
-                        BKException.getMessage(rc));
-                // Rewind to oldest entry available
-                initialize(getRollbackPosition(info), Collections.emptyMap(), callback);
-                return;
-            } else if (rc != BKException.Code.OK) {
-                log.warn("[{}] Error opening metadata ledger {} for consumer {}: {}", ledger.getName(), ledgerId, name,
-                        BKException.getMessage(rc));
-                callback.operationFailed(new ManagedLedgerException(BKException.getMessage(rc)));
+            boolean shouldInitFromOldestEntry = shouldInitFromOldestEntry(info, callback, ledgerId, rc, lh);
+            if (shouldInitFromOldestEntry) {
                 return;
             }
 
             // Read the last entry in the ledger
             long lastEntryInLedger = lh.getLastAddConfirmed();
-
-            if (lastEntryInLedger < 0) {
-                log.warn("[{}] Error reading from metadata ledger {} for consumer {}: No entries in ledger",
-                        ledger.getName(), ledgerId, name);
-                // Rewind to last cursor snapshot available
-                initialize(getRollbackPosition(info), Collections.emptyMap(), callback);
-                return;
-            }
-
             lh.asyncReadEntries(lastEntryInLedger, lastEntryInLedger, (rc1, lh1, seq, ctx1) -> {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}} readComplete rc={} entryId={}", ledger.getName(), rc1, lh1.getLastAddConfirmed());
@@ -432,6 +444,31 @@ public class ManagedCursorImpl implements ManagedCursor {
                 ledger.getName(), ledgerId, name, t);
             openCallback.openComplete(BKException.Code.UnexpectedConditionException, null, null);
         }
+    }
+
+    private boolean shouldInitFromOldestEntry(ManagedCursorInfo info, VoidCallback callback, long ledgerId, int rc,
+                                              LedgerHandle lh) {
+        if (isBkErrorNotRecoverable(rc)) {
+            log.error("[{}] Error opening metadata ledger {} for consumer {}: {}", ledger.getName(), ledgerId, name,
+                    BKException.getMessage(rc));
+            // Rewind to oldest entry available
+            initialize(getRollbackPosition(info), Collections.emptyMap(), callback);
+            return true;
+        } else if (rc != BKException.Code.OK) {
+            log.warn("[{}] Error opening metadata ledger {} for consumer {}: {}", ledger.getName(), ledgerId, name,
+                    BKException.getMessage(rc));
+            callback.operationFailed(new ManagedLedgerException(BKException.getMessage(rc)));
+            return true;
+        }
+
+        if (lh.getLastAddConfirmed() < 0) {
+            log.warn("[{}] Error reading from metadata ledger {} for consumer {}: No entries in ledger",
+                    ledger.getName(), ledgerId, name);
+            // Rewind to last cursor snapshot available
+            initialize(getRollbackPosition(info), Collections.emptyMap(), callback);
+            return true;
+        }
+        return false;
     }
 
     private void recoverIndividualDeletedMessages(List<MLDataFormats.MessageRange> individualDeletedMessagesList) {
