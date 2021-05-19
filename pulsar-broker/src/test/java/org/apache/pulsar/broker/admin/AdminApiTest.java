@@ -92,7 +92,6 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -125,7 +124,6 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicStats;
-import org.apache.pulsar.common.policies.data.TransactionCoordinatorStatus;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.compaction.Compactor;
@@ -137,6 +135,8 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
+
+
 
 @Slf4j
 @Test(groups = "broker")
@@ -168,7 +168,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         conf.setSubscriptionExpiryCheckIntervalInMinutes(1);
         conf.setBrokerDeleteInactiveTopicsEnabled(false);
         conf.setNumExecutorThreadPoolSize(5);
-        conf.setTransactionCoordinatorEnabled(true);
 
         super.internalSetup();
 
@@ -2964,61 +2963,5 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.topics().createNonPartitionedTopic(topicName);
         assertThrows(() -> {admin.topics().truncate(topicName);});
 
-    }
-
-    @Test(timeOut = 20000)
-    public void testGetTransactionCoordinatorStatus() throws Exception {
-        initTransaction(2);
-        getTransaction().commit().get();
-        getTransaction().abort().get();
-        TransactionCoordinatorStatus transactionCoordinatorStatus =
-                admin.transactions().getCoordinatorStatusById(1).get();
-        verifyCoordinatorStatus(1L, transactionCoordinatorStatus.coordinatorId,
-                transactionCoordinatorStatus.state,
-                transactionCoordinatorStatus.sequenceId, transactionCoordinatorStatus.lowWaterMark);
-
-        transactionCoordinatorStatus = admin.transactions().getCoordinatorStatusById(0).get();
-        verifyCoordinatorStatus(0L, transactionCoordinatorStatus.coordinatorId,
-                transactionCoordinatorStatus.state,
-                transactionCoordinatorStatus.sequenceId, transactionCoordinatorStatus.lowWaterMark);
-        List<TransactionCoordinatorStatus> list = admin.transactions().getCoordinatorStatusList().get();
-
-        assertEquals(list.size(), 2);
-
-        transactionCoordinatorStatus = list.get(0);
-        verifyCoordinatorStatus(0L, transactionCoordinatorStatus.coordinatorId,
-                transactionCoordinatorStatus.state,
-                transactionCoordinatorStatus.sequenceId, transactionCoordinatorStatus.lowWaterMark);
-
-        transactionCoordinatorStatus = list.get(1);
-        verifyCoordinatorStatus(1L, transactionCoordinatorStatus.coordinatorId,
-                transactionCoordinatorStatus.state,
-                transactionCoordinatorStatus.sequenceId, transactionCoordinatorStatus.lowWaterMark);
-    }
-
-    private static void verifyCoordinatorStatus(long expectedCoordinatorId, long coordinatorId, String state,
-                                                long sequenceId, long lowWaterMark) {
-        assertEquals(coordinatorId, expectedCoordinatorId);
-        assertEquals(state, "Ready");
-        assertEquals(sequenceId, 0);
-        assertEquals(lowWaterMark, 0);
-    }
-
-    private void initTransaction(int coordinatorSize) throws Exception {
-        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
-        admin.tenants().createTenant("pulsar", tenantInfo);
-        admin.namespaces().createNamespace("pulsar/system", Sets.newHashSet("test"));
-        admin.tenants().createTenant("public", tenantInfo);
-        admin.namespaces().createNamespace("public/default", Sets.newHashSet("test"));
-        admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), coordinatorSize);
-        admin.lookups().lookupTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
-        Awaitility.await().until(() ->
-                pulsar.getTransactionMetadataStoreService().getStores().size() == coordinatorSize);
-        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).enableTransaction(true).build();
-    }
-
-    private Transaction getTransaction() throws Exception {
-        return pulsarClient.newTransaction()
-                .withTransactionTimeout(2, TimeUnit.SECONDS).build().get();
     }
 }
