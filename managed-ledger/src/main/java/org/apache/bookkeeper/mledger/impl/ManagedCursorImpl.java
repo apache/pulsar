@@ -356,7 +356,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         long ledgerId = info.getCursorsLedgerId();
         OpenCallback openCallback = (rc, lh, ctx) -> {
             log.info("[{}] Opened ledger {} for consumer {}. rc={}", ledger.getName(), ledgerId, name, rc);
-            if (shouldRecoverFromOldestEntry(info, callback, ledgerId, rc, lh)) {
+            if (shouldRecoverFromEldestEntry(info, callback, ledgerId, rc, lh)) {
                 return;
             }
             Optional<PositionInfo> optional = getLastAvailableMarker(lh);
@@ -410,8 +410,8 @@ public class ManagedCursorImpl implements ManagedCursor {
             if (log.isInfoEnabled()) {
                 log.info("[{}] Opened ledger {} for consumer {}. rc={}", ledger.getName(), ledgerId, name, rc);
             }
-            boolean shouldFromOldestEntry = shouldRecoverFromOldestEntry(info, callback, ledgerId, rc, lh);
-            if (shouldFromOldestEntry) {
+            boolean shouldRecoverFromEldestEntry = shouldRecoverFromEldestEntry(info, callback, ledgerId, rc, lh);
+            if (shouldRecoverFromEldestEntry) {
                 return;
             }
 
@@ -424,7 +424,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 if (isBkErrorNotRecoverable(rc1)) {
                     log.error("[{}] Error reading from metadata ledger {} for consumer {}: {}", ledger.getName(),
                             ledgerId, name, BKException.getMessage(rc1));
-                    // Rewind to oldest entry available
+                    // Rewind to eldest entry available
                     initialize(getRollbackPosition(info), Collections.emptyMap(), callback);
                     return;
                 } else if (rc1 != BKException.Code.OK) {
@@ -480,12 +480,12 @@ public class ManagedCursorImpl implements ManagedCursor {
         return recoveredProperties;
     }
 
-    private boolean shouldRecoverFromOldestEntry(ManagedCursorInfo info, VoidCallback callback, long ledgerId, int rc,
+    private boolean shouldRecoverFromEldestEntry(ManagedCursorInfo info, VoidCallback callback, long ledgerId, int rc,
                                                  LedgerHandle lh) {
         if (isBkErrorNotRecoverable(rc)) {
             log.error("[{}] Error opening metadata ledger {} for consumer {}: {}", ledger.getName(), ledgerId, name,
                     BKException.getMessage(rc));
-            // Rewind to oldest entry available
+            // Rewind to eldest entry available
             initialize(getRollbackPosition(info), Collections.emptyMap(), callback);
             return true;
         } else if (rc != BKException.Code.OK) {
