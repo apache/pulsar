@@ -20,6 +20,7 @@ package org.apache.pulsar.client.admin;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.common.policies.data.TransactionComponentInTopicStatus;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStatus;
 
 public interface Transactions {
@@ -38,5 +39,13 @@ public interface Transactions {
      * @return the list future of transaction metadata store status.
      */
     CompletableFuture<List<TransactionCoordinatorStatus>> getCoordinatorStatusList();
+
+    /**
+     * Get transaction component in topic status.
+     *
+     * @param topic the topic of getting transaction component
+     * @return the future status of transaction component in topic.
+     */
+    CompletableFuture<TransactionComponentInTopicStatus> getComponentInTopicStatus(String topic);
 
 }

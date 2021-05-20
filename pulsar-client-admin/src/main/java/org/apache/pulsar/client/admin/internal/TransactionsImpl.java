@@ -24,6 +24,7 @@ import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.common.policies.data.TransactionComponentInTopicStatus;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStatus;
 
 public class TransactionsImpl extends BaseResource implements Transactions {
@@ -71,6 +72,26 @@ public class TransactionsImpl extends BaseResource implements Transactions {
                     }
                 });
         return statusList;
+    }
+
+    @Override
+    public CompletableFuture<TransactionComponentInTopicStatus> getComponentInTopicStatus(String topic) {
+        WebTarget path = adminV3Transactions.path("componentInTopicStatus");
+        path = path.queryParam("topic", topic);
+        final CompletableFuture<TransactionComponentInTopicStatus> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<TransactionComponentInTopicStatus>() {
+                    @Override
+                    public void completed(TransactionComponentInTopicStatus status) {
+                        future.complete(status);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
     }
 
 }

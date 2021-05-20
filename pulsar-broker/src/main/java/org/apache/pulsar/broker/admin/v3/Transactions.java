@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.admin.v3;
 
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import javax.ws.rs.Consumes;
@@ -52,5 +53,22 @@ public class Transactions extends TransactionsBase {
                                                 @DefaultValue("false") boolean authoritative,
                                      @QueryParam("coordinatorId") Integer coordinatorId) {
         internalGetCoordinatorStatus(asyncResponse, authoritative, coordinatorId);
+    }
+
+    @GET
+    @Path("/componentInTopicStatus")
+    @ApiOperation(value = "Get transaction component state in topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
+            @ApiResponse(code = 503, message = "This Broker is not configured "
+                    + "with transactionCoordinatorEnabled=true."),
+            @ApiResponse(code = 500, message = "Topic don't owner by this broker!"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void getComponentInTopicStatus(@Suspended final AsyncResponse asyncResponse,
+                                          @QueryParam("authoritative")
+                                          @DefaultValue("false") boolean authoritative,
+                                          @ApiParam(value = "Topic", required = true)
+                                          @QueryParam("topic") String topic) {
+        internalGetTransactionComponentStatusInTopic(asyncResponse, authoritative, topic);
     }
 }

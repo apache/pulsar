@@ -131,6 +131,8 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.TransactionComponentInTopicStatus;
+import org.apache.pulsar.common.policies.data.TransactionComponentInTopicStatus.TransactionPendingAckStatus;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
@@ -3038,6 +3040,17 @@ public class PersistentTopic extends AbstractTopic
             return getBrokerService().getPulsar().getConfiguration()
                     .getSubscriptionTypesEnabled().contains(subType.name());
         }
+    }
+
+    public TransactionComponentInTopicStatus getTransactionComponentStatus() {
+        TransactionComponentInTopicStatus transactionComponentInTopicStatus = new TransactionComponentInTopicStatus();
+        transactionComponentInTopicStatus.transactionBufferStatus = this.transactionBuffer.getStatus();
+        List<TransactionPendingAckStatus> transactionPendingAckStatusList = new ArrayList<>();
+        this.subscriptions.forEach((s, persistentSubscription) ->
+                transactionPendingAckStatusList.add(persistentSubscription.getTransactionPendingAckStatus()));
+        transactionComponentInTopicStatus.transactionPendingAckStatuses = transactionPendingAckStatusList;
+        transactionComponentInTopicStatus.topic = topic;
+        return transactionComponentInTopicStatus;
     }
 
     public PositionImpl getMaxReadPosition() {

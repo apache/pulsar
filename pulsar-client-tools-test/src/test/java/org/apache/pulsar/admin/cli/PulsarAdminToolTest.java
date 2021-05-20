@@ -1431,6 +1431,10 @@ public class PulsarAdminToolTest {
         cmdTransactions = new CmdTransactions(() -> admin);
         cmdTransactions.run(split("coordinator-status"));
         verify(transactions).getCoordinatorStatusList();
+
+        cmdTransactions = new CmdTransactions(() -> admin);
+        cmdTransactions.run(split("component-in-topic-status -t test"));
+        verify(transactions).getComponentInTopicStatus("test");
     }
 
     String[] split(String s) {

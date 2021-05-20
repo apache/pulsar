@@ -18,13 +18,22 @@
  */
 package org.apache.pulsar.broker.admin.v3;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Sets;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TransactionComponentInTopicStatus;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStatus;
 import org.apache.pulsar.packages.management.core.MockedPackagesStorageProvider;
 import org.awaitility.Awaitility;
@@ -36,6 +45,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
 
@@ -46,6 +56,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         conf.setPackagesManagementStorageProvider(MockedPackagesStorageProvider.class.getName());
         conf.setTransactionCoordinatorEnabled(true);
         conf.setSystemTopicEnabled(true);
+        conf.setTransactionBufferSnapshotMaxTransactionCount(1);
         super.internalSetup();
         admin.clusters().createCluster("test", new ClusterData(pulsar.getWebServiceAddress()));
         TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
@@ -89,6 +100,53 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         verifyCoordinatorStatus(1L, transactionCoordinatorStatus.coordinatorId,
                 transactionCoordinatorStatus.state,
                 transactionCoordinatorStatus.sequenceId, transactionCoordinatorStatus.lowWaterMark);
+    }
+
+    @Test(timeOut = 20000)
+    public void testGetTransactionComponentInTopicStatus() throws Exception {
+        initTransaction(2);
+        TransactionImpl transaction = (TransactionImpl) getTransaction();
+        final String topic = "persistent://public/default/testGetTransactionComponentInTopicStatus";
+        final String subName1 = "test1";
+        final String subName2 = "test2";
+        admin.topics().createNonPartitionedTopic(topic);
+
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
+                .sendTimeout(0, TimeUnit.SECONDS).topic(topic).create();
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer(Schema.BYTES).topic(topic)
+                .subscriptionName(subName1).subscribe();
+
+        Consumer<byte[]> consumer2 = pulsarClient.newConsumer(Schema.BYTES).topic(topic)
+                .subscriptionName(subName2).subscribe();
+        long currentTime = System.currentTimeMillis();
+        MessageId messageId = producer.newMessage(transaction).value("Hello pulsar!".getBytes()).send();
+        transaction.commit().get();
+
+        transaction = (TransactionImpl) getTransaction();
+        consumer1.acknowledgeAsync(messageId, transaction).get();
+        consumer2.acknowledgeAsync(messageId, transaction).get();
+
+        TransactionComponentInTopicStatus transactionComponentInTopicStatus = admin.transactions().
+                getComponentInTopicStatus(topic).get();
+        TransactionComponentInTopicStatus.TransactionBufferStatus transactionBufferStatus =
+                transactionComponentInTopicStatus.getTransactionBufferStatus();
+        List<TransactionComponentInTopicStatus.TransactionPendingAckStatus> transactionPendingAckStatusList =
+                transactionComponentInTopicStatus.getTransactionPendingAckStatuses();
+
+        assertEquals(transactionBufferStatus.state, "Ready");
+        assertEquals(transactionBufferStatus.maxReadPosition,
+                PositionImpl.get(((MessageIdImpl) messageId).getLedgerId(),
+                        ((MessageIdImpl) messageId).getEntryId() + 1).toString());
+        assertTrue(transactionBufferStatus.lastSnapshotTimestamps > currentTime);
+        if (transactionPendingAckStatusList.get(1).subName.equals(subName2)) {
+            assertEquals(transactionPendingAckStatusList.get(0).subName, subName1);
+        } else {
+            assertEquals(transactionPendingAckStatusList.get(1).subName, subName1);
+            assertEquals(transactionPendingAckStatusList.get(0).subName, subName2);
+        }
+
+        assertEquals(transactionPendingAckStatusList.get(0).state, "Ready");
+        assertEquals(transactionPendingAckStatusList.get(1).state, "Ready");
     }
 
     private static void verifyCoordinatorStatus(long expectedCoordinatorId, long coordinatorId, String state,

@@ -41,8 +41,20 @@ public class CmdTransactions extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get transaction component status")
+    private class GetComponentInTopicStatus extends CliCommand {
+        @Parameter(names = {"-t", "--topic"}, description = "the topic", required = true)
+        private String topic;
+
+        @Override
+        void run() throws Exception {
+            print(getAdmin().transactions().getComponentInTopicStatus(topic));
+        }
+    }
+
     public CmdTransactions(Supplier<PulsarAdmin> admin) {
         super("transactions", admin);
         jcommander.addCommand("coordinator-status", new GetCoordinatorStatus());
+        jcommander.addCommand("component-in-topic-status", new GetComponentInTopicStatus());
     }
 }
