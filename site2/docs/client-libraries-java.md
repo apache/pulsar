@@ -255,7 +255,7 @@ while (true) {
 
   try {
       // Do something with the message
-      System.out.printf("Message received: %s$n", new String(msg.getData()));
+      System.out.printf("Message received: %s%n", new String(msg.getData()));
 
       // Acknowledge the message so that it can be deleted by the message broker
       consumer.acknowledge(msg);
