@@ -505,7 +505,7 @@ All the proxy metrics are labelled with the following labels:
 | split_record_deserialize_time_per_query | Summary | Time spent on deserializing message to record per query. |
 | split_total_execution_time | Summary | The total execution time. |
 
-## Pulsar Transaction
+## Pulsar transaction
 
 All the transaction metrics are labelled with the following labels:
 
