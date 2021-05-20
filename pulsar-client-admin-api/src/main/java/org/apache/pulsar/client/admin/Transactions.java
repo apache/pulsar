@@ -20,7 +20,10 @@ package org.apache.pulsar.client.admin;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStatus;
+import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 
 public interface Transactions {
 
@@ -38,5 +41,16 @@ public interface Transactions {
      * @return the list future of transaction metadata store status.
      */
     CompletableFuture<List<TransactionCoordinatorStatus>> getCoordinatorStatusList();
+
+    /**
+     * Get transaction in pending ack stats.
+     *
+     * @param txnID the txnId
+     * @param topic the ack topic
+     * @param subName the sub name of this transaction ack
+     * @return the future stats of transaction in pending ack.
+     */
+    CompletableFuture<TransactionInPendingAckStats> getTransactionInPendingAckStats(TxnID txnID, String topic,
+                                                                                    String subName);
 
 }

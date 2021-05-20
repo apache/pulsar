@@ -131,6 +131,7 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
@@ -3051,5 +3052,9 @@ public class PersistentTopic extends AbstractTopic
     @Override
     protected boolean isTerminated() {
         return ledger.isTerminated();
+    }
+
+    public TransactionInPendingAckStats getTransactionInPendingAckStats(TxnID txnID, String subName) {
+        return this.subscriptions.get(subName).getTransactionInPendingAckStats(txnID);
     }
 }

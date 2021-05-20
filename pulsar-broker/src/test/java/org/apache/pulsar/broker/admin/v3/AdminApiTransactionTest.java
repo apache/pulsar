@@ -19,13 +19,22 @@
 package org.apache.pulsar.broker.admin.v3;
 
 import com.google.common.collect.Sets;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStatus;
+import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.packages.management.core.MockedPackagesStorageProvider;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
@@ -36,6 +45,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 
 public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
 
@@ -89,6 +99,54 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         verifyCoordinatorStatus(1L, transactionCoordinatorStatus.coordinatorId,
                 transactionCoordinatorStatus.state,
                 transactionCoordinatorStatus.sequenceId, transactionCoordinatorStatus.lowWaterMark);
+    }
+
+    @Test(timeOut = 20000)
+    public void testGetTransactionPendingAckStats() throws Exception {
+        initTransaction(2);
+        TransactionImpl transaction = (TransactionImpl) getTransaction();
+        final String topic = "persistent://public/default/testGetTransactionInBufferStats";
+        final String subName = "test";
+        admin.topics().createNonPartitionedTopic(topic);
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES).topic(topic).create();
+        Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES).topic(topic)
+                .subscriptionName(subName).subscribe();
+        MessageId messageId1 = producer.send("Hello pulsar!".getBytes());
+        MessageId messageId2 = producer.send("Hello pulsar!".getBytes());
+        consumer.acknowledgeAsync(messageId1, transaction).get();
+        consumer.acknowledgeAsync(messageId2, transaction).get();
+        TransactionInPendingAckStats transactionInPendingAckStats = admin.transactions()
+                .getTransactionInPendingAckStats(new TxnID(transaction.getTxnIdMostBits(),
+                        transaction.getTxnIdLeastBits()), topic, subName).get();
+        assertEquals(transactionInPendingAckStats.state, "Ready");
+        if (transactionInPendingAckStats.individualAckPosition.get(0)
+                .equals(PositionImpl.get(((MessageIdImpl) messageId1).getLedgerId(),
+                        ((MessageIdImpl) messageId1).getEntryId()).toString())) {
+            assertEquals(transactionInPendingAckStats.individualAckPosition.get(1),
+                    PositionImpl.get(((MessageIdImpl) messageId2).getLedgerId(),
+                            ((MessageIdImpl) messageId2).getEntryId()).toString());
+        } else {
+            assertEquals(transactionInPendingAckStats.individualAckPosition.get(1),
+                    PositionImpl.get(((MessageIdImpl) messageId1).getLedgerId(),
+                            ((MessageIdImpl) messageId1).getEntryId()).toString());
+        }
+        assertNull(transactionInPendingAckStats.cumulativeAckPosition);
+        assertEquals(transactionInPendingAckStats.topic, topic);
+        assertEquals(transactionInPendingAckStats.subName, subName);
+
+        consumer.acknowledgeCumulativeAsync(messageId2, transaction);
+
+        transactionInPendingAckStats = admin.transactions()
+                .getTransactionInPendingAckStats(new TxnID(transaction.getTxnIdMostBits(),
+                        transaction.getTxnIdLeastBits()), topic, subName).get();
+
+        assertNull(transactionInPendingAckStats.individualAckPosition);
+        assertEquals(transactionInPendingAckStats.cumulativeAckPosition,
+                PositionImpl.get(((MessageIdImpl) messageId2).getLedgerId(),
+                        ((MessageIdImpl) messageId2).getEntryId()).toString());
+
+        assertEquals(transactionInPendingAckStats.topic, topic);
+        assertEquals(transactionInPendingAckStats.subName, subName);
     }
 
     private static void verifyCoordinatorStatus(long expectedCoordinatorId, long coordinatorId, String state,

@@ -60,6 +60,7 @@ import org.apache.pulsar.client.admin.internal.OffloadProcessStatusImpl;
 import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
@@ -1431,6 +1432,11 @@ public class PulsarAdminToolTest {
         cmdTransactions = new CmdTransactions(() -> admin);
         cmdTransactions.run(split("coordinator-status"));
         verify(transactions).getCoordinatorStatusList();
+
+        cmdTransactions = new CmdTransactions(() -> admin);
+        cmdTransactions.run(split("transaction-in-pending-ack-stats -c 1 -id 2 -t test -s test"));
+        verify(transactions).getTransactionInPendingAckStats(
+                new TxnID(1, 2), "test", "test");
     }
 
     String[] split(String s) {

@@ -45,6 +45,7 @@ import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
@@ -697,6 +698,24 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
     public void completeHandleFuture() {
         this.pendingAckHandleCompletableFuture.complete(PendingAckHandleImpl.this);
+    }
+
+    @Override
+    public TransactionInPendingAckStats getTransactionInPendingAckStats(TxnID txnID) {
+        TransactionInPendingAckStats transactionInPendingAckStats = new TransactionInPendingAckStats();
+        transactionInPendingAckStats.state = getState().name();
+        if (cumulativeAckOfTransaction != null && cumulativeAckOfTransaction.getLeft().equals(txnID)) {
+            transactionInPendingAckStats.cumulativeAckPosition = this.cumulativeAckOfTransaction.getRight().toString();
+        } else if (individualAckOfTransaction != null) {
+            if (individualAckOfTransaction.containsKey(txnID)) {
+                List<String> list = new ArrayList<>();
+                individualAckOfTransaction.get(txnID).keySet().forEach(position -> list.add(position.toString()));
+                transactionInPendingAckStats.individualAckPosition = list;
+            }
+        }
+        transactionInPendingAckStats.topic = this.topicName;
+        transactionInPendingAckStats.subName = this.subName;
+        return transactionInPendingAckStats;
     }
 
     @Override

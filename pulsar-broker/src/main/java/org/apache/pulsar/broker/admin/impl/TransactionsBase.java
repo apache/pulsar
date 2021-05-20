@@ -21,13 +21,17 @@ package org.apache.pulsar.broker.admin.impl;
 import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStatus;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -86,6 +90,41 @@ public abstract class TransactionsBase extends AdminResource {
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
+            }
+        } else {
+            asyncResponse.resume(new RestException(503,
+                    "This Broker is not configured with transactionCoordinatorEnabled=true."));
+        }
+    }
+
+    protected void internalGetTransactionInPendingAckStats(AsyncResponse asyncResponse, boolean authoritative,
+                                                           long coordinatorId, long sequenceID, String topic,
+                                                           String subName) {
+        if (pulsar().getConfig().isTransactionCoordinatorEnabled()) {
+            validateTopicOwnership(TopicName.get(topic), authoritative);
+            CompletableFuture<Optional<Topic>> topicFuture = pulsar().getBrokerService()
+                    .getTopics().get(TopicName.get(topic).toString());
+            if (topicFuture != null) {
+                topicFuture.whenComplete((optionalTopic, e) -> {
+
+                    if (e != null) {
+                        asyncResponse.resume(new RestException(e));
+                        return;
+                    }
+                    if (!optionalTopic.isPresent()) {
+                        asyncResponse.resume(new RestException(500, "Topic don't owner by this broker!"));
+                        return;
+                    }
+                    Topic topicObject = optionalTopic.get();
+                    if (topicObject instanceof PersistentTopic) {
+                        asyncResponse.resume(((PersistentTopic) topicObject)
+                                .getTransactionInPendingAckStats(new TxnID(coordinatorId, sequenceID), subName));
+                    } else {
+                        asyncResponse.resume(new RestException(500, "Topic is not a persistent topic!"));
+                    }
+                });
+            } else {
+                asyncResponse.resume(new RestException(500, "Topic don't owner by this broker!"));
             }
         } else {
             asyncResponse.resume(new RestException(503,

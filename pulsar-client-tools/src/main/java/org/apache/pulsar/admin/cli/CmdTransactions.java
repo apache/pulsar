@@ -22,6 +22,7 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import java.util.function.Supplier;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.transaction.TxnID;
 
 @Parameters(commandDescription = "Operations on transactions")
 public class CmdTransactions extends CmdBase {
@@ -41,8 +42,30 @@ public class CmdTransactions extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get transaction in pending ack stats")
+    private class GetTransactionInPendingAckStats extends CliCommand {
+        @Parameter(names = {"-c", "--coordinator-id"}, description = "the coordinator id", required = true)
+        private int coordinatorId;
+
+        @Parameter(names = {"-id", "--sequencce-id"}, description = "the sequenceId", required = true)
+        private int sequenceId;
+
+        @Parameter(names = {"-t", "--topic"}, description = "the topic name", required = true)
+        private String topic;
+
+        @Parameter(names = {"-s", "--sub-name"}, description = "the subscription name", required = true)
+        private String subName;
+
+        @Override
+        void run() throws Exception {
+            getAdmin().transactions().getTransactionInPendingAckStats(new TxnID(coordinatorId, sequenceId),
+                    topic, subName);
+        }
+    }
+
     public CmdTransactions(Supplier<PulsarAdmin> admin) {
         super("transactions", admin);
         jcommander.addCommand("coordinator-status", new GetCoordinatorStatus());
+        jcommander.addCommand("transaction-in-pending-ack-stats", new GetTransactionInPendingAckStats());
     }
 }
