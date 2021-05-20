@@ -18,7 +18,7 @@ Pulsar exposes the following metrics in Prometheus format. You can monitor your 
 * [Pulsar Functions](#pulsar-functions)
 * [Proxy](#proxy)
 * [Pulsar SQL Worker](#pulsar-sql-worker)
-* [Pulsar Transaction](#pulsar-transaction)
+* [Pulsar transaction](#pulsar-transaction)
 
 The following types of metrics are available:
 
