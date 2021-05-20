@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.broker.authentication;
 
+import java.util.Collections;
 import java.util.List;
 import javax.naming.AuthenticationException;
 
@@ -38,7 +39,9 @@ public interface AuthenticationState {
      */
     String getAuthRole() throws AuthenticationException;
 
-    List<String> getAuthRoles() throws AuthenticationException;
+    default List<String> getAuthRoles() throws AuthenticationException {
+        return Collections.singletonList(getAuthRole());
+    }
 
     /**
      * Challenge passed in auth data and get response data.
