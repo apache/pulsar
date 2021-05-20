@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import javax.servlet.ServletContext;
@@ -583,48 +584,64 @@ public abstract class PulsarWebResource {
      * @param authoritative
      */
     protected void validateTopicOwnership(TopicName topicName, boolean authoritative) {
+        try {
+            validateTopicOwnershipAsync(topicName, authoritative).join();
+        } catch (CompletionException ce) {
+            if (ce.getCause() instanceof WebApplicationException) {
+                throw (WebApplicationException) ce.getCause();
+            } else {
+                throw new RestException(ce.getCause());
+            }
+        }
+    }
+
+    protected CompletableFuture<Void> validateTopicOwnershipAsync(TopicName topicName, boolean authoritative) {
         NamespaceService nsService = pulsar().getNamespaceService();
 
-        try {
-            // per function name, this is trying to acquire the whole namespace ownership
-            LookupOptions options = LookupOptions.builder()
-                    .authoritative(authoritative)
-                    .requestHttps(isRequestHttps())
-                    .readOnly(false)
-                    .loadTopicsInBundle(false).build();
-            Optional<URL> webUrl = nsService.getWebServiceUrl(topicName, options);
-            // Ensure we get a url
-            if (webUrl == null || !webUrl.isPresent()) {
-                log.info("Unable to get web service url");
-                throw new RestException(Status.PRECONDITION_FAILED, "Failed to find ownership for topic:" + topicName);
-            }
+        LookupOptions options = LookupOptions.builder()
+                .authoritative(authoritative)
+                .requestHttps(isRequestHttps())
+                .readOnly(false)
+                .loadTopicsInBundle(false)
+                .build();
 
-            if (!nsService.isServiceUnitOwned(topicName)) {
-                boolean newAuthoritative = isLeaderBroker(pulsar());
-                // Replace the host and port of the current request and redirect
-                URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(webUrl.get().getHost())
-                        .port(webUrl.get().getPort()).replaceQueryParam("authoritative", newAuthoritative).build();
-                // Redirect
-                log.debug("Redirecting the rest call to {}", redirect);
-                throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
-            }
-        } catch (TimeoutException te) {
-            String msg = String.format("Finding owner for topic %s timed out", topicName);
-            log.error(msg, te);
-            throw new RestException(Status.INTERNAL_SERVER_ERROR, msg);
-        } catch (IllegalArgumentException iae) {
-            // namespace format is not valid
-            log.debug("Failed to find owner for topic: {}", topicName, iae);
-            throw new RestException(Status.PRECONDITION_FAILED, "Can't find owner for topic " + topicName);
-        } catch (IllegalStateException ise) {
-            log.debug("Failed to find owner for topic: {}", topicName, ise);
-            throw new RestException(Status.PRECONDITION_FAILED, "Can't find owner for topic " + topicName);
-        } catch (WebApplicationException wae) {
-            throw wae;
-        } catch (Exception oe) {
-            log.debug("Failed to find owner for topic: {}", topicName, oe);
-            throw new RestException(oe);
-        }
+        return nsService.getWebServiceUrlAsync(topicName, options)
+                .thenApply(webUrl -> {
+                    // Ensure we get a url
+                    if (webUrl == null || !webUrl.isPresent()) {
+                        log.info("Unable to get web service url");
+                        throw new RestException(Status.PRECONDITION_FAILED,
+                                "Failed to find ownership for topic:" + topicName);
+                    }
+                    return webUrl.get();
+                }).thenAcceptBoth(nsService.isServiceUnitOwnedAsync(topicName), (webUrl, isTopicOwned) -> {
+                    if (!isTopicOwned) {
+                        boolean newAuthoritative = isLeaderBroker(pulsar());
+                        // Replace the host and port of the current request and redirect
+                        URI redirect = UriBuilder.fromUri(uri.getRequestUri())
+                                .host(webUrl.getHost())
+                                .port(webUrl.getPort())
+                                .replaceQueryParam("authoritative", newAuthoritative)
+                                .build();
+                        // Redirect
+                        if (log.isDebugEnabled()) {
+                            log.debug("Redirecting the rest call to {}", redirect);
+                        }
+                        throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+                    }
+                }).exceptionally(ex -> {
+                    if (ex.getCause() instanceof IllegalArgumentException
+                            || ex.getCause() instanceof IllegalStateException) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("Failed to find owner for topic: {}", topicName, ex);
+                        }
+                        throw new RestException(Status.PRECONDITION_FAILED, "Can't find owner for topic " + topicName);
+                    } else if (ex.getCause() instanceof WebApplicationException) {
+                        throw (WebApplicationException) ex.getCause();
+                    } else {
+                        throw new RestException(ex.getCause());
+                    }
+                });
     }
 
     /**

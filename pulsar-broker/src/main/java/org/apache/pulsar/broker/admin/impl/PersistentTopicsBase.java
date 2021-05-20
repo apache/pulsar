@@ -945,7 +945,6 @@ public class PersistentTopicsBase extends AdminResource {
     private void internalUnloadNonPartitionedTopic(AsyncResponse asyncResponse, boolean authoritative) {
         Topic topic;
         try {
-            validateTopicOwnership(topicName, authoritative);
             validateTopicOperation(topicName, TopicOperation.UNLOAD);
             topic = getTopicReference(topicName);
         } catch (Exception e) {
@@ -953,15 +952,22 @@ public class PersistentTopicsBase extends AdminResource {
             resumeAsyncResponseExceptionally(asyncResponse, e);
             return;
         }
-        topic.close(false).whenComplete((r, ex) -> {
-            if (ex != null) {
-                log.error("[{}] Failed to unload topic {}, {}", clientAppId(), topicName, ex.getMessage(), ex);
-                asyncResponse.resume(new RestException(ex));
 
-            } else {
-                log.info("[{}] Successfully unloaded topic {}", clientAppId(), topicName);
-                asyncResponse.resume(Response.noContent().build());
-            }
+        validateTopicOwnershipAsync(topicName, authoritative)
+                .thenRun(() -> {
+                    topic.close(false).whenComplete((r, ex) -> {
+                        if (ex != null) {
+                            log.error("[{}] Failed to unload topic {}, {}", clientAppId(), topicName, ex.getMessage(), ex);
+                            asyncResponse.resume(new RestException(ex));
+
+                        } else {
+                            log.info("[{}] Successfully unloaded topic {}", clientAppId(), topicName);
+                            asyncResponse.resume(Response.noContent().build());
+                        }
+                    });
+                }).exceptionally(ex -> {
+            asyncResponse.resume(ex);
+            return null;
         });
     }
 
