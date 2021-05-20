@@ -37,7 +37,6 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -45,6 +44,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
+import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Topics;
@@ -84,6 +84,7 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("partitioned-lookup", new PartitionedLookup());
         jcommander.addCommand("bundle-range", new GetBundleRange());
         jcommander.addCommand("delete", new DeleteCmd());
+        jcommander.addCommand("truncate", new TruncateCmd());
         jcommander.addCommand("unload", new UnloadCmd());
         jcommander.addCommand("subscriptions", new ListSubscriptions());
         jcommander.addCommand("unsubscribe", new DeleteSubscription());
@@ -484,6 +485,19 @@ public class CmdTopics extends CmdBase {
             if (deleteSchema) {
                 getAdmin().schemas().deleteSchema(topic);
             }
+        }
+    }
+
+    @Parameters(commandDescription = "Truncate a topic. \n"
+            + "\t\tThe truncate operation will move all cursors to the end of the topic and delete all inactive ledgers. ")
+    private class TruncateCmd extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String topic = validateTopicName(params);
+            getTopics().truncate(topic);
         }
     }
 
@@ -1022,13 +1036,13 @@ public class CmdTopics extends CmdBase {
             String persistentTopic = validatePersistentTopic(params);
 
             try {
-                LongRunningProcessStatus status = getTopics().offloadStatus(persistentTopic);
-                while (wait && status.status == LongRunningProcessStatus.Status.RUNNING) {
+                OffloadProcessStatus status = getTopics().offloadStatus(persistentTopic);
+                while (wait && status.getStatus() == LongRunningProcessStatus.Status.RUNNING) {
                     Thread.sleep(1000);
                     status = getTopics().offloadStatus(persistentTopic);
                 }
 
-                switch (status.status) {
+                switch (status.getStatus()) {
                 case NOT_RUN:
                     System.out.println("Offload has not been run for " + persistentTopic
                                        + " since broker startup");
@@ -1041,7 +1055,7 @@ public class CmdTopics extends CmdBase {
                     break;
                 case ERROR:
                     System.out.println("Error in offload");
-                    throw new PulsarAdminException("Error offloading: " + status.lastError);
+                    throw new PulsarAdminException("Error offloading: " + status.getLastError());
                 }
             } catch (InterruptedException e) {
                 throw new PulsarAdminException(e);
@@ -1084,6 +1098,9 @@ public class CmdTopics extends CmdBase {
         @Parameter(names = { "-l", "--limit" }, description = "Size limit (eg: 10M, 16G)", required = true)
         private String limitStr;
 
+        @Parameter(names = { "-lt", "--limitTime" }, description = "Time limit in second, non-positive number for disabling time limit.")
+        private int limitTime = -1;
+
         @Parameter(names = { "-p", "--policy" }, description = "Retention policy to enforce when the limit is reached. "
                 + "Valid options are: [producer_request_hold, producer_exception, consumer_backlog_eviction]", required = true)
         private String policyStr;
@@ -1103,7 +1120,7 @@ public class CmdTopics extends CmdBase {
             limit = validateSizeString(limitStr);
 
             String persistentTopic = validatePersistentTopic(params);
-            getTopics().setBacklogQuota(persistentTopic, new BacklogQuota(limit, policy));
+            getTopics().setBacklogQuota(persistentTopic, new BacklogQuota(limit, limitTime, policy));
         }
     }
 
@@ -1470,12 +1487,22 @@ public class CmdTopics extends CmdBase {
                 , description = "AWS Credential Secret to use when using driver S3 or aws-s3")
         private String awsSecret;
 
-        @Parameter(names = {"-m", "--maxBlockSizeInBytes"}
-                , description = "ManagedLedger offload max block Size in bytes, s3 and google-cloud-storage requires this parameter")
+        @Parameter(names = {"--ro", "--s3-role"}
+                , description = "S3 Role used for STSAssumeRoleSessionCredentialsProvider")
+        private String s3Role;
+
+        @Parameter(names = {"--s3-role-session-name", "-rsn"}
+                , description = "S3 role session name used for STSAssumeRoleSessionCredentialsProvider")
+        private String s3RoleSessionName;
+
+        @Parameter(names = {"-m", "--maxBlockSizeInBytes"},
+                description = "ManagedLedger offload max block Size in bytes,"
+                + "s3 and google-cloud-storage requires this parameter")
         private int maxBlockSizeInBytes;
 
-        @Parameter(names = {"-rb", "--readBufferSizeInBytes"}
-                , description = "ManagedLedger offload read buffer size in bytes, s3 and google-cloud-storage requires this parameter")
+        @Parameter(names = {"-rb", "--readBufferSizeInBytes"},
+                description = "ManagedLedger offload read buffer size in bytes,"
+                + "s3 and google-cloud-storage requires this parameter")
         private int readBufferSizeInBytes;
 
         @Parameter(names = {"-t", "--offloadThresholdInBytes"}
@@ -1503,16 +1530,19 @@ public class CmdTopics extends CmdBase {
                 try {
                     offloadedReadPriority = OffloadedReadPriority.fromString(this.offloadReadPriorityStr);
                 } catch (Exception e) {
-                    throw new ParameterException("--offloadedReadPriority parameter must be one of " +
-                            Arrays.stream(OffloadedReadPriority.values())
+                    throw new ParameterException("--offloadedReadPriority parameter must be one of "
+                            + Arrays.stream(OffloadedReadPriority.values())
                                     .map(OffloadedReadPriority::toString)
                                     .collect(Collectors.joining(","))
                             + " but got: " + this.offloadReadPriorityStr, e);
                 }
             }
 
-            OffloadPolicies offloadPolicies = OffloadPolicies.create(driver, region, bucket, endpoint, awsId, awsSecret, maxBlockSizeInBytes
-                    , readBufferSizeInBytes, offloadThresholdInBytes, offloadDeletionLagInMillis, offloadedReadPriority);
+            OffloadPolicies offloadPolicies = OffloadPolicies.create(driver, region, bucket, endpoint,
+                    s3Role, s3RoleSessionName,
+                    awsId, awsSecret,
+                    maxBlockSizeInBytes,
+                    readBufferSizeInBytes, offloadThresholdInBytes, offloadDeletionLagInMillis, offloadedReadPriority);
 
             getTopics().setOffloadPolicies(persistentTopic, offloadPolicies);
         }

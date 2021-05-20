@@ -32,6 +32,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 
 import lombok.Cleanup;
 import lombok.Getter;
@@ -40,7 +42,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
-import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
@@ -53,10 +54,13 @@ import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.io.core.SourceContext;
+import org.junit.Assert;
 import org.mockito.ArgumentMatcher;
 import static org.testng.Assert.assertSame;
 
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -321,14 +325,34 @@ public class PulsarSourceTest {
         Consumer consumer = Mockito.mock(Consumer.class);
         MessageImpl messageImpl = Mockito.mock(MessageImpl.class);
         Schema schema = Mockito.mock(Schema.class);
-        Mockito.when(messageImpl.getSchema()).thenReturn(schema);
+        Mockito.when(messageImpl.getSchemaInternal()).thenReturn(schema);
         if (pulsarSource instanceof MultiConsumerPulsarSource) {
             ((MultiConsumerPulsarSource) pulsarSource).received(consumer, messageImpl);
         } else {
             Mockito.doReturn(messageImpl).when(((SingleConsumerPulsarSource) pulsarSource).getInputConsumer()).receive();
         }
-        Mockito.verify(messageImpl.getSchema(), Mockito.times(1));
+        Mockito.verify(messageImpl.getSchemaInternal(), Mockito.times(1));
         Record<GenericRecord> pushed = pulsarSource.read();
         assertSame(pushed.getSchema(), schema);
+    }
+
+    @Test(dataProvider = "sourceImpls")
+    public void testInputConsumersGetter(PulsarSourceConfig pulsarSourceConfig) throws Exception {
+        PulsarSource<GenericRecord> pulsarSource = getPulsarSource(pulsarSourceConfig);
+        pulsarSource.open(new HashMap<>(), null);
+
+        if (pulsarSourceConfig instanceof SingleConsumerPulsarSourceConfig) {
+            SingleConsumerPulsarSourceConfig cfg = (SingleConsumerPulsarSourceConfig) pulsarSourceConfig;
+            Assert.assertEquals(1, pulsarSource.getInputConsumers().size());
+            return;
+        }
+
+        if (pulsarSourceConfig instanceof MultiConsumerPulsarSourceConfig) {
+            MultiConsumerPulsarSourceConfig cfg = (MultiConsumerPulsarSourceConfig) pulsarSourceConfig;
+            Assert.assertEquals(cfg.getTopicSchema().size(), pulsarSource.getInputConsumers().size());
+            return;
+        }
+
+        fail("Unknown config type");
     }
 }

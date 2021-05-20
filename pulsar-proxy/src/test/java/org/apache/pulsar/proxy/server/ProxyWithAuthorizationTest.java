@@ -93,9 +93,8 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         // Test explicitly specifying protocols defaults
         Set<String> ciphers_2 = Sets.newTreeSet();
         Set<String> protocols_2 = Sets.newTreeSet();
+        protocols_2.add("TLSv1.3");
         protocols_2.add("TLSv1.2");
-        protocols_2.add("TLSv1.1");
-        protocols_2.add("TLSv1");
 
         // Test for invalid ciphers
         Set<String> ciphers_3 = Sets.newTreeSet();

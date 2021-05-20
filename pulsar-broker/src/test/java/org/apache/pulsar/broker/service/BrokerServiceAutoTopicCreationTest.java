@@ -18,11 +18,11 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.TopicName;
@@ -154,8 +154,10 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         pulsar.getConfiguration().setDefaultNumPartitions(3);
 
         final String topicString = "persistent://prop/ns-abc/test-topic-3";
-        int partitions = admin.topics().getPartitionedTopicMetadata(topicString).partitions;
-        assertEquals(partitions, 0);
+        try {
+            admin.topics().getPartitionedTopicMetadata(topicString);
+        } catch (PulsarAdminException.NotFoundException expected) {
+        }
         assertFalse(admin.namespaces().getTopics("prop/ns-abc").contains(topicString));
     }
 

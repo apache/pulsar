@@ -203,6 +203,97 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
 
     /**
      * <pre>
+     * 1. Create a 2-partition topic and grant produce/consume permission to client role.
+     * 2. Use producer/consumer with client role to process the topic, which is fine.
+     * 2. Update the topic partition number to 4.
+     * 3. Use new producer/consumer with client role to process the topic.
+     * 4. Broker should authorize producer/consumer normally.
+     * </pre>
+     */
+    @Test
+    public void testUpdatePartitionNumAndReconnect() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        startProxy();
+        createAdminClient();
+        PulsarClient proxyClient = createPulsarClient(proxyService.getServiceUrl(), PulsarClient.builder());
+
+        String clusterName = "proxy-authorization";
+        String namespaceName = "my-property/my-ns";
+        String topicName = "persistent://my-property/my-ns/my-topic1";
+        String subscriptionName = "my-subscriber-name";
+
+        admin.clusters().createCluster(clusterName, new ClusterData(brokerUrl.toString()));
+
+        admin.tenants().createTenant("my-property",
+                new TenantInfo(Sets.newHashSet(), Sets.newHashSet(clusterName)));
+        admin.namespaces().createNamespace(namespaceName);
+        admin.topics().createPartitionedTopic(topicName, 2);
+        admin.topics().grantPermission(topicName, CLIENT_ROLE,
+                Sets.newHashSet(AuthAction.consume, AuthAction.produce));
+
+        Consumer<byte[]> consumer = proxyClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName(subscriptionName).subscribe();
+
+        Producer<byte[]> producer = proxyClient.newProducer(Schema.BYTES)
+                .topic(topicName).create();
+        final int MSG_NUM = 10;
+        Set<String> messageSet = Sets.newHashSet();
+        for (int i = 0; i < MSG_NUM; i++) {
+            String message = "my-message-" + i;
+            messageSet.add(message);
+            producer.send(message.getBytes());
+        }
+
+        Message<byte[]> msg;
+        Set<String> receivedMessageSet = Sets.newHashSet();
+        for (int i = 0; i < MSG_NUM; i++) {
+            msg = consumer.receive(5, TimeUnit.SECONDS);
+            String receivedMessage = new String(msg.getData());
+            log.debug("Received message: [{}]", receivedMessage);
+            String expectedMessage = "my-message-" + i;
+            receivedMessageSet.add(expectedMessage);
+            consumer.acknowledgeAsync(msg);
+        }
+        Assert.assertEquals(messageSet, receivedMessageSet);
+        consumer.close();
+        producer.close();
+
+        // update partition num
+        admin.topics().updatePartitionedTopic(topicName, 4);
+
+        // produce/consume the topic again
+        consumer = proxyClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName(subscriptionName).subscribe();
+        producer = proxyClient.newProducer(Schema.BYTES)
+                .topic(topicName).create();
+
+        messageSet.clear();
+        for (int i = 0; i < MSG_NUM; i++) {
+            String message = "my-message-" + i;
+            messageSet.add(message);
+            producer.send(message.getBytes());
+        }
+
+        receivedMessageSet.clear();
+        for (int i = 0; i < MSG_NUM; i++) {
+            msg = consumer.receive(5, TimeUnit.SECONDS);
+            String receivedMessage = new String(msg.getData());
+            log.debug("Received message: [{}]", receivedMessage);
+            String expectedMessage = "my-message-" + i;
+            receivedMessageSet.add(expectedMessage);
+            consumer.acknowledgeAsync(msg);
+        }
+        Assert.assertEquals(messageSet, receivedMessageSet);
+        consumer.close();
+        producer.close();
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    /**
+     * <pre>
      * It verifies jwt + Authentication + Authorization (client -> proxy -> broker).
      * It also test `SubscriptionAuthMode.Prefix` mode.
      *

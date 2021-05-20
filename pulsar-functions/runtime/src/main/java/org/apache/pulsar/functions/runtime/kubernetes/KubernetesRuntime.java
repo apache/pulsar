@@ -108,7 +108,7 @@ import static org.apache.pulsar.functions.utils.FunctionCommon.roundDecimal;
 public class KubernetesRuntime implements Runtime {
 
     private static final String ENV_SHARD_ID = "SHARD_ID";
-    private static final int maxJobNameSize = 55;
+    private static final int maxJobNameSize = 53;
     private static final int maxLabelSize = 63;
     public static final Pattern VALID_POD_NAME_REGEX =
             Pattern.compile("[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*",

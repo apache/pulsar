@@ -131,6 +131,11 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
+        public Position getPersistentMarkDeletedPosition() {
+            return position;
+        }
+
+        @Override
         public String getName() {
             return name;
         }

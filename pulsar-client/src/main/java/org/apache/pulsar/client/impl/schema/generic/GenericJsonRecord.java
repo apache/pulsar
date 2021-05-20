@@ -60,6 +60,9 @@ public class GenericJsonRecord extends VersionedGenericRecord {
     @Override
     public Object getField(String fieldName) {
         JsonNode fn = jn.get(fieldName);
+        if (fn == null) {
+            return null;
+        }
         if (fn.isContainerNode()) {
             AtomicInteger idx = new AtomicInteger(0);
             List<Field> fields = Lists.newArrayList(fn.fieldNames())
@@ -99,29 +102,29 @@ public class GenericJsonRecord extends VersionedGenericRecord {
     }
 
     private boolean isBinaryValue(String fieldName) {
+        if (schemaInfo == null) {
+            return false;
+        }
+
         boolean isBinary = false;
-
-        do {
-            if (schemaInfo == null) {
-                break;
+        try {
+            org.apache.avro.Schema schema = parseAvroSchema(schemaInfo.getSchemaDefinition());
+            org.apache.avro.Schema.Field field = schema.getField(fieldName);
+            if (field == null) {
+                return false;
             }
-
-            try {
-                org.apache.avro.Schema schema = parseAvroSchema(schemaInfo.getSchemaDefinition());
-                org.apache.avro.Schema.Field field = schema.getField(fieldName);
-                ObjectMapper objectMapper = new ObjectMapper();
-                JsonNode jsonNode = objectMapper.readTree(field.schema().toString());
-                for (JsonNode node : jsonNode) {
-                    JsonNode jn = node.get("type");
-                    if (jn != null && ("bytes".equals(jn.asText()) || "byte".equals(jn.asText()))) {
-                        isBinary = true;
-                    }
+            ObjectMapper objectMapper = new ObjectMapper();
+            JsonNode jsonNode = objectMapper.readTree(field.schema().toString());
+            for (JsonNode node : jsonNode) {
+                JsonNode jn = node.get("type");
+                if (jn != null && ("bytes".equals(jn.asText()) || "byte".equals(jn.asText()))) {
+                    isBinary = true;
+                    break;
                 }
-            } catch (Exception e) {
-                log.error("parse schemaInfo failed. ", e);
             }
-        } while (false);
-
+        } catch (Exception e) {
+            log.error("parse schemaInfo failed. ", e);
+        }
         return isBinary;
     }
 

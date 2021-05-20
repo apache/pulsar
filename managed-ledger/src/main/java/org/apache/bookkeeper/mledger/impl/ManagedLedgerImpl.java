@@ -129,6 +129,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.policies.data.OffloadPolicies.OffloadedReadPriority;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.metadata.api.Stat;
 import org.slf4j.Logger;
@@ -2154,8 +2155,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         executor.executeOrdered(name, safeRun(() -> internalTrimConsumedLedgers(promise)));
     }
 
-    private void scheduleDeferredTrimming(CompletableFuture<?> promise) {
-        scheduledExecutor.schedule(safeRun(() -> trimConsumedLedgersInBackground(promise)), 100, TimeUnit.MILLISECONDS);
+    public void trimConsumedLedgersInBackground(boolean isTruncate, CompletableFuture<?> promise) {
+        executor.executeOrdered(name, safeRun(() -> internalTrimLedgers(isTruncate, promise)));
+    }
+
+    private void scheduleDeferredTrimming(boolean isTruncate, CompletableFuture<?> promise) {
+        scheduledExecutor.schedule(safeRun(() -> trimConsumedLedgersInBackground(isTruncate, promise)), 100, TimeUnit.MILLISECONDS);
     }
 
     private void maybeOffloadInBackground(CompletableFuture<PositionImpl> promise) {
@@ -2262,9 +2267,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      * @throws Exception
      */
     void internalTrimConsumedLedgers(CompletableFuture<?> promise) {
+        internalTrimLedgers(false, promise);
+    }
+
+    void internalTrimLedgers(boolean isTruncate, CompletableFuture<?> promise) {
         // Ensure only one trimming operation is active
         if (!trimmerMutex.tryLock()) {
-            scheduleDeferredTrimming(promise);
+            scheduleDeferredTrimming(isTruncate, promise);
             return;
         }
 
@@ -2318,11 +2327,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     log.debug("[{}] Ledger {} skipped for deletion as it is currently being written to", name,
                             ls.getLedgerId());
                     break;
-                } else if (expired) {
-                    log.debug("[{}] Ledger {} has expired, ts {}", name, ls.getLedgerId(), ls.getTimestamp());
+                } else if (expired || isTruncate) {
+                    log.debug("[{}] Ledger {} has expired or be truncated, expired is {}, isTruncate is {}, ts {}", name, ls.getLedgerId(), expired,  isTruncate, ls.getTimestamp());
                     ledgersToDelete.add(ls);
-                } else if (overRetentionQuota) {
-                    log.debug("[{}] Ledger {} is over quota", name, ls.getLedgerId());
+                } else if (overRetentionQuota || isTruncate) {
+                    log.debug("[{}] Ledger {} is over quota or be truncated, overRetentionQuota is {}, isTruncate is {}", name, ls.getLedgerId(), overRetentionQuota, isTruncate);
                     ledgersToDelete.add(ls);
                 } else {
                     log.debug("[{}] Ledger {} not deleted. Neither expired nor over-quota", name, ls.getLedgerId());
@@ -2345,7 +2354,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             if (STATE_UPDATER.get(this) == State.CreatingLedger // Give up now and schedule a new trimming
                     || !metadataMutex.tryLock()) { // Avoid deadlocks with other operations updating the ledgers list
-                scheduleDeferredTrimming(promise);
+                scheduleDeferredTrimming(isTruncate, promise);
                 trimmerMutex.unlock();
                 return;
             }
@@ -3740,6 +3749,35 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private static final Logger log = LoggerFactory.getLogger(ManagedLedgerImpl.class);
 
+    @Override
+    public CompletableFuture<Void> asyncTruncate() {
+
+        final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+        for (ManagedCursor cursor : cursors) {
+            final CompletableFuture<Void> future = new CompletableFuture<>();
+            cursor.asyncClearBacklog(new AsyncCallbacks.ClearBacklogCallback() {
+                @Override
+                public void clearBacklogComplete(Object ctx) {
+                    future.complete(null);
+                }
+
+                @Override
+                public void clearBacklogFailed(ManagedLedgerException exception, Object ctx) {
+                    future.completeExceptionally(exception);
+                }
+            }, null);
+            futures.add(future);
+        }
+        CompletableFuture<Void> future = new CompletableFuture();
+        FutureUtil.waitForAll(futures).thenAccept(p -> {
+            internalTrimLedgers(true, future);
+        }).exceptionally(e -> {
+            future.completeExceptionally(e);
+            return null;
+        });
+        return future;
+    }
+  
     public CompletableFuture<Set<BookieId>> getEnsemblesAsync(long ledgerId) {
         LedgerInfo ledgerInfo = ledgers.get(ledgerId);
         if (ledgerInfo != null && ledgerInfo.hasOffloadContext()) {

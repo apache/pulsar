@@ -48,6 +48,7 @@ import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
+import org.apache.pulsar.broker.service.EntryWrapper;
 import org.apache.pulsar.broker.service.InMemoryRedeliveryTracker;
 import org.apache.pulsar.broker.service.RedeliveryTracker;
 import org.apache.pulsar.broker.service.RedeliveryTrackerDisabled;
@@ -219,8 +220,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     public synchronized void readMoreEntries() {
         // totalAvailablePermits may be updated by other threads
-        int currentTotalAvailablePermits = totalAvailablePermits;
-        if (currentTotalAvailablePermits > 0 && isAtleastOneConsumerAvailable()) {
+        int firstAvailableConsumerPermits = getFirstAvailableConsumerPermits();
+        int currentTotalAvailablePermits = Math.max(totalAvailablePermits, firstAvailableConsumerPermits);
+        if (currentTotalAvailablePermits > 0 && firstAvailableConsumerPermits > 0) {
             int messagesToRead = calculateNumOfMessageToRead(currentTotalAvailablePermits);
 
             if (-1 == messagesToRead) {
@@ -477,11 +479,22 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             readMoreEntries();
             return;
         }
+        EntryWrapper[] entryWrappers = new EntryWrapper[entries.size()];
+        int totalMessages = updateEntryWrapperWithMetadata(entryWrappers, entries);
         int start = 0;
         long totalMessagesSent = 0;
         long totalBytesSent = 0;
+        int avgBatchSizePerMsg = totalMessages > 0 ? Math.max(totalMessages / entries.size(), 1) : 1;
 
-        while (entriesToDispatch > 0 && totalAvailablePermits > 0 && isAtleastOneConsumerAvailable()) {
+        int firstAvailableConsumerPermits, currentTotalAvailablePermits;
+        boolean dispatchMessage;
+        while (entriesToDispatch > 0) {
+            firstAvailableConsumerPermits = getFirstAvailableConsumerPermits();
+            currentTotalAvailablePermits = Math.max(totalAvailablePermits, firstAvailableConsumerPermits);
+            dispatchMessage = currentTotalAvailablePermits > 0 && firstAvailableConsumerPermits > 0;
+            if (!dispatchMessage) {
+                break;
+            }
             Consumer c = getNextConsumer();
             if (c == null) {
                 // Do nothing, cursor will be rewind at reconnection
@@ -498,9 +511,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                                 + "availablePermits are {}", topic.getName(), name,
                         c, c.getAvailablePermits());
             }
-            int messagesForC = Math.min(
-                    Math.min(entriesToDispatch, availablePermits),
+
+            int messagesForC = Math.min(Math.min(entriesToDispatch, availablePermits),
                     serviceConfig.getDispatcherMaxRoundRobinBatchSize());
+            messagesForC = Math.max(messagesForC / avgBatchSizePerMsg, 1);
 
             if (messagesForC > 0) {
 
@@ -516,8 +530,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
                 EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesForThisConsumer.size());
                 EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entriesForThisConsumer.size());
-                filterEntriesForConsumer(entriesForThisConsumer, batchSizes, sendMessageInfo, batchIndexesAcks, cursor,
-                        readType == ReadType.Replay);
+                filterEntriesForConsumer(Optional.ofNullable(entryWrappers), entriesForThisConsumer, batchSizes,
+                        sendMessageInfo, batchIndexesAcks, cursor, readType == ReadType.Replay);
 
                 c.sendMessages(entriesForThisConsumer, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
                         sendMessageInfo.getTotalBytes(),
@@ -535,6 +549,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 }
                 totalMessagesSent += sendMessageInfo.getTotalMessages();
                 totalBytesSent += sendMessageInfo.getTotalBytes();
+            }
+        }
+
+        // release entry-wrapper
+        for (EntryWrapper entry : entryWrappers) {
+            if (entry != null) {
+                entry.recycle();
             }
         }
 
@@ -640,16 +661,20 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
      * @return
      */
     protected boolean isAtleastOneConsumerAvailable() {
+        return getFirstAvailableConsumerPermits() > 0;
+    }
+
+    protected int getFirstAvailableConsumerPermits() {
         if (consumerList.isEmpty() || IS_CLOSED_UPDATER.get(this) == TRUE) {
             // abort read if no consumers are connected or if disconnect is initiated
-            return false;
+            return 0;
         }
         for (Consumer consumer : consumerList) {
             if (isConsumerAvailable(consumer)) {
-                return true;
+                return consumer.getAvailablePermits();
             }
         }
-        return false;
+        return 0;
     }
 
     private boolean isConsumerWritable() {
@@ -670,7 +695,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     @Override
-    public synchronized CompletableFuture<Void> redeliverUnacknowledgedMessages(Consumer consumer, long epoch) {
+    public synchronized CompletableFuture<Void> redeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch) {
         consumer.getPendingAcks().forEach((ledgerId, entryId, batchSize, none) -> {
             messagesToRedeliver.add(ledgerId, entryId);
         });

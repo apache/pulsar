@@ -42,6 +42,8 @@ public class OffloadPoliciesTest {
         final String driver = "aws-s3";
         final String region = "test-region";
         final String bucket = "test-bucket";
+        final String role = "test-role";
+        final String roleSessionName = "test-role-session-name";
         final String credentialId = "test-credential-id";
         final String credentialSecret = "test-credential-secret";
         final String endPoint = "test-endpoint";
@@ -55,6 +57,8 @@ public class OffloadPoliciesTest {
                 region,
                 bucket,
                 endPoint,
+                role,
+                roleSessionName,
                 credentialId,
                 credentialSecret,
                 maxBlockSizeInBytes,
@@ -82,6 +86,8 @@ public class OffloadPoliciesTest {
         final String region = "test-region";
         final String bucket = "test-bucket";
         final String endPoint = "test-endpoint";
+        final String role = "test-role";
+        final String roleSessionName = "test-role-session-name";
         final String credentialId = "test-credential-id";
         final String credentialSecret = "test-credential-secret";
         final Integer maxBlockSizeInBytes = 5 * M;
@@ -95,6 +101,8 @@ public class OffloadPoliciesTest {
                 region,
                 bucket,
                 endPoint,
+                role,
+                roleSessionName,
                 credentialId,
                 credentialSecret,
                 maxBlockSizeInBytes,
@@ -123,6 +131,8 @@ public class OffloadPoliciesTest {
         final Integer s3ManagedLedgerOffloadReadBufferSizeInBytes = 2 * M;
         final String s3ManagedLedgerOffloadRole = "test-s3-role";
         final String s3ManagedLedgerOffloadRoleSessionName = "test-s3-role-session-name";
+        final String s3ManagedLedgerOffloadCredentialId = "test-s3-credential-id";
+        final String s3ManagedLedgerOffloadCredentialSecret = "test-s3-credential-secret";
 
         final String gcsManagedLedgerOffloadRegion = "test-gcs-region";
         final String gcsManagedLedgerOffloadBucket = "test-s3-bucket";
@@ -152,6 +162,9 @@ public class OffloadPoliciesTest {
                 "" + s3ManagedLedgerOffloadReadBufferSizeInBytes);
         properties.setProperty("s3ManagedLedgerOffloadRole", s3ManagedLedgerOffloadRole);
         properties.setProperty("s3ManagedLedgerOffloadRoleSessionName", s3ManagedLedgerOffloadRoleSessionName);
+
+        properties.setProperty("s3ManagedLedgerOffloadCredentialId", s3ManagedLedgerOffloadCredentialId);
+        properties.setProperty("s3ManagedLedgerOffloadCredentialSecret", s3ManagedLedgerOffloadCredentialSecret);
 
         properties.setProperty("gcsManagedLedgerOffloadRegion", gcsManagedLedgerOffloadRegion);
         properties.setProperty("gcsManagedLedgerOffloadBucket", gcsManagedLedgerOffloadBucket);
@@ -185,6 +198,10 @@ public class OffloadPoliciesTest {
         Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadRole(), s3ManagedLedgerOffloadRole);
         Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadRoleSessionName(),
                 s3ManagedLedgerOffloadRoleSessionName);
+        Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadCredentialId(),
+                s3ManagedLedgerOffloadCredentialId);
+        Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadCredentialSecret(),
+                s3ManagedLedgerOffloadCredentialSecret);
 
         Assert.assertEquals(offloadPolicies.getGcsManagedLedgerOffloadRegion(), gcsManagedLedgerOffloadRegion);
         Assert.assertEquals(offloadPolicies.getGcsManagedLedgerOffloadBucket(), gcsManagedLedgerOffloadBucket);

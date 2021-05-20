@@ -73,7 +73,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     private volatile ScheduledFuture<?> readOnActiveConsumerTask = null;
 
     private final RedeliveryTracker redeliveryTracker;
-    private volatile long epoch;
+    private volatile long consumerEpoch;
 
     public PersistentDispatcherSingleActiveConsumer(ManagedCursor cursor, SubType subscriptionType, int partitionIndex,
                                                     PersistentTopic topic, Subscription subscription) {
@@ -277,10 +277,10 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     }
 
     @Override
-    public CompletableFuture<Void> redeliverUnacknowledgedMessages(Consumer consumer, long epoch) {
+    public CompletableFuture<Void> redeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch) {
         final CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         topic.getBrokerService().getTopicOrderedExecutor().executeOrdered(topicName, SafeRun.safeRun(() -> {
-            internalRedeliverUnacknowledgedMessages(consumer, completableFuture, epoch);
+            internalRedeliverUnacknowledgedMessages(consumer, completableFuture, consumerEpoch);
         }));
         return completableFuture;
     }
@@ -288,11 +288,11 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     private synchronized void internalRedeliverUnacknowledgedMessages(Consumer consumer,
                                                                       CompletableFuture<Void> completableFuture,
                                                                       long epoch) {
-        if (epoch >= this.epoch) {
-            this.epoch = epoch;
+        if (epoch >= this.consumerEpoch) {
+            this.consumerEpoch = epoch;
         } else {
             completableFuture.completeExceptionally(new BrokerServiceException("consumerId: " + consumer.consumerId()
-                    +  "redeliver fail! " + "now epoch : " + this.epoch + "epoch : " + epoch));
+                    +  "redeliver fail! " + "now epoch : " + this.consumerEpoch + "epoch : " + epoch));
             return;
         }
         if (consumer != ACTIVE_CONSUMER_UPDATER.get(this)) {
@@ -355,7 +355,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                 topic.getCompactedTopic().asyncReadEntriesOrWait(cursor, messagesToRead, this, consumer);
             } else {
                 cursor.asyncReadEntriesOrWait(messagesToRead, serviceConfig.getDispatcherMaxReadSizeBytes(),
-                        this, consumer, topic.getMaxReadPosition(), epoch);
+                        this, consumer, topic.getMaxReadPosition(), consumerEpoch);
             }
         } else {
             if (log.isDebugEnabled()) {
@@ -576,8 +576,8 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         return false;
     }
 
-    public long getEpoch() {
-        return epoch;
+    public long getConsumerEpoch() {
+        return consumerEpoch;
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentDispatcherSingleActiveConsumer.class);

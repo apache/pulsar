@@ -24,7 +24,7 @@ FROM apachepulsar/pulsar-all:latest as pulsar
 FROM apachepulsar/pulsar-dashboard:latest as dashboard
 
 # Restart from
-FROM openjdk:8-jdk
+FROM openjdk:11-jdk
 
 # Help to make these directories persist between container restarts
 VOLUME  ["/pulsar/conf", "/pulsar/data"]

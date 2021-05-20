@@ -25,6 +25,7 @@ import io.netty.util.internal.PlatformDependent;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
@@ -33,6 +34,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
+import org.apache.pulsar.broker.validator.MultipleListenerValidator;
 import org.apache.pulsar.common.configuration.Category;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
@@ -43,6 +45,7 @@ import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.sasl.SaslConstants;
+import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 
 /**
  * Pulsar service configuration object.
@@ -217,13 +220,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "Default is 10"
     )
     private int numCacheExecutorThreadPoolSize = 10;
-
-    @FieldContext(
-            category = CATEGORY_SERVER,
-            doc = "Number of threads to use for pulsar broker service."
-                    + " The executor in thread pool will do transaction recover"
-    )
-    private int numTransactionExecutorThreadPoolSize = Runtime.getRuntime().availableProcessors();
 
     @FieldContext(category = CATEGORY_SERVER, doc = "Max concurrent web requests")
     private int maxConcurrentHttpRequests = 1024;
@@ -1024,7 +1020,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_TLS,
         doc = "Specify the tls protocols the broker will use to negotiate during TLS Handshake.\n\n"
-            + "Example:- [TLSv1.2, TLSv1.1, TLSv1]"
+            + "Example:- [TLSv1.3, TLSv1.2]"
     )
     private Set<String> tlsProtocols = Sets.newTreeSet();
     @FieldContext(
@@ -2038,6 +2034,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_TRANSACTION,
+            doc = "Class name for transaction pending ack store provider"
+    )
+    private String transactionPendingAckStoreProviderClassName =
+            "org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStoreProvider";
+
+    @FieldContext(
+            category = CATEGORY_TRANSACTION,
+            doc = "Number of threads to use for pulsar transaction replay PendingAckStore or TransactionBuffer."
+                    + "Default is 5"
+    )
+    private int numTransactionReplayThreadPoolSize = Runtime.getRuntime().availableProcessors();
+
+    @FieldContext(
+            category = CATEGORY_TRANSACTION,
             doc = "Transaction buffer take snapshot transaction count"
     )
     private int transactionBufferSnapshotMaxTransactionCount = 1000;
@@ -2139,7 +2149,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_KEYSTORE_TLS,
             doc = "Specify the tls protocols the broker will use to negotiate during TLS handshake"
                   + " (a comma-separated list of protocol names).\n\n"
-                  + "Examples:- [TLSv1.2, TLSv1.1, TLSv1] \n"
+                  + "Examples:- [TLSv1.3, TLSv1.2] \n"
                   + " used by the internal client to authenticate with Pulsar brokers"
     )
     private Set<String> brokerClientTlsProtocols = Sets.newTreeSet();
@@ -2255,4 +2265,5 @@ public class ServiceConfiguration implements PulsarConfiguration {
             return brokerDeleteInactiveTopicsMaxInactiveDurationSeconds;
         }
     }
+
 }
