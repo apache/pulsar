@@ -153,6 +153,7 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         org.apache.pulsar.common.policies.data.ResourceGroup rgConfig =
           new org.apache.pulsar.common.policies.data.ResourceGroup();
         final String rgName = "testRG";
+        final String randomRgName = "Something";
         rgConfig.setPublishRateInBytes(15000);
         rgConfig.setPublishRateInMsgs(100);
         rgConfig.setDispatchRateInBytes(40000);
@@ -164,7 +165,7 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
 
         org.apache.pulsar.common.policies.data.ResourceGroup randomConfig =
           new org.apache.pulsar.common.policies.data.ResourceGroup();
-        Assert.assertThrows(PulsarAdminException.class, () -> rgs.resourceGroupUpdate("Something", randomConfig));
+        Assert.assertThrows(PulsarAdminException.class, () -> rgs.resourceGroupUpdate(randomRgName, randomConfig));
 
         rgConfig.setPublishRateInBytes(rgConfig.getPublishRateInBytes()*10);
         rgConfig.setPublishRateInMsgs(rgConfig.getPublishRateInMsgs()*10);
@@ -175,7 +176,7 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(rgs.getNumResourceGroups(), 1);
 
         ResourceGroup retRG = null;
-        retRG = rgs.resourceGroupGet(rgName);
+        retRG = rgs.resourceGroupGet(randomRgName);
         Assert.assertEquals(retRG, null);
 
         retRG = rgs.resourceGroupGet(rgName);
@@ -189,7 +190,7 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(monClassFields.configValuesPerPeriod.bytes, rgConfig.getDispatchRateInBytes());
         Assert.assertEquals(monClassFields.configValuesPerPeriod.messages, rgConfig.getDispatchRateInMsgs());
 
-        Assert.assertThrows(PulsarAdminException.class, () -> rgs.resourceGroupDelete(rgName));
+        Assert.assertThrows(PulsarAdminException.class, () -> rgs.resourceGroupDelete(randomRgName));
 
         Assert.assertEquals(rgs.getNumResourceGroups(), 1);
 
