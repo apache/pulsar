@@ -48,6 +48,7 @@ import org.apache.pulsar.client.admin.Source;
 import org.apache.pulsar.client.admin.Sources;
 import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.client.admin.Topics;
+import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.admin.Worker;
 import org.apache.pulsar.client.admin.internal.http.AsyncHttpConnector;
 import org.apache.pulsar.client.admin.internal.http.AsyncHttpConnectorProvider;
@@ -100,6 +101,7 @@ public class PulsarAdminImpl implements PulsarAdmin {
     private final Worker worker;
     private final Schemas schemas;
     private final Packages packages;
+    private final Transactions transactions;
     protected final WebTarget root;
     protected final Authentication auth;
     private final int connectTimeout;
@@ -221,6 +223,7 @@ public class PulsarAdminImpl implements PulsarAdmin {
         this.schemas = new SchemasImpl(root, auth, readTimeoutMs);
         this.bookies = new BookiesImpl(root, auth, readTimeoutMs);
         this.packages = new PackagesImpl(root, auth, asyncHttpConnector.getHttpClient(), readTimeoutMs);
+        this.transactions = new TransactionsImpl(root, auth, readTimeoutMs);
 
         if (originalCtxLoader != null) {
             Thread.currentThread().setContextClassLoader(originalCtxLoader);
@@ -449,6 +452,11 @@ public class PulsarAdminImpl implements PulsarAdmin {
      */
     public Packages packages() {
         return packages;
+    }
+
+    @Override
+    public Transactions transactions() {
+        return transactions;
     }
 
     /**

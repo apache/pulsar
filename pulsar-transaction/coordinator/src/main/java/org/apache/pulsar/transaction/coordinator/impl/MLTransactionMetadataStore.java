@@ -30,6 +30,7 @@ import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.Subscription;
+import org.apache.pulsar.common.policies.data.TransactionCoordinatorStatus;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionLogReplayCallback;
@@ -340,6 +341,16 @@ public class MLTransactionMetadataStore
     @Override
     public TransactionCoordinatorID getTransactionCoordinatorID() {
         return tcID;
+    }
+
+    @Override
+    public TransactionCoordinatorStatus getStatus() {
+        TransactionCoordinatorStatus transactionCoordinatorStatus = new TransactionCoordinatorStatus();
+        transactionCoordinatorStatus.setCoordinatorId(tcID.getId());
+        transactionCoordinatorStatus.setLowWaterMark(getLowWaterMark());
+        transactionCoordinatorStatus.setState(getState().name());
+        transactionCoordinatorStatus.setSequenceId(sequenceId.get());
+        return transactionCoordinatorStatus;
     }
 
     private CompletableFuture<Pair<TxnMeta, List<Position>>> getTxnPositionPair(TxnID txnID) {

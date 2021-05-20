@@ -157,6 +157,12 @@ public interface PulsarAdmin extends Closeable {
     Packages packages();
 
     /**
+     *
+     * @return the transactions management object
+     */
+    Transactions transactions();
+
+    /**
      * Close the PulsarAdminClient and release all the resources.
      *
      */
