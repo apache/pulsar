@@ -903,7 +903,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         Object nativeObject = message.getValue().getNativeObject();
         String baseTopic = message.getProperty("baseTopic");
         JsonNode jsonNode;
-        KeyValue kv;
+        KeyValue<?, ?> kv;
         switch (baseTopic) {
             case "bytes_schema":
                 Assert.assertEquals(new String((byte[]) nativeObject), "bytes value");
@@ -935,7 +935,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 Assert.assertEquals(genericRecord.get("id"), 10);
                 break;
             case "k_one_v_three_schema_separate":
-                kv = (KeyValue<?, ?>) nativeObject;
+                kv = (KeyValue<GenericRecord, GenericRecord>) nativeObject;
                 jsonNode = ((GenericJsonRecord) kv.getKey()).getJsonNode();
                 Assert.assertEquals(jsonNode.get("id").intValue(), 1);
                 jsonNode = ((GenericJsonRecord) kv.getValue()).getJsonNode();
@@ -943,8 +943,8 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 Assert.assertEquals(jsonNode.get("name").textValue(), "kv-separate");
                 break;
             case "k_one_v_four_schema_inline":
-                kv = (KeyValue<?, ?>) nativeObject;
-                jsonNode = ((GenericJsonRecord) kv.getKey()).getJsonNode();
+                kv = (KeyValue<GenericRecord, GenericRecord>) nativeObject;
+                jsonNode = (JsonNode) ((GenericJsonRecord) kv.getKey()).getNativeObject();
                 Assert.assertEquals(jsonNode.get("id").intValue(), 10);
                 jsonNode = ((GenericJsonRecord) kv.getValue()).getJsonNode();
                 Assert.assertEquals(jsonNode.get("id").intValue(), 30);
@@ -952,8 +952,8 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 Assert.assertEquals(jsonNode.get("age").intValue(), 20);
                 break;
             case "k_int_v_three_schema_separate":
-                kv = (KeyValue<?, ?>) nativeObject;
-                Assert.assertEquals(kv.getKey(), new Integer(100));
+                kv = (KeyValue<Integer, GenericRecord>) nativeObject;
+                Assert.assertEquals(kv.getKey(), 100);
                 jsonNode = ((GenericJsonRecord) kv.getValue()).getJsonNode();
                 Assert.assertEquals(jsonNode.get("id").intValue(), 40);
                 Assert.assertEquals(jsonNode.get("name").textValue(), "kv-separate");
