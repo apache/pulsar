@@ -440,7 +440,7 @@ public class ClientCnx extends PulsarHandler {
         ConsumerImpl<?> consumer = consumers.get(cmdMessage.getConsumerId());
 
         if (consumer != null) {
-            if (cmdMessage.hasEpoch() && cmdMessage.getEpoch() < consumer.getConsumerEpoch()) {
+            if (cmdMessage.hasConsumerEpoch() && cmdMessage.getConsumerEpoch() < consumer.getConsumerEpoch()) {
                 log.warn("consumerId : [{}] receive message command epoch more than the consumer epoch!",
                         cmdMessage.getConsumerId());
                 return;
