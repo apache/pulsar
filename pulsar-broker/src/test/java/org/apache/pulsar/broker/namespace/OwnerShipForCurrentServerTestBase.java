@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.namespace;
 
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import io.netty.channel.EventLoopGroup;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -196,7 +197,7 @@ public class OwnerShipForCurrentServerTestBase {
     private final BookKeeperClientFactory mockBookKeeperClientFactory = new BookKeeperClientFactory() {
 
         @Override
-        public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient,
+        public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient, EventLoopGroup eventLoopGroup,
                                  Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
                                  Map<String, Object> properties) {
             // Always return the same instance (so that we don't loose the mock BK content on broker restart
@@ -204,7 +205,7 @@ public class OwnerShipForCurrentServerTestBase {
         }
 
         @Override
-        public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient,
+        public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient, EventLoopGroup eventLoopGroup,
                                  Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
                                  Map<String, Object> properties, StatsLogger statsLogger) {
             // Always return the same instance (so that we don't loose the mock BK content on broker restart

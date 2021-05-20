@@ -19,6 +19,7 @@
 #
 
 
+import logging
 from unittest import TestCase, main
 import time
 import os
@@ -98,6 +99,10 @@ class PulsarTest(TestCase):
         conf.consumer_name("my-name")
         self.assertEqual(conf.consumer_name(), "my-name")
 
+    def test_client_logger(self):
+        logger = logging.getLogger("pulsar")
+        Client(self.serviceUrl, logger=logger)
+        
     def test_connect_error(self):
         with self.assertRaises(pulsar.ConnectError):
             client = Client('fakeServiceUrl')

@@ -49,6 +49,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 import org.apache.bookkeeper.common.util.OrderedExecutor;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
@@ -109,6 +111,7 @@ public class PersistentDispatcherFailoverConsumerTest {
     final String failTopicName = "persistent://part-perf/global/perf.t1/pfailTopic";
 
     private OrderedExecutor executor;
+    private EventLoopGroup eventLoopGroup;
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -122,7 +125,8 @@ public class PersistentDispatcherFailoverConsumerTest {
         doReturn(mlFactoryMock).when(pulsar).getManagedLedgerFactory();
 
         doReturn(TransactionTestBase.createMockBookKeeper(executor))
-            .when(pulsar).getBookKeeperClient();
+                .when(pulsar).getBookKeeperClient();
+        eventLoopGroup = new NioEventLoopGroup();
 
         ZooKeeperCache cache = mock(ZooKeeperCache.class);
         doReturn(30).when(cache).getZkOperationTimeoutSeconds();
@@ -138,7 +142,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         doReturn(configCacheService).when(pulsar).getConfigurationCache();
         doReturn(zkCache).when(pulsar).getLocalZkCacheService();
 
-        brokerService = spy(new BrokerService(pulsar));
+        brokerService = spy(new BrokerService(pulsar, eventLoopGroup));
         doReturn(brokerService).when(pulsar).getBrokerService();
 
         consumerChanges = new LinkedBlockingQueue<>();
@@ -206,6 +210,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         }
 
         executor.shutdown();
+        eventLoopGroup.shutdownGracefully().get();
     }
 
     void setupMLAsyncCallbackMocks() {

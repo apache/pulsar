@@ -20,6 +20,7 @@ package org.apache.pulsar.broker;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
+import io.netty.channel.EventLoopGroup;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
@@ -54,7 +55,8 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
 
     public void initialize(ServiceConfiguration conf, MetadataStore metadataStore,
                            ZooKeeper zkClient,
-                           BookKeeperClientFactory bookkeeperProvider) throws Exception {
+                           BookKeeperClientFactory bookkeeperProvider,
+                           EventLoopGroup eventLoopGroup) throws Exception {
         ManagedLedgerFactoryConfig managedLedgerFactoryConfig = new ManagedLedgerFactoryConfig();
         managedLedgerFactoryConfig.setMaxCacheSize(conf.getManagedLedgerCacheSizeMB() * 1024L * 1024L);
         managedLedgerFactoryConfig.setCacheEvictionWatermark(conf.getManagedLedgerCacheEvictionWatermark());
@@ -79,7 +81,7 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
         statsProvider.start(configuration);
         StatsLogger statsLogger = statsProvider.getStatsLogger("pulsar_managedLedger_client");
 
-        this.defaultBkClient = bookkeeperProvider.create(conf, zkClient, Optional.empty(), null);
+        this.defaultBkClient = bookkeeperProvider.create(conf, zkClient, eventLoopGroup, Optional.empty(), null);
 
         BookkeeperFactoryForCustomEnsemblePlacementPolicy bkFactory = (
                 EnsemblePlacementPolicyConfig ensemblePlacementPolicyConfig) -> {
@@ -88,7 +90,7 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
             if (ensemblePlacementPolicyConfig != null && ensemblePlacementPolicyConfig.getPolicyClass() != null) {
                 bkClient = bkEnsemblePolicyToBkClientMap.computeIfAbsent(ensemblePlacementPolicyConfig, (key) -> {
                     try {
-                        return bookkeeperProvider.create(conf, zkClient,
+                        return bookkeeperProvider.create(conf, zkClient, eventLoopGroup,
                                 Optional.ofNullable(ensemblePlacementPolicyConfig.getPolicyClass()),
                                 ensemblePlacementPolicyConfig.getProperties());
                     } catch (Exception e) {

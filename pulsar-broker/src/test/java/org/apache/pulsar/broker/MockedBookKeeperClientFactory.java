@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import io.netty.channel.EventLoopGroup;
 
 import java.io.IOException;
 import java.util.concurrent.Executors;
@@ -56,14 +57,14 @@ public class MockedBookKeeperClientFactory implements BookKeeperClientFactory {
     }
 
     @Override
-    public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient,
+    public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient, EventLoopGroup eventLoopGroup,
             Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
             Map<String, Object> properties) throws IOException {
         return mockedBk;
     }
 
     @Override
-    public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient,
+    public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient, EventLoopGroup eventLoopGroup,
                              Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
                              Map<String, Object> properties, StatsLogger statsLogger) throws IOException {
         return mockedBk;
