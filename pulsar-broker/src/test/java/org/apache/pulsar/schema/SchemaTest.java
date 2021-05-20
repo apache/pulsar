@@ -944,7 +944,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 break;
             case "k_one_v_four_schema_inline":
                 kv = (KeyValue<GenericRecord, GenericRecord>) nativeObject;
-                jsonNode = (JsonNode) ((GenericJsonRecord) kv.getKey()).getNativeObject();
+                jsonNode = ((GenericJsonRecord) kv.getKey()).getJsonNode();
                 Assert.assertEquals(jsonNode.get("id").intValue(), 10);
                 jsonNode = ((GenericJsonRecord) kv.getValue()).getJsonNode();
                 Assert.assertEquals(jsonNode.get("id").intValue(), 30);
