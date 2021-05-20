@@ -20,6 +20,7 @@ package org.apache.pulsar.client.admin;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStatus;
 
 public interface Transactions {
@@ -38,5 +39,15 @@ public interface Transactions {
      * @return the list future of transaction metadata store status.
      */
     CompletableFuture<List<TransactionCoordinatorStatus>> getCoordinatorStatusList();
+
+    /**
+     * Get transaction coordinator internal stats.
+     *
+     * @param coordinatorId the coordinator id
+     * @param metadata is get ledger metadata
+     *
+     * @return the future internal stats of this coordinator
+     */
+    CompletableFuture<ManagedLedgerInternalStats> getCoordinatorInternalStats(int coordinatorId, boolean metadata);
 
 }

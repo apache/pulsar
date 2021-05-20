@@ -53,4 +53,20 @@ public class Transactions extends TransactionsBase {
                                      @QueryParam("coordinatorId") Integer coordinatorId) {
         internalGetCoordinatorStatus(asyncResponse, authoritative, coordinatorId);
     }
+
+    @GET
+    @Path("/coordinatorInternalStats")
+    @ApiOperation(value = "Get coordinator internal stats.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 503, message = "This Broker is not "
+                    + "configured with transactionCoordinatorEnabled=true."),
+            @ApiResponse(code = 404, message = "Transaction coordinator not found"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void getCoordinatorInternalStats(@Suspended final AsyncResponse asyncResponse,
+                                            @QueryParam("authoritative")
+                                            @DefaultValue("false") boolean authoritative,
+                                            @QueryParam("coordinatorId") Integer coordinatorId,
+                                            @QueryParam("metadata") @DefaultValue("false") boolean metadata) {
+        internalGetCoordinatorInternalStats(asyncResponse, authoritative, metadata, coordinatorId);
+    }
 }

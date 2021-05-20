@@ -158,6 +158,10 @@ public class MLTransactionLogImpl implements TransactionLog {
         return completableFuture;
     }
 
+    public ManagedLedger getManagedLedger() {
+        return this.managedLedger;
+    }
+
     class TransactionLogReplayer {
 
         private final FillEntryQueueCallback fillEntryQueueCallback;

@@ -1417,11 +1417,7 @@ public class PulsarAdminToolTest {
     void transactions() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         Transactions transactions = Mockito.mock(Transactions.class);
-        CompletableFuture<TransactionCoordinatorStatus> transactionMetadataStoreInfo = mock(CompletableFuture.class);
-        CompletableFuture<List<TransactionCoordinatorStatus>> lists = mock(CompletableFuture.class);
         doReturn(transactions).when(admin).transactions();
-        doReturn(transactionMetadataStoreInfo).when(transactions).getCoordinatorStatusById(1);
-        doReturn(lists).when(transactions).getCoordinatorStatusList();
 
         CmdTransactions cmdTransactions = new CmdTransactions(() -> admin);
 
@@ -1431,6 +1427,9 @@ public class PulsarAdminToolTest {
         cmdTransactions = new CmdTransactions(() -> admin);
         cmdTransactions.run(split("coordinator-status"));
         verify(transactions).getCoordinatorStatusList();
+
+        cmdTransactions.run(split("coordinator-internal-stats -c 1 -m"));
+        verify(transactions).getCoordinatorInternalStats(1, true);
     }
 
     String[] split(String s) {

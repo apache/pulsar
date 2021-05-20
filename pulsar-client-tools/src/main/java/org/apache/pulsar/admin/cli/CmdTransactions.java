@@ -41,8 +41,22 @@ public class CmdTransactions extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get transaction coordinator internal stats")
+    private class GetCoordinatorInternalStats extends CliCommand {
+        @Parameter(names = {"-c", "--coordinator-id"}, description = "The coordinator id", required = true)
+        private int coordinatorId;
+
+        @Parameter(names = { "-m", "--metadata" }, description = "Flag to include ledger metadata")
+        private boolean metadata = false;
+        @Override
+        void run() throws Exception {
+            print(getAdmin().transactions().getCoordinatorInternalStats(coordinatorId, metadata));
+        }
+    }
+
     public CmdTransactions(Supplier<PulsarAdmin> admin) {
         super("transactions", admin);
         jcommander.addCommand("coordinator-status", new GetCoordinatorStatus());
+        jcommander.addCommand("coordinator-internal-stats", new GetCoordinatorInternalStats());
     }
 }

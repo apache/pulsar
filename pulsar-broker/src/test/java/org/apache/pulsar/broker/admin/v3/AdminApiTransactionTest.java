@@ -24,6 +24,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStatus;
 import org.apache.pulsar.packages.management.core.MockedPackagesStorageProvider;
@@ -36,6 +37,8 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 
 public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
 
@@ -91,6 +94,23 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
                 transactionCoordinatorStatus.sequenceId, transactionCoordinatorStatus.lowWaterMark);
     }
 
+    @Test(timeOut = 20000)
+    public void testGetCoordinatorInternalStats() throws Exception {
+        initTransaction(1);
+        Transaction transaction = pulsarClient.newTransaction()
+                .withTransactionTimeout(60, TimeUnit.SECONDS).build().get();
+
+        ManagedLedgerInternalStats managedLedgerInternalStats =
+                admin.transactions().getCoordinatorInternalStats(0, true).get();
+        verifyManagedLegerInternalStats(managedLedgerInternalStats, 26);
+
+        transaction.commit().get();
+
+        managedLedgerInternalStats =
+                admin.transactions().getCoordinatorInternalStats(0, false).get();
+        assertNull(managedLedgerInternalStats.ledgers.get(0).metadata);
+    }
+
     private static void verifyCoordinatorStatus(long expectedCoordinatorId, long coordinatorId, String state,
                                                 long sequenceId, long lowWaterMark) {
         assertEquals(coordinatorId, expectedCoordinatorId);
@@ -110,5 +130,21 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
     private Transaction getTransaction() throws Exception {
         return pulsarClient.newTransaction()
                 .withTransactionTimeout(2, TimeUnit.SECONDS).build().get();
+    }
+
+    private static void verifyManagedLegerInternalStats(ManagedLedgerInternalStats managedLedgerInternalStats,
+                                                        long totalSize) {
+        assertEquals(managedLedgerInternalStats.entriesAddedCounter, 1);
+        assertEquals(managedLedgerInternalStats.numberOfEntries, 1);
+        assertEquals(managedLedgerInternalStats.totalSize, totalSize);
+        assertEquals(managedLedgerInternalStats.currentLedgerEntries, 1);
+        assertEquals(managedLedgerInternalStats.currentLedgerSize, totalSize);
+        assertNull(managedLedgerInternalStats.lastLedgerCreationFailureTimestamp);
+        assertEquals(managedLedgerInternalStats.waitingCursorsCount, 0);
+        assertEquals(managedLedgerInternalStats.pendingAddEntriesCount, 0);
+        assertNotNull(managedLedgerInternalStats.lastConfirmedEntry);
+        assertEquals(managedLedgerInternalStats.ledgers.size(), 1);
+        assertNotNull(managedLedgerInternalStats.ledgers.get(0).metadata);
+        assertEquals(managedLedgerInternalStats.cursors.size(), 1);
     }
 }
