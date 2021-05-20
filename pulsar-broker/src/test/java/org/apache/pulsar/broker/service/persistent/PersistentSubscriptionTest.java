@@ -39,10 +39,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -109,11 +107,11 @@ public class PersistentSubscriptionTest {
 
     private static final Logger log = LoggerFactory.getLogger(PersistentTopicTest.class);
 
-    private ExecutorService executor;
+    private OrderedExecutor executor;
 
     @BeforeMethod
     public void setup() throws Exception {
-        executor = Executors.newSingleThreadExecutor();
+        executor = OrderedExecutor.newBuilder().numThreads(1).name("persistent-subscription-test").build();
 
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
         svcConfig.setBrokerShutdownTimeoutMs(0L);
@@ -170,7 +168,7 @@ public class PersistentSubscriptionTest {
 
         ZooKeeper zkMock = createMockZooKeeper();
         doReturn(zkMock).when(pulsarMock).getZkClient();
-        doReturn(createMockBookKeeper(zkMock, executor))
+        doReturn(createMockBookKeeper(executor))
                 .when(pulsarMock).getBookKeeperClient();
 
         ZooKeeperCache cache = mock(ZooKeeperCache.class);

@@ -170,7 +170,7 @@ public class ServerCnxTest {
 
         ZooKeeper mockZk = createMockZooKeeper();
         doReturn(mockZk).when(pulsar).getZkClient();
-        doReturn(createMockBookKeeper(mockZk, ForkJoinPool.commonPool()))
+        doReturn(createMockBookKeeper(executor))
             .when(pulsar).getBookKeeperClient();
 
         configCacheService = mock(ConfigurationCacheService.class);

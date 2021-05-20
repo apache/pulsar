@@ -616,7 +616,7 @@ public class PulsarService implements AutoCloseable {
 
             this.bkClientFactory = newBookKeeperClientFactory();
             managedLedgerClientFactory = ManagedLedgerStorage.create(
-                config, getZkClient(), bkClientFactory
+                config, localMetadataStore, getZkClient(), bkClientFactory
             );
 
             this.brokerService = new BrokerService(this);
