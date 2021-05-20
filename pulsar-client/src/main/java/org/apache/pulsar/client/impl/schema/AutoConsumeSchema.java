@@ -295,7 +295,8 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
                     if (e instanceof InterruptedException) {
                         Thread.currentThread().interrupt();
                     }
-                    log.error("Can't get last schema for topic {} using AutoConsumeSchema", topicName);
+                    log.error("Can't get schema version {} for topic {} using AutoConsumeSchema",
+                            schemaVersion, topicName);
                     throw new SchemaSerializationException(e.getCause());
                 }
                 // schemaInfo null means that there is no schema attached to the topic.

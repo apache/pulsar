@@ -1740,13 +1740,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     @Override
     protected void handleGetSchema(CommandGetSchema commandGetSchema) {
-        if (log.isDebugEnabled()) {
+        if (log.isInfoEnabled()) {
             if (commandGetSchema.hasSchemaVersion()) {
-                log.debug("Received CommandGetSchema call from {}, schemaVersion: {}, topic: {}, requestId: {}",
+                log.info("Received CommandGetSchema call from {}, schemaVersion: {}, topic: {}, requestId: {}",
                         remoteAddress, new String(commandGetSchema.getSchemaVersion()),
                         commandGetSchema.getTopic(), commandGetSchema.getRequestId());
             } else {
-                log.debug("Received CommandGetSchema call from {}, schemaVersion: {}, topic: {}, requestId: {}",
+                log.info("Received CommandGetSchema call from {}, schemaVersion: {}, topic: {}, requestId: {}",
                         remoteAddress, null,
                         commandGetSchema.getTopic(), commandGetSchema.getRequestId());
             }
@@ -1768,13 +1768,16 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         schemaService.getSchema(schemaName, schemaVersion).thenAccept(schemaAndMetadata -> {
             if (schemaAndMetadata == null) {
+                log.info("Get schema is null.");
                 commandSender.sendGetSchemaErrorResponse(requestId, ServerError.TopicNotFound,
                         "Topic not found or no-schema");
             } else {
+                log.info("Get schema success.");
                 commandSender.sendGetSchemaResponse(requestId,
                         SchemaInfoUtil.newSchemaInfo(schemaName, schemaAndMetadata.schema), schemaAndMetadata.version);
             }
         }).exceptionally(ex -> {
+            log.error("Failed to get schema.", ex);
             commandSender.sendGetSchemaErrorResponse(requestId, ServerError.UnknownError, ex.getMessage());
             return null;
         });
