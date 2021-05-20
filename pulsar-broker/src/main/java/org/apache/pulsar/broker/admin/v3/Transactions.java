@@ -44,6 +44,9 @@ public class Transactions extends TransactionsBase {
     @Path("/coordinatorStatus")
     @ApiOperation(value = "Get transaction coordinator state.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 503, message = "This Broker is not "
+                    + "configured with transactionCoordinatorEnabled=true."),
+            @ApiResponse(code = 404, message = "Transaction coordinator not found"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
     public void getCoordinatorStatus(@Suspended final AsyncResponse asyncResponse,
                                      @QueryParam("authoritative")
