@@ -89,6 +89,11 @@ public class AuthenticationProviderList implements AuthenticationProvider {
         }
 
         @Override
+        public List<String> getAuthRoles() throws AuthenticationException {
+            return getAuthState().getAuthRoles();
+        }
+
+        @Override
         public AuthData authenticate(AuthData authData) throws AuthenticationException {
             return applyAuthProcessor(
                 states,

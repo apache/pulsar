@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.net.SocketAddress;
 import java.security.Key;
 
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import javax.naming.AuthenticationException;
@@ -149,7 +150,13 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             String token;
             token = getToken(authData);
             // Parse Token by validating
-            String role = getPrincipal(authenticateToken(token));
+            String role;
+            List<String> principals = getPrincipals(authenticateToken(token));
+            if (principals == null) {
+                role = null;
+            } else {
+                role = principals.get(0);
+            }
             AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
             return role;
         } catch (AuthenticationException exception) {
@@ -233,13 +240,13 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         }
     }
 
-    private String getPrincipal(Jwt<?, Claims> jwt) {
+    private List<String> getPrincipals(Jwt<?, Claims> jwt){
         try {
-            return jwt.getBody().get(roleClaim, String.class);
+            return Collections.singletonList(jwt.getBody().get(roleClaim, String.class));
         } catch (RequiredTypeException requiredTypeException) {
             List list = jwt.getBody().get(roleClaim, List.class);
             if (list != null && !list.isEmpty() && list.get(0) instanceof String) {
-                return (String) list.get(0);
+                return list;
             }
             return null;
         }
@@ -328,7 +335,12 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
         @Override
         public String getAuthRole() throws AuthenticationException {
-            return provider.getPrincipal(jwt);
+            return provider.getPrincipals(jwt).get(0);
+        }
+
+        @Override
+        public List<String> getAuthRoles() throws AuthenticationException {
+            return provider.getPrincipals(jwt);
         }
 
         @Override
