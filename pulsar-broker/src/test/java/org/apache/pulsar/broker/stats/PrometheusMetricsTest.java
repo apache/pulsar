@@ -773,7 +773,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         p4.close();
     }
 
-    @Test(invocationCount = 100, skipFailedInvocations = true)
+    @Test
     public void testManagedLedgerBookieClientStats() throws Exception {
         @Cleanup
         Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
