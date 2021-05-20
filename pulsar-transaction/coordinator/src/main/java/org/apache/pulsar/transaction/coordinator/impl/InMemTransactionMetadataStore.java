@@ -26,6 +26,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.policies.data.TransactionCoordinatorStatus;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
@@ -132,6 +133,11 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
     @Override
     public TransactionCoordinatorID getTransactionCoordinatorID() {
         return tcID;
+    }
+
+    @Override
+    public TransactionCoordinatorStatus getStatus() {
+        return null;
     }
 
     @Override

@@ -71,6 +71,8 @@ public class ManagedCursorMetrics extends AbstractMetrics {
                 dimensionMap.put("ledger_name", ledgerName);
                 dimensionMap.put("cursor_name", cursor.getName());
                 Metrics metrics = createMetrics(dimensionMap);
+                metrics.put("brk_ml_cursor_nonContiguousDeletedMessagesRange",
+                        (long) cursor.getTotalNonContiguousDeletedMessagesRange());
                 metrics.put("brk_ml_cursor_persistLedgerSucceed", cStats.getPersistLedgerSucceed());
                 metrics.put("brk_ml_cursor_persistLedgerErrors", cStats.getPersistLedgerErrors());
                 metrics.put("brk_ml_cursor_persistZookeeperSucceed", cStats.getPersistZookeeperSucceed());

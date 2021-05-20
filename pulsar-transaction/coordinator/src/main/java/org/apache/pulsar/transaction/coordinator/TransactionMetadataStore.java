@@ -22,6 +22,7 @@ import com.google.common.annotations.Beta;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.policies.data.TransactionCoordinatorStatus;
 import org.apache.pulsar.transaction.coordinator.impl.TransactionMetadataStoreStats;
 import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 
@@ -109,6 +110,13 @@ public interface TransactionMetadataStore {
      * @return transaction coordinator id
      */
     TransactionCoordinatorID getTransactionCoordinatorID();
+
+    /**
+     * Get the transaction metadata store status.
+     *
+     * @return transactionCoordinatorStatus {@link TransactionCoordinatorStatus}
+     */
+    TransactionCoordinatorStatus getStatus();
 
     /**
      * Close the transaction metadata store.
