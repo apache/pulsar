@@ -19,12 +19,15 @@
 
 package org.apache.pulsar.broker.authentication;
 
+import com.google.common.collect.Lists;
 import java.net.SocketAddress;
+import java.util.List;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 import org.apache.pulsar.common.api.AuthData;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.pulsar.broker.authentication.AuthenticationProvider.MULTI_ROLE_NOT_SUPPORTED;
 
 /**
  * Interface for authentication state.
@@ -35,7 +38,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 public class OneStageAuthenticationState implements AuthenticationState {
 
     private final AuthenticationDataSource authenticationDataSource;
-    private final String authRole;
+    private List<String> authRoles;
 
     public OneStageAuthenticationState(AuthData authData,
                                        SocketAddress remoteAddress,
@@ -43,12 +46,25 @@ public class OneStageAuthenticationState implements AuthenticationState {
                                        AuthenticationProvider provider) throws AuthenticationException {
         this.authenticationDataSource = new AuthenticationDataCommand(
             new String(authData.getBytes(), UTF_8), remoteAddress, sslSession);
-        this.authRole = provider.authenticate(authenticationDataSource);
+        try {
+            this.authRoles = provider.authenticate(authenticationDataSource, true);
+        } catch (AuthenticationException e) {
+            if (e.getMessage().equals(MULTI_ROLE_NOT_SUPPORTED)) {
+                this.authRoles = Lists.newArrayList(provider.authenticate(authenticationDataSource));
+            } else {
+                throw e;
+            }
+        }
     }
 
     @Override
     public String getAuthRole() {
-        return authRole;
+        return authRoles.get(0);
+    }
+
+    @Override
+    public List<String> getAuthRoles() {
+        return authRoles;
     }
 
     @Override

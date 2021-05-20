@@ -22,6 +22,7 @@ import java.io.Closeable;
 import java.io.IOException;
 
 import java.net.SocketAddress;
+import java.util.List;
 import javax.naming.AuthenticationException;
 
 import javax.net.ssl.SSLSession;
@@ -35,6 +36,8 @@ import org.apache.pulsar.common.api.AuthData;
  * Provider of authentication mechanism
  */
 public interface AuthenticationProvider extends Closeable {
+
+    String MULTI_ROLE_NOT_SUPPORTED = "Multi role not supported";
 
     /**
      * Perform initialization for the authentication provider
@@ -63,7 +66,11 @@ public interface AuthenticationProvider extends Closeable {
      *             if the credentials are not valid
      */
     default String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
-        throw new AuthenticationException("Not supported");
+        return authenticate(authData, false).get(0);
+    }
+
+    default List<String> authenticate(AuthenticationDataSource authData, boolean multiRoles) throws AuthenticationException {
+        throw new AuthenticationException(MULTI_ROLE_NOT_SUPPORTED);
     }
 
     /**

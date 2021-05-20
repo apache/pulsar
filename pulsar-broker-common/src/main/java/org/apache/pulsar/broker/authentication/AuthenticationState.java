@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.broker.authentication;
 
+import java.util.List;
 import javax.naming.AuthenticationException;
 
 import org.apache.pulsar.common.api.AuthData;
@@ -36,6 +37,8 @@ public interface AuthenticationState {
      * It should throw exception if auth not complete.
      */
     String getAuthRole() throws AuthenticationException;
+
+    List<String> getAuthRoles() throws AuthenticationException;
 
     /**
      * Challenge passed in auth data and get response data.
