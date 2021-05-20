@@ -39,10 +39,8 @@ import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
@@ -102,27 +100,6 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
                 transactionCoordinatorStatus.sequenceId, transactionCoordinatorStatus.lowWaterMark);
     }
 
-    private static void verifyCoordinatorStatus(long expectedCoordinatorId, long coordinatorId, String state,
-                                                long sequenceId, long lowWaterMark) {
-        assertEquals(coordinatorId, expectedCoordinatorId);
-        assertEquals(state, "Ready");
-        assertEquals(sequenceId, 0);
-        assertEquals(lowWaterMark, 0);
-    }
-
-    private void initTransaction(int coordinatorSize) throws Exception {
-        admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), coordinatorSize);
-        admin.lookups().lookupTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
-        Awaitility.await().until(() ->
-                pulsar.getTransactionMetadataStoreService().getStores().size() == coordinatorSize);
-        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).enableTransaction(true).build();
-    }
-
-    private Transaction getTransaction() throws Exception {
-        return pulsarClient.newTransaction()
-                .withTransactionTimeout(2, TimeUnit.SECONDS).build().get();
-    }
-
     @Test(timeOut = 20000)
     public void testGetTransactionInBufferStats() throws Exception {
         initTransaction(2);
@@ -150,5 +127,26 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         assertTrue(transactionInBufferStats.aborted);
         assertEquals(transactionInBufferStats.state, "Ready");
         assertEquals(transactionInBufferStats.topic, topic);
+    }
+
+    private static void verifyCoordinatorStatus(long expectedCoordinatorId, long coordinatorId, String state,
+                                                long sequenceId, long lowWaterMark) {
+        assertEquals(coordinatorId, expectedCoordinatorId);
+        assertEquals(state, "Ready");
+        assertEquals(sequenceId, 0);
+        assertEquals(lowWaterMark, 0);
+    }
+
+    private void initTransaction(int coordinatorSize) throws Exception {
+        admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), coordinatorSize);
+        admin.lookups().lookupTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
+        Awaitility.await().until(() ->
+                pulsar.getTransactionMetadataStoreService().getStores().size() == coordinatorSize);
+        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).enableTransaction(true).build();
+    }
+
+    private Transaction getTransaction() throws Exception {
+        return pulsarClient.newTransaction()
+                .withTransactionTimeout(2, TimeUnit.SECONDS).build().get();
     }
 }
