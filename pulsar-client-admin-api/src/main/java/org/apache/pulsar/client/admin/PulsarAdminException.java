@@ -18,10 +18,13 @@
  */
 package org.apache.pulsar.client.admin;
 
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.ServerErrorException;
 import javax.ws.rs.WebApplicationException;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.IOUtils;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
@@ -38,11 +41,22 @@ public class PulsarAdminException extends Exception {
 
     private static String getReasonFromServer(WebApplicationException e) {
         try {
-            return e.getResponse().readEntity(ErrorData.class).reason.toString();
+            ErrorData errorData = e.getResponse().readEntity(ErrorData.class);
+            if (errorData == null) {
+                return e.getMessage();
+            }
+            return errorData.reason.toString();
         } catch (Exception ex) {
             try {
+                Object entity = e.getResponse().getEntity();
+                String errorAsString;
+                if (entity instanceof InputStream) {
+                    errorAsString =  IOUtils.toString((InputStream) entity, StandardCharsets.UTF_8.name());
+                } else {
+                    errorAsString = entity.toString();
+                }
                 return ObjectMapperFactory.getThreadLocal().readValue(
-                        e.getResponse().getEntity().toString(), ErrorData.class).reason;
+                        errorAsString, ErrorData.class).reason;
             } catch (Exception ex1) {
                 try {
                     return ObjectMapperFactory.getThreadLocal().readValue(e.getMessage(), ErrorData.class).reason;
@@ -73,7 +87,7 @@ public class PulsarAdminException extends Exception {
     }
 
     public PulsarAdminException(ServerErrorException e, String message) {
-        super(message, e);
+        super(getReasonFromServer(e) + (message != null ? " " + message : ""), e);
         this.httpError = getReasonFromServer(e);
         this.statusCode = e.getResponse().getStatus();
     }
