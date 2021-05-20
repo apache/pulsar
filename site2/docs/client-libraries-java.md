@@ -212,7 +212,7 @@ The following is an example.
 
 ```java
 producer.sendAsync("my-async-message".getBytes()).thenAccept(msgId -> {
-    System.out.printf("Message with ID %s successfully sent%n", msgId);
+    System.out.println("Message with ID " + msgId + " successfully sent");
 });
 ```
 
@@ -255,7 +255,7 @@ while (true) {
 
   try {
       // Do something with the message
-      System.out.printf("Message received: %s%n", new String(msg.getData()));
+      System.out.println("Message received: " + new String(msg.getData()));
 
       // Acknowledge the message so that it can be deleted by the message broker
       consumer.acknowledge(msg);
