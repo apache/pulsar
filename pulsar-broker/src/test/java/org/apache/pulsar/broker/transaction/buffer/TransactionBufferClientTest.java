@@ -26,6 +26,8 @@ import static org.mockito.Mockito.doReturn;
 import com.google.common.collect.Sets;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import lombok.Cleanup;
@@ -79,6 +81,8 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
     BrokerService[] brokerServices;
     private final static String namespace = "public/test";
 
+    private EventLoopGroup eventLoopGroup;
+
     @Override
     protected void afterSetup() throws Exception {
         pulsarAdmins[0].clusters().createCluster("my-cluster", new ClusterData(pulsarServices[0].getWebServiceAddress()));
@@ -105,10 +109,12 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
             brokerServices = null;
         }
         super.cleanup();
+        eventLoopGroup.shutdownGracefully().get();
     }
 
     @Override
     protected void afterPulsarStart() throws Exception {
+        eventLoopGroup = new NioEventLoopGroup();
         brokerServices = new BrokerService[pulsarServices.length];
         AtomicLong atomicLong = new AtomicLong(0);
         for (int i = 0; i < pulsarServices.length; i++) {
@@ -127,7 +133,7 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
             Mockito.when(topicMap.get(Mockito.anyString())).thenReturn(
                     CompletableFuture.completedFuture(Optional.of(mockTopic)));
 
-            BrokerService brokerService = Mockito.spy(new BrokerService(pulsarServices[i]));
+            BrokerService brokerService = Mockito.spy(new BrokerService(pulsarServices[i], eventLoopGroup));
             doReturn(new MockBrokerInterceptor()).when(brokerService).getInterceptor();
             doReturn(atomicLong.getAndIncrement() + "").when(brokerService).generateUniqueProducerName();
             brokerServices[i] = brokerService;

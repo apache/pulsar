@@ -64,6 +64,8 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.nio.NioEventLoopGroup;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
@@ -158,9 +160,11 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     private static final Logger log = LoggerFactory.getLogger(PersistentTopicTest.class);
 
     private OrderedExecutor executor;
+    private EventLoopGroup eventLoopGroup;
 
     @BeforeMethod
     public void setup() throws Exception {
+        eventLoopGroup = new NioEventLoopGroup();
         executor = OrderedExecutor.newBuilder().numThreads(1).build();
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
         svcConfig.setAdvertisedAddress("localhost");
@@ -195,7 +199,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(zkCache).when(pulsar).getLocalZkCacheService();
         doReturn(executor).when(pulsar).getOrderedExecutor();
 
-        brokerService = spy(new BrokerService(pulsar));
+        brokerService = spy(new BrokerService(pulsar, eventLoopGroup));
         doReturn(brokerService).when(pulsar).getBrokerService();
 
         serverCnx = spy(new ServerCnx(pulsar));
@@ -226,6 +230,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         }
 
         executor.shutdownNow();
+        eventLoopGroup.shutdownGracefully().get();
     }
 
     @Test

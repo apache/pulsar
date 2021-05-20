@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.service.streamingdispatch;
 
 import com.google.common.base.Charsets;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -85,7 +87,7 @@ public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
     private PersistentTopic mockTopic;
     private StreamingDispatcher mockDispatcher;
     private BrokerService mockBrokerService;
-    private ScheduledExecutorService scheduledExecutorService;
+    private EventLoopGroup eventLoopGroup;
     private OrderedExecutor orderedExecutor;
     private ManagedLedgerConfig config;
     private ManagedLedgerImpl ledger;
@@ -93,7 +95,7 @@ public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
 
     @Override
     protected void setUpTestCase() throws Exception {
-        scheduledExecutorService = new ScheduledThreadPoolExecutor(1);
+        eventLoopGroup = new NioEventLoopGroup(1);
         orderedExecutor = OrderedScheduler.newSchedulerBuilder()
                 .numThreads(1)
                 .name("StreamingEntryReaderTests").build();
@@ -104,7 +106,7 @@ public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
         ledger = spy((ManagedLedgerImpl) factory.open("my_test_ledger", config));
         cursor = ledger.openCursor("test");
         when(mockTopic.getBrokerService()).thenReturn(mockBrokerService);
-        when(mockBrokerService.executor()).thenReturn(scheduledExecutorService);
+        when(mockBrokerService.executor()).thenReturn(eventLoopGroup);
         when(mockBrokerService.getTopicOrderedExecutor()).thenReturn(orderedExecutor);
         doAnswer(new Answer<Void>() {
             @Override
@@ -116,9 +118,9 @@ public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
 
     @Override
     protected void cleanUpTestCase() {
-        if (scheduledExecutorService != null) {
-            scheduledExecutorService.shutdownNow();
-            scheduledExecutorService = null;
+        if (eventLoopGroup != null) {
+            eventLoopGroup.shutdownNow();
+            eventLoopGroup = null;
         }
         if (orderedExecutor != null) {
             orderedExecutor.shutdownNow();

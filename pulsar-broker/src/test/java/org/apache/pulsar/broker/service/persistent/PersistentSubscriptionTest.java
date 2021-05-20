@@ -43,6 +43,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -110,9 +112,11 @@ public class PersistentSubscriptionTest {
     private static final Logger log = LoggerFactory.getLogger(PersistentTopicTest.class);
 
     private ExecutorService executor;
+    private EventLoopGroup eventLoopGroup;
 
     @BeforeMethod
     public void setup() throws Exception {
+        eventLoopGroup = new NioEventLoopGroup();
         executor = Executors.newSingleThreadExecutor();
 
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
@@ -192,7 +196,7 @@ public class PersistentSubscriptionTest {
         doReturn(zkPoliciesDataCacheMock).when(zkCacheMock).policiesCache();
         doReturn(zkCacheMock).when(pulsarMock).getLocalZkCacheService();
 
-        brokerMock = spy(new BrokerService(pulsarMock));
+        brokerMock = spy(new BrokerService(pulsarMock, eventLoopGroup));
         doNothing().when(brokerMock).unloadNamespaceBundlesGracefully();
         doReturn(brokerMock).when(pulsarMock).getBrokerService();
 
@@ -224,6 +228,7 @@ public class PersistentSubscriptionTest {
         }
 
         executor.shutdownNow();
+        eventLoopGroup.shutdownGracefully().get();
     }
 
     @Test
