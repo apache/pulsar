@@ -152,7 +152,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             // Parse Token by validating
             String role;
             List<String> principals = getPrincipals(authenticateToken(token));
-            if (principals == null) {
+            if (principals == null) { // Empty list check has been done in getPrincipals.
                 role = null;
             } else {
                 role = principals.get(0);

@@ -29,6 +29,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -64,7 +65,7 @@ public class Producer {
     private final long epoch;
     private final boolean userProvidedProducerName;
     private final long producerId;
-    private final String appId;
+    private final List<String> appIds;
     private Rate msgIn;
     private Rate chunkedMessageRate;
     // it records msg-drop rate only for non-persistent topic
@@ -91,7 +92,7 @@ public class Producer {
     private final SchemaVersion schemaVersion;
     private final String clientAddress; // IP address only, no port number included
 
-    public Producer(Topic topic, TransportCnx cnx, long producerId, String producerName, String appId,
+    public Producer(Topic topic, TransportCnx cnx, long producerId, String producerName, List<String> appIds,
             boolean isEncrypted, Map<String, String> metadata, SchemaVersion schemaVersion, long epoch,
             boolean userProvidedProducerName,
             ProducerAccessMode accessMode,
@@ -103,7 +104,7 @@ public class Producer {
         this.userProvidedProducerName = userProvidedProducerName;
         this.epoch = epoch;
         this.closeFuture = new CompletableFuture<>();
-        this.appId = appId;
+        this.appIds = appIds;
         this.msgIn = new Rate();
         this.chunkedMessageRate = new Rate();
         this.isNonPersistentTopic = topic instanceof NonPersistentTopic;
@@ -624,15 +625,17 @@ public class Producer {
         TopicName topicName = TopicName.get(topic.getName());
         if (cnx.getBrokerService().getAuthorizationService() != null) {
             try {
-                if (cnx.getBrokerService().getAuthorizationService().canProduce(topicName, appId,
-                        cnx.getAuthenticationData())) {
-                    return;
+                for (String appId : appIds) {
+                    if (cnx.getBrokerService().getAuthorizationService().canProduce(topicName, appId,
+                            cnx.getAuthenticationData())) {
+                        return;
+                    }
                 }
             } catch (Exception e) {
-                log.warn("[{}] Get unexpected error while autorizing [{}]  {}", appId, topic.getName(), e.getMessage(),
+                log.warn("[{}] Get unexpected error while autorizing [{}]  {}", appIds, topic.getName(), e.getMessage(),
                         e);
             }
-            log.info("[{}] is not allowed to produce on topic [{}] anymore", appId, topic.getName());
+            log.info("[{}] is not allowed to produce on topic [{}] anymore", appIds, topic.getName());
             disconnect();
         }
     }

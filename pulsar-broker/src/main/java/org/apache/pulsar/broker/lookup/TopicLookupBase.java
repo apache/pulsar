@@ -24,6 +24,7 @@ import static org.apache.pulsar.common.protocol.Commands.newLookupResponse;
 import io.netty.buffer.ByteBuf;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -171,7 +172,8 @@ public class TopicLookupBase extends PulsarWebResource {
      * @return
      */
     public static CompletableFuture<ByteBuf> lookupTopicAsync(PulsarService pulsarService, TopicName topicName,
-            boolean authoritative, String clientAppId, AuthenticationDataSource authenticationData, long requestId) {
+            boolean authoritative, List<String> clientAppId, AuthenticationDataSource authenticationData,
+                                                              long requestId) {
         return lookupTopicAsync(pulsarService, topicName, authoritative, clientAppId,
                 authenticationData, requestId, null);
     }
@@ -199,7 +201,7 @@ public class TopicLookupBase extends PulsarWebResource {
      * @return
      */
     public static CompletableFuture<ByteBuf> lookupTopicAsync(PulsarService pulsarService, TopicName topicName,
-                                                              boolean authoritative, String clientAppId,
+                                                              boolean authoritative, List<String> clientAppId,
                                                               AuthenticationDataSource authenticationData,
                                                               long requestId, final String advertisedListenerName) {
 
@@ -208,7 +210,8 @@ public class TopicLookupBase extends PulsarWebResource {
         final String cluster = topicName.getCluster();
 
         // (1) validate cluster
-        getClusterDataIfDifferentCluster(pulsarService, cluster, clientAppId).thenAccept(differentClusterData -> {
+        getClusterDataIfDifferentCluster(pulsarService, cluster, clientAppId.get(0))
+                .thenAccept(differentClusterData -> {
 
             if (differentClusterData != null) {
                 if (log.isDebugEnabled()) {
@@ -221,7 +224,15 @@ public class TopicLookupBase extends PulsarWebResource {
             } else {
                 // (2) authorize client
                 try {
-                    checkAuthorization(pulsarService, topicName, clientAppId, authenticationData);
+                    for (int i = 0; i < clientAppId.size(); i++) {
+                        try {
+                            checkAuthorization(pulsarService, topicName, clientAppId.get(i), authenticationData);
+                        } catch (RestException authException) {
+                            if (i == clientAppId.size() - 1) {
+                                throw authException;
+                            }
+                        }
+                    }
                 } catch (RestException authException) {
                     log.warn("Failed to authorized {} on cluster {}", clientAppId, topicName.toString());
                     validationFuture.complete(newLookupErrorResponse(ServerError.AuthorizationError,
