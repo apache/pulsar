@@ -18,15 +18,16 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
+import static javax.ws.rs.core.Response.Status.METHOD_NOT_ALLOWED;
 import static javax.ws.rs.core.Response.Status.SERVICE_UNAVAILABLE;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
-import com.google.common.collect.Maps;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
@@ -118,7 +119,8 @@ public abstract class TransactionsBase extends AdminResource {
                             ((MLTransactionMetadataStore) metadataStore).getManagedLedger(),
                             metadata, topicName.toString()).get());
                 } else {
-                    asyncResponse.resume(new RestException(500, "Broker don't use MLTransactionMetadataStore!"));
+                    asyncResponse.resume(new RestException(METHOD_NOT_ALLOWED,
+                            "Broker don't use MLTransactionMetadataStore!"));
                 }
             } else {
                 asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE,

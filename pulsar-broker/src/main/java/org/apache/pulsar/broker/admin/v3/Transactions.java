@@ -61,6 +61,7 @@ public class Transactions extends TransactionsBase {
             @ApiResponse(code = 503, message = "This Broker is not "
                     + "configured with transactionCoordinatorEnabled=true."),
             @ApiResponse(code = 404, message = "Transaction coordinator not found"),
+            @ApiResponse(code = 405, message = "Broker don't use MLTransactionMetadataStore!"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
     public void getCoordinatorInternalStats(@Suspended final AsyncResponse asyncResponse,
                                             @QueryParam("authoritative")
