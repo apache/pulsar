@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
+import static javax.ws.rs.core.Response.Status.SERVICE_UNAVAILABLE;
 import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.List;
@@ -88,7 +89,7 @@ public abstract class TransactionsBase extends AdminResource {
                 });
             }
         } else {
-            asyncResponse.resume(new RestException(503,
+            asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE,
                     "This Broker is not configured with transactionCoordinatorEnabled=true."));
         }
     }
