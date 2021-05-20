@@ -122,7 +122,7 @@ The following metrics are available for broker:
 - [Pulsar Functions](#pulsar-functions)
 - [Proxy](#proxy)
 - [Pulsar SQL Worker](#pulsar-sql-worker)
-- [Pulsar Transaction](#pulsar-transaction)
+- [Pulsar transaction](#pulsar-transaction)
 
 ### Namespace metrics
 
