@@ -51,7 +51,7 @@ Before using the Kinesis sink connector, you need to create a configuration file
 
     ```json
     {
-        "awsEndpoint": "https://some.endpoint.aws",
+        "awsEndpoint": "some.endpoint.aws",
         "awsRegion": "us-east-1",
         "awsKinesisStreamName": "my-stream",
         "awsCredentialPluginParam": "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}",
@@ -64,7 +64,7 @@ Before using the Kinesis sink connector, you need to create a configuration file
 
     ```yaml
     configs:
-        awsEndpoint: "https://some.endpoint.aws"
+        awsEndpoint: "some.endpoint.aws"
         awsRegion: "us-east-1"
         awsKinesisStreamName: "my-stream"
         awsCredentialPluginParam: "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}"
