@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.EventLoopGroup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -32,9 +33,6 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.testng.annotations.Test;
-
-import java.util.concurrent.ScheduledExecutorService;
-
 import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -163,7 +161,7 @@ public class MessageDuplicationTest {
         doReturn(true).when(messageDeduplication).isEnabled();
 
 
-        ScheduledExecutorService scheduledExecutorService = mock(ScheduledExecutorService.class);
+        EventLoopGroup eventLoopGroup = mock(EventLoopGroup.class);
 
         doAnswer(new Answer() {
             @Override
@@ -173,10 +171,10 @@ public class MessageDuplicationTest {
                 test.run();
                 return null;
             }
-        }).when(scheduledExecutorService).submit(any(Runnable.class));
+        }).when(eventLoopGroup).submit(any(Runnable.class));
 
         BrokerService brokerService = mock(BrokerService.class);
-        doReturn(scheduledExecutorService).when(brokerService).executor();
+        doReturn(eventLoopGroup).when(brokerService).executor();
         doReturn(pulsarService).when(brokerService).pulsar();
 
         PersistentTopic persistentTopic = spy(new PersistentTopic("topic-1", brokerService, managedLedger, messageDeduplication));
