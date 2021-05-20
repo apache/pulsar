@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
+import static javax.ws.rs.core.Response.Status.INTERNAL_SERVER_ERROR;
 import static javax.ws.rs.core.Response.Status.SERVICE_UNAVAILABLE;
 import com.google.common.collect.Lists;
 import java.util.ArrayList;
@@ -113,7 +114,8 @@ public abstract class TransactionsBase extends AdminResource {
                         return;
                     }
                     if (!optionalTopic.isPresent()) {
-                        asyncResponse.resume(new RestException(500, "Topic don't owner by this broker!"));
+                        asyncResponse.resume(new RestException(INTERNAL_SERVER_ERROR,
+                                "Topic don't owner by this broker!"));
                         return;
                     }
                     Topic topicObject = optionalTopic.get();
@@ -122,14 +124,14 @@ public abstract class TransactionsBase extends AdminResource {
                                 .getTransactionInBufferStats(new TxnID(coordinatorId, sequenceID));
                         asyncResponse.resume(transactionInBufferStats);
                     } else {
-                        asyncResponse.resume(new RestException(500, "Topic is not a persistent topic!"));
+                        asyncResponse.resume(new RestException(NOT_IMPLEMENTED, "Topic is not a persistent topic!"));
                     }
                 });
             } else {
-                asyncResponse.resume(new RestException(500, "Topic don't owner by this broker!"));
+                asyncResponse.resume(new RestException(INTERNAL_SERVER_ERROR, "Topic don't owner by this broker!"));
             }
         } else {
-            asyncResponse.resume(new RestException(503,
+            asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE,
                     "This Broker is not configured with transactionCoordinatorEnabled=true."));
         }
     }
