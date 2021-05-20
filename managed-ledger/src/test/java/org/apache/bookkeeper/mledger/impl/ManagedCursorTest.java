@@ -487,7 +487,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         CountDownLatch counter = new CountDownLatch(1);
         cursor.asyncReadEntries(numEntriesToRead, maxSizeBytes, new ReadEntriesCallback() {
             @Override
-            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+            public void readEntriesComplete(List<Entry> entries, Object ctx, EntryCacheCounter entryCacheCounter) {
                 Assert.assertEquals(entries.size(), expectedNumRead);
                 entries.forEach(e -> e.release());
                 counter.countDown();
@@ -3328,7 +3328,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         CompletableFuture<Integer> completableFuture = new CompletableFuture<>();
         c.asyncReadEntriesOrWait(sendNumber, new ReadEntriesCallback() {
             @Override
-            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+            public void readEntriesComplete(List<Entry> entries, Object ctx, EntryCacheCounter entryCacheCounter) {
                 completableFuture.complete(entries.size());
             }
 
@@ -3343,7 +3343,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         c.asyncReadEntriesOrWait(sendNumber, new ReadEntriesCallback() {
             @Override
-            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+            public void readEntriesComplete(List<Entry> entries, Object ctx, EntryCacheCounter entryCacheCounter) {
                 completableFuture.complete(entries.size());
             }
 

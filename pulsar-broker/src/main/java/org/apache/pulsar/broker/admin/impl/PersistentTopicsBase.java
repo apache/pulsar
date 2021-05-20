@@ -2221,7 +2221,7 @@ public class PersistentTopicsBase extends AdminResource {
                     }
 
                     @Override
-                    public void readEntryComplete(Entry entry, Object ctx) {
+                    public void readEntryComplete(Entry entry, Object ctx, EntryCacheCounter entryCacheCounter) {
                         try {
                             try {
                                 if (entry == null) {

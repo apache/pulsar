@@ -251,4 +251,9 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
     protected void addMessageToReplay(long ledgerId, long entryId) {
         // No-op
     }
+
+    public DispatcherMXBeanImpl getBean() {
+        return bean;
+    }
+
 }

@@ -344,7 +344,7 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
                                     positions.put(topic, positions.get(topic) + 1);
                                 }
 
-                                callback.readEntriesComplete(entries, ctx);
+                                callback.readEntriesComplete(entries, ctx, null);
                             }
                         }).start();
 

@@ -203,7 +203,7 @@ public class MLTransactionLogImpl implements TransactionLog {
                 && ((ManagedLedgerImpl) managedLedger).ledgerExists(position.getLedgerId())) {
             ((ManagedLedgerImpl) this.managedLedger).asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
                 @Override
-                public void readEntryComplete(Entry entry, Object ctx) {
+                public void readEntryComplete(Entry entry, Object ctx, EntryCacheCounter entryCacheCounter) {
                     TransactionMetadataEntry lastConfirmEntry = new TransactionMetadataEntry();
                     ByteBuf buffer = entry.getDataBuffer();
                     lastConfirmEntry.parseFrom(buffer, buffer.readableBytes());

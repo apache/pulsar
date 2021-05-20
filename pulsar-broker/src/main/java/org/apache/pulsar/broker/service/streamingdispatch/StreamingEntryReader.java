@@ -32,6 +32,7 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.WaitingEntryCallBack;
+import org.apache.bookkeeper.mledger.impl.EntryCacheCounter;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -144,7 +145,7 @@ public class StreamingEntryReader implements AsyncCallbacks.ReadEntryCallback, W
     }
 
     @Override
-    public void readEntryComplete(Entry entry, Object ctx) {
+    public void readEntryComplete(Entry entry, Object ctx, EntryCacheCounter entryCacheCounter) {
         // Don't block caller thread, complete read entry with dispatcher dedicated thread.
         topic.getBrokerService().getTopicOrderedExecutor().executeOrdered(dispatcher.getName(), SafeRun.safeRun(() -> {
             internalReadEntryComplete(entry, ctx);

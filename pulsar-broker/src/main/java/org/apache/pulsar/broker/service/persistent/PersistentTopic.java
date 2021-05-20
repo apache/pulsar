@@ -2354,7 +2354,7 @@ public class PersistentTopic extends AbstractTopic
             ((ManagedLedgerImpl) ledger).asyncReadEntry(position,
                     new AsyncCallbacks.ReadEntryCallback() {
                         @Override
-                        public void readEntryComplete(Entry entry, Object ctx) {
+                        public void readEntryComplete(Entry entry, Object ctx, EntryCacheCounter entryCacheCounter) {
                             MessageImpl<byte[]> msg = null;
                             try {
                                 msg = MessageImpl.deserializeBrokerEntryMetaDataFirst(entry.getDataBuffer());
