@@ -132,7 +132,8 @@ public abstract class TransactionsBase extends AdminResource {
     }
 
     private CompletableFuture<ManagedLedgerInternalStats> getManageLedgerInternalStats(ManagedLedger ledger,
-                                                                                       boolean includeLedgerMetadata, String topic) {
+                                                                                       boolean includeLedgerMetadata,
+                                                                                       String topic) {
         CompletableFuture<ManagedLedgerInternalStats> statFuture = new CompletableFuture<>();
         ManagedLedgerInternalStats stats = new ManagedLedgerInternalStats();
 
