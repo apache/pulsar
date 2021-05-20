@@ -106,7 +106,7 @@ public class PulsarClusterMetadataTeardown {
         if (arguments.configurationStore != null && arguments.cluster != null) {
             // Should it be done by REST API before broker is down?
             @Cleanup
-            MetadataStore configMetadataStore = MetadataStoreFactory.create(arguments.zookeeper,
+            MetadataStore configMetadataStore = MetadataStoreFactory.create(arguments.configurationStore,
                     MetadataStoreConfig.builder().sessionTimeoutMillis(arguments.zkSessionTimeoutMillis).build());
             deleteRecursively(configMetadataStore, "/admin/clusters/" + arguments.cluster);
         }
