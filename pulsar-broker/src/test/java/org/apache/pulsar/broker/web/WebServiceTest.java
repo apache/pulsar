@@ -209,7 +209,7 @@ public class WebServiceTest {
 
     @Test
     public void testRateLimiting() throws Exception {
-        setupEnv(false, "1.0", false, false, false, false, 10.0);
+        setupEnv(false, "1.0", false, false, false, false, 10.0, false);
 
         // Make requests without exceeding the max rate
         for (int i = 0; i < 5; i++) {
@@ -236,7 +236,7 @@ public class WebServiceTest {
 
     @Test
     public void testDisableHttpTraceAndTrackMethods() throws Exception {
-        setupEnv(true, "1.0", true, false, false, false, true);
+        setupEnv(true, "1.0", true, false, false, false, -1, true);
 
         String url = pulsar.getWebServiceAddress() + "/admin/v2/tenants/my-tenant" + System.currentTimeMillis();
 
@@ -303,7 +303,7 @@ public class WebServiceTest {
 
     @Test
     public void testBrokerReady() throws Exception {
-        setupEnv(true, "1.0", true, false, false, false, -1);
+        setupEnv(true, "1.0", true, false, false, false, -1, false);
 
         String url = pulsar.getWebServiceAddress() + "/admin/v2/brokers/ready";
 
