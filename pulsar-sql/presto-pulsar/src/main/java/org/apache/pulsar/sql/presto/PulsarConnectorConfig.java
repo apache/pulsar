@@ -91,7 +91,7 @@ public class PulsarConnectorConfig implements AutoCloseable {
         if (StringUtils.isEmpty(webServiceUrl)){
             return brokerServiceUrl;
         } else {
-            return webServiceUrl;
+            return getWebServiceUrl();
         }
     }
     @Config("pulsar.broker-service-url")
@@ -103,6 +103,10 @@ public class PulsarConnectorConfig implements AutoCloseable {
     public PulsarConnectorConfig setWebServiceUrl(String webServiceUrl) {
         this.webServiceUrl = webServiceUrl;
         return this;
+    }
+
+    public String getWebServiceUrl() {
+        return webServiceUrl;
     }
 
     @Config("pulsar.max-message-size")
