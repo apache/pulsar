@@ -98,8 +98,8 @@ public abstract class TransactionsBase extends AdminResource {
         }
     }
 
-    protected void internalGetTransactionComponentStatusInTopic(AsyncResponse asyncResponse,
-                                                                boolean authoritative, String topic) {
+    protected void internalGetTransactionBufferStatus(AsyncResponse asyncResponse,
+                                                      boolean authoritative, String topic) {
         if (pulsar().getConfig().isTransactionCoordinatorEnabled()) {
             validateTopicOwnership(TopicName.get(topic), authoritative);
             CompletableFuture<Optional<Topic>> topicFuture = pulsar().getBrokerService()
@@ -118,7 +118,40 @@ public abstract class TransactionsBase extends AdminResource {
                     }
                     Topic topicObject = optionalTopic.get();
                     if (topicObject instanceof PersistentTopic) {
-                        asyncResponse.resume(((PersistentTopic) topicObject).getTransactionComponentStatus());
+                        asyncResponse.resume(((PersistentTopic) topicObject).getTransactionBufferStatus());
+                    } else {
+                        asyncResponse.resume(new RestException(NOT_IMPLEMENTED, "Topic is not a persistent topic!"));
+                    }
+                });
+            } else {
+                asyncResponse.resume(new RestException(INTERNAL_SERVER_ERROR, "Topic don't owner by this broker!"));
+            }
+        } else {
+            asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE, "Broker don't support transaction!"));
+        }
+    }
+
+    protected void internalGetPendingAckStatus(AsyncResponse asyncResponse, boolean authoritative,
+                                               String topic, String subName) {
+        if (pulsar().getConfig().isTransactionCoordinatorEnabled()) {
+            validateTopicOwnership(TopicName.get(topic), authoritative);
+            CompletableFuture<Optional<Topic>> topicFuture = pulsar().getBrokerService()
+                    .getTopics().get(TopicName.get(topic).toString());
+            if (topicFuture != null) {
+                topicFuture.whenComplete((optionalTopic, e) -> {
+                    if (e != null) {
+                        asyncResponse.resume(new RestException(e));
+                        return;
+                    }
+
+                    if (!optionalTopic.isPresent()) {
+                        asyncResponse.resume(new RestException(INTERNAL_SERVER_ERROR,
+                                "Topic don't owner by this broker!"));
+                        return;
+                    }
+                    Topic topicObject = optionalTopic.get();
+                    if (topicObject instanceof PersistentTopic) {
+                        asyncResponse.resume(((PersistentTopic) topicObject).getTransactionPendingAckStatus(subName));
                     } else {
                         asyncResponse.resume(new RestException(NOT_IMPLEMENTED, "Topic is not a persistent topic!"));
                     }

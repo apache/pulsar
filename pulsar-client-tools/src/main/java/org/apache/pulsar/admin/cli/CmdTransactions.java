@@ -41,20 +41,35 @@ public class CmdTransactions extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get transaction component status")
-    private class GetComponentInTopicStatus extends CliCommand {
+    @Parameters(commandDescription = "Get transaction buffer status")
+    private class GetTransactionBufferStatus extends CliCommand {
         @Parameter(names = {"-t", "--topic"}, description = "the topic", required = true)
         private String topic;
 
         @Override
         void run() throws Exception {
-            print(getAdmin().transactions().getComponentInTopicStatus(topic));
+            print(getAdmin().transactions().getTransactionBufferStatus(topic));
+        }
+    }
+
+    @Parameters(commandDescription = "Get transaction pending ack status")
+    private class GetPendingAckStatus extends CliCommand {
+        @Parameter(names = {"-t", "--topic"}, description = "the topic", required = true)
+        private String topic;
+
+        @Parameter(names = {"-s", "--sub-name"}, description = "the subscription name", required = true)
+        private String subName;
+
+        @Override
+        void run() throws Exception {
+            print(getAdmin().transactions().getPendingAckStatus(topic, subName));
         }
     }
 
     public CmdTransactions(Supplier<PulsarAdmin> admin) {
         super("transactions", admin);
         jcommander.addCommand("coordinator-status", new GetCoordinatorStatus());
-        jcommander.addCommand("component-in-topic-status", new GetComponentInTopicStatus());
+        jcommander.addCommand("transaction-buffer-status", new GetTransactionBufferStatus());
+        jcommander.addCommand("pending-ack-status", new GetPendingAckStatus());
     }
 }

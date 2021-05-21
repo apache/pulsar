@@ -28,7 +28,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedExcepti
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.policies.data.TransactionComponentInTopicStatus.TransactionPendingAckStatus;
+import org.apache.pulsar.common.policies.data.TransactionPendingAckStatus;
 import org.apache.pulsar.common.util.FutureUtil;
 
 /**

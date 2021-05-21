@@ -50,7 +50,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.TransactionComponentInTopicStatus.TransactionBufferStatus;
+import org.apache.pulsar.common.policies.data.TransactionBufferStatus;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.jctools.queues.MessagePassingQueue;

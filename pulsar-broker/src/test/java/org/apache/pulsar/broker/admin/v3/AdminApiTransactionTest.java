@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.admin.v3;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Sets;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -33,8 +32,9 @@ import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.policies.data.TransactionComponentInTopicStatus;
+import org.apache.pulsar.common.policies.data.TransactionBufferStatus;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStatus;
+import org.apache.pulsar.common.policies.data.TransactionPendingAckStatus;
 import org.apache.pulsar.packages.management.core.MockedPackagesStorageProvider;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
@@ -103,10 +103,10 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test(timeOut = 20000)
-    public void testGetTransactionComponentInTopicStatus() throws Exception {
+    public void testGetTransactionBufferStatus() throws Exception {
         initTransaction(2);
         TransactionImpl transaction = (TransactionImpl) getTransaction();
-        final String topic = "persistent://public/default/testGetTransactionComponentInTopicStatus";
+        final String topic = "persistent://public/default/testGetTransactionBufferStatus";
         final String subName1 = "test1";
         final String subName2 = "test2";
         admin.topics().createNonPartitionedTopic(topic);
@@ -126,27 +126,30 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         consumer1.acknowledgeAsync(messageId, transaction).get();
         consumer2.acknowledgeAsync(messageId, transaction).get();
 
-        TransactionComponentInTopicStatus transactionComponentInTopicStatus = admin.transactions().
-                getComponentInTopicStatus(topic).get();
-        TransactionComponentInTopicStatus.TransactionBufferStatus transactionBufferStatus =
-                transactionComponentInTopicStatus.getTransactionBufferStatus();
-        List<TransactionComponentInTopicStatus.TransactionPendingAckStatus> transactionPendingAckStatusList =
-                transactionComponentInTopicStatus.getTransactionPendingAckStatuses();
+        TransactionBufferStatus transactionBufferStatus = admin.transactions().
+                getTransactionBufferStatus(topic).get();
 
         assertEquals(transactionBufferStatus.state, "Ready");
         assertEquals(transactionBufferStatus.maxReadPosition,
                 PositionImpl.get(((MessageIdImpl) messageId).getLedgerId(),
                         ((MessageIdImpl) messageId).getEntryId() + 1).toString());
         assertTrue(transactionBufferStatus.lastSnapshotTimestamps > currentTime);
-        if (transactionPendingAckStatusList.get(1).subName.equals(subName2)) {
-            assertEquals(transactionPendingAckStatusList.get(0).subName, subName1);
-        } else {
-            assertEquals(transactionPendingAckStatusList.get(1).subName, subName1);
-            assertEquals(transactionPendingAckStatusList.get(0).subName, subName2);
-        }
+    }
 
-        assertEquals(transactionPendingAckStatusList.get(0).state, "Ready");
-        assertEquals(transactionPendingAckStatusList.get(1).state, "Ready");
+    @Test(timeOut = 20000)
+    public void testGetPendingAckStatus() throws Exception {
+        initTransaction(2);
+        final String topic = "persistent://public/default/testGetPendingAckStatus";
+        final String subName = "test1";
+        admin.topics().createNonPartitionedTopic(topic);
+
+        pulsarClient.newConsumer(Schema.BYTES).topic(topic)
+                .subscriptionName(subName).subscribe();
+
+        TransactionPendingAckStatus transactionPendingAckStatus = admin.transactions().
+                getPendingAckStatus(topic, subName).get();
+
+        assertEquals(transactionPendingAckStatus.state, "Ready");
     }
 
     private static void verifyCoordinatorStatus(long expectedCoordinatorId, long coordinatorId, String state,

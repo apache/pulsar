@@ -20,8 +20,9 @@ package org.apache.pulsar.client.admin;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.common.policies.data.TransactionComponentInTopicStatus;
+import org.apache.pulsar.common.policies.data.TransactionBufferStatus;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStatus;
+import org.apache.pulsar.common.policies.data.TransactionPendingAckStatus;
 
 public interface Transactions {
 
@@ -41,11 +42,20 @@ public interface Transactions {
     CompletableFuture<List<TransactionCoordinatorStatus>> getCoordinatorStatusList();
 
     /**
-     * Get transaction component in topic status.
+     * Get transaction buffer status.
      *
-     * @param topic the topic of getting transaction component
-     * @return the future status of transaction component in topic.
+     * @param topic the topic of getting transaction buffer status
+     * @return the future status of transaction buffer in topic.
      */
-    CompletableFuture<TransactionComponentInTopicStatus> getComponentInTopicStatus(String topic);
+    CompletableFuture<TransactionBufferStatus> getTransactionBufferStatus(String topic);
+
+    /**
+     * Get transaction pending ack status.
+     *
+     * @param topic the topic of this transaction pending ack status
+     * @param subName the topic of this transaction pending ack status
+     * @return the future status of transaction pending ack.
+     */
+    CompletableFuture<TransactionPendingAckStatus> getPendingAckStatus(String topic, String subName);
 
 }

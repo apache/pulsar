@@ -56,19 +56,38 @@ public class Transactions extends TransactionsBase {
     }
 
     @GET
-    @Path("/componentInTopicStatus")
-    @ApiOperation(value = "Get transaction component state in topic.")
+    @Path("/transactionBufferStatus")
+    @ApiOperation(value = "Get transaction buffer status in topic.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
             @ApiResponse(code = 503, message = "This Broker is not configured "
                     + "with transactionCoordinatorEnabled=true."),
             @ApiResponse(code = 500, message = "Topic don't owner by this broker!"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
-    public void getComponentInTopicStatus(@Suspended final AsyncResponse asyncResponse,
-                                          @QueryParam("authoritative")
-                                          @DefaultValue("false") boolean authoritative,
-                                          @ApiParam(value = "Topic", required = true)
-                                          @QueryParam("topic") String topic) {
-        internalGetTransactionComponentStatusInTopic(asyncResponse, authoritative, topic);
+    public void getTransactionBufferStatus(@Suspended final AsyncResponse asyncResponse,
+                                           @QueryParam("authoritative")
+                                           @DefaultValue("false") boolean authoritative,
+                                           @ApiParam(value = "Topic name", required = true)
+                                               @QueryParam("topic") String topic) {
+        internalGetTransactionBufferStatus(asyncResponse, authoritative, topic);
+    }
+
+    @GET
+    @Path("/pendingAckStatus")
+    @ApiOperation(value = "Get transaction pending ack status in topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic or subName doesn't exist"),
+            @ApiResponse(code = 503, message = "This Broker is not configured "
+                    + "with transactionCoordinatorEnabled=true."),
+            @ApiResponse(code = 500, message = "Topic don't owner by this broker!"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void getPendingAckStatus(@Suspended final AsyncResponse asyncResponse,
+                                    @QueryParam("authoritative")
+                                    @DefaultValue("false") boolean authoritative,
+                                    @ApiParam(value = "Topic name", required = true)
+                                        @QueryParam("topic") String topic,
+                                    @ApiParam(value = "Subscription name", required = true)
+                                        @QueryParam("subName") String subName) {
+        internalGetPendingAckStatus(asyncResponse, authoritative, topic, subName);
     }
 }

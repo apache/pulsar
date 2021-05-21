@@ -25,7 +25,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.policies.data.TransactionComponentInTopicStatus.TransactionBufferStatus;
+import org.apache.pulsar.common.policies.data.TransactionBufferStatus;
 
 /**
  * A class represent a transaction buffer. The transaction buffer

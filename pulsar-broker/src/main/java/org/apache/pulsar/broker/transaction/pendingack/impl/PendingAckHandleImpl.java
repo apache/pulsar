@@ -45,7 +45,7 @@ import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
-import org.apache.pulsar.common.policies.data.TransactionComponentInTopicStatus.TransactionPendingAckStatus;
+import org.apache.pulsar.common.policies.data.TransactionPendingAckStatus;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
@@ -700,7 +700,6 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     public TransactionPendingAckStatus getStatus() {
         TransactionPendingAckStatus transactionPendingAckStatus = new TransactionPendingAckStatus();
         transactionPendingAckStatus.state = this.getState().name();
-        transactionPendingAckStatus.subName = this.subName;
         return transactionPendingAckStatus;
     }
 

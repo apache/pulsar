@@ -24,8 +24,9 @@ import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.common.policies.data.TransactionComponentInTopicStatus;
+import org.apache.pulsar.common.policies.data.TransactionBufferStatus;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStatus;
+import org.apache.pulsar.common.policies.data.TransactionPendingAckStatus;
 
 public class TransactionsImpl extends BaseResource implements Transactions {
     private final WebTarget adminV3Transactions;
@@ -75,14 +76,35 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     }
 
     @Override
-    public CompletableFuture<TransactionComponentInTopicStatus> getComponentInTopicStatus(String topic) {
-        WebTarget path = adminV3Transactions.path("componentInTopicStatus");
+    public CompletableFuture<TransactionBufferStatus> getTransactionBufferStatus(String topic) {
+        WebTarget path = adminV3Transactions.path("transactionBufferStatus");
         path = path.queryParam("topic", topic);
-        final CompletableFuture<TransactionComponentInTopicStatus> future = new CompletableFuture<>();
+        final CompletableFuture<TransactionBufferStatus> future = new CompletableFuture<>();
         asyncGetRequest(path,
-                new InvocationCallback<TransactionComponentInTopicStatus>() {
+                new InvocationCallback<TransactionBufferStatus>() {
                     @Override
-                    public void completed(TransactionComponentInTopicStatus status) {
+                    public void completed(TransactionBufferStatus status) {
+                        future.complete(status);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
+    public CompletableFuture<TransactionPendingAckStatus> getPendingAckStatus(String topic, String subName) {
+        WebTarget path = adminV3Transactions.path("pendingAckStatus");
+        path = path.queryParam("topic", topic);
+        path = path.queryParam("subName", subName);
+        final CompletableFuture<TransactionPendingAckStatus> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<TransactionPendingAckStatus>() {
+                    @Override
+                    public void completed(TransactionPendingAckStatus status) {
                         future.complete(status);
                     }
 

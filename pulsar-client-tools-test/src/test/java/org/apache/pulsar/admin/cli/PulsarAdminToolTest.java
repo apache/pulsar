@@ -48,7 +48,6 @@ import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.Lookup;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.NonPersistentTopics;
-import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.admin.ProxyStats;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.ResourceQuotas;
@@ -1433,8 +1432,12 @@ public class PulsarAdminToolTest {
         verify(transactions).getCoordinatorStatusList();
 
         cmdTransactions = new CmdTransactions(() -> admin);
-        cmdTransactions.run(split("component-in-topic-status -t test"));
-        verify(transactions).getComponentInTopicStatus("test");
+        cmdTransactions.run(split("transaction-buffer-status -t test"));
+        verify(transactions).getTransactionBufferStatus("test");
+
+        cmdTransactions = new CmdTransactions(() -> admin);
+        cmdTransactions.run(split("pending-ack-status -t test -s test"));
+        verify(transactions).getPendingAckStatus("test", "test");
     }
 
     String[] split(String s) {
