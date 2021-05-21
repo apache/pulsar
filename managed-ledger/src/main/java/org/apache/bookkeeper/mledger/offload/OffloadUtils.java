@@ -36,7 +36,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.KeyValue;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.OffloadContext;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.OffloadDriverMetadata;
-import org.apache.bookkeeper.net.BookieSocketAddress;
+import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.proto.DataFormats;
 
 @Slf4j
@@ -120,21 +120,22 @@ public final class OffloadUtils {
                     .setKey(e.getKey()).setValue(ByteString.copyFrom(e.getValue()));
         }
 
-        for (Map.Entry<Long, ? extends List<BookieSocketAddress>> e : metadata.getAllEnsembles().entrySet()) {
+        for (Map.Entry<Long, ? extends List<BookieId>> e : metadata.getAllEnsembles().entrySet()) {
             builder.addSegmentBuilder()
                     .setFirstEntryId(e.getKey())
-                    .addAllEnsembleMember(e.getValue().stream().map(BookieSocketAddress::toString).collect(Collectors.toList()));
+                    .addAllEnsembleMember(e.getValue().stream().map(BookieId::toString).collect(Collectors.toList()));
         }
 
         return builder.build().toByteArray();
     }
 
-    public static LedgerMetadata parseLedgerMetadata(byte[] bytes) throws IOException {
+    public static LedgerMetadata parseLedgerMetadata(long id, byte[] bytes) throws IOException {
         DataFormats.LedgerMetadataFormat ledgerMetadataFormat = DataFormats.LedgerMetadataFormat.newBuilder().mergeFrom(bytes).build();
         LedgerMetadataBuilder builder = LedgerMetadataBuilder.create()
                 .withLastEntryId(ledgerMetadataFormat.getLastEntryId())
                 .withPassword(ledgerMetadataFormat.getPassword().toByteArray())
                 .withClosedState()
+                .withId(id)
                 .withMetadataFormatVersion(2)
                 .withLength(ledgerMetadataFormat.getLength())
                 .withAckQuorumSize(ledgerMetadataFormat.getAckQuorumSize())
@@ -142,12 +143,12 @@ public final class OffloadUtils {
                 .withWriteQuorumSize(ledgerMetadataFormat.getQuorumSize())
                 .withEnsembleSize(ledgerMetadataFormat.getEnsembleSize());
         ledgerMetadataFormat.getSegmentList().forEach(segment -> {
-            ArrayList<BookieSocketAddress> addressArrayList = new ArrayList<>();
+            ArrayList<BookieId> addressArrayList = new ArrayList<>();
             segment.getEnsembleMemberList().forEach(address -> {
                 try {
-                    addressArrayList.add(new BookieSocketAddress(address));
-                } catch (IOException e) {
-                    log.error("Exception when create BookieSocketAddress. ", e);
+                    addressArrayList.add(BookieId.parse(address));
+                } catch (IllegalArgumentException e) {
+                    log.error("Exception when create BookieId {}. ", address, e);
                 }
             });
             builder.newEnsembleEntry(segment.getFirstEntryId(), addressArrayList);

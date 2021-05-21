@@ -23,12 +23,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
-
 import org.apache.pulsar.client.admin.Properties;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Tenants;
@@ -165,8 +163,28 @@ public class TenantsImpl extends BaseResource implements Tenants, Properties {
     }
 
     @Override
+    public void deleteTenant(String tenant, boolean force) throws PulsarAdminException {
+        try {
+            deleteTenantAsync(tenant, force).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
     public CompletableFuture<Void> deleteTenantAsync(String tenant) {
+        return deleteTenantAsync(tenant, false);
+    }
+
+    @Override
+    public CompletableFuture<Void> deleteTenantAsync(String tenant, boolean force) {
         WebTarget path = adminTenants.path(tenant);
+        path = path.queryParam("force", force);
         return asyncDeleteRequest(path);
     }
 

@@ -19,28 +19,24 @@
 package org.apache.pulsar.compaction;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
-
 import org.apache.bookkeeper.client.BookKeeper;
-
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.RawReader;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Compactor for Pulsar topics
-*/
+ * Compactor for Pulsar topics.
+ */
 public abstract class Compactor {
     private static final Logger log = LoggerFactory.getLogger(Compactor.class);
     public static final String COMPACTION_SUBSCRIPTION = "__compaction";
     public static final String COMPACTED_TOPIC_LEDGER_PROPERTY = "CompactedTopicLedger";
-    static BookKeeper.DigestType COMPACTED_TOPIC_LEDGER_DIGEST_TYPE = BookKeeper.DigestType.CRC32;
-    static byte[] COMPACTED_TOPIC_LEDGER_PASSWORD = "".getBytes(UTF_8);
+    static final BookKeeper.DigestType COMPACTED_TOPIC_LEDGER_DIGEST_TYPE = BookKeeper.DigestType.CRC32;
+    static final byte[] COMPACTED_TOPIC_LEDGER_PASSWORD = "".getBytes(UTF_8);
 
     protected final ServiceConfiguration conf;
     protected final ScheduledExecutorService scheduler;

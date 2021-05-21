@@ -30,6 +30,9 @@ import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 @Setter
 @ToString
 public class CommandGenerator {
+    private static final long MB = 1048576L;
+    private static final long JAVA_RUNTIME_RAM_BYTES = 128 * MB;
+
     public enum Runtime {
         JAVA,
         PYTHON,
@@ -49,6 +52,7 @@ public class CommandGenerator {
     private Runtime runtime;
     private Integer parallelism;
     private String adminUrl;
+    private String batchBuilder;
     private Integer windowLengthCount;
     private Long windowLengthDurationMs;
     private Integer slidingIntervalCount;
@@ -118,7 +122,6 @@ public class CommandGenerator {
                 }
                 break;
         }
-
         return commandBuilder.toString();
     }
 
@@ -154,6 +157,9 @@ public class CommandGenerator {
         if (logTopic != null) {
             commandBuilder.append(" --logTopic " + logTopic);
         }
+        if (batchBuilder != null) {
+            commandBuilder.append("--batch-builder" + batchBuilder);
+        }
         if (customSereSourceTopics != null && !customSereSourceTopics.isEmpty()) {
             commandBuilder.append(" --customSerdeInputs \'" + new Gson().toJson(customSereSourceTopics) + "\'");
         }
@@ -188,6 +194,7 @@ public class CommandGenerator {
         switch (runtime){
             case JAVA:
                 commandBuilder.append(" --jar " + JAVAJAR);
+                commandBuilder.append(" --ram " + JAVA_RUNTIME_RAM_BYTES);
                 break;
             case PYTHON:
                 if (codeFile != null) {
@@ -239,6 +246,9 @@ public class CommandGenerator {
         if (customSereSourceTopics != null && !customSereSourceTopics.isEmpty()) {
             commandBuilder.append(" --customSerdeInputs \'" + new Gson().toJson(customSereSourceTopics) + "\'");
         }
+        if (batchBuilder != null) {
+            commandBuilder.append("--batch-builder" + batchBuilder);
+        }
         if (sinkTopic != null) {
             commandBuilder.append(" --output " + sinkTopic);
         }
@@ -274,6 +284,7 @@ public class CommandGenerator {
             switch (runtime) {
                 case JAVA:
                     commandBuilder.append(" --jar " + JAVAJAR);
+                    commandBuilder.append(" --ram " + JAVA_RUNTIME_RAM_BYTES);
                     break;
                 case PYTHON:
                     if (codeFile != null) {

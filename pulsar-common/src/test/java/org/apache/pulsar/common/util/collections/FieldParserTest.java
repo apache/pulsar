@@ -43,10 +43,9 @@ public class FieldParserTest {
     /**
      * test all conversion scenarios.
      *
-     * @throws Exception
      */
     @Test
-    public void testConversion() throws Exception {
+    public void testConversion() {
 
         assertEquals(convert("2", Integer.class), Integer.valueOf(2));
         assertEquals(convert("2", Double.class), Double.valueOf(2));
@@ -98,7 +97,7 @@ public class FieldParserTest {
     static class ServiceConfiguration {
 
         private String zookeeperServers;
-        private List<String> bootstrapNamespaces = new ArrayList<String>();
+        private List<String> bootstrapNamespaces = new ArrayList<>();
 
         public String getZookeeperServers() {
             return zookeeperServers;

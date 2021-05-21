@@ -139,7 +139,7 @@ public class TypedMessageBuilderImplTest {
 
         TypedMessageBuilderImpl typedMessageBuilder = (TypedMessageBuilderImpl)typedMessageBuilderImpl.key("default");
         assertEquals(typedMessageBuilder.getKey(), "default");
-        assertFalse(typedMessageBuilder.getMetadataBuilder().getPartitionKeyB64Encoded());
+        assertFalse(typedMessageBuilder.getMetadataBuilder().isPartitionKeyB64Encoded());
     }
 
     @Test
@@ -154,7 +154,7 @@ public class TypedMessageBuilderImplTest {
 
         TypedMessageBuilderImpl typedMessageBuilder = (TypedMessageBuilderImpl)typedMessageBuilderImpl.key("inline");
         assertEquals(typedMessageBuilder.getKey(), "inline");
-        assertFalse(typedMessageBuilder.getMetadataBuilder().getPartitionKeyB64Encoded());
+        assertFalse(typedMessageBuilder.getMetadataBuilder().isPartitionKeyB64Encoded());
     }
 
     @Test
@@ -188,7 +188,7 @@ public class TypedMessageBuilderImplTest {
 
         TypedMessageBuilderImpl typedMessageBuilder = (TypedMessageBuilderImpl)typedMessageBuilderImpl.keyBytes("default".getBytes());
         assertEquals(typedMessageBuilder.getKey(), Base64.getEncoder().encodeToString("default".getBytes()));
-        assertTrue(typedMessageBuilder.getMetadataBuilder().getPartitionKeyB64Encoded());
+        assertTrue(typedMessageBuilder.getMetadataBuilder().isPartitionKeyB64Encoded());
     }
 
     @Test
@@ -203,7 +203,7 @@ public class TypedMessageBuilderImplTest {
 
         TypedMessageBuilderImpl typedMessageBuilder = (TypedMessageBuilderImpl)typedMessageBuilderImpl.keyBytes("inline".getBytes());
         assertEquals(typedMessageBuilder.getKey(), Base64.getEncoder().encodeToString("inline".getBytes()));
-        assertTrue(typedMessageBuilder.getMetadataBuilder().getPartitionKeyB64Encoded());
+        assertTrue(typedMessageBuilder.getMetadataBuilder().isPartitionKeyB64Encoded());
     }
 
     @Test

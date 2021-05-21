@@ -18,9 +18,14 @@
  */
 package org.apache.pulsar.io.core;
 
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+
 /**
  * A simple KeyValue class.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public class KeyValue<K, V> {
     private K key;
     private V value;

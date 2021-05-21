@@ -42,6 +42,7 @@ import org.testng.annotations.Test;
  *    client: org.apache.pulsar.client.impl.auth.AuthenticationToken
  *    broker: org.apache.pulsar.broker.authentication.AuthenticationProviderToken
  */
+@Test(groups = "broker-api")
 public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(TokenAuthenticatedProducerConsumerTest.class);
 
@@ -80,10 +81,9 @@ public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase
                 .authentication(AuthenticationFactory.token(ADMIN_TOKEN))
                 .build());
 
-        pulsarClient = PulsarClient.builder().serviceUrl(new URI(pulsar.getBrokerServiceUrl()).toString())
+        replacePulsarClient(PulsarClient.builder().serviceUrl(new URI(pulsar.getBrokerServiceUrl()).toString())
                 .statsInterval(0, TimeUnit.SECONDS)
-                .authentication(AuthenticationFactory.token(ADMIN_TOKEN))
-                .build();
+                .authentication(AuthenticationFactory.token(ADMIN_TOKEN)));
     }
 
     @AfterMethod(alwaysRun = true)
@@ -97,7 +97,7 @@ public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         return new Object[][] { { 0 }, { 1000 } };
     }
 
-    public void testSyncProducerAndConsumer() throws Exception {
+    private void testSyncProducerAndConsumer() throws Exception {
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic")
                 .subscriptionName("my-subscriber-name").subscribe();
 

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -37,6 +37,7 @@ pip install six
 pip install fastavro
 pip install certifi
 
+# Create documentation
 DESTINATION=$ROOT_DIR/generated-site/api/python/${VERSION}
 rm -fr $DESTINATION
 mkdir -p $DESTINATION
@@ -45,3 +46,7 @@ PYTHONPATH=$ROOT_DIR/pulsar-client-cpp/python pdoc pulsar \
   --html-dir $DESTINATION
 mv -f $DESTINATION/pulsar/* $DESTINATION/
 rmdir $DESTINATION/pulsar
+
+# Update /api/python to the latest version
+rm -fr $ROOT_DIR/generated-site/api/python/{index.html,functions,pulsar}
+cp -r $DESTINATION/* $ROOT_DIR/generated-site/api/python/

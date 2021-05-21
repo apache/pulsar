@@ -18,7 +18,11 @@
  */
 package org.apache.pulsar.broker.intercept;
 
+import lombok.Cleanup;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
@@ -35,7 +39,9 @@ import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.testng.Assert.assertEquals;
 
+@Test(groups = "broker")
 public class BrokerInterceptorTest extends ProducerConsumerBase {
 
     private static final String listenerName1 = "listener1";
@@ -107,5 +113,29 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
         pulsarClient.newProducer(Schema.BOOL).topic("test").create();
         // CONNECT and PRODUCER
         Assert.assertTrue(((CounterBrokerInterceptor)listener).getCount() >= 2);
+    }
+
+    @Test
+    public void testBeforeSendMessage() throws PulsarClientException {
+        BrokerInterceptor listener = pulsar.getBrokerInterceptor();
+        Assert.assertTrue(listener instanceof CounterBrokerInterceptor);
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+            .topic("test-before-send-message")
+            .create();
+
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+            .topic("test-before-send-message")
+            .subscriptionName("test")
+            .subscribe();
+
+        producer.send("hello world");
+
+        Message<String> msg = consumer.receive();
+
+        assertEquals(msg.getValue(), "hello world");
+
+        assertEquals(((CounterBrokerInterceptor) listener).getBeforeSendCount(), 1);
     }
 }

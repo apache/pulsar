@@ -61,10 +61,10 @@ public class ZKContainer<SelfT extends PulsarContainer<SelfT>> extends PulsarCon
     @Override
     protected void beforeStop() {
         super.beforeStop();
-        if (null != containerId && dumpZkDataBeforeStop) {
+        if (null != getContainerId() && dumpZkDataBeforeStop) {
             DockerUtils.dumpContainerDirToTargetCompressed(
                 getDockerClient(),
-                containerId,
+                getContainerId(),
                 "/pulsar/data/zookeeper"
             );
         }

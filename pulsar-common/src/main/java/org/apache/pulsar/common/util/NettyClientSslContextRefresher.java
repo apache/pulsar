@@ -19,14 +19,12 @@
 package org.apache.pulsar.common.util;
 
 import io.netty.handler.ssl.SslContext;
-
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.cert.X509Certificate;
 import javax.net.ssl.SSLException;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 
 /**

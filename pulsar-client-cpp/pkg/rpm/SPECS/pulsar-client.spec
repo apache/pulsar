@@ -49,10 +49,11 @@ The devel package contains C++ and C API headers and `libpulsar.a`
 static library.
 
 %prep
-%setup -q -n apache-pulsar-%{pom_version}
+%setup -q -n apache-pulsar-%{pom_version}-src
 
 %build
 cd pulsar-client-cpp
+chmod +x $(find . -name "*.sh")
 cmake . -DBUILD_TESTS=OFF -DLINK_STATIC=ON -DBUILD_PYTHON_WRAPPER=OFF
 make pulsarShared pulsarSharedNossl pulsarStatic pulsarStaticWithDeps -j 3
 

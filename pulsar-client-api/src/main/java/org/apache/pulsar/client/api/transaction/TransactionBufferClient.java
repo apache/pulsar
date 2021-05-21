@@ -18,14 +18,16 @@
  */
 package org.apache.pulsar.client.api.transaction;
 
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * The transaction buffer client to commit and abort transactions on topics or subscription.
  * The transaction buffer client is used by transaction coordinator to end transactions.
  */
+@InterfaceAudience.Private
+@InterfaceStability.Evolving
 public interface TransactionBufferClient {
 
     /**
@@ -34,12 +36,13 @@ public interface TransactionBufferClient {
      * @param topic topic name
      * @param txnIdMostBits the most bits of txn id
      * @param txnIdLeastBits the least bits of txn id
+     * @param lowWaterMark the low water mark of this txn;
      * @return the future represents the commit result
      */
     CompletableFuture<TxnID> commitTxnOnTopic(String topic,
                                               long txnIdMostBits,
                                               long txnIdLeastBits,
-                                              List<MessageId> messageIdList);
+                                              long lowWaterMark);
 
     /**
      * Abort the transaction associated with the topic.
@@ -47,12 +50,13 @@ public interface TransactionBufferClient {
      * @param topic topic name
      * @param txnIdMostBits the most bits of txn id
      * @param txnIdLeastBits the least bits of txn id
+     * @param lowWaterMark the low water mark of this txn
      * @return the future represents the abort result
      */
     CompletableFuture<TxnID> abortTxnOnTopic(String topic,
-                                            long txnIdMostBits,
-                                            long txnIdLeastBits,
-                                             List<MessageId> messageIdList);
+                                             long txnIdMostBits,
+                                             long txnIdLeastBits,
+                                             long lowWaterMark);
 
     /**
      * Commit the transaction associated with the topic subscription.
@@ -61,12 +65,14 @@ public interface TransactionBufferClient {
      * @param subscription subscription name
      * @param txnIdMostBits the most bits of txn id
      * @param txnIdLeastBits the least bits of txn id
+     * @param lowWaterMark the low water mark of this txn
      * @return the future represents the commit result
      */
     CompletableFuture<TxnID> commitTxnOnSubscription(String topic,
-                                                    String subscription,
-                                                    long txnIdMostBits,
-                                                    long txnIdLeastBits);
+                                                     String subscription,
+                                                     long txnIdMostBits,
+                                                     long txnIdLeastBits,
+                                                     long lowWaterMark);
 
     /**
      * Abort the transaction associated with the topic subscription.
@@ -75,12 +81,14 @@ public interface TransactionBufferClient {
      * @param subscription subscription name
      * @param txnIdMostBits the most bits of txn id
      * @param txnIdLeastBits the least bits of txn id
+     * @param lowWaterMark the low water mark of this txn
      * @return the future represents the abort result
      */
     CompletableFuture<TxnID> abortTxnOnSubscription(String topic,
-                                                   String subscription,
-                                                   long txnIdMostBits,
-                                                   long txnIdLeastBits);
+                                                    String subscription,
+                                                    long txnIdMostBits,
+                                                    long txnIdLeastBits,
+                                                    long lowWaterMark);
 
     void close();
 }

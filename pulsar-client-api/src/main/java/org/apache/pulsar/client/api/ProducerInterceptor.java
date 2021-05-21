@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.client.api;
 
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+
 /**
  * A plugin interface that allows you to intercept (and possibly mutate) the
  * messages received by the producer before they are published to the Pulsar
@@ -29,6 +32,8 @@ package org.apache.pulsar.client.api;
  * <p>ProducerInterceptor callbacks may be called from multiple threads. Interceptor
  * implementation must ensure thread-safety, if needed.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 @Deprecated
 public interface ProducerInterceptor<T> extends AutoCloseable {
 

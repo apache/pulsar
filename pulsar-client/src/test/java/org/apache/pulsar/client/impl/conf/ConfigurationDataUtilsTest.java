@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.client.impl.conf;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableSet;
+import org.testng.Assert;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -47,14 +50,24 @@ public class ConfigurationDataUtilsTest {
         confData.setMaxLookupRedirects(10);
         confData.setNumIoThreads(33);
         Map<String, Object> config = new HashMap<>();
+        Map<String, String> authParamMap = new HashMap<>();
+        authParamMap.put("k1", "v1");
+        authParamMap.put("k2", "v2");
+
         config.put("serviceUrl", "pulsar://localhost:6650");
         config.put("maxLookupRequest", 70000);
         config.put("maxLookupRedirects", 50);
+        config.put("authParams", "testAuthParams");
+        config.put("authParamMap", authParamMap);
+
         confData = ConfigurationDataUtils.loadData(config, confData, ClientConfigurationData.class);
         assertEquals("pulsar://localhost:6650", confData.getServiceUrl());
         assertEquals(70000, confData.getMaxLookupRequest());
         assertEquals(50, confData.getMaxLookupRedirects());
         assertEquals(33, confData.getNumIoThreads());
+        assertEquals("testAuthParams", confData.getAuthParams());
+        assertEquals("v1", confData.getAuthParamMap().get("k1"));
+        assertEquals("v2", confData.getAuthParamMap().get("k2"));
     }
 
     @Test
@@ -99,7 +112,7 @@ public class ConfigurationDataUtilsTest {
         confData.setReceiverQueueSize(1000000);
         confData.setReaderName("unknown-reader");
         Map<String, Object> config = new HashMap<>();
-        config.put("topicName", "test-topic");
+        config.put("topicNames", ImmutableSet.of("test-topic"));
         config.put("receiverQueueSize", 100);
         confData = ConfigurationDataUtils.loadData(config, confData, ReaderConfigurationData.class);
         assertEquals("test-topic", confData.getTopicName());
@@ -136,6 +149,52 @@ public class ConfigurationDataUtilsTest {
         assertEquals(pulsarClient.getConfiguration().getServiceUrl(), "pulsar://unknown:6650");
         assertEquals(pulsarClient.getConfiguration().getNumListenerThreads(), 1, "builder default not set properly");
         assertEquals(pulsarClient.getConfiguration().getStatsIntervalSeconds(), 80,
-                "builder default should overrite if set explicitly");
+                "builder default should override if set explicitly");
+    }
+
+    @Test
+    public void testLoadSecretParams() {
+        ClientConfigurationData confData = new ClientConfigurationData();
+        Map<String, String> authParamMap = new HashMap<>();
+        authParamMap.put("k1", "v1");
+
+        confData.setServiceUrl("pulsar://unknown:6650");
+        confData.setAuthParams("");
+        confData.setAuthParamMap(authParamMap);
+
+        authParamMap.put("k2", "v2");
+        Map<String, Object> config = new HashMap<>();
+        config.put("serviceUrl", "pulsar://localhost:6650");
+        config.put("authParams", "testAuthParams");
+        config.put("authParamMap", authParamMap);
+
+        confData = ConfigurationDataUtils.loadData(config, confData, ClientConfigurationData.class);
+        assertEquals("pulsar://localhost:6650", confData.getServiceUrl());
+        assertEquals("testAuthParams", confData.getAuthParams());
+        assertEquals("v1", confData.getAuthParamMap().get("k1"));
+        assertEquals("v2", confData.getAuthParamMap().get("k2"));
+
+        final String secretStr = "*****";
+        try {
+            String confDataJson = new ObjectMapper().writeValueAsString(confData);
+            Map<String, Object> confDataMap = new ObjectMapper().readValue(confDataJson, Map.class);
+            assertEquals("pulsar://localhost:6650", confDataMap.get("serviceUrl"));
+            assertEquals(secretStr, confDataMap.get("authParams"));
+            assertEquals(secretStr, confDataMap.get("authParamMap"));
+        } catch (Exception e) {
+            Assert.fail();
+        }
+    }
+
+    @Test
+    public void testEquals() {
+        ClientConfigurationData confData1 = new ClientConfigurationData();
+        confData1.setServiceUrl("pulsar://unknown:6650");
+
+        ClientConfigurationData confData2 = new ClientConfigurationData();
+        confData2.setServiceUrl("pulsar://unknown:6650");
+
+        assertEquals(confData1, confData2);
+        assertEquals(confData1.hashCode(), confData2.hashCode());
     }
 }

@@ -44,6 +44,7 @@ import org.testng.annotations.Test;
 /**
  * Unit test {@link BookKeeperClientFactoryImpl}.
  */
+@Test(groups = "broker")
 public class BookKeeperClientFactoryImplTest {
 
     @Test
@@ -203,6 +204,19 @@ public class BookKeeperClientFactoryImplTest {
             e.printStackTrace();
             fail("Get metadata service uri should be successful", e);
         }
+    }
+
+    @Test
+    public void testOpportunisticStripingConfiguration() {
+        BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
+        ServiceConfiguration conf = new ServiceConfiguration();
+        // default value
+        assertFalse(factory.createBkClientConfiguration(conf).getOpportunisticStriping());
+        conf.getProperties().setProperty("bookkeeper_opportunisticStriping", "true");
+        assertTrue(factory.createBkClientConfiguration(conf).getOpportunisticStriping());
+        conf.getProperties().setProperty("bookkeeper_opportunisticStriping", "false");
+        assertFalse(factory.createBkClientConfiguration(conf).getOpportunisticStriping());
+
     }
 
 }

@@ -36,6 +36,14 @@ namespace pulsar {
 BinaryProtoLookupService::BinaryProtoLookupService(ConnectionPool& cnxPool, const std::string& lookupUrl)
     : cnxPool_(cnxPool), serviceUrl_(lookupUrl), mutex_(), requestIdGenerator_(0) {}
 
+BinaryProtoLookupService::BinaryProtoLookupService(ConnectionPool& cnxPool, const std::string& lookupUrl,
+                                                   const std::string& listenerName)
+    : cnxPool_(cnxPool),
+      serviceUrl_(lookupUrl),
+      listenerName_(listenerName),
+      mutex_(),
+      requestIdGenerator_(0) {}
+
 /*
  * @param topicName topic name to get broker for
  *
@@ -53,7 +61,7 @@ Future<Result, LookupDataResultPtr> BinaryProtoLookupService::lookupAsync(const 
     LookupDataResultPromisePtr promise = std::make_shared<LookupDataResultPromise>();
     Future<Result, ClientConnectionWeakPtr> future = cnxPool_.getConnectionAsync(serviceUrl_, serviceUrl_);
     future.addListener(std::bind(&BinaryProtoLookupService::sendTopicLookupRequest, this, lookupName, false,
-                                 std::placeholders::_1, std::placeholders::_2, promise));
+                                 listenerName_, std::placeholders::_1, std::placeholders::_2, promise));
     return promise->getFuture();
 }
 
@@ -76,7 +84,8 @@ Future<Result, LookupDataResultPtr> BinaryProtoLookupService::getPartitionMetada
 }
 
 void BinaryProtoLookupService::sendTopicLookupRequest(const std::string& topicName, bool authoritative,
-                                                      Result result, const ClientConnectionWeakPtr& clientCnx,
+                                                      const std::string& listenerName, Result result,
+                                                      const ClientConnectionWeakPtr& clientCnx,
                                                       LookupDataResultPromisePtr promise) {
     if (result != ResultOk) {
         promise->setFailed(ResultConnectError);
@@ -85,7 +94,7 @@ void BinaryProtoLookupService::sendTopicLookupRequest(const std::string& topicNa
     LookupDataResultPromisePtr lookupPromise = std::make_shared<LookupDataResultPromise>();
     ClientConnectionPtr conn = clientCnx.lock();
     uint64_t requestId = newRequestId();
-    conn->newTopicLookup(topicName, authoritative, requestId, lookupPromise);
+    conn->newTopicLookup(topicName, authoritative, listenerName, requestId, lookupPromise);
     lookupPromise->getFuture().addListener(std::bind(&BinaryProtoLookupService::handleLookup, this, topicName,
                                                      std::placeholders::_1, std::placeholders::_2, clientCnx,
                                                      promise));
@@ -105,7 +114,7 @@ void BinaryProtoLookupService::handleLookup(const std::string& topicName, Result
             Future<Result, ClientConnectionWeakPtr> future =
                 cnxPool_.getConnectionAsync(logicalAddress, physicalAddress);
             future.addListener(std::bind(&BinaryProtoLookupService::sendTopicLookupRequest, this, topicName,
-                                         data->isAuthoritative(), std::placeholders::_1,
+                                         data->isAuthoritative(), listenerName_, std::placeholders::_1,
                                          std::placeholders::_2, promise));
         } else {
             LOG_DEBUG("Lookup response for " << topicName << ", lookup-broker-url " << data->getBrokerUrl());

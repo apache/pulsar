@@ -29,7 +29,6 @@ import org.slf4j.LoggerFactory;
  * and invalidated by the ZNode path. For the data cache, ZNode data parsing is done at request time with the given
  * {@link Deserializer} argument.
  *
- * @param <T>
  */
 public class LocalZooKeeperCache extends ZooKeeperCache {
 

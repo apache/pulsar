@@ -23,14 +23,16 @@ import static org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy.RE
 import static org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy.REPP_ENABLE_VALIDATION;
 import static org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy.REPP_MINIMUM_REGIONS_FOR_DURABILITY;
 import static org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy.REPP_REGIONS_TO_WRITE;
-
+import static org.apache.bookkeeper.net.CommonConfigurationKeys.NET_TOPOLOGY_SCRIPT_FILE_NAME_KEY;
+import com.google.common.annotations.VisibleForTesting;
+import io.netty.channel.EventLoopGroup;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-
-import com.google.common.annotations.VisibleForTesting;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
@@ -40,14 +42,15 @@ import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.zookeeper.ZkBookieRackAffinityMapping;
 import org.apache.pulsar.zookeeper.ZkIsolatedBookieEnsemblePlacementPolicy;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.zookeeper.ZooKeeper;
-import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 
 @SuppressWarnings("deprecation")
+@Slf4j
 public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
 
     private final AtomicReference<ZooKeeperCache> rackawarePolicyZkCache = new AtomicReference<>();
@@ -55,14 +58,15 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
     private final AtomicReference<ZooKeeperCache> zkCache = new AtomicReference<>();
 
     @Override
-    public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient,
+    public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient, EventLoopGroup eventLoopGroup,
                              Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
                              Map<String, Object> properties) throws IOException {
-        return create(conf, zkClient, ensemblePlacementPolicyClass, properties, NullStatsLogger.INSTANCE);
+        return create(conf, zkClient, eventLoopGroup, ensemblePlacementPolicyClass, properties,
+                NullStatsLogger.INSTANCE);
     }
 
     @Override
-    public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient,
+    public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient, EventLoopGroup eventLoopGroup,
                              Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
                              Map<String, Object> properties, StatsLogger statsLogger) throws IOException {
         ClientConfiguration bkConf = createBkClientConfiguration(conf);
@@ -77,6 +81,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         try {
             return BookKeeper.forConfig(bkConf)
                     .allocator(PulsarByteBufAllocator.DEFAULT)
+                    .eventLoopGroup(eventLoopGroup)
                     .statsLogger(statsLogger)
                     .build();
         } catch (InterruptedException | BKException e) {
@@ -106,6 +111,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
             bkConf.setTLSTrustStorePasswordPath(conf.getBookkeeperTLSTrustStorePasswordPath());
         }
 
+        bkConf.setNumWorkerThreads(conf.getBookkeeperClientNumWorkerThreads());
         bkConf.setThrottleValue(conf.getBookkeeperClientThrottleValue());
         bkConf.setAddEntryTimeout((int) conf.getBookkeeperClientTimeoutInSeconds());
         bkConf.setReadEntryTimeout((int) conf.getBookkeeperClientTimeoutInSeconds());
@@ -130,13 +136,24 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
             bkConf.setBookieErrorThresholdPerInterval(conf.getBookkeeperClientHealthCheckErrorThresholdPerInterval());
             bkConf.setBookieQuarantineTime((int) conf.getBookkeeperClientHealthCheckQuarantineTimeInSeconds(),
                     TimeUnit.SECONDS);
+            bkConf.setBookieQuarantineRatio(conf.getBookkeeperClientQuarantineRatio());
         }
 
         bkConf.setReorderReadSequenceEnabled(conf.isBookkeeperClientReorderReadSequenceEnabled());
         bkConf.setExplictLacInterval(conf.getBookkeeperExplicitLacIntervalInMills());
-        bkConf.setGetBookieInfoIntervalSeconds(conf.getBookkeeperClientGetBookieInfoIntervalSeconds(), TimeUnit.SECONDS);
-        bkConf.setGetBookieInfoRetryIntervalSeconds(conf.getBookkeeperClientGetBookieInfoRetryIntervalSeconds(), TimeUnit.SECONDS);
-
+        bkConf.setGetBookieInfoIntervalSeconds(
+                conf.getBookkeeperClientGetBookieInfoIntervalSeconds(), TimeUnit.SECONDS);
+        bkConf.setGetBookieInfoRetryIntervalSeconds(
+                conf.getBookkeeperClientGetBookieInfoRetryIntervalSeconds(), TimeUnit.SECONDS);
+        Properties allProps = conf.getProperties();
+        allProps.forEach((key, value) -> {
+            String sKey = key.toString();
+            if (sKey.startsWith("bookkeeper_") && value != null) {
+                String bkExtraConfigKey = sKey.substring(11);
+                log.info("Extra BookKeeper client configuration {}, setting {}={}", sKey, bkExtraConfigKey, value);
+                bkConf.setProperty(bkExtraConfigKey, value);
+            }
+        });
         return bkConf;
     }
 
@@ -178,6 +195,11 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
                     conf.getProperties().getProperty(
                             REPP_DNS_RESOLVER_CLASS,
                             ZkBookieRackAffinityMapping.class.getName()));
+
+            bkConf.setProperty(NET_TOPOLOGY_SCRIPT_FILE_NAME_KEY,
+                conf.getProperties().getProperty(
+                    NET_TOPOLOGY_SCRIPT_FILE_NAME_KEY,
+                    ""));
 
             ZooKeeperCache zkc = new ZooKeeperCache("bookies-racks", zkClient,
                     conf.getZooKeeperOperationTimeoutSeconds()) {
@@ -223,6 +245,11 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         if (conf.isBookkeeperClientRackawarePolicyEnabled() || conf.isBookkeeperClientRegionawarePolicyEnabled()) {
             bkConf.setProperty(REPP_DNS_RESOLVER_CLASS, conf.getProperties().getProperty(REPP_DNS_RESOLVER_CLASS,
                     ZkBookieRackAffinityMapping.class.getName()));
+
+            bkConf.setProperty(NET_TOPOLOGY_SCRIPT_FILE_NAME_KEY,
+                conf.getProperties().getProperty(
+                    NET_TOPOLOGY_SCRIPT_FILE_NAME_KEY,
+                    ""));
         }
     }
 

@@ -20,11 +20,10 @@ package org.apache.pulsar.broker.namespace;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Maps;
-import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
-
-import javax.validation.constraints.NotNull;
 import java.util.Collections;
 import java.util.Map;
+import javax.validation.constraints.NotNull;
+import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 
 public class NamespaceEphemeralData {
     private String nativeUrl;

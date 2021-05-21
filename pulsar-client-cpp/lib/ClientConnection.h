@@ -120,8 +120,8 @@ class PULSAR_PUBLIC ClientConnection : public std::enable_shared_from_this<Clien
 
     Future<Result, ClientConnectionWeakPtr> getCloseFuture();
 
-    void newTopicLookup(const std::string& topicName, bool authoritative, const uint64_t requestId,
-                        LookupDataResultPromisePtr promise);
+    void newTopicLookup(const std::string& topicName, bool authoritative, const std::string& listenerName,
+                        const uint64_t requestId, LookupDataResultPromisePtr promise);
 
     void newPartitionedMetadataLookup(const std::string& topicName, const uint64_t requestId,
                                       LookupDataResultPromisePtr promise);

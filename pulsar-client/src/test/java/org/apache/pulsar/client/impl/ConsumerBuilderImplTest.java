@@ -121,6 +121,29 @@ public class ConsumerBuilderImplTest {
                 .cryptoKeyReader(null);
     }
 
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testConsumerBuilderImplWhenDefaultCryptoKeyReaderIsNullString() {
+        consumerBuilderImpl.topic(TOPIC_NAME).subscriptionName("subscriptionName")
+                .defaultCryptoKeyReader((String) null);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testConsumerBuilderImplWhenDefaultCryptoKeyReaderIsEmptyString() {
+        consumerBuilderImpl.topic(TOPIC_NAME).subscriptionName("subscriptionName").defaultCryptoKeyReader("");
+    }
+
+    @Test(expectedExceptions = NullPointerException.class)
+    public void testConsumerBuilderImplWhenDefaultCryptoKeyReaderIsNullMap() {
+        consumerBuilderImpl.topic(TOPIC_NAME).subscriptionName("subscriptionName")
+                .defaultCryptoKeyReader((Map<String, String>) null);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testConsumerBuilderImplWhenDefaultCryptoKeyReaderIsEmptyMap() {
+        consumerBuilderImpl.topic(TOPIC_NAME).subscriptionName("subscriptionName")
+                .defaultCryptoKeyReader(new HashMap<String, String>());
+    }
+
     @Test(expectedExceptions = NullPointerException.class)
     public void testConsumerBuilderImplWhenCryptoFailureActionIsNull() {
         consumerBuilderImpl.topic(TOPIC_NAME)

@@ -89,32 +89,23 @@ class KeySharedConsumerTest : public ::testing::Test {
 
     static void sendCallback(Result result, const MessageId&) { ASSERT_EQ(result, ResultOk); }
 
-    void receiveAndCheckDistribution() {
-        // key is message's ordering key or partitioned key, value is consumer index
-        std::map<std::string, size_t> keyToConsumer;
-        // key is consumer index, value is the number of message received by
-        std::map<size_t, int> messagesPerConsumer;
-        receiveAndCheckDistribution(keyToConsumer, messagesPerConsumer);
-    }
-
-    void receiveAndCheckDistribution(std::map<std::string, size_t>& keyToConsumer,
-                                     std::map<size_t, int>& messagesPerConsumer) {
+    void receiveAndCheckDistribution(int expectedNumTotalMessages) {
+        keyToConsumer.clear();
+        messagesPerConsumer.clear();
         int totalMessages = 0;
 
         for (size_t i = 0; i < consumers.size(); i++) {
             auto& consumer = consumers[i];
-            int messagesForThisConsumer = 0;
             while (true) {
                 Message msg;
-                Result result = consumer.receive(msg, 1000);
+                Result result = consumer.receive(msg, 3000);
                 if (result == ResultTimeout) {
-                    messagesPerConsumer[i] = messagesForThisConsumer;
                     break;
                 }
 
                 ASSERT_EQ(result, ResultOk);
                 totalMessages++;
-                messagesForThisConsumer++;
+                messagesPerConsumer[i]++;
                 ASSERT_EQ(ResultOk, consumer.acknowledge(msg));
 
                 if (msg.hasPartitionKey() || msg.hasOrderingKey()) {
@@ -123,15 +114,22 @@ class KeySharedConsumerTest : public ::testing::Test {
                     if (iter == keyToConsumer.end()) {
                         keyToConsumer[key] = i;
                     } else {
+                        // check messages with the same key will be consumed by the same consumer
                         ASSERT_EQ(iter->second, i);
                     }
                 }
             }
         }
 
+        LOG_INFO("messagesPerConsumer: " << messagesPerConsumer);
+        int numTotalMessages = 0;
+        for (const auto& kv : messagesPerConsumer) {
+            numTotalMessages += kv.second;
+        }
+        ASSERT_EQ(numTotalMessages, expectedNumTotalMessages);
+
         const double expectedMessagesPerConsumer = static_cast<double>(totalMessages) / consumers.size();
         constexpr double PERCENT_ERROR = 0.50;
-        LOG_INFO("messagesPerConsumer: " << messagesPerConsumer);
         for (const auto& kv : messagesPerConsumer) {
             int count = kv.second;
             ASSERT_LT(fabs(count - expectedMessagesPerConsumer), expectedMessagesPerConsumer * PERCENT_ERROR);
@@ -142,6 +140,11 @@ class KeySharedConsumerTest : public ::testing::Test {
     std::vector<Producer> producers;
     std::vector<Consumer> consumers;
     const std::string subName = "SubscriptionName";
+
+    // key is message's ordering key or partitioned key, value is consumer index
+    std::map<std::string, size_t> keyToConsumer;
+    // key is consumer index, value is the number of message received by
+    std::map<size_t, int> messagesPerConsumer;
 };
 
 TEST_F(KeySharedConsumerTest, testNonPartitionedTopic) {
@@ -153,13 +156,14 @@ TEST_F(KeySharedConsumerTest, testNonPartitionedTopic) {
     }
 
     srand(time(nullptr));
-    for (int i = 0; i < 1000; i++) {
+    constexpr int numMessagesPerProducer = 1000;
+    for (int i = 0; i < numMessagesPerProducer; i++) {
         std::string key = std::to_string(rand() % NUMBER_OF_KEYS);
         producers[0].sendAsync(newIntMessage(i, key), sendCallback);
     }
     ASSERT_EQ(ResultOk, producers[0].flush());
 
-    receiveAndCheckDistribution();
+    receiveAndCheckDistribution(numMessagesPerProducer);
 }
 
 TEST_F(KeySharedConsumerTest, testMultiTopics) {
@@ -173,15 +177,16 @@ TEST_F(KeySharedConsumerTest, testMultiTopics) {
     }
 
     srand(time(nullptr));
+    constexpr int numMessagesPerProducer = 1000;
     for (auto& producer : producers) {
-        for (int i = 0; i < 1000; i++) {
+        for (int i = 0; i < numMessagesPerProducer; i++) {
             std::string key = std::to_string(rand() % NUMBER_OF_KEYS);
             producer.sendAsync(newIntMessage(i, key), sendCallback);
         }
         ASSERT_EQ(ResultOk, producer.flush());
     }
 
-    receiveAndCheckDistribution();
+    receiveAndCheckDistribution(numMessagesPerProducer * 3);
 }
 
 TEST_F(KeySharedConsumerTest, testOrderingKeyPriority) {
@@ -194,7 +199,8 @@ TEST_F(KeySharedConsumerTest, testOrderingKeyPriority) {
     }
 
     srand(time(nullptr));
-    for (int i = 0; i < 1000; i++) {
+    constexpr int numMessagesPerProducer = 1000;
+    for (int i = 0; i < numMessagesPerProducer; i++) {
         int randomInt = rand();
         std::string key = std::to_string(randomInt % NUMBER_OF_KEYS);
         std::string orderingKey = std::to_string((randomInt + 1) % NUMBER_OF_KEYS);
@@ -202,7 +208,7 @@ TEST_F(KeySharedConsumerTest, testOrderingKeyPriority) {
     }
     ASSERT_EQ(ResultOk, producers[0].flush());
 
-    receiveAndCheckDistribution();
+    receiveAndCheckDistribution(numMessagesPerProducer);
 }
 
 TEST_F(KeySharedConsumerTest, testKeyBasedBatching) {
@@ -223,9 +229,7 @@ TEST_F(KeySharedConsumerTest, testKeyBasedBatching) {
         producers[0].sendAsync(newIntMessage(i, "", key.c_str()), sendCallback);
     }
 
-    std::map<std::string, size_t> keyToConsumer;
-    std::map<size_t, int> messagesPerConsumer;
-    receiveAndCheckDistribution(keyToConsumer, messagesPerConsumer);
+    receiveAndCheckDistribution(BATCHING_MAX_MESSAGES);
     // Each consumer should receive 1 batched message for each key
     for (int i = 0; i < NUM_KEYS; i++) {
         ASSERT_EQ(messagesPerConsumer[i], NUM_MESSAGES_PER_KEY);

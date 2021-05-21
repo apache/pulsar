@@ -48,6 +48,7 @@ struct Arguments {
     bool isTlsAllowInsecureConnection;
     std::string tlsTrustCertsFilePath;
     std::string topic;
+    int memoryLimitMb;
     double rate;
     int msgSize;
     int numTopics;
@@ -62,6 +63,7 @@ struct Arguments {
     unsigned int batchingMaxMessages;
     long batchingMaxAllowedSizeInBytes;
     long batchingMaxPublishDelayMs;
+    bool poolConnections;
     std::string encKeyName;
     std::string encKeyValueFile;
     std::string compression;
@@ -219,6 +221,8 @@ int main(int argc, char** argv) {
     desc.add_options()                         //
         ("help,h", "Print this help message")  //
 
+        ("memory-limit,ml", po::value<int>(&args.memoryLimitMb)->default_value(64), "Memory limit (MB)")  //
+
         ("auth-params,v", po::value<std::string>(&args.authParams)->default_value(""),
          "Authentication parameters, e.g., \"key1:val1,key2:val2\"")  //
 
@@ -277,6 +281,9 @@ int main(int argc, char** argv) {
         ("max-batch-publish-delay-in-ms",
          po::value<long>(&args.batchingMaxPublishDelayMs)->default_value(3000),
          "Use only is batch-size > 1, Default is 3 seconds")  //
+
+        ("pool-connections", po::value<bool>(&args.poolConnections)->default_value(false),
+         "whether pool connections used")  //
 
         ("encryption-key-name,k", po::value<std::string>(&args.encKeyName)->default_value(""),
          "The public key name to encrypt payload")  //
@@ -363,6 +370,7 @@ int main(int argc, char** argv) {
     producerConf.setPartitionsRoutingMode(ProducerConfiguration::RoundRobinDistribution);
 
     pulsar::ClientConfiguration conf;
+    conf.setMemoryLimit(args.memoryLimitMb * 1024 * 1024);
     conf.setUseTls(args.isUseTls);
     conf.setTlsAllowInsecureConnection(args.isTlsAllowInsecureConnection);
     if (!args.tlsTrustCertsFilePath.empty()) {
@@ -376,7 +384,7 @@ int main(int argc, char** argv) {
         conf.setAuth(auth);
     }
 
-    pulsar::Client client(pulsar::PulsarFriend::getClient(args.serviceURL, conf, false));
+    pulsar::Client client(pulsar::PulsarFriend::getClient(args.serviceURL, conf, args.poolConnections));
 
     std::atomic<bool> exitCondition(false);
     startPerfProducer(args, producerConf, client, exitCondition);

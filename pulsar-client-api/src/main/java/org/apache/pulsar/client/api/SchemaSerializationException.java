@@ -18,9 +18,14 @@
  */
 package org.apache.pulsar.client.api;
 
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+
 /**
  * Schema serialization exception.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public class SchemaSerializationException extends RuntimeException {
 
     /**

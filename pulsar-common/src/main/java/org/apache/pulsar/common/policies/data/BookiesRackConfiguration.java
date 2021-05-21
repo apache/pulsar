@@ -19,7 +19,6 @@
 package org.apache.pulsar.common.policies.data;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;

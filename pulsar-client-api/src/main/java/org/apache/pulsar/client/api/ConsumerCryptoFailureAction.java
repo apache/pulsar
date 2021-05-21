@@ -19,10 +19,15 @@
 
 package org.apache.pulsar.client.api;
 
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+
 /**
  * The action a consumer should take when a consumer receives a
  * message that it cannot decrypt.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public enum ConsumerCryptoFailureAction {
     /**
      * This is the default option to fail consume messages until crypto succeeds.

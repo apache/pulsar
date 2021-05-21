@@ -41,10 +41,10 @@ public class WorkerContainer extends PulsarContainer<WorkerContainer> {
     @Override
     protected void beforeStop() {
         super.beforeStop();
-        if (null != containerId) {
+        if (null != getContainerId()) {
             DockerUtils.dumpContainerDirToTargetCompressed(
                     getDockerClient(),
-                    containerId,
+                    getContainerId(),
                     "/pulsar/logs/functions"
             );
         }

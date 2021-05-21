@@ -19,11 +19,15 @@
 package org.apache.pulsar.functions.api;
 
 import java.util.Collection;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * This is the interface of the windowed function api. The process method is called
  * for every triggered window.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 @FunctionalInterface
 public interface WindowFunction<I, O> {
     /**

@@ -18,14 +18,21 @@
  */
 package org.apache.pulsar.broker.service;
 
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.util.Murmur3_32Hash;
-
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentSkipListMap;
+import org.apache.pulsar.common.api.proto.IntRange;
+import org.apache.pulsar.common.api.proto.KeySharedMeta;
+import org.apache.pulsar.common.util.Murmur3_32Hash;
 
+/**
+ * This is a sticky-key consumer selector based user provided range.
+ * User is responsible for making sure provided range for all consumers cover the rangeSize
+ * else there'll be chance that a key fall in a `whole` that not handled by any consumer.
+ */
 public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyConsumerSelector {
 
     private final int rangeSize;
@@ -47,7 +54,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
     @Override
     public void addConsumer(Consumer consumer) throws BrokerServiceException.ConsumerAssignException {
         validateKeySharedMeta(consumer);
-        for (PulsarApi.IntRange intRange : consumer.getKeySharedMeta().getHashRangesList()) {
+        for (IntRange intRange : consumer.getKeySharedMeta().getHashRangesList()) {
             rangeMap.put(intRange.getStart(), consumer);
             rangeMap.put(intRange.getEnd(), consumer);
         }
@@ -61,6 +68,24 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
     @Override
     public Consumer select(byte[] stickyKey) {
         return select(Murmur3_32Hash.getInstance().makeHash(stickyKey));
+    }
+
+    @Override
+    public Map<String, List<String>> getConsumerKeyHashRanges() {
+        Map<String, List<String>> result = new HashMap<>();
+        Map.Entry<Integer, Consumer> prev = null;
+        for (Map.Entry<Integer, Consumer> entry: rangeMap.entrySet()) {
+            if (prev == null) {
+                prev = entry;
+            } else {
+                if (prev.getValue().equals(entry.getValue())) {
+                    result.computeIfAbsent(entry.getValue().consumerName(), key -> new ArrayList<>())
+                            .add("[" + prev.getKey() + ", " + entry.getKey() + "]");
+                }
+                prev = null;
+            }
+        }
+        return result;
     }
 
     Consumer select(int hash) {
@@ -84,11 +109,11 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
         if (consumer.getKeySharedMeta() == null) {
             throw new BrokerServiceException.ConsumerAssignException("Must specify key shared meta for consumer.");
         }
-        List<PulsarApi.IntRange> ranges = consumer.getKeySharedMeta().getHashRangesList();
+        List<IntRange> ranges = consumer.getKeySharedMeta().getHashRangesList();
         if (ranges.isEmpty()) {
             throw new BrokerServiceException.ConsumerAssignException("Ranges for KeyShared policy must not be empty.");
         }
-        for (PulsarApi.IntRange intRange : ranges) {
+        for (IntRange intRange : ranges) {
 
             if (intRange.getStart() > intRange.getEnd()) {
                 throw new BrokerServiceException.ConsumerAssignException("Fixed hash range start > end");
@@ -98,20 +123,23 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
             Map.Entry<Integer, Consumer> floorEntry = rangeMap.floorEntry(intRange.getEnd());
 
             if (floorEntry != null && floorEntry.getKey() >= intRange.getStart()) {
-                throw new BrokerServiceException.ConsumerAssignException("Range conflict with consumer " + floorEntry.getValue());
+                throw new BrokerServiceException.ConsumerAssignException("Range conflict with consumer "
+                        + floorEntry.getValue());
             }
 
             if (ceilingEntry != null && ceilingEntry.getKey() <= intRange.getEnd()) {
-                throw new BrokerServiceException.ConsumerAssignException("Range conflict with consumer " + ceilingEntry.getValue());
+                throw new BrokerServiceException.ConsumerAssignException("Range conflict with consumer "
+                        + ceilingEntry.getValue());
             }
 
             if (ceilingEntry != null && floorEntry != null && ceilingEntry.getValue().equals(floorEntry.getValue())) {
-                PulsarApi.KeySharedMeta keySharedMeta = ceilingEntry.getValue().getKeySharedMeta();
-                for (PulsarApi.IntRange range : keySharedMeta.getHashRangesList()) {
+                KeySharedMeta keySharedMeta = ceilingEntry.getValue().getKeySharedMeta();
+                for (IntRange range : keySharedMeta.getHashRangesList()) {
                     int start = Math.max(intRange.getStart(), range.getStart());
                     int end = Math.min(intRange.getEnd(), range.getEnd());
                     if (end >= start) {
-                        throw new BrokerServiceException.ConsumerAssignException("Range conflict with consumer " + ceilingEntry.getValue());
+                        throw new BrokerServiceException.ConsumerAssignException("Range conflict with consumer "
+                                + ceilingEntry.getValue());
                     }
                 }
             }

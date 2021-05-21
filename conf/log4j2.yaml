@@ -40,12 +40,12 @@ Configuration:
         value: "Console"
 
   # Example: logger-filter script
-  Scripts:
-    ScriptFile:
-      name: filter.js
-      language: JavaScript
-      path: ./conf/log4j2-scripts/filter.js
-      charset: UTF-8
+#  Scripts:
+#    ScriptFile:
+#      name: filter.js
+#      language: JavaScript
+#      path: ./conf/log4j2-scripts/filter.js
+#      charset: UTF-8
 
   Appenders:
 

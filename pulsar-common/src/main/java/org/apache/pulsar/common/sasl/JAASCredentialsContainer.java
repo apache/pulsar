@@ -29,7 +29,6 @@ import javax.security.auth.login.AppConfigurationEntry;
 import javax.security.auth.login.Configuration;
 import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
-
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 

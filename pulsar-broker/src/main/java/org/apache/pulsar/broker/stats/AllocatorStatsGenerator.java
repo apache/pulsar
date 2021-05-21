@@ -18,22 +18,19 @@
  */
 package org.apache.pulsar.broker.stats;
 
+import com.google.common.collect.Lists;
+import io.netty.buffer.PoolArenaMetric;
+import io.netty.buffer.PoolChunkListMetric;
+import io.netty.buffer.PoolChunkMetric;
+import io.netty.buffer.PoolSubpageMetric;
+import io.netty.buffer.PooledByteBufAllocator;
 import java.util.stream.Collectors;
-
 import org.apache.bookkeeper.mledger.impl.EntryCacheImpl;
 import org.apache.pulsar.common.stats.AllocatorStats;
 import org.apache.pulsar.common.stats.AllocatorStats.PoolArenaStats;
 import org.apache.pulsar.common.stats.AllocatorStats.PoolChunkListStats;
 import org.apache.pulsar.common.stats.AllocatorStats.PoolChunkStats;
 import org.apache.pulsar.common.stats.AllocatorStats.PoolSubpageStats;
-
-import com.google.common.collect.Lists;
-
-import io.netty.buffer.PoolArenaMetric;
-import io.netty.buffer.PoolChunkListMetric;
-import io.netty.buffer.PoolChunkMetric;
-import io.netty.buffer.PoolSubpageMetric;
-import io.netty.buffer.PooledByteBufAllocator;
 
 public class AllocatorStatsGenerator {
     public static AllocatorStats generate(String allocatorName) {

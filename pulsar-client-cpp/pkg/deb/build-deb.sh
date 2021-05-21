@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -21,22 +21,23 @@
 set -e -x
 
 cd /pulsar
-SRC_ROOT_DIR=$(git rev-parse --show-toplevel)
+SRC_ROOT_DIR=$(pwd)
 cd $SRC_ROOT_DIR/pulsar-client-cpp/pkg/deb
 
 POM_VERSION=`$SRC_ROOT_DIR/src/get-project-version.py`
 # Sanitize VERSION by removing `SNAPSHOT` if any since it's not legal in DEB
 VERSION=`echo $POM_VERSION | awk -F-  '{print $1}'`
 
-ROOT_DIR=apache-pulsar-$POM_VERSION
+ROOT_DIR=apache-pulsar-$POM_VERSION-src
 CPP_DIR=$ROOT_DIR/pulsar-client-cpp
 
 rm -rf BUILD
 mkdir BUILD
 cd BUILD
-tar xfz $SRC_ROOT_DIR/distribution/server/target/apache-pulsar-$POM_VERSION-src.tar.gz
+tar xfz $SRC_ROOT_DIR/target/apache-pulsar-$POM_VERSION-src.tar.gz
 pushd $CPP_DIR
 
+chmod +x $(find . -name "*.sh")
 cmake . -DBUILD_TESTS=OFF -DLINK_STATIC=ON
 make pulsarShared pulsarSharedNossl pulsarStatic pulsarStaticWithDeps  -j 3
 popd

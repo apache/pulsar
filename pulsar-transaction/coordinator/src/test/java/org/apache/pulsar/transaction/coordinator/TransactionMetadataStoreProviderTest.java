@@ -29,8 +29,8 @@ import java.util.concurrent.ExecutionException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.InvalidTxnStatusException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.TransactionNotFoundException;
-import org.apache.pulsar.transaction.impl.common.TxnStatus;
 import org.apache.pulsar.transaction.coordinator.impl.InMemTransactionMetadataStoreProvider;
+import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Factory;
@@ -62,7 +62,8 @@ public class TransactionMetadataStoreProviderTest {
     @BeforeMethod
     public void setup() throws Exception {
         this.tcId = new TransactionCoordinatorID(1L);
-        this.store = this.provider.openStore(tcId, null).get();
+        this.store = this.provider.openStore(tcId, null, null,
+                null, new MLTransactionMetadataStoreTest.TransactionRecoverTrackerImpl()).get();
     }
 
     @Test
@@ -78,19 +79,19 @@ public class TransactionMetadataStoreProviderTest {
 
     @Test
     public void testGetTxnStatusSuccess() throws Exception {
-        TxnID txnID = this.store.newTransaction().get();
+        TxnID txnID = this.store.newTransaction(0L).get();
         TxnStatus txnStatus = this.store.getTxnStatus(txnID).get();
         assertEquals(txnStatus, TxnStatus.OPEN);
     }
 
     @Test
     public void testUpdateTxnStatusSuccess() throws Exception {
-        TxnID txnID = this.store.newTransaction().get();
+        TxnID txnID = this.store.newTransaction(0L).get();
         TxnStatus txnStatus = this.store.getTxnStatus(txnID).get();
         assertEquals(txnStatus, TxnStatus.OPEN);
 
         // update the status
-        this.store.updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN).get();
+        this.store.updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN, false).get();
 
         // get the new status
         TxnStatus newTxnStatus = this.store.getTxnStatus(txnID).get();
@@ -99,13 +100,13 @@ public class TransactionMetadataStoreProviderTest {
 
     @Test
     public void testUpdateTxnStatusNotExpectedStatus() throws Exception {
-        TxnID txnID = this.store.newTransaction().get();
+        TxnID txnID = this.store.newTransaction(0L).get();
         TxnStatus txnStatus = this.store.getTxnStatus(txnID).get();
         assertEquals(txnStatus, TxnStatus.OPEN);
 
         // update the status
         try {
-            this.store.updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.COMMITTING).get();
+            this.store.updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.COMMITTING, false).get();
             fail("Should fail to update txn status if it is not in expected status");
         } catch (ExecutionException ee) {
             assertTrue(ee.getCause() instanceof InvalidTxnStatusException);
@@ -118,13 +119,13 @@ public class TransactionMetadataStoreProviderTest {
 
     @Test
     public void testUpdateTxnStatusCannotTransition() throws Exception {
-        TxnID txnID = this.store.newTransaction().get();
+        TxnID txnID = this.store.newTransaction(0L).get();
         TxnStatus txnStatus = this.store.getTxnStatus(txnID).get();
         assertEquals(txnStatus, TxnStatus.OPEN);
 
         // update the status
         try {
-            this.store.updateTxnStatus(txnID, TxnStatus.COMMITTED, TxnStatus.OPEN).get();
+            this.store.updateTxnStatus(txnID, TxnStatus.COMMITTED, TxnStatus.OPEN, false).get();
             fail("Should fail to update txn status if it can not transition to the new status");
         } catch (ExecutionException ee) {
             assertTrue(ee.getCause() instanceof InvalidTxnStatusException);
@@ -137,7 +138,7 @@ public class TransactionMetadataStoreProviderTest {
 
     @Test
     public void testAddProducedPartition() throws Exception {
-        TxnID txnID = this.store.newTransaction().get();
+        TxnID txnID = this.store.newTransaction(0L).get();
         TxnStatus txnStatus = this.store.getTxnStatus(txnID).get();
         assertEquals(txnStatus, TxnStatus.OPEN);
 
@@ -171,7 +172,7 @@ public class TransactionMetadataStoreProviderTest {
         assertEquals(txn.producedPartitions(), finalPartitions);
 
         // change the transaction to `COMMITTING`
-        this.store.updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN).get();
+        this.store.updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN, false).get();
 
         // add partitions should fail if it is already committing.
         List<String> newPartitions2 = new ArrayList<>();
@@ -191,7 +192,7 @@ public class TransactionMetadataStoreProviderTest {
 
     @Test
     public void testAddAckedPartition() throws Exception {
-        TxnID txnID = this.store.newTransaction().get();
+        TxnID txnID = this.store.newTransaction(0L).get();
         TxnStatus txnStatus = this.store.getTxnStatus(txnID).get();
         assertEquals(txnStatus, TxnStatus.OPEN);
 
@@ -231,7 +232,7 @@ public class TransactionMetadataStoreProviderTest {
         assertEquals(txn.ackedPartitions(), finalPartitions);
 
         // change the transaction to `COMMITTING`
-        this.store.updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN).get();
+        this.store.updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN, false).get();
 
         // add partitions should fail if it is already committing.
         List<TransactionSubscription> newPartitions2 = new ArrayList<>();

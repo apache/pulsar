@@ -24,31 +24,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.util.concurrent.DefaultThreadFactory;
-import lombok.Builder;
-import lombok.Data;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.api.CompressionType;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.common.util.Reflections;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.Function.Assignment;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
-import org.apache.pulsar.functions.proto.Function.Instance;
-import org.apache.pulsar.functions.utils.Actions;
-import org.apache.pulsar.functions.utils.FunctionCommon;
-import org.apache.pulsar.functions.worker.scheduler.IScheduler;
-
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -64,10 +39,32 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import lombok.Builder;
+import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.common.util.Reflections;
+import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.Function.Assignment;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
+import org.apache.pulsar.functions.proto.Function.Instance;
+import org.apache.pulsar.functions.utils.FunctionCommon;
+import org.apache.pulsar.functions.worker.scheduler.IScheduler;
 
 @Slf4j
 /**
@@ -99,10 +96,10 @@ public class SchedulerManager implements AutoCloseable {
 
     private final IScheduler scheduler;
 
-    private Producer<byte[]> producer;
+    private Producer<byte[]> exclusiveProducer;
 
     private ScheduledExecutorService scheduledExecutorService;
-    
+
     private final PulsarAdmin admin;
 
     @Getter
@@ -111,7 +108,7 @@ public class SchedulerManager implements AutoCloseable {
     private volatile boolean isRunning = false;
 
     AtomicBoolean isCompactionNeeded = new AtomicBoolean(false);
-    private static final long DEFAULT_ADMIN_API_BACKOFF_SEC = 60; 
+    private static final long DEFAULT_ADMIN_API_BACKOFF_SEC = 60;
     public static final String HEARTBEAT_TENANT = "pulsar-function";
     public static final String HEARTBEAT_NAMESPACE = "heartbeat";
 
@@ -136,55 +133,26 @@ public class SchedulerManager implements AutoCloseable {
         this.errorNotifier = errorNotifier;
     }
 
-    private static Producer<byte[]> createProducer(PulsarClient client, WorkerConfig config) {
-        Actions.Action createProducerAction = Actions.Action.builder()
-                .actionName(String.format("Creating producer for assignment topic %s", config.getFunctionAssignmentTopic()))
-                .numRetries(5)
-                .sleepBetweenInvocationsMs(10000)
-                .supplier(() -> {
-                    try {
-                        // TODO set producer to be in exclusive mode
-                        Producer<byte[]> producer = client.newProducer().topic(config.getFunctionAssignmentTopic())
-                                .enableBatching(false)
-                                .blockIfQueueFull(true)
-                                .compressionType(CompressionType.LZ4)
-                                .sendTimeout(0, TimeUnit.MILLISECONDS)
-                                .producerName(config.getWorkerId() + "-scheduler-manager")
-                                .createAsync().get(10, TimeUnit.SECONDS);
-                        return Actions.ActionResult.builder().success(true).result(producer).build();
-                    } catch (Exception e) {
-                        log.error("Exception while at creating producer to topic {}", config.getFunctionAssignmentTopic(), e);
-                        return Actions.ActionResult.builder()
-                                .success(false)
-                                .build();
-                    }
-                })
-                .build();
-        AtomicReference<Producer<byte[]>> producer = new AtomicReference<>();
-        try {
-            Actions.newBuilder()
-                    .addAction(createProducerAction.toBuilder()
-                            .onSuccess((actionResult) -> producer.set((Producer<byte[]>) actionResult.getResult()))
-                            .build())
-                    .run();
-        } catch (InterruptedException e) {
-            log.error("Interrupted at creating producer to topic {}", config.getFunctionAssignmentTopic(), e);
-            Thread.currentThread().interrupt();
-            throw new RuntimeException(e);
-        }
-        if (producer.get() == null) {
-            throw new RuntimeException("Can't create a producer on assignment topic "
-                    + config.getFunctionAssignmentTopic());
-        }
-        return producer.get();
+    /**
+     * Acquires a exclusive producer.  This method cannot return null.  It can only return a valid exclusive producer
+     * or throw NotLeaderAnymore exception.
+     * @param isLeader if the worker is still the leader
+     * @return A valid exclusive producer
+     * @throws WorkerUtils.NotLeaderAnymore if the worker is no longer the leader.
+     */
+    public Producer<byte[]> acquireExclusiveWrite(Supplier<Boolean> isLeader) throws WorkerUtils.NotLeaderAnymore {
+        // creates exclusive producer for assignment topic
+        return WorkerUtils.createExclusiveProducerWithRetry(
+                pulsarClient,
+                workerConfig.getFunctionAssignmentTopic(),
+                workerConfig.getWorkerId() + "-scheduler-manager",
+                isLeader, 10000);
     }
 
-    public synchronized void initialize() {
+    public synchronized void initialize(Producer<byte[]> exclusiveProducer) {
         if (!isRunning) {
             log.info("Initializing scheduler manager");
-            // creates exclusive producer for assignment topic
-            producer = createProducer(pulsarClient, workerConfig);
-
+            this.exclusiveProducer = exclusiveProducer;
             executorService = new ThreadPoolExecutor(1, 5, 0L, TimeUnit.MILLISECONDS,
                     new LinkedBlockingQueue<>(5));
             executorService.setThreadFactory(new ThreadFactoryBuilder().setNameFormat("worker-scheduler-%d").build());
@@ -195,6 +163,9 @@ public class SchedulerManager implements AutoCloseable {
 
             isRunning = true;
             lastMessageProduced = null;
+        } else {
+            log.error("Scheduler Manager entered invalid state");
+            errorNotifier.triggerError(new IllegalStateException());
         }
     }
 
@@ -213,7 +184,7 @@ public class SchedulerManager implements AutoCloseable {
                         try {
                             runnable.run();
                         } catch (Throwable th) {
-                            log.error("Encountered error when invoking scheduler", errMsg);
+                            log.error("Encountered error when invoking scheduler [{}]", errMsg);
                             errorNotifier.triggerError(th);
                         }
                     }
@@ -252,7 +223,7 @@ public class SchedulerManager implements AutoCloseable {
             throw new RebalanceInProgressException();
         }
     }
-    
+
     @VisibleForTesting
     void invokeScheduler() {
         long startTime = System.nanoTime();
@@ -281,7 +252,7 @@ public class SchedulerManager implements AutoCloseable {
                 if (deleted) {
                     Assignment assignment = entry.getValue();
                     MessageId messageId = publishNewAssignment(assignment.toBuilder().build(), true);
-                    
+
                     // Directly update in memory assignment cache since I am leader
                     log.info("Deleting assignment: {}", assignment);
                     functionRuntimeManager.deleteAssignment(fullyQualifiedInstanceId);
@@ -334,7 +305,7 @@ public class SchedulerManager implements AutoCloseable {
                 .flatMap(stringMapEntry -> stringMapEntry.getValue().values().stream())
                 .collect(Collectors.toList());
 
-        Pair<List<Function.Instance>, List<Assignment>> unassignedInstances 
+        Pair<List<Function.Instance>, List<Assignment>> unassignedInstances
                 = getUnassignedFunctionInstances(workerIdToAssignments, allInstances);
 
         workerStatsManager.scheduleStrategyExecTimeStartStart();
@@ -462,7 +433,7 @@ public class SchedulerManager implements AutoCloseable {
             String fullyQualifiedInstanceId = FunctionCommon.getFullyQualifiedInstanceId(assignment.getInstance());
             // publish empty message with instance-id key so, compactor can delete and skip delivery of this instance-id
             // message
-            return producer.newMessage().key(fullyQualifiedInstanceId)
+            return exclusiveProducer.newMessage().key(fullyQualifiedInstanceId)
                     .value(deleted ? "".getBytes() : assignment.toByteArray()).send();
         } catch (Exception e) {
             log.error("Failed to {} assignment update {}", assignment, deleted ? "send" : "deleted", e);
@@ -544,9 +515,9 @@ public class SchedulerManager implements AutoCloseable {
                 executorService.shutdown();
             }
 
-            if (producer != null) {
+            if (exclusiveProducer != null) {
                 try {
-                    producer.close();
+                    exclusiveProducer.close();
                 } catch (PulsarClientException e) {
                     log.warn("Failed to shutdown scheduler manager assignment producer", e);
                 }
@@ -555,7 +526,7 @@ public class SchedulerManager implements AutoCloseable {
             schedulerLock.unlock();
         }
     }
-    
+
     static String checkHeartBeatFunction(Instance funInstance) {
         if (funInstance.getFunctionMetaData() != null
                 && funInstance.getFunctionMetaData().getFunctionDetails() != null) {

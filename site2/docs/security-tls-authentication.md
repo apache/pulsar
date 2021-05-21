@@ -16,6 +16,8 @@ Client certificates are generated using the certificate authority. Server certif
 
 The biggest difference between client certs and server certs is that the **common name** for the client certificate is the **role token** which that client is authenticated as.
 
+To use client certificates, you need to set `tlsRequireTrustedClientCertOnConnect=true` at the broker side. For details, refer to [TLS broker configuration](security-tls-transport.md#configure-broker).
+
 First, you need to enter the following command to generate the key :
 
 ```bash
@@ -73,7 +75,7 @@ superUserRoles=admin
 # Authentication settings of the broker itself. Used when the broker connects to other brokers, either in same or other clusters
 brokerClientTlsEnabled=true
 brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationTls
-brokerClientAuthenticationParameters=tlsCertFile:/path/my-ca/admin.cert.pem,tlsKeyFile:/path/my-ca/admin.key-pk8.pem
+brokerClientAuthenticationParameters={"tlsCertFile":"/path/my-ca/admin.cert.pem,tlsKeyFile:/path/my-ca/admin.key-pk8.pem"}
 brokerClientTrustCertsFilePath=/path/my-ca/certs/ca.cert.pem
 ```
 

@@ -85,6 +85,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class NamespaceServiceTest extends BrokerTestBase {
 
     @BeforeMethod
@@ -114,7 +115,10 @@ public class NamespaceServiceTest extends BrokerTestBase {
         NamespaceBundle originalBundle = bundles.findBundle(topicName);
 
         // Split bundle and take ownership of split bundles
-        CompletableFuture<Void> result = namespaceService.splitAndOwnBundle(originalBundle, false, NamespaceBundleSplitAlgorithm.rangeEquallyDivide);
+        CompletableFuture<Void> result = namespaceService.splitAndOwnBundle(
+                originalBundle,
+                false,
+                NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_ALGO);
 
         try {
             result.get();
@@ -194,7 +198,10 @@ public class NamespaceServiceTest extends BrokerTestBase {
         assertNotNull(list);
 
         // Split bundle and take ownership of split bundles
-        CompletableFuture<Void> result = namespaceService.splitAndOwnBundle(originalBundle, false, NamespaceBundleSplitAlgorithm.rangeEquallyDivide);
+        CompletableFuture<Void> result = namespaceService.splitAndOwnBundle(
+                originalBundle,
+                false,
+                NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_ALGO);
         try {
             result.get();
         } catch (Exception e) {
@@ -276,7 +283,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         topics.put(topicName, topicFuture);
         doAnswer(new Answer<CompletableFuture<Void>>() {
             @Override
-            public CompletableFuture<Void> answer(InvocationOnMock invocation) throws Throwable {
+            public CompletableFuture<Void> answer(InvocationOnMock invocation) {
                 CompletableFuture<Void> result = new CompletableFuture<>();
                 result.completeExceptionally(new RuntimeException("first time failed"));
                 return result;
@@ -409,7 +416,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         NamespaceBundle originalBundle = bundles.findBundle(topicName);
 
         // Split bundle and take ownership of split bundles
-        CompletableFuture<Void> result = namespaceService.splitAndOwnBundle(originalBundle, false, NamespaceBundleSplitAlgorithm.rangeEquallyDivide);
+        CompletableFuture<Void> result = namespaceService.splitAndOwnBundle(originalBundle, false, NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_ALGO);
 
         try {
             result.get();
@@ -474,7 +481,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         NamespaceBundles bundles = namespaceService.getNamespaceBundleFactory().getBundles(nsname);
         NamespaceBundle originalBundle = bundles.findBundle(topicName);
 
-        CompletableFuture<Void> result1 = namespaceService.splitAndOwnBundle(originalBundle, false, NamespaceBundleSplitAlgorithm.rangeEquallyDivide);
+        CompletableFuture<Void> result1 = namespaceService.splitAndOwnBundle(originalBundle, false, NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_ALGO);
         try {
             result1.get();
         } catch (Exception e) {
@@ -493,7 +500,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
             }
         });
 
-        CompletableFuture<Void> result2 = namespaceService.splitAndOwnBundle(splittedBundle, true, NamespaceBundleSplitAlgorithm.rangeEquallyDivide);
+        CompletableFuture<Void> result2 = namespaceService.splitAndOwnBundle(splittedBundle, true, NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_ALGO);
         try {
             result2.get();
         } catch (Exception e) {

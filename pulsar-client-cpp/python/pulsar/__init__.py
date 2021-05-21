@@ -99,9 +99,12 @@ To install the Python bindings:
     client.close()
 """
 
+import logging
 import _pulsar
 
 from _pulsar import Result, CompressionType, ConsumerType, InitialPosition, PartitionsRoutingMode, BatchingType  # noqa: F401
+
+from pulsar.exceptions import *
 
 from pulsar.functions.function import Function
 from pulsar.functions.context import Context
@@ -360,6 +363,7 @@ class Client:
                  tls_trust_certs_file_path=None,
                  tls_allow_insecure_connection=False,
                  tls_validate_hostname=False,
+                 logger=None
                  ):
         """
         Create a new Pulsar client instance.
@@ -403,6 +407,8 @@ class Client:
           Configure whether the Pulsar client validates that the hostname of the
           endpoint, matches the common name on the TLS certificate presented by
           the endpoint.
+        * `logger`:
+          Set a Python logger for this Pulsar client. Should be an instance of `logging.Logger`.
         """
         _check_type(str, service_url, 'service_url')
         _check_type_or_none(Authentication, authentication, 'authentication')
@@ -415,6 +421,7 @@ class Client:
         _check_type_or_none(str, tls_trust_certs_file_path, 'tls_trust_certs_file_path')
         _check_type(bool, tls_allow_insecure_connection, 'tls_allow_insecure_connection')
         _check_type(bool, tls_validate_hostname, 'tls_validate_hostname')
+        _check_type_or_none(logging.Logger, logger, 'logger')
 
         conf = _pulsar.ClientConfiguration()
         if authentication:
@@ -425,6 +432,8 @@ class Client:
         conf.concurrent_lookup_requests(concurrent_lookup_requests)
         if log_conf_file_path:
             conf.log_conf_file_path(log_conf_file_path)
+        if logger:
+            conf.set_logger(logger)
         if use_tls or service_url.startswith('pulsar+ssl://') or service_url.startswith('https://'):
             conf.use_tls(True)
         if tls_trust_certs_file_path:
@@ -452,6 +461,8 @@ class Client:
                         message_routing_mode=PartitionsRoutingMode.RoundRobinDistribution,
                         properties=None,
                         batching_type=BatchingType.Default,
+                        encryption_key=None,
+                        crypto_key_reader=None
                         ):
         """
         Create a new producer on a given topic.
@@ -519,6 +530,11 @@ class Client:
             (k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)
             batched into single batch message:
             [(k1, v1), (k1, v2), (k1, v3)], [(k2, v1), (k2, v2), (k2, v3)], [(k3, v1), (k3, v2), (k3, v3)]
+        * encryption_key:
+           The key used for symmetric encryption, configured on the producer side
+        * crypto_key_reader:
+           Symmetric encryption class implementation, configuring public key encryption messages for the producer
+           and private key decryption messages for the consumer
         """
         _check_type(str, topic, 'topic')
         _check_type_or_none(str, producer_name, 'producer_name')
@@ -535,6 +551,8 @@ class Client:
         _check_type(int, batching_max_publish_delay_ms, 'batching_max_publish_delay_ms')
         _check_type_or_none(dict, properties, 'properties')
         _check_type(BatchingType, batching_type, 'batching_type')
+        _check_type_or_none(str, encryption_key, 'encryption_key')
+        _check_type_or_none(CryptoKeyReader, crypto_key_reader, 'crypto_key_reader')
 
         conf = _pulsar.ProducerConfiguration()
         conf.send_timeout_millis(send_timeout_millis)
@@ -557,6 +575,10 @@ class Client:
                 conf.property(k, v)
 
         conf.schema(schema.schema_info())
+        if encryption_key:
+            conf.encryption_key(encryption_key)
+        if crypto_key_reader:
+            conf.crypto_key_reader(crypto_key_reader.cryptoKeyReader)
 
         p = Producer()
         p._producer = self._client.create_producer(topic, conf)
@@ -576,7 +598,8 @@ class Client:
                   is_read_compacted=False,
                   properties=None,
                   pattern_auto_discovery_period=60,
-                  initial_position=InitialPosition.Latest
+                  initial_position=InitialPosition.Latest,
+                  crypto_key_reader=None
                   ):
         """
         Subscribe to the given topic and subscription combination.
@@ -649,6 +672,9 @@ class Client:
           Set the initial position of a consumer  when subscribing to the topic.
           It could be either: `InitialPosition.Earliest` or `InitialPosition.Latest`.
           Default: `Latest`.
+        * crypto_key_reader:
+           Symmetric encryption class implementation, configuring public key encryption messages for the producer
+           and private key decryption messages for the consumer
         """
         _check_type(str, subscription_name, 'subscription_name')
         _check_type(ConsumerType, consumer_type, 'consumer_type')
@@ -664,6 +690,7 @@ class Client:
         _check_type(bool, is_read_compacted, 'is_read_compacted')
         _check_type_or_none(dict, properties, 'properties')
         _check_type(InitialPosition, initial_position, 'initial_position')
+        _check_type_or_none(CryptoKeyReader, crypto_key_reader, 'crypto_key_reader')
 
         conf = _pulsar.ConsumerConfiguration()
         conf.consumer_type(consumer_type)
@@ -685,6 +712,9 @@ class Client:
         conf.subscription_initial_position(initial_position)
 
         conf.schema(schema.schema_info())
+
+        if crypto_key_reader:
+            conf.crypto_key_reader(crypto_key_reader.cryptoKeyReader)
 
         c = Consumer()
         if isinstance(topic, str):
@@ -853,6 +883,8 @@ class Producer:
         """
         Publish a message on the topic. Blocks until the message is acknowledged
 
+        Returns a `MessageId` object that represents where the message is persisted.
+
         **Args**
 
         * `content`:
@@ -887,7 +919,7 @@ class Producer:
         msg = self._build_msg(content, properties, partition_key, sequence_id,
                               replication_clusters, disable_replication, event_timestamp,
                               deliver_at, deliver_after)
-        return self._producer.send(msg)
+        return MessageId.deserialize(self._producer.send(msg))
 
     def send_async(self, content, callback,
                    properties=None,
@@ -1000,7 +1032,7 @@ class Producer:
             mb.deliver_at(deliver_at)
         if deliver_after:
             mb.deliver_after(deliver_after)
-        
+
         return mb.build()
 
 
@@ -1222,6 +1254,22 @@ class Reader:
         self._reader.close()
         self._client._consumers.remove(self)
 
+class CryptoKeyReader:
+    """
+    Default crypto key reader implementation
+    """
+    def __init__(self, public_key_path, private_key_path):
+        """
+        Create crypto key reader.
+
+        **Args**
+
+        * `public_key_path`: Path to the public key
+        * `private_key_path`: Path to private key
+        """
+        _check_type(str, public_key_path, 'public_key_path')
+        _check_type(str, private_key_path, 'private_key_path')
+        self.cryptoKeyReader = _pulsar.CryptoKeyReader(public_key_path, private_key_path)
 
 def _check_type(var_type, var, name):
     if not isinstance(var, var_type):

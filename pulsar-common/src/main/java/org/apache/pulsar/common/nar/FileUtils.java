@@ -30,7 +30,6 @@ import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
-
 import org.slf4j.Logger;
 
 /**
@@ -182,7 +181,8 @@ public class FileUtils {
                 }
                 if (ingestFile.isDirectory() && recurse) {
                     FileUtils.deleteFilesInDirectory(ingestFile, filter, logger, recurse, deleteEmptyDirectories);
-                    if (deleteEmptyDirectories && ingestFile.list().length == 0) {
+                    String[] ingestFileList = ingestFile.list();
+                    if (deleteEmptyDirectories && ingestFileList != null && ingestFileList.length == 0) {
                         FileUtils.deleteFile(ingestFile, logger, 3);
                     }
                 }

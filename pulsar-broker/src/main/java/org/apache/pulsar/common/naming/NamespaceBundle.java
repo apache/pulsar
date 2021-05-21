@@ -21,7 +21,6 @@ package org.apache.pulsar.common.naming;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
-
 import com.google.common.base.Objects;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
@@ -33,6 +32,8 @@ public class NamespaceBundle implements ServiceUnitId, Comparable<NamespaceBundl
     // Issue#596: remove this once we remove broker persistent/non-persistent mode configuration
     // it is used by load-manager while considering bundle ownership
     private boolean hasNonPersistentTopic = false;
+    private final String key;
+    private final String bundleRange;
 
     public NamespaceBundle(NamespaceName nsname, Range<Long> keyRange, NamespaceBundleFactory factory) {
         this.nsname = checkNotNull(nsname);
@@ -47,6 +48,8 @@ public class NamespaceBundle implements ServiceUnitId, Comparable<NamespaceBundl
                 "Invalid hash range. Upper Endpoint should be exclusive unless it is 0xffffffff");
         checkArgument(!this.keyRange.isEmpty(), "Cannot create bundle object for an empty key range");
         this.factory = checkNotNull(factory);
+        this.key = getKey(this.nsname, this.keyRange);
+        this.bundleRange = String.format("0x%08x_0x%08x", keyRange.lowerEndpoint(), keyRange.upperEndpoint());
     }
 
     @Override
@@ -56,7 +59,7 @@ public class NamespaceBundle implements ServiceUnitId, Comparable<NamespaceBundl
 
     @Override
     public String toString() {
-        return getKey(this.nsname, this.keyRange);
+        return key;
     }
 
     @Override
@@ -118,7 +121,7 @@ public class NamespaceBundle implements ServiceUnitId, Comparable<NamespaceBundl
     }
 
     public String getBundleRange() {
-        return String.format("0x%08x_0x%08x", keyRange.lowerEndpoint(), keyRange.upperEndpoint());
+        return bundleRange;
     }
 
     private static String getKey(NamespaceName nsname, Range<Long> keyRange) {

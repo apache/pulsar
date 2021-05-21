@@ -18,17 +18,17 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.pulsar.common.events.EventsTopicNames.checkTopicIsEventsNames;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
-
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
-
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -45,32 +45,35 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
+import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionFencedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionInvalidCursorPosition;
-import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
-import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
-import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMeta;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
-import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot;
-import org.apache.pulsar.common.api.proto.PulsarApi.TxnAction;
+import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
+import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
+import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleDisabled;
+import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
+import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.KeySharedMeta;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
+import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
+import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -91,6 +94,7 @@ public class PersistentSubscription implements Subscription {
 
     private long lastExpireTimestamp = 0L;
     private long lastConsumedFlowTimestamp = 0L;
+    private long lastMarkDeleteAdvancedTimestamp = 0L;
 
     // for connected subscriptions, message expiry will be checked if the backlog is greater than this threshold
     private static final int MINIMUM_BACKLOG_FOR_EXPIRY_CHECK = 1000;
@@ -129,12 +133,26 @@ public class PersistentSubscription implements Subscription {
         this.fullName = MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
         this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, subscriptionName, cursor, this);
         this.setReplicated(replicated);
-        if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()) {
+        if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
+                && !checkTopicIsEventsNames(topicName)
+                && !topicName.startsWith(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getLocalName())
+                && !topicName.startsWith(MLTransactionLogImpl.TRANSACTION_LOG_PREFIX)
+                && !topicName.endsWith(MLPendingAckStore.PENDING_ACK_STORE_SUFFIX)) {
             this.pendingAckHandle = new PendingAckHandleImpl(this);
         } else {
-            this.pendingAckHandle = null;
+            this.pendingAckHandle = new PendingAckHandleDisabled();
         }
         IS_FENCED_UPDATER.set(this, FALSE);
+    }
+
+    public void updateLastMarkDeleteAdvancedTimestamp() {
+        this.lastMarkDeleteAdvancedTimestamp =
+            Math.max(this.lastMarkDeleteAdvancedTimestamp, System.currentTimeMillis());
+    }
+
+    @Override
+    public BrokerInterceptor interceptor() {
+        return topic.getBrokerService().getInterceptor();
     }
 
     @Override
@@ -161,71 +179,93 @@ public class PersistentSubscription implements Subscription {
     }
 
     @Override
-    public synchronized void addConsumer(Consumer consumer) throws BrokerServiceException {
-        cursor.updateLastActive();
-        if (IS_FENCED_UPDATER.get(this) == TRUE) {
-            log.warn("Attempting to add consumer {} on a fenced subscription", consumer);
-            throw new SubscriptionFencedException("Subscription is fenced");
-        }
-
-        if (dispatcher == null || !dispatcher.isConsumerConnected()) {
-            Dispatcher previousDispatcher = null;
-
-            switch (consumer.subType()) {
-            case Exclusive:
-                if (dispatcher == null || dispatcher.getType() != SubType.Exclusive) {
-                    previousDispatcher = dispatcher;
-                    dispatcher = new PersistentDispatcherSingleActiveConsumer(cursor, SubType.Exclusive, 0, topic, this);
-                }
-                break;
-            case Shared:
-                if (dispatcher == null || dispatcher.getType() != SubType.Shared) {
-                    previousDispatcher = dispatcher;
-                    dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursor, this);
-                }
-                break;
-            case Failover:
-                int partitionIndex = TopicName.getPartitionIndex(topicName);
-                if (partitionIndex < 0) {
-                    // For non partition topics, use a negative index so dispatcher won't sort consumers before picking
-                    // an active consumer for the topic.
-                    partitionIndex = -1;
+    public CompletableFuture<Void> addConsumer(Consumer consumer) {
+        return pendingAckHandle.pendingAckHandleFuture().thenCompose(future -> {
+            synchronized (PersistentSubscription.this) {
+                cursor.updateLastActive();
+                if (IS_FENCED_UPDATER.get(this) == TRUE) {
+                    log.warn("Attempting to add consumer {} on a fenced subscription", consumer);
+                    return FutureUtil.failedFuture(new SubscriptionFencedException("Subscription is fenced"));
                 }
 
-                if (dispatcher == null || dispatcher.getType() != SubType.Failover) {
-                    previousDispatcher = dispatcher;
-                    dispatcher = new PersistentDispatcherSingleActiveConsumer(cursor, SubType.Failover, partitionIndex,
-                            topic, this);
+                if (dispatcher == null || !dispatcher.isConsumerConnected()) {
+                    Dispatcher previousDispatcher = null;
+                    boolean useStreamingDispatcher = topic.getBrokerService().getPulsar()
+                            .getConfiguration().isStreamingDispatch();
+                    switch (consumer.subType()) {
+                        case Exclusive:
+                            if (dispatcher == null || dispatcher.getType() != SubType.Exclusive) {
+                                previousDispatcher = dispatcher;
+                                dispatcher = useStreamingDispatcher
+                                        ? new PersistentStreamingDispatcherSingleActiveConsumer(
+                                                cursor, SubType.Exclusive, 0, topic, this)
+                                        : new PersistentDispatcherSingleActiveConsumer(
+                                                cursor, SubType.Exclusive, 0, topic, this);
+                            }
+                            break;
+                        case Shared:
+                            if (dispatcher == null || dispatcher.getType() != SubType.Shared) {
+                                previousDispatcher = dispatcher;
+                                dispatcher = useStreamingDispatcher
+                                        ? new PersistentStreamingDispatcherMultipleConsumers(
+                                                topic, cursor, this)
+                                        : new PersistentDispatcherMultipleConsumers(topic, cursor, this);
+                            }
+                            break;
+                        case Failover:
+                            int partitionIndex = TopicName.getPartitionIndex(topicName);
+                            if (partitionIndex < 0) {
+                                // For non partition topics, use a negative index so
+                                // dispatcher won't sort consumers before picking
+                                // an active consumer for the topic.
+                                partitionIndex = -1;
+                            }
+
+                            if (dispatcher == null || dispatcher.getType() != SubType.Failover) {
+                                previousDispatcher = dispatcher;
+                                dispatcher = useStreamingDispatcher
+                                        ? new PersistentStreamingDispatcherSingleActiveConsumer(
+                                                cursor, SubType.Failover, partitionIndex, topic, this) :
+                                        new PersistentDispatcherSingleActiveConsumer(cursor, SubType.Failover,
+                                                partitionIndex, topic, this);
+                            }
+                            break;
+                        case Key_Shared:
+                            if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared) {
+                                previousDispatcher = dispatcher;
+                                KeySharedMeta ksm = consumer.getKeySharedMeta();
+                                dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
+                                        topic.getBrokerService().getPulsar().getConfiguration(), ksm);
+                            }
+                            break;
+                        default:
+                            return FutureUtil.failedFuture(
+                                    new ServerMetadataException("Unsupported subscription type"));
+                    }
+
+                    if (previousDispatcher != null) {
+                        previousDispatcher.close().thenRun(() -> {
+                            log.info("[{}][{}] Successfully closed previous dispatcher", topicName, subName);
+                        }).exceptionally(ex -> {
+                            log.error("[{}][{}] Failed to close previous dispatcher", topicName, subName, ex);
+                            return null;
+                        });
+                    }
+                } else {
+                    if (consumer.subType() != dispatcher.getType()) {
+                        return FutureUtil.failedFuture(
+                                new SubscriptionBusyException("Subscription is of different type"));
+                    }
                 }
-                break;
-            case Key_Shared:
-                if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared) {
-                    previousDispatcher = dispatcher;
-                    KeySharedMeta ksm = consumer.getKeySharedMeta() != null ? consumer.getKeySharedMeta()
-                            : KeySharedMeta.getDefaultInstance();
-                    dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
-                            topic.getBrokerService().getPulsar().getConfiguration(), ksm);
+
+                try {
+                    dispatcher.addConsumer(consumer);
+                    return CompletableFuture.completedFuture(null);
+                } catch (BrokerServiceException brokerServiceException) {
+                    return FutureUtil.failedFuture(brokerServiceException);
                 }
-                break;
-            default:
-                throw new ServerMetadataException("Unsupported subscription type");
             }
-
-            if (previousDispatcher != null) {
-                previousDispatcher.close().thenRun(() -> {
-                    log.info("[{}][{}] Successfully closed previous dispatcher", topicName, subName);
-                }).exceptionally(ex -> {
-                    log.error("[{}][{}] Failed to close previous dispatcher", topicName, subName, ex);
-                    return null;
-                });
-            }
-        } else {
-            if (consumer.subType() != dispatcher.getType()) {
-                throw new SubscriptionBusyException("Subscription is of different type");
-            }
-        }
-
-        dispatcher.addConsumer(consumer);
+        });
     }
 
     @Override
@@ -274,10 +314,10 @@ public class PersistentSubscription implements Subscription {
 
         // invalid consumer remove will throw an exception
         // decrement usage is triggered only for valid consumer close
-        PersistentTopic.USAGE_COUNT_UPDATER.decrementAndGet(topic);
+        topic.decrementUsageCount();
         if (log.isDebugEnabled()) {
             log.debug("[{}] [{}] [{}] Removed consumer -- count: {}", topic.getName(), subName, consumer.consumerName(),
-                    PersistentTopic.USAGE_COUNT_UPDATER.get(topic));
+                    topic.currentUsageCount());
         }
     }
 
@@ -292,7 +332,7 @@ public class PersistentSubscription implements Subscription {
     }
 
     @Override
-    public void acknowledgeMessage(List<Position> positions, AckType ackType, Map<String,Long> properties) {
+    public void acknowledgeMessage(List<Position> positions, AckType ackType, Map<String, Long> properties) {
         Position previousMarkDeletePosition = cursor.getMarkDeletedPosition();
 
         if (ackType == AckType.Cumulative) {
@@ -306,7 +346,8 @@ public class PersistentSubscription implements Subscription {
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Cumulative ack on {}", topicName, subName, position);
             }
-            cursor.asyncMarkDelete(position, mergeCursorProperties(properties), markDeleteCallback, previousMarkDeletePosition);
+            cursor.asyncMarkDelete(position, mergeCursorProperties(properties),
+                    markDeleteCallback, previousMarkDeletePosition);
 
         } else {
             if (log.isDebugEnabled()) {
@@ -321,12 +362,14 @@ public class PersistentSubscription implements Subscription {
                 });
             }
 
-            if(dispatcher != null){
+            if (dispatcher != null) {
                 dispatcher.getRedeliveryTracker().removeBatch(positions);
             }
         }
 
         if (!cursor.getMarkDeletedPosition().equals(previousMarkDeletePosition)) {
+            this.updateLastMarkDeleteAdvancedTimestamp();
+
             // Mark delete position advance
             ReplicatedSubscriptionSnapshotCache snapshotCache  = this.replicatedSubscriptionSnapshotCache;
             if (snapshotCache != null) {
@@ -351,57 +394,55 @@ public class PersistentSubscription implements Subscription {
 
         if (topic.getManagedLedger().isTerminated() && cursor.getNumberOfEntriesInBacklog(false) == 0) {
             // Notify all consumer that the end of topic was reached
-            if(dispatcher != null){
+            if (dispatcher != null) {
                 dispatcher.getConsumers().forEach(Consumer::reachedEndOfTopic);
             }
         }
     }
 
-    private void deleteTransactionMarker(PositionImpl position, AckType ackType, Map<String,Long> properties) {
+    private void deleteTransactionMarker(PositionImpl position, AckType ackType, Map<String, Long> properties) {
         if (position != null) {
             ManagedLedgerImpl managedLedger = ((ManagedLedgerImpl) cursor.getManagedLedger());
             PositionImpl nextPosition = managedLedger.getNextValidPosition(position);
-            managedLedger.asyncReadEntry(nextPosition, new ReadEntryCallback() {
-                @Override
-                public void readEntryComplete(Entry entry, Object ctx) {
-                    MessageMetadata messageMetadata = Commands.parseMessageMetadata(entry.getDataBuffer());
-                    isDeleteTransactionMarkerInProcess = false;
-                    if (Markers.isTxnCommitMarker(messageMetadata) || Markers.isTxnAbortMarker(messageMetadata)) {
-                        lastMarkDeleteForTransactionMarker = position;
-                        messageMetadata.recycle();
-                        acknowledgeMessage(Collections.singletonList(nextPosition), ackType, properties);
+            if (nextPosition != null
+                    && nextPosition.compareTo((PositionImpl) managedLedger.getLastConfirmedEntry()) <= 0) {
+                managedLedger.asyncReadEntry(nextPosition, new ReadEntryCallback() {
+                    @Override
+                    public void readEntryComplete(Entry entry, Object ctx) {
+                        try {
+                            MessageMetadata messageMetadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+                            isDeleteTransactionMarkerInProcess = false;
+                            if (Markers.isTxnCommitMarker(messageMetadata)
+                                    || Markers.isTxnAbortMarker(messageMetadata)) {
+                                lastMarkDeleteForTransactionMarker = position;
+                                acknowledgeMessage(Collections.singletonList(nextPosition), ackType, properties);
+                            }
+                        } finally {
+                            entry.release();
+                        }
                     }
-                }
 
-                @Override
-                public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
-                    isDeleteTransactionMarkerInProcess = false;
-                    if (log.isDebugEnabled()) {
-                        log.debug("Fail to read transaction marker! Position : {}", position, exception);
+                    @Override
+                    public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                        isDeleteTransactionMarkerInProcess = false;
+                        log.error("Fail to read transaction marker! Position : {}", position, exception);
                     }
-                }
-            }, null);
+                }, null);
+            } else {
+                isDeleteTransactionMarkerInProcess = false;
+            }
         } else {
             isDeleteTransactionMarkerInProcess = false;
         }
     }
 
-    public CompletableFuture<Void> transactionIndividualAcknowledge(TxnID txnId,
-                                                                    List<MutablePair<PositionImpl, Long>> positions) {
-        if (pendingAckHandle == null) {
-            return FutureUtil.failedFuture(
-                    new TransactionConflictException("Broker does't support Transaction pending ack!"));
-        }
-
+    public CompletableFuture<Void> transactionIndividualAcknowledge(
+            TxnID txnId,
+            List<MutablePair<PositionImpl, Integer>> positions) {
         return pendingAckHandle.individualAcknowledgeMessage(txnId, positions);
     }
 
     public CompletableFuture<Void> transactionCumulativeAcknowledge(TxnID txnId, List<PositionImpl> positions) {
-        if (pendingAckHandle == null) {
-            return FutureUtil.failedFuture(
-                    new TransactionConflictException("Broker does't support Transaction pending ack!"));
-        }
-
         return pendingAckHandle.cumulativeAcknowledgeMessage(txnId, positions);
     }
 
@@ -411,7 +452,8 @@ public class PersistentSubscription implements Subscription {
             PositionImpl oldMD = (PositionImpl) ctx;
             PositionImpl newMD = (PositionImpl) cursor.getMarkDeletedPosition();
             if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] Mark deleted messages to position {} from position {}", topicName, subName, newMD, oldMD);
+                log.debug("[{}][{}] Mark deleted messages to position {} from position {}",
+                        topicName, subName, newMD, oldMD);
             }
             // Signal the dispatchers to give chance to take extra actions
             notifyTheMarkDeletePositionMoveForwardIfNeeded(oldMD);
@@ -445,7 +487,7 @@ public class PersistentSubscription implements Subscription {
     private void notifyTheMarkDeletePositionMoveForwardIfNeeded(Position oldPosition) {
         PositionImpl oldMD = (PositionImpl) oldPosition;
         PositionImpl newMD = (PositionImpl) cursor.getMarkDeletedPosition();
-        if(dispatcher != null && newMD.compareTo(oldMD) > 0){
+        if (dispatcher != null && newMD.compareTo(oldMD) > 0) {
             dispatcher.markDeletePositionMoveForward();
         }
     }
@@ -479,6 +521,8 @@ public class PersistentSubscription implements Subscription {
             return "Failover";
         case Shared:
             return "Shared";
+        case Key_Shared:
+            return "Key_Shared";
         }
 
         return "Null";
@@ -499,6 +543,9 @@ public class PersistentSubscription implements Subscription {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}][{}] Backlog size after clearing: {}", topicName, subName,
                             cursor.getNumberOfEntriesInBacklog(false));
+                }
+                if (dispatcher != null) {
+                    dispatcher.clearDelayedMessages();
                 }
                 future.complete(null);
             }
@@ -560,14 +607,17 @@ public class PersistentSubscription implements Subscription {
                     // that spans beyond the retention limits (time/size)
                     finalPosition = cursor.getFirstPosition();
                     if (finalPosition == null) {
-                        log.warn("[{}][{}] Unable to find position for timestamp {}. Unable to reset cursor to first position",
+                        log.warn("[{}][{}] Unable to find position for timestamp {}."
+                                        + " Unable to reset cursor to first position",
                                 topicName, subName, timestamp);
                         future.completeExceptionally(
-                                new SubscriptionInvalidCursorPosition("Unable to find position for specified timestamp"));
+                                new SubscriptionInvalidCursorPosition(
+                                        "Unable to find position for specified timestamp"));
                         return;
                     }
                     log.info(
-                            "[{}][{}] Unable to find position for timestamp {}. Resetting cursor to first position {} in ledger",
+                            "[{}][{}] Unable to find position for timestamp {}."
+                                    + " Resetting cursor to first position {} in ledger",
                             topicName, subName, timestamp, finalPosition);
                 } else {
                     finalPosition = position.getNext();
@@ -576,7 +626,8 @@ public class PersistentSubscription implements Subscription {
             }
 
             @Override
-            public void findEntryFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition, Object ctx) {
+            public void findEntryFailed(ManagedLedgerException exception,
+                                        Optional<Position> failedReadPosition, Object ctx) {
                 // todo - what can go wrong here that needs to be retried?
                 if (exception instanceof ConcurrentFindCursorPositionException) {
                     future.completeExceptionally(new SubscriptionBusyException(exception.getMessage()));
@@ -721,15 +772,15 @@ public class PersistentSubscription implements Subscription {
             if (dispatcher != null && dispatcher.isConsumerConnected()) {
                 return FutureUtil.failedFuture(new SubscriptionBusyException("Subscription has active consumers"));
             }
-            IS_FENCED_UPDATER.set(this, TRUE);
-            log.info("[{}][{}] Successfully closed subscription [{}]", topicName, subName, cursor);
+            return this.pendingAckHandle.close().thenAccept(v -> {
+                IS_FENCED_UPDATER.set(this, TRUE);
+                log.info("[{}][{}] Successfully closed subscription [{}]", topicName, subName, cursor);
+            });
         }
-
-        return CompletableFuture.completedFuture(null);
     }
 
     /**
-     * Disconnect all consumers attached to the dispatcher and close this subscription
+     * Disconnect all consumers attached to the dispatcher and close this subscription.
      *
      * @return CompletableFuture indicating the completion of disconnect operation
      */
@@ -839,10 +890,9 @@ public class PersistentSubscription implements Subscription {
 
     /**
      * Handle unsubscribe command from the client API Check with the dispatcher is this consumer can proceed with
-     * unsubscribe
+     * unsubscribe.
      *
-     * @param consumer
-     *            consumer object that is initiating the unsubscribe operation
+     * @param consumer consumer object that is initiating the unsubscribe operation
      * @return CompletableFuture indicating the completion of unsubscribe operation
      */
     @Override
@@ -873,31 +923,44 @@ public class PersistentSubscription implements Subscription {
     }
 
     @Override
-    public void expireMessages(int messageTTLInSeconds) {
-        this.lastExpireTimestamp = System.currentTimeMillis();
+    public boolean expireMessages(int messageTTLInSeconds) {
         if ((getNumberOfEntriesInBacklog(false) == 0) || (dispatcher != null && dispatcher.isConsumerConnected()
                 && getNumberOfEntriesInBacklog(false) < MINIMUM_BACKLOG_FOR_EXPIRY_CHECK
                 && !topic.isOldestMessageExpired(cursor, messageTTLInSeconds))) {
             // don't do anything for almost caught-up connected subscriptions
-            return;
+            return false;
         }
-        expiryMonitor.expireMessages(messageTTLInSeconds);
+        this.lastExpireTimestamp = System.currentTimeMillis();
+        return expiryMonitor.expireMessages(messageTTLInSeconds);
+    }
+
+    @Override
+    public boolean expireMessages(Position position) {
+        this.lastExpireTimestamp = System.currentTimeMillis();
+        return expiryMonitor.expireMessages(position);
     }
 
     public double getExpiredMessageRate() {
         return expiryMonitor.getMessageExpiryRate();
     }
 
+    public PersistentMessageExpiryMonitor getExpiryMonitor() {
+        return expiryMonitor;
+    }
+
     public long estimateBacklogSize() {
         return cursor.getEstimatedSizeSinceMarkDeletePosition();
     }
 
-    public SubscriptionStats getStats(Boolean getPreciseBacklog) {
+    public SubscriptionStats getStats(Boolean getPreciseBacklog, boolean subscriptionBacklogSize) {
         SubscriptionStats subStats = new SubscriptionStats();
         subStats.lastExpireTimestamp = lastExpireTimestamp;
         subStats.lastConsumedFlowTimestamp = lastConsumedFlowTimestamp;
+        subStats.lastMarkDeleteAdvancedTimestamp = lastMarkDeleteAdvancedTimestamp;
         Dispatcher dispatcher = this.dispatcher;
         if (dispatcher != null) {
+            Map<String, List<String>> consumerKeyHashRanges = getType() == SubType.Key_Shared
+                    ? ((PersistentStickyKeyDispatcherMultipleConsumers) dispatcher).getConsumerKeyHashRanges() : null;
             dispatcher.getConsumers().forEach(consumer -> {
                 ConsumerStats consumerStats = consumer.getStats();
                 subStats.consumers.add(consumerStats);
@@ -907,9 +970,14 @@ public class PersistentSubscription implements Subscription {
                 subStats.msgOutCounter += consumerStats.msgOutCounter;
                 subStats.msgRateRedeliver += consumerStats.msgRateRedeliver;
                 subStats.chuckedMessageRate += consumerStats.chuckedMessageRate;
+                subStats.chunkedMessageRate += consumerStats.chunkedMessageRate;
                 subStats.unackedMessages += consumerStats.unackedMessages;
-                subStats.lastConsumedTimestamp = Math.max(subStats.lastConsumedTimestamp, consumerStats.lastConsumedTimestamp);
+                subStats.lastConsumedTimestamp =
+                        Math.max(subStats.lastConsumedTimestamp, consumerStats.lastConsumedTimestamp);
                 subStats.lastAckedTimestamp = Math.max(subStats.lastAckedTimestamp, consumerStats.lastAckedTimestamp);
+                if (consumerKeyHashRanges != null && consumerKeyHashRanges.containsKey(consumer.consumerName())) {
+                    consumerStats.keyHashRanges = consumerKeyHashRanges.get(consumer.consumerName());
+                }
             });
         }
 
@@ -929,10 +997,27 @@ public class PersistentSubscription implements Subscription {
             }
         }
         subStats.msgBacklog = getNumberOfEntriesInBacklog(getPreciseBacklog);
+        if (subscriptionBacklogSize) {
+            subStats.backlogSize = ((ManagedLedgerImpl) topic.getManagedLedger())
+                    .getEstimatedBacklogSize((PositionImpl) cursor.getMarkDeletedPosition());
+        }
         subStats.msgBacklogNoDelayed = subStats.msgBacklog - subStats.msgDelayed;
         subStats.msgRateExpired = expiryMonitor.getMessageExpiryRate();
+        subStats.totalMsgExpired = expiryMonitor.getTotalMessageExpired();
         subStats.isReplicated = isReplicated();
         subStats.isDurable = cursor.isDurable();
+        if (getType() == SubType.Key_Shared && dispatcher instanceof PersistentStickyKeyDispatcherMultipleConsumers) {
+            LinkedHashMap<Consumer, PositionImpl> recentlyJoinedConsumers =
+                    ((PersistentStickyKeyDispatcherMultipleConsumers) dispatcher).getRecentlyJoinedConsumers();
+            if (recentlyJoinedConsumers != null && recentlyJoinedConsumers.size() > 0) {
+                recentlyJoinedConsumers.forEach((k, v) -> {
+                    subStats.consumersAfterMarkDeletePosition.put(k.consumerName(), v.toString());
+                });
+            }
+        }
+        subStats.nonContiguousDeletedMessagesRanges = cursor.getTotalNonContiguousDeletedMessagesRange();
+        subStats.nonContiguousDeletedMessagesRangesSerializedSize =
+                cursor.getNonContiguousDeletedMessagesRangeSerializedSize();
         return subStats;
     }
 
@@ -1004,25 +1089,22 @@ public class PersistentSubscription implements Subscription {
     public void processReplicatedSubscriptionSnapshot(ReplicatedSubscriptionsSnapshot snapshot) {
         ReplicatedSubscriptionSnapshotCache snapshotCache = this.replicatedSubscriptionSnapshotCache;
         if (snapshotCache != null) {
-            snapshotCache.addNewSnapshot(snapshot);
+            snapshotCache.addNewSnapshot(new ReplicatedSubscriptionsSnapshot().copyFrom(snapshot));
         }
     }
 
     @Override
-    public CompletableFuture<Void> endTxn(long txnidMostBits, long txnidLeastBits, int txnAction) {
-        if (pendingAckHandle == null) {
-            return FutureUtil.failedFuture(new Exception("Broker does't support Transaction pending ack!"));
-        }
+    public CompletableFuture<Void> endTxn(long txnidMostBits, long txnidLeastBits, int txnAction, long lowWaterMark) {
         TxnID txnID = new TxnID(txnidMostBits, txnidLeastBits);
-        if (TxnAction.COMMIT.getNumber() == txnAction) {
-            return pendingAckHandle.commitTxn(txnID, Collections.emptyMap());
-        } else if (TxnAction.ABORT.getNumber() == txnAction) {
+        if (TxnAction.COMMIT.getValue() == txnAction) {
+            return pendingAckHandle.commitTxn(txnID, Collections.emptyMap(), lowWaterMark);
+        } else if (TxnAction.ABORT.getValue() == txnAction) {
             Consumer redeliverConsumer = null;
             if (getDispatcher() instanceof PersistentDispatcherSingleActiveConsumer) {
                 redeliverConsumer = ((PersistentDispatcherSingleActiveConsumer)
                         getDispatcher()).getActiveConsumer();
             }
-            return pendingAckHandle.abortTxn(txnID, redeliverConsumer);
+            return pendingAckHandle.abortTxn(txnID, redeliverConsumer, lowWaterMark);
         } else {
             return FutureUtil.failedFuture(new NotAllowedException("Unsupported txnAction " + txnAction));
         }
@@ -1033,12 +1115,16 @@ public class PersistentSubscription implements Subscription {
         return cursor;
     }
 
-    public void syncBatchPositionBitSetForPendingAck(MutablePair<PositionImpl, Long> position) {
+    public void syncBatchPositionBitSetForPendingAck(PositionImpl position) {
         this.pendingAckHandle.syncBatchPositionAckSetForTransaction(position);
     }
 
     public boolean checkIsCanDeleteConsumerPendingAck(PositionImpl position) {
         return this.pendingAckHandle.checkIsCanDeleteConsumerPendingAck(position);
+    }
+
+    public boolean checkAndUnblockIfStuck() {
+        return dispatcher != null ? dispatcher.checkAndUnblockIfStuck() : false;
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentSubscription.class);

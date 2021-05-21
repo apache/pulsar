@@ -29,6 +29,7 @@ import static org.powermock.api.mockito.PowerMockito.doNothing;
 import static org.powermock.api.mockito.PowerMockito.doThrow;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 import com.google.common.collect.Lists;
 
@@ -52,6 +53,7 @@ import javax.ws.rs.core.StreamingOutput;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
+import org.apache.pulsar.client.admin.Packages;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.Functions;
@@ -74,8 +76,14 @@ import org.apache.pulsar.functions.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
-import org.apache.pulsar.functions.worker.*;
+import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
+import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
+import org.apache.pulsar.functions.worker.LeaderService;
+import org.apache.pulsar.functions.worker.PulsarWorkerService;
+import org.apache.pulsar.functions.worker.WorkerConfig;
+import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
+import org.apache.pulsar.functions.worker.rest.api.PulsarFunctionTestTemporaryDirectory;
 import org.apache.pulsar.functions.worker.rest.api.v2.FunctionsApiV2Resource;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.mockito.Mockito;
@@ -84,6 +92,7 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.testng.Assert;
 import org.testng.IObjectFactory;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
@@ -128,7 +137,7 @@ public class FunctionApiV3ResourceTest {
     }
     private static final int parallelism = 1;
 
-    private WorkerService mockedWorkerService;
+    private PulsarWorkerService mockedWorkerService;
     private PulsarAdmin mockedPulsarAdmin;
     private Tenants mockedTenants;
     private Namespaces mockedNamespaces;
@@ -144,6 +153,8 @@ public class FunctionApiV3ResourceTest {
     private FormDataContentDisposition mockedFormData;
     private FunctionMetaData mockedFunctionMetadata;
     private LeaderService mockedLeaderService;
+    private Packages mockedPackages;
+    private PulsarFunctionTestTemporaryDirectory tempDirectory;
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -159,11 +170,12 @@ public class FunctionApiV3ResourceTest {
         this.mockedTenants = mock(Tenants.class);
         this.mockedNamespaces = mock(Namespaces.class);
         this.mockedFunctions = mock(Functions.class);
+        this.mockedPackages = mock(Packages.class);
         this.mockedLeaderService = mock(LeaderService.class);
         this.mockedFunctionMetadata = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         namespaceList.add(tenant + "/" + namespace);
 
-        this.mockedWorkerService = mock(WorkerService.class);
+        this.mockedWorkerService = mock(PulsarWorkerService.class);
         when(mockedWorkerService.getFunctionMetaDataManager()).thenReturn(mockedManager);
         when(mockedWorkerService.getFunctionRuntimeManager()).thenReturn(mockedFunctionRunTimeManager);
         when(mockedWorkerService.getLeaderService()).thenReturn(mockedLeaderService);
@@ -175,24 +187,34 @@ public class FunctionApiV3ResourceTest {
         when(mockedPulsarAdmin.tenants()).thenReturn(mockedTenants);
         when(mockedPulsarAdmin.namespaces()).thenReturn(mockedNamespaces);
         when(mockedPulsarAdmin.functions()).thenReturn(mockedFunctions);
+        when(mockedPulsarAdmin.packages()).thenReturn(mockedPackages);
         when(mockedTenants.getTenantInfo(any())).thenReturn(mockedTenantInfo);
         when(mockedNamespaces.getNamespaces(any())).thenReturn(namespaceList);
         when(mockedLeaderService.isLeader()).thenReturn(true);
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetadata);
+        doNothing().when(mockedPackages).download(anyString(), anyString());
 
         // worker config
         WorkerConfig workerConfig = new WorkerConfig()
             .setWorkerId("test")
             .setWorkerPort(8080)
-            .setDownloadDirectory("/tmp/pulsar/functions")
             .setFunctionMetadataTopicName("pulsar/functions")
             .setNumFunctionPackageReplicas(3)
             .setPulsarServiceUrl("pulsar://localhost:6650/");
+        tempDirectory = PulsarFunctionTestTemporaryDirectory.create(getClass().getSimpleName());
+        tempDirectory.useTemporaryDirectoriesForWorkerConfig(workerConfig);
         when(mockedWorkerService.getWorkerConfig()).thenReturn(workerConfig);
 
         this.resource = spy(new FunctionsImpl(() -> mockedWorkerService));
         mockStatic(InstanceUtils.class);
         PowerMockito.when(InstanceUtils.calculateSubjectType(any())).thenReturn(FunctionDetails.ComponentType.FUNCTION);
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void cleanup() {
+        if (tempDirectory != null) {
+            tempDirectory.delete();
+        }
     }
 
     //
@@ -553,6 +575,10 @@ public class FunctionApiV3ResourceTest {
     }
 
     private void registerDefaultFunction() {
+        registerDefaultFunctionWithPackageUrl(null);
+    }
+
+    private void registerDefaultFunctionWithPackageUrl(String packageUrl) {
         FunctionConfig functionConfig = createDefaultFunctionConfig();
         resource.registerFunction(
             tenant,
@@ -560,7 +586,7 @@ public class FunctionApiV3ResourceTest {
             function,
             mockedInputStream,
             mockedFormData,
-            null,
+            packageUrl,
             functionConfig,
                 null, null);
     }
@@ -617,6 +643,23 @@ public class FunctionApiV3ResourceTest {
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
             throw re;
+        }
+    }
+
+    @Test(timeOut = 20000)
+    public void testRegisterFunctionSuccessWithPackageName() {
+        registerDefaultFunctionWithPackageUrl("function://public/default/test@v1");
+    }
+
+    @Test(timeOut = 20000)
+    public void testRegisterFunctionFailedWithWrongPackageName() throws PulsarAdminException {
+        try {
+            doThrow(new PulsarAdminException("package name is invalid"))
+                .when(mockedPackages).download(anyString(), anyString());
+            registerDefaultFunctionWithPackageUrl("function://");
+        } catch (RestException e) {
+            // expected exception
+            assertEquals(e.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
         }
     }
 
@@ -968,6 +1011,10 @@ public class FunctionApiV3ResourceTest {
     }
 
     private void updateDefaultFunction() {
+        updateDefaultFunctionWithPackageUrl(null);
+    }
+
+    private void updateDefaultFunctionWithPackageUrl(String packageUrl) {
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant(tenant);
         functionConfig.setNamespace(namespace);
@@ -985,7 +1032,7 @@ public class FunctionApiV3ResourceTest {
             function,
             mockedInputStream,
             mockedFormData,
-            null,
+            packageUrl,
             functionConfig,
                 null, null, null);
     }
@@ -1111,6 +1158,26 @@ public class FunctionApiV3ResourceTest {
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.INTERNAL_SERVER_ERROR);
             throw re;
+        }
+    }
+
+
+    @Test(timeOut = 20000)
+    public void testUpdateFunctionSuccessWithPackageName() {
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+        updateDefaultFunctionWithPackageUrl("function://public/default/test@v1");
+    }
+
+    @Test(timeOut = 20000)
+    public void testUpdateFunctionFailedWithWrongPackageName() throws PulsarAdminException {
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+        try {
+            doThrow(new PulsarAdminException("package name is invalid"))
+                .when(mockedPackages).download(anyString(), anyString());
+            registerDefaultFunctionWithPackageUrl("function://");
+        } catch (RestException e) {
+            // expected exception
+            assertEquals(e.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
         }
     }
 
@@ -1438,7 +1505,7 @@ public class FunctionApiV3ResourceTest {
     public void testDownloadFunctionHttpUrl() throws Exception {
         String jarHttpUrl = "https://repo1.maven.org/maven2/org/apache/pulsar/pulsar-common/2.4.2/pulsar-common-2.4.2.jar";
         String testDir = FunctionApiV3ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        WorkerService worker = mock(WorkerService.class);
+        PulsarWorkerService worker = mock(PulsarWorkerService.class);
         doReturn(true).when(worker).isInitialized();
         WorkerConfig config = mock(WorkerConfig.class);
         when(config.isAuthorizationEnabled()).thenReturn(false);
@@ -1460,7 +1527,7 @@ public class FunctionApiV3ResourceTest {
         File file = Paths.get(fileUrl.toURI()).toFile();
         String fileLocation = file.getAbsolutePath();
         String testDir = FunctionApiV3ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        WorkerService worker = mock(WorkerService.class);
+        PulsarWorkerService worker = mock(PulsarWorkerService.class);
         doReturn(true).when(worker).isInitialized();
         WorkerConfig config = mock(WorkerConfig.class);
         when(config.isAuthorizationEnabled()).thenReturn(false);

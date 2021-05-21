@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.transaction.buffer.exceptions;
 
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.TxnAction;
 
 /**
  * Exceptions are thrown when txnAction is unsupported.
@@ -29,6 +29,6 @@ public class UnsupportedTxnActionException extends TransactionBufferException {
     private static final long serialVersionUID = 0L;
 
     public UnsupportedTxnActionException(TxnID txnId, int txnAction) {
-        super("Transaction `" + txnId + "` receive unsupported txnAction " + PulsarApi.TxnAction.valueOf(txnAction));
+        super("Transaction `" + txnId + "` receive unsupported txnAction " + TxnAction.valueOf(txnAction));
     }
 }

@@ -18,9 +18,19 @@ module.exports = {
       roles: 'Committer, PMC',
     },
     {
+      name: 'Daniel Blankensteiner',
+      apacheId: 'blankensteiner',
+      roles: 'Committer'
+    },
+    {
       name: 'David Fisher',
       apacheId: 'wave',
       roles: 'Committer, PMC'
+    },
+    {
+      name: 'Enrico Olivelli',
+      apacheId: 'eolivelli',
+      roles: 'Committer'
     },
     {
       name: 'Fangbin Sun',
@@ -71,7 +81,7 @@ module.exports = {
       name: 'Jennifer Huang',
       apacheId: 'hjf',
       org: 'StreamNative',
-      roles: 'Committer'
+      roles: 'Committer, PMC'
     },
     {
       name: 'Jia Zhai',
@@ -89,6 +99,12 @@ module.exports = {
       apacheId: 'joef',
       org: 'Yahoo',
       roles: 'Committer, PMC'
+    },
+    {
+      name: 'Lin Lin',
+      apacheId: 'linlin',
+      org: 'Tencent',
+      roles: 'Committer'
     },
     {
       name: 'Ludwig Pummer',
@@ -173,16 +189,34 @@ module.exports = {
       roles: 'Committer'
     },
     {
-        name: 'Yu Liu',
-        apacheId: 'liuyu',
-        org: 'StreamNative',
-        roles: 'Committer'
+      name: 'Yijie Shen',
+      apacheId: 'yjshen',
+      org: 'KUAISHOU',
+      roles: 'Committer'
+    },
+    {
+      name: 'Yu Liu',
+      apacheId: 'liuyu',
+      org: 'StreamNative',
+      roles: 'Committer'
     },
     {
       name: 'Yuki Shiga',
       apacheId: 'yushiga',
       org: 'Yahoo Japan Corporation',
       roles: 'Committer, PMC'
+    },
+    {
+      name: 'Yuto Furuta',
+      apacheId: 'k2la',
+      org: 'Yahoo Japan Corporation',
+      roles: 'Committer'
+    },
+    {
+      name: 'Yong Zhang',
+      apacheId: 'yong',
+      org: 'StreamNative',
+      roles: 'Committer'
     }
   ]
 }

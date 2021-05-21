@@ -18,12 +18,15 @@
  */
 package org.apache.pulsar.common.util.collections;
 
+import lombok.EqualsAndHashCode;
+
 import java.util.BitSet;
 import java.util.concurrent.locks.StampedLock;
 
 /**
  * Safe multithreaded version of {@code BitSet}.
  */
+@EqualsAndHashCode(callSuper = true)
 public class ConcurrentBitSet extends BitSet {
 
     private static final long serialVersionUID = 1L;

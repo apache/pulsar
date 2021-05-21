@@ -19,12 +19,11 @@
 package org.apache.pulsar.broker.admin.v3;
 
 import io.swagger.annotations.Api;
-import org.apache.pulsar.broker.admin.impl.SinksBase;
-
 import javax.ws.rs.Consumes;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
+import org.apache.pulsar.broker.admin.impl.SinksBase;
 
 @Path("/sink")
 @Api(value = "/sink", description = "Sink admin apis", tags = "sink")

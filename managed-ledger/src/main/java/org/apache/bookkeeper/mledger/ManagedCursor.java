@@ -18,7 +18,6 @@
  */
 package org.apache.bookkeeper.mledger;
 
-import com.google.common.annotations.Beta;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Range;
 
@@ -26,6 +25,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.bookkeeper.common.annotation.InterfaceAudience;
+import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.FindEntryCallback;
@@ -41,7 +42,8 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
  * <p/>The ManagedCursor is used to read from the ManagedLedger and to signal when the consumer is done with the
  * messages that it has read before.
  */
-@Beta
+@InterfaceAudience.LimitedPrivate
+@InterfaceStability.Stable
 public interface ManagedCursor {
 
     @SuppressWarnings("checkstyle:javadoctype")
@@ -99,8 +101,24 @@ public interface ManagedCursor {
      *            callback object
      * @param ctx
      *            opaque context
+     * @param maxPosition
+     *            max position can read
      */
-    void asyncReadEntries(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx);
+    void asyncReadEntries(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx,
+                          PositionImpl maxPosition);
+
+
+    /**
+     * Asynchronously read entries from the ManagedLedger.
+     *
+     * @param numberOfEntriesToRead maximum number of entries to return
+     * @param maxSizeBytes          max size in bytes of the entries to return
+     * @param callback              callback object
+     * @param ctx                   opaque context
+     * @param maxPosition           max position can read
+     */
+    void asyncReadEntries(int numberOfEntriesToRead, long maxSizeBytes, ReadEntriesCallback callback,
+                          Object ctx, PositionImpl maxPosition);
 
     /**
      * Get 'N'th entry from the mark delete position in the cursor without updating any cursor positions.
@@ -172,8 +190,11 @@ public interface ManagedCursor {
      *            callback object
      * @param ctx
      *            opaque context
+     * @param maxPosition
+     *            max position can read
      */
-    void asyncReadEntriesOrWait(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx);
+    void asyncReadEntriesOrWait(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx,
+                                PositionImpl maxPosition);
 
     /**
      * Asynchronously read entries from the ManagedLedger, up to the specified number and size.
@@ -190,13 +211,16 @@ public interface ManagedCursor {
      *            callback object
      * @param ctx
      *            opaque context
+     * @param maxPosition
+     *            max position can read
      */
-    void asyncReadEntriesOrWait(int maxEntries, long maxSizeBytes, ReadEntriesCallback callback, Object ctx);
+    void asyncReadEntriesOrWait(int maxEntries, long maxSizeBytes, ReadEntriesCallback callback, Object ctx,
+                                PositionImpl maxPosition);
 
     /**
      * Cancel a previously scheduled asyncReadEntriesOrWait operation.
      *
-     * @see #asyncReadEntriesOrWait(int, ReadEntriesCallback, Object)
+     * @see #asyncReadEntriesOrWait(int, ReadEntriesCallback, Object, PositionImpl)
      * @return true if the read operation was canceled or false if there was no pending operation
      */
     boolean cancelPendingReadRequest();
@@ -367,6 +391,13 @@ public interface ManagedCursor {
      * @return the mark deleted position
      */
     Position getMarkDeletedPosition();
+
+    /**
+     * Get the persistent newest mark deleted position on this cursor.
+     *
+     * @return the persistent mark deleted position
+     */
+    Position getPersistentMarkDeletedPosition();
 
     /**
      * Rewind the cursor to the mark deleted position to replay all the already read but not yet mark deleted messages.
@@ -607,6 +638,11 @@ public interface ManagedCursor {
     int getTotalNonContiguousDeletedMessagesRange();
 
     /**
+     * Returns the serialized size of mark-Delete ranges.
+     */
+    int getNonContiguousDeletedMessagesRangeSerializedSize();
+
+    /**
      * Returns the estimated size of the unacknowledged backlog for this cursor
      *
      * @return the estimated size from the mark delete position of the cursor
@@ -648,4 +684,16 @@ public interface ManagedCursor {
      * Get deleted batch indexes list for a batch message.
      */
     long[] getDeletedBatchIndexesAsLongArray(PositionImpl position);
+
+    /**
+     * @return the managed cursor stats MBean
+     */
+    ManagedCursorMXBean getStats();
+
+    /**
+     * Checks if read position changed since this method was called last time.
+     *
+     * @return if read position changed
+     */
+    boolean checkAndUpdateReadPositionChanged();
 }

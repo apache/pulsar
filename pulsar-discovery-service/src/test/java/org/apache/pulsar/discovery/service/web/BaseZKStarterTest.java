@@ -18,30 +18,31 @@
  */
 package org.apache.pulsar.discovery.service.web;
 
-import static org.apache.pulsar.discovery.service.web.ZookeeperCacheLoader.LOADBALANCE_BROKERS_ROOT;
+import static org.apache.pulsar.broker.resources.MetadataStoreCacheLoader.LOADBALANCE_BROKERS_ROOT;
 
-import java.util.concurrent.CompletableFuture;
+import java.nio.charset.StandardCharsets;
+import java.util.Optional;
 
-import org.apache.bookkeeper.util.ZkUtils;
-import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
-import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
-import org.apache.zookeeper.CreateMode;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.zookeeper.MockZooKeeper;
-import org.apache.zookeeper.ZooDefs;
-import org.apache.zookeeper.ZooKeeper;
 
 import com.google.common.util.concurrent.MoreExecutors;
 
 public class BaseZKStarterTest {
 
-    protected MockZooKeeper mockZooKeeper;
+    private MockZooKeeper mockZooKeeper;
+    protected MetadataStoreExtended zkStore;
 
     protected void start() throws Exception {
         mockZooKeeper = createMockZooKeeper();
+        zkStore = new ZKMetadataStore(mockZooKeeper);
+        zkStore.put(LOADBALANCE_BROKERS_ROOT, "".getBytes(StandardCharsets.UTF_8), Optional.of(-1L)).get();
     }
 
     protected void close() throws Exception {
         mockZooKeeper.shutdown();
+        zkStore.close();
     }
 
     /**
@@ -51,21 +52,7 @@ public class BaseZKStarterTest {
      */
     protected MockZooKeeper createMockZooKeeper() throws Exception {
         MockZooKeeper zk = MockZooKeeper.newInstance(MoreExecutors.newDirectExecutorService());
-
-        ZkUtils.createFullPathOptimistic(zk, LOADBALANCE_BROKERS_ROOT,
-                "".getBytes(ZookeeperClientFactoryImpl.ENCODING_SCHEME), ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                CreateMode.PERSISTENT);
         return zk;
-    }
-
-    protected static class DiscoveryZooKeeperClientFactoryImpl implements ZooKeeperClientFactory {
-        static ZooKeeper zk;
-
-        @Override
-        public CompletableFuture<ZooKeeper> create(String serverList, SessionType sessionType,
-                int zkSessionTimeoutMillis) {
-            return CompletableFuture.completedFuture(zk);
-        }
     }
 
 }

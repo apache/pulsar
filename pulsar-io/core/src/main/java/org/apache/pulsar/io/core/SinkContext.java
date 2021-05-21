@@ -20,10 +20,18 @@ package org.apache.pulsar.io.core;
 
 import java.util.Collection;
 
+import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+
 /**
  * Interface for a sink connector providing information about environment where it is running.
  * It also allows to propagate information, such as logs, metrics, states, back to the Pulsar environment.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface SinkContext extends ConnectorContext {
 
     /**
@@ -38,4 +46,40 @@ public interface SinkContext extends ConnectorContext {
      */
     String getSinkName();
 
+    /**
+     * Get subscription type used by the source providing data for the sink
+     * @return subscription type
+     */
+    default SubscriptionType getSubscriptionType() {
+        throw new UnsupportedOperationException("Context does not provide SubscriptionType");
+    }
+
+    /**
+     * Reset the subscription associated with this topic and partition to a specific message id.
+     * @param topic - topic name
+     * @param partition - partition id (0 for non-partitioned topics)
+     * @param messageId to reset to
+     * @throws PulsarClientException
+     */
+    default void seek(String topic, int partition, MessageId messageId) throws PulsarClientException {
+        throw new UnsupportedOperationException("not implemented");
+    }
+
+    /**
+     * Stop requesting new messages for given topic and partition until {@link #resume(String topic)} is called.
+     * @param topic - topic name
+     * @param partition - partition id (0 for non-partitioned topics)
+     */
+    default void pause(String topic, int partition) throws PulsarClientException {
+        throw new UnsupportedOperationException("not implemented");
+    }
+
+    /**
+     * Resume requesting messages.
+     * @param topic - topic name
+     * @param partition - partition id (0 for non-partitioned topics)
+     */
+    default void resume(String topic, int partition) throws PulsarClientException {
+        throw new UnsupportedOperationException("not implemented");
+    }
 }

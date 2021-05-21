@@ -25,6 +25,7 @@ namespace pulsar {
 
 struct ClientConfigurationImpl {
     AuthenticationPtr authenticationPtr;
+    uint64_t memoryLimit;
     int ioThreads;
     int operationTimeoutSeconds;
     int messageListenerThreads;
@@ -37,9 +38,11 @@ struct ClientConfigurationImpl {
     std::unique_ptr<LoggerFactory> loggerFactory;
     bool validateHostName;
     unsigned int partitionsUpdateInterval;
+    std::string listenerName;
 
     ClientConfigurationImpl()
         : authenticationPtr(AuthFactory::Disabled()),
+          memoryLimit(0ull),
           ioThreads(1),
           operationTimeoutSeconds(30),
           messageListenerThreads(1),

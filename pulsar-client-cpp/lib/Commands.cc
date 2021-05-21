@@ -108,7 +108,8 @@ SharedBuffer Commands::newPartitionMetadataRequest(const std::string& topic, uin
     return buffer;
 }
 
-SharedBuffer Commands::newLookup(const std::string& topic, const bool authoritative, uint64_t requestId) {
+SharedBuffer Commands::newLookup(const std::string& topic, const bool authoritative, uint64_t requestId,
+                                 const std::string& listenerName) {
     static BaseCommand cmd;
     static std::mutex mutex;
     std::lock_guard<std::mutex> lock(mutex);
@@ -117,6 +118,7 @@ SharedBuffer Commands::newLookup(const std::string& topic, const bool authoritat
     lookup->set_topic(topic);
     lookup->set_authoritative(authoritative);
     lookup->set_request_id(requestId);
+    lookup->set_advertised_listener_name(listenerName);
     const SharedBuffer buffer = writeMessageWithSize(cmd);
     cmd.clear_lookuptopic();
     return buffer;
@@ -319,7 +321,7 @@ SharedBuffer Commands::newProducer(const std::string& topic, uint64_t producerId
                                    const std::string& producerName, uint64_t requestId,
                                    const std::map<std::string, std::string>& metadata,
                                    const SchemaInfo& schemaInfo, uint64_t epoch,
-                                   bool userProvidedProducerName) {
+                                   bool userProvidedProducerName, bool encrypted) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::PRODUCER);
     CommandProducer* producer = cmd.mutable_producer();
@@ -328,6 +330,7 @@ SharedBuffer Commands::newProducer(const std::string& topic, uint64_t producerId
     producer->set_request_id(requestId);
     producer->set_epoch(epoch);
     producer->set_user_provided_producer_name(userProvidedProducerName);
+    producer->set_encrypted(encrypted);
 
     for (std::map<std::string, std::string>::const_iterator it = metadata.begin(); it != metadata.end();
          it++) {
@@ -653,6 +656,11 @@ void Commands::initBatchMessageMetadata(const Message& msg, pulsar::proto::Messa
     if (metadata.has_replicated_from()) {
         batchMetadata.set_replicated_from(metadata.replicated_from());
     }
+    if (metadata.replicate_to_size() > 0) {
+        for (int i = 0; i < metadata.replicate_to_size(); i++) {
+            batchMetadata.add_replicate_to(metadata.replicate_to(i));
+        }
+    }
     // TODO: set other optional fields
 }
 
@@ -688,7 +696,10 @@ uint64_t Commands::serializeSingleMessageInBatchWithPayload(const Message& msg, 
         LOG_DEBUG("remaining size of batchPayLoad buffer ["
                   << batchPayLoad.writableBytes() << "] can't accomodate new payload [" << requiredSpace
                   << "] - expanding the batchPayload buffer");
-        SharedBuffer buffer = SharedBuffer::allocate(batchPayLoad.readableBytes() + requiredSpace);
+        uint32_t new_size =
+            std::min(batchPayLoad.readableBytes() * 2, static_cast<uint32_t>(maxMessageSizeInBytes));
+        new_size = std::max(new_size, batchPayLoad.readableBytes() + static_cast<uint32_t>(requiredSpace));
+        SharedBuffer buffer = SharedBuffer::allocate(new_size);
         // Adding batch created so far
         buffer.write(batchPayLoad.data(), batchPayLoad.readableBytes());
         batchPayLoad = buffer;

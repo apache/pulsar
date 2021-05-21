@@ -20,11 +20,9 @@ package org.apache.pulsar.common.util;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
-
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-
 import javax.ws.rs.core.Response.Status;
 import org.apache.pulsar.common.policies.data.ErrorData;
 
@@ -41,7 +39,9 @@ public class RestException extends WebApplicationException {
         }
         writer.append("Stacktrace:\n\n");
 
-        t.printStackTrace(new PrintWriter(writer));
+        if (t != null) {
+            t.printStackTrace(new PrintWriter(writer));
+        }
         return writer.toString();
     }
 

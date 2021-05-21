@@ -20,10 +20,14 @@ package org.apache.pulsar.client.impl;
 
 import java.io.IOException;
 import java.text.DecimalFormat;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.stream.Collectors;
 
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerStats;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
@@ -42,7 +46,7 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
     private static final long serialVersionUID = 1L;
     private TimerTask stat;
     private Timeout statTimeout;
-    private ConsumerImpl<?> consumer;
+    private final Consumer<?> consumer;
     private PulsarClientImpl pulsarClient;
     private long oldTime;
     private long statsIntervalSeconds;
@@ -65,6 +69,11 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
     private static final DecimalFormat THROUGHPUT_FORMAT = new DecimalFormat("0.00");
 
     public ConsumerStatsRecorderImpl() {
+        this(null);
+    }
+
+    public ConsumerStatsRecorderImpl(Consumer<?> consumer) {
+        this.consumer = consumer;
         numMsgsReceived = new LongAdder();
         numBytesReceived = new LongAdder();
         numReceiveFailed = new LongAdder();
@@ -80,7 +89,7 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
     }
 
     public ConsumerStatsRecorderImpl(PulsarClientImpl pulsarClient, ConsumerConfigurationData<?> conf,
-            ConsumerImpl<?> consumer) {
+            Consumer<?> consumer) {
         this.pulsarClient = pulsarClient;
         this.consumer = consumer;
         this.statsIntervalSeconds = pulsarClient.getConfiguration().getStatsIntervalSeconds();
@@ -112,9 +121,10 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
         }
 
         stat = (timeout) -> {
-            if (timeout.isCancelled()) {
+            if (timeout.isCancelled() || !(consumer instanceof ConsumerImpl)) {
                 return;
             }
+            ConsumerImpl<?> consumerImpl = (ConsumerImpl<?>) consumer;
             try {
                 long now = System.nanoTime();
                 double elapsed = (now - oldTime) / 1e9;
@@ -135,7 +145,6 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
 
                 receivedMsgsRate = currentNumMsgsReceived / elapsed;
                 receivedBytesRate = currentNumBytesReceived / elapsed;
-
                 if ((currentNumMsgsReceived | currentNumBytesReceived | currentNumReceiveFailed | currentNumAcksSent
                         | currentNumAcksFailed) != 0) {
                     log.info(
@@ -143,15 +152,15 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
                                     + "Consume throughput received: {} msgs/s --- {} Mbit/s --- "
                                     + "Ack sent rate: {} ack/s --- " + "Failed messages: {} --- batch messages: {} ---"
                                     + "Failed acks: {}",
-                            consumer.getTopic(), consumer.getSubscription(), consumer.consumerName,
-                            consumer.incomingMessages.size(), THROUGHPUT_FORMAT.format(receivedMsgsRate),
+                            consumerImpl.getTopic(), consumerImpl.getSubscription(), consumerImpl.consumerName,
+                            consumerImpl.incomingMessages.size(), THROUGHPUT_FORMAT.format(receivedMsgsRate),
                             THROUGHPUT_FORMAT.format(receivedBytesRate * 8 / 1024 / 1024),
                             THROUGHPUT_FORMAT.format(currentNumAcksSent / elapsed), currentNumReceiveFailed,
                             currentNumBatchReceiveFailed, currentNumAcksFailed);
                 }
             } catch (Exception e) {
-                log.error("[{}] [{}] [{}]: {}", consumer.getTopic(), consumer.subscription, consumer.consumerName,
-                        e.getMessage());
+                log.error("[{}] [{}] [{}]: {}", consumerImpl.getTopic(), consumerImpl.subscription
+                        , consumerImpl.consumerName, e.getMessage());
             } finally {
                 // schedule the next stat info
                 statTimeout = pulsarClient.timer().newTimeout(stat, statsIntervalSeconds, TimeUnit.SECONDS);
@@ -166,7 +175,7 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
     public void updateNumMsgsReceived(Message<?> message) {
         if (message != null) {
             numMsgsReceived.increment();
-            numBytesReceived.add(message.getData() == null ? 0 : message.getData().length);
+            numBytesReceived.add(message.size());
         }
     }
 
@@ -230,22 +239,47 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
         totalAcksFailed.add(stats.getTotalAcksFailed());
     }
 
+    @Override
+    public Integer getMsgNumInReceiverQueue() {
+        if (consumer instanceof ConsumerBase) {
+            return ((ConsumerBase<?>) consumer).incomingMessages.size();
+        }
+        return null;
+    }
+
+    @Override
+    public Map<Long, Integer> getMsgNumInSubReceiverQueue() {
+        if (consumer instanceof MultiTopicsConsumerImpl) {
+            List<ConsumerImpl<?>> consumerList = ((MultiTopicsConsumerImpl) consumer).getConsumers();
+            return consumerList.stream().collect(
+                    Collectors.toMap((consumerImpl) -> consumerImpl.consumerId
+                            , (consumerImpl) -> consumerImpl.incomingMessages.size())
+            );
+        }
+        return null;
+    }
+
+    @Override
     public long getNumMsgsReceived() {
         return numMsgsReceived.longValue();
     }
 
+    @Override
     public long getNumBytesReceived() {
         return numBytesReceived.longValue();
     }
 
+    @Override
     public long getNumAcksSent() {
         return numAcksSent.longValue();
     }
 
+    @Override
     public long getNumAcksFailed() {
         return numAcksFailed.longValue();
     }
 
+    @Override
     public long getNumReceiveFailed() {
         return numReceiveFailed.longValue();
     }
@@ -255,14 +289,17 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
         return numBatchReceiveFailed.longValue();
     }
 
+    @Override
     public long getTotalMsgsReceived() {
         return totalMsgsReceived.longValue();
     }
 
+    @Override
     public long getTotalBytesReceived() {
         return totalBytesReceived.longValue();
     }
 
+    @Override
     public long getTotalReceivedFailed() {
         return totalReceiveFailed.longValue();
     }
@@ -272,10 +309,12 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
         return totalBatchReceiveFailed.longValue();
     }
 
+    @Override
     public long getTotalAcksSent() {
         return totalAcksSent.longValue();
     }
 
+    @Override
     public long getTotalAcksFailed() {
         return totalAcksFailed.longValue();
     }

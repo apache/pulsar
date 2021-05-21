@@ -182,7 +182,7 @@ For more information, see [here](io-cli.md#create).
 
 <!--REST API-->
 
-Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sources/:tenant/:namespace/:sourceName|operation/registerSource}
+Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sources/:tenant/:namespace/:sourceName|operation/registerSource?version=[[pulsar:version_number]]}
 
 <!--Java Admin API-->
 
@@ -259,7 +259,7 @@ For more information, see [here](io-cli.md#create-1).
 
 <!--REST API-->
 
-Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sinks/:tenant/:namespace/:sinkName|operation/registerSink}
+Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sinks/:tenant/:namespace/:sinkName|operation/registerSink?version=[[pulsar:version_number]]}
 
 <!--Java Admin API-->
 
@@ -342,11 +342,11 @@ For more information, see [here](io-cli.md#start).
 
 * Start **all** source connectors.
 
-    Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sources/:tenant/:namespace/:sourceName/start|operation/startSource}
+    Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sources/:tenant/:namespace/:sourceName/start|operation/startSource?version=[[pulsar:version_number]]}
 
 * Start a **specified** source connector.
 
-    Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId/start|operation/startSource}
+    Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId/start|operation/startSource?version=[[pulsar:version_number]]}
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
@@ -370,11 +370,11 @@ For more information, see [here](io-cli.md#start-1).
 
 * Start **all** sink connectors.
 
-    Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sources/:tenant/:namespace/:sinkName/start|operation/startSink}
+    Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sources/:tenant/:namespace/:sinkName/start|operation/startSink?version=[[pulsar:version_number]]}
 
 * Start a **specified** sink connector.
 
-    Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sinks/:tenant/:namespace/:sourceName/:instanceId/start|operation/startSink}
+    Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sinks/:tenant/:namespace/:sourceName/:instanceId/start|operation/startSink?version=[[pulsar:version_number]]}
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
@@ -450,7 +450,7 @@ For more information, see [here](io-cli.md#get).
 
 <!--REST API-->
 
-Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v3/sources/:tenant/:namespace/:sourceName|operation/getSourceInfo}
+Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v3/sources/:tenant/:namespace/:sourceName|operation/getSourceInfo?version=[[pulsar:version_number]]}
 
 <!--Java Admin API-->
 
@@ -547,7 +547,7 @@ For more information, see [here](io-cli.md#get-1).
 
 <!--REST API-->
 
-Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v3/sinks/:tenant/:namespace/:sinkName|operation/getSinkInfo}
+Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v3/sinks/:tenant/:namespace/:sinkName|operation/getSinkInfo?version=[[pulsar:version_number]]}
 
 <!--Java Admin API-->
 
@@ -641,7 +641,7 @@ For more information, see [here](io-cli.md#list).
 
 <!--REST API-->
 
-Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v3/sources/:tenant/:namespace/|operation/listSources}
+Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v3/sources/:tenant/:namespace/|operation/listSources?version=[[pulsar:version_number]]}
 
 <!--Java Admin API-->
 
@@ -686,7 +686,7 @@ For more information, see [here](io-cli.md#list-1).
 
 <!--REST API-->
 
-Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v3/sinks/:tenant/:namespace/|operation/listSinks}
+Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v3/sinks/:tenant/:namespace/|operation/listSinks?version=[[pulsar:version_number]]}
 
 <!--Java Admin API-->
 
@@ -737,11 +737,11 @@ For more information, see [here](io-cli.md#status).
 
 * Get the current status of **all** source connectors.
   
-  Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v3/sources/:tenant/:namespace/:sourceName/status|operation/getSourceStatus}
+  Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v3/sources/:tenant/:namespace/:sourceName/status|operation/getSourceStatus?version=[[pulsar:version_number]]}
 
 * Gets the current status of a **specified** source connector.
 
-  Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId/status|operation/getSourceStatus}
+  Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId/status|operation/getSourceStatus?version=[[pulsar:version_number]]}
   
 <!--Java Admin API-->
 
@@ -819,11 +819,11 @@ For more information, see [here](io-cli.md#status-1).
 
 * Get the current status of **all** sink connectors.
   
-  Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v3/sinks/:tenant/:namespace/:sinkName/status|operation/getSinkStatus}
+  Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v3/sinks/:tenant/:namespace/:sinkName/status|operation/getSinkStatus?version=[[pulsar:version_number]]}
 
 * Gets the current status of a **specified** sink connector.
 
-  Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v3/sinks/:tenant/:namespace/:sourceName/:instanceId/status|operation/getSinkInstanceStatus}
+  Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v3/sinks/:tenant/:namespace/:sourceName/:instanceId/status|operation/getSinkInstanceStatus?version=[[pulsar:version_number]]}
 
 <!--Java Admin API-->
 
@@ -905,7 +905,7 @@ For more information, see [here](io-cli.md#update).
 
 <!--REST API-->
 
-Send a `PUT` request to this endpoint: {@inject: endpoint|PUT|/admin/v3/sources/:tenant/:namespace/:sourceName|operation/updateSource}
+Send a `PUT` request to this endpoint: {@inject: endpoint|PUT|/admin/v3/sources/:tenant/:namespace/:sourceName|operation/updateSource?version=[[pulsar:version_number]]}
   
 <!--Java Admin API-->
 
@@ -986,7 +986,7 @@ For more information, see [here](io-cli.md#update-1).
 
 <!--REST API-->
 
-Send a `PUT` request to this endpoint: {@inject: endpoint|PUT|/admin/v3/sinks/:tenant/:namespace/:sinkName|operation/updateSink}
+Send a `PUT` request to this endpoint: {@inject: endpoint|PUT|/admin/v3/sinks/:tenant/:namespace/:sinkName|operation/updateSink?version=[[pulsar:version_number]]}
   
 <!--Java Admin API-->
 
@@ -1075,11 +1075,11 @@ For more information, see [here](io-cli.md#stop).
 
 * Stop **all** source connectors.
   
-  Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sources/:tenant/:namespace/:sourceName|operation/stopSource}
+  Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sources/:tenant/:namespace/:sourceName|operation/stopSource?version=[[pulsar:version_number]]}
 
 * Stop a **specified** source connector.
   
-  Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId|operation/stopSource}
+  Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId|operation/stopSource?version=[[pulsar:version_number]]}
 
 <!--Java Admin API-->
 
@@ -1157,11 +1157,11 @@ For more information, see [here](io-cli.md#stop-1).
 
 * Stop **all** sink connectors.
   
-  Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sinks/:tenant/:namespace/:sinkName/stop|operation/stopSink}
+  Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sinks/:tenant/:namespace/:sinkName/stop|operation/stopSink?version=[[pulsar:version_number]]}
 
 * Stop a **specified** sink connector.
   
-  Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sources/:tenant/:namespace/:sinkeName/:instanceId/stop|operation/stopSink}
+  Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sources/:tenant/:namespace/:sinkeName/:instanceId/stop|operation/stopSink?version=[[pulsar:version_number]]}
 
 <!--Java Admin API-->
 
@@ -1245,11 +1245,11 @@ For more information, see [here](io-cli.md#restart).
 
 * Restart **all** source connectors.
   
-  Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sources/:tenant/:namespace/:sourceName/restart|operation/restartSource}
+  Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sources/:tenant/:namespace/:sourceName/restart|operation/restartSource?version=[[pulsar:version_number]]}
 
 * Restart a **specified** source connector.
   
-  Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId/restart|operation/restartSource}
+  Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId/restart|operation/restartSource?version=[[pulsar:version_number]]}
 
 <!--Java Admin API-->
 
@@ -1327,11 +1327,11 @@ For more information, see [here](io-cli.md#restart-1).
 
 * Restart **all** sink connectors.
   
-  Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sources/:tenant/:namespace/:sinkName/restart|operation/restartSource}
+  Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sources/:tenant/:namespace/:sinkName/restart|operation/restartSource?version=[[pulsar:version_number]]}
 
 * Restart a **specified** sink connector.
   
-  Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sources/:tenant/:namespace/:sinkName/:instanceId/restart|operation/restartSource}
+  Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sources/:tenant/:namespace/:sinkName/:instanceId/restart|operation/restartSource?version=[[pulsar:version_number]]}
 
 <!--Java Admin API-->
 
@@ -1415,7 +1415,7 @@ For more information, see [here](io-cli.md#delete).
 
 Delete al Pulsar source connector.
   
-Send a `DELETE` request to this endpoint: {@inject: endpoint|DELETE|/admin/v3/sources/:tenant/:namespace/:sourceName|operation/deregisterSource}
+Send a `DELETE` request to this endpoint: {@inject: endpoint|DELETE|/admin/v3/sources/:tenant/:namespace/:sourceName|operation/deregisterSource?version=[[pulsar:version_number]]}
 
 <!--Java Admin API-->
 
@@ -1469,7 +1469,7 @@ For more information, see [here](io-cli.md#delete-1).
 
 Delete a sink connector.
   
-Send a `DELETE` request to this endpoint: {@inject: endpoint|DELETE|/admin/v3/sinks/:tenant/:namespace/:sinkName|operation/deregisterSink}
+Send a `DELETE` request to this endpoint: {@inject: endpoint|DELETE|/admin/v3/sinks/:tenant/:namespace/:sinkName|operation/deregisterSink?version=[[pulsar:version_number]]}
 
 <!--Java Admin API-->
 

@@ -114,6 +114,7 @@ public class KafkaConnectSource extends AbstractKafkaConnectSource<KeyValue<byte
                 .stream()
                 .map(e -> e.getKey() + "=" + e.getValue())
                 .collect(Collectors.joining(",")));
+            this.partitionIndex = Optional.ofNullable(srcRecord.kafkaPartition());
         }
 
         @Override

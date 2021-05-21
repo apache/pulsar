@@ -18,18 +18,20 @@
  */
 package org.apache.pulsar.broker.protocol;
 
-import com.google.common.annotations.Beta;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import java.net.InetSocketAddress;
 import java.util.Map;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * The protocol handler interface for support additional protocols on Pulsar brokers.
  */
-@Beta
+@InterfaceAudience.LimitedPrivate
+@InterfaceStability.Evolving
 public interface ProtocolHandler extends AutoCloseable {
 
     /**

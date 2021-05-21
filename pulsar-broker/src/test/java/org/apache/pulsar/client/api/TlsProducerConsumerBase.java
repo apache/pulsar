@@ -30,11 +30,11 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.*;
 
 import com.google.common.collect.Sets;
 
+@Test(groups = "broker-api")
 public class TlsProducerConsumerBase extends ProducerConsumerBase {
     protected final String TLS_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/cacert.pem";
     protected final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/authentication/tls/client-cert.pem";
@@ -59,7 +59,7 @@ public class TlsProducerConsumerBase extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    protected void internalSetUpForBroker() throws Exception {
+    protected void internalSetUpForBroker() {
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePortTls(Optional.of(0));
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
@@ -68,6 +68,7 @@ public class TlsProducerConsumerBase extends ProducerConsumerBase {
         conf.setClusterName(clusterName);
         conf.setTlsRequireTrustedClientCertOnConnect(true);
         Set<String> tlsProtocols = Sets.newConcurrentHashSet();
+        tlsProtocols.add("TLSv1.3");
         tlsProtocols.add("TLSv1.2");
         conf.setTlsProtocols(tlsProtocols);
         conf.setNumExecutorThreadPoolSize(5);
@@ -77,7 +78,6 @@ public class TlsProducerConsumerBase extends ProducerConsumerBase {
         if (pulsarClient != null) {
             pulsarClient.close();
         }
-
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(lookupUrl)
                 .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).enableTls(true).allowTlsInsecureConnection(false)
                 .operationTimeout(1000, TimeUnit.MILLISECONDS);
@@ -87,7 +87,7 @@ public class TlsProducerConsumerBase extends ProducerConsumerBase {
             authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
             clientBuilder.authentication(AuthenticationTls.class.getName(), authParams);
         }
-        pulsarClient = clientBuilder.build();
+        replacePulsarClient(clientBuilder);
     }
 
     protected void internalSetUpForNamespace() throws Exception {

@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.loadbalance.impl;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
@@ -31,8 +30,6 @@ import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
-import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
-import org.apache.pulsar.zookeeper.ZooKeeperCache.Deserializer;
 
 /**
  * Wrapper class allowing classes of instance ModularLoadManager to be compatible with the interface LoadManager.
@@ -116,13 +113,13 @@ public class ModularLoadManagerWrapper implements LoadManager {
     }
 
     @Override
-    public void writeResourceQuotasToZooKeeper() {
-        loadManager.writeBundleDataOnZooKeeper();
+    public void writeLoadReportOnZookeeper(boolean force) {
+        loadManager.writeBrokerDataOnZooKeeper(force);
     }
 
     @Override
-    public Deserializer<? extends ServiceLookupData> getLoadReportDeserializer() {
-        return loadManager.getLoadReportDeserializer();
+    public void writeResourceQuotasToZooKeeper() {
+        loadManager.writeBundleDataOnZooKeeper();
     }
 
     public ModularLoadManager getLoadManager() {

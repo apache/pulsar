@@ -18,9 +18,14 @@
  */
 package org.apache.pulsar.client.api.schema;
 
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+
 /**
  * Generic Record Builder to build a {@link GenericRecord}.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface GenericRecordBuilder {
 
     /**

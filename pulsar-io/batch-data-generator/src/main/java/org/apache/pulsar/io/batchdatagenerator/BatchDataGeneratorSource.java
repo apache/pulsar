@@ -24,6 +24,7 @@ import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.BatchSource;
 import org.apache.pulsar.io.core.SourceContext;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -46,14 +47,14 @@ public class BatchDataGeneratorSource implements BatchSource<Person> {
     public void discover(Consumer<byte[]> taskEater) {
         log.info("Generating one task for each instance");
         for (int i = 0; i < sourceContext.getNumInstances(); ++i) {
-            taskEater.accept("something".getBytes());
+            taskEater.accept("something".getBytes(StandardCharsets.UTF_8));
         }
     }
 
     @Override
     public void prepare(byte[] instanceSplit) {
         log.info("Instance " + sourceContext.getInstanceId() + " got a new discovered task");
-        final String str = new String(instanceSplit);
+        final String str = new String(instanceSplit, StandardCharsets.UTF_8);
         final String expected = "something";
         assert str.equals(expected);
         iteration = 0;

@@ -20,12 +20,16 @@ package org.apache.pulsar.common.policies.data;
 
 import com.google.common.collect.Maps;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 
 
 /**
@@ -35,6 +39,8 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Getter
+@Setter
 public class TopicPolicies {
 
     private Map<String, BacklogQuota> backLogQuotaMap = Maps.newHashMap();
@@ -56,6 +62,27 @@ public class TopicPolicies {
     private Long compactionThreshold = null;
     private PublishRate publishRate = null;
     private SubscribeRate subscribeRate = null;
+    private Integer deduplicationSnapshotIntervalSeconds = null;
+    private Integer maxMessageSize = null;
+    private Integer maxSubscriptionsPerTopic = null;
+    private DispatchRate replicatorDispatchRate = null;
+    private List<SubType> subscriptionTypesEnabled = new ArrayList<>();
+
+    public boolean isReplicatorDispatchRateSet() {
+        return replicatorDispatchRate != null;
+    }
+
+    public boolean isMaxSubscriptionsPerTopicSet() {
+        return maxSubscriptionsPerTopic != null;
+    }
+
+    public boolean isMaxMessageSizeSet() {
+        return maxMessageSize != null;
+    }
+
+    public boolean isDeduplicationSnapshotIntervalSecondsSet(){
+        return deduplicationSnapshotIntervalSeconds != null;
+    }
 
     public boolean isInactiveTopicPoliciesSet() {
         return inactiveTopicPolicies != null;

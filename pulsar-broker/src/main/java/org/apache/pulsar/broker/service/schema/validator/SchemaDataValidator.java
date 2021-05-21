@@ -41,6 +41,9 @@ public interface SchemaDataValidator {
             case PROTOBUF:
                 StructSchemaDataValidator.of().validate(schemaData);
                 break;
+            case PROTOBUF_NATIVE:
+                ProtobufNativeSchemaDataValidator.of().validate(schemaData);
+                break;
             case STRING:
                 StringSchemaDataValidator.of().validate(schemaData);
                 break;

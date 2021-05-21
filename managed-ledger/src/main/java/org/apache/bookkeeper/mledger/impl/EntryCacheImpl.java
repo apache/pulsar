@@ -97,7 +97,7 @@ public class EntryCacheImpl implements EntryCache {
                     entry.getLength());
         }
 
-        ByteBuf cachedData = null;
+        ByteBuf cachedData;
         if (copyEntries) {
             cachedData = copyEntry(entry);
             if (cachedData == null) {
@@ -149,8 +149,10 @@ public class EntryCacheImpl implements EntryCache {
         final PositionImpl firstPosition = PositionImpl.get(-1, 0);
 
         if (firstPosition.compareTo(lastPosition) > 0) {
-            log.debug("Attempted to invalidate entries in an invalid range : {} ~ {}",
-                firstPosition, lastPosition);
+            if (log.isDebugEnabled()) {
+                log.debug("Attempted to invalidate entries in an invalid range : {} ~ {}",
+                        firstPosition, lastPosition);
+            }
             return;
         }
 
@@ -211,7 +213,7 @@ public class EntryCacheImpl implements EntryCache {
             lh.readAsync(position.getEntryId(), position.getEntryId()).whenCompleteAsync(
                     (ledgerEntries, exception) -> {
                         if (exception != null) {
-                            ml.invalidateLedgerHandle(lh, exception);
+                            ml.invalidateLedgerHandle(lh);
                             callback.readEntryFailed(createManagedLedgerException(exception), ctx);
                             return;
                         }
@@ -234,7 +236,7 @@ public class EntryCacheImpl implements EntryCache {
                             ledgerEntries.close();
                         }
                     }, ml.getExecutor().chooseThread(ml.getName())).exceptionally(exception->{
-                    	  ml.invalidateLedgerHandle(lh, exception);
+                          ml.invalidateLedgerHandle(lh);
                           callback.readEntryFailed(createManagedLedgerException(exception), ctx);
                           return null;
                     }
@@ -303,7 +305,7 @@ public class EntryCacheImpl implements EntryCache {
                                 && ((BKException)exception).getCode() == BKException.Code.TooManyRequestsException) {
                                 callback.readEntriesFailed(createManagedLedgerException(exception), ctx);
                             } else {
-                                ml.invalidateLedgerHandle(lh, exception);
+                                ml.invalidateLedgerHandle(lh);
                                 ManagedLedgerException mlException = createManagedLedgerException(exception);
                                 callback.readEntriesFailed(mlException, ctx);
                             }
@@ -337,7 +339,7 @@ public class EntryCacheImpl implements EntryCache {
                                   && ((BKException)exception).getCode() == BKException.Code.TooManyRequestsException) {
                                   callback.readEntriesFailed(createManagedLedgerException(exception), ctx);
                               } else {
-                                  ml.invalidateLedgerHandle(lh, exception);
+                                  ml.invalidateLedgerHandle(lh);
                                   ManagedLedgerException mlException = createManagedLedgerException(exception);
                                   callback.readEntriesFailed(mlException, ctx);
                               }

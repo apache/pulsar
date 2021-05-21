@@ -19,14 +19,18 @@
 package org.apache.pulsar.common.stats;
 
 import com.google.common.collect.Maps;
+
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
+import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
+
+import lombok.SneakyThrows;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@SuppressWarnings({"restriction", "checkstyle:JavadocType"})
+@SuppressWarnings({"checkstyle:JavadocType"})
 public class JvmDefaultGCMetricsLogger implements JvmGCMetricsLogger {
 
     private static final Logger log = LoggerFactory.getLogger(JvmDefaultGCMetricsLogger.class);
@@ -36,17 +40,44 @@ public class JvmDefaultGCMetricsLogger implements JvmGCMetricsLogger {
     private volatile long accumulatedFullGcTime = 0;
     private volatile long currentFullGcTime = 0;
 
-    @SuppressWarnings("restriction")
-    private static sun.management.HotspotRuntimeMBean runtime;
+    private static Object /*sun.management.HotspotRuntimeMBean*/ runtime;
+    private static Method getTotalSafepointTimeHandle;
+    private static Method getSafepointCountHandle;
 
     private Map<String, GCMetrics> gcMetricsMap = Maps.newHashMap();
 
     static {
         try {
-            runtime = sun.management.ManagementFactoryHelper.getHotspotRuntimeMBean();
-        } catch (Exception e) {
+            runtime = Class.forName("sun.management.ManagementFactoryHelper")
+                    .getMethod("getHotspotRuntimeMBean")
+                    .invoke(null);
+            getTotalSafepointTimeHandle = runtime.getClass().getMethod("getTotalSafepointTime");
+            getTotalSafepointTimeHandle.setAccessible(true);
+            getSafepointCountHandle = runtime.getClass().getMethod("getSafepointCount");
+            getSafepointCountHandle.setAccessible(true);
+
+            // try to use the methods
+            getTotalSafepointTimeHandle.invoke(runtime);
+            getSafepointCountHandle.invoke(runtime);
+        } catch (Throwable e) {
             log.warn("Failed to get Runtime bean", e);
         }
+    }
+
+    @SneakyThrows
+    static long getTotalSafepointTime() {
+        if (getTotalSafepointTimeHandle == null) {
+            return -1;
+        }
+        return (long) getTotalSafepointTimeHandle.invoke(runtime);
+    }
+
+    @SneakyThrows
+    static long getSafepointCount() {
+        if (getTotalSafepointTimeHandle == null) {
+            return -1;
+        }
+        return (long) getSafepointCountHandle.invoke(runtime);
     }
 
     /**
@@ -92,8 +123,8 @@ public class JvmDefaultGCMetricsLogger implements JvmGCMetricsLogger {
              * that the application has been stopped for safepoint operations.
              * http://www.docjar.com/docs/api/sun/management/HotspotRuntimeMBean.html
              */
-            long newSafePointTime = runtime.getTotalSafepointTime();
-            long newSafePointCount = runtime.getSafepointCount();
+            long newSafePointTime = getTotalSafepointTime();
+            long newSafePointCount = getSafepointCount();
             currentFullGcTime = newSafePointTime - accumulatedFullGcTime;
             currentFullGcCount = newSafePointCount - accumulatedFullGcCount;
             accumulatedFullGcTime = newSafePointTime;

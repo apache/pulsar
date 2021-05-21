@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -41,6 +41,7 @@ $ROOT_DIR/bin/pulsar-admin documents generate topics > $ROOT_DIR/site2/website/b
 $ROOT_DIR/bin/pulsar-admin documents generate tenants > $ROOT_DIR/site2/website/brodocs/documents/tenants.md
 $ROOT_DIR/bin/pulsar-admin documents generate resource-quotas > $ROOT_DIR/site2/website/brodocs/documents/resource-quotas.md
 $ROOT_DIR/bin/pulsar-admin documents generate schemas > $ROOT_DIR/site2/website/brodocs/documents/schemas.md
+$ROOT_DIR/bin/pulsar-admin documents generate packages > $ROOT_DIR/site2/website/brodocs/documents/packages.md
 
 cd $ROOT_DIR/site2/website/brodocs
 node brodoc.js

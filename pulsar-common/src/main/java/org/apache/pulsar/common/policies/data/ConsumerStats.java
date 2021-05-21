@@ -19,7 +19,7 @@
 package org.apache.pulsar.common.policies.data;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -41,8 +41,15 @@ public class ConsumerStats {
     /** Total rate of messages redelivered by this consumer (msg/s). */
     public double msgRateRedeliver;
 
-    /** Total chunked messages dispatched. */
+    /**
+     * Total chunked messages dispatched.
+     * @deprecated use {@link chunkedMessageRate)}
+     */
+    @Deprecated
     public double chuckedMessageRate;
+
+    /** Total chunked messages dispatched. */
+    public double chunkedMessageRate;
 
     /** Name of the consumer. */
     public String consumerName;
@@ -76,6 +83,9 @@ public class ConsumerStats {
 
     public long lastAckedTimestamp;
     public long lastConsumedTimestamp;
+
+    /** Hash ranges assigned to this consumer if is Key_Shared sub mode. **/
+    public List<String> keyHashRanges;
 
     /** Metadata (key/value strings) associated with this consumer. */
     public Map<String, String> metadata;

@@ -18,6 +18,7 @@
  */
 #ifndef LIB_UNACKEDMESSAGETRACKERENABLED_H_
 #define LIB_UNACKEDMESSAGETRACKERENABLED_H_
+#include "lib/TestUtil.h"
 #include "lib/UnAckedMessageTrackerInterface.h"
 
 #include <mutex>
@@ -28,15 +29,15 @@ class UnAckedMessageTrackerEnabled : public UnAckedMessageTrackerInterface {
     ~UnAckedMessageTrackerEnabled();
     UnAckedMessageTrackerEnabled(long timeoutMs, const ClientImplPtr, ConsumerImplBase&);
     UnAckedMessageTrackerEnabled(long timeoutMs, long tickDuration, const ClientImplPtr, ConsumerImplBase&);
-    bool add(const MessageId& m);
-    bool remove(const MessageId& m);
+    bool add(const MessageId& msgId);
+    bool remove(const MessageId& msgId);
     void removeMessagesTill(const MessageId& msgId);
     void removeTopicMessage(const std::string& topic);
     void timeoutHandler();
 
     void clear();
 
-   private:
+   protected:
     void timeoutHandlerHelper();
     bool isEmpty();
     long size();
@@ -48,6 +49,10 @@ class UnAckedMessageTrackerEnabled : public UnAckedMessageTrackerInterface {
     ClientImplPtr client_;
     long timeoutMs_;
     long tickDurationInMs_;
+
+    FRIEND_TEST(ConsumerTest, testPartitionedConsumerUnAckedMessageRedelivery);
+    FRIEND_TEST(ConsumerTest, testMultiTopicsConsumerUnAckedMessageRedelivery);
+    FRIEND_TEST(ConsumerTest, testBatchUnAckedMessageTracker);
 };
 }  // namespace pulsar
 

@@ -18,6 +18,4 @@
 # under the License.
 #
 
-bin/set_python_version.sh
-
 bin/pulsar standalone

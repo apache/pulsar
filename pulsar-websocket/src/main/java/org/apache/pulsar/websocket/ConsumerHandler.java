@@ -33,17 +33,16 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException;
-import org.apache.pulsar.client.api.PulsarClientException.ConsumerBusyException;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerBuilderImpl;
@@ -52,6 +51,7 @@ import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ConsumerCommand;
 import org.apache.pulsar.websocket.data.ConsumerMessage;
+import org.apache.pulsar.websocket.data.EndOfTopicResponse;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.WriteCallback;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
@@ -128,24 +128,6 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                 log.warn("[{}:{}] Failed to send error: {}", request.getRemoteAddr(), request.getRemotePort(),
                         e1.getMessage(), e1);
             }
-        }
-    }
-
-    private static int getErrorCode(Exception e) {
-        if (e instanceof IllegalArgumentException) {
-            return HttpServletResponse.SC_BAD_REQUEST;
-        } else if (e instanceof ConsumerBusyException) {
-            return HttpServletResponse.SC_CONFLICT;
-        } else {
-            return HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
-        }
-    }
-
-    private static String getErrorMessage(Exception e) {
-        if (e instanceof IllegalArgumentException) {
-            return "Invalid query params: " + e.getMessage();
-        } else {
-            return "Failed to subscribe: " + e.getMessage();
         }
     }
 
@@ -235,12 +217,42 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                 handlePermit(command);
             } else if ("unsubscribe".equals(command.type)) {
                 handleUnsubscribe(command);
+            } else if ("isEndOfTopic".equals(command.type)) {
+                handleEndOfTopic();
             } else {
                 handleAck(command);
             }
         } catch (IOException e) {
             log.warn("Failed to deserialize message id: {}", message, e);
             close(WebSocketError.FailedToDeserializeFromJSON);
+        }
+    }
+
+    // Check and notify consumer if reached end of topic.
+    private void handleEndOfTopic() {
+        try {
+            String msg = ObjectMapperFactory.getThreadLocal().writeValueAsString(
+                    new EndOfTopicResponse(consumer.hasReachedEndOfTopic()));
+            getSession().getRemote()
+            .sendString(msg, new WriteCallback() {
+                @Override
+                public void writeFailed(Throwable th) {
+                    log.warn("[{}/{}] Failed to send end of topic msg to {} due to {}", consumer.getTopic(),
+                            subscription, getRemote().getInetSocketAddress().toString(), th.getMessage());
+                }
+
+                @Override
+                public void writeSuccess() {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}/{}] End of topic message is delivered successfully to {} ",
+                                consumer.getTopic(), subscription, getRemote().getInetSocketAddress().toString());
+                    }
+                }
+            });
+        } catch (JsonProcessingException e) {
+            log.warn("[{}] Failed to generate end of topic response: {}", consumer.getTopic(), e.getMessage());
+        } catch (Exception e) {
+            log.warn("[{}] Failed to send end of topic response: {}", consumer.getTopic(), e.getMessage());
         }
     }
 
@@ -330,7 +342,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         numBytesDelivered.add(msgSize);
     }
 
-    private ConsumerBuilder<byte[]> getConsumerConfiguration(PulsarClient client) {
+    protected ConsumerBuilder<byte[]> getConsumerConfiguration(PulsarClient client) {
         ConsumerBuilder<byte[]> builder = client.newConsumer();
 
         if (queryParams.containsKey("ackTimeoutMillis")) {
@@ -374,6 +386,15 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             builder.deadLetterPolicy(dlpBuilder.build());
         }
 
+        if (queryParams.containsKey("cryptoFailureAction")) {
+            String action = queryParams.get("cryptoFailureAction");
+            try {
+                builder.cryptoFailureAction(ConsumerCryptoFailureAction.valueOf(action));
+            } catch (Exception e) {
+                log.warn("Failed to configure cryptoFailureAction {} , {}", action, e.getMessage());
+            }
+        }
+
         return builder;
     }
 
@@ -405,5 +426,4 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     }
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerHandler.class);
-
 }

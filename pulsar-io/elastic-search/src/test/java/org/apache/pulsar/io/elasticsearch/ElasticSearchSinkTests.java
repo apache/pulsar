@@ -88,7 +88,7 @@ public class ElasticSearchSinkTests {
             }});
     }
     
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public final void tearDown() throws Exception {
         sink.close();
     }

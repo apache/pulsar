@@ -18,13 +18,18 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
-import static org.testng.Assert.assertEquals;
-
+import com.google.common.collect.Maps;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import static org.testng.Assert.assertEquals;
 
 /**
  * Unit test {@link org.apache.pulsar.common.schema.SchemaInfo}.
@@ -76,6 +81,20 @@ public class SchemaInfoTest {
         + "    \"namespace\": \"org.apache.pulsar.client.impl.schema.SchemaTestUtils\",\n"
         + "    \"fields\": [\n"
         + "      {\n"
+        + "        \"name\": \"color\",\n"
+        + "        \"type\": [\n"
+        + "          \"null\",\n"
+        + "          {\n"
+        + "            \"type\": \"enum\",\n"
+        + "            \"name\": \"Color\",\n"
+        + "            \"symbols\": [\n"
+        + "              \"RED\",\n"
+        + "              \"BLUE\"\n"
+        + "            ]\n"
+        + "          }\n"
+        + "        ]\n"
+        + "      },\n"
+        + "      {\n"
         + "        \"name\": \"field1\",\n"
         + "        \"type\": [\n"
         + "          \"null\",\n"
@@ -110,20 +129,6 @@ public class SchemaInfoTest {
         + "        ]\n"
         + "      },\n"
         + "      {\n"
-        + "        \"name\": \"color\",\n"
-        + "        \"type\": [\n"
-        + "          \"null\",\n"
-        + "          {\n"
-        + "            \"type\": \"enum\",\n"
-        + "            \"name\": \"Color\",\n"
-        + "            \"symbols\": [\n"
-        + "              \"RED\",\n"
-        + "              \"BLUE\"\n"
-        + "            ]\n"
-        + "          }\n"
-        + "        ]\n"
-        + "      },\n"
-        + "      {\n"
         + "        \"name\": \"fieldUnableNull\",\n"
         + "        \"type\": \"string\",\n"
         + "        \"default\": \"defaultValue\"\n"
@@ -150,6 +155,20 @@ public class SchemaInfoTest {
         + "        \"name\": \"Foo\",\n"
         + "        \"namespace\": \"org.apache.pulsar.client.impl.schema.SchemaTestUtils\",\n"
         + "        \"fields\": [\n"
+        + "          {\n"
+        + "            \"name\": \"color\",\n"
+        + "            \"type\": [\n"
+        + "              \"null\",\n"
+        + "              {\n"
+        + "                \"type\": \"enum\",\n"
+        + "                \"name\": \"Color\",\n"
+        + "                \"symbols\": [\n"
+        + "                  \"RED\",\n"
+        + "                  \"BLUE\"\n"
+        + "                ]\n"
+        + "              }\n"
+        + "            ]\n"
+        + "          },\n"
         + "          {\n"
         + "            \"name\": \"field1\",\n"
         + "            \"type\": [\n"
@@ -180,20 +199,6 @@ public class SchemaInfoTest {
         + "                    \"name\": \"field1\",\n"
         + "                    \"type\": \"boolean\"\n"
         + "                  }\n"
-        + "                ]\n"
-        + "              }\n"
-        + "            ]\n"
-        + "          },\n"
-        + "          {\n"
-        + "            \"name\": \"color\",\n"
-        + "            \"type\": [\n"
-        + "              \"null\",\n"
-        + "              {\n"
-        + "                \"type\": \"enum\",\n"
-        + "                \"name\": \"Color\",\n"
-        + "                \"symbols\": [\n"
-        + "                  \"RED\",\n"
-        + "                  \"BLUE\"\n"
         + "                ]\n"
         + "              }\n"
         + "            ]\n"
@@ -280,4 +285,47 @@ public class SchemaInfoTest {
         assertEquals(si.toString(), jsonifiedStr);
     }
 
+    public static class SchemaInfoBuilderTest {
+
+        @Test
+        public void testUnsetProperties() {
+            final SchemaInfo schemaInfo = SchemaInfo.builder()
+                    .type(SchemaType.STRING)
+                    .schema(new byte[0])
+                    .name("string")
+                    .build();
+
+            assertEquals(schemaInfo.getSchema(), new byte[0]);
+            assertEquals(schemaInfo.getType(), SchemaType.STRING);
+            assertEquals(schemaInfo.getName(), "string");
+            assertEquals(schemaInfo.getProperties(), Maps.newHashMap());
+        }
+
+        @Test
+        public void testSetProperties() {
+            final Map<String, String> map = Maps.newHashMap();
+            map.put("test", "value");
+            final SchemaInfo schemaInfo = SchemaInfo.builder()
+                    .type(SchemaType.STRING)
+                    .schema(new byte[0])
+                    .name("string")
+                    .properties(map)
+                    .build();
+
+            assertEquals(schemaInfo.getSchema(), new byte[0]);
+            assertEquals(schemaInfo.getType(), SchemaType.STRING);
+            assertEquals(schemaInfo.getName(), "string");
+            assertEquals(schemaInfo.getProperties(), Maps.newHashMap(map));
+        }
+
+        @Test
+        public void testNullPropertyValue() {
+            final Map<String, String> map = new HashMap<>();
+            map.put("key", null);
+            final IntSchema schema = new IntSchema();
+            schema.getSchemaInfo().setProperties(map);
+            // null key will be skipped by Gson when serializing JSON to String
+            assertEquals(schema.getSchemaInfo().toString(), INT32_SCHEMA_INFO);
+        }
+    }
 }

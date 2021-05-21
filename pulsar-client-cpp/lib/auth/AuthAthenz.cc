@@ -18,16 +18,6 @@
  */
 #include <lib/auth/AuthAthenz.h>
 
-#include <string.h>
-#include <time.h>
-
-#include <openssl/sha.h>
-#include <openssl/rsa.h>
-#include <openssl/ec.h>
-#include <openssl/pem.h>
-
-#include <curl/curl.h>
-
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
 namespace ptree = boost::property_tree;

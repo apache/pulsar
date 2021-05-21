@@ -38,12 +38,14 @@ import org.apache.pulsar.client.api.HashingScheme;
 import org.apache.pulsar.client.api.MessageRouter;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.interceptor.ProducerInterceptor;
 import org.apache.pulsar.client.api.interceptor.ProducerInterceptorWrapper;
+import org.apache.pulsar.client.impl.DefaultCryptoKeyReader;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -154,6 +156,12 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     }
 
     @Override
+    public ProducerBuilder<T> accessMode(ProducerAccessMode accessMode) {
+        conf.setAccessMode(accessMode);
+        return this;
+    }
+
+    @Override
     public ProducerBuilder<T> blockIfQueueFull(boolean blockIfQueueFull) {
         conf.setBlockIfQueueFull(blockIfQueueFull);
         return this;
@@ -199,6 +207,18 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     public ProducerBuilder<T> cryptoKeyReader(@NonNull CryptoKeyReader cryptoKeyReader) {
         conf.setCryptoKeyReader(cryptoKeyReader);
         return this;
+    }
+
+    @Override
+    public ProducerBuilder<T> defaultCryptoKeyReader(String publicKey) {
+        checkArgument(StringUtils.isNotBlank(publicKey), "publicKey cannot be blank");
+        return cryptoKeyReader(DefaultCryptoKeyReader.builder().defaultPublicKey(publicKey).build());
+    }
+
+    @Override
+    public ProducerBuilder<T> defaultCryptoKeyReader(@NonNull Map<String, String> publicKeys) {
+        checkArgument(!publicKeys.isEmpty(), "publicKeys cannot be empty");
+        return cryptoKeyReader(DefaultCryptoKeyReader.builder().publicKeys(publicKeys).build());
     }
 
     @Override
@@ -322,6 +342,6 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
     @Override
     public String toString() {
-        return conf != null ? conf.toString() : null;
+        return conf != null ? conf.toString() : "";
     }
 }

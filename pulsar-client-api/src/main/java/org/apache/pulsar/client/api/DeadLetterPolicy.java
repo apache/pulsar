@@ -20,6 +20,8 @@ package org.apache.pulsar.client.api;
 
 import lombok.Builder;
 import lombok.Data;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Configuration for the "dead letter queue" feature in consumer.
@@ -28,6 +30,8 @@ import lombok.Data;
  */
 @Builder
 @Data
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public class DeadLetterPolicy {
 
     /**

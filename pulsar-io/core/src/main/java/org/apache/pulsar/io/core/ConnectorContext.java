@@ -21,12 +21,17 @@ package org.apache.pulsar.io.core;
 import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
 
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+import org.apache.pulsar.functions.api.StateStore;
 import org.slf4j.Logger;
 
 /**
  * Interface for a connector providing information about environment where it is running.
  * It also allows to propagate information, such as logs, metrics, states, back to the Pulsar environment.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface ConnectorContext {
 
     /**
@@ -63,7 +68,7 @@ public interface ConnectorContext {
      * @return the namespace this source belongs to
      */
     String getNamespace();
-    
+
     /**
      * The logger object that can be used to log in a sink
      * @return the logger object
@@ -76,6 +81,20 @@ public interface ConnectorContext {
      * @return The secret if anything was found or null
      */
     String getSecret(String secretName);
+
+    /**
+     * Get the state store with the provided store name.
+     *
+     * @param name the state store name
+     * @param <S> the type of interface of the store to return
+     * @return the state store instance.
+     *
+     * @throws ClassCastException if the return type isn't a type
+     * or interface of the actual returned store.
+     */
+    default <S extends StateStore> S getStateStore(String name) {
+        throw new UnsupportedOperationException("Not implemented");
+    }
 
     /**
      * Increment the builtin distributed counter referred by key.
@@ -143,4 +162,18 @@ public interface ConnectorContext {
      * @return the state value for the key.
      */
     CompletableFuture<ByteBuffer> getStateAsync(String key);
+
+    /**
+     * Delete the state value for the key.
+     *
+     * @param key   name of the key
+     */
+    void deleteState(String key);
+
+    /**
+     * Delete the state value for the key, but don't wait for the operation to be completed
+     *
+     * @param key   name of the key
+     */
+    CompletableFuture<Void> deleteStateAsync(String key);
 }

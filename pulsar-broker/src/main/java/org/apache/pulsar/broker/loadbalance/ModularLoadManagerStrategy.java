@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.loadbalance;
 
 import java.util.Optional;
 import java.util.Set;
-
 import org.apache.pulsar.broker.BundleData;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.impl.LeastLongTermMessageRate;

@@ -24,7 +24,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionStatusException;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.transaction.impl.common.TxnStatus;
+import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 
 /**
  * The metadata for the transaction in the transaction buffer.
@@ -54,7 +54,7 @@ public interface TransactionMeta {
     int numEntries();
 
     /**
-     * Return messages number in one transaction
+     * Return messages number in one transaction.
      *
      * @return the number of transaction messages
      * @throws TransactionStatusException

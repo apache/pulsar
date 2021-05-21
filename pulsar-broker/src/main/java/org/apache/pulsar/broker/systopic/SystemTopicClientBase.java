@@ -19,6 +19,10 @@
 package org.apache.pulsar.broker.systopic;
 
 import com.google.common.collect.Lists;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.TopicName;
@@ -26,18 +30,13 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-
-public abstract class SystemTopicClientBase implements SystemTopicClient {
+public abstract class SystemTopicClientBase<T> implements SystemTopicClient<T> {
 
     protected final TopicName topicName;
     protected final PulsarClient client;
 
-    protected final List<Writer> writers;
-    protected final List<Reader> readers;
+    protected final List<Writer<T>> writers;
+    protected final List<Reader<T>> readers;
 
     public SystemTopicClientBase(PulsarClient client, TopicName topicName) {
         this.client = client;
@@ -47,7 +46,7 @@ public abstract class SystemTopicClientBase implements SystemTopicClient {
     }
 
     @Override
-    public Reader newReader() throws PulsarClientException {
+    public Reader<T> newReader() throws PulsarClientException {
         try {
             return newReaderAsync().get();
         } catch (Exception e) {
@@ -56,7 +55,7 @@ public abstract class SystemTopicClientBase implements SystemTopicClient {
     }
 
     @Override
-    public CompletableFuture<Reader> newReaderAsync() {
+    public CompletableFuture<Reader<T>> newReaderAsync() {
         return newReaderAsyncInternal().thenCompose(reader -> {
             readers.add(reader);
             return CompletableFuture.completedFuture(reader);
@@ -64,7 +63,7 @@ public abstract class SystemTopicClientBase implements SystemTopicClient {
     }
 
     @Override
-    public Writer newWriter() throws PulsarClientException {
+    public Writer<T> newWriter() throws PulsarClientException {
         try {
             return newWriterAsync().get();
         } catch (Exception e) {
@@ -73,23 +72,23 @@ public abstract class SystemTopicClientBase implements SystemTopicClient {
     }
 
     @Override
-    public CompletableFuture<Writer> newWriterAsync() {
+    public CompletableFuture<Writer<T>> newWriterAsync() {
         return newWriterAsyncInternal().thenCompose(writer -> {
             writers.add(writer);
             return CompletableFuture.completedFuture(writer);
         });
     }
 
-    protected abstract CompletableFuture<Writer> newWriterAsyncInternal();
+    protected abstract CompletableFuture<Writer<T>> newWriterAsyncInternal();
 
-    protected abstract CompletableFuture<Reader> newReaderAsyncInternal();
+    protected abstract CompletableFuture<Reader<T>> newReaderAsyncInternal();
 
     @Override
     public CompletableFuture<Void> closeAsync() {
         List<CompletableFuture<Void>> futures = new ArrayList<>();
-        List<Writer> tempWriters = Lists.newArrayList(writers);
+        List<Writer<T>> tempWriters = Lists.newArrayList(writers);
         tempWriters.forEach(writer -> futures.add(writer.closeAsync()));
-        List<Reader> tempReaders = Lists.newArrayList(readers);
+        List<Reader<T>> tempReaders = Lists.newArrayList(readers);
         tempReaders.forEach(reader -> futures.add(reader.closeAsync()));
         writers.clear();
         readers.clear();
@@ -107,12 +106,12 @@ public abstract class SystemTopicClientBase implements SystemTopicClient {
     }
 
     @Override
-    public List<Reader> getReaders() {
+    public List<Reader<T>> getReaders() {
         return readers;
     }
 
     @Override
-    public List<Writer> getWriters() {
+    public List<Writer<T>> getWriters() {
         return writers;
     }
 

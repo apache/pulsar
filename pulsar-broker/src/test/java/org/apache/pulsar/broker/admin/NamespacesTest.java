@@ -34,13 +34,13 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URL;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -60,6 +60,7 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.util.ZkUtils;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.admin.v1.Namespaces;
 import org.apache.pulsar.broker.admin.v1.PersistentTopics;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -72,7 +73,9 @@ import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundles;
@@ -90,6 +93,8 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
+import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.MockZooKeeper;
@@ -104,6 +109,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class NamespacesTest extends MockedPulsarServiceBaseTest {
     private static final Logger log = LoggerFactory.getLogger(NamespacesTest.class);
     private Namespaces namespaces;
@@ -115,13 +121,14 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     private final String testLocalCluster = "use";
     private final String testOtherCluster = "usc";
 
+    public static final long THREE_MINUTE_MILLIS = 180000;
+
     protected NamespaceService nsSvc;
     protected Field uriField;
     protected UriInfo uriInfo;
 
     public NamespacesTest() {
         super();
-        conf.setClusterName(testLocalCluster);
     }
 
     @BeforeClass
@@ -144,15 +151,14 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     @Override
     @BeforeMethod
     public void setup() throws Exception {
+        resetConfig();
+        conf.setClusterName(testLocalCluster);
         super.internalSetup();
 
         namespaces = spy(new Namespaces());
         namespaces.setServletContext(new MockServletContext());
         namespaces.setPulsar(pulsar);
-        doReturn(mockZooKeeper).when(namespaces).globalZk();
         doReturn(mockZooKeeper).when(namespaces).localZk();
-        doReturn(pulsar.getConfigurationCache().propertiesCache()).when(namespaces).tenantsCache();
-        doReturn(pulsar.getConfigurationCache().policiesCache()).when(namespaces).policiesCache();
         doReturn(false).when(namespaces).isRequestHttps();
         doReturn("test").when(namespaces).clientAppId();
         doReturn(null).when(namespaces).originalPrincipal();
@@ -189,6 +195,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     @AfterMethod(alwaysRun = true)
     public void cleanup() throws Exception {
         super.internalCleanup();
+        conf.setClusterName(testLocalCluster);
     }
 
     @Test
@@ -228,7 +235,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
         }
 
-        mockZooKeeper.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
+        mockZooKeeperGlobal.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
                 return op == MockZooKeeper.Op.CREATE
                     && path.equals("/admin/policies/my-tenant/use/my-namespace-3");
             });
@@ -275,10 +282,16 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         }
 
         // ZK Errors
-        mockZooKeeper.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
+        mockZooKeeperGlobal.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
                 return op == MockZooKeeper.Op.GET_CHILDREN
                     && path.equals("/admin/policies/my-tenant");
             });
+        // clear caches to load data from metadata-store again
+        MetadataCacheImpl<TenantInfo> tenantCache = (MetadataCacheImpl<TenantInfo>) pulsar.getPulsarResources()
+                .getTenantResources().getCache();
+        AbstractMetadataStore store = (AbstractMetadataStore) tenantCache.getStore();
+        tenantCache.invalidateAll();
+        store.invalidateAll();
         try {
             namespaces.getTenantNamespaces(this.testTenant);
             fail("should have failed");
@@ -286,7 +299,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             // Ok
         }
 
-        mockZooKeeper.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
+        mockZooKeeperGlobal.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
                 return op == MockZooKeeper.Op.GET_CHILDREN
                     && path.equals("/admin/policies/my-tenant/use");
             });
@@ -512,7 +525,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         // Sometimes watcher event consumes scheduled exception, so set to always fail to ensure exception is
         // thrown for api call.
-        mockZooKeeper.setAlwaysFail(Code.SESSIONEXPIRED);
+        mockZooKeeperGlobal.setAlwaysFail(Code.SESSIONEXPIRED);
         pulsar.getConfigurationCache().policiesCache().invalidate(AdminResource.path(POLICIES, this.testTenant,
                 "global", this.testGlobalNamespaces.get(0).getLocalName()));
         try {
@@ -522,20 +535,27 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.INTERNAL_SERVER_ERROR.getStatusCode());
         } finally {
-            mockZooKeeper.unsetAlwaysFail();
+            mockZooKeeperGlobal.unsetAlwaysFail();
         }
 
-        mockZooKeeper.failConditional(Code.BADVERSION, (op, path) -> {
+        // clear caches to load data from metadata-store again
+        MetadataCacheImpl<Policies> policiesCache = (MetadataCacheImpl<Policies>) pulsar.getPulsarResources()
+                .getNamespaceResources().getCache();
+        AbstractMetadataStore store = (AbstractMetadataStore) policiesCache.getStore();
+
+        mockZooKeeperGlobal.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
                 return op == MockZooKeeper.Op.SET
                     && path.equals("/admin/policies/my-tenant/global/test-global-ns1");
             });
 
+        policiesCache.invalidateAll();
+        store.invalidateAll();
         try {
             namespaces.setNamespaceReplicationClusters(this.testTenant, "global",
                     this.testGlobalNamespaces.get(0).getLocalName(), Lists.newArrayList("use"));
             fail("should have failed");
         } catch (RestException e) {
-            assertEquals(e.getResponse().getStatus(), Status.CONFLICT.getStatusCode());
+            assertEquals(e.getResponse().getStatus(), 500);
         }
 
         try {
@@ -553,13 +573,15 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             assertEquals(e.getResponse().getStatus(), Status.NOT_FOUND.getStatusCode());
         }
 
-        mockZooKeeper.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
+        mockZooKeeperGlobal.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
                 return op == MockZooKeeper.Op.GET
                     && path.equals("/admin/policies/my-tenant/global/test-global-ns1");
             });
 
         pulsar.getConfigurationCache().policiesCache().clear();
 
+        policiesCache.invalidateAll();
+        store.invalidateAll();
         // ensure the ZooKeeper read happens, bypassing the cache
         try {
             namespaces.getNamespaceReplicationClusters(this.testTenant, "global",
@@ -694,7 +716,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         // delete the topic from ZK
         mockZooKeeper.delete("/managed-ledgers/" + topicName.getPersistenceNamingEncoding(), -1);
 
-        ZkUtils.createFullPathOptimistic(mockZooKeeper,
+        ZkUtils.createFullPathOptimistic(mockZooKeeperGlobal,
                 "/admin/partitioned-topics/" + topicName.getPersistenceNamingEncoding(),
                 new byte[0], null, null);
 
@@ -705,7 +727,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         verify(response, timeout(5000).times(1)).resume(errorCaptor.capture());
         assertEquals(errorCaptor.getValue().getResponse().getStatus(), Status.CONFLICT.getStatusCode());
 
-        mockZooKeeper.delete("/admin/partitioned-topics/" + topicName.getPersistenceNamingEncoding(), -1);
+        mockZooKeeperGlobal.delete("/admin/partitioned-topics/" + topicName.getPersistenceNamingEncoding(), -1);
 
         testNs = this.testGlobalNamespaces.get(0);
         // setup ownership to localhost
@@ -862,8 +884,11 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         // split bundles
         try {
-            namespaces.splitNamespaceBundle(testTenant, testLocalCluster, bundledNsLocal, "0x00000000_0xffffffff",
+            AsyncResponse response = mock(AsyncResponse.class);
+            namespaces.splitNamespaceBundle(response, testTenant, testLocalCluster, bundledNsLocal, "0x00000000_0xffffffff",
                     false, true);
+            ArgumentCaptor<Response> captor = ArgumentCaptor.forClass(Response.class);
+            verify(response, timeout(5000).times(1)).resume(captor.capture());
             // verify split bundles
             BundlesData bundlesData = namespaces.getBundlesData(testTenant, testLocalCluster, bundledNsLocal);
             assertNotNull(bundlesData);
@@ -893,12 +918,11 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         mockWebUrl(localWebServiceUrl, testNs);
 
         // split bundles
-        try {
-            namespaces.splitNamespaceBundle(testTenant, testLocalCluster, bundledNsLocal, "0x08375b1a_0x08375b1b",
-                    false, false);
-        } catch (RestException re) {
-            assertEquals(re.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
-        }
+        AsyncResponse response = mock(AsyncResponse.class);
+        namespaces.splitNamespaceBundle(response, testTenant, testLocalCluster, bundledNsLocal,
+                "0x08375b1a_0x08375b1b", false, false);
+        ArgumentCaptor<Response> captor = ArgumentCaptor.forClass(Response.class);
+        verify(response, timeout(5000).times(1)).resume(any(RestException.class));
     }
 
     @Test
@@ -909,8 +933,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         createBundledTestNamespaces(this.testTenant, this.testLocalCluster, bundledNsLocal, bundleData);
         final NamespaceName testNs = NamespaceName.get(this.testTenant, this.testLocalCluster, bundledNsLocal);
 
-        doReturn(Optional.of(localWebServiceUrl)).when(nsSvc)
-                .getWebServiceUrl(Mockito.argThat(bundle -> bundle.getNamespaceObject().equals(testNs)),
+        doReturn(CompletableFuture.completedFuture(Optional.of(localWebServiceUrl))).when(nsSvc)
+                .getWebServiceUrlAsync(Mockito.argThat(bundle -> bundle.getNamespaceObject().equals(testNs)),
                         Mockito.any());
         doReturn(true).when(nsSvc)
                 .isServiceUnitOwned(Mockito.argThat(bundle -> bundle.getNamespaceObject().equals(testNs)));
@@ -919,7 +943,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         NamespaceBundle testBundle = nsBundles.getBundles().get(0);
         // make one bundle owned
         LookupOptions optionsHttps = LookupOptions.builder().authoritative(false).requestHttps(true).readOnly(false).build();
-        doReturn(Optional.of(localWebServiceUrl)).when(nsSvc).getWebServiceUrl(testBundle, optionsHttps);
+        doReturn(CompletableFuture.completedFuture(Optional.of(localWebServiceUrl))).when(nsSvc).getWebServiceUrlAsync(testBundle, optionsHttps);
         doReturn(true).when(nsSvc).isServiceUnitOwned(testBundle);
         doReturn(CompletableFuture.completedFuture(null)).when(nsSvc).unloadNamespaceBundle(testBundle);
         AsyncResponse response = mock(AsyncResponse.class);
@@ -1085,7 +1109,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
     /**
      * Verifies that deleteNamespace cleans up policies(global,local), bundle cache and bundle ownership
-     *
+
      * @throws Exception
      */
     @Test
@@ -1112,6 +1136,78 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         // returns full bundle if policies not present
         assertEquals("0x00000000_0xffffffff", bundle2.getBundleRange());
 
+    }
+
+    /**
+     * Verifies that force deleteNamespace delete all topics in the namespace
+     * @throws Exception
+     */
+    @Test
+    public void testForceDeleteNamespace() throws Exception {
+        // allow forced deletion of namespaces
+        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
+
+        String namespace = BrokerTestUtil.newUniqueName(this.testTenant + "/namespace");
+        String topic = namespace + "/topic";
+        String non_persistent_topic = "non-persistent://" + topic;
+
+        admin.namespaces().createNamespace(namespace, 100);
+
+        admin.topics().createPartitionedTopic(topic, 10);
+
+        admin.topics().createNonPartitionedTopic(non_persistent_topic);
+
+        List<String> topicList = admin.topics().getList(namespace);
+        assertFalse(topicList.isEmpty());
+
+        try {
+            admin.namespaces().deleteNamespace(namespace, false);
+            fail("should have failed");
+        } catch (PulsarAdminException e) {
+            // Expected: Cannot delete non empty namespace
+        }
+
+        admin.namespaces().deleteNamespace(namespace, true);
+        admin.namespaces().createNamespace(namespace, 100);
+        topicList = admin.topics().getList(namespace);
+        assertTrue(topicList.isEmpty());
+
+        // reset back to false
+        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(false);
+    }
+
+    @Test
+    public void testForceDeleteNamespaceNotAllowed() throws Exception {
+        assertFalse(pulsar.getConfiguration().isForceDeleteNamespaceAllowed());
+
+        String namespace = BrokerTestUtil.newUniqueName(this.testTenant + "/namespace");
+        String topic = namespace + "/topic";
+        String non_persistent_topic = "non-persistent://" + topic;
+
+        admin.namespaces().createNamespace(namespace, 100);
+
+        admin.topics().createPartitionedTopic(topic, 10);
+
+        admin.topics().createNonPartitionedTopic(non_persistent_topic);
+
+        List<String> topicList = admin.topics().getList(namespace);
+        assertFalse(topicList.isEmpty());
+
+        try {
+            admin.namespaces().deleteNamespace(namespace, false);
+            fail("should have failed");
+        } catch (PulsarAdminException e) {
+            // Expected: Cannot delete non empty namespace
+        }
+
+        try {
+            admin.namespaces().deleteNamespace(namespace, true);
+            fail("should have failed");
+        } catch (PulsarAdminException e) {
+            // Expected: Cannot delete due to broker is not allowed
+        }
+
+        assertTrue(admin.namespaces().getNamespaces(this.testTenant).contains(namespace));
     }
 
     @Test
@@ -1241,10 +1337,12 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         ManagedLedgerConfig ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
         MockLedgerOffloader offloader = new MockLedgerOffloader(OffloadPolicies.create("S3", "", "", "",
                 null, null,
+                null, null,
                 OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
                 OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
                 admin.namespaces().getOffloadThreshold(namespace),
-                pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs()));
+                pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs(),
+                OffloadPolicies.DEFAULT_OFFLOADED_READ_PRIORITY));
         ledgerConf.setLedgerOffloader(offloader);
         assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes(),
                 new Long(-1));
@@ -1256,10 +1354,12 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().getOffloadPolicies(namespace);
         offloader = new MockLedgerOffloader(OffloadPolicies.create("S3", "", "", "",
                 null, null,
+                null, null,
                 OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
                 OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
                 admin.namespaces().getOffloadThreshold(namespace),
-                pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs()));
+                pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs(),
+                OffloadPolicies.DEFAULT_OFFLOADED_READ_PRIORITY));
         ledgerConf.setLedgerOffloader(offloader);
         assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes(),
                 new Long(100));
@@ -1270,10 +1370,12 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
         offloader = new MockLedgerOffloader(OffloadPolicies.create("S3", "", "", "",
                 null, null,
+                null, null,
                 OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
                 OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
                 admin.namespaces().getOffloadThreshold(namespace),
-                pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs()));
+                pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs(),
+                OffloadPolicies.DEFAULT_OFFLOADED_READ_PRIORITY));
         ledgerConf.setLedgerOffloader(offloader);
         assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes(),
                 new Long(-2));
@@ -1284,10 +1386,12 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
         offloader = new MockLedgerOffloader(OffloadPolicies.create("S3", "", "", "",
                 null, null,
+                null, null,
                 OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
                 OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
                 admin.namespaces().getOffloadThreshold(namespace),
-                pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs()));
+                pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs(),
+                OffloadPolicies.DEFAULT_OFFLOADED_READ_PRIORITY));
         ledgerConf.setLedgerOffloader(offloader);
         assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes(),
                 new Long(-1));
@@ -1307,7 +1411,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testDeleteNonPartitionedTopicMultipleTimes() throws Exception {
-        String namespace = this.testTenant + "/namespace-" + System.nanoTime();
+        String namespace = BrokerTestUtil.newUniqueName(this.testTenant + "/namespace");
         String topic = namespace + "/topic";
 
         admin.namespaces().createNamespace(namespace, Sets.newHashSet(testLocalCluster));
@@ -1335,7 +1439,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testDeletePartitionedTopicMultipleTimes() throws Exception {
-        String namespace = this.testTenant + "/namespace-" + System.nanoTime();
+        String namespace = BrokerTestUtil.newUniqueName(this.testTenant + "/namespace");
         String topic = namespace + "/topic";
 
         admin.namespaces().createNamespace(namespace, Sets.newHashSet(testLocalCluster));
@@ -1364,7 +1468,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testRetentionPolicyValidation() throws Exception {
-        String namespace = this.testTenant + "/namespace-" + System.nanoTime();
+        String namespace = BrokerTestUtil.newUniqueName(this.testTenant + "/namespace");
 
         admin.namespaces().createNamespace(namespace, Sets.newHashSet(testLocalCluster));
 
@@ -1382,6 +1486,132 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertInvalidRetentionPolicy(namespace, 1, -2);
 
         admin.namespaces().deleteNamespace(namespace);
+    }
+
+    @Test(timeOut = THREE_MINUTE_MILLIS)
+    public void testMaxTopicsPerNamespace() throws Exception {
+        cleanup();
+        conf.setMaxTopicsPerNamespace(15);
+        super.internalSetup();
+
+        String namespace = "testTenant/ns1";
+        admin.clusters().createCluster("use", new ClusterData(brokerUrl.toString()));
+        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"),
+                Sets.newHashSet("use"));
+        admin.tenants().createTenant("testTenant", tenantInfo);
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet("use"));
+
+        admin.namespaces().setMaxTopicsPerNamespace(namespace, 10);
+        assertEquals(10, admin.namespaces().getMaxTopicsPerNamespace(namespace));
+
+        // check create partitioned/non-partitioned topics using namespace policy
+        String topic = "persistent://testTenant/ns1/test_create_topic_v";
+        admin.topics().createPartitionedTopic(topic + "1", 2);
+        admin.topics().createPartitionedTopic(topic + "2", 3);
+        admin.topics().createPartitionedTopic(topic + "3", 4);
+        admin.topics().createNonPartitionedTopic(topic + "4");
+
+        try {
+            admin.topics().createPartitionedTopic(topic + "5", 2);
+            fail();
+        } catch (PulsarAdminException e) {
+            assertEquals(e.getStatusCode(), 412);
+            assertEquals(e.getHttpError(), "Exceed maximum number of topics in namespace.");
+        }
+
+        // remove namespace policy limit, use broker configuration instead.
+        admin.namespaces().removeMaxTopicsPerNamespace(namespace);
+        admin.topics().createPartitionedTopic(topic + "6", 4);
+        try {
+            admin.topics().createPartitionedTopic(topic + "7", 3);
+            fail();
+        } catch (PulsarAdminException e) {
+            assertEquals(e.getStatusCode(), 412);
+            assertEquals(e.getHttpError(), "Exceed maximum number of topics in namespace.");
+        }
+
+        admin.namespaces().setMaxTopicsPerNamespace(namespace, 0);
+        // set namespace policy to no limit
+        for (int i = 0; i< 10; ++i) {
+            admin.topics().createPartitionedTopic(topic + "_v" + i, 2);
+            admin.topics().createNonPartitionedTopic(topic + "_vn" + i);
+        }
+
+
+        // check producer/consumer auto create partitioned topic
+        cleanup();
+        conf.setMaxTopicsPerNamespace(0);
+        conf.setDefaultNumPartitions(3);
+        conf.setAllowAutoTopicCreationType("partitioned");
+        super.internalSetup();
+
+        admin.clusters().createCluster("use", new ClusterData(brokerUrl.toString()));
+        admin.tenants().createTenant("testTenant", tenantInfo);
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet("use"));
+        admin.namespaces().setMaxTopicsPerNamespace(namespace, 10);
+
+        pulsarClient.newProducer().topic(topic + "1").create().close();
+        pulsarClient.newProducer().topic(topic + "2").create().close();
+        pulsarClient.newConsumer().topic(topic + "3").subscriptionName("test_sub").subscribe().close();
+
+        try {
+            pulsarClient.newConsumer().topic(topic + "4").subscriptionName("test_sub").subscribe().close();
+            fail();
+        } catch (PulsarClientException e) {
+            log.info("Exception: ", e);
+        }
+
+        // remove namespace limit
+        admin.namespaces().removeMaxTopicsPerNamespace(namespace);
+        for (int i = 0; i < 10; ++i) {
+            pulsarClient.newProducer().topic(topic + "_p" + i).create().close();
+            pulsarClient.newConsumer().topic(topic + "_c" + i).subscriptionName("test_sub").subscribe().close();
+        }
+
+        // check producer/consumer auto create non-partitioned topic
+        cleanup();
+        conf.setMaxTopicsPerNamespace(0);
+        conf.setDefaultNumPartitions(1);
+        conf.setAllowAutoTopicCreationType("non-partitioned");
+        super.internalSetup();
+
+        admin.clusters().createCluster("use", new ClusterData(brokerUrl.toString()));
+        admin.tenants().createTenant("testTenant", tenantInfo);
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet("use"));
+        admin.namespaces().setMaxTopicsPerNamespace(namespace, 3);
+
+        pulsarClient.newProducer().topic(topic + "1").create().close();
+        pulsarClient.newProducer().topic(topic + "2").create().close();
+        pulsarClient.newConsumer().topic(topic + "3").subscriptionName("test_sub").subscribe().close();
+
+        try {
+            pulsarClient.newConsumer().topic(topic + "4").subscriptionName("test_sub").subscribe().close();
+            fail();
+        } catch (PulsarClientException e) {
+            log.info("Exception: ", e);
+        }
+
+        // set namespace limit to 5
+        admin.namespaces().setMaxTopicsPerNamespace(namespace, 5);
+        pulsarClient.newProducer().topic(topic + "4").create().close();
+        pulsarClient.newProducer().topic(topic + "5").create().close();
+        try {
+            pulsarClient.newConsumer().topic(topic + "6").subscriptionName("test_sub").subscribe().close();
+            fail();
+        } catch (PulsarClientException e) {
+            log.info("Exception: ", e);
+        }
+
+        // remove namespace limit
+        admin.namespaces().removeMaxTopicsPerNamespace(namespace);
+        for (int i = 0; i< 10; ++i) {
+            pulsarClient.newProducer().topic(topic + "_p" + i).create().close();
+            pulsarClient.newConsumer().topic(topic + "_c" + i).subscriptionName("test_sub").subscribe().close();
+        }
+
+        conf.setMaxTopicsPerNamespace(0);
+        conf.setDefaultNumPartitions(1);
+        conf.setAllowAutoTopicCreationType("non-partitioned");
     }
 
     private void assertInvalidRetentionPolicy(String namespace, int retentionTimeInMinutes, int retentionSizeInMB) {
@@ -1413,18 +1643,89 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertInvalidRetentionPolicyAsPartOfAllPolicies(policies, 1, -2);
     }
 
+    @Test
+    public void testSubscriptionTypesEnabled() throws PulsarAdminException, PulsarClientException {
+        pulsar.getConfiguration().setAuthorizationEnabled(false);
+        pulsar.getConfiguration().setTopicLevelPoliciesEnabled(false);
+        String namespace = BrokerTestUtil.newUniqueName(this.testTenant + "/namespace");
+        String topic = namespace + "/test-subscription-enabled";
+        admin.namespaces().createNamespace(namespace);
+        Set<SubscriptionType> subscriptionTypes = new HashSet<>();
+        subscriptionTypes.add(SubscriptionType.Shared);
+        subscriptionTypes.add(SubscriptionType.Exclusive);
+        subscriptionTypes.add(SubscriptionType.Failover);
+        subscriptionTypes.add(SubscriptionType.Key_Shared);
+        admin.namespaces().setSubscriptionTypesEnabled(namespace, subscriptionTypes);
+
+        ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topic)
+                .subscriptionType(SubscriptionType.Shared).subscriptionName("share");
+
+        consumerBuilder.subscribe().close();
+        subscriptionTypes = admin.namespaces().getSubscriptionTypesEnabled(namespace);
+        assertEquals(SubscriptionType.values().length, subscriptionTypes.size());
+        // All subType this namespace support
+        for (SubscriptionType value : SubscriptionType.values()) {
+            assertTrue(subscriptionTypes.contains(value));
+        }
+
+        // Remove shared subType for this namespace and sub with shared subscription type fail
+        subscriptionTypes.remove(SubscriptionType.Shared);
+        admin.namespaces().setSubscriptionTypesEnabled(namespace, subscriptionTypes);
+        assertFalse(admin.namespaces().getSubscriptionTypesEnabled(namespace).contains(SubscriptionType.Shared));
+
+        try {
+            consumerBuilder.subscribe().close();
+            fail();
+        } catch (PulsarClientException pulsarClientException) {
+            assertTrue(pulsarClientException instanceof PulsarClientException.NotAllowedException);
+        }
+        // Add shared SubType for this namespace and sub with shared subscription type success
+        subscriptionTypes.add(SubscriptionType.Shared);
+        admin.namespaces().setSubscriptionTypesEnabled(namespace, subscriptionTypes);
+        consumerBuilder.subscribe().close();
+
+        // remove failover SubType for this namespace and sub with failover subscription type fail
+        subscriptionTypes.remove(SubscriptionType.Failover);
+        admin.namespaces().setSubscriptionTypesEnabled(namespace, subscriptionTypes);
+        consumerBuilder.subscriptionType(SubscriptionType.Failover);
+        try {
+            consumerBuilder.subscribe().close();
+            fail();
+        } catch (PulsarClientException pulsarClientException) {
+            assertTrue(pulsarClientException instanceof PulsarClientException.NotAllowedException);
+        }
+
+        // clear all namespace subType enabled, add failover to broker.conf and sub with shared will fail
+        subscriptionTypes.clear();
+        admin.namespaces().setSubscriptionTypesEnabled(namespace, subscriptionTypes);
+        consumerBuilder.subscriptionType(SubscriptionType.Shared);
+        HashSet<String> subscriptions = new HashSet<>();
+        subscriptions.add("Failover");
+        conf.setSubscriptionTypesEnabled(subscriptions);
+        try {
+            consumerBuilder.subscribe().close();
+            fail();
+        } catch (PulsarClientException pulsarClientException) {
+            assertTrue(pulsarClientException instanceof PulsarClientException.NotAllowedException);
+        }
+
+        // add shared to broker.conf and sub with shared will success
+        subscriptions.add("Shared");
+        conf.setSubscriptionTypesEnabled(subscriptions);
+        consumerBuilder.subscribe().close();
+    }
+
     private void assertValidRetentionPolicyAsPartOfAllPolicies(Policies policies, int retentionTimeInMinutes,
                                                                int retentionSizeInMB) throws PulsarAdminException {
-        String namespace = this.testTenant + "/namespace-" + System.nanoTime();
-        RetentionPolicies retention = new RetentionPolicies(retentionTimeInMinutes, retentionSizeInMB);
-        policies.retention_policies = retention;
+        String namespace = BrokerTestUtil.newUniqueName(this.testTenant + "/namespace");
+        policies.retention_policies = new RetentionPolicies(retentionTimeInMinutes, retentionSizeInMB);
         admin.namespaces().createNamespace(namespace, policies);
         admin.namespaces().deleteNamespace(namespace);
     }
 
     private void assertInvalidRetentionPolicyAsPartOfAllPolicies(Policies policies, int retentionTimeInMinutes,
                                                                  int retentionSizeInMB) {
-        String namespace = this.testTenant + "/namespace-" + System.nanoTime();
+        String namespace = BrokerTestUtil.newUniqueName(this.testTenant + "/namespace");
         try {
             RetentionPolicies retention = new RetentionPolicies(retentionTimeInMinutes, retentionSizeInMB);
             policies.retention_policies = retention;

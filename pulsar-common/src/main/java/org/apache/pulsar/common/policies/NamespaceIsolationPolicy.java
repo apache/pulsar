@@ -21,7 +21,6 @@ package org.apache.pulsar.common.policies;
 import java.net.URL;
 import java.util.List;
 import java.util.SortedSet;
-
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.BrokerStatus;
 

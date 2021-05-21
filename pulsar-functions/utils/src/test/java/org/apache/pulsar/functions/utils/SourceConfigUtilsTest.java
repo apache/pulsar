@@ -28,6 +28,8 @@ import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.io.BatchSourceConfig;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SourceConfig;
+import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.nar.NarUnpacker;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.config.validation.ConfigValidationAnnotations;
 import org.apache.pulsar.functions.proto.Function;
@@ -40,8 +42,11 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.testng.PowerMockTestCase;
 import org.testng.annotations.Test;
 
+import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.nio.file.Files;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -49,12 +54,14 @@ import java.util.function.Consumer;
 import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE;
 import static org.mockito.ArgumentMatchers.any;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
-import static org.testng.Assert.*;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 
 /**
  * Unit test of {@link Reflections}.
  */
-@PrepareForTest(ConnectorUtils.class)
+@PrepareForTest({ConnectorUtils.class, NarUnpacker.class})
 @PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*", "javax.xml.*", "org.xml.*", "org.w3c.dom.*", "org.springframework.context.*", "org.apache.log4j.*", "com.sun.org.apache.xerces.*", "javax.management.*" })
 public class SourceConfigUtilsTest extends PowerMockTestCase {
 
@@ -299,19 +306,28 @@ public class SourceConfigUtilsTest extends PowerMockTestCase {
     @Test
     public void testValidateConfig() throws IOException {
         mockStatic(ConnectorUtils.class);
+        mockStatic(NarUnpacker.class);
         defn = new ConnectorDefinition();
         defn.setSourceConfigClass(SourceConfigUtilsTest.TestSourceConfig.class.getName());
         PowerMockito.when(ConnectorUtils.getConnectorDefinition(any())).thenReturn(defn);
 
+        File tmpdir = Files.createTempDirectory("test").toFile();
+        PowerMockito.when(NarUnpacker.unpackNar(any(), any())).thenReturn(tmpdir);
+
         SourceConfig sourceConfig = createSourceConfig();
+
+        NarClassLoader narClassLoader = NarClassLoader.getFromArchive(
+                tmpdir, Collections.emptySet(),
+                Thread.currentThread().getContextClassLoader(), NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR);
 
         // Good config
         sourceConfig.getConfigs().put("configParameter", "Test");
-        SourceConfigUtils.validateConnectorConfig(sourceConfig, Thread.currentThread().getContextClassLoader());
+        SourceConfigUtils.validateSourceConfig(sourceConfig, narClassLoader);
 
         // Bad config
         sourceConfig.getConfigs().put("configParameter", null);
-        Exception e = expectThrows(IllegalArgumentException.class, () -> SourceConfigUtils.validateConnectorConfig(sourceConfig, Thread.currentThread().getContextClassLoader()));
+        Exception e = expectThrows(IllegalArgumentException.class,
+                () -> SourceConfigUtils.validateSourceConfig(sourceConfig, narClassLoader));
         assertTrue(e.getMessage().contains("Could not validate source config: Field 'configParameter' cannot be null!"));
     }
 
@@ -354,6 +370,7 @@ public class SourceConfigUtilsTest extends PowerMockTestCase {
         producerConfig.setMaxPendingMessages(100);
         producerConfig.setMaxPendingMessagesAcrossPartitions(1000);
         producerConfig.setUseThreadLocalProducers(true);
+        producerConfig.setBatchBuilder("DEFAULT");
         sourceConfig.setProducerConfig(producerConfig);
 
         sourceConfig.setConfigs(configs);

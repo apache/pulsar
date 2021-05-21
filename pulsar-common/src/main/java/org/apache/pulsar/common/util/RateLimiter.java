@@ -19,9 +19,7 @@
 package org.apache.pulsar.common.util;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import com.google.common.base.MoreObjects;
-
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;

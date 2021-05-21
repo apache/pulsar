@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.service;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
-import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,11 +29,12 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 import org.testng.collections.Lists;
 
+@Test(groups = "broker")
 public class ReplicatorTlsTest extends ReplicatorTestBase {
 
     @Override
     @BeforeClass(timeOut = 300000)
-    void setup() throws Exception {
+    public void setup() throws Exception {
         config1.setBrokerClientTlsEnabled(true);
         config2.setBrokerClientTlsEnabled(true);
         config3.setBrokerClientTlsEnabled(true);
@@ -43,8 +43,8 @@ public class ReplicatorTlsTest extends ReplicatorTestBase {
 
     @Override
     @AfterClass(alwaysRun = true, timeOut = 300000)
-    void shutdown() throws Exception {
-        super.shutdown();
+    public void cleanup() throws Exception {
+        super.cleanup();
     }
 
     @Test

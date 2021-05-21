@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.stats.prometheus;
 
 import java.util.HashMap;
 import java.util.Map;
-
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
 
@@ -46,6 +45,7 @@ public class AggregatedNamespaceStats {
     long backlogSize;
     long offloadedStorageUsed;
     long backlogQuotaLimit;
+    long backlogQuotaLimitTime;
 
     public StatsBuckets storageWriteLatencyBuckets = new StatsBuckets(
             ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC);
@@ -81,6 +81,7 @@ public class AggregatedNamespaceStats {
         backlogSize += stats.backlogSize;
         offloadedStorageUsed += stats.offloadedStorageUsed;
         backlogQuotaLimit = Math.max(backlogQuotaLimit, stats.backlogQuotaLimit);
+        backlogQuotaLimitTime = Math.max(backlogQuotaLimitTime, stats.backlogQuotaLimitTime);
 
         storageWriteRate += stats.storageWriteRate;
         storageReadRate += stats.storageReadRate;
@@ -138,7 +139,8 @@ public class AggregatedNamespaceStats {
         storageWriteRate = 0;
         storageReadRate = 0;
         offloadedStorageUsed = 0;
-        backlogQuotaLimit= 0;
+        backlogQuotaLimit = 0;
+        backlogQuotaLimitTime = -1;
 
         replicationStats.clear();
         subscriptionStats.clear();

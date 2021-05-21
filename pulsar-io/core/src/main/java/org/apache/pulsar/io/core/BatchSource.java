@@ -19,6 +19,8 @@
 package org.apache.pulsar.io.core;
 
 
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 import org.apache.pulsar.functions.api.Record;
 
 import java.util.Map;
@@ -47,7 +49,8 @@ import java.util.function.Consumer;
  * 5. close is called when the source is stopped/deleted. This is analogous to the streaming Source api.
  *
  */
-
+@InterfaceAudience.Public
+@InterfaceStability.Evolving
 public interface BatchSource<T> extends AutoCloseable {
 
     /**

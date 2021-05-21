@@ -22,6 +22,7 @@
 #include <pulsar/Client.h>
 #include "ExecutorService.h"
 #include "BinaryProtoLookupService.h"
+#include "MemoryLimitController.h"
 #include "ConnectionPool.h"
 #include "LookupDataResult.h"
 #include <mutex>
@@ -42,7 +43,7 @@ class ReaderImpl;
 typedef std::shared_ptr<ReaderImpl> ReaderImplPtr;
 typedef std::weak_ptr<ReaderImpl> ReaderImplWeakPtr;
 
-const std::string generateRandomName();
+std::string generateRandomName();
 
 class ClientImpl : public std::enable_shared_from_this<ClientImpl> {
    public:
@@ -53,13 +54,13 @@ class ClientImpl : public std::enable_shared_from_this<ClientImpl> {
     void createProducerAsync(const std::string& topic, ProducerConfiguration conf,
                              CreateProducerCallback callback);
 
-    void subscribeAsync(const std::string& topic, const std::string& consumerName,
+    void subscribeAsync(const std::string& topic, const std::string& subscriptionName,
                         const ConsumerConfiguration& conf, SubscribeCallback callback);
 
-    void subscribeAsync(const std::vector<std::string>& topics, const std::string& consumerName,
+    void subscribeAsync(const std::vector<std::string>& topics, const std::string& subscriptionName,
                         const ConsumerConfiguration& conf, SubscribeCallback callback);
 
-    void subscribeWithRegexAsync(const std::string& regexPattern, const std::string& consumerName,
+    void subscribeWithRegexAsync(const std::string& regexPattern, const std::string& subscriptionName,
                                  const ConsumerConfiguration& conf, SubscribeCallback callback);
 
     void createReaderAsync(const std::string& topic, const MessageId& startMessageId,
@@ -75,6 +76,8 @@ class ClientImpl : public std::enable_shared_from_this<ClientImpl> {
 
     void closeAsync(CloseCallback callback);
     void shutdown();
+
+    MemoryLimitController& getMemoryLimitController();
 
     uint64_t newProducerId();
     uint64_t newConsumerId();
@@ -130,6 +133,7 @@ class ClientImpl : public std::enable_shared_from_this<ClientImpl> {
     State state_;
     std::string serviceUrl_;
     ClientConfiguration clientConfiguration_;
+    MemoryLimitController memoryLimitController_;
 
     ExecutorServiceProviderPtr ioExecutorProvider_;
     ExecutorServiceProviderPtr listenerExecutorProvider_;

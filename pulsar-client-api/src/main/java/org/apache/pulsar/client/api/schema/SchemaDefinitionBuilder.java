@@ -18,13 +18,15 @@
  */
 package org.apache.pulsar.client.api.schema;
 
-
-
 import java.util.Map;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Builder to build schema definition {@link SchemaDefinition}.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface SchemaDefinitionBuilder<T> {
 
     /**

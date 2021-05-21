@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.web;
 
 import com.google.common.collect.Lists;
+import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.jetty.JettyStatisticsCollector;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -55,7 +56,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Web Service embedded into Pulsar
+ * Web Service embedded into Pulsar.
  */
 public class WebService implements AutoCloseable {
 
@@ -72,6 +73,7 @@ public class WebService implements AutoCloseable {
 
     private final ServerConnector httpConnector;
     private final ServerConnector httpsConnector;
+    private JettyStatisticsCollector jettyStatisticsCollector;
 
     public WebService(PulsarService pulsar) throws PulsarServerException {
         this.handlers = Lists.newArrayList();
@@ -136,7 +138,8 @@ public class WebService implements AutoCloseable {
         server.setConnectors(connectors.toArray(new ServerConnector[connectors.size()]));
     }
 
-    public void addRestResources(String basePath, String javaPackages, boolean requiresAuthentication, Map<String,Object> attributeMap) {
+    public void addRestResources(String basePath, String javaPackages, boolean requiresAuthentication,
+                                 Map<String, Object> attributeMap) {
         ResourceConfig config = new ResourceConfig();
         config.packages("jersey.config.server.provider.packages", javaPackages);
         config.register(JsonMapperProvider.class);
@@ -146,7 +149,8 @@ public class WebService implements AutoCloseable {
         addServlet(basePath, servletHolder, requiresAuthentication, attributeMap);
     }
 
-    public void addServlet(String path, ServletHolder servletHolder, boolean requiresAuthentication, Map<String,Object> attributeMap) {
+    public void addServlet(String path, ServletHolder servletHolder, boolean requiresAuthentication,
+                           Map<String, Object> attributeMap) {
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath(path);
         context.addServlet(servletHolder, MATCH_ALL);
@@ -156,15 +160,18 @@ public class WebService implements AutoCloseable {
             });
         }
 
-        if (!pulsar.getConfig().getBrokerInterceptors().isEmpty() || !pulsar.getConfig().isDisableBrokerInterceptors()) {
+        if (!pulsar.getConfig().getBrokerInterceptors().isEmpty()
+                || !pulsar.getConfig().isDisableBrokerInterceptors()) {
             // Enable PreInterceptFilter only when interceptors are enabled
             context.addFilter(new FilterHolder(new PreInterceptFilter(pulsar.getBrokerInterceptor())),
-                MATCH_ALL, EnumSet.allOf(DispatcherType.class));
+                    MATCH_ALL, EnumSet.allOf(DispatcherType.class));
+            context.addFilter(new FilterHolder(new ProcessHandlerFilter(pulsar)),
+                    MATCH_ALL, EnumSet.allOf(DispatcherType.class));
         }
 
         if (requiresAuthentication && pulsar.getConfiguration().isAuthenticationEnabled()) {
             FilterHolder filter = new FilterHolder(new AuthenticationFilter(
-                                                           pulsar.getBrokerService().getAuthenticationService()));
+                    pulsar.getBrokerService().getAuthenticationService()));
             context.addFilter(filter, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
         }
 
@@ -218,7 +225,8 @@ public class WebService implements AutoCloseable {
             StatisticsHandler stats = new StatisticsHandler();
             stats.setHandler(handlerCollection);
             try {
-                new JettyStatisticsCollector(stats).register();
+                jettyStatisticsCollector = new JettyStatisticsCollector(stats);
+                jettyStatisticsCollector.register();
             } catch (IllegalArgumentException e) {
                 // Already registered. Eg: in unit tests
             }
@@ -250,6 +258,18 @@ public class WebService implements AutoCloseable {
     public void close() throws PulsarServerException {
         try {
             server.stop();
+            // unregister statistics from Prometheus client's default CollectorRegistry singleton
+            // to prevent memory leaks in tests
+            if (jettyStatisticsCollector != null) {
+                try {
+                    CollectorRegistry.defaultRegistry.unregister(jettyStatisticsCollector);
+                } catch (Exception e) {
+                    // ignore any exception happening in unregister
+                    // exception will be thrown for 2. instance of WebService in tests since
+                    // the register supports a single JettyStatisticsCollector
+                }
+                jettyStatisticsCollector = null;
+            }
             webServiceExecutor.join();
             log.info("Web service closed");
         } catch (Exception e) {

@@ -49,6 +49,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 
+@Test(groups = "broker")
 public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
 
     private PersistentTopics persistentTopics;
@@ -78,10 +79,7 @@ public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
         persistentTopics.setServletContext(new MockServletContext());
         persistentTopics.setPulsar(pulsar);
 
-        doReturn(mockZooKeeper).when(persistentTopics).globalZk();
         doReturn(mockZooKeeper).when(persistentTopics).localZk();
-        doReturn(pulsar.getConfigurationCache().propertiesCache()).when(persistentTopics).tenantsCache();
-        doReturn(pulsar.getConfigurationCache().policiesCache()).when(persistentTopics).policiesCache();
         doReturn(false).when(persistentTopics).isRequestHttps();
         doReturn(null).when(persistentTopics).originalPrincipal();
         doReturn("test").when(persistentTopics).clientAppId();

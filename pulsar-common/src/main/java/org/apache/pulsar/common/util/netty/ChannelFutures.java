@@ -20,7 +20,6 @@ package org.apache.pulsar.common.util.netty;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
-
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 

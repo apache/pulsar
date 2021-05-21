@@ -34,6 +34,7 @@ import java.util.Set;
 
 import javax.naming.AuthenticationException;
 
+import lombok.Cleanup;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
@@ -57,7 +58,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 	private static final Logger log = LoggerFactory.getLogger(ProxyAuthenticationTest.class);
 
 	public static class BasicAuthenticationData implements AuthenticationDataProvider {
-		private String authParam;
+		private final String authParam;
 
 		public BasicAuthenticationData(String authParam) {
 			this.authParam = authParam;
@@ -163,16 +164,16 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 		conf.setBrokerClientAuthenticationParameters(
 				"entityType:broker,expiryTime:" + (System.currentTimeMillis() + 3600 * 1000));
 
-		Set<String> superUserRoles = new HashSet<String>();
+		Set<String> superUserRoles = new HashSet<>();
 		superUserRoles.add("admin");
 		conf.setSuperUserRoles(superUserRoles);
 
-		Set<String> providers = new HashSet<String>();
+		Set<String> providers = new HashSet<>();
 		providers.add(BasicAuthenticationProvider.class.getName());
 		conf.setAuthenticationProviders(providers);
 
 		conf.setClusterName("test");
-		Set<String> proxyRoles = new HashSet<String>();
+		Set<String> proxyRoles = new HashSet<>();
 		proxyRoles.add("proxy");
 		conf.setProxyRoles(proxyRoles);
         conf.setAuthenticateOriginalAuthData(true);
@@ -183,7 +184,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 	}
 
 	@Override
-	@AfterMethod
+	@AfterMethod(alwaysRun = true)
 	protected void cleanup() throws Exception {
 		super.internalCleanup();
 	}
@@ -224,12 +225,14 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 		proxyConfig.setForwardAuthorizationCredentials(true);
                 AuthenticationService authenticationService = new AuthenticationService(
                         PulsarConfigurationLoader.convertFrom(proxyConfig));
+		@Cleanup
 		ProxyService proxyService = new ProxyService(proxyConfig, authenticationService);
 
 		proxyService.start();
 		final String proxyServiceUrl = proxyService.getServiceUrl();
 
 		// Step 3: Pass correct client params
+		@Cleanup
 		PulsarClient proxyClient = createPulsarClient(proxyServiceUrl, clientAuthParams, 1);
 		proxyClient.newProducer(Schema.BYTES).topic(topicName).create();
 		// Sleep for 4 seconds - wait for proxy auth params to expire
@@ -238,8 +241,6 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 		// Sleep for 3 seconds - wait for client auth parans to expire
 		Thread.sleep(3 * 1000);
 		proxyClient.newProducer(Schema.BYTES).topic(topicName).create();
-		proxyClient.close();
-		proxyService.close();
 	}
 
 	private void updateAdminClient() throws PulsarClientException {

@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl.auth;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.Map;
 import java.util.function.Supplier;
 
@@ -31,6 +30,8 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.AuthenticationUtil;
 
 import com.google.common.annotations.VisibleForTesting;
+
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  *
@@ -45,6 +46,7 @@ public class AuthenticationTls implements Authentication, EncodedAuthenticationP
 
     private String certFilePath;
     private String keyFilePath;
+    @SuppressFBWarnings(value = "SE_BAD_FIELD", justification = "Using custom serializer which Findbugs can't detect")
     private Supplier<ByteArrayInputStream> certStreamProvider, keyStreamProvider, trustStoreStreamProvider;
 
     public AuthenticationTls() {
@@ -131,4 +133,18 @@ public class AuthenticationTls implements Authentication, EncodedAuthenticationP
         return keyFilePath;
     }
 
+    @VisibleForTesting
+    Supplier<ByteArrayInputStream> getCertStreamProvider() {
+        return certStreamProvider;
+    }
+
+    @VisibleForTesting
+    Supplier<ByteArrayInputStream> getKeyStreamProvider() {
+        return keyStreamProvider;
+    }
+
+    @VisibleForTesting
+    Supplier<ByteArrayInputStream> getTrustStoreStreamProvider() {
+        return trustStoreStreamProvider;
+    }
 }

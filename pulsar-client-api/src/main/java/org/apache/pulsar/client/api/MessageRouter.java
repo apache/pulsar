@@ -19,6 +19,8 @@
 package org.apache.pulsar.client.api;
 
 import java.io.Serializable;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Interface for custom message router that can be passed
@@ -27,6 +29,8 @@ import java.io.Serializable;
  *
  * @see ProducerBuilder#messageRouter(MessageRouter)
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface MessageRouter extends Serializable {
 
     /**

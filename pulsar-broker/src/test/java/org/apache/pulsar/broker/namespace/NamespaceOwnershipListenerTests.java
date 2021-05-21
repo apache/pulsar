@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.namespace;
 
 import com.google.common.collect.Sets;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
@@ -38,6 +39,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.testng.Assert.assertTrue;
 
+@Test(groups = "broker")
 public class NamespaceOwnershipListenerTests extends BrokerTestBase {
 
     @BeforeMethod
@@ -123,4 +125,53 @@ public class NamespaceOwnershipListenerTests extends BrokerTestBase {
         admin.namespaces().deleteNamespace(namespace);
     }
 
+    @Test
+    public void testNamespaceBundleLookupOnwershipListener() throws PulsarAdminException, InterruptedException,
+            PulsarClientException {
+        final CountDownLatch countDownLatch = new CountDownLatch(2);
+        final AtomicInteger onLoad = new AtomicInteger(0);
+        final AtomicInteger unLoad = new AtomicInteger(0);
+
+        final String namespace = "prop/" + UUID.randomUUID().toString();
+
+        pulsar.getNamespaceService().addNamespaceBundleOwnershipListener(new NamespaceBundleOwnershipListener() {
+            @Override
+            public void onLoad(NamespaceBundle bundle) {
+                countDownLatch.countDown();
+                onLoad.addAndGet(1);
+            }
+
+            @Override
+            public void unLoad(NamespaceBundle bundle) {
+                countDownLatch.countDown();
+                unLoad.addAndGet(1);
+            }
+
+            @Override
+            public boolean test(NamespaceBundle namespaceBundle) {
+                return namespaceBundle.getNamespaceObject().toString().equals(namespace);
+            }
+        });
+
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
+        assertTrue(admin.namespaces().getNamespaces("prop").contains(namespace));
+
+        final String topic = "persistent://" + namespace + "/os-0";
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .create();
+
+        producer.close();
+
+        admin.lookups().lookupTopic(topic);
+
+        admin.namespaces().unload(namespace);
+
+        countDownLatch.await();
+
+        Assert.assertEquals(onLoad.get(), 1);
+        Assert.assertEquals(unLoad.get(), 1);
+        admin.topics().delete(topic);
+        admin.namespaces().deleteNamespace(namespace);
+    }
 }

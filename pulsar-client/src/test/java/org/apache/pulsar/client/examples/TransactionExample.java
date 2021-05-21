@@ -20,15 +20,16 @@ package org.apache.pulsar.client.examples;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+
+import lombok.Cleanup;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
-import org.apache.pulsar.client.impl.ConsumerImpl;
-import org.apache.pulsar.client.impl.ProducerImpl;
-import org.apache.pulsar.client.impl.PulsarClientImpl;
 
 /**
  * Example to use Pulsar transactions.
@@ -40,7 +41,8 @@ public class TransactionExample {
     public static void main(String[] args) throws Exception {
         String serviceUrl = "pulsar://localhost:6650";
 
-        PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
             .serviceUrl(serviceUrl)
             .build();
 
@@ -48,18 +50,18 @@ public class TransactionExample {
         String outputTopic1 = "output-topic-1";
         String outputTopic2 = "output-topic-2";
 
-        ConsumerImpl<String> consumer = (ConsumerImpl<String>) client.newConsumer(Schema.STRING)
+        Consumer<String> consumer = client.newConsumer(Schema.STRING)
             .topic(inputTopic)
             .subscriptionType(SubscriptionType.Exclusive)
             .subscriptionName("transactional-sub")
             .subscribe();
 
-        ProducerImpl<String> producer1 = (ProducerImpl<String>) client.newProducer(Schema.STRING)
+        Producer<String> producer1 = client.newProducer(Schema.STRING)
             .topic(outputTopic1)
             .sendTimeout(0, TimeUnit.MILLISECONDS)
             .create();
 
-        ProducerImpl<String> producer2 = (ProducerImpl<String>) client.newProducer(Schema.STRING)
+        Producer<String> producer2 = client.newProducer(Schema.STRING)
             .topic(outputTopic2)
             .sendTimeout(0, TimeUnit.MILLISECONDS)
             .create();
