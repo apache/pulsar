@@ -50,6 +50,7 @@ import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriInfo;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
@@ -614,7 +615,12 @@ public abstract class PulsarWebResource {
                                 "Failed to find ownership for topic:" + topicName);
                     }
                     return webUrl.get();
-                }).thenAcceptBoth(nsService.isServiceUnitOwnedAsync(topicName), (webUrl, isTopicOwned) -> {
+                }).thenCompose(webUrl -> nsService.isServiceUnitOwnedAsync(topicName)
+                        .thenApply(isTopicOwned -> Pair.of(webUrl, isTopicOwned))
+                ).thenAccept(pair -> {
+                    URL webUrl = pair.getLeft();
+                    boolean isTopicOwned = pair.getRight();
+
                     if (!isTopicOwned) {
                         boolean newAuthoritative = isLeaderBroker(pulsar());
                         // Replace the host and port of the current request and redirect
