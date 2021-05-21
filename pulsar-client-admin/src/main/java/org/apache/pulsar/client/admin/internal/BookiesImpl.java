@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -42,7 +44,7 @@ public class BookiesImpl extends BaseResource implements Bookies {
     }
 
     @Override
-    public BookiesRackConfiguration getBookiesRackInfo() throws PulsarAdminException {
+    public TreeMap<String, Map<String, BookieInfo>> getBookiesRackInfo() throws PulsarAdminException {
         try {
             return getBookiesRackInfoAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
@@ -89,13 +91,13 @@ public class BookiesImpl extends BaseResource implements Bookies {
     }
 
     @Override
-    public CompletableFuture<BookiesRackConfiguration> getBookiesRackInfoAsync() {
+    public CompletableFuture<TreeMap<String, Map<String, BookieInfo>>> getBookiesRackInfoAsync() {
         WebTarget path = adminBookies.path("racks-info");
-        final CompletableFuture<BookiesRackConfiguration> future = new CompletableFuture<>();
+        final CompletableFuture<TreeMap<String, Map<String, BookieInfo>>> future = new CompletableFuture<>();
         asyncGetRequest(path,
-                new InvocationCallback<BookiesRackConfiguration>() {
+                new InvocationCallback<TreeMap<String, Map<String, BookieInfo>>>() {
                     @Override
-                    public void completed(BookiesRackConfiguration bookiesRackConfiguration) {
+                    public void completed(TreeMap<String, Map<String, BookieInfo>> bookiesRackConfiguration) {
                         future.complete(bookiesRackConfiguration);
                     }
 
