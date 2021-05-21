@@ -95,10 +95,10 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
                 assertEquals(transactionMetadataStore.getTxnMeta(txnID).get().producedPartitions(),
                         partitions);
 
-                transactionMetadataStore.updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN).get();
-                assertEquals(transactionMetadataStore.getTxnStatus(txnID).get(), TxnStatus.COMMITTING);
+                transactionMetadataStore.updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN, false).get();
+                Assert.assertEquals(transactionMetadataStore.getTxnStatus(txnID).get(), TxnStatus.COMMITTING);
 
-                transactionMetadataStore.updateTxnStatus(txnID, TxnStatus.COMMITTED, TxnStatus.COMMITTING).get();
+                transactionMetadataStore.updateTxnStatus(txnID, TxnStatus.COMMITTED, TxnStatus.COMMITTING, false).get();
 
                 try {
                     transactionMetadataStore.getTxnMeta(txnID).get();
@@ -135,9 +135,9 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
 
         Awaitility.await().until(transactionMetadataStore::checkIfReady);
         TxnID txnID = transactionMetadataStore.newTransaction(20000).get();
-        transactionMetadataStore.updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN).get();
+        transactionMetadataStore.updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN, false).get();
         if (isUseManagedLedger) {
-            transactionMetadataStore.updateTxnStatus(txnID, TxnStatus.COMMITTED, TxnStatus.COMMITTING).get();
+            transactionMetadataStore.updateTxnStatus(txnID, TxnStatus.COMMITTED, TxnStatus.COMMITTING, false).get();
         }
         assertEquals(txnID.getLeastSigBits(), 0);
         Field field = MLTransactionLogImpl.class.getDeclaredField("managedLedger");
@@ -204,8 +204,8 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
                 transactionMetadataStore.addAckedPartitionToTxn(txnID1, subscriptions1).get();
                 transactionMetadataStore.addAckedPartitionToTxn(txnID2, subscriptions1).get();
 
-                transactionMetadataStore.updateTxnStatus(txnID1, TxnStatus.COMMITTING, TxnStatus.OPEN).get();
-                transactionMetadataStore.updateTxnStatus(txnID2, TxnStatus.COMMITTING, TxnStatus.OPEN).get();
+                transactionMetadataStore.updateTxnStatus(txnID1, TxnStatus.COMMITTING, TxnStatus.OPEN, false).get();
+                transactionMetadataStore.updateTxnStatus(txnID2, TxnStatus.COMMITTING, TxnStatus.OPEN, false).get();
 
                 transactionMetadataStore.closeAsync();
 
@@ -232,9 +232,9 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
                         assertEquals(txnMeta1.status(), TxnStatus.COMMITTING);
                         assertEquals(txnMeta2.status(), TxnStatus.COMMITTING);
                         transactionMetadataStoreTest
-                                .updateTxnStatus(txnID1, TxnStatus.COMMITTED, TxnStatus.COMMITTING).get();
+                                .updateTxnStatus(txnID1, TxnStatus.COMMITTED, TxnStatus.COMMITTING, false).get();
                         transactionMetadataStoreTest
-                                .updateTxnStatus(txnID2, TxnStatus.COMMITTED, TxnStatus.COMMITTING).get();
+                                .updateTxnStatus(txnID2, TxnStatus.COMMITTED, TxnStatus.COMMITTING, false).get();
                         try {
                             transactionMetadataStoreTest.getTxnMeta(txnID1).get();
                             Assert.fail();
@@ -306,11 +306,11 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
                 transactionMetadataStore.addAckedPartitionToTxn(txnID1, subscriptions1).get();
                 transactionMetadataStore.addAckedPartitionToTxn(txnID2, subscriptions1).get();
 
-                transactionMetadataStore.updateTxnStatus(txnID1, TxnStatus.COMMITTING, TxnStatus.OPEN).get();
-                transactionMetadataStore.updateTxnStatus(txnID2, TxnStatus.ABORTING, TxnStatus.OPEN).get();
+                transactionMetadataStore.updateTxnStatus(txnID1, TxnStatus.COMMITTING, TxnStatus.OPEN, false).get();
+                transactionMetadataStore.updateTxnStatus(txnID2, TxnStatus.ABORTING, TxnStatus.OPEN, false).get();
 
-                transactionMetadataStore.updateTxnStatus(txnID1, TxnStatus.COMMITTED, TxnStatus.COMMITTING).get();
-                transactionMetadataStore.updateTxnStatus(txnID2, TxnStatus.ABORTED, TxnStatus.ABORTING).get();
+                transactionMetadataStore.updateTxnStatus(txnID1, TxnStatus.COMMITTED, TxnStatus.COMMITTING, false).get();
+                transactionMetadataStore.updateTxnStatus(txnID2, TxnStatus.ABORTED, TxnStatus.ABORTING, false).get();
                 Field field = mlTransactionLog.getClass().getDeclaredField("cursor");
                 field.setAccessible(true);
                 ManagedCursor cursor = (ManagedCursor) field.get(mlTransactionLog);
@@ -344,8 +344,8 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         // txnID2 have deleted from cursor.
         TxnID txnID2 = transactionMetadataStore.newTransaction(1000).get();
 
-        transactionMetadataStore.updateTxnStatus(txnID2, TxnStatus.ABORTING, TxnStatus.OPEN).get();
-        transactionMetadataStore.updateTxnStatus(txnID2, TxnStatus.ABORTED, TxnStatus.ABORTING).get();
+        transactionMetadataStore.updateTxnStatus(txnID2, TxnStatus.ABORTING, TxnStatus.OPEN, false).get();
+        transactionMetadataStore.updateTxnStatus(txnID2, TxnStatus.ABORTED, TxnStatus.ABORTING, false).get();
 
         mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
                 new ManagedLedgerConfig());

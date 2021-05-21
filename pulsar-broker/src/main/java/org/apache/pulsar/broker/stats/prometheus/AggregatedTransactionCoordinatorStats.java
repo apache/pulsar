@@ -16,24 +16,31 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.pulsar.broker.stats.prometheus;
 
-#pragma once
+public class AggregatedTransactionCoordinatorStats {
 
-#include <pulsar/defines.h>
-#include <pulsar/Logger.h>
+    public int actives;
 
-#ifdef USE_LOG4CXX
+    public long committedCount;
 
-namespace pulsar {
+    public long abortedCount;
 
-class PULSAR_PUBLIC Log4CxxLoggerFactory : public LoggerFactory {
-   public:
-    static std::unique_ptr<LoggerFactory> create();
-    static std::unique_ptr<LoggerFactory> create(const std::string& log4cxxConfFile);
+    public long createdCount;
 
-    Logger* getLogger(const std::string& fileName);
-};
+    public long timeoutCount;
 
-}  // namespace pulsar
+    public long appendLogCount;
 
-#endif
+    public long[] executionLatency;
+
+    public void reset() {
+        actives = 0;
+        committedCount = 0;
+        abortedCount = 0;
+        createdCount = 0;
+        timeoutCount = 0;
+        appendLogCount = 0;
+        executionLatency = null;
+    }
+}

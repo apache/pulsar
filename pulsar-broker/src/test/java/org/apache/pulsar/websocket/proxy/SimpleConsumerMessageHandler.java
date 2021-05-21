@@ -16,24 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.pulsar.websocket.proxy;
 
-#pragma once
+import com.google.gson.JsonObject;
 
-#include <pulsar/defines.h>
-#include <pulsar/Logger.h>
-
-#ifdef USE_LOG4CXX
-
-namespace pulsar {
-
-class PULSAR_PUBLIC Log4CxxLoggerFactory : public LoggerFactory {
-   public:
-    static std::unique_ptr<LoggerFactory> create();
-    static std::unique_ptr<LoggerFactory> create(const std::string& log4cxxConfFile);
-
-    Logger* getLogger(const std::string& fileName);
-};
-
-}  // namespace pulsar
-
-#endif
+public interface SimpleConsumerMessageHandler {
+  String handle(String id, JsonObject message);
+}
