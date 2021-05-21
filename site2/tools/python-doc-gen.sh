@@ -30,12 +30,14 @@ find $ROOT_DIR -name CMakeFiles | xargs rm -rf
 find $ROOT_DIR -name PulsarApi.pb.h | xargs rm -rf
 find $ROOT_DIR -name PulsarApi.pb.cc | xargs rm -rf
 cd $ROOT_DIR/pulsar-client-cpp
-cmake .
+export CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Debug -DBUILD_DYNAMIC_LIB=OFF -DPYTHON_INCLUDE_DIR=/usr/include/python2.7 -DPYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython2.7.so"
+cmake . $CMAKE_ARGS
 make -j8 _pulsar
 pip install enum34
 pip install six
 pip install fastavro
 pip install certifi
+pip install pdoc
 
 # Create documentation
 DESTINATION=$ROOT_DIR/generated-site/api/python/${VERSION}
