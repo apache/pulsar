@@ -75,7 +75,7 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
             readBatchSize = newReadBatchSize;
         }
 
-        if (shouldRewindBeforeReadingOrReplaying && readType == ReadType.Normal) {
+        if (shouldRewindBeforeReadingOrReplaying) {
             // All consumers got disconnected before the completion of the read operation
             entry.release();
             cursor.rewind();

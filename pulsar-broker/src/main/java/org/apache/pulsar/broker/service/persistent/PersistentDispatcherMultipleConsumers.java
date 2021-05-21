@@ -450,7 +450,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
         readFailureBackoff.reduceToHalf();
 
-        if (shouldRewindBeforeReadingOrReplaying && readType == ReadType.Normal) {
+        if (shouldRewindBeforeReadingOrReplaying) {
             // All consumers got disconnected before the completion of the read operation
             entries.forEach(Entry::release);
             cursor.rewind();
