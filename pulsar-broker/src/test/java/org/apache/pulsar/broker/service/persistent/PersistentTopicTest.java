@@ -26,11 +26,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 
 import java.lang.reflect.Field;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -47,6 +49,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -186,5 +189,55 @@ public class PersistentTopicTest extends BrokerTestBase {
         policies.deleted = false;
         persistentTopic.onPoliciesUpdate(policies);
         verify(persistentTopic, times(1)).checkReplicationAndRetryOnFailure();
+    }
+
+    @Test
+    public void testAccumulativeStats() throws Exception {
+        final String topicName = "persistent://prop/ns-abc/aTopic";
+        final String sharedSubName = "shared";
+        final String failoverSubName = "failOver";
+
+        Consumer<String> consumer1 = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+                .subscriptionType(SubscriptionType.Shared).subscriptionName(sharedSubName).subscribe();
+        Consumer<String> consumer2 = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+                .subscriptionType(SubscriptionType.Failover).subscriptionName(failoverSubName).subscribe();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
+
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+
+        // stats are at zero before any activity
+        TopicStats stats = topic.getStats(false, false);
+        assertEquals(stats.bytesInCounter, 0);
+        assertEquals(stats.msgInCounter, 0);
+        assertEquals(stats.bytesOutCounter, 0);
+        assertEquals(stats.msgOutCounter, 0);
+
+        producer.newMessage().value("test").eventTime(5).send();
+        producer.newMessage().value("test").eventTime(5).send();
+
+        Message<String> msg = consumer1.receive();
+        assertNotNull(msg);
+        msg = consumer2.receive();
+        assertNotNull(msg);
+
+        // send/receive result in non-zero stats
+        TopicStats statsBeforeUnsubscribe = topic.getStats(false, false);
+        assertTrue(statsBeforeUnsubscribe.bytesInCounter > 0);
+        assertTrue(statsBeforeUnsubscribe.msgInCounter > 0);
+        assertTrue(statsBeforeUnsubscribe.bytesOutCounter > 0);
+        assertTrue(statsBeforeUnsubscribe.msgOutCounter > 0);
+
+        consumer1.unsubscribe();
+        consumer2.unsubscribe();
+        producer.close();
+        topic.getProducers().values().forEach(topic::removeProducer);
+        assertEquals(topic.getProducers().size(), 0);
+
+        // consumer unsubscribe/producer removal does not result in stats loss
+        TopicStats statsAfterUnsubscribe = topic.getStats(false, false);
+        assertEquals(statsAfterUnsubscribe.bytesInCounter, statsBeforeUnsubscribe.bytesInCounter);
+        assertEquals(statsAfterUnsubscribe.msgInCounter, statsBeforeUnsubscribe.msgInCounter);
+        assertEquals(statsAfterUnsubscribe.bytesOutCounter, statsBeforeUnsubscribe.bytesOutCounter);
+        assertEquals(statsAfterUnsubscribe.msgOutCounter, statsBeforeUnsubscribe.msgOutCounter);
     }
 }
