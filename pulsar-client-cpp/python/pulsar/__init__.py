@@ -99,6 +99,7 @@ To install the Python bindings:
     client.close()
 """
 
+import logging
 import _pulsar
 
 from _pulsar import Result, CompressionType, ConsumerType, InitialPosition, PartitionsRoutingMode, BatchingType  # noqa: F401
@@ -362,6 +363,7 @@ class Client:
                  tls_trust_certs_file_path=None,
                  tls_allow_insecure_connection=False,
                  tls_validate_hostname=False,
+                 logger=None
                  ):
         """
         Create a new Pulsar client instance.
@@ -405,6 +407,8 @@ class Client:
           Configure whether the Pulsar client validates that the hostname of the
           endpoint, matches the common name on the TLS certificate presented by
           the endpoint.
+        * `logger`:
+          Set a Python logger for this Pulsar client. Should be an instance of `logging.Logger`.
         """
         _check_type(str, service_url, 'service_url')
         _check_type_or_none(Authentication, authentication, 'authentication')
@@ -417,6 +421,7 @@ class Client:
         _check_type_or_none(str, tls_trust_certs_file_path, 'tls_trust_certs_file_path')
         _check_type(bool, tls_allow_insecure_connection, 'tls_allow_insecure_connection')
         _check_type(bool, tls_validate_hostname, 'tls_validate_hostname')
+        _check_type_or_none(logging.Logger, logger, 'logger')
 
         conf = _pulsar.ClientConfiguration()
         if authentication:
@@ -427,6 +432,8 @@ class Client:
         conf.concurrent_lookup_requests(concurrent_lookup_requests)
         if log_conf_file_path:
             conf.log_conf_file_path(log_conf_file_path)
+        if logger:
+            conf.set_logger(logger)
         if use_tls or service_url.startswith('pulsar+ssl://') or service_url.startswith('https://'):
             conf.use_tls(True)
         if tls_trust_certs_file_path:

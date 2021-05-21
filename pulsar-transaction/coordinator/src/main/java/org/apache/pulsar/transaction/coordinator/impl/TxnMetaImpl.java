@@ -40,9 +40,13 @@ class TxnMetaImpl implements TxnMeta {
     private final Set<String> producedPartitions = new HashSet<>();
     private final Set<TransactionSubscription> ackedPartitions = new HashSet<>();
     private volatile TxnStatus txnStatus = TxnStatus.OPEN;
+    private final long openTimestamp;
+    private final long timeoutAt;
 
-    TxnMetaImpl(TxnID txnID) {
+    TxnMetaImpl(TxnID txnID, long openTimestamp, long timeoutAt) {
         this.txnID = txnID;
+        this.openTimestamp = openTimestamp;
+        this.timeoutAt = timeoutAt;
     }
 
     @Override
@@ -145,6 +149,16 @@ class TxnMetaImpl implements TxnMeta {
         }
         this.txnStatus = newStatus;
         return this;
+    }
+
+    @Override
+    public long getOpenTimestamp() {
+        return this.openTimestamp;
+    }
+
+    @Override
+    public long getTimeoutAt() {
+        return this.timeoutAt;
     }
 
 }

@@ -1141,7 +1141,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     /**
      * Hacky parsing of Prometheus text format. Should be good enough for unit tests
      */
-    private static Multimap<String, Metric> parseMetrics(String metrics) {
+    public static Multimap<String, Metric> parseMetrics(String metrics) {
         Multimap<String, Metric> parsed = ArrayListMultimap.create();
 
         // Example of lines are

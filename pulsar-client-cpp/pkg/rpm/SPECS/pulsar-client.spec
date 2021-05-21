@@ -53,6 +53,7 @@ static library.
 
 %build
 cd pulsar-client-cpp
+chmod +x $(find . -name "*.sh")
 cmake . -DBUILD_TESTS=OFF -DLINK_STATIC=ON -DBUILD_PYTHON_WRAPPER=OFF
 make pulsarShared pulsarSharedNossl pulsarStatic pulsarStaticWithDeps -j 3
 
