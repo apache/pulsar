@@ -636,7 +636,6 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             txnIDList.add(new TxnID(txn.getTxnIdMostBits(), txn.getTxnIdLeastBits()));
         }
 
-        pulsarClient.close();
         @Cleanup
         PulsarClientImpl recoverPulsarClient = (PulsarClientImpl) PulsarClient.builder()
                 .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
