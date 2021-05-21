@@ -18,6 +18,7 @@ Pulsar exposes the following metrics in Prometheus format. You can monitor your 
 * [Pulsar Functions](#pulsar-functions)
 * [Proxy](#proxy)
 * [Pulsar SQL Worker](#pulsar-sql-worker)
+* [Pulsar transaction](#pulsar-transaction)
 
 The following types of metrics are available:
 
@@ -121,6 +122,7 @@ The following metrics are available for broker:
 - [Pulsar Functions](#pulsar-functions)
 - [Proxy](#proxy)
 - [Pulsar SQL Worker](#pulsar-sql-worker)
+- [Pulsar transaction](#pulsar-transaction)
 
 ### Namespace metrics
 
@@ -502,3 +504,20 @@ All the proxy metrics are labelled with the following labels:
 | split_record_deserialize_time | Summary | Time spent on deserializing message to record. For example, Avro, JSON, and so on. |
 | split_record_deserialize_time_per_query | Summary | Time spent on deserializing message to record per query. |
 | split_total_execution_time | Summary | The total execution time. |
+
+## Pulsar transaction
+
+All the transaction metrics are labelled with the following labels:
+
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
+- *coordinator_id*: `coordinator_id=${coordinator_id}`. `${coordinator_id}` is the coordinator id.
+
+| Name | Type | Description |
+|---|---|---|
+| pulsar_txn_active_count | Gauge | Number of active transactions. |
+| pulsar_txn_created_count | Counter | Number of created transactions. |
+| pulsar_txn_committed_count | Counter | Number of committed transactions. |
+| pulsar_txn_aborted_count | Counter | Number of aborted transactions of this coordinator. |
+| pulsar_txn_timeout_count | Counter | Number of timeout transactions. |
+| pulsar_txn_append_log_count | Counter | Number of append transaction logs. |
+| pulsar_txn_execution_latency_le_* | Histogram | Transaction execution latency. <br> Available latencies are as below: <br><ul><li> latency="10" is TransactionExecutionLatency between (0ms, 10ms]</li> <li>latency="20" is TransactionExecutionLatency between (10ms, 20ms]</li><li>latency="50" is TransactionExecutionLatency between (20ms, 50ms]</li><li>latency="100" is TransactionExecutionLatency between (50ms, 100ms]</li><li>latency="500" is TransactionExecutionLatency between (100ms, 500ms]</li><li>latency="1000" is TransactionExecutionLatency between (500ms, 1000ms]</li><li>latency="5000" is TransactionExecutionLatency between (1s, 5s]</li><li>latency="15000" is TransactionExecutionLatency between (5s, 15s]</li><li>latency="30000" is TransactionExecutionLatency between (15s, 30s]</li></li><li>latency="60000" is TransactionExecutionLatency between (30s, 60s]</li><li>latency="300000" is TransactionExecutionLatency between (1m,5m]</li><li>latency="1500000" is TransactionExecutionLatency between (5m,15m]</li><li>latency="3000000" is TransactionExecutionLatency between (15m,30m]</li><li>latency="overflow" is TransactionExecutionLatency between (30m,∞]</li></ul>|
