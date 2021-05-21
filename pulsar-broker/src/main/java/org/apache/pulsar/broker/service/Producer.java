@@ -625,10 +625,17 @@ public class Producer {
         TopicName topicName = TopicName.get(topic.getName());
         if (cnx.getBrokerService().getAuthorizationService() != null) {
             try {
-                for (String appId : appIds) {
-                    if (cnx.getBrokerService().getAuthorizationService().canProduce(topicName, appId,
+                if (appIds == null) {
+                    if (cnx.getBrokerService().getAuthorizationService().canProduce(topicName, null,
                             cnx.getAuthenticationData())) {
                         return;
+                    }
+                } else {
+                    for (String appId : appIds) {
+                        if (cnx.getBrokerService().getAuthorizationService().canProduce(topicName, appId,
+                                cnx.getAuthenticationData())) {
+                            return;
+                        }
                     }
                 }
             } catch (Exception e) {
