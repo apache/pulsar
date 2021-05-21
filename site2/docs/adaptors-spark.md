@@ -73,3 +73,11 @@ Pass an instance of `SparkStreamingPulsarReceiver` to the `receiverStream` metho
 ```
 
 For a complete example, click [here](https://github.com/apache/pulsar-adapters/blob/master/examples/spark/src/main/java/org/apache/spark/streaming/receiver/example/SparkStreamingPulsarReceiverExample.java). In this example, the number of messages that contain the string "Pulsar" in received messages is counted.
+
+Note that if needed, other Pulsar authentication classes can be used. For example, in order to use a token during authentication the following parameters for the `SparkStreamingPulsarReceiver` constructor can be set:
+```java
+SparkStreamingPulsarReceiver pulsarReceiver = new SparkStreamingPulsarReceiver(
+        serviceUrl,
+        pulsarConf,
+        new AuthenticationToken("token:<secret-JWT-token>"));
+```
