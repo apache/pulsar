@@ -200,7 +200,7 @@ You can self-register at https://apache-pulsar.herokuapp.com/
 
 ## Contributor Over Time
 
-![image](https://user-images.githubusercontent.com/2106987/113494632-9963a780-951c-11eb-9174-6901a3f7db67.png)
+![image](https://contributor-graph-api.apiseven.com/contributors-svg?chart=contributorOverTime&repo=apache/pulsar)
 
 ## License
 
