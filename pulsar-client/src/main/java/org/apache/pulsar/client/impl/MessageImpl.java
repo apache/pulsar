@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -481,7 +480,7 @@ public class MessageImpl<T> implements Message<T> {
                     (org.apache.pulsar.common.schema.KeyValue) kvSchema.decode(getKeyBytes(), getData(), schemaVersion);
             if (schema instanceof AutoConsumeSchema) {
                 return (T) AutoConsumeSchema.wrapPrimitiveObject(keyValue,
-                        schema.getSchemaInfo().getType(), schemaVersion);
+                        ((AutoConsumeSchema) schema).getSchemaInfo(schemaVersion).getType(), schemaVersion);
             } else {
                 return (T) keyValue;
             }
@@ -497,7 +496,7 @@ public class MessageImpl<T> implements Message<T> {
                     (org.apache.pulsar.common.schema.KeyValue) kvSchema.decode(getKeyBytes(), getData(), null);
             if (schema instanceof AutoConsumeSchema) {
                 return (T) AutoConsumeSchema.wrapPrimitiveObject(keyValue,
-                        schema.getSchemaInfo().getType(), null);
+                        ((AutoConsumeSchema) schema).getSchemaInfo(getSchemaVersion()).getType(), null);
             } else {
                 return (T) keyValue;
             }
