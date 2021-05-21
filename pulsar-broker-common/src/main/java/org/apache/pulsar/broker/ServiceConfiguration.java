@@ -1322,6 +1322,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int bookkeeperClientThrottleValue = 0;
 
+    @FieldContext(
+            category = CATEGORY_STORAGE_BK,
+            doc = "Number of BookKeeper client worker threads. Default is Runtime.getRuntime().availableProcessors()"
+    )
+    private int bookkeeperClientNumWorkerThreads = Runtime.getRuntime().availableProcessors();
+
+
     /**** --- Managed Ledger --- ****/
     @FieldContext(
         minValue = 1,
