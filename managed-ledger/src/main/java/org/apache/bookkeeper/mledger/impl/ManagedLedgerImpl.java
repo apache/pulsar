@@ -2458,7 +2458,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
 
-        // need to move mark delete to the first non deleted ledger for non durable cursor since ledgers before it will be deleted
+        // need to move mark delete for non-durable cursors to the first ledger NOT marked for deletion
         // calling getNumberOfEntries latter for a ledger that is already deleted will be problematic and return incorrect results
         long firstNonDeletedLedger = ledgers.higherKey(ledgersToDelete.get(ledgersToDelete.size() - 1).getLedgerId());
         PositionImpl highestPositionToDelete = new PositionImpl(firstNonDeletedLedger, -1);
