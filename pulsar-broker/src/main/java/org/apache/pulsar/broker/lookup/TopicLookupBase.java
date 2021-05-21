@@ -210,7 +210,8 @@ public class TopicLookupBase extends PulsarWebResource {
         final String cluster = topicName.getCluster();
 
         // (1) validate cluster
-        getClusterDataIfDifferentCluster(pulsarService, cluster, clientAppId.get(0))
+        getClusterDataIfDifferentCluster(pulsarService, cluster,
+                clientAppId != null && !clientAppId.isEmpty() ? clientAppId.get(0) : null)
                 .thenAccept(differentClusterData -> {
 
             if (differentClusterData != null) {
@@ -224,15 +225,7 @@ public class TopicLookupBase extends PulsarWebResource {
             } else {
                 // (2) authorize client
                 try {
-                    for (int i = 0; i < clientAppId.size(); i++) {
-                        try {
-                            checkAuthorization(pulsarService, topicName, clientAppId.get(i), authenticationData);
-                        } catch (RestException authException) {
-                            if (i == clientAppId.size() - 1) {
-                                throw authException;
-                            }
-                        }
-                    }
+                    checkAuthorization(pulsarService, topicName, clientAppId, authenticationData);
                 } catch (RestException authException) {
                     log.warn("Failed to authorized {} on cluster {}", clientAppId, topicName.toString());
                     validationFuture.complete(newLookupErrorResponse(ServerError.AuthorizationError,

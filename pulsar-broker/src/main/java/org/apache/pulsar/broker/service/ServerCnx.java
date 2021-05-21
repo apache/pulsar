@@ -349,7 +349,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
             }
             isAuthorizedFuture = CompletableFuture.supplyAsync(() -> {
-                log.debug("Start authorization");
                 for (String authRole : authRoles) {
                     try {
                         if (service.getAuthorizationService().allowTopicOperationAsync(

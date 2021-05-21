@@ -32,6 +32,7 @@ import com.google.gson.JsonObject;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -240,7 +241,7 @@ public class PersistentTopicsBase extends AdminResource {
             validateAdminAccessForTenant(topicName.getTenant());
         } catch (Exception ve) {
             try {
-                checkAuthorization(pulsar(), topicName, clientAppId(), clientAuthData());
+                checkAuthorization(pulsar(), topicName, Collections.singletonList(clientAppId()), clientAuthData());
             } catch (RestException re) {
                 throw re;
             } catch (Exception e) {
@@ -3315,7 +3316,7 @@ public class PersistentTopicsBase extends AdminResource {
         try {
             // (1) authorize client
             try {
-                checkAuthorization(pulsar, topicName, clientAppId, authenticationData);
+                checkAuthorization(pulsar, topicName, Collections.singletonList(clientAppId), authenticationData);
             } catch (RestException e) {
                 try {
                     validateAdminAccessForTenant(pulsar,

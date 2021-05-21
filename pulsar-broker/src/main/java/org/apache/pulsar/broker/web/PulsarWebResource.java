@@ -788,11 +788,14 @@ public abstract class PulsarWebResource {
             return;
         }
         // get zk policy manager
-        if (!pulsarService.getBrokerService().getAuthorizationService().allowTopicOperation(topicName,
-                TopicOperation.LOOKUP, null, role, authenticationData)) {
-            log.warn("[{}] Role {} is not allowed to lookup topic", topicName, role);
-            throw new RestException(Status.UNAUTHORIZED, "Don't have permission to connect to this namespace");
+        for (String role : roles) {
+            if (pulsarService.getBrokerService().getAuthorizationService().allowTopicOperation(topicName,
+                    TopicOperation.LOOKUP, null, role, authenticationData)) {
+                return;
+            }
         }
+        log.warn("[{}] Roles {} are all not allowed to lookup topic", topicName, roles);
+        throw new RestException(Status.UNAUTHORIZED, "Don't have permission to connect to this namespace");
     }
 
     // Used for unit tests access
