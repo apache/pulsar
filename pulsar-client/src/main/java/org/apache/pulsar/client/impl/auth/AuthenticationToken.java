@@ -42,7 +42,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 public class AuthenticationToken implements Authentication, EncodedAuthenticationParameterSupport {
 
     private static final long serialVersionUID = 1L;
-    private transient Supplier<String> tokenSupplier;
+    private transient Supplier<String> tokenSupplier = null;
 
     public AuthenticationToken() {
     }

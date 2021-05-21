@@ -18,13 +18,12 @@
  */
 package org.apache.pulsar.broker;
 
-import org.apache.pulsar.policies.data.loadbalancer.JSONWritable;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 
 /**
  * Data class comprising the short term and long term historical data for this bundle.
  */
-public class BundleData extends JSONWritable {
+public class BundleData {
     // Short term data for this bundle. The time frame of this data is
     // determined by the number of short term samples
     // and the bundle update period.

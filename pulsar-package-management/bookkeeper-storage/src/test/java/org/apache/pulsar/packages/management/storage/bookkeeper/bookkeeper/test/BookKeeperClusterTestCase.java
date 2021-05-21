@@ -92,7 +92,7 @@ public abstract class BookKeeperClusterTestCase {
         this.numBookies = numBookies;
     }
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void setUp() throws Exception {
         executor = Executors.newCachedThreadPool();
         InMemoryMetaStore.reset();
@@ -112,13 +112,13 @@ public abstract class BookKeeperClusterTestCase {
         }
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDown() throws Exception {
         // stop bookkeeper service
         stopBKCluster();
         // stop zookeeper service
         stopZKCluster();
-        executor.shutdown();
+        executor.shutdownNow();
     }
 
     /**

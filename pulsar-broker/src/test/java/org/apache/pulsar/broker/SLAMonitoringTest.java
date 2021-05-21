@@ -22,8 +22,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashSet;
 import java.util.List;
@@ -34,13 +32,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -51,21 +46,28 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
+@Test(groups = "broker")
 public class SLAMonitoringTest {
     LocalBookkeeperEnsemble bkEnsemble;
 
-    ExecutorService executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
+    ExecutorService executor;
 
     private static final int BROKER_COUNT = 5;
-    private int[] brokerWebServicePorts = new int[BROKER_COUNT];
-    private int[] brokerNativeBrokerPorts = new int[BROKER_COUNT];
-    private URL[] brokerUrls = new URL[BROKER_COUNT];
-    private PulsarService[] pulsarServices = new PulsarService[BROKER_COUNT];
-    private PulsarAdmin[] pulsarAdmins = new PulsarAdmin[BROKER_COUNT];
-    private ServiceConfiguration[] configurations = new ServiceConfiguration[BROKER_COUNT];
+    private final int[] brokerWebServicePorts = new int[BROKER_COUNT];
+    private final int[] brokerNativeBrokerPorts = new int[BROKER_COUNT];
+    private final URL[] brokerUrls = new URL[BROKER_COUNT];
+    private final PulsarService[] pulsarServices = new PulsarService[BROKER_COUNT];
+    private final PulsarAdmin[] pulsarAdmins = new PulsarAdmin[BROKER_COUNT];
+    private final ServiceConfiguration[] configurations = new ServiceConfiguration[BROKER_COUNT];
 
-    @BeforeClass
+    @BeforeClass(alwaysRun = true)
     void setup() throws Exception {
+        executor =
+                new ThreadPoolExecutor(5,
+                        20,
+                        30,
+                        TimeUnit.SECONDS,
+                        new LinkedBlockingQueue<>());
         log.info("---- Initializing SLAMonitoringTest -----");
         // Start local bookkeeper ensemble
         bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
@@ -74,12 +76,13 @@ public class SLAMonitoringTest {
         // start brokers
         for (int i = 0; i < BROKER_COUNT; i++) {
             ServiceConfiguration config = new ServiceConfiguration();
+            config.setBrokerShutdownTimeoutMs(0L);
             config.setBrokerServicePort(Optional.of(0));
+            config.setBrokerShutdownTimeoutMs(0L);
             config.setClusterName("my-cluster");
             config.setAdvertisedAddress("localhost");
             config.setWebServicePort(Optional.of(0));
             config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
-            config.setBrokerServicePort(Optional.of(0));
             config.setDefaultNumberOfNamespaceBundles(1);
             config.setLoadBalancerEnabled(false);
             configurations[i] = config;
@@ -104,7 +107,7 @@ public class SLAMonitoringTest {
     }
 
     private void createTenant(PulsarAdmin pulsarAdmin)
-            throws PulsarClientException, MalformedURLException, PulsarAdminException {
+            throws PulsarAdminException {
         ClusterData clusterData = new ClusterData();
         clusterData.setServiceUrl(pulsarAdmin.getServiceUrl());
         pulsarAdmins[0].clusters().createCluster("my-cluster", clusterData);
@@ -121,7 +124,8 @@ public class SLAMonitoringTest {
     @AfterClass(alwaysRun = true)
     public void shutdown() throws Exception {
         log.info("--- Shutting down ---");
-        executor.shutdown();
+        executor.shutdownNow();
+        executor = null;
 
         for (int i = 0; i < BROKER_COUNT; i++) {
             pulsarAdmins[i].close();

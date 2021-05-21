@@ -30,8 +30,10 @@
         <suite-file path="./pulsar-thread.xml" />
         <suite-file path="./tiered-jcloud-storage.xml" />
         <suite-file path="./tiered-filesystem-storage.xml"/>
-        <suite-file path="./pulsar-function-state.xml" />
+        <suite-file path="./pulsar-function.xml" />
         <suite-file path="./pulsar-messaging.xml" />
         <suite-file path="./pulsar-backwards-compatibility.xml" />
+        <suite-file path="./pulsar-io-sinks.xml" />
+        <suite-file path="./pulsar-io-sources.xml" />
     </suite-files>
 </suite>

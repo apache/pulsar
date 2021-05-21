@@ -50,6 +50,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker-impl")
 public class MessageChecksumTest extends BrokerTestBase {
     private static final Logger log = LoggerFactory.getLogger(MessageChecksumTest.class);
 
@@ -135,7 +136,6 @@ public class MessageChecksumTest extends BrokerTestBase {
 
         // inject a CountDownLatch to the pending message callback of the PulsarTestClient
         CountDownLatch messageSendingProcessedLatch = new CountDownLatch(2);
-        pulsarTestClient.setPendingMessageCallback(__ -> messageSendingProcessedLatch.countDown());
 
         // WHEN
         // a message is sent, it should succeed
@@ -154,7 +154,6 @@ public class MessageChecksumTest extends BrokerTestBase {
 
         // And
         // until the message checksum has been calculated and it is pending
-        messageSendingProcessedLatch.await();
         pulsarTestClient.setPendingMessageCallback(null);
 
         // And

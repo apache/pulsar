@@ -31,9 +31,9 @@ typedef std::weak_ptr<ReaderImpl> ReaderImplWeakPtr;
 
 namespace test {
 
-extern std::mutex readerConfigTestMutex PULSAR_PUBLIC;
-extern std::atomic_bool readerConfigTestEnabled PULSAR_PUBLIC;
-extern ConsumerConfiguration consumerConfigOfReader PULSAR_PUBLIC;
+extern PULSAR_PUBLIC std::mutex readerConfigTestMutex;
+extern PULSAR_PUBLIC std::atomic_bool readerConfigTestEnabled;
+extern PULSAR_PUBLIC ConsumerConfiguration consumerConfigOfReader;
 
 }  // namespace test
 
@@ -61,6 +61,8 @@ class PULSAR_PUBLIC ReaderImpl : public std::enable_shared_from_this<ReaderImpl>
     void seekAsync(uint64_t timestamp, ResultCallback callback);
 
     ReaderImplWeakPtr getReaderImplWeakPtr();
+
+    bool isConnected() const;
 
    private:
     void handleConsumerCreated(Result result, ConsumerImplBaseWeakPtr consumer);

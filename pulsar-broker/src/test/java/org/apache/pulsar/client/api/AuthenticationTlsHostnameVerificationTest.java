@@ -32,8 +32,8 @@ import org.apache.pulsar.broker.authentication.AuthenticationProviderBasic;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
-import org.apache.pulsar.client.impl.tls.PublicSuffixMatcher;
-import org.apache.pulsar.client.impl.tls.TlsHostnameVerifier;
+import org.apache.pulsar.common.tls.PublicSuffixMatcher;
+import org.apache.pulsar.common.tls.TlsHostnameVerifier;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.slf4j.Logger;
@@ -45,6 +45,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Sets;
 
+@Test(groups = "broker-api")
 public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(AuthenticationTlsHostnameVerificationTest.class);
 
@@ -78,6 +79,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
         superUserRoles.add("localhost");
         superUserRoles.add("superUser");
         superUserRoles.add("superUser2");
+        superUserRoles.add("admin");
         conf.setSuperUserRoles(superUserRoles);
 
         conf.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());

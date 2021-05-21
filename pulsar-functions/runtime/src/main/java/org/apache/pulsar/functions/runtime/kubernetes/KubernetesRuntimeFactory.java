@@ -94,6 +94,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private String pythonInstanceFile;
     private final String logDirectory = "logs/functions";
     private Resources functionInstanceMinResources;
+    private Resources functionInstanceMaxResources;
     private boolean authenticationEnabled;
     private Integer grpcPort;
     private Integer metricsPort;
@@ -208,6 +209,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         this.changeConfigMap = factoryConfig.getChangeConfigMap();
         this.changeConfigMapNamespace = factoryConfig.getChangeConfigMapNamespace();
         this.functionInstanceMinResources = workerConfig.getFunctionInstanceMinResources();
+        this.functionInstanceMaxResources = workerConfig.getFunctionInstanceMaxResources();
         this.secretsProviderConfigurator = secretsProviderConfigurator;
         this.authenticationEnabled = workerConfig.isAuthenticationEnabled();
         this.javaInstanceJarFile = this.pulsarRootDir + "/instances/java-instance.jar";
@@ -315,7 +317,6 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             authProvider,
             authenticationEnabled,
             grpcPort,
-            metricsPort,
             narExtractionDirectory,
             manifestCustomizer,
             functionInstanceClassPath,
@@ -331,7 +332,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     	final String overriddenJobName = getOverriddenName(functionDetails);
         KubernetesRuntime.doChecks(functionDetails, overriddenJobName);
         validateMinResourcesRequired(functionDetails);
-        secretsProviderConfigurator.doAdmissionChecks(appsClient, coreClient, 
+        validateMaxResourcesRequired(functionDetails);
+        secretsProviderConfigurator.doAdmissionChecks(appsClient, coreClient,
         		getOverriddenNamespace(functionDetails), overriddenJobName, functionDetails);
     }
 
@@ -426,6 +428,25 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         }
     }
 
+    void validateMaxResourcesRequired(Function.FunctionDetails functionDetails) {
+        if (functionInstanceMaxResources != null) {
+            Double maxCpu = functionInstanceMaxResources.getCpu();
+            Long maxRam = functionInstanceMaxResources.getRam();
+
+            if (maxCpu != null && functionDetails.getResources().getCpu() > maxCpu) {
+                throw new IllegalArgumentException(
+                        String.format("Per instance CPU requested, %s, for function is greater than the maximum required, %s",
+                                functionDetails.getResources().getCpu(), maxCpu));
+            }
+
+            if (maxRam != null && functionDetails.getResources().getRam() > maxRam) {
+                throw new IllegalArgumentException(
+                        String.format("Per instance RAM requested, %s, for function is greater than the maximum required, %s",
+                                functionDetails.getResources().getRam(), maxRam));
+            }
+        }
+    }
+
     @Override
     public Optional<KubernetesFunctionAuthProvider> getAuthProvider() {
         return authProvider;
@@ -440,7 +461,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         Optional<KubernetesManifestCustomizer> manifestCustomizer = getRuntimeCustomizer();
         return manifestCustomizer.map((customizer) -> customizer.customizeNamespace(funcDetails, jobNamespace)).orElse(jobNamespace);
     }
-    
+
     private String getOverriddenName(Function.FunctionDetails funcDetails) {
         Optional<KubernetesManifestCustomizer> manifestCustomizer = getRuntimeCustomizer();
         return manifestCustomizer.map((customizer) -> customizer.customizeName(funcDetails, jobName)).orElse(jobName);

@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -28,9 +27,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-
 import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.NonNull;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
@@ -44,21 +43,17 @@ import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidConfigurationException;
+import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.impl.DefaultCryptoKeyReader;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
-
-import com.google.common.collect.Lists;
-import lombok.NonNull;
 
 @Getter(AccessLevel.PUBLIC)
 public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
@@ -119,35 +114,36 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
             return FutureUtil.failedFuture(
                     new InvalidConfigurationException("KeySharedPolicy must set with KeyShared subscription"));
         }
-        if (conf.isRetryEnable() && conf.getTopicNames().size() > 0 ) {
+        if(conf.isRetryEnable() && conf.getTopicNames().size() > 0 ) {
             TopicName topicFirst = TopicName.get(conf.getTopicNames().iterator().next());
-            String retryLetterTopic = topicFirst.getNamespace() + "/" + conf.getSubscriptionName() + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX;
-            String deadLetterTopic = topicFirst.getNamespace() + "/" + conf.getSubscriptionName() + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX;
+            String retryLetterTopic = topicFirst + "-" + conf.getSubscriptionName() + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX;
+            String deadLetterTopic = topicFirst + "-" + conf.getSubscriptionName() + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX;
+
+            //Issue 9327: do compatibility check in case of the default retry and dead letter topic name changed
+            String oldRetryLetterTopic = topicFirst.getNamespace() + "/" + conf.getSubscriptionName() + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX;
+            String oldDeadLetterTopic = topicFirst.getNamespace() + "/" + conf.getSubscriptionName() + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX;
+            if (client.getPartitionedTopicMetadata(oldRetryLetterTopic).join().partitions > 0) {
+                retryLetterTopic = oldRetryLetterTopic;
+            }
+            if (client.getPartitionedTopicMetadata(oldDeadLetterTopic).join().partitions > 0) {
+                deadLetterTopic = oldDeadLetterTopic;
+            }
+
             if(conf.getDeadLetterPolicy() == null) {
-                DeadLetterPolicy.DeadLetterPolicyBuilder dlpBuilder = DeadLetterPolicy.builder()
-                        .maxRedeliverCount(RetryMessageUtil.MAX_RECONSUMETIMES)
-                        .retryLetterTopic(retryLetterTopic);
-                // Don't set DLQ for key shared subType since it requires msg to be ordered for key.
-                if (conf.getSubscriptionType() != SubscriptionType.Key_Shared) {
-                    dlpBuilder.deadLetterTopic(deadLetterTopic);
-                }
-                conf.setDeadLetterPolicy(dlpBuilder.build());
+                conf.setDeadLetterPolicy(DeadLetterPolicy.builder()
+                                        .maxRedeliverCount(RetryMessageUtil.MAX_RECONSUMETIMES)
+                                        .retryLetterTopic(retryLetterTopic)
+                                        .deadLetterTopic(deadLetterTopic)
+                                        .build());
             } else {
                 if (StringUtils.isBlank(conf.getDeadLetterPolicy().getRetryLetterTopic())) {
                     conf.getDeadLetterPolicy().setRetryLetterTopic(retryLetterTopic);
                 }
-                if (StringUtils.isBlank(conf.getDeadLetterPolicy().getDeadLetterTopic())
-                        && conf.getSubscriptionType() != SubscriptionType.Key_Shared) {
+                if (StringUtils.isBlank(conf.getDeadLetterPolicy().getDeadLetterTopic())) {
                     conf.getDeadLetterPolicy().setDeadLetterTopic(deadLetterTopic);
                 }
             }
             conf.getTopicNames().add(conf.getDeadLetterPolicy().getRetryLetterTopic());
-        }
-        if (conf.getDeadLetterPolicy() != null && StringUtils.isNotBlank(conf.getDeadLetterPolicy().getDeadLetterTopic())
-                && conf.getSubscriptionType() == SubscriptionType.Key_Shared) {
-            return FutureUtil
-                    .failedFuture(new InvalidConfigurationException("DeadLetterQueue is not supported for" +
-                            " Key_Shared subscription type since DLQ can't guarantee message ordering."));
         }
         return interceptorList == null || interceptorList.size() == 0 ?
                 client.subscribeAsync(conf, schema, null) :
@@ -160,8 +156,8 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
                 "Passed in topicNames should not be null or empty.");
         Arrays.stream(topicNames).forEach(topicName ->
                 checkArgument(StringUtils.isNotBlank(topicName), "topicNames cannot have blank topic"));
-        conf.getTopicNames().addAll(Lists.newArrayList(Arrays.stream(topicNames).map(StringUtils::trim)
-                .collect(Collectors.toList())));
+        conf.getTopicNames().addAll(Arrays.stream(topicNames).map(StringUtils::trim)
+                .collect(Collectors.toList()));
         return this;
     }
 
@@ -310,7 +306,13 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
     @Override
     public ConsumerBuilder<T> maxPendingChuckedMessage(int maxPendingChuckedMessage) {
-        conf.setMaxPendingChuckedMessage(maxPendingChuckedMessage);
+        conf.setMaxPendingChunkedMessage(maxPendingChuckedMessage);
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> maxPendingChunkedMessage(int maxPendingChunkedMessage) {
+        conf.setMaxPendingChunkedMessage(maxPendingChunkedMessage);
         return this;
     }
 
@@ -434,7 +436,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
     @Override
     public String toString() {
-        return conf != null ? conf.toString() : null;
+        return conf != null ? conf.toString() : "";
     }
 
     @Override
@@ -459,7 +461,12 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     @Override
     public ConsumerBuilder<T> expireTimeOfIncompleteChunkedMessage(long duration, TimeUnit unit) {
         conf.setExpireTimeOfIncompleteChunkedMessageMillis(unit.toMillis(duration));
-        return null;
+        return this;
     }
 
+    @Override
+    public ConsumerBuilder<T> poolMessages(boolean poolMessages) {
+        conf.setPoolMessages(poolMessages);
+        return this;
+    }
 }

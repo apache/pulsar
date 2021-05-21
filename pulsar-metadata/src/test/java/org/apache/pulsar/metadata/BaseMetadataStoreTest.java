@@ -29,12 +29,12 @@ import org.testng.annotations.DataProvider;
 public abstract class BaseMetadataStoreTest {
     protected TestZKServer zks;
 
-    @BeforeClass
+    @BeforeClass(alwaysRun = true)
     void setup() throws Exception {
         zks = new TestZKServer();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     void teardown() throws Exception {
         zks.close();
     }

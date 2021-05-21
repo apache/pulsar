@@ -43,6 +43,7 @@
 #include <lib/stats/ConsumerStatsImpl.h>
 #include <lib/stats/ConsumerStatsDisabled.h>
 #include <queue>
+#include <atomic>
 
 using namespace pulsar;
 
@@ -73,15 +74,13 @@ class ConsumerImpl : public ConsumerImplBase,
     ~ConsumerImpl();
     void setPartitionIndex(int partitionIndex);
     int getPartitionIndex();
-    void receiveMessages(const ClientConnectionPtr& cnx, unsigned int count);
+    void sendFlowPermitsToBroker(const ClientConnectionPtr& cnx, int numMessages);
     uint64_t getConsumerId();
     void messageReceived(const ClientConnectionPtr& cnx, const proto::CommandMessage& msg,
                          bool& isChecksumValid, proto::MessageMetadata& msgMetadata, SharedBuffer& payload);
-    int incrementAndGetPermits(uint64_t cnxSequenceId);
     void messageProcessed(Message& msg);
     inline proto::CommandSubscribe_SubType getSubType();
     inline proto::CommandSubscribe_InitialPosition getInitialPosition();
-    void unsubscribeAsync(ResultCallback callback);
     void handleUnsubscribe(Result result, ResultCallback callback);
 
     /**
@@ -99,49 +98,56 @@ class ConsumerImpl : public ConsumerImplBase,
      *      always provided with ResultOk.
      */
     void doAcknowledgeCumulative(const MessageId& messageId, ResultCallback callback);
-    virtual void disconnectConsumer();
-    virtual Future<Result, ConsumerImplBaseWeakPtr> getConsumerCreatedFuture();
-    virtual const std::string& getSubscriptionName() const;
-    virtual const std::string& getTopic() const;
-    virtual Result receive(Message& msg);
-    virtual Result receive(Message& msg, int timeout);
-    virtual void receiveAsync(ReceiveCallback& callback);
-    Result fetchSingleMessageFromBroker(Message& msg);
-    virtual void acknowledgeAsync(const MessageId& msgId, ResultCallback callback);
 
-    virtual void acknowledgeCumulativeAsync(const MessageId& msgId, ResultCallback callback);
+    // overrided methods from ConsumerImplBase
+    Future<Result, ConsumerImplBaseWeakPtr> getConsumerCreatedFuture() override;
+    const std::string& getSubscriptionName() const override;
+    const std::string& getTopic() const override;
+    Result receive(Message& msg) override;
+    Result receive(Message& msg, int timeout) override;
+    void receiveAsync(ReceiveCallback& callback) override;
+    void unsubscribeAsync(ResultCallback callback) override;
+    void acknowledgeAsync(const MessageId& msgId, ResultCallback callback) override;
+    void acknowledgeCumulativeAsync(const MessageId& msgId, ResultCallback callback) override;
+    void closeAsync(ResultCallback callback) override;
+    void start() override;
+    void shutdown() override;
+    bool isClosed() override;
+    bool isOpen() override;
+    Result pauseMessageListener() override;
+    Result resumeMessageListener() override;
+    void redeliverUnacknowledgedMessages() override;
+    void redeliverUnacknowledgedMessages(const std::set<MessageId>& messageIds) override;
+    const std::string& getName() const override;
+    int getNumOfPrefetchedMessages() const override;
+    void getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callback) override;
+    void seekAsync(const MessageId& msgId, ResultCallback callback) override;
+    void seekAsync(uint64_t timestamp, ResultCallback callback) override;
+    void negativeAcknowledge(const MessageId& msgId) override;
+    bool isConnected() const override;
+
+    virtual void disconnectConsumer();
+    Result fetchSingleMessageFromBroker(Message& msg);
+
     virtual bool isCumulativeAcknowledgementAllowed(ConsumerType consumerType);
 
     virtual void redeliverMessages(const std::set<MessageId>& messageIds);
-    virtual void redeliverUnacknowledgedMessages(const std::set<MessageId>& messageIds);
-    virtual void negativeAcknowledge(const MessageId& msgId);
 
-    virtual void closeAsync(ResultCallback callback);
-    virtual void start();
-    virtual void shutdown();
-    virtual bool isClosed();
-    virtual bool isOpen();
-    virtual Result pauseMessageListener();
-    virtual Result resumeMessageListener();
-    virtual void redeliverUnacknowledgedMessages();
-    virtual void getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callback);
     void handleSeek(Result result, ResultCallback callback);
-    virtual void seekAsync(const MessageId& msgId, ResultCallback callback);
-    virtual void seekAsync(uint64_t timestamp, ResultCallback callback);
     virtual bool isReadCompacted();
     virtual void hasMessageAvailableAsync(HasMessageAvailableCallback callback);
     virtual void getLastMessageIdAsync(BrokerGetLastMessageIdCallback callback);
 
    protected:
-    void connectionOpened(const ClientConnectionPtr& cnx);
-    void connectionFailed(Result result);
+    // overrided methods from HandlerBase
+    void connectionOpened(const ClientConnectionPtr& cnx) override;
+    void connectionFailed(Result result) override;
+    HandlerBaseWeakPtr get_weak_from_this() override { return shared_from_this(); }
+
     void handleCreateConsumer(const ClientConnectionPtr& cnx, Result result);
 
     void internalListener();
     void handleClose(Result result, ResultCallback callback, ConsumerImplPtr consumer);
-    virtual HandlerBaseWeakPtr get_weak_from_this() { return shared_from_this(); }
-    virtual const std::string& getName() const;
-    virtual int getNumOfPrefetchedMessages() const;
     ConsumerStatsBasePtr consumerStatsBasePtr_;
 
    private:
@@ -150,7 +156,7 @@ class ConsumerImpl : public ConsumerImplBase,
                                    const proto::MessageMetadata& metadata, SharedBuffer& payload);
     void discardCorruptedMessage(const ClientConnectionPtr& cnx, const proto::MessageIdData& messageId,
                                  proto::CommandAck::ValidationError validationError);
-    void increaseAvailablePermits(const ClientConnectionPtr& currentCnx, int numberOfPermits = 1);
+    void increaseAvailablePermits(const ClientConnectionPtr& currentCnx, int delta = 1);
     void drainIncomingMessageQueue(size_t count);
     uint32_t receiveIndividualMessagesFromBatch(const ClientConnectionPtr& cnx, Message& batchedMessage,
                                                 int redeliveryCount);
@@ -165,7 +171,7 @@ class ConsumerImpl : public ConsumerImplBase,
     void statsCallback(Result, ResultCallback, proto::CommandAck_AckType);
     void notifyPendingReceivedCallback(Result result, Message& message, const ReceiveCallback& callback);
     void failPendingReceiveCallback();
-    virtual void setNegativeAcknowledgeEnabledForTesting(bool enabled);
+    void setNegativeAcknowledgeEnabledForTesting(bool enabled) override;
     void trackMessage(const Message& msg);
 
     Optional<MessageId> clearReceiveQueue();
@@ -185,14 +191,14 @@ class ConsumerImpl : public ConsumerImplBase,
     Optional<MessageId> lastDequedMessage_;
     UnboundedBlockingQueue<Message> incomingMessages_;
     std::queue<ReceiveCallback> pendingReceives_;
-    int availablePermits_;
+    std::atomic_int availablePermits_;
+    const int receiverQueueRefillThreshold_;
     uint64_t consumerId_;
     std::string consumerName_;
     std::string consumerStr_;
     int32_t partitionIndex_;
     Promise<Result, ConsumerImplBaseWeakPtr> consumerCreatedPromise_;
-    bool messageListenerRunning_;
-    std::mutex messageListenerMutex_;
+    std::atomic_bool messageListenerRunning_;
     CompressionCodecProvider compressionCodecProvider_;
     UnAckedMessageTrackerPtr unAckedMessageTrackerPtr_;
     BatchAcknowledgementTracker batchAcknowledgementTracker_;

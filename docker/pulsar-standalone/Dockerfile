@@ -24,7 +24,10 @@ FROM apachepulsar/pulsar-all:latest as pulsar
 FROM apachepulsar/pulsar-dashboard:latest as dashboard
 
 # Restart from
-FROM openjdk:8-jdk
+FROM openjdk:11-jdk
+
+# Help to make these directories persist between container restarts
+VOLUME  ["/pulsar/conf", "/pulsar/data"]
 
 # Note that the libpq-dev package is needed here in order to install
 # the required python psycopg2 package (for postgresql) later
@@ -32,6 +35,7 @@ RUN apt-get update \
     && apt-get -y install python3.7 python3.7-dev python3-pip postgresql sudo nginx supervisor libpq-dev
 
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 10
+RUN update-ca-certificates
 RUN ln -s /usr/bin/pip3 /usr/bin/pip
 
 # Postgres configuration

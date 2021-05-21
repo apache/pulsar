@@ -21,7 +21,8 @@ The differences of the thread and process modes are:
 It is easy to configure *Thread* runtime. In most cases, you do not need to configure anything. You can customize the thread group name with the following settings:
 
 ```yaml
-threadContainerFactory:
+functionRuntimeFactoryClassName: org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory
+functionRuntimeFactoryConfigs:
   threadGroupName: "Your Function Container Group"
 ```
 
@@ -31,7 +32,8 @@ threadContainerFactory:
 When you enable *Process* runtime, you do not need to configure anything.
 
 ```yaml
-processContainerFactory:
+functionRuntimeFactoryClassName: org.apache.pulsar.functions.runtime.process.ProcessRuntimeFactory
+functionRuntimeFactoryConfigs:
   # the directory for storing the function logs
   logDirectory:
   # change the jar location only when you put the java instance jar in a different location
@@ -57,7 +59,8 @@ The Kubernetes runtime supports secrets, so you can create a Kubernetes secret a
 It is easy to configure Kubernetes runtime. You can just uncomment the settings of `kubernetesContainerFactory` in the `functions_worker.yaml` file. The following is an example.
 
 ```yaml
-kubernetesContainerFactory:
+functionRuntimeFactoryClassName: org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory
+functionRuntimeFactoryConfigs:
   # uri to kubernetes cluster, leave it to empty and it will use the kubernetes settings in function worker
   k8Uri:
   # the kubernetes namespace to run the function instances. it is `default`, if this setting is left to be empty
@@ -265,8 +268,8 @@ superUserRoles:
   - superuser
   - proxy
 properties:
-  tokenSecretKey: file:///etc/pulsar/jwt/secret # if using a secret token
-  tokenPublicKey: file:///etc/pulsar/jwt/public.key # if using public/private key tokens
+  tokenSecretKey: file:///etc/pulsar/jwt/secret # if using a secret token, key file must be DER-encoded
+  tokenPublicKey: file:///etc/pulsar/jwt/public.key # if using public/private key tokens, key file must be DER-encoded
 ```
 
 > **Note**   
@@ -284,8 +287,9 @@ Pulsar includes a built-in implementation. To use the basic implementation, set 
 
 Below is an example of `customRuntimeOptions`.
 
-```Json
+```json
 {
+  "jobName": "jobname", // the k8s pod name to run this function instance
   "jobNamespace": "namespace", // the k8s namespace to run this function in
   "extractLabels": {           // extra labels to attach to the statefulSet, service, and pods
     "extraLabel": "value"

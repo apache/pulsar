@@ -86,7 +86,8 @@
       "version-2.7.1-administration-stats",
       "version-2.7.1-administration-load-balance",
       "version-2.7.1-administration-proxy",
-      "version-2.7.1-administration-upgrade"
+      "version-2.7.1-administration-upgrade",
+      "version-2.7.1-administration-isolation"
     ],
     "Security": [
       "version-2.7.1-security-overview",
@@ -149,7 +150,6 @@
     "Reference": [
       "version-2.7.1-reference-terminology",
       "version-2.7.1-reference-cli-tools",
-      "version-2.7.1-pulsar-admin",
       "version-2.7.1-reference-configuration",
       "version-2.7.1-reference-metrics"
     ]

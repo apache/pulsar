@@ -24,7 +24,6 @@ import java.util.concurrent.Executors;
 
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
-import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.util.ZkUtils;
@@ -54,8 +53,6 @@ public abstract class MockedBookKeeperTestCase {
 
     protected ManagedLedgerFactoryImpl factory;
 
-    protected ClientConfiguration baseClientConf = new ClientConfiguration();
-
     protected OrderedScheduler executor;
     protected ExecutorService cachedExecutor;
 
@@ -68,8 +65,8 @@ public abstract class MockedBookKeeperTestCase {
         this.numBookies = numBookies;
     }
 
-    @BeforeMethod
-    public void setUp(Method method) throws Exception {
+    @BeforeMethod(alwaysRun = true)
+    public final void setUp(Method method) throws Exception {
         LOG.info(">>>>>> starting {}", method);
         try {
             // start bookkeeper service
@@ -83,10 +80,20 @@ public abstract class MockedBookKeeperTestCase {
         factory = new ManagedLedgerFactoryImpl(bkc, zkc, conf);
 
         zkc.create("/managed-ledgers", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        setUpTestCase();
+    }
+
+    protected void setUpTestCase() throws Exception {
+
     }
 
     @AfterMethod(alwaysRun = true)
-    public void tearDown(Method method) {
+    public final void tearDown(Method method) {
+        try {
+            cleanUpTestCase();
+        } catch (Exception e) {
+            LOG.error("tearDown Error", e);
+        }
         try {
             LOG.info("@@@@@@@@@ stopping " + method);
             factory.shutdown();
@@ -99,16 +106,24 @@ public abstract class MockedBookKeeperTestCase {
         }
     }
 
-    @BeforeClass
-    public void setUpClass() {
+    protected void cleanUpTestCase() throws Exception {
+
+    }
+
+    @BeforeClass(alwaysRun = true)
+    public final void setUpClass() {
         executor = OrderedScheduler.newSchedulerBuilder().numThreads(2).name("test").build();
         cachedExecutor = Executors.newCachedThreadPool();
     }
 
-    @AfterClass
-    public void tearDownClass() {
-        executor.shutdown();
-        cachedExecutor.shutdown();
+    @AfterClass(alwaysRun = true)
+    public final void tearDownClass() {
+        if (executor != null) {
+            executor.shutdownNow();
+        }
+        if (cachedExecutor != null) {
+            cachedExecutor.shutdownNow();
+        }
     }
 
     /**
@@ -128,7 +143,7 @@ public abstract class MockedBookKeeperTestCase {
         bkc = new PulsarMockBookKeeper(zkc, executor.chooseThread(this));
     }
 
-    protected void stopBookKeeper() throws Exception {
+    protected void stopBookKeeper() {
         bkc.shutdown();
     }
 

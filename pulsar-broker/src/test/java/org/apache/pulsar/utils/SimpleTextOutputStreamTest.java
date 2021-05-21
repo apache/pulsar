@@ -29,6 +29,7 @@ import org.testng.annotations.Test;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
+@Test(groups = "utils")
 public class SimpleTextOutputStreamTest {
 
     private ByteBuf buf;

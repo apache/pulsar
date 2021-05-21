@@ -32,6 +32,7 @@ import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailable
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
+import java.nio.file.Files;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.api.StorageClient;
 import org.apache.bookkeeper.api.kv.Table;
@@ -900,13 +901,13 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
     }
 
     @Override
-    public void reloadConnectors(String clientRole) {
+    public void reloadConnectors(String clientRole, AuthenticationDataSource authenticationData) {
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
         if (worker().getWorkerConfig().isAuthorizationEnabled()) {
             // Only superuser has permission to do this operation.
-            if (!isSuperUser(clientRole)) {
+            if (!isSuperUser(clientRole, authenticationData)) {
                 throw new RestException(Status.UNAUTHORIZED, "This operation requires super-user access");
             }
         }
@@ -1204,13 +1205,14 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
     }
 
     @Override
-    public void uploadFunction(final InputStream uploadedInputStream, final String path, String clientRole) {
+    public void uploadFunction(final InputStream uploadedInputStream, final String path, String clientRole,
+                               AuthenticationDataSource authenticationData) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
 
-        if (worker().getWorkerConfig().isAuthorizationEnabled() && !isSuperUser(clientRole)) {
+        if (worker().getWorkerConfig().isAuthorizationEnabled() && !isSuperUser(clientRole, authenticationData)) {
             throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
         }
 
@@ -1261,24 +1263,24 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         String pkgPath = functionMetaDataManager.getFunctionMetaData(tenant, namespace, componentName)
                 .getPackageLocation().getPackagePath();
 
+        return getStreamingOutput(pkgPath);
+    }
+
+    private StreamingOutput getStreamingOutput(String pkgPath) {
         final StreamingOutput streamingOutput = output -> {
             if (pkgPath.startsWith(Utils.HTTP)) {
-                URL url = new URL(pkgPath);
-                IOUtils.copy(url.openStream(), output);
-            } else if (pkgPath.startsWith(Utils.FILE)) {
-                URL url = new URL(pkgPath);
-                File file;
-                try {
-                    file = new File(url.toURI());
-                    IOUtils.copy(new FileInputStream(file), output);
-                } catch (URISyntaxException e) {
-                    throw new IllegalArgumentException("invalid file url path: " + pkgPath);
+                URL url = URI.create(pkgPath).toURL();
+                try (InputStream inputStream = url.openStream()) {
+                    IOUtils.copy(inputStream, output);
                 }
+            } else if (pkgPath.startsWith(Utils.FILE)) {
+                URI url = URI.create(pkgPath);
+                File file = new File(url.getPath());
+                Files.copy(file.toPath(), output);
             } else {
                 WorkerUtils.downloadFromBookkeeper(worker().getDlogNamespace(), output, pkgPath);
             }
         };
-
         return streamingOutput;
     }
 
@@ -1308,31 +1310,13 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                     throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
                 }
             } else {
-                if (!isSuperUser(clientRole)) {
+                if (!isSuperUser(clientRole, clientAuthenticationDataHttps)) {
                     throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
                 }
             }
         }
 
-        final StreamingOutput streamingOutput = output -> {
-            if (path.startsWith(Utils.HTTP)) {
-                URL url = new URL(path);
-                IOUtils.copy(url.openStream(), output);
-            } else if (path.startsWith(Utils.FILE)) {
-                URL url = new URL(path);
-                File file;
-                try {
-                    file = new File(url.toURI());
-                    IOUtils.copy(new FileInputStream(file), output);
-                } catch (URISyntaxException e) {
-                    throw new IllegalArgumentException("invalid file url path: " + path);
-                }
-            } else {
-                WorkerUtils.downloadFromBookkeeper(worker().getDlogNamespace(), output, path);
-            }
-        };
-
-        return streamingOutput;
+        return getStreamingOutput(path);
     }
 
     private void validateListFunctionRequestParams(final String tenant, final String namespace) throws IllegalArgumentException {
@@ -1458,7 +1442,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                                     AuthenticationDataSource authenticationData) throws PulsarAdminException {
         if (worker().getWorkerConfig().isAuthorizationEnabled()) {
             // skip authorization if client role is super-user
-            if (isSuperUser(clientRole)) {
+            if (isSuperUser(clientRole, authenticationData)) {
                 return true;
             }
 
@@ -1541,14 +1525,14 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         }
     }
 
-    public boolean isSuperUser(String clientRole) {
+    public boolean isSuperUser(String clientRole, AuthenticationDataSource authenticationData) {
         if (clientRole != null) {
             try {
                 if ((worker().getWorkerConfig().getSuperUserRoles() != null
                     && worker().getWorkerConfig().getSuperUserRoles().contains(clientRole))) {
                     return true;
                 }
-                return worker().getAuthorizationService().isSuperUser(clientRole, null)
+                return worker().getAuthorizationService().isSuperUser(clientRole, authenticationData)
                     .get(worker().getWorkerConfig().getZooKeeperOperationTimeoutSeconds(), SECONDS);
             } catch (InterruptedException e) {
                 log.warn("Time-out {} sec while checking the role {} is a super user role ",

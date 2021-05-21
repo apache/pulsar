@@ -40,7 +40,7 @@ import com.beust.jcommander.converters.CommaParameterSplitter;
 public class CmdNamespaceIsolationPolicy extends CmdBase {
     @Parameters(commandDescription = "Create/Update a namespace isolation policy for a cluster. This operation requires Pulsar super-user privileges")
     private class SetPolicy extends CliCommand {
-        @Parameter(description = "cluster-name policy-name\n", required = true)
+        @Parameter(description = "cluster-name policy-name", required = true)
         private List<String> params;
 
         @Parameter(names = "--namespaces", description = "comma separated namespaces-regex list", required = true, splitter = CommaParameterSplitter.class)
@@ -72,7 +72,7 @@ public class CmdNamespaceIsolationPolicy extends CmdBase {
 
     @Parameters(commandDescription = "List all namespace isolation policies of a cluster. This operation requires Pulsar super-user privileges")
     private class GetAllPolicies extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private List<String> params;
 
         void run() throws PulsarAdminException {
@@ -86,7 +86,7 @@ public class CmdNamespaceIsolationPolicy extends CmdBase {
 
     @Parameters(commandDescription = "List all brokers with namespace-isolation policies attached to it. This operation requires Pulsar super-user privileges")
     private class GetAllBrokersWithPolicies extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private List<String> params;
 
         void run() throws PulsarAdminException {
@@ -101,7 +101,7 @@ public class CmdNamespaceIsolationPolicy extends CmdBase {
 
     @Parameters(commandDescription = "Get broker with namespace-isolation policies attached to it. This operation requires Pulsar super-user privileges")
     private class GetBrokerWithPolicies extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private List<String> params;
 
         @Parameter(names = "--broker", description = "Broker-name to get namespace-isolation policies attached to it", required = true)
@@ -119,7 +119,7 @@ public class CmdNamespaceIsolationPolicy extends CmdBase {
 
     @Parameters(commandDescription = "Get namespace isolation policy of a cluster. This operation requires Pulsar super-user privileges")
     private class GetPolicy extends CliCommand {
-        @Parameter(description = "cluster-name policy-name\n", required = true)
+        @Parameter(description = "cluster-name policy-name", required = true)
         private List<String> params;
 
         void run() throws PulsarAdminException {
@@ -135,7 +135,7 @@ public class CmdNamespaceIsolationPolicy extends CmdBase {
 
     @Parameters(commandDescription = "Delete namespace isolation policy of a cluster. This operation requires Pulsar super-user privileges")
     private class DeletePolicy extends CliCommand {
-        @Parameter(description = "cluster-name policy-name\n", required = true)
+        @Parameter(description = "cluster-name policy-name", required = true)
         private List<String> params;
 
         void run() throws PulsarAdminException {

@@ -600,4 +600,10 @@ public interface ManagedLedger {
      * will got null if corresponding ledger not exists.
      */
     CompletableFuture<LedgerInfo> getLedgerInfo(long ledgerId);
+
+    /**
+     * Truncate ledgers
+     * The truncate operation will move all cursors to the end of the topic and delete all inactive ledgers.
+     */
+    CompletableFuture<Void> asyncTruncate();
 }

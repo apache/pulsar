@@ -64,7 +64,7 @@ public class FunctionMetaDataTopicTailerTest {
                 ErrorNotifier.getDefaultImpl());
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDown() throws Exception {
         fsc.close();
         verify(reader, times(1)).close();

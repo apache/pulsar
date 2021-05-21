@@ -52,6 +52,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker-compaction")
 public class CompactorTest extends MockedPulsarServiceBaseTest {
 
     private ScheduledExecutorService compactionScheduler;
@@ -75,13 +76,12 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
-
         compactionScheduler.shutdownNow();
     }
 
     private List<String> compactAndVerify(String topic, Map<String, byte[]> expected) throws Exception {
         BookKeeper bk = pulsar.getBookKeeperClientFactory().create(
-                this.conf, null, Optional.empty(), null);
+                this.conf, null, null, Optional.empty(), null);
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
         long compactedLedgerId = compactor.compact(topic).get();
 
@@ -214,7 +214,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         pulsarClient.newConsumer().topic(topic).subscriptionName("sub1").subscribe().close();
 
         BookKeeper bk = pulsar.getBookKeeperClientFactory().create(
-                this.conf, null, Optional.empty(), null);
+                this.conf, null, null, Optional.empty(), null);
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
         compactor.compact(topic).get();
     }

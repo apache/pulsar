@@ -123,6 +123,11 @@ module.exports = [
         logo: 'https://s.vipkidstatic.com/fe-static/teacher/mkt-pc/img/e74f189.svg'
     },
     {
+        name: 'Vivy',
+        url: 'https://www.vivy.com/de/startseite/',
+        logo: 'https://www.vivy.com/fileadmin/vivy-startpage/vivy_logo.svg'
+    },
+    {
         name: 'IoTium',
         url: 'https://www.iotium.io/',
         logo: 'https://www.iotium.io/site/wp-content/uploads/2018/04/IoTium-logo.jpg'
@@ -317,5 +322,20 @@ module.exports = [
         name: 'Pandio',
         url: 'https://pandio.com',
         logo: 'https://pandio-public-assets.s3-us-west-2.amazonaws.com/pandio_225-05.png',
+    },
+    {
+        name: 'Deposit-Solutions',
+        url: 'https://www.deposit-solutions.com/',
+        logo: 'https://www.deposit-solutions.com/wp-content/uploads/2017/05/ds_logo_light_horiz.png'
+    },
+    {
+        name: 'Macrometa',
+        url: 'https://macrometa.com',
+        logo: 'https://uploads-ssl.webflow.com/5fa9e94bc848ae335afdd627/602ae50ae801b44f15185683_logo-moc-blue.png',
+    },
+    {
+        name: 'Softtech',
+        url: 'https://softtech.com.tr/en/homepage/',
+        logo: 'https://softtech.com.tr/wp-content/uploads/2017/12/SOFTTECH-LOGO.png',
     }
 ].sort((a, b) => (a.name > b.name) ? 1 : -1);

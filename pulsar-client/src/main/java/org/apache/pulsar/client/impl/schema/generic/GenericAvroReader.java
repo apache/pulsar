@@ -36,6 +36,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 
@@ -47,7 +48,7 @@ public class GenericAvroReader implements SchemaReader<GenericRecord> {
     private final List<Field> fields;
     private final Schema schema;
     private final byte[] schemaVersion;
-    private int offset;
+    private final int offset;
 
     public GenericAvroReader(Schema schema) {
         this(null, schema, null);
@@ -66,7 +67,7 @@ public class GenericAvroReader implements SchemaReader<GenericRecord> {
             this.reader = new GenericDatumReader<>(writerSchema, readerSchema);
         }
         this.byteArrayOutputStream = new ByteArrayOutputStream();
-        this.encoder = EncoderFactory.get().binaryEncoder(this.byteArrayOutputStream, encoder);
+        this.encoder = EncoderFactory.get().binaryEncoder(this.byteArrayOutputStream, null);
 
         if (schema.getObjectProp(GenericAvroSchema.OFFSET_PROP) != null) {
             this.offset = Integer.parseInt(schema.getObjectProp(GenericAvroSchema.OFFSET_PROP).toString());
@@ -88,7 +89,7 @@ public class GenericAvroReader implements SchemaReader<GenericRecord> {
                     null,
                     decoder);
             return new GenericAvroRecord(schemaVersion, schema, fields, avroRecord);
-        } catch (IOException e) {
+        } catch (IOException | IndexOutOfBoundsException e) {
             throw new SchemaSerializationException(e);
         }
     }
@@ -102,7 +103,7 @@ public class GenericAvroReader implements SchemaReader<GenericRecord> {
                             null,
                             decoder);
             return new GenericAvroRecord(schemaVersion, schema, fields, avroRecord);
-        } catch (IOException e) {
+        } catch (IOException | IndexOutOfBoundsException e) {
             throw new SchemaSerializationException(e);
         } finally {
             try {
@@ -115,6 +116,11 @@ public class GenericAvroReader implements SchemaReader<GenericRecord> {
 
     public int getOffset() {
         return offset;
+    }
+
+    @Override
+    public Optional<Object> getNativeSchema() {
+        return Optional.of(schema);
     }
 
     private static final Logger log = LoggerFactory.getLogger(GenericAvroReader.class);

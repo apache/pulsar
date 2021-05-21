@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.isNull;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.apache.pulsar.broker.service.schema.SchemaRegistryServiceImpl.Functions.toPairs;
@@ -40,6 +41,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import javax.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.avro.Schema;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
@@ -141,17 +143,17 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
             if (schemaVersion != null) {
                 return CompletableFuture.completedFuture(schemaVersion);
             }
-            CompletableFuture<Void> checkCompatibilityFurture = new CompletableFuture<>();
+            CompletableFuture<Void> checkCompatibilityFuture = new CompletableFuture<>();
             if (schemaAndMetadataList.size() != 0) {
                 if (isTransitiveStrategy(strategy)) {
-                    checkCompatibilityFurture = checkCompatibilityWithAll(schema, strategy, schemaAndMetadataList);
+                    checkCompatibilityFuture = checkCompatibilityWithAll(schema, strategy, schemaAndMetadataList);
                 } else {
-                    checkCompatibilityFurture = checkCompatibilityWithLatest(schemaId, schema, strategy);
+                    checkCompatibilityFuture = checkCompatibilityWithLatest(schemaId, schema, strategy);
                 }
             } else {
-                checkCompatibilityFurture.complete(null);
+                checkCompatibilityFuture.complete(null);
             }
-            return checkCompatibilityFurture.thenCompose(v -> {
+            return checkCompatibilityFuture.thenCompose(v -> {
                 byte[] context = hashFunction.hashBytes(schema.getData()).asBytes();
                 SchemaRegistryFormat.SchemaInfo info = SchemaRegistryFormat.SchemaInfo.newBuilder()
                         .setType(Functions.convertFromDomainType(schema.getType()))
@@ -240,17 +242,14 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
         SchemaHash existingHash = SchemaHash.of(existingSchema.schema);
         SchemaHash newHash = SchemaHash.of(newSchema);
         SchemaData existingSchemaData = existingSchema.schema;
-        if (existingSchemaData.getType().isPrimitive()) {
-            if (newSchema.getType() != existingSchemaData.getType()) {
-                throw new IncompatibleSchemaException(String.format("Incompatible primitive schema: "
-                                + "exists schema type %s, new schema type %s",
-                        existingSchemaData.getType(), newSchema.getType()));
-            }
-        } else {
-            if (!newHash.equals(existingHash)) {
-                compatibilityChecks.getOrDefault(newSchema.getType(), SchemaCompatibilityCheck.DEFAULT)
-                        .checkCompatible(existingSchemaData, newSchema, strategy);
-            }
+        if (newSchema.getType() != existingSchemaData.getType()) {
+            throw new IncompatibleSchemaException(String.format("Incompatible schema: "
+                            + "exists schema type %s, new schema type %s",
+                    existingSchemaData.getType(), newSchema.getType()));
+        }
+        if (!newHash.equals(existingHash)) {
+            compatibilityChecks.getOrDefault(newSchema.getType(), SchemaCompatibilityCheck.DEFAULT)
+                    .checkCompatible(existingSchemaData, newSchema, strategy);
         }
     }
 
@@ -291,14 +290,43 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     public CompletableFuture<SchemaVersion> getSchemaVersionBySchemaData(
             List<SchemaAndMetadata> schemaAndMetadataList,
             SchemaData schemaData) {
+        if (schemaAndMetadataList == null || schemaAndMetadataList.size() == 0) {
+            return CompletableFuture.completedFuture(null);
+        }
         final CompletableFuture<SchemaVersion> completableFuture = new CompletableFuture<>();
         SchemaVersion schemaVersion;
-        for (SchemaAndMetadata schemaAndMetadata : schemaAndMetadataList) {
-            if (Arrays.equals(hashFunction.hashBytes(schemaAndMetadata.schema.getData()).asBytes(),
-                    hashFunction.hashBytes(schemaData.getData()).asBytes())) {
-                schemaVersion = schemaAndMetadata.version;
-                completableFuture.complete(schemaVersion);
-                return completableFuture;
+        if (isUsingAvroSchemaParser(schemaData.getType())) {
+            Schema.Parser parser = new Schema.Parser();
+            Schema newSchema = parser.parse(new String(schemaData.getData(), UTF_8));
+
+            for (SchemaAndMetadata schemaAndMetadata : schemaAndMetadataList) {
+                if (isUsingAvroSchemaParser(schemaAndMetadata.schema.getType())) {
+                    Schema.Parser existParser = new Schema.Parser();
+                    Schema existSchema = existParser.parse(new String(schemaAndMetadata.schema.getData(), UTF_8));
+                    if (newSchema.equals(existSchema) && schemaAndMetadata.schema.getType() == schemaData.getType()) {
+                        schemaVersion = schemaAndMetadata.version;
+                        completableFuture.complete(schemaVersion);
+                        return completableFuture;
+                    }
+                } else {
+                    if (Arrays.equals(hashFunction.hashBytes(schemaAndMetadata.schema.getData()).asBytes(),
+                            hashFunction.hashBytes(schemaData.getData()).asBytes())
+                            && schemaAndMetadata.schema.getType() == schemaData.getType()) {
+                        schemaVersion = schemaAndMetadata.version;
+                        completableFuture.complete(schemaVersion);
+                        return completableFuture;
+                    }
+                }
+            }
+        } else {
+            for (SchemaAndMetadata schemaAndMetadata : schemaAndMetadataList) {
+                if (Arrays.equals(hashFunction.hashBytes(schemaAndMetadata.schema.getData()).asBytes(),
+                        hashFunction.hashBytes(schemaData.getData()).asBytes())
+                        && schemaAndMetadata.schema.getType() == schemaData.getType()) {
+                    schemaVersion = schemaAndMetadata.version;
+                    completableFuture.complete(schemaVersion);
+                    return completableFuture;
+                }
             }
         }
         completableFuture.complete(null);
@@ -307,14 +335,23 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
 
     private CompletableFuture<Void> checkCompatibilityWithLatest(String schemaId, SchemaData schema,
                                                                     SchemaCompatibilityStrategy strategy) {
+        if (SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE == strategy) {
+            return CompletableFuture.completedFuture(null);
+        }
         return getSchema(schemaId).thenCompose(existingSchema -> {
             if (existingSchema != null && !existingSchema.schema.isDeleted()) {
                 CompletableFuture<Void> result = new CompletableFuture<>();
-                try {
-                    checkCompatible(existingSchema, schema, strategy);
-                    result.complete(null);
-                } catch (IncompatibleSchemaException e) {
-                    result.completeExceptionally(e);
+                if (existingSchema.schema.getType() != schema.getType()) {
+                    result.completeExceptionally(new IncompatibleSchemaException(
+                            String.format("Incompatible schema: exists schema type %s, new schema type %s",
+                                    existingSchema.schema.getType(), schema.getType())));
+                } else {
+                    try {
+                        checkCompatible(existingSchema, schema, strategy);
+                        result.complete(null);
+                    } catch (IncompatibleSchemaException e) {
+                        result.completeExceptionally(e);
+                    }
                 }
                 return result;
             } else {
@@ -334,18 +371,35 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                                                               SchemaCompatibilityStrategy strategy,
                                                               List<SchemaAndMetadata> schemaAndMetadataList) {
         CompletableFuture<Void> result = new CompletableFuture<>();
-        try {
-            compatibilityChecks.getOrDefault(schema.getType(), SchemaCompatibilityCheck.DEFAULT)
-                    .checkCompatible(schemaAndMetadataList
-                            .stream()
-                            .map(schemaAndMetadata -> schemaAndMetadata.schema)
-                            .collect(Collectors.toList()), schema, strategy);
+        if (strategy == SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE) {
             result.complete(null);
-        } catch (Exception e) {
-            if (e instanceof IncompatibleSchemaException) {
-                result.completeExceptionally(e);
+        } else {
+            SchemaAndMetadata breakSchema = null;
+            for (SchemaAndMetadata schemaAndMetadata : schemaAndMetadataList) {
+                if (schemaAndMetadata.schema.getType() != schema.getType()) {
+                    breakSchema = schemaAndMetadata;
+                    break;
+                }
+            }
+            if (breakSchema == null) {
+                try {
+                    compatibilityChecks.getOrDefault(schema.getType(), SchemaCompatibilityCheck.DEFAULT)
+                            .checkCompatible(schemaAndMetadataList
+                                    .stream()
+                                    .map(schemaAndMetadata -> schemaAndMetadata.schema)
+                                    .collect(Collectors.toList()), schema, strategy);
+                    result.complete(null);
+                } catch (Exception e) {
+                    if (e instanceof IncompatibleSchemaException) {
+                        result.completeExceptionally(e);
+                    } else {
+                        result.completeExceptionally(new IncompatibleSchemaException(e));
+                    }
+                }
             } else {
-                result.completeExceptionally(new IncompatibleSchemaException(e));
+                result.completeExceptionally(new IncompatibleSchemaException(
+                        String.format("Incompatible schema: exists schema type %s, new schema type %s",
+                                breakSchema.schema.getType(), schema.getType())));
             }
         }
         return result;
@@ -464,6 +518,17 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                 future.completeExceptionally(e);
             }
             return future;
+        }
+    }
+
+    public static boolean isUsingAvroSchemaParser(SchemaType type) {
+        switch (type) {
+            case AVRO:
+            case JSON:
+            case PROTOBUF:
+                return true;
+            default:
+                return false;
         }
     }
 

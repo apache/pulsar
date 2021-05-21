@@ -39,6 +39,7 @@ import org.apache.pulsar.client.admin.Packages;
 import org.apache.pulsar.client.admin.Properties;
 import org.apache.pulsar.client.admin.ProxyStats;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.ResourceGroups;
 import org.apache.pulsar.client.admin.ResourceQuotas;
 import org.apache.pulsar.client.admin.Schemas;
 import org.apache.pulsar.client.admin.Sink;
@@ -47,6 +48,7 @@ import org.apache.pulsar.client.admin.Source;
 import org.apache.pulsar.client.admin.Sources;
 import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.client.admin.Topics;
+import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.admin.Worker;
 import org.apache.pulsar.client.admin.internal.http.AsyncHttpConnector;
 import org.apache.pulsar.client.admin.internal.http.AsyncHttpConnectorProvider;
@@ -81,6 +83,7 @@ public class PulsarAdminImpl implements PulsarAdmin {
     private final BrokerStats brokerStats;
     private final ProxyStats proxyStats;
     private final Tenants tenants;
+    private final ResourceGroups resourcegroups;
     private final Properties properties;
     private final Namespaces namespaces;
     private final Bookies bookies;
@@ -98,6 +101,7 @@ public class PulsarAdminImpl implements PulsarAdmin {
     private final Worker worker;
     private final Schemas schemas;
     private final Packages packages;
+    private final Transactions transactions;
     protected final WebTarget root;
     protected final Authentication auth;
     private final int connectTimeout;
@@ -205,6 +209,7 @@ public class PulsarAdminImpl implements PulsarAdmin {
         this.brokerStats = new BrokerStatsImpl(root, auth, readTimeoutMs);
         this.proxyStats = new ProxyStatsImpl(root, auth, readTimeoutMs);
         this.tenants = new TenantsImpl(root, auth, readTimeoutMs);
+        this.resourcegroups = new ResourceGroupsImpl(root, auth, readTimeoutMs);
         this.properties = new TenantsImpl(root, auth, readTimeoutMs);
         this.namespaces = new NamespacesImpl(root, auth, readTimeoutMs);
         this.topics = new TopicsImpl(root, auth, readTimeoutMs);
@@ -218,6 +223,7 @@ public class PulsarAdminImpl implements PulsarAdmin {
         this.schemas = new SchemasImpl(root, auth, readTimeoutMs);
         this.bookies = new BookiesImpl(root, auth, readTimeoutMs);
         this.packages = new PackagesImpl(root, auth, asyncHttpConnector.getHttpClient(), readTimeoutMs);
+        this.transactions = new TransactionsImpl(root, auth, readTimeoutMs);
 
         if (originalCtxLoader != null) {
             Thread.currentThread().setContextClassLoader(originalCtxLoader);
@@ -303,6 +309,13 @@ public class PulsarAdminImpl implements PulsarAdmin {
      */
     public Tenants tenants() {
         return tenants;
+    }
+
+    /**
+     * @return the resourcegroups management object
+     */
+    public ResourceGroups resourcegroups() {
+        return resourcegroups;
     }
 
     /**
@@ -439,6 +452,11 @@ public class PulsarAdminImpl implements PulsarAdmin {
      */
     public Packages packages() {
         return packages;
+    }
+
+    @Override
+    public Transactions transactions() {
+        return transactions;
     }
 
     /**

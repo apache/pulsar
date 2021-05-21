@@ -24,7 +24,9 @@ import org.apache.pulsar.client.api.MessageId;
 /**
  */
 public class BatchMessageIdImpl extends MessageIdImpl {
-    private final static int NO_BATCH = -1;
+
+    private static final long serialVersionUID = 1L;
+    static final int NO_BATCH = -1;
     private final int batchIndex;
     private final int batchSize;
 
@@ -67,44 +69,36 @@ public class BatchMessageIdImpl extends MessageIdImpl {
 
     @Override
     public int compareTo(MessageId o) {
-        if (o instanceof BatchMessageIdImpl) {
-            BatchMessageIdImpl other = (BatchMessageIdImpl) o;
-            return ComparisonChain.start()
-                .compare(this.ledgerId, other.ledgerId)
-                .compare(this.entryId, other.entryId)
-                .compare(this.batchIndex, other.batchIndex)
-                .compare(this.getPartitionIndex(), other.getPartitionIndex())
-                .result();
-        } else if (o instanceof MessageIdImpl) {
-            int res = super.compareTo(o);
-            if (res == 0 && batchIndex > NO_BATCH) {
-                return 1;
-            } else {
-                return res;
-            }
+        if (o instanceof MessageIdImpl) {
+            MessageIdImpl other = (MessageIdImpl) o;
+            int batchIndex = (o instanceof BatchMessageIdImpl) ? ((BatchMessageIdImpl) o).batchIndex : NO_BATCH;
+            return messageIdCompare(
+                this.ledgerId, this.entryId, this.partitionIndex, this.batchIndex,
+                other.ledgerId, other.entryId, other.partitionIndex, batchIndex
+            );
         } else if (o instanceof TopicMessageIdImpl) {
             return compareTo(((TopicMessageIdImpl) o).getInnerMessageId());
         } else {
-            throw new IllegalArgumentException(
-                    "expected BatchMessageIdImpl object. Got instance of " + o.getClass().getName());
+            throw new UnsupportedOperationException("Unknown MessageId type: " + o.getClass().getName());
         }
     }
 
     @Override
     public int hashCode() {
-        return (int) (31 * (ledgerId + 31 * entryId) + (31 * partitionIndex) + batchIndex);
+        return messageIdHashCode(ledgerId, entryId, partitionIndex, batchIndex);
     }
 
     @Override
-    public boolean equals(Object obj) {
-        if (obj instanceof BatchMessageIdImpl) {
-            BatchMessageIdImpl other = (BatchMessageIdImpl) obj;
-            return ledgerId == other.ledgerId && entryId == other.entryId && partitionIndex == other.partitionIndex
-                    && batchIndex == other.batchIndex;
-        } else if (obj instanceof MessageIdImpl) {
-            MessageIdImpl other = (MessageIdImpl) obj;
-            return ledgerId == other.ledgerId && entryId == other.entryId && partitionIndex == other.partitionIndex
-                    && batchIndex == NO_BATCH;
+    public boolean equals(Object o) {
+        if (o instanceof MessageIdImpl) {
+            MessageIdImpl other = (MessageIdImpl) o;
+            int batchIndex = (o instanceof BatchMessageIdImpl) ? ((BatchMessageIdImpl) o).batchIndex : NO_BATCH;
+            return messageIdEquals(
+                this.ledgerId, this.entryId, this.partitionIndex, this.batchIndex,
+                other.ledgerId, other.entryId, other.partitionIndex, batchIndex
+            );
+        } else if (o instanceof TopicMessageIdImpl) {
+            return equals(((TopicMessageIdImpl) o).getInnerMessageId());
         }
         return false;
     }
@@ -125,7 +119,7 @@ public class BatchMessageIdImpl extends MessageIdImpl {
     // Serialization
     @Override
     public byte[] toByteArray() {
-        return toByteArray(batchIndex);
+        return toByteArray(batchIndex, batchSize);
     }
 
     public boolean ackIndividual() {

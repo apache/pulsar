@@ -55,7 +55,8 @@
      "tiered-storage-aws",
      "tiered-storage-gcs",
      "tiered-storage-filesystem",
-     "tiered-storage-azure"
+     "tiered-storage-azure",
+     "tiered-storage-aliyun"
   ],
   "Transactions": [
     "transactions",
@@ -86,7 +87,8 @@
       "administration-stats",
       "administration-load-balance",
       "administration-proxy",
-      "administration-upgrade"
+      "administration-upgrade",
+      "administration-isolation"
     ],
     "Security": [
       "security-overview",
@@ -149,7 +151,6 @@
     "Reference": [
       "reference-terminology",
       "reference-cli-tools",
-      "pulsar-admin",
       "reference-configuration",
       "reference-metrics"
     ]

@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#include <cstdlib>
 #include "PartitionedProducerImpl.h"
 #include "LogUtils.h"
 #include <lib/TopicName.h>
@@ -24,7 +23,6 @@
 #include "RoundRobinMessageRouter.h"
 #include "SinglePartitionMessageRouter.h"
 #include "TopicMetadataImpl.h"
-#include "MessageImpl.h"
 
 DECLARE_LOG_OBJECT()
 
@@ -71,8 +69,7 @@ MessageRoutingPolicyPtr PartitionedProducerImpl::getMessageRouter() {
             return conf_.getMessageRouterPtr();
         case ProducerConfiguration::UseSinglePartition:
         default:
-            unsigned int random = rand();
-            return std::make_shared<SinglePartitionMessageRouter>(random % getNumPartitions(),
+            return std::make_shared<SinglePartitionMessageRouter>(getNumPartitions(),
                                                                   conf_.getHashingScheme());
     }
 }
@@ -370,6 +367,24 @@ void PartitionedProducerImpl::handleGetPartitions(Result result,
     }
 
     runPartitionUpdateTask();
+}
+
+bool PartitionedProducerImpl::isConnected() const {
+    Lock stateLock(mutex_);
+    if (state_ != Ready) {
+        return false;
+    }
+    stateLock.unlock();
+
+    Lock producersLock(producersMutex_);
+    const auto producers = producers_;
+    producersLock.unlock();
+    for (const auto& producer : producers_) {
+        if (!producer->isConnected()) {
+            return false;
+        }
+    }
+    return true;
 }
 
 }  // namespace pulsar

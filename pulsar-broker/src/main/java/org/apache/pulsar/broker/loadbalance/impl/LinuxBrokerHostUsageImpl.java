@@ -214,6 +214,10 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
         }
     }
 
+    public int getNicCount() {
+        return getNics().size();
+    }
+
     private boolean isPhysicalNic(Path path) {
         if (!path.toString().contains("/virtual/")) {
             try {

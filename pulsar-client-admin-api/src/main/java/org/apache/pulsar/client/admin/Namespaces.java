@@ -27,6 +27,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
@@ -1085,6 +1086,33 @@ public interface Namespaces {
     CompletableFuture<Void> deleteNamespaceAntiAffinityGroupAsync(String namespace);
 
     /**
+     * Remove the deduplication status for all topics within a namespace.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeDeduplicationStatus(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the deduplication status for all topics within a namespace asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeDeduplicationStatusAsync(String namespace);
+    /**
+     * Get the deduplication status for all topics within a namespace .
+     * @param namespace
+     * @return
+     * @throws PulsarAdminException
+     */
+    Boolean getDeduplicationStatus(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the deduplication status for all topics within a namespace asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Boolean> getDeduplicationStatusAsync(String namespace);
+    /**
      * Set the deduplication status for all topics within a namespace.
      * <p/>
      * When deduplication is enabled, the broker will prevent to store the same message multiple times.
@@ -1270,6 +1298,80 @@ public interface Namespaces {
      */
     CompletableFuture<Void> setAutoSubscriptionCreationAsync(
             String namespace, AutoSubscriptionCreationOverride autoSubscriptionCreationOverride);
+
+    /**
+     * Sets the subscriptionTypesEnabled policy for a given namespace, overriding broker settings.
+     *
+     * Request example:
+     *
+     * <pre>
+     * <code>
+     *  {
+     *      "subscriptionTypesEnabled" : {"Shared", "Failover"}
+     *  }
+     * </code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param subscriptionTypesEnabled
+     *            is enable subscription types
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setSubscriptionTypesEnabled(String namespace,
+                                     Set<SubscriptionType> subscriptionTypesEnabled) throws PulsarAdminException;
+
+    /**
+     * Sets the subscriptionTypesEnabled policy for a given namespace, overriding broker settings.
+     *
+     * Request example:
+     *
+     * <pre>
+     * <code>
+     *  {
+     *      "subscriptionTypesEnabled" : {"Shared", "Failover"}
+     *  }
+     * </code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param subscriptionTypesEnabled
+     *            is enable subscription types
+     */
+    CompletableFuture<Void> setSubscriptionTypesEnabledAsync(String namespace,
+                                                        Set<SubscriptionType> subscriptionTypesEnabled);
+
+    /**
+     * Get the subscriptionTypesEnabled policy for a given namespace, overriding broker settings.
+     *
+     * @param namespace
+     *            Namespace name
+     * @return subscription types {@link Set<SubscriptionType>} the subscription types
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    Set<SubscriptionType> getSubscriptionTypesEnabled(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the subscriptionTypesEnabled policy for a given namespace, overriding broker settings.
+     *
+     * @param namespace
+     *            Namespace name
+     * @return the future of subscription types {@link Set<SubscriptionType>} the subscription types
+     */
+    CompletableFuture<Set<SubscriptionType>> getSubscriptionTypesEnabledAsync(String namespace);
 
     /**
      * Removes the autoSubscriptionCreation policy for a given namespace.
@@ -1461,6 +1563,19 @@ public interface Namespaces {
      *            Namespace name
      */
     CompletableFuture<Void> removeBacklogQuotaAsync(String namespace);
+
+    /**
+     * Remove the persistence configuration on a namespace.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removePersistence(String namespace) throws PulsarAdminException;
+
+    /**
+     * Remove the persistence configuration on a namespace asynchronously.
+     * @param namespace
+     */
+    CompletableFuture<Void> removePersistenceAsync(String namespace);
 
     /**
      * Set the persistence configuration for all the topics on a namespace.
@@ -1902,6 +2017,19 @@ public interface Namespaces {
     CompletableFuture<PublishRate> getPublishRateAsync(String namespace);
 
     /**
+     * Remove message-dispatch-rate.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeDispatchRate(String namespace) throws PulsarAdminException;
+
+    /**
+     * Remove message-dispatch-rate asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeDispatchRateAsync(String namespace);
+    /**
      * Set message-dispatch-rate (topics under this namespace can dispatch this many messages per second).
      *
      * @param namespace
@@ -1966,6 +2094,21 @@ public interface Namespaces {
     CompletableFuture<Void> setSubscribeRateAsync(String namespace, SubscribeRate subscribeRate);
 
     /**
+     * Remove namespace-subscribe-rate (topics under this namespace will limit by subscribeRate).
+     *
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeSubscribeRate(String namespace) throws PulsarAdminException;
+
+    /**
+     * Remove namespace-subscribe-rate (topics under this namespace will limit by subscribeRate) asynchronously.
+     *
+     * @param namespace
+     */
+    CompletableFuture<Void> removeSubscribeRateAsync(String namespace);
+
+    /**
      * Get namespace-subscribe-rate (topics under this namespace allow subscribe times per consumer in a period).
      *
      * @param namespace
@@ -1984,6 +2127,20 @@ public interface Namespaces {
      * @returns subscribeRate
      */
     CompletableFuture<SubscribeRate> getSubscribeRateAsync(String namespace);
+
+    /**
+     * Remove subscription-message-dispatch-rate.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeSubscriptionDispatchRate(String namespace) throws PulsarAdminException;
+
+    /**
+     * Remove subscription-message-dispatch-rate asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeSubscriptionDispatchRateAsync(String namespace);
 
     /**
      * Set subscription-message-dispatch-rate.
@@ -2056,6 +2213,22 @@ public interface Namespaces {
      *            number of messages per second
      */
     CompletableFuture<Void> setReplicatorDispatchRateAsync(String namespace, DispatchRate dispatchRate);
+
+    /**
+     * Remove replicator-message-dispatch-rate.
+     *
+     * @param namespace
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void removeReplicatorDispatchRate(String namespace) throws PulsarAdminException;
+
+    /**
+     * Set replicator-message-dispatch-rate asynchronously.
+     *
+     * @param namespace
+     */
+    CompletableFuture<Void> removeReplicatorDispatchRateAsync(String namespace);
 
     /**
      * Get replicator-message-dispatch-rate.
@@ -2730,7 +2903,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    int getMaxConsumersPerSubscription(String namespace) throws PulsarAdminException;
+    Integer getMaxConsumersPerSubscription(String namespace) throws PulsarAdminException;
 
     /**
      * Get the maxConsumersPerSubscription for a namespace asynchronously.
@@ -2786,6 +2959,20 @@ public interface Namespaces {
     CompletableFuture<Void> setMaxConsumersPerSubscriptionAsync(String namespace, int maxConsumersPerSubscription);
 
     /**
+     * Remove maxConsumersPerSubscription for a namespace.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeMaxConsumersPerSubscription(String namespace) throws PulsarAdminException;
+
+    /**
+     * Remove maxConsumersPerSubscription for a namespace asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeMaxConsumersPerSubscriptionAsync(String namespace);
+
+    /**
      * Get the maxUnackedMessagesPerConsumer for a namespace.
      * <p/>
      * Response example:
@@ -2804,7 +2991,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    int getMaxUnackedMessagesPerConsumer(String namespace) throws PulsarAdminException;
+    Integer getMaxUnackedMessagesPerConsumer(String namespace) throws PulsarAdminException;
 
     /**
      * Get the maxUnackedMessagesPerConsumer for a namespace asynchronously.
@@ -2861,6 +3048,21 @@ public interface Namespaces {
     CompletableFuture<Void> setMaxUnackedMessagesPerConsumerAsync(String namespace, int maxUnackedMessagesPerConsumer);
 
     /**
+     * Remove maxUnackedMessagesPerConsumer for a namespace.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeMaxUnackedMessagesPerConsumer(String namespace)
+            throws PulsarAdminException;
+
+    /**
+     * Remove maxUnackedMessagesPerConsumer for a namespace asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeMaxUnackedMessagesPerConsumerAsync(
+            String namespace);
+    /**
      * Get the maxUnackedMessagesPerSubscription for a namespace.
      * <p/>
      * Response example:
@@ -2879,7 +3081,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    int getMaxUnackedMessagesPerSubscription(String namespace) throws PulsarAdminException;
+    Integer getMaxUnackedMessagesPerSubscription(String namespace) throws PulsarAdminException;
 
     /**
      * Get the maxUnackedMessagesPerSubscription for a namespace asynchronously.
@@ -2937,6 +3139,22 @@ public interface Namespaces {
             String namespace, int maxUnackedMessagesPerSubscription);
 
     /**
+     * Remove maxUnackedMessagesPerSubscription for a namespace.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeMaxUnackedMessagesPerSubscription(String namespace)
+            throws PulsarAdminException;
+
+    /**
+     * Remove maxUnackedMessagesPerSubscription for a namespace asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeMaxUnackedMessagesPerSubscriptionAsync(
+            String namespace);
+
+    /**
      * Get the compactionThreshold for a namespace. The maximum number of bytes topics in the namespace
      * can have before compaction is triggered. 0 disables.
      * <p/>
@@ -2956,7 +3174,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    long getCompactionThreshold(String namespace) throws PulsarAdminException;
+    Long getCompactionThreshold(String namespace) throws PulsarAdminException;
 
     /**
      * Get the compactionThreshold for a namespace asynchronously. The maximum number of bytes topics in the namespace
@@ -3013,6 +3231,20 @@ public interface Namespaces {
      *            maximum number of backlog bytes before compaction is triggered
      */
     CompletableFuture<Void> setCompactionThresholdAsync(String namespace, long compactionThreshold);
+
+    /**
+     * Delete the compactionThreshold for a namespace.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeCompactionThreshold(String namespace) throws PulsarAdminException;
+
+    /**
+     * Delete the compactionThreshold for a namespace asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeCompactionThresholdAsync(String namespace);
 
     /**
      * Get the offloadThreshold for a namespace. The maximum number of bytes stored on the pulsar cluster for topics
@@ -3665,4 +3897,306 @@ public interface Namespaces {
      *              Unexpected error
      */
     CompletableFuture<Void> removeMaxTopicsPerNamespaceAsync(String namespace);
+
+    /**
+<<<<<<< HEAD
+     * Set key value pair property for a namespace.
+     * If the property absents, a new property will added. Otherwise, the new value will overwrite.
+     *
+     * <p/>
+     * Example:
+     *
+     * <pre>
+     *     admin.namespaces().setProperty("a", "a");
+     *     admin.namespaces().setProperty("b", "b");
+     * </pre>
+     *
+     * @param namespace
+     *              Namespace name
+     * @param key
+     *              key of the property
+     * @param value
+     *              value of the property
+     */
+    CompletableFuture<Void> setPropertyAsync(String namespace, String key, String value);
+
+    /**
+     * Set key value pair property for a namespace.
+     * If the property absents, a new property will added. Otherwise, the new value will overwrite.
+     *
+     * <p/>
+     * Example:
+     *
+     * <pre>
+     *     admin.namespaces().setProperty("a", "a");
+     *     admin.namespaces().setProperty("b", "b");
+     * </pre>
+     *
+     * @param namespace
+     *              Namespace name
+     * @param key
+     *              key of the property
+     * @param value
+     *              value of the property
+     */
+    void setProperty(String namespace, String key, String value) throws PulsarAdminException;
+
+    /**
+     * Set key value pair properties for a namespace asynchronously.
+     * If the property absents, a new property will added. Otherwise, the new value will overwrite.
+     *
+     * @param namespace
+     *              Namespace name
+     * @param properties
+     *              key value pair properties
+     */
+    CompletableFuture<Void> setPropertiesAsync(String namespace, Map<String, String> properties);
+
+    /**
+     * Set key value pair properties for a namespace.
+     * If the property absents, a new property will added. Otherwise, the new value will overwrite.
+     *
+     * @param namespace
+     *              Namespace name
+     * @param properties
+     *              key value pair properties
+     */
+    void setProperties(String namespace, Map<String, String> properties) throws PulsarAdminException;
+
+    /**
+     * Get property value for a given key.
+     * If the property absents, will return null.
+     *
+     * <p/>
+     * Example:
+     *
+     * <pre>
+     *     admin.namespaces().getProperty("a");
+     *     admin.namespaces().getProperty("b");
+     * </pre>
+     *
+     * @param namespace
+     *              Namespace name
+     * @param key
+     *              key of the property
+     *
+     * @return value of the property.
+     */
+    CompletableFuture<String> getPropertyAsync(String namespace, String key);
+
+    /**
+     * Get property value for a given key.
+     * If the property absents, will return null.
+     *
+     * <p/>
+     * Example:
+     *
+     * <pre>
+     *     admin.namespaces().getProperty("a");
+     *     admin.namespaces().getProperty("b");
+     * </pre>
+     *
+     * @param namespace
+     *              Namespace name
+     * @param key
+     *              key of the property
+     *
+     * @return value of the property.
+     */
+    String getProperty(String namespace, String key) throws PulsarAdminException;
+
+    /**
+     * Get all properties of a namespace asynchronously.
+     *
+     * <p/>
+     * Example:
+     *
+     * <pre>
+     *     admin.namespaces().getPropertiesAsync();
+     * </pre>
+     *
+     * @param namespace
+     *              Namespace name
+     *
+     * @return key value pair properties.
+     */
+    CompletableFuture<Map<String, String>> getPropertiesAsync(String namespace);
+
+    /**
+     * Get all properties of a namespace.
+     *
+     * <p/>
+     * Example:
+     *
+     * <pre>
+     *     admin.namespaces().getProperties();
+     * </pre>
+     *
+     * @param namespace
+     *              Namespace name
+     *
+     * @return key value pair properties.
+     */
+    Map<String, String> getProperties(String namespace) throws PulsarAdminException;
+
+    /**
+     * Remove a property for a given key.
+     * Return value of the property if the property exists, otherwise return null.
+     *
+     * <p/>
+     * Example:
+     *
+     * <pre>
+     *     admin.namespaces().removeProperty("a");
+     *     admin.namespaces().removeProperty("b");
+     * </pre>
+     *
+     * @param namespace
+     *              Namespace name
+     * @param key
+     *              key of the property
+     *
+     * @return value of the property.
+     */
+    CompletableFuture<String> removePropertyAsync(String namespace, String key);
+
+    /**
+     * Remove a property for a given key.
+     * Return value of the property if the property exists, otherwise return null.
+     *
+     * <p/>
+     * Example:
+     *
+     * <pre>
+     *     admin.namespaces().removeProperty("a");
+     *     admin.namespaces().removeProperty("b");
+     * </pre>
+     *
+     * @param namespace
+     *              Namespace name
+     * @param key
+     *              key of the property
+     *
+     * @return value of the property.
+     */
+    String removeProperty(String namespace, String key) throws PulsarAdminException;
+
+    /**
+     * Clear all properties of a namespace asynchronously.
+     *
+     * <p/>
+     * Example:
+     *
+     * <pre>
+     *     admin.namespaces().clearPropertiesAsync();
+     * </pre>
+     *
+     * @param namespace
+     *              Namespace name
+     */
+    CompletableFuture<Void> clearPropertiesAsync(String namespace);
+
+    /**
+     * Clear all properties of a namespace.
+     *
+     * <p/>
+     * Example:
+     *
+     * <pre>
+     *     admin.namespaces().clearProperties();
+     * </pre>
+     *
+     * @param namespace
+     *              Namespace name
+     */
+    void clearProperties(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the ResourceGroup for a namespace.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>60</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     * @return
+     */
+    String getNamespaceResourceGroup(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the ResourceGroup for a namespace asynchronously.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>60</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     */
+    CompletableFuture<String> getNamespaceResourceGroupAsync(String namespace);
+
+    /**
+     * Set the ResourceGroup for a namespace.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>60</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param resourcegroupname
+     *            ResourceGroup name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setNamespaceResourceGroup(String namespace, String resourcegroupname) throws PulsarAdminException;
+
+    /**
+     * Set the ResourceGroup for a namespace asynchronously.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>60</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param resourcegroupname
+     *            TTL values for all messages for all topics in this namespace
+     */
+    CompletableFuture<Void> setNamespaceResourceGroupAsync(String namespace, String resourcegroupname);
+
+    /**
+     * Remove the ResourceGroup on  a namespace.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeNamespaceResourceGroup(String namespace) throws PulsarAdminException;
+
+    /**
+     * Remove the ResourceGroup on a namespace asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeNamespaceResourceGroupAsync(String namespace);
 }

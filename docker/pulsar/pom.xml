@@ -30,6 +30,11 @@
   <name>Apache Pulsar :: Docker Images :: Pulsar Latest Version</name>
   <packaging>pom</packaging>
 
+  <properties>
+    <skipBuildPythonClient>false</skipBuildPythonClient>
+    <skipCopyPythonClients>false</skipCopyPythonClients>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
@@ -38,6 +43,12 @@
       <classifier>bin</classifier>
       <type>tar.gz</type>
       <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>*</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
   </dependencies>
 
@@ -46,7 +57,7 @@
       <id>docker</id>
       <build>
         <plugins>
-          <!-- build cpp client, copy the wheel file and then build docker image -->
+          <!-- build Python client, copy the wheel file and then build docker image -->
           <plugin>
             <groupId>org.codehaus.mojo</groupId>
             <artifactId>exec-maven-plugin</artifactId>
@@ -68,18 +79,6 @@
                   </arguments>
                 </configuration>
               </execution>
-              <execution>
-                <id>build-pulsar-cpp-client-deb</id>
-                <phase>compile</phase>
-                <goals>
-                  <goal>exec</goal>
-                </goals>
-                <configuration>
-                  <skip>${skipBuildCppClient}</skip>
-                  <workingDirectory>${project.basedir}/target</workingDirectory>
-                  <executable>${project.basedir}/../../pulsar-client-cpp/pkg/deb/docker-build-deb.sh</executable>
-                </configuration>
-              </execution>
             </executions>
           </plugin>
           <plugin>
@@ -98,21 +97,6 @@
                     <echo>copy python wheel file</echo>
                     <mkdir dir="${basedir}/target/python-client"/>
                     <copydir src="${basedir}/../../pulsar-client-cpp/python/wheelhouse" dest="${basedir}/target/python-client"/>
-                  </target>
-                </configuration>
-              </execution>
-              <execution>
-                <id>copy-pulsar-cpp-client</id>
-                <phase>compile</phase>
-                <goals>
-                  <goal>run</goal>
-                </goals>
-                <configuration>
-                  <skip>${skipCopyCppClient}</skip>
-                  <target>
-                    <echo>copy cpp client deb file</echo>
-                    <mkdir dir="${basedir}/target/cpp-client"/>
-                    <copydir src="${basedir}/../../pulsar-client-cpp/pkg/deb/BUILD/DEB" dest="${basedir}/target/cpp-client"/>
                   </target>
                 </configuration>
               </execution>

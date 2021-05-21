@@ -21,6 +21,8 @@ package org.apache.pulsar.client.api;
 import java.io.Closeable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
@@ -154,6 +156,37 @@ public interface Reader<T> extends Closeable {
      * @param timestamp the message publish time where to reposition the reader
      */
     void seek(long timestamp) throws PulsarClientException;
+
+    /**
+     * Reset the subscription associated with this consumer to a specific message ID or message publish time.
+     * <p>
+     * The Function input is topic+partition. It returns only timestamp or MessageId.
+     * <p>
+     * The return value is the seek position/timestamp of the current partition.
+     * Exception is thrown if other object types are returned.
+     * <p>
+     * If returns null, the current partition will not do any processing.
+     * Exception in a partition may affect other partitions.
+     * @param function
+     * @throws PulsarClientException
+     */
+    void seek(Function<String, Object> function) throws PulsarClientException;
+
+    /**
+     * Reset the subscription associated with this consumer to a specific message ID
+     * or message publish time asynchronously.
+     * <p>
+     * The Function input is topic+partition. It returns only timestamp or MessageId.
+     * <p>
+     * The return value is the seek position/timestamp of the current partition.
+     * Exception is thrown if other object types are returned.
+     * <p>
+     * If returns null, the current partition will not do any processing.
+     * Exception in a partition may affect other partitions.
+     * @param function
+     * @return
+     */
+    CompletableFuture<Void> seekAsync(Function<String, Object> function);
 
     /**
      * Reset the subscription associated with this reader to a specific message id.

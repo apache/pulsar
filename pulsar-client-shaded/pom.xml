@@ -35,6 +35,11 @@
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-client-api</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-original</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -52,11 +57,10 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-dependency-plugin</artifactId>
-        <version>3.1.1</version>
         <executions>
           <execution>
             <id>unpack</id>
-            <phase>generate-sources</phase>
+            <phase>prepare-package</phase>
             <goals>
               <goal>unpack</goal>
             </goals>
@@ -72,15 +76,36 @@
                   <outputDirectory>${project.build.directory}/classes</outputDirectory>
                 </artifactItem>
                 <artifactItem>
-                  <groupId>${project.groupId}</groupId>
-                  <artifactId>pulsar-client-original</artifactId>
-                  <version>${project.version}</version>
+                  <groupId>org.asynchttpclient</groupId>
+                  <artifactId>async-http-client</artifactId>
+                  <version>${asynchttpclient.version}</version>
                   <type>jar</type>
                   <overWrite>true</overWrite>
-                  <includes>**/ahc.properties</includes>
-                  <outputDirectory>${project.build.directory}/classes/org/asynchttpclient/config</outputDirectory>
+                  <includes>org/asynchttpclient/config/ahc-default.properties</includes>
+                  <outputDirectory>${project.build.directory}/classes</outputDirectory>
                 </artifactItem>
               </artifactItems>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>shade-ahc-properties</id>
+            <phase>prepare-package</phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <target>
+                <!-- shade the AsyncHttpClient ahc-default.properties files -->
+                <replace token= "org.asynchttpclient."
+                         value="org.apache.pulsar.shade.org.asynchttpclient."
+                         file="${project.build.directory}/classes/org/asynchttpclient/config/ahc-default.properties"/>
+              </target>
             </configuration>
           </execution>
         </executions>
@@ -92,7 +117,7 @@
         <artifactId>maven-shade-plugin</artifactId>
         <executions>
           <execution>
-            <phase>package</phase>
+            <phase>${shadePluginPhase}</phase>
             <goals>
               <goal>shade</goal>
             </goals>
@@ -104,7 +129,7 @@
               <artifactSet>
                 <includes>
                   <include>org.apache.pulsar:pulsar-client-original</include>
-                  <include>org.apache.pulsar:pulsar-client-api</include>
+                  <include>org.apache.pulsar:pulsar-transaction-common</include>
                   <include>org.apache.bookkeeper:bookkeeper-common-allocator</include>
                   <include>org.apache.commons:commons-lang3</include>
                   <include>commons-codec:commons-codec</include>
@@ -115,18 +140,23 @@
                   <include>org.reactivestreams:reactive-streams</include>
                   <include>com.typesafe.netty:netty-reactive-streams</include>
                   <include>org.javassist:javassist</include>
-                  <include>com.google.guava:guava</include>
-                  <include>com.google.guava:failureaccess</include>
+                  <include>com.google.guava:*</include>
+                  <include>org.checkerframework:*</include>
+                  <include>com.google.code.findbugs:*</include>
+                  <include>com.google.errorprone:*</include>
+                  <include>com.google.j2objc:*</include>
                   <include>com.google.code.gson:gson</include>
                   <include>com.fasterxml.jackson.core</include>
                   <include>com.fasterxml.jackson.module</include>
                   <include>com.fasterxml.jackson.core:jackson-core</include>
                   <include>com.fasterxml.jackson.dataformat</include>
                   <include>io.netty:*</include>
+                  <include>io.perfmark:*</include>
                   <include>org.eclipse.jetty:*</include>
                   <include>com.yahoo.datasketches:*</include>
                   <include>commons-*:*</include>
                   <include>io.swagger:*</include>
+                  <include>io.airlift:*</include>
 
                   <include>org.apache.pulsar:pulsar-common</include>
                   <include>org.apache.bookkeeper:circe-checksum</include>
@@ -136,8 +166,6 @@
 
                   <include>org.apache.avro:*</include>
                   <!-- Avro transitive dependencies-->
-                  <include>org.codehaus.jackson:jackson-core-asl</include>
-                  <include>org.codehaus.jackson:jackson-mapper-asl</include>
                   <include>com.thoughtworks.paranamer:paranamer</include>
                   <include>org.apache.commons:commons-compress</include>
                   <include>org.tukaani:xz</include>
@@ -167,6 +195,10 @@
                   <shadedPattern>org.apache.pulsar.shade.org.apache.commons</shadedPattern>
                 </relocation>
                 <relocation>
+                  <pattern>io.airlift</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.io.airlift</shadedPattern>
+                </relocation>
+                <relocation>
                   <pattern>com.google</pattern>
                   <shadedPattern>org.apache.pulsar.shade.com.google</shadedPattern>
                   <excludes>
@@ -180,6 +212,14 @@
                 <relocation>
                   <pattern>io.netty</pattern>
                   <shadedPattern>org.apache.pulsar.shade.io.netty</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.checkerframework</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.checkerframework</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>javax.annotation</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.javax.annotation</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>io.swagger</pattern>
@@ -264,6 +304,20 @@
                 <transformer implementation="org.apache.maven.plugins.shade.resource.PluginXmlResourceTransformer" />
               </transformers>
             </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>com.github.spotbugs</groupId>
+        <artifactId>spotbugs-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>spotbugs</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
           </execution>
         </executions>
       </plugin>

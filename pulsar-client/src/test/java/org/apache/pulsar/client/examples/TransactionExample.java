@@ -21,6 +21,7 @@ package org.apache.pulsar.client.examples;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
+import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -40,6 +41,7 @@ public class TransactionExample {
     public static void main(String[] args) throws Exception {
         String serviceUrl = "pulsar://localhost:6650";
 
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
             .serviceUrl(serviceUrl)
             .build();

@@ -48,10 +48,10 @@ public class ZookeeperBkClientFactoryImplTest {
         localZkS.start();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     void teardown() throws Exception {
         localZkS.close();
-        executor.shutdown();
+        executor.shutdownNow();
     }
 
     @Test

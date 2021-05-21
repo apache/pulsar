@@ -50,6 +50,7 @@ import org.testng.annotations.Test;
  * Pulsar client transaction test.
  */
 @Slf4j
+@Test(groups = "broker")
 public class TransactionStablePositionTest extends TransactionTestBase {
 
     private final static String TENANT = "tnx";
@@ -72,13 +73,16 @@ public class TransactionStablePositionTest extends TransactionTestBase {
         admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
         admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), 16);
 
+        if (pulsarClient != null) {
+            pulsarClient.shutdown();
+        }
         pulsarClient = PulsarClient.builder()
                 .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
                 .statsInterval(0, TimeUnit.SECONDS)
                 .enableTransaction(true)
                 .build();
 
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).until(() -> ((PulsarClientImpl) pulsarClient)
+        Awaitility.await().until(() -> ((PulsarClientImpl) pulsarClient)
                 .getTcClient().getState() == TransactionCoordinatorClient.State.READY);
     }
 
@@ -88,7 +92,7 @@ public class TransactionStablePositionTest extends TransactionTestBase {
     }
 
     @Test
-    private void commitTxnTest() throws Exception {
+    public void commitTxnTest() throws Exception {
         Transaction txn = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build().get();
@@ -134,7 +138,7 @@ public class TransactionStablePositionTest extends TransactionTestBase {
     }
 
     @Test
-    private void abortTxnTest() throws Exception {
+    public void abortTxnTest() throws Exception {
         Transaction txn = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build().get();

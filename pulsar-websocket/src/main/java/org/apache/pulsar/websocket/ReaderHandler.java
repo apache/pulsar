@@ -29,6 +29,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException;
 import org.apache.pulsar.client.api.Reader;
@@ -38,7 +39,9 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.ReaderImpl;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.websocket.data.ConsumerCommand;
 import org.apache.pulsar.websocket.data.ConsumerMessage;
+import org.apache.pulsar.websocket.data.EndOfTopicResponse;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.WriteCallback;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
@@ -89,6 +92,14 @@ public class ReaderHandler extends AbstractWebSocketHandler {
                     .receiverQueueSize(receiverQueueSize);
             if (queryParams.containsKey("readerName")) {
                 builder.readerName(queryParams.get("readerName"));
+            }
+            if (queryParams.containsKey("cryptoFailureAction")) {
+                String action = queryParams.get("cryptoFailureAction");
+                try {
+                    builder.cryptoFailureAction(ConsumerCryptoFailureAction.valueOf(action));
+                } catch (Exception e) {
+                    log.warn("Failed to configure cryptoFailureAction {} , {}", action, e.getMessage());
+                }
             }
 
             this.reader = builder.create();
@@ -187,6 +198,17 @@ public class ReaderHandler extends AbstractWebSocketHandler {
     public void onWebSocketText(String message) {
         super.onWebSocketText(message);
 
+        try {
+            ConsumerCommand command = ObjectMapperFactory.getThreadLocal().readValue(message, ConsumerCommand.class);
+            if ("isEndOfTopic".equals(command.type)) {
+                handleEndOfTopic();
+                return;
+            }
+        } catch (IOException e) {
+            log.warn("Failed to deserialize message id: {}", message, e);
+            close(WebSocketError.FailedToDeserializeFromJSON);
+        }
+
         // We should have received an ack
         // but reader doesn't send an ack to broker here because already reader did
 
@@ -194,6 +216,34 @@ public class ReaderHandler extends AbstractWebSocketHandler {
         if (pending >= maxPendingMessages) {
             // Resume delivery
             receiveMessage();
+        }
+    }
+
+    // Check and notify reader if reached end of topic.
+    private void handleEndOfTopic() {
+        try {
+            String msg = ObjectMapperFactory.getThreadLocal().writeValueAsString(
+                    new EndOfTopicResponse(reader.hasReachedEndOfTopic()));
+            getSession().getRemote()
+                    .sendString(msg, new WriteCallback() {
+                        @Override
+                        public void writeFailed(Throwable th) {
+                            log.warn("[{}/{}] Failed to send end of topic msg to {} due to {}", reader.getTopic(),
+                                    subscription, getRemote().getInetSocketAddress().toString(), th.getMessage());
+                        }
+
+                        @Override
+                        public void writeSuccess() {
+                            if (log.isDebugEnabled()) {
+                                log.debug("[{}/{}] End of topic message is delivered successfully to {} ",
+                                        reader.getTopic(), subscription, getRemote().getInetSocketAddress().toString());
+                            }
+                        }
+                    });
+        } catch (JsonProcessingException e) {
+            log.warn("[{}] Failed to generate end of topic response: {}", reader.getTopic(), e.getMessage());
+        } catch (Exception e) {
+            log.warn("[{}] Failed to send end of topic response: {}", reader.getTopic(), e.getMessage());
         }
     }
 

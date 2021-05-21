@@ -24,9 +24,11 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.common.events.ActionType;
 import org.apache.pulsar.common.events.EventType;
+import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.events.PulsarEvent;
 import org.apache.pulsar.common.events.TopicPoliciesEvent;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
@@ -37,6 +39,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBaseTest {
 
     private static final Logger log = LoggerFactory.getLogger(NamespaceEventsSystemTopicServiceTest.class);
@@ -62,7 +65,8 @@ public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBa
 
     @Test
     public void testSendAndReceiveNamespaceEvents() throws Exception {
-        SystemTopicClient systemTopicClientForNamespace1 = systemTopicFactory.createSystemTopic(NamespaceName.get(NAMESPACE1), EventType.TOPIC_POLICY);
+        TopicPoliciesSystemTopicClient systemTopicClientForNamespace1 = systemTopicFactory
+                .createTopicPoliciesSystemTopicClient(NamespaceName.get(NAMESPACE1));
         TopicPolicies policies = TopicPolicies.builder()
             .maxProducerPerTopic(10)
             .build();
@@ -104,6 +108,18 @@ public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBa
         systemTopicClientForNamespace1.close();
         Assert.assertEquals(systemTopicClientForNamespace1.getWriters().size(), 0);
         Assert.assertEquals(systemTopicClientForNamespace1.getReaders().size(), 0);
+    }
+
+    @Test(timeOut = 30000)
+    public void checkSystemTopic() throws PulsarAdminException {
+        final String systemTopic = "persistent://" + NAMESPACE1 + "/" + EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME;
+        final String normalTopic = "persistent://" + NAMESPACE1 + "/normal_topic";
+        admin.topics().createPartitionedTopic(normalTopic, 3);
+        TopicName systemTopicName = TopicName.get(systemTopic);
+        TopicName normalTopicName = TopicName.get(normalTopic);
+
+        Assert.assertEquals(SystemTopicClient.isSystemTopic(systemTopicName), true);
+        Assert.assertEquals(SystemTopicClient.isSystemTopic(normalTopicName), false);
     }
 
     private void prepareData() throws PulsarAdminException {

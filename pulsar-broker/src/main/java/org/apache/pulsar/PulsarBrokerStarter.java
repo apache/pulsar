@@ -29,6 +29,7 @@ import com.beust.jcommander.Parameter;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.nio.file.Paths;
 import java.text.DateFormat;
@@ -43,6 +44,7 @@ import org.apache.bookkeeper.replication.AutoRecoveryMain;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.bookkeeper.util.DirectMemoryUtils;
 import org.apache.commons.configuration.ConfigurationException;
+import org.apache.logging.log4j.LogManager;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -61,10 +63,12 @@ public class PulsarBrokerStarter {
     private static ServiceConfiguration loadConfig(String configFile) throws Exception {
         SLF4JBridgeHandler.removeHandlersForRootLogger();
         SLF4JBridgeHandler.install();
-        ServiceConfiguration config = create((new FileInputStream(configFile)), ServiceConfiguration.class);
-        // it validates provided configuration is completed
-        isComplete(config);
-        return config;
+        try (InputStream inputStream = new FileInputStream(configFile)) {
+            ServiceConfiguration config = create(inputStream, ServiceConfiguration.class);
+            // it validates provided configuration is completed
+            isComplete(config);
+            return config;
+        }
     }
 
     @VisibleForTesting
@@ -304,6 +308,7 @@ public class PulsarBrokerStarter {
             System.out.println(String.format("%s [%s] error Uncaught exception in thread %s: %s",
                     dateFormat.format(new Date()), thread.getContextClassLoader(),
                     thread.getName(), exception.getMessage()));
+            exception.printStackTrace(System.out);
         });
 
         BrokerStarter starter = new BrokerStarter(args);
@@ -326,6 +331,7 @@ public class PulsarBrokerStarter {
             starter.start();
         } catch (Throwable t) {
             log.error("Failed to start pulsar service.", t);
+            LogManager.shutdown();
             Runtime.getRuntime().halt(1);
         } finally {
             starter.join();

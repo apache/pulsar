@@ -344,7 +344,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
         category = CATEGORY_TLS,
         doc = "Specify the tls protocols the broker will use to negotiate during TLS handshake"
             + " (a comma-separated list of protocol names).\n\n"
-            + "Examples:- [TLSv1.2, TLSv1.1, TLSv1]"
+            + "Examples:- [TLSv1.3, TLSv1.2]"
     )
     private Set<String> tlsProtocols = Sets.newTreeSet();
     @FieldContext(
@@ -454,7 +454,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
             category = CATEGORY_KEYSTORE_TLS,
             doc = "Specify the tls protocols the broker will use to negotiate during TLS handshake"
                   + " (a comma-separated list of protocol names).\n\n"
-                  + "Examples:- [TLSv1.2, TLSv1.1, TLSv1] \n"
+                  + "Examples:- [TLSv1.3, TLSv1.2] \n"
                   + " used by the Pulsar proxy to authenticate with Pulsar brokers"
     )
     private Set<String> brokerClientTlsProtocols = Sets.newTreeSet();
@@ -535,7 +535,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
                         + "Configure the public key to be used to validate auth tokens"
                         + " The key can be specified like:\n\n"
                         + "tokenPublicKey=data:;base64,xxxxxxxxx\n"
-                        + "tokenPublicKey=file:///my/public.key")
+                        + "tokenPublicKey=file:///my/public.key  ( Note: key file must be DER-encoded )")
             ),
             @PropertyContext(
                 key = "tokenSecretKey",
@@ -545,7 +545,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
                         + "Configure the secret key to be used to validate auth tokens"
                         + "The key can be specified like:\n\n"
                         + "tokenSecretKey=data:;base64,xxxxxxxxx\n"
-                        + "tokenSecretKey=file:///my/secret.key")
+                        + "tokenSecretKey=file:///my/secret.key  ( Note: key file must be DER-encoded )")
             )
         }
     )

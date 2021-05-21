@@ -462,6 +462,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
             doc = "A set of the minimum amount of resources functions must request.  Support for this depends on function runtime."
     )
     private Resources functionInstanceMinResources;
+    @FieldContext(
+            category = CATEGORY_FUNC_RUNTIME_MNG,
+            doc = "A set of the maximum amount of resources functions may request.  Support for this depends on function runtime."
+    )
+    private Resources functionInstanceMaxResources;
 
     @FieldContext(
             category = CATEGORY_FUNC_RUNTIME_MNG,
@@ -526,6 +531,12 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         doc = "The nar package for the function worker service"
     )
     private String functionsWorkerServiceNarPackage = "";
+
+    @FieldContext(
+            category = CATEGORY_WORKER,
+            doc = "The additional configs for the function worker service if functionsWorkerServiceNarPackage provided"
+    )
+    private Map<String, Object> functionsWorkerServiceCustomConfigs = Collections.emptyMap();
 
     @FieldContext(
             category = CATEGORY_WORKER,

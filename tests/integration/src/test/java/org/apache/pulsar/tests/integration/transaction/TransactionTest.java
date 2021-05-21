@@ -19,6 +19,7 @@
 package org.apache.pulsar.tests.integration.transaction;
 
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
@@ -29,6 +30,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -72,9 +74,10 @@ public class TransactionTest extends TransactionTestBase {
      * 2. The balance update messages amount sum should be 0.
      */
     @Test(dataProvider = "ServiceUrls")
-    public void transferNormalTest(String serviceUrl) throws Exception {
+    public void transferNormalTest(Supplier<String> serviceUrl) throws Exception {
         log.info("transfer normal test start.");
-        PulsarClient pulsarClient = PulsarClient.builder().enableTransaction(true).serviceUrl(serviceUrl).build();
+        @Cleanup
+        PulsarClient pulsarClient = PulsarClient.builder().enableTransaction(true).serviceUrl(serviceUrl.get()).build();
 
         final int transferCount = 20;
         final String transferTopic = "transfer-" + randomName(6);
@@ -97,6 +100,7 @@ public class TransactionTest extends TransactionTestBase {
                 .subscriptionType(SubscriptionType.Shared)
                 .enableBatchIndexAcknowledgment(true)
                 .subscribe();
+        Awaitility.await().until(transferConsumer::isConnected);
         log.info("transfer consumer create finished");
 
         @Cleanup
@@ -112,9 +116,10 @@ public class TransactionTest extends TransactionTestBase {
                 .subscriptionName("integration-test")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
+        Awaitility.await().until(balanceUpdateConsumer::isConnected);
         log.info("balance update consumer create finished");
 
-        while(true) {
+        while (true) {
             Message<TransferOperation> message = transferConsumer.receive(10, TimeUnit.SECONDS);
             if (message == null) {
                 break;

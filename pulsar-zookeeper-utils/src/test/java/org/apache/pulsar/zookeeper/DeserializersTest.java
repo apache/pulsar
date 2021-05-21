@@ -33,7 +33,7 @@ public class DeserializersTest {
     void setup() throws Exception {
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     void teardown() throws Exception {
     }
 

@@ -20,12 +20,9 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.bookkeeper.mledger.ManagedLedgerException.getManagedLedgerException;
-
 import com.google.common.base.Predicates;
 import com.google.common.collect.Maps;
-
 import io.netty.util.concurrent.DefaultThreadFactory;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -41,7 +38,6 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
@@ -78,8 +74,8 @@ import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
-import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
+import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
@@ -145,7 +141,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 zkc, config, NullStatsLogger.INSTANCE);
     }
 
-    private ManagedLedgerFactoryImpl(ClientConfiguration clientConfiguration, String zkConnection, ManagedLedgerFactoryConfig config) throws Exception {
+    public ManagedLedgerFactoryImpl(ClientConfiguration clientConfiguration, String zkConnection, ManagedLedgerFactoryConfig config) throws Exception {
         this(new DefaultBkFactory(clientConfiguration),
             true,
             ZooKeeperClient.newBuilder()
@@ -399,7 +395,9 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
                 @Override
                 public void initializeFailed(ManagedLedgerException e) {
-                    log.error("[{}] Failed to initialize managed ledger: {}", name, e.getMessage());
+                    if (config.isCreateIfMissing()) {
+                        log.error("[{}] Failed to initialize managed ledger: {}", name, e.getMessage());
+                    }
 
                     // Clean the map if initialization fails
                     ledgers.remove(name, future);
@@ -498,11 +496,13 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         statsTask.cancel(true);
         flushCursorsTask.cancel(true);
 
+        // take a snapshot of ledgers currently in the map to prevent race conditions
+        List<CompletableFuture<ManagedLedgerImpl>> ledgers = new ArrayList<>(this.ledgers.values());
         int numLedgers = ledgers.size();
         final CountDownLatch latch = new CountDownLatch(numLedgers);
         log.info("Closing {} ledgers", numLedgers);
 
-        for (CompletableFuture<ManagedLedgerImpl> ledgerFuture : ledgers.values()) {
+        for (CompletableFuture<ManagedLedgerImpl> ledgerFuture : ledgers) {
             ManagedLedgerImpl ledger = ledgerFuture.getNow(null);
             if (ledger == null) {
                 latch.countDown();

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -108,6 +109,13 @@ public interface ReaderBuilder<T> extends Cloneable {
      * @return the reader builder instance
      */
     ReaderBuilder<T> topic(String topicName);
+
+    /**
+     * Specify topics this reader will read from.
+     * @param topicNames
+     * @return
+     */
+    ReaderBuilder<T> topics(List<String> topicNames);
 
     /**
      * The initial reader positioning is done by specifying a message id. The options are:

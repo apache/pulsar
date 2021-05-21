@@ -33,6 +33,7 @@ import java.io.OutputStream;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.List;
@@ -42,6 +43,7 @@ import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.stats.metrics.ManagedCursorMetrics;
 import org.apache.pulsar.broker.stats.metrics.ManagedLedgerCacheMetrics;
 import org.apache.pulsar.broker.stats.metrics.ManagedLedgerMetrics;
 import org.apache.pulsar.common.stats.Metrics;
@@ -84,22 +86,28 @@ public class PrometheusMetricsGenerator {
     }
 
     public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
-        OutputStream out) throws IOException {
-        generate(pulsar, includeTopicMetrics, includeConsumerMetrics, out, null);
+        boolean includeProducerMetrics, OutputStream out) throws IOException {
+        generate(pulsar, includeTopicMetrics, includeConsumerMetrics, includeProducerMetrics, out, null);
     }
 
     public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
-        OutputStream out, List<PrometheusRawMetricsProvider> metricsProviders) throws IOException {
+        boolean includeProducerMetrics, OutputStream out, List<PrometheusRawMetricsProvider> metricsProviders)
+        throws IOException {
         ByteBuf buf = ByteBufAllocator.DEFAULT.heapBuffer();
         try {
             SimpleTextOutputStream stream = new SimpleTextOutputStream(buf);
 
             generateSystemMetrics(stream, pulsar.getConfiguration().getClusterName());
 
-            NamespaceStatsAggregator.generate(pulsar, includeTopicMetrics, includeConsumerMetrics, stream);
+            NamespaceStatsAggregator.generate(pulsar, includeTopicMetrics, includeConsumerMetrics,
+                    includeProducerMetrics, stream);
 
             if (pulsar.getWorkerServiceOpt().isPresent()) {
                 pulsar.getWorkerService().generateFunctionsStats(stream);
+            }
+
+            if (pulsar.getConfiguration().isTransactionCoordinatorEnabled()) {
+                TransactionCoordinatorAggregator.generate(pulsar, stream);
             }
 
             generateBrokerBasicMetrics(pulsar, stream);
@@ -125,6 +133,16 @@ public class PrometheusMetricsGenerator {
 
         // generate managedLedger metrics
         parseMetricsToPrometheusMetrics(new ManagedLedgerMetrics(pulsar).generate(),
+                clusterName, Collector.Type.GAUGE, stream);
+
+        if (pulsar.getConfiguration().isExposeManagedCursorMetricsInPrometheus()) {
+            // generate managedCursor metrics
+            parseMetricsToPrometheusMetrics(new ManagedCursorMetrics(pulsar).generate(),
+                    clusterName, Collector.Type.GAUGE, stream);
+        }
+
+        parseMetricsToPrometheusMetrics(Collections.singletonList(pulsar.getBrokerService()
+                .getPulsarStats().getBrokerOperabilityMetrics().generateConnectionMetrics()),
                 clusterName, Collector.Type.GAUGE, stream);
 
         // generate loadBalance metrics

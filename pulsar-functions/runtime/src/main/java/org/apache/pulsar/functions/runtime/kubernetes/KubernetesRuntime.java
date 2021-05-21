@@ -90,6 +90,7 @@ import java.util.regex.Pattern;
 import static java.net.HttpURLConnection.HTTP_CONFLICT;
 import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.commons.lang3.StringUtils.left;
 import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
 import static org.apache.pulsar.functions.utils.FunctionCommon.roundDecimal;
 
@@ -107,7 +108,8 @@ import static org.apache.pulsar.functions.utils.FunctionCommon.roundDecimal;
 public class KubernetesRuntime implements Runtime {
 
     private static final String ENV_SHARD_ID = "SHARD_ID";
-    private static final int maxJobNameSize = 55;
+    private static final int maxJobNameSize = 53;
+    private static final int maxLabelSize = 63;
     public static final Pattern VALID_POD_NAME_REGEX =
             Pattern.compile("[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*",
                     Pattern.CASE_INSENSITIVE);
@@ -187,10 +189,9 @@ public class KubernetesRuntime implements Runtime {
                       Optional<KubernetesFunctionAuthProvider> functionAuthDataCacheProvider,
                       boolean authenticationEnabled,
                       Integer grpcPort,
-                      Integer metricsPort,
                       String narExtractionDirectory,
                       Optional<KubernetesManifestCustomizer> manifestCustomizer,
-                      String functinoInstanceClassPath,
+                      String functionInstanceClassPath,
                       String downloadDirectory) throws Exception {
         this.appsClient = appsClient;
         this.coreClient = coreClient;
@@ -213,7 +214,7 @@ public class KubernetesRuntime implements Runtime {
         this.memoryOverCommitRatio = memoryOverCommitRatio;
         this.authenticationEnabled = authenticationEnabled;
         this.manifestCustomizer = manifestCustomizer;
-        this.functionInstanceClassPath = functinoInstanceClassPath;
+        this.functionInstanceClassPath = functionInstanceClassPath;
         String logConfigFile = null;
         String secretsProviderClassName = secretsProviderConfigurator.getSecretsProviderClassName(instanceConfig.getFunctionDetails());
         String secretsProviderConfig = null;
@@ -236,7 +237,7 @@ public class KubernetesRuntime implements Runtime {
         this.functionAuthDataCacheProvider = functionAuthDataCacheProvider;
 
         this.grpcPort = grpcPort;
-        this.metricsPort = metricsPort;
+        this.metricsPort = instanceConfig.hasValidMetricsPort() ? instanceConfig.getMetricsPort() : null;
         this.narExtractionDirectory = narExtractionDirectory;
 
         this.processArgs = new LinkedList<>();
@@ -273,9 +274,8 @@ public class KubernetesRuntime implements Runtime {
                         installUserCodeDependencies,
                         pythonDependencyRepository,
                         pythonExtraDependencyRepository,
-                        metricsPort,
                         narExtractionDirectory,
-                        functinoInstanceClassPath,
+                        functionInstanceClassPath,
                         true,
                         pulsarAdminUrl));
 
@@ -663,7 +663,7 @@ public class KubernetesRuntime implements Runtime {
                     try {
                         response = coreClient.listNamespacedPod(jobNamespace, null, null,
                                 null, null, labels,
-                                null, null, null, null);
+                                null, null, null, null, null);
                     } catch (ApiException e) {
 
                         String errorMsg = e.getResponseBody() != null ? e.getResponseBody() : e.getMessage();
@@ -997,10 +997,11 @@ public class KubernetesRuntime implements Runtime {
                 break;
         }
         labels.put("component", component);
-        labels.put("namespace", functionDetails.getNamespace());
-        labels.put("tenant", functionDetails.getTenant());
-        labels.put("name", functionDetails.getName());
+        labels.put("namespace", toValidLabelName(functionDetails.getNamespace()));
+        labels.put("tenant", toValidLabelName(functionDetails.getTenant()));
+        labels.put("name", toValidLabelName(functionDetails.getName()));
         if (customLabels != null && !customLabels.isEmpty()) {
+            customLabels.replaceAll((k, v) -> toValidLabelName(v));
             labels.putAll(customLabels);
         }
         return labels;
@@ -1144,7 +1145,7 @@ public class KubernetesRuntime implements Runtime {
 
     public static String createJobName(Function.FunctionDetails functionDetails, String jobName) {
         return jobName == null ? createJobName(functionDetails.getTenant(),
-                functionDetails.getNamespace(), functionDetails.getName()) : 
+                functionDetails.getNamespace(), functionDetails.getName()) :
                 	createJobName(jobName, functionDetails.getTenant(),
                         functionDetails.getNamespace(), functionDetails.getName());
     }
@@ -1152,16 +1153,20 @@ public class KubernetesRuntime implements Runtime {
     private static String toValidPodName(String ori) {
         return ori.toLowerCase().replaceAll("[^a-z0-9-\\.]", "-");
     }
-    
+
+    private static String toValidLabelName(String ori) {
+        return left(ori.toLowerCase().replaceAll("[^a-zA-Z0-9-_\\.]", "-").replaceAll("^[^a-zA-Z0-9]", "0").replaceAll("[^a-zA-Z0-9]$", "0"), maxLabelSize);
+    }
+
     private static String createJobName(String jobName, String tenant, String namespace, String functionName) {
     	final String convertedJobName = toValidPodName(jobName);
-        // use of customRuntimeOptions 'jobName' may cause naming collisions, 
+        // use of customRuntimeOptions 'jobName' may cause naming collisions,
     	// add a short hash here to avoid it
     	final String hashName = String.format("%s-%s-%s-%s", jobName, tenant, namespace, functionName);
         final String shortHash = DigestUtils.sha1Hex(hashName).toLowerCase().substring(0, 8);
         return convertedJobName + "-" + shortHash;
     }
-    
+
     private static String createJobName(String tenant, String namespace, String functionName) {
     	final String jobNameBase = String.format("%s-%s-%s", tenant, namespace, functionName);
         final String jobName = "pf-" + jobNameBase;

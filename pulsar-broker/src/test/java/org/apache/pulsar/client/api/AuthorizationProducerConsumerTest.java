@@ -20,6 +20,7 @@ package org.apache.pulsar.client.api;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.mockito.Mockito.spy;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -29,6 +30,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import javax.naming.AuthenticationException;
 import lombok.Cleanup;
@@ -51,12 +53,15 @@ import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
+import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.RestException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker-api")
 public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(AuthorizationProducerConsumerTest.class);
 
@@ -210,7 +215,12 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         // verify tenant is able to perform all subscription-admin api
         tenantAdmin.topics().skipAllMessages(topicName, subscriptionName);
         tenantAdmin.topics().skipMessages(topicName, subscriptionName, 1);
-        tenantAdmin.topics().expireMessages(topicName, subscriptionName, 10);
+        try {
+            tenantAdmin.topics().expireMessages(topicName, subscriptionName, 10);
+        } catch (Exception e) {
+            // my-sub1 has no msg backlog, so expire message won't be issued on that subscription
+            assertTrue(e.getMessage().startsWith("Expire message by timestamp not issued on topic"));
+        }
         tenantAdmin.topics().expireMessages(topicName, subscriptionName, new MessageIdImpl(-1, -1, -1), true);
         tenantAdmin.topics().peekMessages(topicName, subscriptionName, 1);
         tenantAdmin.topics().resetCursor(topicName, subscriptionName, 10);
@@ -242,8 +252,12 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
 
         sub1Admin.topics().skipAllMessages(topicName, subscriptionName);
         sub1Admin.topics().skipMessages(topicName, subscriptionName, 1);
-        sub1Admin.topics().expireMessages(topicName, subscriptionName, 10);
-        sub1Admin.topics().peekMessages(topicName, subscriptionName, 1);
+        try {
+            tenantAdmin.topics().expireMessages(topicName, subscriptionName, 10);
+        } catch (Exception e) {
+            // my-sub1 has no msg backlog, so expire message won't be issued on that subscription
+            assertTrue(e.getMessage().startsWith("Expire message by timestamp not issued on topic"));
+        }        sub1Admin.topics().peekMessages(topicName, subscriptionName, 1);
         sub1Admin.topics().resetCursor(topicName, subscriptionName, 10);
         sub1Admin.topics().resetCursor(topicName, subscriptionName, MessageId.earliest);
 
@@ -530,13 +544,27 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         @Override
         public CompletableFuture<Boolean> allowTopicOperationAsync(
             TopicName topic, String role, TopicOperation operation, AuthenticationDataSource authData) {
-            return CompletableFuture.completedFuture(true);
+            CompletableFuture<Boolean> isAuthorizedFuture;
+
+            if (role.equals("plugbleRole")) {
+                isAuthorizedFuture = CompletableFuture.completedFuture(true);
+            } else {
+                isAuthorizedFuture = CompletableFuture.completedFuture(false);
+            }
+
+            return isAuthorizedFuture;
         }
 
         @Override
         public Boolean allowTopicOperation(
             TopicName topicName, String role, TopicOperation operation, AuthenticationDataSource authData) {
-            return true;
+            try {
+                return allowTopicOperationAsync(topicName, role, operation, authData).get();
+            } catch (InterruptedException e) {
+                throw new RestException(e);
+            } catch (ExecutionException e) {
+                throw new RestException(e);
+            }
         }
     }
 

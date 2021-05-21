@@ -43,6 +43,7 @@ public class InstanceConfig {
     // Whether the pulsar admin client exposed to function context, default is disabled.
     @Getter
     private boolean exposePulsarAdminClientEnabled = false;
+    private int metricsPort;
 
     /**
      * Get the string representation of {@link #getInstanceId()}.
@@ -55,5 +56,9 @@ public class InstanceConfig {
 
     public FunctionDetails getFunctionDetails() {
         return functionDetails;
+    }
+
+    public boolean hasValidMetricsPort() {
+        return metricsPort > 0 && metricsPort < 65536;
     }
 }

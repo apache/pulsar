@@ -23,15 +23,13 @@ import com.google.common.collect.Maps;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
+import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -41,8 +39,10 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.PulsarService.State;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -56,7 +56,9 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
+import org.apache.pulsar.common.policies.data.BrokerInfo;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,6 +67,7 @@ import org.slf4j.LoggerFactory;
  */
 public class BrokersBase extends PulsarWebResource {
     private static final Logger LOG = LoggerFactory.getLogger(BrokersBase.class);
+    private static final Duration HEALTHCHECK_READ_TIMEOUT = Duration.ofSeconds(10);
 
     @GET
     @Path("/{cluster}")
@@ -88,6 +91,31 @@ public class BrokersBase extends PulsarWebResource {
             return new HashSet<>(dynamicConfigurationResources().getChildren(LoadManager.LOADBALANCE_BROKERS_ROOT));
         } catch (Exception e) {
             LOG.error("[{}] Failed to get active broker list: cluster={}", clientAppId(), cluster, e);
+            throw new RestException(e);
+        }
+    }
+
+    @GET
+    @Path("/leaderBroker")
+    @ApiOperation(
+            value = "Get the information of the leader broker.",
+            response = BrokerInfo.class)
+    @ApiResponses(
+            value = {
+                    @ApiResponse(code = 401, message = "Authentication required"),
+                    @ApiResponse(code = 403, message = "This operation requires super-user access"),
+                    @ApiResponse(code = 404, message = "Leader broker not found") })
+    public BrokerInfo getLeaderBroker() throws Exception {
+        validateSuperUserAccess();
+
+        try {
+            LeaderBroker leaderBroker = pulsar().getLeaderElectionService().getCurrentLeader()
+                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Couldn't find leader broker"));
+            BrokerInfo brokerInfo = new BrokerInfo();
+            brokerInfo.setServiceUrl(leaderBroker.getServiceUrl());
+            return brokerInfo;
+        } catch (Exception e) {
+            LOG.error("[{}] Failed to get the information of the leader broker.", clientAppId(), e);
             throw new RestException(e);
         }
     }
@@ -318,13 +346,10 @@ public class BrokersBase extends PulsarWebResource {
                         healthcheckReadLoop(readerFuture, completePromise, messageStr);
 
                         // timeout read loop after 10 seconds
-                        ScheduledFuture<?> timeout = pulsar().getExecutor().schedule(() -> {
-                                completePromise.completeExceptionally(new TimeoutException("Timed out reading"));
-                            }, 10, TimeUnit.SECONDS);
-                        // don't leave timeout dangling
-                        completePromise.whenComplete((ignore2, exception2) -> {
-                                timeout.cancel(false);
-                            });
+                        FutureUtil.addTimeoutHandling(completePromise,
+                                HEALTHCHECK_READ_TIMEOUT, pulsar().getExecutor(),
+                                () -> FutureUtil.createTimeoutException("Timed out reading", getClass(),
+                                        "healthcheck(...)"));
                     }
                 });
 
@@ -390,6 +415,16 @@ public class BrokersBase extends PulsarWebResource {
             LOG.error("[{}] Failed to update configuration {}, {}", clientAppId(), configName, ie.getMessage(), ie);
             throw new RestException(ie);
         }
+    }
+
+    @GET
+    @Path("/version")
+    @ApiOperation(value = "Get version of current broker")
+    @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Everything is OK"),
+            @ApiResponse(code = 500, message = "Internal server error")})
+    public String version() throws Exception {
+        return PulsarVersion.getVersion();
     }
 }
 

@@ -31,9 +31,10 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class BrokerServiceAutoSubscriptionCreationTest extends BrokerTestBase {
 
-    private AtomicInteger testId = new AtomicInteger(0);
+    private final AtomicInteger testId = new AtomicInteger(0);
 
     @BeforeClass
     @Override

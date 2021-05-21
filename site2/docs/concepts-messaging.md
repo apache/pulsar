@@ -23,6 +23,21 @@ Publish time | The timestamp of when the message is published. The timestamp is 
 Event time | An optional timestamp attached to a message by applications. For example, applications attach a timestamp on when the message is processed. If nothing is set to event time, the value is `0`. 
 TypedMessageBuilder | It is used to construct a message. You can set message properties such as the message key, message value with `TypedMessageBuilder`. </br> When you set `TypedMessageBuilder`, set the key as a string. If you set the key as other types, for example, an AVRO object, the key is sent as bytes, and it is difficult to get the AVRO object back on the consumer.
 
+The default size of a message is 5 MB. You can configure the max size of a message with the following configurations.
+
+- In the `broker.conf` file.
+
+    ```bash
+    # The max size of a message (in bytes).
+    maxMessageSize=5242880
+    ```
+
+- In the `bookkeeper.conf` file.
+
+    ```bash
+    # The max size of the netty frame (in bytes). Any messages received larger than this value are rejected. The default value is 5 MB.
+    nettyMaxFrameSizeBytes=5253120
+    ```
 > For more information on Pulsar message contents, see Pulsar [binary protocol](developing-binary-protocol.md).
 
 ## Producers
@@ -37,6 +52,25 @@ Producers send messages to brokers synchronously (sync) or asynchronously (async
 |:-----------|-----------|
 | Sync send  | The producer waits for an acknowledgement from the broker after sending every message. If the acknowledgment is not received, the producer treats the sending operation as a failure.                                                                                                                                                                                    |
 | Async send | The producer puts a message in a blocking queue and returns immediately. The client library sends the message to the broker in the background. If the queue is full (you can [configure](reference-configuration.md#broker) the maximum size), the producer is blocked or fails immediately when calling the API, depending on arguments passed to the producer. |
+
+### Access mode
+
+You can have different types of access modes on topics for producers.
+
+|Access mode | Description
+|---|---
+`Shared`|Multiple producers can publish on a topic. <br><br>This is the **default** setting.
+`Exclusive`|Only one producer can publish on a topic. <br><br>If there is already a producer connected, other producers trying to publish on this topic get errors immediately.<br><br>The “old” producer is evicted and a “new” producer is selected to be the next exclusive producer if the “old” producer experiences a network partition with the broker.
+`WaitForExclusive`|If there is already a producer connected, the producer creation is pending (rather than timing out) until the producer gets the `Exclusive` access.<br><br>The producer that succeeds in becoming the exclusive one is treated as the leader. Consequently, if you want to implement the leader election scheme for your application, you can use this access mode.
+
+> **Note**
+>
+> Once an application creates a producer with the `Exclusive` or `WaitForExclusive` access mode successfully, the instance of the application is guaranteed to be the **only one writer** on the topic. Other producers trying to produce on this topic get errors immediately or have to wait until they get the `Exclusive` access. 
+> 
+> For more information, see [PIP 68: Exclusive Producer](https://github.com/apache/pulsar/wiki/PIP-68:-Exclusive-Producer).
+
+You can set producer access mode through Java Client API. For more information, see `ProducerAccessMode` in [ProducerBuilder.java](https://github.com/apache/pulsar/blob/fc5768ca3bbf92815d142fe30e6bfad70a1b4fc6/pulsar-client-api/src/main/java/org/apache/pulsar/client/api/ProducerBuilder.java).
+
 
 ### Compression
 
@@ -67,9 +101,9 @@ When you enable chunking, read the following instructions.
 
 When chunking is enabled (`chunkingEnabled=true`), if the message size is greater than the allowed maximum publish-payload size, the producer splits the original message into chunked messages and publishes them with chunked metadata to the broker separately and in order. At the broker side, the chunked messages are stored in the managed-ledger in the same way as that of ordinary messages. The only difference is that the consumer needs to buffer the chunked messages and combines them into the real message when all chunked messages have been collected. The chunked messages in the managed-ledger can be interwoven with ordinary messages. If producer fails to publish all the chunks of a message, the consumer can expire incomplete chunks if consumer fail to receive all chunks in expire time. By default, the expire time is set to one hour.
 
-The consumer consumes the chunked messages and buffers them until the consumer receives all the chunks of a message. And then the consumer stitches chunked messages together and places them into the receiver-queue. Clients consume messages from the receiver-queue. Once the consumer consumes the entire large message and acknowledges it, the consumer internally sends acknowledgement of all the chunk messages associated to that large message. You can set the `maxPendingChuckedMessage` parameter on the consumer. When the threshold is reached, the consumer drops the unchunked messages by silently acknowledging them or asking the broker to redeliver them later by marking them unacknowledged.
+The consumer consumes the chunked messages and buffers them until the consumer receives all the chunks of a message. And then the consumer stitches chunked messages together and places them into the receiver-queue. Clients consume messages from the receiver-queue. Once the consumer consumes the entire large message and acknowledges it, the consumer internally sends acknowledgement of all the chunk messages associated to that large message. You can set the `maxPendingChunkedMessage` parameter on the consumer. When the threshold is reached, the consumer drops the unchunked messages by silently acknowledging them or asking the broker to redeliver them later by marking them unacknowledged.
 
- The broker does not require any changes to support chunking for non-shared subscription. The broker only uses `chuckedMessageRate` to record chunked message rate on the topic.
+The broker does not require any changes to support chunking for non-shared subscription. The broker only uses `chunkedMessageRate` to record chunked message rate on the topic.
 
 #### Handle chunked messages with one producer and one ordered consumer
 
@@ -128,6 +162,8 @@ In the exclusive and failover subscription modes, consumers only negatively ackn
 
 In the shared and Key_Shared subscription modes, you can negatively acknowledge messages individually.
 
+Be aware that negative acknowledgment on ordered subscription types, such as Exclusive, Failover and Key_Shared, can cause failed messages to arrive consumers out of the original order.
+
 > **Note**
 > If batching is enabled, other messages and the negatively acknowledged messages in the same batch are redelivered to the consumer.
 
@@ -181,7 +217,7 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
 Dead letter topic depends on message re-delivery. Messages are redelivered either due to [acknowledgement timeout](#acknowledgement-timeout) or [negative acknowledgement](#negative-acknowledgement). If you are going to use negative acknowledgement on a message, make sure it is negatively acknowledged before the acknowledgement timeout. 
 
 > **Note**    
-> Currently, dead letter topic is enabled only in the shared subscription mode.
+> Currently, dead letter topic is enabled in the Shared and Key_Shared subscription modes.
 
 ### Retry letter topic
 
@@ -406,7 +442,7 @@ In non-persistent topics, brokers immediately deliver messages to all connected 
 
 > With non-persistent topics, message data lives only in memory. If a message broker fails or message data can otherwise not be retrieved from memory, your message data may be lost. Use non-persistent topics only if you're *certain* that your use case requires it and can sustain it.
 
-By default, non-persistent topics are enabled on Pulsar brokers. You can disable them in the broker's [configuration](reference-configuration.md#broker-enableNonPersistentTopics). You can manage non-persistent topics using the [`pulsar-admin topics`](referencereference--pulsar-admin/#topics-1) interface.
+By default, non-persistent topics are enabled on Pulsar brokers. You can disable them in the broker's [configuration](reference-configuration.md#broker-enableNonPersistentTopics). You can manage non-persistent topics using the `pulsar-admin topics` command. For more information, see [`pulsar-admin`](http://pulsar.apache.org/tools/pulsar-admin/).
 
 ### Performance
 

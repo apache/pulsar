@@ -117,7 +117,7 @@ public class HbaseGenericRecordSinkTest {
         AutoConsumeSchema autoConsumeSchema = new AutoConsumeSchema();
         autoConsumeSchema.setSchema(GenericSchemaImpl.of(schema.getSchemaInfo()));
 
-        PulsarSourceConfig pulsarSourceConfig = new PulsarSourceConfig();
+        PulsarSourceConfig pulsarSourceConfig = mock(PulsarSourceConfig.class);
         Consumer consumer = mock(Consumer.class);
 
         Record<GenericRecord> record = PulsarRecord.<GenericRecord>builder()

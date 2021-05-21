@@ -32,6 +32,8 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.naming.TopicName;
 
+import static org.apache.pulsar.client.impl.BatchMessageIdImpl.NO_BATCH;
+
 public class MessageIdImpl implements MessageId {
     protected final long ledgerId;
     protected final long entryId;
@@ -63,19 +65,20 @@ public class MessageIdImpl implements MessageId {
 
     @Override
     public int hashCode() {
-        return (int) (31 * (ledgerId + 31 * entryId) + partitionIndex);
+        return messageIdHashCode(ledgerId, entryId, partitionIndex, NO_BATCH);
     }
 
     @Override
-    public boolean equals(Object obj) {
-        if (obj instanceof BatchMessageIdImpl) {
-            BatchMessageIdImpl other = (BatchMessageIdImpl) obj;
-            return other.equals(this);
-        } else if (obj instanceof MessageIdImpl) {
-            MessageIdImpl other = (MessageIdImpl) obj;
-            return ledgerId == other.ledgerId && entryId == other.entryId && partitionIndex == other.partitionIndex;
-        } else if (obj instanceof TopicMessageIdImpl) {
-            return equals(((TopicMessageIdImpl) obj).getInnerMessageId());
+    public boolean equals(Object o) {
+        if (o instanceof MessageIdImpl) {
+            MessageIdImpl other = (MessageIdImpl) o;
+            int batchIndex = (o instanceof BatchMessageIdImpl) ? ((BatchMessageIdImpl) o).getBatchIndex() : NO_BATCH;
+            return messageIdEquals(
+                this.ledgerId, this.entryId, this.partitionIndex, NO_BATCH,
+                other.ledgerId, other.entryId, other.partitionIndex, batchIndex
+            );
+        } else if (o instanceof TopicMessageIdImpl) {
+            return equals(((TopicMessageIdImpl) o).getInnerMessageId());
         }
         return false;
     }
@@ -111,8 +114,13 @@ public class MessageIdImpl implements MessageId {
 
         MessageIdImpl messageId;
         if (idData.hasBatchIndex()) {
-            messageId = new BatchMessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition(),
+            if (idData.hasBatchSize()) {
+                messageId = new BatchMessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition(),
+                    idData.getBatchIndex(), idData.getBatchSize(), BatchMessageAcker.newAcker(idData.getBatchSize()));
+            } else {
+                messageId = new BatchMessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition(),
                     idData.getBatchIndex());
+            }
         } else {
             messageId = new MessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition());
         }
@@ -147,7 +155,7 @@ public class MessageIdImpl implements MessageId {
         MessageId messageId;
         if (idData.hasBatchIndex()) {
             messageId = new BatchMessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition(),
-                    idData.getBatchIndex());
+                idData.getBatchIndex(), idData.getBatchSize(), BatchMessageAcker.newAcker(idData.getBatchSize()));
         } else {
             messageId = new MessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition());
         }
@@ -160,7 +168,7 @@ public class MessageIdImpl implements MessageId {
     }
 
     // batchIndex is -1 if message is non-batched message and has the batchIndex for a batch message
-    protected byte[] toByteArray(int batchIndex) {
+    protected byte[] toByteArray(int batchIndex, int batchSize) {
         MessageIdData msgId = LOCAL_MESSAGE_ID.get()
                 .clear()
                 .setLedgerId(ledgerId)
@@ -173,6 +181,10 @@ public class MessageIdImpl implements MessageId {
             msgId.setBatchIndex(batchIndex);
         }
 
+        if (batchSize > -1) {
+            msgId.setBatchSize(batchSize);
+        }
+
         int size = msgId.getSerializedSize();
         ByteBuf serialized = Unpooled.buffer(size, size);
         msgId.writeTo(serialized);
@@ -183,35 +195,51 @@ public class MessageIdImpl implements MessageId {
     @Override
     public byte[] toByteArray() {
         // there is no message batch so we pass -1
-        return toByteArray(-1);
+        return toByteArray(-1, 0);
     }
 
     @Override
     public int compareTo(MessageId o) {
-        if (o instanceof BatchMessageIdImpl) {
-            BatchMessageIdImpl other = (BatchMessageIdImpl) o;
-            int res = ComparisonChain.start()
-                    .compare(this.ledgerId, other.ledgerId)
-                    .compare(this.entryId, other.entryId)
-                    .compare(this.getPartitionIndex(), other.getPartitionIndex())
-                    .result();
-            if (res == 0 && other.getBatchIndex() > -1) {
-                return -1;
-            } else {
-                return res;
-            }
-        } else if (o instanceof MessageIdImpl) {
+        if (o == null) {
+            throw new UnsupportedOperationException("MessageId is null");
+        }
+        if (o instanceof MessageIdImpl) {
             MessageIdImpl other = (MessageIdImpl) o;
-            return ComparisonChain.start()
-                .compare(this.ledgerId, other.ledgerId)
-                .compare(this.entryId, other.entryId)
-                .compare(this.getPartitionIndex(), other.getPartitionIndex())
-                .result();
+            int batchIndex = (o instanceof BatchMessageIdImpl) ? ((BatchMessageIdImpl) o).getBatchIndex() : NO_BATCH;
+            return messageIdCompare(
+                this.ledgerId, this.entryId, this.partitionIndex, NO_BATCH,
+                other.ledgerId, other.entryId, other.partitionIndex, batchIndex
+            );
         } else if (o instanceof TopicMessageIdImpl) {
             return compareTo(((TopicMessageIdImpl) o).getInnerMessageId());
         } else {
-            throw new IllegalArgumentException(
-                "expected MessageIdImpl object. Got instance of " + o.getClass().getName());
+            throw new UnsupportedOperationException("Unknown MessageId type: " + o.getClass().getName());
         }
+    }
+
+    static int messageIdHashCode(long ledgerId, long entryId, int partitionIndex, int batchIndex) {
+        return (int) (31 * (ledgerId + 31 * entryId) + (31 * (long) partitionIndex) + batchIndex);
+    }
+
+    static boolean messageIdEquals(
+        long ledgerId1, long entryId1, int partitionIndex1, int batchIndex1,
+        long ledgerId2, long entryId2, int partitionIndex2, int batchIndex2
+    ) {
+        return ledgerId1 == ledgerId2
+            && entryId1 == entryId2
+            && partitionIndex1 == partitionIndex2
+            && batchIndex1 == batchIndex2;
+    }
+
+    static int messageIdCompare(
+        long ledgerId1, long entryId1, int partitionIndex1, int batchIndex1,
+        long ledgerId2, long entryId2, int partitionIndex2, int batchIndex2
+    ) {
+        return ComparisonChain.start()
+            .compare(ledgerId1, ledgerId2)
+            .compare(entryId1, entryId2)
+            .compare(partitionIndex1, partitionIndex2)
+            .compare(batchIndex1, batchIndex2)
+            .result();
     }
 }
