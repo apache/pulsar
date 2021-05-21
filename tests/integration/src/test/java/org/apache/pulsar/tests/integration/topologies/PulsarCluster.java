@@ -98,19 +98,8 @@ public class PulsarCluster {
 
         this.sqlFollowWorkerContainers = Maps.newTreeMap();
         if (enablePrestoWorker) {
-<<<<<<< HEAD
-            prestoWorkerContainer = new PrestoWorkerContainer(clusterName, PrestoWorkerContainer.NAME)
-                    .withNetwork(network)
-                    .withNetworkAliases(PrestoWorkerContainer.NAME)
-                    .withEnv("clusterName", clusterName)
-                    .withEnv("zkServers", ZKContainer.NAME)
-                    .withEnv("zookeeperServers", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
-                    .withEnv("pulsar.zookeeper-uri", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
-                    .withEnv("pulsar.web-service-url", "http://pulsar-broker-0:8080");
-=======
             prestoWorkerContainer = buildPrestoWorkerContainer(
                     PrestoWorkerContainer.NAME, true, null, null);
->>>>>>> apache/master
         } else {
             prestoWorkerContainer = null;
         }
