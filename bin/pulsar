@@ -282,7 +282,7 @@ if [ $COMMAND == "bookie" ]; then
   # Pass BOOKIE_EXTRA_OPTS option defined in bkenv.sh
   OPTS="$OPTS $BOOKIE_EXTRA_OPTS"
 else
-  OPTS="$OPTS $PULSAR_EXTRA_OPTS $PULSAR_MEM $PULSAR_GC"
+  OPTS="$OPTS $PULSAR_EXTRA_OPTS $PULSAR_MEM $PULSAR_GC $PULSAR_GC_LOG"
 fi
 
 # log directory & file

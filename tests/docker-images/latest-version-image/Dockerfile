@@ -65,7 +65,7 @@ RUN rm -rf /var/lib/apt/lists/* && apt update
 
 RUN apt-get clean && apt-get update && apt-get install -y supervisor vim procps curl
 
-RUN mkdir -p /var/log/pulsar && mkdir -p /var/run/supervisor/ && mkdir -p /pulsar/ssl
+RUN mkdir -p /var/log/pulsar && mkdir -p /pulsar/logs && mkdir -p /var/run/supervisor/ && mkdir -p /pulsar/ssl
 
 COPY conf/supervisord.conf /etc/supervisord.conf
 COPY conf/global-zk.conf conf/local-zk.conf conf/bookie.conf conf/broker.conf conf/functions_worker.conf \
