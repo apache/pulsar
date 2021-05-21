@@ -358,11 +358,12 @@ public class LookupProxyHandler {
         final long clientRequestId = commandGetSchema.getRequestId();
         String serviceUrl = getBrokerServiceUrl(clientRequestId);
         String topic = commandGetSchema.getTopic();
-        Optional<SchemaVersion> tempVersion = Optional.empty();
+        Optional<SchemaVersion> schemaVersion;
         if (commandGetSchema.hasSchemaVersion()) {
-            tempVersion = Optional.of(commandGetSchema.getSchemaVersion()).map(BytesSchemaVersion::of);
+            schemaVersion = Optional.of(commandGetSchema.getSchemaVersion()).map(BytesSchemaVersion::of);
+        } else {
+            schemaVersion = Optional.empty();
         }
-        final Optional<SchemaVersion> schemaVersion = tempVersion;
 
         if(!StringUtils.isNotBlank(serviceUrl)) {
             return;
