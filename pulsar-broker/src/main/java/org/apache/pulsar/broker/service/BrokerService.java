@@ -1666,7 +1666,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         for (String topic : topics.keys()) {
             TopicName topicName = TopicName.get(topic);
             if (serviceUnit.includes(topicName)) {
-                pulsar.getBrokerService().removeTopicFromCache(topicName.toString());
+                pulsar.getBrokerService().removeTopicFromCache(topicName.toString(), serviceUnit);
             }
         }
     }
@@ -1676,40 +1676,37 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     public void removeTopicFromCache(String topic) {
-        TopicName topicName = null;
-        NamespaceBundle namespaceBundle = null;
-        try {
-            topicName = TopicName.get(topic);
-            namespaceBundle = pulsar.getNamespaceService().getBundle(topicName);
-            checkArgument(namespaceBundle instanceof NamespaceBundle);
+        TopicName topicName = TopicName.get(topic);
+        pulsar.getNamespaceService().getBundleAsync(topicName)
+                .thenAccept(namespaceBundle -> {
+                    removeTopicFromCache(topic, namespaceBundle);
+                });
+    }
 
-            String bundleName = namespaceBundle.toString();
-            String namespaceName = topicName.getNamespaceObject().toString();
+    public void removeTopicFromCache(String topic, NamespaceBundle namespaceBundle) {
+        String bundleName = namespaceBundle.toString();
+        String namespaceName = TopicName.get(topic).getNamespaceObject().toString();
 
-            synchronized (multiLayerTopicsMap) {
-                ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>> namespaceMap = multiLayerTopicsMap
-                        .get(namespaceName);
-                if (namespaceMap != null) {
-                    ConcurrentOpenHashMap<String, Topic> bundleMap = namespaceMap.get(bundleName);
-                    bundleMap.remove(topic);
-                    if (bundleMap.isEmpty()) {
-                        namespaceMap.remove(bundleName);
-                    }
+        synchronized (multiLayerTopicsMap) {
+            ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>> namespaceMap = multiLayerTopicsMap
+                    .get(namespaceName);
+            if (namespaceMap != null) {
+                ConcurrentOpenHashMap<String, Topic> bundleMap = namespaceMap.get(bundleName);
+                bundleMap.remove(topic);
+                if (bundleMap.isEmpty()) {
+                    namespaceMap.remove(bundleName);
+                }
 
-                    if (namespaceMap.isEmpty()) {
-                        multiLayerTopicsMap.remove(namespaceName);
-                        final ClusterReplicationMetrics clusterReplicationMetrics = pulsarStats
-                                .getClusterReplicationMetrics();
-                        replicationClients.forEach((cluster, client) -> {
-                            clusterReplicationMetrics.remove(clusterReplicationMetrics.getKeyName(namespaceName,
-                                    cluster));
-                        });
-                    }
+                if (namespaceMap.isEmpty()) {
+                    multiLayerTopicsMap.remove(namespaceName);
+                    final ClusterReplicationMetrics clusterReplicationMetrics = pulsarStats
+                            .getClusterReplicationMetrics();
+                    replicationClients.forEach((cluster, client) -> {
+                        clusterReplicationMetrics.remove(clusterReplicationMetrics.getKeyName(namespaceName,
+                                cluster));
+                    });
                 }
             }
-        } catch (Exception e) {
-            log.warn("Got exception when retrieving bundle name {} for topic {} during removeTopicFromCache", topicName,
-                    namespaceBundle, e);
         }
 
         topics.remove(topic);
