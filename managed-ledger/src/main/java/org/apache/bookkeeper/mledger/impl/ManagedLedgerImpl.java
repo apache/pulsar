@@ -2458,12 +2458,17 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
 
-        LedgerInfo highestLedgerToDelete = ledgersToDelete.get(ledgersToDelete.size() - 1);
-        PositionImpl highestPositionToDelete = new PositionImpl(highestLedgerToDelete.getLedgerId(), highestLedgerToDelete.getEntries() - 1);
+        // need to move mark delete to the first non deleted ledger for non durable cursor since ledgers before it will be deleted
+        // calling getNumberOfEntries latter for a ledger that is already deleted will be problematic and return incorrect results
+        long firstNonDeletedLedger = ledgers.higherKey(ledgersToDelete.get(ledgersToDelete.size() - 1).getLedgerId());
+        PositionImpl highestPositionToDelete = new PositionImpl(firstNonDeletedLedger, -1);
 
         cursors.forEach(cursor -> {
             if (!cursor.isDurable()) {
-                if (highestPositionToDelete.compareTo((PositionImpl) cursor.getMarkDeletedPosition()) > 0) {
+                // move the mark delete position to the highestPositionToDelete only if it is smaller than the add confirmed
+                // to prevent the edge case where the cursor is caught up to the latest and highestPositionToDelete may be larger than the last add confirmed
+                if (highestPositionToDelete.compareTo((PositionImpl) cursor.getMarkDeletedPosition()) > 0
+                        && highestPositionToDelete.compareTo((PositionImpl) cursor.getManagedLedger().getLastConfirmedEntry()) <= 0 ) {
                     cursor.asyncMarkDelete(highestPositionToDelete, new MarkDeleteCallback() {
                         @Override
                         public void markDeleteComplete(Object ctx) {
@@ -3013,6 +3018,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      * @return the count of entries
      */
     long getNumberOfEntries(Range<PositionImpl> range) {
+        log.info("!-----------getNumberOfEntries {} ---------------!", range);
         PositionImpl fromPosition = range.lowerEndpoint();
         boolean fromIncluded = range.lowerBoundType() == BoundType.CLOSED;
         PositionImpl toPosition = range.upperEndpoint();
@@ -3029,20 +3035,31 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             // If the from & to are pointing to different ledgers, then we need to :
             // 1. Add the entries in the ledger pointed by toPosition
             count += toPosition.getEntryId();
+            log.info("count: {}", count);
             count += toIncluded ? 1 : 0;
+            log.info("count: {}", count);
 
             // 2. Add the entries in the ledger pointed by fromPosition
             LedgerInfo li = ledgers.get(fromPosition.getLedgerId());
+            log.info("li: {}", li);
             if (li != null) {
                 count += li.getEntries() - (fromPosition.getEntryId() + 1);
                 count += fromIncluded ? 1 : 0;
             }
 
+            log.info("count: {}", count);
+
+
             // 3. Add the whole ledgers entries in between
+            log.info("ledgers.subMap(fromPosition.getLedgerId(), false, toPosition.getLedgerId(), false): {}", ledgers.subMap(fromPosition.getLedgerId(), false, toPosition.getLedgerId(), false));
             for (LedgerInfo ls : ledgers.subMap(fromPosition.getLedgerId(), false, toPosition.getLedgerId(), false)
                     .values()) {
                 count += ls.getEntries();
             }
+
+            log.info("count: {}", count);
+
+            log.info("!-----------end getNumberOfEntries ---------------!");
 
             return count;
         }
