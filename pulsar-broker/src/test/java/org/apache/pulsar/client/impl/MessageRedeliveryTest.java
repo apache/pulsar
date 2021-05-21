@@ -289,7 +289,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         PersistentDispatcherSingleActiveConsumer persistentDispatcherSingleActiveConsumer =
                 (PersistentDispatcherSingleActiveConsumer) persistentTopic.getSubscription(subName).getDispatcher();
 
-        Field field = ConsumerImpl.class.getDeclaredField("epoch");
+        Field field = ConsumerImpl.class.getDeclaredField("consumerEpoch");
         field.setAccessible(true);
         AtomicLong epoch = (AtomicLong) field.get(consumer);
         epoch.set(1);

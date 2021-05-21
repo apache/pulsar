@@ -1445,7 +1445,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             if (redeliver.getMessageIdsCount() > 0 && Subscription.isIndividualAckMode(consumer.subType())) {
                 consumer.redeliverUnacknowledgedMessages(redeliver.getMessageIdsList());
             } else {
-                consumer.redeliverUnacknowledgedMessages(redeliver.getEpoch()).whenComplete((v, e) -> {
+                consumer.redeliverUnacknowledgedMessages(redeliver.getConsumerEpoch()).whenComplete((v, e) -> {
                     if (e != null && hasRequestId) {
                         ctx.writeAndFlush(Commands.newError(requestId,
                                 BrokerServiceException.getClientErrorCode(e), e.getMessage()));

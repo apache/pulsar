@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.transaction.pendingack.impl;
 
+import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_READ_EPOCH;
 import com.google.common.collect.ComparisonChain;
 import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
@@ -111,7 +112,8 @@ public class MLPendingAckStore implements PendingAckStore {
     //TODO can control the number of entry to read
     private void readAsync(int numberOfEntriesToRead,
                            AsyncCallbacks.ReadEntriesCallback readEntriesCallback) {
-        cursor.asyncReadEntries(numberOfEntriesToRead, readEntriesCallback, System.nanoTime(), PositionImpl.latest);
+        cursor.asyncReadEntries(numberOfEntriesToRead, readEntriesCallback,
+                System.nanoTime(), PositionImpl.latest, DEFAULT_READ_EPOCH);
     }
 
     @Override
@@ -362,7 +364,7 @@ public class MLPendingAckStore implements PendingAckStore {
         }
 
         @Override
-        public void readEntriesComplete(List<Entry> entries, Object ctx) {
+        public void readEntriesComplete(List<Entry> entries, Object ctx, long epoch) {
             entryQueue.fill(new MessagePassingQueue.Supplier<Entry>() {
                 private int i = 0;
                 @Override
