@@ -1123,6 +1123,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private long httpMaxRequestSize = -1;
 
     @FieldContext(
+        category =  CATEGORY_HTTP,
+        doc = "If true, the broker will reject all HTTP requests using the TRACE and TRACK verbs.\n"
+        + " This setting may be necessary if the broker is deployed into an environment that uses http port\n"
+        + " scanning and flags web servers allowing the TRACE method as insecure."
+    )
+    private boolean disableHttpDebugMethods = false;
+
+    @FieldContext(
             category =  CATEGORY_HTTP,
             doc = "Enable the enforcement of limits on the incoming HTTP requests"
         )
