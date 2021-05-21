@@ -957,7 +957,8 @@ public class PersistentTopicsBase extends AdminResource {
                 .thenRun(() -> {
                     topic.close(false).whenComplete((r, ex) -> {
                         if (ex != null) {
-                            log.error("[{}] Failed to unload topic {}, {}", clientAppId(), topicName, ex.getMessage(), ex);
+                            log.error("[{}] Failed to unload topic {}, {}", clientAppId(), topicName,
+                                    ex.getMessage(), ex);
                             asyncResponse.resume(new RestException(ex));
 
                         } else {
