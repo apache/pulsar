@@ -246,6 +246,7 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |bookkeeperClientAuthenticationPlugin|  Authentication plugin to use when connecting to bookies ||
 |bookkeeperClientAuthenticationParametersName|  BookKeeper auth plugin implementatation specifics parameters name and values  ||
 |bookkeeperClientAuthenticationParameters|||
+|bookkeeperClientNumWorkerThreads|  Number of BookKeeper client worker threads. Default is Runtime.getRuntime().availableProcessors()  ||
 |bookkeeperClientTimeoutInSeconds|  Timeout for BK add / read operations  |30|
 |bookkeeperClientSpeculativeReadTimeoutInMillis|  Speculative reads are initiated if a read request doesn’t complete within a certain time Using a value of 0, is disabling the speculative reads |0|
 |bookkeeperNumberOfChannelsPerBookie|  Number of channels per bookie  |16|
@@ -566,6 +567,7 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |bookkeeperClientAuthenticationPlugin|  Authentication plugin to be used when connecting to bookies (BookKeeper servers). ||
 |bookkeeperClientAuthenticationParametersName|  BookKeeper authentication plugin implementation parameters and values.  ||
 |bookkeeperClientAuthenticationParameters|  Parameters associated with the bookkeeperClientAuthenticationParametersName ||
+|bookkeeperClientNumWorkerThreads|  Number of BookKeeper client worker threads. Default is Runtime.getRuntime().availableProcessors()  ||
 |bookkeeperClientTimeoutInSeconds|  Timeout for BookKeeper add and read operations. |30|
 |bookkeeperClientSpeculativeReadTimeoutInMillis|  Speculative reads are initiated if a read request doesn’t complete within a certain time. A value of 0 disables speculative reads.  |0|
 |bookkeeperUseV2WireProtocol|Use older Bookkeeper wire protocol with bookie.|true|
