@@ -1,8 +1,7 @@
 ---
-id: version-2.7.2-deploy-bare-metal
+id: deploy-bare-metal
 title: Deploy a cluster on bare metal
 sidebar_label: Bare metal
-original_id: deploy-bare-metal
 ---
 
 
@@ -31,7 +30,9 @@ Deploying a Pulsar cluster involves doing the following (in order):
 
 ### Requirements
 
-> If you already have an existing zookeeper cluster and want to reuse it, you do not need to prepare the machines
+Currently, Pulsar is available for 64-bit **macOS**, **Linux**, and **Windows**. To use Pulsar, you need to install 64-bit JRE/JDK 8 or later versions.
+
+> If you already have an existing ZooKeeper cluster and want to reuse it, you do not need to prepare the machines
 > for running ZooKeeper.
 
 To run Pulsar on bare metal, the following configuration is recommended:
@@ -41,12 +42,16 @@ To run Pulsar on bare metal, the following configuration is recommended:
   * 3 for running a Pulsar broker, and a [BookKeeper](https://bookkeeper.apache.org) bookie
 * A single [DNS](https://en.wikipedia.org/wiki/Domain_Name_System) name covering all of the Pulsar broker hosts
 
+> **Note**
+>
+> Broker is only supported on 64-bit JVM.
+
 > If you do not have enough machines, or to try out Pulsar in cluster mode (and expand the cluster later),
 > you can deploy a full Pulsar configuration on one node, where Zookeeper, the bookie and broker are run on the same machine.
 
 > If you do not have a DNS server, you can use the multi-host format in the service URL instead.
 
-Each machine in your cluster needs to have [Java 8](http://www.oracle.com/technetwork/java/javase/downloads/index.html) or a more recent  version of Java installed.
+Each machine in your cluster needs to have [Java 8](https://adoptopenjdk.net/?variant=openjdk8) or [Java 11](https://adoptopenjdk.net/?variant=openjdk11) installed.
 
 The following is a diagram showing the basic setup:
 

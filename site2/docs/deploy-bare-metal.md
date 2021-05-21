@@ -30,7 +30,9 @@ Deploying a Pulsar cluster involves doing the following (in order):
 
 ### Requirements
 
-> If you already have an existing zookeeper cluster and want to reuse it, you do not need to prepare the machines
+Currently, Pulsar is available for 64-bit **macOS*, **Linux**, and **Windows**. To use Pulsar, you need to install 64-bit JRE/JDK 8 or later versions.
+
+> If you already have an existing ZooKeeper cluster and want to reuse it, you do not need to prepare the machines
 > for running ZooKeeper.
 
 To run Pulsar on bare metal, the following configuration is recommended:
@@ -39,6 +41,10 @@ To run Pulsar on bare metal, the following configuration is recommended:
   * 3 for running [ZooKeeper](https://zookeeper.apache.org)
   * 3 for running a Pulsar broker, and a [BookKeeper](https://bookkeeper.apache.org) bookie
 * A single [DNS](https://en.wikipedia.org/wiki/Domain_Name_System) name covering all of the Pulsar broker hosts
+
+> **Note**
+>
+> Broker is only supported on 64-bit JVM.
 
 > If you do not have enough machines, or to try out Pulsar in cluster mode (and expand the cluster later),
 > you can deploy a full Pulsar configuration on one node, where Zookeeper, the bookie and broker are run on the same machine.
