@@ -33,3 +33,10 @@ functionInstanceMaxResources:
   cpu: 16
   ram: 17179869184
   disk: 107374182400
+
+functionInstanceResourceGranularities:
+  cpu: 1.0
+  ram: 1073741824
+  disk: 10737418240
+
+functionInstanceResourceChangeInLockStep: true
