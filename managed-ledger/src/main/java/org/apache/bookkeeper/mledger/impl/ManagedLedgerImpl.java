@@ -2463,8 +2463,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         cursors.forEach(cursor -> {
             if (!cursor.isDurable()) {
-                // Advance mark delete position if the highest position that can be deleted to is greater than the current mark deletion position
-                // if
                 if (highestPositionToDelete.compareTo((PositionImpl) cursor.getMarkDeletedPosition()) > 0) {
                     cursor.asyncMarkDelete(highestPositionToDelete, new MarkDeleteCallback() {
                         @Override
