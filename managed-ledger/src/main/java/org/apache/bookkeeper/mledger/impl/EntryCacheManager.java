@@ -228,7 +228,7 @@ public class EntryCacheManager {
             lh.readAsync(position.getEntryId(), position.getEntryId()).whenCompleteAsync(
                     (ledgerEntries, exception) -> {
                         if (exception != null) {
-                            ml.invalidateLedgerHandle(lh, exception);
+                            ml.invalidateLedgerHandle(lh);
                             callback.readEntryFailed(createManagedLedgerException(exception), ctx);
                             return;
                         }

@@ -86,6 +86,7 @@ import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandAck.ValidationError;
+import org.apache.pulsar.common.api.proto.CommandMessage;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CompressionType;
 import org.apache.pulsar.common.api.proto.EncryptionKeys;
@@ -989,7 +990,20 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         });
     }
 
-    void messageReceived(MessageIdData messageId, int redeliveryCount, List<Long> ackSet, ByteBuf headersAndPayload, ClientCnx cnx) {
+    void messageReceived(CommandMessage cmdMessage, ByteBuf headersAndPayload, ClientCnx cnx) {
+
+        List<Long> ackSet = Collections.emptyList();
+        int redeliveryCount = cmdMessage.getRedeliveryCount();
+        MessageIdData messageId = cmdMessage.getMessageId();
+        boolean hasConsumerEpoch = cmdMessage.hasConsumerEpoch();
+        long consumerEpoch = cmdMessage.getConsumerEpoch();
+
+        if (cmdMessage.getAckSetsCount() > 0) {
+            ackSet = new ArrayList<>(cmdMessage.getAckSetsCount());
+            for (int i = 0; i < cmdMessage.getAckSetsCount(); i++) {
+                ackSet.add(cmdMessage.getAckSetAt(i));
+            }
+        }
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}] Received message: {}/{}", topic, subscription, messageId.getLedgerId(),
                     messageId.getEntryId());
@@ -1074,6 +1088,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             // if the conf.getReceiverQueueSize() is 0 then discard message if no one is waiting for it.
             // if asyncReceive is waiting then notify callback without adding to incomingMessages queue
             internalPinnedExecutor.execute(() -> {
+                if (hasConsumerEpoch && consumerEpoch < this.consumerEpoch.get()) {
+                    log.warn("consumerId : [{}] receive message command epoch more than the consumer epoch!",
+                            consumerId);
+                    return;
+                }
                 if (deadLetterPolicy != null && possibleSendToDeadLetterTopicMessages != null &&
                         redeliveryCount >= deadLetterPolicy.getMaxRedeliverCount()) {
                     possibleSendToDeadLetterTopicMessages.put((MessageIdImpl) message.getMessageId(),
@@ -1087,7 +1106,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             });
         } else {
             // handle batch message enqueuing; uncompressed payload has all messages in batch
-            receiveIndividualMessagesFromBatch(msgMetadata, redeliveryCount, ackSet, uncompressedPayload, messageId, cnx);
+            receiveIndividualMessagesFromBatch(msgMetadata, redeliveryCount, ackSet, uncompressedPayload,
+                    messageId, cnx, hasConsumerEpoch, consumerEpoch);
 
             uncompressedPayload.release();
         }
@@ -1235,8 +1255,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         completePendingReceive(receivedFuture, interceptMessage);
     }
 
-    void receiveIndividualMessagesFromBatch(MessageMetadata msgMetadata, int redeliveryCount, List<Long> ackSet, ByteBuf uncompressedPayload,
-            MessageIdData messageId, ClientCnx cnx) {
+    void receiveIndividualMessagesFromBatch(MessageMetadata msgMetadata, int redeliveryCount,
+                                            List<Long> ackSet, ByteBuf uncompressedPayload,
+                                            MessageIdData messageId, ClientCnx cnx,
+                                            boolean hasConsumerEpoch, long consumerEpoch) {
         int batchSize = msgMetadata.getNumMessagesInBatch();
 
         // create ack tracker for entry aka batch
@@ -1300,6 +1322,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     possibleToDeadLetter.add(message);
                 }
                 internalPinnedExecutor.execute(() -> {
+                    if (hasConsumerEpoch && consumerEpoch < this.consumerEpoch.get()) {
+                        log.warn("consumerId : [{}] receive message command epoch more than the consumer epoch!",
+                                consumerId);
+                        return;
+                    }
                     if (peekPendingReceive() != null) {
                         notifyPendingReceivedCallback(message, null);
                     } else if (enqueueMessageAndCheckBatchReceive(message) && hasPendingBatchReceive()) {
@@ -1573,42 +1600,50 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     @Override
     public CompletableFuture<Void> redeliverUnacknowledgedMessages() {
-        if (conf.getSubscriptionType() == SubscriptionType.Failover
-                || conf.getSubscriptionType() == SubscriptionType.Exclusive) {
-            this.consumerEpoch.getAndIncrement();
-        }
-        ClientCnx cnx = cnx();
-        if (isConnected() && cnx.getRemoteEndpointProtocolVersion() >= ProtocolVersion.v2.getValue()) {
-            int currentSize = 0;
-            synchronized (this) {
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        internalPinnedExecutor.execute(() -> {
+            if (conf.getSubscriptionType() == SubscriptionType.Failover
+                    || conf.getSubscriptionType() == SubscriptionType.Exclusive) {
+                this.consumerEpoch.getAndIncrement();
+            }
+            ClientCnx cnx = cnx();
+            if (isConnected() && cnx.getRemoteEndpointProtocolVersion() >= ProtocolVersion.v2.getValue()) {
+                int currentSize = 0;
                 currentSize = incomingMessages.size();
                 clearIncomingMessages();
                 unAckedMessageTracker.clear();
+                long requestId = client.newRequestId();
+                cnx.newRedeliverUnacknowledgedMessages(
+                        Commands.newRedeliverUnacknowledgedMessages(consumerId,
+                                requestId, consumerEpoch.get()), requestId).thenRunAsync(() -> {
+                                    completableFuture.complete(null);
+                }).exceptionally(e -> {
+                    completableFuture.completeExceptionally(e.getCause());
+                    return null;
+                });
+                if (currentSize > 0) {
+                    increaseAvailablePermits(cnx, currentSize);
+                }
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] [{}] [{}] Redeliver unacked messages and send {} permits", subscription, topic,
+                            consumerName, currentSize);
+                }
+                return;
             }
-            long requestId = client.newRequestId();
-            CompletableFuture<Void> completableFuture = cnx.newRedeliverUnacknowledgedMessages(
-                    Commands.newRedeliverUnacknowledgedMessages(consumerId,
-                            requestId, consumerEpoch.get()), requestId);
-            if (currentSize > 0) {
-                increaseAvailablePermits(cnx, currentSize);
+            if (cnx == null || (getState() == State.Connecting)) {
+                String errorMessage = this
+                        + "Client Connection needs to be established for redelivery of unacknowledged messages";
+                log.warn(errorMessage);
+                completableFuture.completeExceptionally(new PulsarClientException.ConnectException(errorMessage));
+            } else {
+                String errorMessage = this + "Reconnecting the client to redeliver the messages.";
+                log.warn(errorMessage);
+                cnx.ctx().close();
+                completableFuture.completeExceptionally(new PulsarClientException.ConnectException(errorMessage));
             }
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] [{}] Redeliver unacked messages and send {} permits", subscription, topic,
-                        consumerName, currentSize);
-            }
-            return completableFuture;
-        }
-        if (cnx == null || (getState() == State.Connecting)) {
-            String errorMessage = this
-                    + "Client Connection needs to be established for redelivery of unacknowledged messages";
-            log.warn(errorMessage);
-            return FutureUtil.failedFuture(new PulsarClientException.ConnectException(errorMessage));
-        } else {
-            String errorMessage = this + "Reconnecting the client to redeliver the messages.";
-            log.warn(errorMessage);
-            cnx.ctx().close();
-            return FutureUtil.failedFuture(new PulsarClientException.ConnectException(errorMessage));
-        }
+        });
+
+        return completableFuture;
     }
 
     public int clearIncomingMessagesAndGetMessageNumber() {
@@ -2385,9 +2420,5 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerImpl.class);
-
-    public long getConsumerEpoch() {
-        return consumerEpoch.get();
-    }
 
 }

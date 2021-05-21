@@ -80,7 +80,7 @@ public class CompactedOutBatchMessageTest extends ProducerConsumerBase {
             // shove it in the sideways
             consumer.receiveIndividualMessagesFromBatch(metadata, 0, null, batchBuffer,
                                                         new MessageIdData().setLedgerId(1234)
-                                                        .setEntryId(567), consumer.cnx());
+                                                        .setEntryId(567), consumer.cnx(), false, 0L);
             Message<?> m = consumer.receive();
             assertEquals(((BatchMessageIdImpl)m.getMessageId()).getLedgerId(), 1234);
             assertEquals(((BatchMessageIdImpl)m.getMessageId()).getEntryId(), 567);

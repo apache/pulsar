@@ -436,23 +436,9 @@ public class ClientCnx extends PulsarHandler {
         if (log.isDebugEnabled()) {
             log.debug("{} Received a message from the server: {}", ctx.channel(), cmdMessage);
         }
-
         ConsumerImpl<?> consumer = consumers.get(cmdMessage.getConsumerId());
-
         if (consumer != null) {
-            if (cmdMessage.hasConsumerEpoch() && cmdMessage.getConsumerEpoch() < consumer.getConsumerEpoch()) {
-                log.warn("consumerId : [{}] receive message command epoch more than the consumer epoch!",
-                        cmdMessage.getConsumerId());
-                return;
-            }
-            List<Long> ackSets = Collections.emptyList();
-            if (cmdMessage.getAckSetsCount() > 0) {
-                ackSets = new ArrayList<>(cmdMessage.getAckSetsCount());
-                for (int i = 0; i < cmdMessage.getAckSetsCount(); i++) {
-                    ackSets.add(cmdMessage.getAckSetAt(i));
-                }
-            }
-            consumer.messageReceived(cmdMessage.getMessageId(), cmdMessage.getRedeliveryCount(), ackSets, headersAndPayload, this);
+            consumer.messageReceived(cmdMessage, headersAndPayload, this);
         }
     }
 
