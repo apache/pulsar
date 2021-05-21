@@ -239,6 +239,10 @@ public abstract class AdminResource extends PulsarWebResource {
     protected List<String> getListOfNamespaces(String property) throws Exception {
         List<String> namespaces = Lists.newArrayList();
 
+        if (!globalZkCache().exists(path(POLICIES, property))) {
+            throw new KeeperException.NoNodeException();
+        }
+
         // this will return a cluster in v1 and a namespace in v2
         for (String clusterOrNamespace : globalZkCache().getChildren(path(POLICIES, property))) {
             // Then get the list of namespaces
