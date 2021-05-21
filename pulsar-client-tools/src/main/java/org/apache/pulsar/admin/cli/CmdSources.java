@@ -480,9 +480,9 @@ public class CmdSources extends CmdBase {
             	 throw new IllegalArgumentException("Invalid Discovery Triggerer specified"); 
              }
              
-		   } catch (ClassNotFoundException e) {
-			 throw new IllegalArgumentException("Invalid Discovery Triggerer specified"); 
-		   }
+           } catch (ClassNotFoundException e) {
+             throw new IllegalArgumentException("Invalid Discovery Triggerer specified"); 
+           }
            
         }
 
