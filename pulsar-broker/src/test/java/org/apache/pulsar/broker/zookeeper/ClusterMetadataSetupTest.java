@@ -21,11 +21,19 @@ package org.apache.pulsar.broker.zookeeper;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
 import org.apache.pulsar.PulsarClusterMetadataSetup;
+import org.apache.pulsar.PulsarInitialNamespaceSetup;
+import org.apache.pulsar.broker.cache.ConfigurationCacheService;
+import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.broker.resources.TenantResources;
+import org.apache.pulsar.broker.web.PulsarWebResource;
+import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooKeeper;
@@ -146,6 +154,35 @@ public class ClusterMetadataSetupTest {
 
         // expected exist
         assertNotNull(localZk.exists("/ledgers", false));
+    }
+
+    @Test
+    public void testInitialNamespaceSetup() throws Exception {
+        // missing arguments
+        assertEquals(PulsarInitialNamespaceSetup.doMain(new String[]{}), 1);
+        // invalid namespace
+        assertEquals(PulsarInitialNamespaceSetup.doMain(new String[]{
+                "--cluster", "testInitialNamespaceSetup-cluster",
+                "--configuration-store", "127.0.0.1:" + localZkS.getZookeeperPort(),
+                "a/b/c/d"
+        }), 1);
+
+        String[] args = {
+                "--cluster", "testInitialNamespaceSetup-cluster",
+                "--configuration-store", "127.0.0.1:" + localZkS.getZookeeperPort(),
+                "test/a",
+                "test/b",
+                "test/c",
+        };
+        assertEquals(PulsarInitialNamespaceSetup.doMain(args), 0);
+        try (MetadataStoreExtended store = MetadataStoreExtended.create("127.0.0.1:" + localZkS.getZookeeperPort(),
+                MetadataStoreConfig.builder().build())) {
+            TenantResources tenantResources = new TenantResources(store,
+                    PulsarResources.DEFAULT_OPERATION_TIMEOUT_SEC);
+            List<String> namespaces = tenantResources.getChildren(PulsarWebResource
+                    .path(ConfigurationCacheService.POLICIES, "test"));
+            assertEquals(new HashSet<>(namespaces), new HashSet<>(Arrays.asList("a", "b", "c")));
+        }
     }
 
     @BeforeMethod
