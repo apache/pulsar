@@ -22,15 +22,9 @@ import lombok.Data;
 
 @Data
 public class TransactionInBufferStats {
-    
-    /** The topic of this transaction. */
-    public String topic;
 
-    /** The state of this transaction buffer. */
-    public String state;
-
-    /** The stable position of this transaction buffer. */
-    public String stablePosition;
+    /** The start position of this transaction in transaction buffer. */
+    public String startPosition;
 
     /** The flag of this transaction have been aborted. */
     public boolean aborted;

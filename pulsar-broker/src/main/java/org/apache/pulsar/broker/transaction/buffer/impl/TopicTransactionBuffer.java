@@ -389,11 +389,9 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     @Override
     public TransactionInBufferStats getTransactionInBufferStats(TxnID txnID) {
         TransactionInBufferStats transactionInBufferStats = new TransactionInBufferStats();
-        transactionInBufferStats.state = getState().name();
         transactionInBufferStats.aborted = isTxnAborted(txnID);
-        transactionInBufferStats.topic = topic.getName();
         if (ongoingTxns.containsKey(txnID)) {
-            transactionInBufferStats.stablePosition = ongoingTxns.get(txnID).toString();
+            transactionInBufferStats.startPosition = ongoingTxns.get(txnID).toString();
         }
         return transactionInBufferStats;
     }

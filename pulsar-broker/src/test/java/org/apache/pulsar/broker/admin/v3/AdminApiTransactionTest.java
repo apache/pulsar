@@ -113,20 +113,16 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
                         transaction.getTxnIdLeastBits()), topic).get();
         PositionImpl position =
                 PositionImpl.get(((MessageIdImpl) messageId).getLedgerId(), ((MessageIdImpl) messageId).getEntryId());
-        assertEquals(transactionInBufferStats.stablePosition, position.toString());
+        assertEquals(transactionInBufferStats.startPosition, position.toString());
         assertFalse(transactionInBufferStats.aborted);
-        assertEquals(transactionInBufferStats.state, "Ready");
-        assertEquals(transactionInBufferStats.topic, topic);
 
         transaction.abort().get();
 
         transactionInBufferStats = admin.transactions()
                 .getTransactionInBufferStats(new TxnID(transaction.getTxnIdMostBits(),
                         transaction.getTxnIdLeastBits()), topic).get();
-        assertNull(transactionInBufferStats.stablePosition);
+        assertNull(transactionInBufferStats.startPosition);
         assertTrue(transactionInBufferStats.aborted);
-        assertEquals(transactionInBufferStats.state, "Ready");
-        assertEquals(transactionInBufferStats.topic, topic);
     }
 
     private static void verifyCoordinatorStatus(long expectedCoordinatorId, long coordinatorId, String state,
