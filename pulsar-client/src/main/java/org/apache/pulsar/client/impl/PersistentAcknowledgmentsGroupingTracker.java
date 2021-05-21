@@ -36,6 +36,7 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import io.netty.util.Recycler;
+import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.client.api.MessageId;
@@ -113,7 +114,10 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
      * resent after a disconnection and for which the user has already sent an acknowledgement.
      */
     @Override
-    public boolean isDuplicate(MessageId messageId) {
+    public boolean isDuplicate(@NonNull MessageId messageId) {
+        if (lastCumulativeAck.messageId == null) {
+            return false;
+        }
         if (messageId.compareTo(lastCumulativeAck.messageId) <= 0) {
             // Already included in a cumulative ack
             return true;

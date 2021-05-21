@@ -53,9 +53,6 @@ endif(MSVC)
 
 
 set(LIB_NAME_SHARED ${LIB_NAME})
-if (WIN32)
-    string(APPEND LIB_NAME_SHARED dll)
-endif()
 
 # this is the "object library" target: compiles the sources only once
 add_library(PULSAR_OBJECT_LIB OBJECT ${PULSAR_SOURCES})

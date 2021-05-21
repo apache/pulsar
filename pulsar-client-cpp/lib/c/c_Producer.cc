@@ -73,3 +73,5 @@ pulsar_result pulsar_producer_flush(pulsar_producer_t *producer) {
 void pulsar_producer_flush_async(pulsar_producer_t *producer, pulsar_close_callback callback, void *ctx) {
     producer->producer.flushAsync(std::bind(handle_result_callback, std::placeholders::_1, callback, ctx));
 }
+
+int pulsar_producer_is_connected(pulsar_producer_t *producer) { return producer->producer.isConnected(); }

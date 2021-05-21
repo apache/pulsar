@@ -20,7 +20,6 @@ package org.apache.pulsar.metadata.coordination.impl;
 
 import com.fasterxml.jackson.databind.type.TypeFactory;
 
-import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -36,17 +35,19 @@ import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.LockBusyException;
+import org.apache.pulsar.metadata.api.Notification;
+import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.coordination.LockManager;
 import org.apache.pulsar.metadata.api.coordination.ResourceLock;
-import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.cache.impl.JSONMetadataSerdeSimpleType;
-import org.apache.pulsar.metadata.cache.impl.MetadataSerde;
+import org.apache.pulsar.metadata.api.MetadataSerde;
 
 @Slf4j
 class LockManagerImpl<T> implements LockManager<T> {
 
-    private final Set<ResourceLock<T>> locks = new HashSet<>();
+    private final Set<ResourceLockImpl<T>> locks = new HashSet<>();
     private final MetadataStoreExtended store;
     private final MetadataCache<T> cache;
     private final MetadataSerde<T> serde;
@@ -61,6 +62,8 @@ class LockManagerImpl<T> implements LockManager<T> {
         this.store = store;
         this.cache = store.getMetadataCache(clazz);
         this.serde = new JSONMetadataSerdeSimpleType<>(TypeFactory.defaultInstance().constructSimpleType(clazz, null));
+        store.registerSessionListener(this::handleSessionEvent);
+        store.registerListener(this::handleDataNotification);
     }
 
     @Override
@@ -70,45 +73,51 @@ class LockManagerImpl<T> implements LockManager<T> {
 
     @Override
     public CompletableFuture<ResourceLock<T>> acquireLock(String path, T value) {
-        byte[] payload;
-        try {
-            payload = serde.serialize(value);
-        } catch (Throwable t) {
-            return FutureUtils.exception(t);
-        }
+        ResourceLockImpl<T> lock = new ResourceLockImpl<>(store, serde, path, value);
 
         CompletableFuture<ResourceLock<T>> result = new CompletableFuture<>();
-        store.put(path, payload, Optional.of(-1L), EnumSet.of(CreateOption.Ephemeral))
-                .thenAccept(stat -> {
-                    ResourceLock<T> lock = new ResourceLockImpl<>(store, serde, path, value,
-                            stat.getVersion());
-                    synchronized (LockManagerImpl.this) {
-                        if (state == State.Ready) {
-                            log.info("Acquired resource lock on {}", path);
-                            locks.add(lock);
-                            lock.getLockExpiredFuture().thenRun(() -> {
-                                log.info("Released resource lock on {}", path);
-                                synchronized (LockManagerImpl.this) {
-                                    locks.remove(lock);
-                                }
-                            });
-                        } else {
-                            // LockManager was closed in between. Release the lock asynchronously
-                            lock.release();
+        lock.acquire().thenRun(() -> {
+            synchronized (LockManagerImpl.this) {
+                if (state == State.Ready) {
+                    locks.add(lock);
+                    lock.getLockExpiredFuture().thenRun(() -> {
+                        log.info("Released resource lock on {}", path);
+                        synchronized (LockManagerImpl.this) {
+                            locks.remove(lock);
                         }
-                    }
-                    result.complete(lock);
-                }).exceptionally(ex -> {
-                    if (ex.getCause() instanceof BadVersionException) {
-                        result.completeExceptionally(
-                                new LockBusyException("Resource at " + path + " is already locked"));
-                    } else {
-                        result.completeExceptionally(ex.getCause());
-                    }
-                    return null;
-                });
+                    });
+                } else {
+                    // LockManager was closed in between. Release the lock asynchronously
+                    lock.release();
+                }
+            }
+      result.complete(lock);
+        }).exceptionally(ex -> {
+            if (ex.getCause() instanceof BadVersionException) {
+                result.completeExceptionally(
+                        new LockBusyException("Resource at " + path + " is already locked"));
+            } else {
+                result.completeExceptionally(ex.getCause());
+            }
+            return null;
+        });
 
         return result;
+    }
+
+    private void handleSessionEvent(SessionEvent se) {
+        if (se == SessionEvent.SessionReestablished) {
+            log.info("Metadata store session has been re-established. Revalidating all the existing locks.");
+            locks.forEach(ResourceLockImpl::revalidate);
+        }
+    }
+
+    private void handleDataNotification(Notification n) {
+        if (n.getType() == NotificationType.Deleted) {
+            locks.stream()
+                    .filter(l -> l.getPath().equals(n.getPath()))
+                    .forEach(l -> l.lockWasInvalidated());
+        }
     }
 
     @Override

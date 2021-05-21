@@ -51,6 +51,8 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
@@ -109,6 +111,8 @@ public class PersistentDispatcherFailoverConsumerTest {
     final String successTopicName = "persistent://part-perf/global/perf.t1/ptopic";
     final String failTopicName = "persistent://part-perf/global/perf.t1/pfailTopic";
 
+    private EventLoopGroup eventLoopGroup;
+
     @BeforeMethod
     public void setup() throws Exception {
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
@@ -118,6 +122,8 @@ public class PersistentDispatcherFailoverConsumerTest {
 
         mlFactoryMock = mock(ManagedLedgerFactory.class);
         doReturn(mlFactoryMock).when(pulsar).getManagedLedgerFactory();
+
+        eventLoopGroup = new NioEventLoopGroup();
 
         mockZk = createMockZooKeeper();
         doReturn(mockZk).when(pulsar).getZkClient();
@@ -138,7 +144,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         doReturn(configCacheService).when(pulsar).getConfigurationCache();
         doReturn(zkCache).when(pulsar).getLocalZkCacheService();
 
-        brokerService = spy(new BrokerService(pulsar));
+        brokerService = spy(new BrokerService(pulsar, eventLoopGroup));
         doReturn(brokerService).when(pulsar).getBrokerService();
 
         consumerChanges = new LinkedBlockingQueue<>();
@@ -207,6 +213,8 @@ public class PersistentDispatcherFailoverConsumerTest {
         if (mockZk != null) {
             mockZk.close();
         }
+
+        eventLoopGroup.shutdownGracefully().get();
     }
 
     void setupMLAsyncCallbackMocks() {

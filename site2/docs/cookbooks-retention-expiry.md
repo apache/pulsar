@@ -173,9 +173,9 @@ Policy | Action
 
 Backlog quotas are handled at the namespace level. They can be managed via:
 
-### Set size thresholds and backlog retention policies
+### Set size/time thresholds and backlog retention policies
 
-You can set a size threshold and backlog retention policy for all of the topics in a [namespace](reference-terminology.md#namespace) by specifying the namespace, a size limit, and a policy by name.
+You can set a size and/or time threshold and backlog retention policy for all of the topics in a [namespace](reference-terminology.md#namespace) by specifying the namespace, a size limit and/or a time limit in second, and a policy by name.
 
 #### pulsar-admin
 
@@ -186,6 +186,7 @@ Use the [`set-backlog-quota`](reference-pulsar-admin.md#namespaces) subcommand a
 ```shell
 $ pulsar-admin namespaces set-backlog-quota my-tenant/my-ns \
   --limit 2G \
+  --limitTime 36000 \
   --policy producer_request_hold
 ```
 

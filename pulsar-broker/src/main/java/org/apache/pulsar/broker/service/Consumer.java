@@ -122,12 +122,13 @@ public class Consumer {
     private static final double avgPercent = 0.9;
     private boolean preciseDispatcherFlowControl;
     private PositionImpl readPositionWhenJoining;
+    private final String clientAddress; // IP address only, no port number included
 
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
                     int maxUnackedMessages, TransportCnx cnx, String appId,
                     Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition,
-                    KeySharedMeta keySharedMeta) throws BrokerServiceException {
+                    KeySharedMeta keySharedMeta) {
 
         this.subscription = subscription;
         this.subType = subType;
@@ -172,6 +173,8 @@ public class Consumer {
             // We don't need to keep track of pending acks if the subscription is not shared
             this.pendingAcks = null;
         }
+
+        this.clientAddress = cnx.clientSourceAddress();
     }
 
     public SubType subType() {
@@ -827,6 +830,10 @@ public class Consumer {
 
     public TransportCnx cnx() {
         return cnx;
+    }
+
+    public String getClientAddress() {
+        return clientAddress;
     }
 
     private static final Logger log = LoggerFactory.getLogger(Consumer.class);

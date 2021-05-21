@@ -42,7 +42,6 @@ import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -55,10 +54,12 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -294,26 +295,6 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
-    protected void validateTopicExistedAndCheckAllowAutoCreation(String tenant, String namespace,
-                                                                 String encodedTopic, boolean checkAllowAutoCreation) {
-        try {
-            PartitionedTopicMetadata partitionedTopicMetadata =
-                    pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName).get();
-            if (partitionedTopicMetadata.partitions < 1) {
-                if (!pulsar().getNamespaceService().checkTopicExists(topicName).get()
-                        && checkAllowAutoCreation
-                        && !pulsar().getBrokerService().isAllowAutoTopicCreation(topicName)) {
-                    throw new RestException(Status.NOT_FOUND,
-                            new PulsarClientException.NotFoundException("Topic not exist"));
-                }
-            }
-        } catch (InterruptedException | ExecutionException e) {
-            log.error("Failed to validate topic existed {}://{}/{}/{}",
-                    domain(), tenant, namespace, topicName, e);
-            throw new RestException(Status.INTERNAL_SERVER_ERROR, "Check topic partition meta failed.");
-        }
-    }
-
     @Deprecated
     protected void validateTopicName(String property, String cluster, String namespace, String encodedTopic) {
         String topic = Codec.decode(encodedTopic);
@@ -407,14 +388,17 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected boolean checkBacklogQuota(BacklogQuota quota, RetentionPolicies retention) {
-        if (retention == null || retention.getRetentionSizeInMB() == 0
-                || retention.getRetentionSizeInMB() == -1) {
+        if (retention == null || retention.getRetentionSizeInMB() <= 0 || retention.getRetentionTimeInMinutes() <= 0) {
             return true;
         }
         if (quota == null) {
             quota = pulsar().getBrokerService().getBacklogQuotaManager().getDefaultQuota();
         }
-        if (quota.getLimit() >= (retention.getRetentionSizeInMB() * 1024 * 1024)) {
+        if (quota.getLimitSize() >= (retention.getRetentionSizeInMB() * 1024 * 1024)) {
+            return false;
+        }
+        // time based quota is in second
+        if (quota.getLimitTime() >= (retention.getRetentionTimeInMinutes() * 60)) {
             return false;
         }
         return true;
@@ -490,13 +474,9 @@ public abstract class AdminResource extends PulsarWebResource {
         }
 
         try {
-            checkConnect(topicName);
-        } catch (WebApplicationException e) {
-            try {
-                validateAdminAccessForTenant(topicName.getTenant());
-            } catch (Exception ex) {
-                return FutureUtil.failedFuture(ex);
-            }
+            validateTopicOperation(topicName, TopicOperation.LOOKUP);
+        } catch (RestException e) {
+            return FutureUtil.failedFuture(e);
         } catch (Exception e) {
             // unknown error marked as internal server error
             log.warn("Unexpected error while authorizing lookup. topic={}, role={}. Error: {}", topicName,
@@ -520,9 +500,7 @@ public abstract class AdminResource extends PulsarWebResource {
         validateGlobalNamespaceOwnership(topicName.getNamespaceObject());
 
         try {
-            checkConnect(topicName);
-        } catch (WebApplicationException e) {
-            validateAdminAccessForTenant(topicName.getTenant());
+            validateTopicOperation(topicName, TopicOperation.LOOKUP);
         } catch (Exception e) {
             // unknown error marked as internal server error
             log.warn("Unexpected error while authorizing lookup. topic={}, role={}. Error: {}", topicName,
@@ -694,7 +672,7 @@ public abstract class AdminResource extends PulsarWebResource {
 
         final int maxPartitions = pulsar().getConfig().getMaxNumPartitionsPerPartitionedTopic();
         try {
-            validateAdminAccessForTenant(topicName.getTenant());
+            validateNamespaceOperation(topicName.getNamespaceObject(), NamespaceOperation.CREATE_TOPIC);
         } catch (Exception e) {
             log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
             resumeAsyncResponseExceptionally(asyncResponse, e);

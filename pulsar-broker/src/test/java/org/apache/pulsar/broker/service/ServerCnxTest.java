@@ -40,6 +40,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 
 import java.io.IOException;
@@ -147,9 +148,11 @@ public class ServerCnxTest {
     private final ManagedLedger ledgerMock = mock(ManagedLedger.class);
     private final ManagedCursor cursorMock = mock(ManagedCursor.class);
     private OrderedExecutor executor;
+    private EventLoopGroup eventLoopGroup;
 
     @BeforeMethod
     public void setup() throws Exception {
+        eventLoopGroup = new NioEventLoopGroup();
         executor = OrderedExecutor.newBuilder().numThreads(1).build();
         svcConfig = spy(new ServiceConfiguration());
         svcConfig.setBrokerShutdownTimeoutMs(0L);
@@ -185,7 +188,7 @@ public class ServerCnxTest {
         doReturn(configCacheService).when(pulsar).getConfigurationCache();
         doReturn(zkCache).when(pulsar).getLocalZkCacheService();
 
-        brokerService = spy(new BrokerService(pulsar));
+        brokerService = spy(new BrokerService(pulsar, eventLoopGroup));
         BrokerInterceptor interceptor = mock(BrokerInterceptor.class);
         doReturn(interceptor).when(brokerService).getInterceptor();
         doReturn(brokerService).when(pulsar).getBrokerService();
@@ -213,6 +216,7 @@ public class ServerCnxTest {
         pulsar.close();
         brokerService.close();
         executor.shutdownNow();
+        eventLoopGroup.shutdownGracefully().get();
     }
 
     @Test(timeOut = 30000)
@@ -549,6 +553,7 @@ public class ServerCnxTest {
         doReturn(authorizationService).when(brokerService).getAuthorizationService();
         doReturn(true).when(brokerService).isAuthorizationEnabled();
         doReturn(CompletableFuture.completedFuture(false)).when(authorizationProvider).isSuperUser(Mockito.anyString(), Mockito.any(), Mockito.any());
+        doReturn(CompletableFuture.completedFuture(false)).when(authorizationProvider).validateTenantAdminAccess(Mockito.anyString(), Mockito.any(), Mockito.any());
         doReturn(CompletableFuture.completedFuture(true)).when(authorizationProvider).checkPermission(any(TopicName.class), Mockito.anyString(),
                 any(AuthAction.class));
 

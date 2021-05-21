@@ -20,6 +20,7 @@ package org.apache.pulsar.client.api;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.common.naming.TopicName.PARTITIONED_TOPIC_SUFFIX;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.spy;
@@ -41,6 +42,7 @@ import io.netty.buffer.Unpooled;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Clock;
@@ -679,13 +681,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
 
         try {
-            pulsarClient.newProducer().maxPendingMessages(0);
-            Assert.fail("should fail");
-        } catch (IllegalArgumentException e) {
-            // ok
-        }
-
-        try {
             pulsarClient.newProducer().topic("invalid://topic").create();
             Assert.fail("should fail");
         } catch (PulsarClientException e) {
@@ -1034,7 +1029,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         msg = subscriber1.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
         // Verify: as active-subscriber2 has not consumed messages: EntryCache must have those entries in cache
-        assertTrue(entryCache.getSize() != 0);
+        Awaitility.await().untilAsserted(() -> assertNotEquals(entryCache.getSize(), 0));
 
         // 3.b Close subscriber2: which will trigger cache to clear the cache
         subscriber2.close();
@@ -3075,9 +3070,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         String encAlgo = encryptionCtx.getAlgorithm();
         int batchSize = encryptionCtx.getBatchSize().orElse(0);
 
-        ByteBuf payloadBuf = Unpooled.wrappedBuffer(msg.getData());
+        ByteBuffer payloadBuf = ByteBuffer.wrap(msg.getData());
         // try to decrypt use default MessageCryptoBc
-        @SuppressWarnings("rawtypes") MessageCrypto crypto = new MessageCryptoBc("test", false);
+        MessageCrypto<MessageMetadata, MessageMetadata> crypto =
+                new MessageCryptoBc("test", false);
 
         MessageMetadata messageMetadata = new MessageMetadata()
                 .setEncryptionParam(encrParam)
@@ -3093,11 +3089,12 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             messageMetadata.setEncryptionAlgo(encAlgo);
         }
 
-        ByteBuf decryptedPayload = crypto.decrypt(() -> messageMetadata, payloadBuf, reader);
+        ByteBuffer decryptedPayload = ByteBuffer.allocate(crypto.getMaxOutputSize(payloadBuf.remaining()));
+        crypto.decrypt(() -> messageMetadata, payloadBuf, decryptedPayload, reader);
 
         // try to uncompress
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(compressionType);
-        ByteBuf uncompressedPayload = codec.decode(decryptedPayload, uncompressedSize);
+        ByteBuf uncompressedPayload = codec.decode(Unpooled.wrappedBuffer(decryptedPayload), uncompressedSize);
 
         if (batchSize > 0) {
             SingleMessageMetadata singleMessageMetadata = new SingleMessageMetadata();
@@ -3155,7 +3152,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testMultiTopicsConsumerImplPause() throws Exception {
+    public void testMultiTopicsConsumerImplPauseForPartitionNumberChange() throws Exception {
         log.info("-- Starting {} test --", methodName);
         String topicName = "persistent://my-property/my-ns/partition-topic";
 
@@ -3174,14 +3171,15 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             producer.send(message.getBytes(UTF_8));
         }
 
+        final int receiverQueueSize = 1;
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .receiverQueueSize(1)
+                .receiverQueueSize(receiverQueueSize)
                 .autoUpdatePartitionsInterval(2 ,TimeUnit.SECONDS)
                 .subscriptionName("test-multi-topic-consumer").subscribe();
 
         int counter = 0;
-        for (; counter < 5; counter ++) {
+        for (; counter < 5 - receiverQueueSize; counter ++) {
             assertEquals(consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS).getData(), ("my-message-" + counter).getBytes());
         }
 
@@ -3196,27 +3194,114 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             Thread.sleep(1);
         }
 
-        // 5. produce 5 messages more
+        // 5. produce 5 more messages
         for (int i = 5; i < 10; i++) {
             final String message = "my-message-" + i;
             producer.send(message.getBytes());
         }
 
-        while(consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS) != null) {
-            counter++;
+        // 6. empty receiver queue
+        for (int i = 0; i < receiverQueueSize; i++) {
+            assertEquals(consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS).getData(),
+                ("my-message-" + counter++).getBytes());
         }
 
-        assertTrue(counter < 10);
-        // 6. resume multi-topic consumer
+        // 7. should not consume any messages
+        assertNull(consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS));
+
+
+        // 8. resume multi-topic consumer
         consumer.resume();
 
-        // 7. continue consume
+        // 9. continue to consume
         while(consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS) != null) {
            counter++;
         }
         assertEquals(counter, 10);
 
         producer.close();
+        consumer.close();
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test
+    public void testMultiTopicsConsumerImplPauseForManualSubscription() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+        String topicNameBase = "persistent://my-property/my-ns/my-topic-";
+
+
+        Producer<byte[]> producer1 = pulsarClient.newProducer()
+            .topic(topicNameBase + "1")
+            .enableBatching(false)
+            .create();
+        Producer<byte[]> producer2 = pulsarClient.newProducer()
+            .topic(topicNameBase + "2")
+            .enableBatching(false)
+            .create();
+        Producer<byte[]> producer3 = pulsarClient.newProducer()
+            .topic(topicNameBase + "3")
+            .enableBatching(false)
+            .create();
+
+        // 1. produce 5 messages per topic
+        for (int i = 0; i < 5; i++) {
+            final String message = "my-message-" + i;
+            producer1.send(message.getBytes(UTF_8));
+            producer2.send(message.getBytes(UTF_8));
+            producer3.send(message.getBytes(UTF_8));
+        }
+
+        int receiverQueueSize = 1;
+        Consumer<byte[]> consumer = pulsarClient
+            .newConsumer()
+            .topics(Lists.newArrayList(topicNameBase + "1", topicNameBase + "2"))
+            .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+            .receiverQueueSize(receiverQueueSize)
+            .subscriptionName("test-multi-topic-consumer")
+            .subscribe();
+
+        int counter = 0;
+        for (; counter < 2 * (5 - receiverQueueSize); counter++) {
+            assertThat(new String(consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS).getData(), UTF_8))
+                .startsWith("my-message-");
+        }
+
+        // 2. pause multi-topic consumer
+        consumer.pause();
+
+        // 3. manually add the third consumer
+        ((MultiTopicsConsumerImpl)consumer).subscribeAsync(topicNameBase + "3", true).join();
+
+        // 4. produce 5 more messages per topic
+        for (int i = 5; i < 10; i++) {
+            final String message = "my-message-" + i;
+            producer1.send(message.getBytes(UTF_8));
+            producer2.send(message.getBytes(UTF_8));
+            producer3.send(message.getBytes(UTF_8));
+        }
+
+        // 5. empty receiver queues
+        for (int i = 0; i < 2 * receiverQueueSize; i++) {
+            assertThat(new String(consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS).getData(), UTF_8))
+                .startsWith("my-message-");
+            counter++;
+        }
+
+        // 6. should not consume any messages
+        assertNull(consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS));
+
+        // 7. resume multi-topic consumer
+        consumer.resume();
+
+        // 8. continue to consume
+        while(consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS) != null) {
+            counter++;
+        }
+        assertEquals(counter, 30);
+
+        producer1.close();
+        producer2.close();
+        producer3.close();
         consumer.close();
         log.info("-- Exiting {} test --", methodName);
     }
@@ -3776,7 +3861,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             producer.sendAsync("msg" + i);
         }
         //Give some time to consume
-        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+        Awaitility.await()
                 .untilAsserted(() -> Assert.assertEquals(consumer.getStats().getMsgNumInReceiverQueue().intValue(), receiveQueueSize));
         consumer.close();
         producer.close();
@@ -3805,7 +3890,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             producer.sendAsync("msg" + i);
         }
         //Give some time to consume
-        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+        Awaitility.await()
                 .untilAsserted(() -> Assert.assertEquals(consumer.getStats().getMsgNumInReceiverQueue().intValue(), receiveQueueSize));
         consumer.close();
         producer.close();
@@ -3844,7 +3929,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
         FutureUtil.waitForAll(messageIds).get();
 
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().untilAsserted(() -> {
             long size = ((ConsumerBase<byte[]>) consumer).getIncomingMessageSize();
             log.info("Check the incoming message size should greater that 0, current size is {}", size);
             Assert.assertTrue(size > 0);
@@ -3854,7 +3939,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             consumer.acknowledge(consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS));
         }
 
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().untilAsserted(() -> {
             long size = ((ConsumerBase<byte[]>) consumer).getIncomingMessageSize();
             log.info("Check the incoming message size should be 0, current size is {}", size);
             Assert.assertEquals(size, 0);

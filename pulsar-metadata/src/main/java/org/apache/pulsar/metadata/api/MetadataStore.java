@@ -139,4 +139,14 @@ public interface MetadataStore extends AutoCloseable {
      * @return the metadata cache object
      */
     <T> MetadataCache<T> getMetadataCache(TypeReference<T> typeRef);
+
+    /**
+     * Create a metadata cache that uses a particular serde object.
+     *
+     * @param <T>
+     * @param serde
+     *            the custom serialization/deserialization object
+     * @return the metadata cache object
+     */
+    <T> MetadataCache<T> getMetadataCache(MetadataSerde<T> serde);
 }

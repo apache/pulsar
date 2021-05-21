@@ -30,7 +30,7 @@ public class CmdBrokers extends CmdBase {
 
     @Parameters(commandDescription = "List active brokers of the cluster")
     private class List extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -51,9 +51,9 @@ public class CmdBrokers extends CmdBase {
 
     @Parameters(commandDescription = "List namespaces owned by the broker")
     private class Namespaces extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
-        @Parameter(names = "--url", description = "broker-url\n", required = true)
+        @Parameter(names = "--url", description = "broker-url", required = true)
         private String brokerUrl;
 
         @Override

@@ -18,126 +18,104 @@
  */
 package org.apache.pulsar.functions.source;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
-import com.google.common.annotations.VisibleForTesting;
-
-import java.security.Security;
-import java.util.*;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-
-import lombok.Builder;
-import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.DeadLetterPolicy;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.MessageImpl;
-import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
-import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.common.util.Reflections;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.utils.CryptoUtils;
-import org.apache.pulsar.io.core.PushSource;
-import org.apache.pulsar.io.core.SourceContext;
+import org.apache.pulsar.io.core.Source;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
-@Slf4j
-public class PulsarSource<T> extends PushSource<T> implements MessageListener<T> {
+import java.security.Security;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
-    private final PulsarClient pulsarClient;
-    private final PulsarSourceConfig pulsarSourceConfig;
-    private final Map<String, String> properties;
-    private final ClassLoader functionClassLoader;
-    private List<String> inputTopics;
-    private List<Consumer<T>> inputConsumers = new LinkedList<>();
-    private final TopicSchema topicSchema;
+public abstract class PulsarSource<T> implements Source<T> {
+    protected final PulsarClient pulsarClient;
+    protected final PulsarSourceConfig pulsarSourceConfig;
+    protected final Map<String, String> properties;
+    protected final ClassLoader functionClassLoader;
+    protected final TopicSchema topicSchema;
 
-    public PulsarSource(PulsarClient pulsarClient, PulsarSourceConfig pulsarConfig, Map<String, String> properties,
-                        ClassLoader functionClassLoader) {
+    protected PulsarSource(PulsarClient pulsarClient,
+                           PulsarSourceConfig pulsarSourceConfig,
+                           Map<String, String> properties,
+                           ClassLoader functionClassLoader) {
         this.pulsarClient = pulsarClient;
-        this.pulsarSourceConfig = pulsarConfig;
+        this.pulsarSourceConfig = pulsarSourceConfig;
         this.topicSchema = new TopicSchema(pulsarClient);
         this.properties = properties;
         this.functionClassLoader = functionClassLoader;
     }
 
-    @Override
-    public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
-        // Setup schemas
-        log.info("Opening pulsar source with config: {}", pulsarSourceConfig);
-        Map<String, ConsumerConfig<T>> configs = setupConsumerConfigs();
+    public abstract List<Consumer<T>> getInputConsumers();
 
-        for (Map.Entry<String, ConsumerConfig<T>> e : configs.entrySet()) {
-            String topic = e.getKey();
-            ConsumerConfig<T> conf = e.getValue();
-            log.info("Creating consumers for topic : {}, schema : {}, schemaInfo: {}",
-                    topic, conf.getSchema(), conf.getSchema().getSchemaInfo());
+    protected ConsumerBuilder<T> createConsumeBuilder(String topic, PulsarSourceConsumerConfig conf) {
 
-            ConsumerBuilder<T> cb = pulsarClient.newConsumer(conf.getSchema())
-                    .subscriptionName(pulsarSourceConfig.getSubscriptionName())
-                    .subscriptionInitialPosition(pulsarSourceConfig.getSubscriptionPosition())
-                    .subscriptionType(pulsarSourceConfig.getSubscriptionType());
+        ConsumerBuilder<T> cb = pulsarClient.newConsumer(conf.getSchema())
+                .subscriptionName(pulsarSourceConfig.getSubscriptionName())
+                .subscriptionInitialPosition(pulsarSourceConfig.getSubscriptionPosition())
+                .subscriptionType(pulsarSourceConfig.getSubscriptionType());
 
-            if (conf.getConsumerProperties() != null && !conf.getConsumerProperties().isEmpty()) {
-                cb.loadConf(new HashMap<>(conf.getConsumerProperties()));
-            }
-            //messageListener is annotated with @JsonIgnore,so setting messageListener should be put behind loadConf
-            cb.messageListener(this);
-
-            if (conf.isRegexPattern) {
-                cb = cb.topicsPattern(topic);
-            } else {
-                cb = cb.topics(Collections.singletonList(topic));
-            }
-            if (conf.getReceiverQueueSize() != null) {
-                cb = cb.receiverQueueSize(conf.getReceiverQueueSize());
-            }
-            if (conf.getCryptoKeyReader() != null) {
-                cb = cb.cryptoKeyReader(conf.getCryptoKeyReader());
-            }
-            if (conf.getConsumerCryptoFailureAction() != null) {
-                cb = cb.cryptoFailureAction(conf.getConsumerCryptoFailureAction());
-            }
-            cb = cb.properties(properties);
-            if (pulsarSourceConfig.getNegativeAckRedeliveryDelayMs() != null
-                    && pulsarSourceConfig.getNegativeAckRedeliveryDelayMs() > 0) {
-                cb.negativeAckRedeliveryDelay(pulsarSourceConfig.getNegativeAckRedeliveryDelayMs(), TimeUnit.MILLISECONDS);
-            }
-            if (pulsarSourceConfig.getTimeoutMs() != null) {
-                cb = cb.ackTimeout(pulsarSourceConfig.getTimeoutMs(), TimeUnit.MILLISECONDS);
-            }
-            if (pulsarSourceConfig.getMaxMessageRetries() != null && pulsarSourceConfig.getMaxMessageRetries() >= 0) {
-                DeadLetterPolicy.DeadLetterPolicyBuilder deadLetterPolicyBuilder = DeadLetterPolicy.builder();
-                deadLetterPolicyBuilder.maxRedeliverCount(pulsarSourceConfig.getMaxMessageRetries());
-                if (pulsarSourceConfig.getDeadLetterTopic() != null && !pulsarSourceConfig.getDeadLetterTopic().isEmpty()) {
-                    deadLetterPolicyBuilder.deadLetterTopic(pulsarSourceConfig.getDeadLetterTopic());
-                }
-                cb = cb.deadLetterPolicy(deadLetterPolicyBuilder.build());
-            }
-
-            Consumer<T> consumer = cb.subscribeAsync().join();
-            inputConsumers.add(consumer);
+        if (conf.getConsumerProperties() != null && !conf.getConsumerProperties().isEmpty()) {
+            cb.loadConf(new HashMap<>(conf.getConsumerProperties()));
         }
 
-        inputTopics = inputConsumers.stream().flatMap(c -> {
-            return (c instanceof MultiTopicsConsumerImpl) ? ((MultiTopicsConsumerImpl<?>) c).getTopics().stream()
-                    : Collections.singletonList(c.getTopic()).stream();
-        }).collect(Collectors.toList());
+        if (conf.isRegexPattern()) {
+            cb = cb.topicsPattern(topic);
+        } else {
+            cb = cb.topics(Collections.singletonList(topic));
+        }
+        if (conf.getReceiverQueueSize() != null) {
+            cb = cb.receiverQueueSize(conf.getReceiverQueueSize());
+        }
+        if (conf.getCryptoKeyReader() != null) {
+            cb = cb.cryptoKeyReader(conf.getCryptoKeyReader());
+        }
+        if (conf.getConsumerCryptoFailureAction() != null) {
+            cb = cb.cryptoFailureAction(conf.getConsumerCryptoFailureAction());
+        }
+        cb = cb.properties(properties);
+        if (pulsarSourceConfig.getNegativeAckRedeliveryDelayMs() != null
+                && pulsarSourceConfig.getNegativeAckRedeliveryDelayMs() > 0) {
+            cb.negativeAckRedeliveryDelay(pulsarSourceConfig.getNegativeAckRedeliveryDelayMs(), TimeUnit.MILLISECONDS);
+        }
+        if (pulsarSourceConfig.getTimeoutMs() != null) {
+            cb = cb.ackTimeout(pulsarSourceConfig.getTimeoutMs(), TimeUnit.MILLISECONDS);
+        }
+        if (pulsarSourceConfig.getMaxMessageRetries() != null && pulsarSourceConfig.getMaxMessageRetries() >= 0) {
+            DeadLetterPolicy.DeadLetterPolicyBuilder deadLetterPolicyBuilder = DeadLetterPolicy.builder();
+            deadLetterPolicyBuilder.maxRedeliverCount(pulsarSourceConfig.getMaxMessageRetries());
+            if (pulsarSourceConfig.getDeadLetterTopic() != null && !pulsarSourceConfig.getDeadLetterTopic().isEmpty()) {
+                deadLetterPolicyBuilder.deadLetterTopic(pulsarSourceConfig.getDeadLetterTopic());
+            }
+            cb = cb.deadLetterPolicy(deadLetterPolicyBuilder.build());
+        }
+
+        return cb;
     }
 
-    @Override
-    public void received(Consumer<T> consumer, Message<T> message) {
+    protected Record<T> buildRecord(Consumer<T> consumer, Message<T> message) {
         Schema<T> schema = null;
         if (message instanceof MessageImpl) {
             MessageImpl impl = (MessageImpl) message;
-            schema = impl.getSchema();
+            schema = impl.getSchemaInternal();
         } else if (message instanceof TopicMessageImpl) {
             TopicMessageImpl impl = (TopicMessageImpl) message;
-            schema = impl.getSchema();
+            schema = impl.getSchemaInternal();
         }
-        Record<T> record = PulsarRecord.<T>builder()
+        return PulsarRecord.<T>builder()
                 .message(message)
                 .schema(schema)
                 .topicName(message.getTopicName())
@@ -155,81 +133,33 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
                     consumer.negativeAcknowledge(message);
                 })
                 .build();
-
-        consume(record);
     }
 
-    @Override
-    public void close() throws Exception {
-        if (inputConsumers != null ) {
-            inputConsumers.forEach(consumer -> {
-                try {
-                    consumer.close();
-                } catch (PulsarClientException e) {
-                }
-            });
+    protected PulsarSourceConsumerConfig<T> buildPulsarSourceConsumerConfig(String topic, ConsumerConfig conf, Class<?> typeArg) {
+        PulsarSourceConsumerConfig.PulsarSourceConsumerConfigBuilder<T> consumerConfBuilder
+                = PulsarSourceConsumerConfig.<T>builder().isRegexPattern(conf.isRegexPattern())
+                .receiverQueueSize(conf.getReceiverQueueSize())
+                .consumerProperties(conf.getConsumerProperties());
+
+        Schema<T> schema;
+        if (conf.getSerdeClassName() != null && !conf.getSerdeClassName().isEmpty()) {
+            schema = (Schema<T>) topicSchema.getSchema(topic, typeArg, conf.getSerdeClassName(), true);
+        } else {
+            schema = (Schema<T>) topicSchema.getSchema(topic, typeArg, conf, true);
         }
-    }
+        consumerConfBuilder.schema(schema);
 
-    @SuppressWarnings("unchecked")
-    @VisibleForTesting
-    Map<String, ConsumerConfig<T>> setupConsumerConfigs() throws ClassNotFoundException {
-        Map<String, ConsumerConfig<T>> configs = new TreeMap<>();
-
-        Class<?> typeArg = Reflections.loadClass(this.pulsarSourceConfig.getTypeClassName(),
-                this.functionClassLoader);
-
-        checkArgument(!Void.class.equals(typeArg), "Input type of Pulsar Function cannot be Void");
-
-        // Check new config with schema types or classnames
-        pulsarSourceConfig.getTopicSchema().forEach((topic, conf) -> {
-            ConsumerConfig.ConsumerConfigBuilder<T> consumerConfBuilder =  ConsumerConfig.<T> builder().
-                    isRegexPattern(conf.isRegexPattern()).
-                    receiverQueueSize(conf.getReceiverQueueSize()).
-                    consumerProperties(conf.getConsumerProperties());
-
-            Schema<T> schema;
-            if (conf.getSerdeClassName() != null && !conf.getSerdeClassName().isEmpty()) {
-                schema = (Schema<T>) topicSchema.getSchema(topic, typeArg, conf.getSerdeClassName(), true);
-            } else {
-                schema = (Schema<T>) topicSchema.getSchema(topic, typeArg, conf, true);
-            }
-            consumerConfBuilder.schema(schema);
-
-            if (conf.getCryptoConfig() != null) {
-                // add provider only if it's not in the JVM
-                if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
-                    Security.addProvider(new BouncyCastleProvider());
-                }
-
-                consumerConfBuilder.consumerCryptoFailureAction(conf.getCryptoConfig().getConsumerCryptoFailureAction());
-                consumerConfBuilder.cryptoKeyReader(CryptoUtils.getCryptoKeyReaderInstance(
-                        conf.getCryptoConfig().getCryptoKeyReaderClassName(),
-                        conf.getCryptoConfig().getCryptoKeyReaderConfig(), functionClassLoader));
+        if (conf.getCryptoConfig() != null) {
+            // add provider only if it's not in the JVM
+            if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
+                Security.addProvider(new BouncyCastleProvider());
             }
 
-            configs.put(topic, consumerConfBuilder.build());
-        });
-
-        return configs;
-    }
-
-    public List<String> getInputTopics() {
-        return inputTopics;
-    }
-
-    public List<Consumer<T>> getInputConsumers() {
-        return inputConsumers;
-    }
-
-    @Data
-    @Builder
-    private static class ConsumerConfig<T> {
-        private Schema<T> schema;
-        private boolean isRegexPattern;
-        private Integer receiverQueueSize;
-        private Map<String, String> consumerProperties;
-        private CryptoKeyReader cryptoKeyReader;
-        private ConsumerCryptoFailureAction consumerCryptoFailureAction;
+            consumerConfBuilder.consumerCryptoFailureAction(conf.getCryptoConfig().getConsumerCryptoFailureAction());
+            consumerConfBuilder.cryptoKeyReader(CryptoUtils.getCryptoKeyReaderInstance(
+                    conf.getCryptoConfig().getCryptoKeyReaderClassName(),
+                    conf.getCryptoConfig().getCryptoKeyReaderConfig(), functionClassLoader));
+        }
+        return consumerConfBuilder.build();
     }
 }

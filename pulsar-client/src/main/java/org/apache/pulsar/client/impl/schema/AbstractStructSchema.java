@@ -20,13 +20,20 @@ package org.apache.pulsar.client.impl.schema;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
-
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.api.schema.SchemaReader;
 import org.apache.pulsar.client.api.schema.SchemaWriter;
+import org.apache.pulsar.client.impl.schema.reader.AbstractMultiVersionReader;
+import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 
 /**
  * minimal abstract StructSchema
@@ -40,7 +47,7 @@ public abstract class AbstractStructSchema<T> extends AbstractSchema<T> {
     protected SchemaWriter<T> writer;
     protected SchemaInfoProvider schemaInfoProvider;
 
-    public AbstractStructSchema(SchemaInfo schemaInfo){
+    public AbstractStructSchema(SchemaInfo schemaInfo) {
         this.schemaInfo = schemaInfo;
     }
 
@@ -80,6 +87,89 @@ public abstract class AbstractStructSchema<T> extends AbstractSchema<T> {
         if (reader != null) {
             this.reader.setSchemaInfoProvider(schemaInfoProvider);
         }
+        this.schemaInfoProvider = schemaInfoProvider;
+    }
+
+    @Override
+    public Schema<T> atSchemaVersion(byte[] schemaVersion) throws SchemaSerializationException {
+        Objects.requireNonNull(schemaVersion);
+        if (schemaInfoProvider == null) {
+            // this schema is not downloaded from the registry
+            return this;
+        }
+        try {
+            SchemaInfo schemaInfo = schemaInfoProvider.getSchemaByVersion(schemaVersion).get();
+            if (schemaInfo == null) {
+                throw new SchemaSerializationException("Unknown version "+ BytesSchemaVersion.of(schemaVersion));
+            }
+            return getAbstractStructSchemaAtVersion(schemaVersion, schemaInfo);
+        } catch (ExecutionException err) {
+            throw new SchemaSerializationException(err.getCause());
+        } catch (InterruptedException err) {
+            Thread.currentThread().interrupt();
+            throw new SchemaSerializationException(err);
+        }
+    }
+
+    private static class WrappedVersionedSchema<T> extends AbstractStructSchema<T> {
+        private final byte[] schemaVersion;
+        private final AbstractStructSchema<T> parent;
+        public WrappedVersionedSchema(SchemaInfo schemaInfo, final byte[] schemaVersion,
+                                      AbstractStructSchema<T> parent) {
+            super(schemaInfo);
+            this.schemaVersion = schemaVersion;
+            this.writer = null;
+            this.reader = parent.reader;
+            this.schemaInfoProvider = parent.schemaInfoProvider;
+            this.parent = parent;
+        }
+
+        @Override
+        public boolean requireFetchingSchemaInfo() {
+            return true;
+        }
+
+        @Override
+        public T decode(byte[] bytes) {
+            return decode(bytes, schemaVersion);
+        }
+
+        @Override
+        public T decode(ByteBuf byteBuf) {
+            return decode(byteBuf, schemaVersion);
+        }
+
+        @Override
+        public byte[] encode(T message) {
+            throw new UnsupportedOperationException("This schema is not meant to be used for encoding");
+        }
+
+        @Override
+        public Optional<Object> getNativeSchema() {
+            if (reader instanceof AbstractMultiVersionReader) {
+                AbstractMultiVersionReader abstractMultiVersionReader = (AbstractMultiVersionReader) reader;
+                try {
+                    SchemaReader schemaReader = abstractMultiVersionReader.getSchemaReader(schemaVersion);
+                    return schemaReader.getNativeSchema();
+                } catch (ExecutionException err) {
+                    throw new RuntimeException(err.getCause());
+                }
+            } else {
+                return Optional.empty();
+            }
+        }
+
+        @Override
+        public String toString() {
+            return "VersionedSchema(type=" + schemaInfo.getType() +
+                    ",schemaVersion="+BytesSchemaVersion.of(schemaVersion) +
+                    ",name="+schemaInfo.getName()
+                    + ")";
+        }
+    }
+
+    private AbstractStructSchema<T> getAbstractStructSchemaAtVersion(byte[] schemaVersion, SchemaInfo schemaInfo) {
+        return new WrappedVersionedSchema<>(schemaInfo, schemaVersion, this);
     }
 
     protected void setWriter(SchemaWriter<T> writer) {

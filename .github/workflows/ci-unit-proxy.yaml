@@ -43,23 +43,18 @@ jobs:
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
 
-      - name: Changed files check
+      - name: Detect changed files
         id:   changes
         uses: apache/pulsar-test-infra/paths-filter@master
         with:
-          filters: |
-            # pattern syntax: https://github.com/micromatch/picomatch
-            all:
-              - '**'
-            docs:
-              - 'site2/**'
-              - 'deployment/**'
-              - '.asf.yaml'
-              - '*.md'
-              - '**/*.md'
+          filters: .github/changes-filter.yaml
+
+      - name: Check changed files
+        id: check_changes
+        run: echo "::set-output name=docs_only::${{ fromJSON(steps.changes.outputs.all_count) == fromJSON(steps.changes.outputs.docs_count) && fromJSON(steps.changes.outputs.docs_count) > 0 }}"
 
       - name: Cache local Maven repository
-        if: ${{ steps.changes.outputs.all_count }} > ${{ steps.changes.outputs.docs_count }}
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         uses: actions/cache@v2
         with:
           path: |
@@ -69,22 +64,23 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-m2-dependencies-core-modules-
 
-      - name: Set up JDK 1.8
-        uses: actions/setup-java@v1
-        if: ${{ steps.changes.outputs.all_count }} > ${{ steps.changes.outputs.docs_count }}
+      - name: Set up JDK 11
+        uses: actions/setup-java@v2
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         with:
-          java-version: 1.8
+          distribution: 'adopt'
+          java-version: 11
 
       - name: Replace maven's wagon-http version
-        if: ${{ steps.changes.outputs.all_count }} > ${{ steps.changes.outputs.docs_count }}
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         run: sudo ./build/replace_maven-wagon-http-version.sh
 
       - name: build modules pulsar-proxy
-        if: ${{ steps.changes.outputs.all_count }} > ${{ steps.changes.outputs.docs_count }}
-        run: mvn -B -ntp -q install -Pcore-modules -DskipTests
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
+        run: mvn -B -ntp -q install -Pcore-modules,-main -DskipTests
 
       - name: run unit test 'PROXY'
-        if: ${{ steps.changes.outputs.all_count }} > ${{ steps.changes.outputs.docs_count }}
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         run: ./build/run_unit_group.sh PROXY
 
       - name: print JVM thread dumps when cancelled

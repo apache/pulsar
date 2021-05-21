@@ -248,4 +248,6 @@ Result Consumer::seek(uint64_t timestamp) {
     return result;
 }
 
+bool Consumer::isConnected() const { return impl_ && impl_->isConnected(); }
+
 }  // namespace pulsar

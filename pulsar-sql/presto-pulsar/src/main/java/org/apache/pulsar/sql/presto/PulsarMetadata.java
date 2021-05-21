@@ -61,6 +61,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -176,7 +177,8 @@ public class PulsarMetadata implements ConnectorMetadata {
                 List<String> pulsarTopicList = null;
                 try {
                     pulsarTopicList = this.pulsarAdmin.topics()
-                        .getList(restoreNamespaceDelimiterIfNeeded(schemaNameOrNull, pulsarConnectorConfig));
+                        .getList(restoreNamespaceDelimiterIfNeeded(schemaNameOrNull, pulsarConnectorConfig),
+                                TopicDomain.persistent);
                 } catch (PulsarAdminException e) {
                     if (e.getStatusCode() == 404) {
                         log.warn("Schema " + schemaNameOrNull + " does not exsit");
@@ -378,7 +380,7 @@ public class PulsarMetadata implements ConnectorMetadata {
 
         Set<String> topicsSetWithoutPartition;
         try {
-            List<String> allTopics = this.pulsarAdmin.topics().getList(namespace);
+            List<String> allTopics = this.pulsarAdmin.topics().getList(namespace, TopicDomain.persistent);
             topicsSetWithoutPartition = allTopics.stream()
                     .map(t -> t.split(TopicName.PARTITIONED_TOPIC_SUFFIX)[0])
                     .collect(Collectors.toSet());
