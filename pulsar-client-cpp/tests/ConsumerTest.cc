@@ -413,4 +413,93 @@ TEST(ConsumerTest, testBatchUnAckedMessageTracker) {
     client.close();
 }
 
+TEST(ConsumerTest, testGetTopicNameFromReceivedMessage) {
+    // topic1 and topic2 are non-partitioned topics, topic3 is a partitioned topic
+    const std::string topic1 = "testGetTopicNameFromReceivedMessage1-" + std::to_string(time(nullptr));
+    const std::string topic2 = "testGetTopicNameFromReceivedMessage2-" + std::to_string(time(nullptr));
+    const std::string topic3 = "testGetTopicNameFromReceivedMessage3-" + std::to_string(time(nullptr));
+    int res = makePutRequest(adminUrl + "admin/v2/persistent/public/default/" + topic3 + "/partitions", "3");
+    ASSERT_TRUE(res == 204 || res == 409) << "res: " << res;
+
+    Client client(lookupUrl);
+
+    auto sendMessage = [&client](const std::string& topic, bool enabledBatching) {
+        const auto producerConf = ProducerConfiguration().setBatchingEnabled(enabledBatching);
+        Producer producer;
+        ASSERT_EQ(ResultOk, client.createProducer(topic, producerConf, producer));
+        ASSERT_EQ(ResultOk, producer.send(MessageBuilder().setContent("hello").build()));
+        LOG_INFO("Send 'hello' to " << topic);
+    };
+    auto validateTopicName = [](Consumer& consumer, const std::string& topic) {
+        Message msg;
+        ASSERT_EQ(ResultOk, consumer.receive(msg, 3000));
+
+        const auto fullTopic = "persistent://public/default/" + topic;
+        ASSERT_EQ(msg.getTopicName(), fullTopic);
+        ASSERT_EQ(msg.getMessageId().getTopicName(), fullTopic);
+    };
+
+    // 1. ConsumerImpl
+    Consumer consumer1;
+    ASSERT_EQ(ResultOk, client.subscribe(topic1, "sub-1", consumer1));
+
+    // 2. MultiTopicsConsumerImpl
+    Consumer consumer2;
+    ASSERT_EQ(ResultOk, client.subscribe({topic1, topic2}, "sub-2", consumer2));
+
+    sendMessage(topic1, true);
+    validateTopicName(consumer1, topic1);
+    validateTopicName(consumer2, topic1);
+    sendMessage(topic1, false);
+    validateTopicName(consumer1, topic1);
+    validateTopicName(consumer2, topic1);
+
+    // 3. PartitionedConsumerImpl
+    Consumer consumer3;
+    ASSERT_EQ(ResultOk, client.subscribe(topic3, "sub-3", consumer3));
+    const auto partition = topic3 + "-partition-0";
+    sendMessage(partition, true);
+    validateTopicName(consumer3, partition);
+    sendMessage(partition, false);
+    validateTopicName(consumer3, partition);
+
+    client.close();
+}
+
+TEST(ConsumerTest, testIsConnected) {
+    Client client(lookupUrl);
+    const std::string nonPartitionedTopic1 =
+        "testConsumerIsConnectedNonPartitioned1-" + std::to_string(time(nullptr));
+    const std::string nonPartitionedTopic2 =
+        "testConsumerIsConnectedNonPartitioned2-" + std::to_string(time(nullptr));
+    const std::string partitionedTopic =
+        "testConsumerIsConnectedPartitioned-" + std::to_string(time(nullptr));
+    const std::string subName = "sub";
+
+    Consumer consumer;
+    ASSERT_FALSE(consumer.isConnected());
+    // ConsumerImpl
+    ASSERT_EQ(ResultOk, client.subscribe(nonPartitionedTopic1, subName, consumer));
+    ASSERT_TRUE(consumer.isConnected());
+    ASSERT_EQ(ResultOk, consumer.close());
+    ASSERT_FALSE(consumer.isConnected());
+
+    // MultiTopicsConsumerImpl
+    ASSERT_EQ(ResultOk, client.subscribe(std::vector<std::string>{nonPartitionedTopic1, nonPartitionedTopic2},
+                                         subName, consumer));
+    ASSERT_TRUE(consumer.isConnected());
+    ASSERT_EQ(ResultOk, consumer.close());
+    ASSERT_FALSE(consumer.isConnected());
+
+    int res = makePutRequest(
+        adminUrl + "admin/v2/persistent/public/default/" + partitionedTopic + "/partitions", "2");
+    ASSERT_TRUE(res == 204 || res == 409) << "res: " << res;
+
+    // PartitionedConsumerImpl
+    ASSERT_EQ(ResultOk, client.subscribe(partitionedTopic, subName, consumer));
+    ASSERT_TRUE(consumer.isConnected());
+    ASSERT_EQ(ResultOk, consumer.close());
+    ASSERT_FALSE(consumer.isConnected());
+}
+
 }  // namespace pulsar

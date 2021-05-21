@@ -33,6 +33,15 @@ class PULSAR_PUBLIC MessageId {
    public:
     MessageId& operator=(const MessageId&);
     MessageId();
+
+    /**
+     * Construct the MessageId
+     *
+     * @param partition the partition number of a topic
+     * @param ledgerId the ledger id
+     * @param entryId the entry id
+     * @param batchIndex the batch index of a single message in a batch
+     */
     explicit MessageId(int32_t partition, int64_t ledgerId, int64_t entryId, int32_t batchIndex);
 
     /**

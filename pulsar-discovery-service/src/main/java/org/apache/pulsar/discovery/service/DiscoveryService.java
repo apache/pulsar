@@ -48,8 +48,6 @@ import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.discovery.service.server.ServiceConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
-import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,7 +64,6 @@ public class DiscoveryService implements Closeable {
     private ConfigurationMetadataCacheService configurationCacheService;
     private AuthenticationService authenticationService;
     private AuthorizationService authorizationService;
-    private ZooKeeperClientFactory zkClientFactory = null;
     private BrokerDiscoveryProvider discoveryProvider;
     private final EventLoopGroup acceptorGroup;
     private MetadataStoreExtended localMetadataStore;
@@ -98,7 +95,7 @@ public class DiscoveryService implements Closeable {
         localMetadataStore = createLocalMetadataStore();
         configMetadataStore = createConfigurationMetadataStore();
         pulsarResources = new PulsarResources(localMetadataStore, configMetadataStore);
-        discoveryProvider = new BrokerDiscoveryProvider(this.config, getZooKeeperClientFactory(), pulsarResources);
+        discoveryProvider = new BrokerDiscoveryProvider(this.config, pulsarResources);
         this.configurationCacheService = new ConfigurationMetadataCacheService(pulsarResources, null);
         ServiceConfiguration serviceConfiguration = PulsarConfigurationLoader.convertFrom(config);
         authenticationService = new AuthenticationService(serviceConfiguration);
@@ -143,14 +140,6 @@ public class DiscoveryService implements Closeable {
 
         this.serviceUrl = serviceUrl();
         this.serviceUrlTls = serviceUrlTls();
-    }
-
-    public ZooKeeperClientFactory getZooKeeperClientFactory() {
-        if (zkClientFactory == null) {
-            zkClientFactory = new ZookeeperClientFactoryImpl();
-        }
-        // Return default factory
-        return zkClientFactory;
     }
 
     public BrokerDiscoveryProvider getDiscoveryProvider() {
@@ -235,8 +224,6 @@ public class DiscoveryService implements Closeable {
         this.configurationCacheService = configurationCacheService;
     }
 
-    private static final Logger LOG = LoggerFactory.getLogger(DiscoveryService.class);
-
     public MetadataStoreExtended createLocalMetadataStore() throws MetadataStoreException {
         return PulsarResources.createMetadataStore(config.getZookeeperServers(), config.getZookeeperSessionTimeoutMs());
     }
@@ -245,4 +232,6 @@ public class DiscoveryService implements Closeable {
         return PulsarResources.createMetadataStore(config.getConfigurationStoreServers(),
                 config.getZookeeperSessionTimeoutMs());
     }
+
+    private static final Logger LOG = LoggerFactory.getLogger(DiscoveryService.class);
 }

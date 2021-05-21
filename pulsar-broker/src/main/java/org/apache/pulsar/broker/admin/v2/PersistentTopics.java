@@ -65,6 +65,8 @@ import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.PolicyName;
+import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
@@ -232,7 +234,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         try {
             validateGlobalNamespaceOwnership(tenant, namespace);
             validatePartitionedTopicName(tenant, namespace, encodedTopic);
-            validateAdminAccessForTenant(topicName.getTenant());
+            validateTopicPolicyOperation(topicName, PolicyName.PARTITION, PolicyOperation.WRITE);
             internalCreatePartitionedTopic(asyncResponse, numPartitions);
         } catch (Exception e) {
             log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
@@ -525,6 +527,8 @@ public class PersistentTopics extends PersistentTopicsBase {
                     Integer maxUnackedNum) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation();
+        validateTopicPolicyOperation(topicName, PolicyName.MAX_UNACKED, PolicyOperation.WRITE);
+        validatePoliciesReadOnlyAccess();
         internalSetMaxUnackedMessagesOnSubscription(maxUnackedNum).whenComplete((res, ex)
                 -> internalHandleResult(asyncResponse, res, ex, "Failed set MaxUnackedMessagesOnSubscription"));
     }
@@ -584,6 +588,8 @@ public class PersistentTopics extends PersistentTopicsBase {
                     DelayedDeliveryPolicies deliveryPolicies) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation();
+        validateTopicPolicyOperation(topicName, PolicyName.DELAYED_DELIVERY, PolicyOperation.WRITE);
+        validatePoliciesReadOnlyAccess();
         internalSetDelayedDeliveryPolicies(asyncResponse, deliveryPolicies);
     }
 
@@ -705,7 +711,6 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is check configuration required to automatically create topic")
             @QueryParam("checkAllowAutoCreation") @DefaultValue("false") boolean checkAllowAutoCreation) {
         validateTopicName(tenant, namespace, encodedTopic);
-        validateTopicExistedAndCheckAllowAutoCreation(tenant, namespace, encodedTopic, checkAllowAutoCreation);
         return internalGetPartitionedMetadata(authoritative, checkAllowAutoCreation);
     }
 
@@ -1021,6 +1026,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
+            validateTopicOwnership(topicName, authoritative);
             internalDeleteSubscription(asyncResponse, decode(encodedSubName), authoritative, force);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
@@ -2676,21 +2682,12 @@ public class PersistentTopics extends PersistentTopicsBase {
     public void getCompactionThreshold(@Suspended final AsyncResponse asyncResponse,
                                        @PathParam("tenant") String tenant,
                                        @PathParam("namespace") String namespace,
-                                       @PathParam("topic") @Encoded String encodedTopic) {
+                                       @PathParam("topic") @Encoded String encodedTopic,
+                                       @QueryParam("applied") boolean applied) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation();
-        try {
-            Optional<Long> compactionThreshold = internalGetCompactionThreshold();
-            if (!compactionThreshold.isPresent()) {
-                asyncResponse.resume(Response.noContent().build());
-            } else {
-                asyncResponse.resume(compactionThreshold.get());
-            }
-        } catch (RestException e) {
-            asyncResponse.resume(e);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+        internalGetCompactionThreshold(applied).whenComplete((res, ex)
+                -> internalHandleResult(asyncResponse, res, ex, "Failed get compaction threshold"));
     }
 
     @POST
@@ -3103,6 +3100,32 @@ public class PersistentTopics extends PersistentTopicsBase {
                 asyncResponse.resume(Response.noContent().build());
             }
         });
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/truncate")
+    @ApiOperation(value = "Truncate a topic.",
+            notes = "The truncate operation will move all cursors to the end of the topic "
+                    + "and delete all inactive ledgers.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 500, message = "Internal server error")})
+    public void truncateTopic(
+            @Suspended final AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative){
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalTruncateTopic(asyncResponse, authoritative);
+
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentTopics.class);

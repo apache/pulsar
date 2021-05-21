@@ -25,6 +25,7 @@ import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.lang.reflect.Field;
+import io.netty.channel.EventLoopGroup;
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
@@ -99,10 +100,13 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         resetConfig();
     }
 
+    protected PulsarService getPulsar() {
+        return pulsar;
+    }
+
     protected final void resetConfig() {
         this.conf = getDefaultConf();
     }
-
 
     protected final void internalSetup() throws Exception {
         incrementSetupNumber();
@@ -154,6 +158,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     }
 
     protected void doInitConf() throws Exception {
+        this.conf.setBrokerShutdownTimeoutMs(0L);
         this.conf.setBrokerServicePort(Optional.of(0));
         this.conf.setBrokerServicePortTls(Optional.of(0));
         this.conf.setAdvertisedAddress("localhost");
@@ -240,6 +245,8 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     protected void stopBroker() throws Exception {
         log.info("Stopping Pulsar broker. brokerServiceUrl: {} webServiceAddress: {}", pulsar.getBrokerServiceUrl(),
                 pulsar.getWebServiceAddress());
+        // set shutdown timeout to 0 for forceful shutdown
+        pulsar.getConfiguration().setBrokerShutdownTimeoutMs(0L);
         pulsar.close();
         pulsar = null;
         // Simulate cleanup of ephemeral nodes
@@ -269,12 +276,11 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
     protected PulsarService startBroker(ServiceConfiguration conf) throws Exception {
 
-        PulsarService pulsar = startBrokerWithoutAuthorization(conf);
-
-        return pulsar;
+        return startBrokerWithoutAuthorization(conf);
     }
 
     protected PulsarService startBrokerWithoutAuthorization(ServiceConfiguration conf) throws Exception {
+        conf.setBrokerShutdownTimeoutMs(0L);
         PulsarService pulsar = spy(new PulsarService(conf));
         setupBrokerMocks(pulsar);
         pulsar.start();
@@ -380,7 +386,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     private final BookKeeperClientFactory mockBookKeeperClientFactory = new BookKeeperClientFactory() {
 
         @Override
-        public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient,
+        public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient, EventLoopGroup eventLoopGroup,
                 Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
                 Map<String, Object> properties) {
             // Always return the same instance (so that we don't loose the mock BK content on broker restart
@@ -388,7 +394,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         }
 
         @Override
-        public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient,
+        public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient, EventLoopGroup eventLoopGroup,
                                  Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
                                  Map<String, Object> properties, StatsLogger statsLogger) {
             // Always return the same instance (so that we don't loose the mock BK content on broker restart
@@ -424,13 +430,13 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         configuration.setAdvertisedAddress("localhost");
         configuration.setClusterName(configClusterName);
         // there are TLS tests in here, they need to use localhost because of the certificate
-        configuration.setAdvertisedAddress("localhost");
         configuration.setManagedLedgerCacheSizeMB(8);
         configuration.setActiveConsumerFailoverDelayTimeMillis(0);
         configuration.setDefaultNumberOfNamespaceBundles(1);
         configuration.setZookeeperServers("localhost:2181");
         configuration.setConfigurationStoreServers("localhost:3181");
         configuration.setAllowAutoTopicCreationType("non-partitioned");
+        configuration.setBrokerShutdownTimeoutMs(0L);
         configuration.setBrokerServicePort(Optional.of(0));
         configuration.setBrokerServicePortTls(Optional.of(0));
         configuration.setWebServicePort(Optional.of(0));

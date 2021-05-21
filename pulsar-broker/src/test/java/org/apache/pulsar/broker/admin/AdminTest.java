@@ -104,6 +104,7 @@ import org.testng.annotations.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@Test(groups = "broker")
 public class AdminTest extends MockedPulsarServiceBaseTest {
     private static final Logger log = LoggerFactory.getLogger(AdminTest.class);
 
@@ -118,7 +119,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     private BrokerStats brokerStats;
     private SchemasResource schemasResource;
     private Field uriField;
-    private Clock mockClock = Clock.fixed(
+    private final Clock mockClock = Clock.fixed(
         Instant.ofEpochSecond(365248800),
         ZoneId.of("-05:00")
     );
@@ -393,6 +394,18 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
         }
+
+        // Check authentication
+        try {
+            clusters.createCluster("auth", new ClusterData("http://dummy.web.example.com", "",
+                    "http://dummy.messaging.example.com", "",
+                    "authenticationPlugin", "authenticationParameters"));
+            ClusterData cluster = clusters.getCluster("auth");
+            assertEquals("authenticationPlugin", cluster.getAuthenticationPlugin());
+            assertEquals("authenticationParameters", cluster.getAuthenticationParameters());
+        } catch (RestException e) {
+            assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
+        }
     }
 
     Object asynRequests(Consumer<TestAsyncResponse> function) throws Exception {
@@ -473,7 +486,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         // clear caches to load data from metadata-store again
         MetadataCacheImpl<TenantInfo> cache = (MetadataCacheImpl<TenantInfo>) pulsar.getPulsarResources()
-                .getTenatResources().getCache();
+                .getTenantResources().getCache();
         AbstractMetadataStore store = (AbstractMetadataStore) cache.getStore();
         cache.invalidateAll();
         store.invalidateAll();

@@ -25,6 +25,7 @@ import io.netty.util.internal.PlatformDependent;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
@@ -33,6 +34,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
+import org.apache.pulsar.broker.validator.MultipleListenerValidator;
 import org.apache.pulsar.common.configuration.Category;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
@@ -43,6 +45,7 @@ import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.sasl.SaslConstants;
+import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 
 /**
  * Pulsar service configuration object.
@@ -218,13 +221,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int numCacheExecutorThreadPoolSize = 10;
 
-    @FieldContext(
-            category = CATEGORY_SERVER,
-            doc = "Number of threads to use for pulsar broker service."
-                    + " The executor in thread pool will do transaction recover"
-    )
-    private int numTransactionExecutorThreadPoolSize = Runtime.getRuntime().availableProcessors();
-
     @FieldContext(category = CATEGORY_SERVER, doc = "Max concurrent web requests")
     private int maxConcurrentHttpRequests = 1024;
 
@@ -310,18 +306,39 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Enable backlog quota check. Enforces actions on topic when the quota is reached"
     )
     private boolean backlogQuotaCheckEnabled = true;
+
+    @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "Whether to enable precise time based backlog quota check. "
+                  + "Enabling precise time based backlog quota check will cause broker to read first entry in backlog "
+                  + "of the slowest cursor on a ledger which will mostly result in reading entry from BookKeeper's " +
+                    "disk which can have negative impact on overall performance.  "
+                  + "Disabling precise time based backlog quota check will just use the timestamp indicating when a "
+                  + "ledger was closed, which is of coarser granularity."
+    )
+    private boolean preciseTimeBasedBacklogQuotaCheck = false;
+
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "How often to check for topics that have reached the quota."
             + " It only takes effects when `backlogQuotaCheckEnabled` is true"
     )
     private int backlogQuotaCheckIntervalInSeconds = 60;
+
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = "Default per-topic backlog quota limit, less than 0 means no limitation. default is -1."
+        doc = "Default per-topic backlog quota limit by size, less than 0 means no limitation. default is -1."
                 + " Increase it if you want to allow larger msg backlog"
     )
     private long backlogQuotaDefaultLimitGB = -1;
+
+    @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "Default per-topic backlog quota limit by time in second, less than 0 means no limitation. " +
+                    "default is -1. Increase it if you want to allow larger msg backlog"
+    )
+    private int backlogQuotaDefaultLimitSecond = -1;
+
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "Default backlog quota retention policy. Default is producer_request_hold\n\n"
@@ -331,6 +348,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "'consumer_backlog_eviction' Policy which evicts the oldest message from the slowest consumer's backlog"
     )
     private BacklogQuota.RetentionPolicy backlogQuotaDefaultRetentionPolicy = BacklogQuota.RetentionPolicy.producer_request_hold;
+
     @FieldContext(
             category = CATEGORY_POLICIES,
             doc = "Default ttl for namespaces if ttl is not already configured at namespace policies. "
@@ -392,6 +410,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                 + "requests in memory. Default: 1000"
     )
     private int maxPendingPublishRequestsPerConnection = 1000;
+
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "How frequently to proactively check and purge expired messages"
@@ -680,6 +699,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " non-backlog consumers as well.")
     private boolean dispatchThrottlingOnNonBacklogConsumerEnabled = false;
 
+    @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "Default policy for publishing usage reports to system topic is disabled."
+            + "This enables publishing of usage reports"
+    )
+    private String resourceUsageTransportClassName = "";
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Default interval to publish usage reports if resourceUsagePublishToTopic is enabled."
+    )
+    private int resourceUsageTransportPublishIntervalInSecs = 60;
+
     // <-- dispatcher read settings -->
     @FieldContext(
         dynamic = true,
@@ -780,6 +813,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_SERVER,
+        doc = "Max number of producers with the same IP address allowed to connect to topic."
+            + " \n\nOnce this limit reaches, Broker will reject new producers until the number of"
+            + " connected producers with the same IP address decrease."
+            + " Using a value of 0, is disabling maxSameAddressProducersPerTopic-limit check.")
+    private int maxSameAddressProducersPerTopic = 0;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
         doc = "Enforce producer to publish encrypted messages.(default disable).")
     private boolean encryptionRequireOnProducer = false;
 
@@ -789,6 +830,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " Broker will reject new consumers until the number of connected consumers decrease."
             + " Using a value of 0, is disabling maxConsumersPerTopic-limit check.")
     private int maxConsumersPerTopic = 0;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Max number of consumers with the same IP address allowed to connect to topic."
+            + " \n\nOnce this limit reaches, Broker will reject new consumers until the number of"
+            + " connected consumers with the same IP address decrease."
+            + " Using a value of 0, is disabling maxSameAddressConsumersPerTopic-limit check.")
+    private int maxSameAddressConsumersPerTopic = 0;
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -971,7 +1020,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_TLS,
         doc = "Specify the tls protocols the broker will use to negotiate during TLS Handshake.\n\n"
-            + "Example:- [TLSv1.2, TLSv1.1, TLSv1]"
+            + "Example:- [TLSv1.3, TLSv1.2]"
     )
     private Set<String> tlsProtocols = Sets.newTreeSet();
     @FieldContext(
@@ -1223,7 +1272,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "a single bookie.\n" +
             "If this flag is enabled, the client will use one single bookie (by " +
             "preference) to read all entries for a ledger.")
-    private boolean bookkeeperEnableStickyReads = false;
+    private boolean bookkeeperEnableStickyReads = true;
 
     @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Set the client security provider factory class name. "
             + "Default: org.apache.bookkeeper.tls.TLSContextFactory")
@@ -1272,6 +1321,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Throttle value for bookkeeper client"
     )
     private int bookkeeperClientThrottleValue = 0;
+
+    @FieldContext(
+            category = CATEGORY_STORAGE_BK,
+            doc = "Number of BookKeeper client worker threads. Default is Runtime.getRuntime().availableProcessors()"
+    )
+    private int bookkeeperClientNumWorkerThreads = Runtime.getRuntime().availableProcessors();
+
 
     /**** --- Managed Ledger --- ****/
     @FieldContext(
@@ -1804,6 +1860,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int brokerServiceCompactionMonitorIntervalInSeconds = 60;
 
     @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "The estimated backlog size is greater than this threshold, compression will be triggered.\n"
+            + "Using a value of 0, is disabling compression check."
+    )
+    private long brokerServiceCompactionThresholdInBytes = 0;
+
+    @FieldContext(
         category = CATEGORY_SCHEMA,
         doc = "Enforce schema validation on following cases:\n\n"
             + " - if a producer without a schema attempts to produce to a topic with schema, the producer will be\n"
@@ -1978,6 +2041,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_TRANSACTION,
+            doc = "Class name for transaction pending ack store provider"
+    )
+    private String transactionPendingAckStoreProviderClassName =
+            "org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStoreProvider";
+
+    @FieldContext(
+            category = CATEGORY_TRANSACTION,
+            doc = "Number of threads to use for pulsar transaction replay PendingAckStore or TransactionBuffer."
+                    + "Default is 5"
+    )
+    private int numTransactionReplayThreadPoolSize = Runtime.getRuntime().availableProcessors();
+
+    @FieldContext(
+            category = CATEGORY_TRANSACTION,
             doc = "Transaction buffer take snapshot transaction count"
     )
     private int transactionBufferSnapshotMaxTransactionCount = 1000;
@@ -2079,7 +2156,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_KEYSTORE_TLS,
             doc = "Specify the tls protocols the broker will use to negotiate during TLS handshake"
                   + " (a comma-separated list of protocol names).\n\n"
-                  + "Examples:- [TLSv1.2, TLSv1.1, TLSv1] \n"
+                  + "Examples:- [TLSv1.3, TLSv1.2] \n"
                   + " used by the internal client to authenticate with Pulsar brokers"
     )
     private Set<String> brokerClientTlsProtocols = Sets.newTreeSet();
@@ -2195,4 +2272,5 @@ public class ServiceConfiguration implements PulsarConfiguration {
             return brokerDeleteInactiveTopicsMaxInactiveDurationSeconds;
         }
     }
+
 }

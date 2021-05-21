@@ -46,23 +46,25 @@ mvn_run_integration_test() {
     shift
   fi
   set -x
+
   # run the integration tests
   $RETRY mvn -B -ntp -DredirectTestOutputToFile=false -f tests/pom.xml test "$@"
   )
 }
 
 test_group_shade() {
-  mvn_run_integration_test "$@" -DShadeTests
+  mvn_run_integration_test "$@" -DShadeTests -DtestForkCount=1 -DtestReuseFork=false
 }
 
 test_group_backwards_compat() {
   mvn_run_integration_test --retry "$@" -DintegrationTestSuiteFile=pulsar-backwards-compatibility.xml -DintegrationTests
-  mvn_run_integration_test "$@" -DBackwardsCompatTests
+  mvn_run_integration_test --retry "$@" -DBackwardsCompatTests -DtestForkCount=1 -DtestReuseFork=false
 }
 
 test_group_cli() {
   # run pulsar cli integration tests
   mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-cli.xml -DintegrationTests
+
   # run pulsar auth integration tests
   mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-auth.xml -DintegrationTests
 }
@@ -75,9 +77,9 @@ test_group_messaging() {
   # run integration messaging tests
   mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-messaging.xml -DintegrationTests
   # run integration proxy tests
-  mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-proxy.xml -DintegrationTests
+  mvn_run_integration_test --retry "$@" -DintegrationTestSuiteFile=pulsar-proxy.xml -DintegrationTests
   # run integration proxy with WebSocket tests
-  mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-proxy-websocket.xml -DintegrationTests
+  mvn_run_integration_test --retry "$@" -DintegrationTestSuiteFile=pulsar-proxy-websocket.xml -DintegrationTests
 }
 
 test_group_schema() {
@@ -103,8 +105,10 @@ test_group_tiered_jcloud() {
 test_group_pulsar_connectors_thread() {
   # run integration function
   mvn_run_integration_test --retry "$@" -DintegrationTestSuiteFile=pulsar-thread.xml -DintegrationTests -Dgroups=function
+
   # run integration source
   mvn_run_integration_test --retry "$@" -DintegrationTestSuiteFile=pulsar-thread.xml -DintegrationTests -Dgroups=source
+
   # run integration sink
   mvn_run_integration_test --retry "$@" -DintegrationTestSuiteFile=pulsar-thread.xml -DintegrationTests -Dgroups=sink
 }
@@ -112,14 +116,16 @@ test_group_pulsar_connectors_thread() {
 test_group_pulsar_connectors_process() {
   # run integration function
   mvn_run_integration_test --retry "$@" -DintegrationTestSuiteFile=pulsar-process.xml -DintegrationTests -Dgroups=function
+
   # run integration source
   mvn_run_integration_test --retry "$@" -DintegrationTestSuiteFile=pulsar-process.xml -DintegrationTests -Dgroups=source
+
   # run integraion sink
   mvn_run_integration_test --retry "$@" -DintegrationTestSuiteFile=pulsar-process.xml -DintegrationTests -Dgroups=sink
 }
 
 test_group_sql() {
-  mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-sql.xml -DintegrationTests -DtestForkCount=1
+  mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-sql.xml -DintegrationTests -DtestForkCount=1 -DtestReuseFork=false
 }
 
 echo "Test Group : $TEST_GROUP"

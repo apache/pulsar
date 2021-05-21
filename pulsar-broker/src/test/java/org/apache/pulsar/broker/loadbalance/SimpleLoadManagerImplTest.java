@@ -89,9 +89,8 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-/**
- */
 @Slf4j
+@Test(groups = "broker")
 public class SimpleLoadManagerImplTest {
     LocalBookkeeperEnsemble bkEnsemble;
 
@@ -109,7 +108,7 @@ public class SimpleLoadManagerImplTest {
     String primaryHost;
     String secondaryHost;
 
-    ExecutorService executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
+    ExecutorService executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
 
     @BeforeMethod
     void setup() throws Exception {
@@ -123,6 +122,7 @@ public class SimpleLoadManagerImplTest {
         config1.setClusterName("use");
         config1.setWebServicePort(Optional.of(0));
         config1.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config1.setBrokerShutdownTimeoutMs(0L);
         config1.setBrokerServicePort(Optional.of(0));
         config1.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
         config1.setBrokerServicePortTls(Optional.of(0));
@@ -141,6 +141,7 @@ public class SimpleLoadManagerImplTest {
         config2.setClusterName("use");
         config2.setWebServicePort(Optional.of(0));
         config2.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config2.setBrokerShutdownTimeoutMs(0L);
         config2.setBrokerServicePort(Optional.of(0));
         config2.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
         config2.setBrokerServicePortTls(Optional.of(0));
@@ -159,7 +160,7 @@ public class SimpleLoadManagerImplTest {
     @AfterMethod(alwaysRun = true)
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
-        executor.shutdown();
+        executor.shutdownNow();
 
         admin1.close();
         admin2.close();

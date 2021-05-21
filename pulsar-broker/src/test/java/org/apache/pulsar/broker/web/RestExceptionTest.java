@@ -27,6 +27,7 @@ import org.testng.annotations.Test;
 /**
  * Unit test for pulsar functions.
  */
+@Test(groups = "broker")
 public class RestExceptionTest {
 
     @Test

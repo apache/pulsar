@@ -38,6 +38,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
+@Test(groups = "broker")
 public class SubscriptionStatsTest extends ProducerConsumerBase {
 
     @BeforeClass
@@ -124,7 +125,7 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
             }
         }
 
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().untilAsserted(() -> {
             TopicStats stats = admin.topics().getStats(topicName);
             Assert.assertEquals(stats.nonContiguousDeletedMessagesRanges, 1);
             Assert.assertEquals(stats.subscriptions.size(), 1);

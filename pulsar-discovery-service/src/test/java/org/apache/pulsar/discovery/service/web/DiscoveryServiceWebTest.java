@@ -19,14 +19,13 @@
 package org.apache.pulsar.discovery.service.web;
 
 import static javax.ws.rs.core.Response.Status.BAD_GATEWAY;
-import static javax.ws.rs.core.Response.Status.INTERNAL_SERVER_ERROR;
-import static org.apache.pulsar.discovery.service.web.ZookeeperCacheLoader.LOADBALANCE_BROKERS_ROOT;
+import static org.apache.pulsar.broker.resources.MetadataStoreCacheLoader.LOADBALANCE_BROKERS_ROOT;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 
@@ -34,11 +33,13 @@ import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.net.URL;
 import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import javax.net.ssl.HttpsURLConnection;
@@ -53,19 +54,21 @@ import javax.ws.rs.client.Invocation;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 
-import org.apache.bookkeeper.util.ZkUtils;
+import org.apache.pulsar.broker.resources.MetadataStoreCacheLoader;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.discovery.service.server.ServerManager;
 import org.apache.pulsar.discovery.service.server.ServiceConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
-import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.ZooDefs;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.logging.LoggingFeature;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -78,10 +81,14 @@ import org.testng.annotations.Test;
  */
 public class DiscoveryServiceWebTest extends BaseZKStarterTest{
 
+    private static final Logger log = LoggerFactory.getLogger(DiscoveryServiceWebTest.class);
+
     private Client client = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
     private static final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/certificate/server.crt";
     private static final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/certificate/server.key";
-
+    // DiscoveryServiceServlet gets initialized by a server and this map will help to retrieve ZK while mocking
+    // DiscoveryServiceServlet
+    private static final Map<String, MetadataStoreExtended> metadataStoreInstanceCache = Maps.newConcurrentMap();
 
     @BeforeMethod
     private void init() throws Exception {
@@ -91,39 +98,41 @@ public class DiscoveryServiceWebTest extends BaseZKStarterTest{
     @AfterMethod(alwaysRun = true)
     private void cleanup() throws Exception {
         close();
+        metadataStoreInstanceCache.clear();
     }
 
     @Test
     public void testNextBroker() throws Exception {
 
+        PulsarResources resources = new PulsarResources(zkStore, null);
+
         // 1. create znode for each broker
         List<String> brokers = Lists.newArrayList("broker-1", "broker-2", "broker-3");
         brokers.stream().forEach(broker -> {
+            String path = LOADBALANCE_BROKERS_ROOT + "/" + broker;
             try {
                 LoadReport report = new LoadReport(broker, null, null, null);
                 String reportData = ObjectMapperFactory.getThreadLocal().writeValueAsString(report);
-                ZkUtils.createFullPathOptimistic(mockZooKeeper, LOADBALANCE_BROKERS_ROOT + "/" + broker,
-                        reportData.getBytes(ZookeeperClientFactoryImpl.ENCODING_SCHEME), ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                        CreateMode.PERSISTENT);
-            } catch (KeeperException.NodeExistsException ne) {
+                zkStore.put(path, reportData.getBytes(StandardCharsets.UTF_8), Optional.of(-1L))
+                        .get();
+            } catch (ExecutionException ne) {
                 // Ok
-            } catch (KeeperException | InterruptedException e) {
-                e.printStackTrace();
-                fail("failed while creating broker znodes");
-            } catch (JsonProcessingException e) {
-                e.printStackTrace();
-                fail("failed while creating broker znodes");
+            } catch (Exception e) {
+                if (e instanceof ExecutionException && (e.getCause()) instanceof AlreadyExistsException) {
+                    // Ok
+                } else {
+                    log.warn("Failed to write to metadata-store {}", path, e);
+                    fail("failed while creating broker znodes");
+                }
             }
         });
 
         // 2. Setup discovery-zkcache
         DiscoveryServiceServlet discovery = new DiscoveryServiceServlet();
-        DiscoveryZooKeeperClientFactoryImpl.zk = mockZooKeeper;
-        Field zkCacheField = DiscoveryServiceServlet.class.getDeclaredField("zkCache");
+        Field zkCacheField = DiscoveryServiceServlet.class.getDeclaredField("metadataStoreCacheLoader");
         zkCacheField.setAccessible(true);
-        ZookeeperCacheLoader zkCache = new ZookeeperCacheLoader(new DiscoveryZooKeeperClientFactoryImpl(),
-                "zk-test-servers", 30_000);
-        zkCacheField.set(discovery, zkCache);
+        MetadataStoreCacheLoader metadataCacheLoader = new MetadataStoreCacheLoader(resources, 30_000);
+        zkCacheField.set(discovery, metadataCacheLoader);
 
         // 3. verify nextBroker functionality : round-robin in broker list
         for (String broker : brokers) {
@@ -138,11 +147,11 @@ public class DiscoveryServiceWebTest extends BaseZKStarterTest{
         ServiceConfig config = new ServiceConfig();
         config.setWebServicePort(Optional.of(0));
         ServerManager server = new ServerManager(config);
-        DiscoveryZooKeeperClientFactoryImpl.zk = mockZooKeeper;
         Map<String, String> params = new TreeMap<>();
-        params.put("zookeeperServers", "dummy-value");
-        params.put("zookeeperClientFactoryClass", DiscoveryZooKeeperClientFactoryImpl.class.getName());
-        server.addServlet("/", DiscoveryServiceServlet.class, params);
+        String zkServerUrl = "mockZkServer";
+        metadataStoreInstanceCache.put(zkServerUrl, zkStore);
+        params.put("zookeeperServers", zkServerUrl);
+        server.addServlet("/", DiscoveryServiceServletTest.class, params);
         server.start();
 
         // 2. create znode for each broker
@@ -152,17 +161,15 @@ public class DiscoveryServiceWebTest extends BaseZKStarterTest{
                 final String broker = b + ":15000";
                 LoadReport report = new LoadReport("http://" + broker, null, null, null);
                 String reportData = ObjectMapperFactory.getThreadLocal().writeValueAsString(report);
-                ZkUtils.createFullPathOptimistic(mockZooKeeper, LOADBALANCE_BROKERS_ROOT + "/" + broker,
-                        reportData.getBytes(ZookeeperClientFactoryImpl.ENCODING_SCHEME), ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                        CreateMode.PERSISTENT);
-            } catch (KeeperException.NodeExistsException ne) {
-                // Ok
-            } catch (KeeperException | InterruptedException e) {
-                e.printStackTrace();
-                fail("failed while creating broker znodes");
-            } catch (JsonProcessingException e) {
-                e.printStackTrace();
-                fail("failed while creating broker znodes");
+                zkStore.put(LOADBALANCE_BROKERS_ROOT + "/" + broker,
+                        reportData.getBytes(StandardCharsets.UTF_8), Optional.of(-1L)).get();
+            }  catch (Exception e) {
+                if (e instanceof ExecutionException && (e.getCause()) instanceof AlreadyExistsException) {
+                    // Ok
+                } else {
+                    log.warn("Failed to write to metadata-store", e);
+                    fail("failed while creating broker znodes");
+                }
             }
         });
 
@@ -195,12 +202,11 @@ public class DiscoveryServiceWebTest extends BaseZKStarterTest{
         config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         ServerManager server = new ServerManager(config);
-        DiscoveryZooKeeperClientFactoryImpl.zk = mockZooKeeper;
         Map<String, String> params = new TreeMap<>();
-        params.put("zookeeperServers", "dummy-value");
-        params.put("zookeeperClientFactoryClass", DiscoveryZooKeeperClientFactoryImpl.class.getName());
-        server.addServlet("/", DiscoveryServiceServlet.class, params);
-        server.start();
+        String zkServerUrl = "mockZkServer";
+        metadataStoreInstanceCache.put(zkServerUrl, zkStore);
+        params.put("zookeeperServers", zkServerUrl);
+        server.addServlet("/", DiscoveryServiceServletTest.class, params);
 
         // 2. get ZookeeperCacheLoader to add more brokers
         final String redirect_broker_host = "broker-1";
@@ -212,17 +218,15 @@ public class DiscoveryServiceWebTest extends BaseZKStarterTest{
 
                 LoadReport report = new LoadReport("http://" + brokerUrl, "https://" + brokerUrlTls, null, null);
                 String reportData = ObjectMapperFactory.getThreadLocal().writeValueAsString(report);
-                ZkUtils.createFullPathOptimistic(mockZooKeeper, LOADBALANCE_BROKERS_ROOT + "/" + brokerUrl,
-                        reportData.getBytes(ZookeeperClientFactoryImpl.ENCODING_SCHEME), ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                        CreateMode.PERSISTENT);
-            } catch (KeeperException.NodeExistsException ne) {
-                // Ok
-            } catch (KeeperException | InterruptedException e) {
-                e.printStackTrace();
-                fail("failed while creating broker znodes");
-            } catch (JsonProcessingException e) {
-                e.printStackTrace();
-                fail("failed while creating broker znodes");
+                zkStore.put(LOADBALANCE_BROKERS_ROOT + "/" + brokerUrl,
+                        reportData.getBytes(StandardCharsets.UTF_8), Optional.of(-1L)).get();
+            }  catch (Exception e) {
+                if (e instanceof ExecutionException && (e.getCause()) instanceof AlreadyExistsException) {
+                    // Ok
+                } else {
+                    log.warn("Failed to write to metadata-store", e);
+                    fail("failed while creating broker znodes");
+                }
             }
         });
 
@@ -290,4 +294,11 @@ public class DiscoveryServiceWebTest extends BaseZKStarterTest{
         return redirectBrokers;
     }
 
+    
+    public static class DiscoveryServiceServletTest extends DiscoveryServiceServlet {
+        @Override
+        public MetadataStoreExtended createLocalMetadataStore(String zookeeperServers, int operationimeoutMs) throws MetadataStoreException {
+            return metadataStoreInstanceCache.get(zookeeperServers);
+        }
+    }
 }

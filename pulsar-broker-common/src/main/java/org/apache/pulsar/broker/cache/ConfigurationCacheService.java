@@ -28,6 +28,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.ResourceGroup;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -65,6 +66,7 @@ public class ConfigurationCacheService {
     private PulsarResources pulsarResources;
 
     public static final String POLICIES = "policies";
+    public static final String RESOURCEGROUPS = "resourcegroups";
     public static final String FAILURE_DOMAIN = "failureDomain";
     public final String CLUSTER_FAILURE_DOMAIN_ROOT;
     public static final String POLICIES_ROOT = "/admin/policies";

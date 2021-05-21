@@ -21,10 +21,12 @@ package org.apache.pulsar.broker.service.persistent;
 import org.apache.pulsar.broker.service.PersistentFailoverE2ETest;
 import org.apache.pulsar.broker.service.streamingdispatch.StreamingDispatcher;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
 /**
  * PersistentFailoverE2ETest with {@link StreamingDispatcher}
  */
+@Test(groups = "broker")
 public class PersistentFailoverStreamingDispatcherE2ETest extends PersistentFailoverE2ETest {
 
     @BeforeClass

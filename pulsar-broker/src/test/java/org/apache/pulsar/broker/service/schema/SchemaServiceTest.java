@@ -49,6 +49,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
 
     private static final Clock MockClock = Clock.fixed(Instant.EPOCH, ZoneId.systemDefault());
@@ -81,7 +82,6 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         conf.setSchemaRegistryStorageClassName("org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory");
         super.internalSetup();
         BookkeeperSchemaStorage storage = new BookkeeperSchemaStorage(pulsar);
-        storage.init();
         storage.start();
         Map<SchemaType, SchemaCompatibilityCheck> checkMap = new HashMap<>();
         checkMap.put(SchemaType.AVRO, new AvroSchemaCompatibilityCheck());

@@ -393,6 +393,13 @@ public interface ManagedCursor {
     Position getMarkDeletedPosition();
 
     /**
+     * Get the persistent newest mark deleted position on this cursor.
+     *
+     * @return the persistent mark deleted position
+     */
+    Position getPersistentMarkDeletedPosition();
+
+    /**
      * Rewind the cursor to the mark deleted position to replay all the already read but not yet mark deleted messages.
      *
      * <p/>The next message to be read is the one after the current mark deleted message.

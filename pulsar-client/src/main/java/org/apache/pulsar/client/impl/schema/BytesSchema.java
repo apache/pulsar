@@ -60,7 +60,7 @@ public class BytesSchema extends AbstractSchema<byte[]> {
         int size = byteBuf.readableBytes();
         byte[] bytes = new byte[size];
 
-        byteBuf.readBytes(bytes, 0, size);
+        byteBuf.getBytes(byteBuf.readerIndex(), bytes);
         return bytes;
     }
 

@@ -43,12 +43,12 @@ public class MockManagedLedger implements ManagedLedger {
     }
 
     @Override
-    public Position addEntry(byte[] data) throws InterruptedException, ManagedLedgerException {
+    public Position addEntry(byte[] data) {
         return null;
     }
 
     @Override
-    public Position addEntry(byte[] data, int numberOfMessages) throws InterruptedException, ManagedLedgerException {
+    public Position addEntry(byte[] data, int numberOfMessages) {
         return null;
     }
 
@@ -58,7 +58,7 @@ public class MockManagedLedger implements ManagedLedger {
     }
 
     @Override
-    public Position addEntry(byte[] data, int offset, int length) throws InterruptedException, ManagedLedgerException {
+    public Position addEntry(byte[] data, int offset, int length) {
         return null;
     }
 
@@ -324,5 +324,10 @@ public class MockManagedLedger implements ManagedLedger {
     public CompletableFuture<LedgerInfo> getLedgerInfo(long ledgerId) {
         final LedgerInfo build = LedgerInfo.newBuilder().setLedgerId(ledgerId).setSize(100).setEntries(20).build();
         return CompletableFuture.completedFuture(build);
+    }
+
+    @Override
+    public CompletableFuture<Void> asyncTruncate() {
+        return CompletableFuture.completedFuture(null);
     }
 }

@@ -55,7 +55,8 @@
      "tiered-storage-aws",
      "tiered-storage-gcs",
      "tiered-storage-filesystem",
-     "tiered-storage-azure"
+     "tiered-storage-azure",
+     "tiered-storage-aliyun"
   ],
   "Transactions": [
     "transactions",

@@ -206,7 +206,7 @@ Backlog quota helps the broker to restrict bandwidth/storage of a namespace once
 <!--pulsar-admin-->
 
 ```
-$ pulsar-admin namespaces set-backlog-quota --limit 10 --policy producer_request_hold test-tenant/ns1
+$ pulsar-admin namespaces set-backlog-quota --limit 10G --limitTime 36000 --policy producer_request_hold test-tenant/ns1
 ```
 
 ```
@@ -222,7 +222,7 @@ N/A
 <!--Java-->
 
 ```java
-admin.namespaces().setBacklogQuota(namespace, new BacklogQuota(limit, policy))
+admin.namespaces().setBacklogQuota(namespace, new BacklogQuota(limit, limitTime, policy))
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
 
@@ -572,7 +572,7 @@ Each namespace contains multiple topics and the retention size (storage size) of
 <!--pulsar-admin-->
 
 ```
-$ pulsar-admin set-retention --size 10 --time 100 test-tenant/ns1
+$ pulsar-admin set-retention --size 100 --time 10 test-tenant/ns1
 ```
 
 ```

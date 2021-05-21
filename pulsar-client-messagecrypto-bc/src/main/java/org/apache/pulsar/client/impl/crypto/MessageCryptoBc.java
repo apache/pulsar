@@ -22,8 +22,6 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 
-import io.netty.buffer.ByteBuf;
-
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
@@ -64,7 +62,6 @@ import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.CryptoException;
-import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.EncryptionKeys;
 import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -380,13 +377,16 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
      * @return encryptedData if success
      */
     @Override
-    public synchronized ByteBuf encrypt(Set<String> encKeys, CryptoKeyReader keyReader,
-                                        Supplier<MessageMetadata> messageMetadataBuilderSupplier, ByteBuf payload) throws PulsarClientException {
+    public synchronized void encrypt(Set<String> encKeys, CryptoKeyReader keyReader,
+                                        Supplier<MessageMetadata> messageMetadataBuilderSupplier,
+                                     ByteBuffer payload, ByteBuffer outBuffer) throws PulsarClientException {
 
         MessageMetadata msgMetadata = messageMetadataBuilderSupplier.get();
 
         if (encKeys.isEmpty()) {
-            return payload;
+            outBuffer.put(payload);
+            outBuffer.flip();
+            return;
         }
 
         // Update message metadata with encrypted data key
@@ -427,31 +427,23 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
         // Update message metadata with encryption param
         msgMetadata.setEncryptionParam(iv);
 
-        ByteBuf targetBuf = null;
         try {
             // Encrypt the data
             cipher.init(Cipher.ENCRYPT_MODE, dataKey, gcmParam);
 
-            ByteBuffer sourceNioBuf = payload.nioBuffer(payload.readerIndex(), payload.readableBytes());
+            int maxLength = cipher.getOutputSize(payload.remaining());
+            if (outBuffer.remaining() < maxLength) {
+                throw new IllegalArgumentException("Outbuffer has not enough space available");
+            }
 
-            int maxLength = cipher.getOutputSize(payload.readableBytes());
-            targetBuf = PulsarByteBufAllocator.DEFAULT.buffer(maxLength, maxLength);
-            ByteBuffer targetNioBuf = targetBuf.nioBuffer(0, maxLength);
-
-            int bytesStored = cipher.doFinal(sourceNioBuf, targetNioBuf);
-            targetBuf.writerIndex(bytesStored);
-
+            int bytesStored = cipher.doFinal(payload, outBuffer);
+            outBuffer.flip();
+            outBuffer.limit(bytesStored);
         } catch (IllegalBlockSizeException | BadPaddingException | InvalidKeyException
                 | InvalidAlgorithmParameterException | ShortBufferException e) {
-
-            targetBuf.release();
             log.error("{} Failed to encrypt message. {}", logCtx, e);
             throw new PulsarClientException.CryptoException(e.getMessage());
-
         }
-
-        payload.release();
-        return targetBuf;
     }
 
     private boolean decryptDataKey(String keyName, byte[] encryptedDataKey, List<KeyValue> encKeyMeta,
@@ -465,7 +457,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
         // Read the private key info using callback
         EncryptionKeyInfo keyInfo = keyReader.getPrivateKey(keyName, keyMeta);
 
-        // Convert key from byte to PivateKey
+        // Convert key from byte to PrivateKey
         PrivateKey privateKey;
         try {
             privateKey = loadPrivateKey(keyInfo.getKey());
@@ -509,41 +501,38 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
         return true;
     }
 
-    private ByteBuf decryptData(SecretKey dataKeySecret, MessageMetadata msgMetadata, ByteBuf payload) {
+    private boolean decryptData(SecretKey dataKeySecret, MessageMetadata msgMetadata,
+                                ByteBuffer payload, ByteBuffer targetBuffer) {
 
         // unpack iv and encrypted data
         iv =  msgMetadata.getEncryptionParam();
 
         GCMParameterSpec gcmParams = new GCMParameterSpec(tagLen, iv);
-        ByteBuf targetBuf = null;
         try {
             cipher.init(Cipher.DECRYPT_MODE, dataKeySecret, gcmParams);
 
-            ByteBuffer sourceNioBuf = payload.nioBuffer(payload.readerIndex(), payload.readableBytes());
-
-            int maxLength = cipher.getOutputSize(payload.readableBytes());
-            targetBuf = PulsarByteBufAllocator.DEFAULT.buffer(maxLength, maxLength);
-            ByteBuffer targetNioBuf = targetBuf.nioBuffer(0, maxLength);
-
-            int decryptedSize = cipher.doFinal(sourceNioBuf, targetNioBuf);
-            targetBuf.writerIndex(decryptedSize);
+            int maxLength = cipher.getOutputSize(payload.remaining());
+            if (targetBuffer.remaining() < maxLength) {
+                throw new IllegalArgumentException("Target buffer size is too small");
+            }
+            int decryptedSize = cipher.doFinal(payload, targetBuffer);
+            targetBuffer.flip();
+            targetBuffer.limit(decryptedSize);
+            return true;
 
         } catch (InvalidKeyException | InvalidAlgorithmParameterException | IllegalBlockSizeException
                 | BadPaddingException | ShortBufferException e) {
             log.error("{} Failed to decrypt message {}", logCtx, e.getMessage());
-            if (targetBuf != null) {
-                targetBuf.release();
-                targetBuf = null;
-            }
+            return false;
         }
-
-        return targetBuf;
     }
 
-    private ByteBuf getKeyAndDecryptData(MessageMetadata msgMetadata, ByteBuf payload) {
+    @Override
+    public int getMaxOutputSize(int inputLen) {
+        return inputLen + Math.max(inputLen, 512);
+    }
 
-        ByteBuf decryptedData = null;
-
+    private boolean getKeyAndDecryptData(MessageMetadata msgMetadata, ByteBuffer payload, ByteBuffer targetBuffer) {
         List<EncryptionKeys> encKeys = msgMetadata.getEncryptionKeysList();
 
         // Go through all keys to retrieve data key from cache
@@ -557,10 +546,9 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
                 // Taking a small performance hit here if the hash collides. When it
                 // retruns a different key, decryption fails. At this point, we would
                 // call decryptDataKey to refresh the cache and come here again to decrypt.
-                decryptedData = decryptData(storedSecretKey, msgMetadata, payload);
-                // If decryption succeeded, data is non null
-                if (decryptedData != null) {
-                    break;
+                if (decryptData(storedSecretKey, msgMetadata, payload, targetBuffer)) {
+                    // If decryption succeeded, we can already return
+                    return true;
                 }
             } else {
                 // First time, entry won't be present in cache
@@ -568,8 +556,8 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
             }
 
         }
-        return decryptedData;
 
+        return false;
     }
 
     /*
@@ -581,18 +569,17 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
      *
      * @param keyReader KeyReader implementation to retrieve key value
      *
-     * @return decryptedData if success, null otherwise
+     * @return true if success, false otherwise
      */
     @Override
-    public ByteBuf decrypt(Supplier<MessageMetadata> messageMetadataSupplier, ByteBuf payload, CryptoKeyReader keyReader) {
+    public boolean decrypt(Supplier<MessageMetadata> messageMetadataSupplier,
+                        ByteBuffer payload, ByteBuffer outBuffer, CryptoKeyReader keyReader) {
 
         MessageMetadata msgMetadata = messageMetadataSupplier.get();
         // If dataKey is present, attempt to decrypt using the existing key
         if (dataKey != null) {
-            ByteBuf decryptedData = getKeyAndDecryptData(msgMetadata, payload);
-            // If decryption succeeded, data is non null
-            if (decryptedData != null) {
-                return decryptedData;
+            if (getKeyAndDecryptData(msgMetadata, payload, outBuffer)) {
+                return true;
             }
         }
 
@@ -608,10 +595,10 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
 
         if (encKeyInfo == null || dataKey == null) {
             // Unable to decrypt data key
-            return null;
+            return false;
         }
 
-        return getKeyAndDecryptData(msgMetadata, payload);
+        return getKeyAndDecryptData(msgMetadata, payload, outBuffer);
 
     }
 }

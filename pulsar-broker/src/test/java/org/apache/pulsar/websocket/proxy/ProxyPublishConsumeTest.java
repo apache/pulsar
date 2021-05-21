@@ -50,6 +50,7 @@ import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import lombok.Cleanup;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerAccessMode;
@@ -233,11 +234,11 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             produceSocket.sendMessage(20);
             // Send 10 permits, should receive 10 message
             consumeSocket.sendPermits(10);
-            Awaitility.await().atMost(500, TimeUnit.MILLISECONDS).untilAsserted(() ->
+            Awaitility.await().untilAsserted(() ->
                     assertEquals(consumeSocket.getReceivedMessagesCount(), 10));
             consumeSocket.isEndOfTopic();
             // Wait till get response
-            Awaitility.await().atMost(500, TimeUnit.MILLISECONDS).untilAsserted(() ->
+            Awaitility.await().untilAsserted(() ->
                     assertEquals(consumeSocket.getBuffer().size(), 11));
             // Assert not reach end of topic yet
             assertEquals(consumeSocket.getBuffer().get(consumeSocket.getBuffer().size() - 1), "{\"endOfTopic\":false}");
@@ -245,11 +246,11 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             // Send 20 more permits, should receive all message
             consumeSocket.sendPermits(20);
             // 31 includes previous of end of topic request.
-            Awaitility.await().atMost(500, TimeUnit.MILLISECONDS).untilAsserted(() ->
+            Awaitility.await().untilAsserted(() ->
                     assertEquals(consumeSocket.getReceivedMessagesCount(), 31));
             consumeSocket.isEndOfTopic();
             // Wait till get response
-            Awaitility.await().atMost(500, TimeUnit.MILLISECONDS).untilAsserted(() ->
+            Awaitility.await().untilAsserted(() ->
                     assertEquals(consumeSocket.getReceivedMessagesCount(), 32));
             // Assert not reached end of topic.
             assertEquals(consumeSocket.getBuffer().get(consumeSocket.getBuffer().size() - 1), "{\"endOfTopic\":false}");
@@ -257,7 +258,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             admin.topics().terminateTopicAsync(topic).get();
             consumeSocket.isEndOfTopic();
             // Wait till get response
-            Awaitility.await().atMost(500, TimeUnit.MILLISECONDS).untilAsserted(() ->
+            Awaitility.await().untilAsserted(() ->
                     assertEquals(consumeSocket.getReceivedMessagesCount(), 33));
             // Assert reached end of topic.
             assertEquals(consumeSocket.getBuffer().get(consumeSocket.getBuffer().size() - 1), "{\"endOfTopic\":true}");
@@ -897,6 +898,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
     }
 
     private void stopWebSocketClient(WebSocketClient... clients) {
+        @Cleanup("shutdownNow")
         ExecutorService executor = newFixedThreadPool(1);
         try {
             executor.submit(() -> {
@@ -912,7 +914,6 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         } catch (Exception e) {
             log.error("failed to close proxy clients", e);
         }
-        executor.shutdownNow();
     }
 
     private static final Logger log = LoggerFactory.getLogger(ProxyPublishConsumeTest.class);

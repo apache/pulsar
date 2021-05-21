@@ -26,7 +26,10 @@ import static org.testng.Assert.assertTrue;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -48,12 +51,27 @@ import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.naming.TopicName;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
 import org.mockito.Mock;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
-
 public class AbstractWebSocketHandlerTest {
+    List<PulsarClient> createdClients = Collections.synchronizedList(new ArrayList<>());
+
     @Mock
     private HttpServletRequest httpServletRequest;
+
+    @AfterClass(alwaysRun = true)
+    final void cleanupCreatedClients() {
+        for (PulsarClient createdClient : createdClients) {
+            try {
+                createdClient.shutdown();
+            } catch (PulsarClientException e) {
+                // ignore
+            }
+        }
+        createdClients.clear();
+    }
 
     @Test
     public void topicNameUrlEncodingTest() throws Exception {
@@ -166,14 +184,14 @@ public class AbstractWebSocketHandlerTest {
 
     }
 
-    class WebSocketHandlerImpl extends AbstractWebSocketHandler {
+    static class WebSocketHandlerImpl extends AbstractWebSocketHandler {
 
         public WebSocketHandlerImpl(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
             super(service, request, response);
         }
 
         @Override
-        protected Boolean isAuthorized(String authRole, AuthenticationDataSource authenticationData) throws Exception {
+        protected Boolean isAuthorized(String authRole, AuthenticationDataSource authenticationData) {
             return null;
         }
 
@@ -188,7 +206,7 @@ public class AbstractWebSocketHandlerTest {
 
     }
 
-    class MockedServletUpgradeResponse extends ServletUpgradeResponse {
+    static class MockedServletUpgradeResponse extends ServletUpgradeResponse {
 
         @Getter
         private int statusCode;
@@ -206,10 +224,12 @@ public class AbstractWebSocketHandlerTest {
     }
 
     PulsarClient newPulsarClient() throws PulsarClientException {
-        return PulsarClient.builder()
+        PulsarClient client = PulsarClient.builder()
                 .serviceUrl("pulsar://localhost:6650")
                 .operationTimeout(1, TimeUnit.SECONDS)
                 .build();
+        createdClients.add(client);
+        return client;
     }
 
     class MockedProducerHandler extends ProducerHandler {

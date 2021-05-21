@@ -19,16 +19,9 @@
 package org.apache.pulsar.broker.stats;
 
 import org.apache.bookkeeper.client.PulsarMockLedgerHandle;
-import org.apache.bookkeeper.mledger.ManagedCursor;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.stats.metrics.ManagedCursorMetrics;
-import org.apache.pulsar.broker.stats.metrics.ManagedLedgerMetrics;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.stats.Metrics;
@@ -38,15 +31,12 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
 
-/**
- */
+@Test(groups = "quarantine")
 public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
 
-    @BeforeClass
+    @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
@@ -58,7 +48,6 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
-    @Test
     public void testManagedCursorMetrics() throws Exception {
         final String subName = "my-sub";
         final String topicName = "persistent://my-namespace/use/my-ns/my-topic1";
@@ -93,11 +82,12 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
             consumer.acknowledge(consumer.receive().getMessageId());
         }
         metricsList = metrics.generate();
-        Assert.assertTrue(!metricsList.isEmpty());
+        Assert.assertFalse(metricsList.isEmpty());
         Assert.assertNotEquals(metricsList.get(0).getMetrics().get("brk_ml_cursor_persistLedgerSucceed"), 0L);
         Assert.assertNotEquals(metricsList.get(0).getMetrics().get("brk_ml_cursor_persistLedgerErrors"), 0L);
         Assert.assertNotEquals(metricsList.get(0).getMetrics().get("brk_ml_cursor_persistZookeeperSucceed"), 0L);
         Assert.assertEquals(metricsList.get(0).getMetrics().get("brk_ml_cursor_persistZookeeperErrors"), 0L);
+        Assert.assertEquals(metricsList.get(0).getMetrics().get("brk_ml_cursor_nonContiguousDeletedMessagesRange"), 0L);
     }
 
 }

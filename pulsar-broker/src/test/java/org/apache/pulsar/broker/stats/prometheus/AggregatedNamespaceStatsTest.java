@@ -23,10 +23,11 @@ import static org.testng.Assert.assertNotNull;
 
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class AggregatedNamespaceStatsTest {
 
     @Test
-    public void testSimpleAggregation() throws Exception {
+    public void testSimpleAggregation() {
         final String namespace = "tenant/cluster/ns";
 
         TopicStats topicStats1 = new TopicStats();

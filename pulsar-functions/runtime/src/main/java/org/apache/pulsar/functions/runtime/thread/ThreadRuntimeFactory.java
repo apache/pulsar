@@ -33,6 +33,7 @@ import org.apache.pulsar.common.functions.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceCache;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.InstanceUtils;
+import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
 import org.apache.pulsar.functions.runtime.RuntimeCustomizer;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeUtils;
@@ -60,7 +61,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
     private PulsarAdmin pulsarAdmin;
     private String storageServiceUrl;
     private SecretsProvider defaultSecretsProvider;
-    private CollectorRegistry collectorRegistry;
+    private FunctionCollectorRegistry collectorRegistry;
     private String narExtractionDirectory;
     private volatile boolean closed;
     private SecretsProviderConfigurator secretsProviderConfigurator;
@@ -73,7 +74,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
      */
     public ThreadRuntimeFactory(String threadGroupName, String pulsarServiceUrl, String storageServiceUrl,
                                 AuthenticationConfig authConfig, SecretsProvider secretsProvider,
-                                CollectorRegistry collectorRegistry, String narExtractionDirectory,
+                                FunctionCollectorRegistry collectorRegistry, String narExtractionDirectory,
                                 ClassLoader rootClassLoader, boolean exposePulsarAdminClientEnabled,
                                 String pulsarWebServiceUrl) throws Exception {
         initialize(threadGroupName, Optional.empty(), pulsarServiceUrl, authConfig,
@@ -83,7 +84,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
 
     private void initialize(String threadGroupName, Optional<ThreadRuntimeFactoryConfig.MemoryLimit> memoryLimit, String pulsarServiceUrl, AuthenticationConfig authConfig, String storageServiceUrl,
                             SecretsProviderConfigurator secretsProviderConfigurator, SecretsProvider secretsProvider,
-                            CollectorRegistry collectorRegistry, String narExtractionDirectory,
+                            FunctionCollectorRegistry collectorRegistry, String narExtractionDirectory,
                             ClassLoader rootClassLoader, boolean exposePulsarAdminClientEnabled,
                             String pulsarWebServiceUrl, Optional<ConnectorsManager> connectorsManager) throws PulsarClientException {
 

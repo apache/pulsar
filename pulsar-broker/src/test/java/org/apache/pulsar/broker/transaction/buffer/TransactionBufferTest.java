@@ -48,6 +48,7 @@ import org.testng.annotations.Test;
 /**
  * Unit test different {@link TransactionBufferProvider}.
  */
+@Test(groups = "broker")
 public class TransactionBufferTest {
 
     @DataProvider(name = "providers")
@@ -59,7 +60,7 @@ public class TransactionBufferTest {
 
     private final TxnID txnId = new TxnID(1234L, 2345L);
     private final String providerClassName;
-    private TransactionBufferProvider provider;
+    private final TransactionBufferProvider provider;
     private TransactionBuffer buffer;
 
     @Factory(dataProvider = "providers")
@@ -105,7 +106,7 @@ public class TransactionBufferTest {
         }
     }
 
-//    @Test
+    @Test(enabled = false)
     public void testOpenReaderOnCommittedTxn() throws Exception {
         final int numEntries = 10;
         appendEntries(txnId, numEntries, 0L);
@@ -199,7 +200,7 @@ public class TransactionBufferTest {
         verifyTxnNotExist(txnId);
     }
 
-//    @Test
+    @Test(enabled = false)
     public void testPurgeTxns() throws Exception {
         final int numEntries = 10;
         // create an OPEN txn
@@ -225,7 +226,7 @@ public class TransactionBufferTest {
         assertEquals(TxnStatus.COMMITTED, txnMeta3.status());
 
         // purge the transaction committed on ledger `22L`
-        buffer.purgeTxns(Lists.newArrayList(Long.valueOf(0L))).get();
+        buffer.purgeTxns(Lists.newArrayList(0L)).get();
 
         // txnId2 should be purged
         verifyTxnNotExist(txnId2);

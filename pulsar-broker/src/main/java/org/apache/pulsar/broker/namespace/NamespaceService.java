@@ -71,6 +71,7 @@ import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -95,6 +96,7 @@ import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.zookeeper.AsyncCallback.StatCallback;
@@ -114,7 +116,7 @@ import org.slf4j.LoggerFactory;
  *
  * @see org.apache.pulsar.broker.PulsarService
  */
-public class NamespaceService {
+public class NamespaceService implements AutoCloseable {
 
     public enum AddressType {
         BROKER_URL, LOOKUP_URL
@@ -129,6 +131,7 @@ public class NamespaceService {
     private final PulsarService pulsar;
 
     private final OwnershipCache ownershipCache;
+    private final MetadataCache<LocalBrokerData> localBrokerDataCache;
 
     private final NamespaceBundleFactory bundleFactory;
 
@@ -177,6 +180,7 @@ public class NamespaceService {
         this.ownershipCache = new OwnershipCache(pulsar, bundleFactory, this);
         this.namespaceClients = new ConcurrentOpenHashMap<>();
         this.bundleOwnershipListeners = new CopyOnWriteArrayList<>();
+        this.localBrokerDataCache = pulsar.getLocalMetadataStore().getMetadataCache(LocalBrokerData.class);
     }
 
     public void initialize() {
@@ -592,8 +596,8 @@ public class NamespaceService {
             URI uri = new URI(candidateBroker);
             String path = String.format("%s/%s:%s", LoadManager.LOADBALANCE_BROKERS_ROOT, uri.getHost(),
                     uri.getPort());
-            pulsar.getLocalZkCache().getDataAsync(path,
-                    pulsar.getLoadManager().get().getLoadReportDeserializer()).thenAccept(reportData -> {
+
+            localBrokerDataCache.get(path).thenAccept(reportData -> {
                 if (reportData.isPresent()) {
                     LocalBrokerData lookupData = (LocalBrokerData) reportData.get();
                     if (StringUtils.isNotBlank(advertisedListenerName)) {
@@ -640,7 +644,7 @@ public class NamespaceService {
 
         if (LOG.isDebugEnabled()) {
             LOG.debug("Broker not found for SLA Monitoring Namespace {}",
-                    candidateBroker + ":" + config.getWebServicePort().get());
+                    candidateBroker + ":" + config.getWebServicePort());
         }
         return false;
     }
@@ -770,8 +774,7 @@ public class NamespaceService {
      * @throws Exception
      */
     public CompletableFuture<Void> splitAndOwnBundle(NamespaceBundle bundle, boolean unload,
-                                                     NamespaceBundleSplitAlgorithm splitAlgorithm)
-            throws Exception {
+                                                     NamespaceBundleSplitAlgorithm splitAlgorithm) {
 
         final CompletableFuture<Void> unloadFuture = new CompletableFuture<>();
         final AtomicInteger counter = new AtomicInteger(BUNDLE_SPLIT_RETRY_LIMIT);
@@ -929,8 +932,20 @@ public class NamespaceService {
         }
 
         long version = nsBundles.getVersion();
-        LocalPolicies local = policies.orElse(new LocalPolicies());
-        local.bundles = getBundlesData(nsBundles);
+
+        LocalPolicies local;
+        BundlesData bundlesData = getBundlesData(nsBundles);
+
+        // object copy to avoid concurrent modify LocalPolicy
+        // cause data not equals nsBundles after serialization.
+        local = policies.map(
+                localPolicies -> new LocalPolicies(bundlesData,
+                        localPolicies.bookieAffinityGroup,
+                        localPolicies.namespaceAntiAffinityGroup))
+                .orElseGet(() -> new LocalPolicies(bundlesData,
+                        null,
+                        null));
+
         byte[] data = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(local);
 
         this.pulsar.getLocalZkCache().getZooKeeper()
@@ -1385,6 +1400,17 @@ public class NamespaceService {
                         ownedBundle.getNamespaceBundle(), ex);
                     pulsar.getShutdownService().shutdown(-1);
                 }
+            }
+        });
+    }
+
+    @Override
+    public void close() {
+        namespaceClients.forEach((cluster, client) -> {
+            try {
+                client.shutdown();
+            } catch (PulsarClientException e) {
+                LOG.warn("Error shutting down namespace client for cluster {}", cluster, e);
             }
         });
     }

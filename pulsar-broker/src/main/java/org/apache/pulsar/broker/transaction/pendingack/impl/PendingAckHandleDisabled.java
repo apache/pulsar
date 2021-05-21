@@ -35,6 +35,9 @@ import org.apache.pulsar.common.util.FutureUtil;
  */
 public class PendingAckHandleDisabled implements PendingAckHandle {
 
+    private final CompletableFuture<PendingAckHandle> pendingAckHandleCompletableFuture =
+            CompletableFuture.completedFuture(PendingAckHandleDisabled.this);
+
     @Override
     public CompletableFuture<Void> individualAcknowledgeMessage(TxnID txnID,
                                                                 List<MutablePair<PositionImpl, Integer>> positions) {
@@ -68,6 +71,17 @@ public class PendingAckHandleDisabled implements PendingAckHandle {
 
     @Override
     public void clearIndividualPosition(Position position) {
-        //no operation
+        //no-op
     }
+
+    @Override
+    public CompletableFuture<PendingAckHandle> pendingAckHandleFuture() {
+        return pendingAckHandleCompletableFuture;
+    }
+
+    @Override
+    public CompletableFuture<Void> close() {
+        return CompletableFuture.completedFuture(null);
+    }
+
 }

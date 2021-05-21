@@ -41,6 +41,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
 
     private MockedPulsarService mockPulsarSetup;
@@ -121,15 +122,15 @@ public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
 
         admin.topics().updatePartitionedTopic(partitionedTopicName, 2);
         //zk update takes some time
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() ->
+        Awaitility.await().untilAsserted(() ->
                 assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 2));
 
         admin.topics().updatePartitionedTopic(partitionedTopicName, 10);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() ->
+        Awaitility.await().untilAsserted(() ->
                 assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 10));
 
         admin.topics().updatePartitionedTopic(partitionedTopicName, 20);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() ->
+        Awaitility.await().untilAsserted(() ->
                 assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 20));
     }
 
