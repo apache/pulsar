@@ -18,10 +18,24 @@
  */
 package org.apache.bookkeeper.client;
 
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Queue;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-
 import com.google.common.collect.Lists;
 import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
 import org.apache.bookkeeper.client.AsyncCallback.DeleteCallback;
@@ -33,7 +47,6 @@ import org.apache.bookkeeper.client.impl.OpenBuilderBase;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.discover.RegistrationClient;
-import org.apache.bookkeeper.discover.ZKRegistrationClient;
 import org.apache.bookkeeper.meta.LayoutManager;
 import org.apache.bookkeeper.meta.LedgerManagerFactory;
 import org.apache.bookkeeper.meta.MetadataClientDriver;
@@ -80,6 +93,7 @@ public class PulsarMockBookKeeper extends BookKeeper {
         return ensemble;
     }
 
+    Queue<Long> addEntryDelaysMillis = new ConcurrentLinkedQueue<>();
     List<CompletableFuture<Void>> failures = new ArrayList<>();
 
     public PulsarMockBookKeeper(ZooKeeper zkc, ExecutorService executor) throws Exception {
@@ -328,6 +342,10 @@ public class PulsarMockBookKeeper extends BookKeeper {
         CompletableFuture<Void> promise = new CompletableFuture<>();
         failures.set(steps, promise);
         return promise;
+    }
+
+    public synchronized void addEntryDelay(long delay, TimeUnit unit) {
+        addEntryDelaysMillis.add(unit.toMillis(delay));
     }
 
     static int getExceptionCode(Throwable t) {

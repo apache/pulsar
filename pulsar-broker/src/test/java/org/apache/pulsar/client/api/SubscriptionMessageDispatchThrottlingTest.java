@@ -199,7 +199,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
             final String message = "my-message-" + i;
             producer.send(message.getBytes());
         }
-        await().atMost(2500, TimeUnit.MILLISECONDS).until(() -> latch.getCount() == 0);
+        await().until(() -> latch.getCount() == 0);
         Assert.assertEquals(totalReceived.get(), numProducedMessages);
 
         consumer.close();

@@ -37,8 +37,9 @@ import io.prestosql.spi.type.VarcharType;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
-import org.apache.pulsar.client.impl.schema.AbstractSchema;
+
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
+import org.apache.pulsar.client.impl.schema.AbstractSchema;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;

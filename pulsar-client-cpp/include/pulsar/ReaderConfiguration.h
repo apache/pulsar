@@ -71,47 +71,101 @@ class PULSAR_PUBLIC ReaderConfiguration {
      * messages. A listener will be called in order for every message received.
      */
     ReaderConfiguration& setReaderListener(ReaderListener listener);
+
+    /**
+     * @return the configured {@link ReaderListener} for the reader
+     */
     ReaderListener getReaderListener() const;
+
+    /**
+     * @return true if {@link ReaderListener} has been set
+     */
     bool hasReaderListener() const;
 
     /**
      * Sets the size of the reader receive queue.
      *
-     * The consumer receive queue controls how many messages can be accumulated by the Consumer before the
-     * application calls receive(). Using a higher value could potentially increase the consumer throughput
+     * The consumer receive queue controls how many messages can be accumulated by the consumer before the
+     * application calls receive(). Using a higher value may potentially increase the consumer throughput
      * at the expense of bigger memory utilization.
      *
-     * Setting the consumer queue size as zero decreases the throughput of the consumer, by disabling
+     * Setting the consumer queue size to 0 decreases the throughput of the consumer by disabling
      * pre-fetching of
-     * messages. This approach improves the message distribution on shared subscription, by pushing messages
+     * messages. This approach improves the message distribution on shared subscription by pushing messages
      * only to
-     * the consumers that are ready to process them. Neither receive with timeout nor Partitioned Topics can
+     * the consumers that are ready to process them. Neither receive with timeout nor partitioned topics can
      * be
-     * used if the consumer queue size is zero. The receive() function call should not be interrupted when
-     * the consumer queue size is zero.
+     * used if the consumer queue size is 0. The receive() function call should not be interrupted when
+     * the consumer queue size is 0.
      *
-     * Default value is 1000 messages and should be good for most use cases.
+     * The default value is 1000 messages and it is appropriate for most use cases.
      *
      * @param size
      *            the new receiver queue size value
      */
     void setReceiverQueueSize(int size);
+
+    /**
+     * @return the receiver queue size
+     */
     int getReceiverQueueSize() const;
 
+    /**
+     * Set the reader name.
+     *
+     * @param readerName
+     */
     void setReaderName(const std::string& readerName);
+
+    /**
+     * @return the reader name
+     */
     const std::string& getReaderName() const;
 
+    /**
+     * Set the subscription role prefix.
+     *
+     * The default prefix is an empty string.
+     *
+     * @param subscriptionRolePrefix
+     */
     void setSubscriptionRolePrefix(const std::string& subscriptionRolePrefix);
+
+    /**
+     * @return the subscription role prefix
+     */
     const std::string& getSubscriptionRolePrefix() const;
 
+    /**
+     * If enabled, the consumer reads messages from the compacted topics rather than reading the full message
+     * backlog of the topic. This means that if the topic has been compacted, the consumer only sees the
+     * latest value for each key in the topic, up until the point in the topic message backlog that has been
+     * compacted. Beyond that point, message is sent as normal.
+     *
+     * readCompacted can only be enabled subscriptions to persistent topics, which have a single active
+     * consumer (for example, failure or exclusive subscriptions). Attempting to enable it on subscriptions to
+     * a non-persistent topics or on a shared subscription leads to the subscription call failure.
+     *
+     * @param readCompacted
+     *            whether to read from the compacted topic
+     */
     void setReadCompacted(bool compacted);
+
+    /**
+     * @return true if readCompacted is enabled
+     */
     bool isReadCompacted() const;
 
     /**
      * Set the internal subscription name.
+     *
      * @param internal subscriptionName
      */
     void setInternalSubscriptionName(std::string internalSubscriptionName);
+
+    /**
+     * @return the internal subscription name
+     */
     const std::string& getInternalSubscriptionName() const;
 
     /**
@@ -128,8 +182,23 @@ class PULSAR_PUBLIC ReaderConfiguration {
      */
     long getUnAckedMessagesTimeoutMs() const;
 
+    /**
+     * Set the tick duration time that defines the granularity of the ack-timeout redelivery (in
+     * milliseconds).
+     *
+     * The default value is 1000, which means 1 second.
+     *
+     * Using a higher tick time
+     * reduces the memory overhead to track messages when the ack-timeout is set to a bigger value.
+     *
+     * @param milliSeconds the tick duration time (in milliseconds)
+     *
+     */
     void setTickDurationInMs(const uint64_t milliSeconds);
 
+    /**
+     * @return the tick duration time (in milliseconds)
+     */
     long getTickDurationInMs() const;
 
     /**
@@ -164,11 +233,31 @@ class PULSAR_PUBLIC ReaderConfiguration {
      */
     long getAckGroupingMaxSize() const;
 
+    /**
+     * @return true if encryption keys are added
+     */
     bool isEncryptionEnabled() const;
+
+    /**
+     * @return the shared pointer to CryptoKeyReader
+     */
     const CryptoKeyReaderPtr getCryptoKeyReader() const;
+
+    /**
+     * Set the shared pointer to CryptoKeyReader.
+     *
+     * @param the shared pointer to CryptoKeyReader
+     */
     ReaderConfiguration& setCryptoKeyReader(CryptoKeyReaderPtr cryptoKeyReader);
 
+    /**
+     * @return the ConsumerCryptoFailureAction
+     */
     ConsumerCryptoFailureAction getCryptoFailureAction() const;
+
+    /**
+     * Set the CryptoFailureAction for the reader.
+     */
     ReaderConfiguration& setCryptoFailureAction(ConsumerCryptoFailureAction action);
 
     /**

@@ -23,7 +23,12 @@
 // the orignal MurmurHash3 source code.
 #include "Murmur3_32Hash.h"
 
+#include <boost/version.hpp>
+#if BOOST_VERSION >= 105500
 #include <boost/predef.h>
+#else
+#include <boost/detail/endian.hpp>
+#endif
 #include <limits>
 
 #if BOOST_COMP_MSVC
@@ -33,16 +38,18 @@
 #define ROTATE_LEFT(x, y) rotate_left(x, y)
 #endif
 
-#if BOOST_ENDIAN_LITTLE_BYTE
+#if defined(BOOST_ENDIAN_LITTLE_BYTE) || defined(BOOST_LITTLE_ENDIAN)
 #define BYTESPWAP(x) (x)
-#elif BOOST_ENDIAN_BIG_BYTE
+#elif defined(BOOST_ENDIAN_BIG_BYTE) || defined(BOOST_BIG_ENDIAN)
 #if BOOST_COMP_CLANG || BOOST_COMP_GNUC
 #define BYTESPWAP(x) __builtin_bswap32(x)
 #elif BOOST_COMP_MSVC
 #define BYTESPWAP(x) _byteswap_uint32(x)
 #else
+#error "No BOOST_COMP_XXX macro found"
 #endif
 #else
+#error "No byte order found"
 #endif
 
 #define MACRO_CHUNK_SIZE 4

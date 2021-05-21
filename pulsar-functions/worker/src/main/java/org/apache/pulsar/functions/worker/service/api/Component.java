@@ -139,7 +139,8 @@ public interface Component<W extends WorkerService> {
 
     void uploadFunction(final InputStream uploadedInputStream,
                         final String path,
-                        String clientRole);
+                        String clientRole,
+                        final AuthenticationDataSource clientAuthenticationDataHttps);
 
     StreamingOutput downloadFunction(String path,
                                      String clientRole,
@@ -154,5 +155,5 @@ public interface Component<W extends WorkerService> {
     List<ConnectorDefinition> getListOfConnectors();
 
 
-    void reloadConnectors(String clientRole);
+    void reloadConnectors(String clientRole, AuthenticationDataSource clientAuthenticationDataHttps);
 }

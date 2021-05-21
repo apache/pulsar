@@ -19,7 +19,7 @@ You can use Java’s `keytool` utility to accomplish this task. We will generate
 initially for broker, so that we can export and sign it later with CA.
 
 ```shell
-keytool -keystore broker.keystore.jks -alias localhost -validity {validity} -genkey
+keytool -keystore broker.keystore.jks -alias localhost -validity {validity} -genkeypair -keyalg RSA
 ```
 
 You need to specify two parameters in the above command:
@@ -139,7 +139,7 @@ Optional settings that may worth consider:
     algorithm used to negotiate the security settings for a network connection using TLS network protocol. By default,
     it is null. [OpenSSL Ciphers](https://www.openssl.org/docs/man1.0.2/apps/ciphers.html)
     [JDK Ciphers](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#ciphersuites)
-3. tlsProtocols=[TLSv1.2,TLSv1.1,TLSv1] (list out the TLS protocols that you are going to accept from clients).
+3. tlsProtocols=[TLSv1.3,TLSv1.2] (list out the TLS protocols that you are going to accept from clients).
     By default, it is not set.
 
 ### Configuring Clients

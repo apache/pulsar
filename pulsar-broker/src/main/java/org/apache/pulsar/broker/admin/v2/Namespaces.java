@@ -512,13 +512,23 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
             @ApiResponse(code = 403, message = "Don't have admin permission") })
-    public void splitNamespaceBundle(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+    public void splitNamespaceBundle(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
             @PathParam("bundle") String bundleRange,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("unload") @DefaultValue("false") boolean unload,
             @QueryParam("splitAlgorithmName") String splitAlgorithmName) {
-        validateNamespaceName(tenant, namespace);
-        internalSplitNamespaceBundle(bundleRange, authoritative, unload, splitAlgorithmName);
+
+        try {
+            validateNamespaceName(tenant, namespace);
+            internalSplitNamespaceBundle(asyncResponse, bundleRange, authoritative, unload, splitAlgorithmName);
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
     }
 
     @POST
@@ -1138,7 +1148,7 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Get maxConsumersPerSubscription config on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public int getMaxConsumersPerSubscription(@PathParam("tenant") String tenant,
+    public Integer getMaxConsumersPerSubscription(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
         return internalGetMaxConsumersPerSubscription();
@@ -1158,6 +1168,19 @@ public class Namespaces extends NamespacesBase {
                                                            int maxConsumersPerSubscription) {
         validateNamespaceName(tenant, namespace);
         internalSetMaxConsumersPerSubscription(maxConsumersPerSubscription);
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/maxConsumersPerSubscription")
+    @ApiOperation(value = " Set maxConsumersPerSubscription configuration on a namespace.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 412, message = "maxConsumersPerSubscription value is not valid")})
+    public void removeMaxConsumersPerSubscription(@PathParam("tenant") String tenant,
+                                               @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalSetMaxConsumersPerSubscription(null);
     }
 
     @GET
@@ -1705,5 +1728,129 @@ public class Namespaces extends NamespacesBase {
         validateNamespaceName(tenant, namespace);
         internalRemoveMaxTopicsPerNamespace();
     }
+
+    @PUT
+    @Path("/{tenant}/{namespace}/property/{key}/{value}")
+    @ApiOperation(value = "Put a key value pair property on a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or namespace doesn't exist"), })
+    public void setProperty(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("key") String key,
+            @PathParam("value") String value) {
+        validateNamespaceName(tenant, namespace);
+        internalSetProperty(key, value, asyncResponse);
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/property/{key}")
+    @ApiOperation(value = "Get property value for a given key on a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or namespace doesn't exist"), })
+    public void getProperty(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("key") String key) {
+        validateNamespaceName(tenant, namespace);
+        internalGetProperty(key, asyncResponse);
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/property/{key}")
+    @ApiOperation(value = "Get property value for a given key on a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or namespace doesn't exist"), })
+    public void removeProperty(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("key") String key) {
+        validateNamespaceName(tenant, namespace);
+        internalRemoveProperty(key, asyncResponse);
+    }
+
+    @PUT
+    @Path("/{tenant}/{namespace}/properties")
+    @ApiOperation(value = "Put key value pairs property on a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or namespace doesn't exist"), })
+    public void setProperties(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Key value pair properties for the namespace", required = true)
+                    Map<String, String> properties) {
+        validateNamespaceName(tenant, namespace);
+        internalSetProperties(properties, asyncResponse);
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/properties")
+    @ApiOperation(value = "Get key value pair properties for a given namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or namespace doesn't exist"), })
+    public void getProperties(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalGetProperties(asyncResponse);
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/properties")
+    @ApiOperation(value = "Get property value for a given key on a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or namespace doesn't exist"), })
+    public void clearProperties(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalClearProperties(asyncResponse);
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/resourcegroup")
+    @ApiOperation(value = "Get the resourcegroup attached to the namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
+    public String getNamespaceResourceGroup(@PathParam("tenant") String tenant,
+                                      @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        validateNamespacePolicyOperation(NamespaceName.get(tenant, namespace), PolicyName.RESOURCEGROUP,
+                PolicyOperation.READ);
+
+        Policies policies = getNamespacePolicies(namespaceName);
+        return policies.resource_group_name;
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/resourcegroup")
+    @ApiOperation(value = "Set resourcegroup for a namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 412, message = "Invalid resourcegroup") })
+    public void setNamespaceResourceGroup(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+                                          @ApiParam(value = "Name of resourcegroup", required = true) String rgName) {
+        validateNamespaceName(tenant, namespace);
+        internalSetNamespaceResourceGroup(rgName);
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/resourcegroup")
+    @ApiOperation(value = "Delete resourcegroup for a namespace")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 412, message = "Invalid resourcegroup")})
+    public void removeNamespaceResourceGroup(@PathParam("tenant") String tenant,
+                                          @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalSetNamespaceResourceGroup(null);
+    }
+
     private static final Logger log = LoggerFactory.getLogger(Namespaces.class);
 }

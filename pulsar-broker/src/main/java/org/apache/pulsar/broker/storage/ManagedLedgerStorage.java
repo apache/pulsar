@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.storage;
 
+import io.netty.channel.EventLoopGroup;
 import java.io.IOException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
@@ -45,7 +46,8 @@ public interface ManagedLedgerStorage extends AutoCloseable {
      */
     void initialize(ServiceConfiguration conf,
                     ZooKeeper zkClient,
-                    BookKeeperClientFactory bookkeperProvider) throws Exception;
+                    BookKeeperClientFactory bookkeperProvider,
+                    EventLoopGroup eventLoopGroup) throws Exception;
 
     /**
      * Return the factory to create {@link ManagedLedgerFactory}.
@@ -85,10 +87,11 @@ public interface ManagedLedgerStorage extends AutoCloseable {
      */
     static ManagedLedgerStorage create(ServiceConfiguration conf,
                                        ZooKeeper zkClient,
-                                       BookKeeperClientFactory bkProvider) throws Exception {
+                                       BookKeeperClientFactory bkProvider,
+                                       EventLoopGroup eventLoopGroup) throws Exception {
         final Class<?> storageClass = Class.forName(conf.getManagedLedgerStorageClassName());
         final ManagedLedgerStorage storage = (ManagedLedgerStorage) storageClass.newInstance();
-        storage.initialize(conf, zkClient, bkProvider);
+        storage.initialize(conf, zkClient, bkProvider, eventLoopGroup);
         return storage;
     }
 

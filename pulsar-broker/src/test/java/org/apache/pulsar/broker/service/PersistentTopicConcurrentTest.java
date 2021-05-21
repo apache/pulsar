@@ -34,6 +34,9 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.nio.NioEventLoopGroup;
+import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -79,8 +82,13 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
     public void setup(Method m) throws Exception {
         super.setUp(m);
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
+        svcConfig.setBrokerShutdownTimeoutMs(0L);
+        @Cleanup
         PulsarService pulsar = spy(new PulsarService(svcConfig));
         doReturn(svcConfig).when(pulsar).getConfiguration();
+
+        @Cleanup(value = "shutdownGracefully")
+        EventLoopGroup eventLoopGroup = new NioEventLoopGroup();
 
         mlFactoryMock = mock(ManagedLedgerFactory.class);
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
@@ -93,7 +101,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
         ZooKeeper mockZk = createMockZooKeeper();
         doReturn(mockZk).when(pulsar).getZkClient();
 
-        brokerService = spy(new BrokerService(pulsar));
+        brokerService = spy(new BrokerService(pulsar, eventLoopGroup));
         doReturn(brokerService).when(pulsar).getBrokerService();
 
         serverCnx = spy(new ServerCnx(pulsar));

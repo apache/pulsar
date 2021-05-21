@@ -46,7 +46,7 @@ public class GenericProtobufNativeRecord extends VersionedGenericRecord {
     }
 
     @Override
-    public Object getNativeRecord() {
+    public Object getNativeObject() {
         return record;
     }
 

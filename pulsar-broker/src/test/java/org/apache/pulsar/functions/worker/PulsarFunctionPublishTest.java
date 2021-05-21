@@ -126,6 +126,7 @@ public class PulsarFunctionPublishTest {
         config.setWebServicePort(Optional.of(0));
         config.setWebServicePortTls(Optional.of(0));
         config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setBrokerShutdownTimeoutMs(0L);
         config.setBrokerServicePort(Optional.of(0));
         config.setBrokerServicePortTls(Optional.of(0));
         config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
@@ -185,6 +186,9 @@ public class PulsarFunctionPublishTest {
             clientBuilder.allowTlsInsecureConnection(workerConfig.isTlsAllowInsecureConnection());
             clientBuilder.authentication(workerConfig.getBrokerClientAuthenticationPlugin(),
                     workerConfig.getBrokerClientAuthenticationParameters());
+        }
+        if (pulsarClient != null) {
+            pulsarClient.close();
         }
         pulsarClient = clientBuilder.build();
 

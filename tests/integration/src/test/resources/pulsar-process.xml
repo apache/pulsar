@@ -22,7 +22,9 @@
 <suite name="Pulsar Function Process Integration Tests" verbose="2" annotations="JDK">
     <test name="pulsar-function-process-test-suite" preserve-order="true" >
         <classes>
-            <class name="org.apache.pulsar.tests.integration.functions.PulsarFunctionsProcessTest" />
+            <class name="org.apache.pulsar.tests.integration.functions.go.PulsarFunctionsGoProcessTest" />
+            <class name="org.apache.pulsar.tests.integration.functions.java.PulsarFunctionsJavaProcessTest"/>
+            <class name="org.apache.pulsar.tests.integration.functions.python.PulsarFunctionsPythonProcessTest" />
         </classes>
     </test>
 </suite>

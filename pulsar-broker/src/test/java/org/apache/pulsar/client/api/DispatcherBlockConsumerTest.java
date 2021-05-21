@@ -43,6 +43,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 
+import lombok.Cleanup;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
@@ -70,14 +71,14 @@ import com.google.common.collect.Sets;
 public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(DispatcherBlockConsumerTest.class);
 
-    @BeforeMethod(groups = { "broker" })
+    @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
     }
 
-    @AfterMethod(alwaysRun = true, groups = { "broker" })
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -683,6 +684,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
         double unAckedMessagePercentage = pulsar.getConfiguration()
                 .getMaxUnackedMessagesPerSubscriptionOnBrokerBlocked();
 
+        @Cleanup("shutdownNow")
         ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
 
         try {
@@ -757,6 +759,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             }
             // client must receive number of messages = maxUnAckPerbroker rather all produced messages
             assertNotEquals(messages1.size(), totalProducedMsgs);
+            @Cleanup
             PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
             // (1.b) consumer2 with same sub should not receive any more messages as subscription is blocked
             ConsumerImpl<byte[]> consumer2Sub1 = (ConsumerImpl<byte[]>) newPulsarClient.newConsumer().topic(topicName)
@@ -855,7 +858,6 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             consumer1Sub1.close();
             consumerSub2.close();
             consumer1Sub3.close();
-            newPulsarClient.close();
 
             log.info("-- Exiting {} test --", methodName);
         } catch (Exception e) {
@@ -863,7 +865,6 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
         } finally {
             pulsar.getConfiguration().setMaxUnackedMessagesPerBroker(unAckedMessages);
             pulsar.getConfiguration().setMaxUnackedMessagesPerSubscriptionOnBrokerBlocked(unAckedMessagePercentage);
-            executor.shutdownNow();
         }
     }
 
@@ -885,6 +886,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
 
         log.info("-- Starting {} test --", methodName);
 
+        @Cleanup("shutdownNow")
         ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
 
         int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerBroker();
@@ -958,6 +960,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             // client must receive number of messages = maxUnAckPerbroker rather all produced messages
             assertNotEquals(messages1.size(), totalProducedMsgs);
             // (1.b) consumer2 with same sub should not receive any more messages as subscription is blocked
+            @Cleanup
             PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
             ConsumerImpl<byte[]> consumer2Sub1 = (ConsumerImpl<byte[]>) newPulsarClient.newConsumer().topic(topicName)
                     .subscriptionName(subscriberName1).receiverQueueSize(receiverQueueSize)
@@ -1024,7 +1027,6 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
 
             consumer1Sub1.close();
             consumer1Sub2.close();
-            newPulsarClient.close();
 
             log.info("-- Exiting {} test --", methodName);
         } catch (Exception e) {
@@ -1032,7 +1034,6 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
         } finally {
             pulsar.getConfiguration().setMaxUnackedMessagesPerBroker(unAckedMessages);
             pulsar.getConfiguration().setMaxUnackedMessagesPerSubscriptionOnBrokerBlocked(unAckedMessagePercentage);
-            executor.shutdownNow();
         }
     }
 

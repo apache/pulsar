@@ -153,6 +153,10 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             }
             op.callback.complete(txnID);
         } else {
+            if (response.getError() == ServerError.TransactionCoordinatorNotFound) {
+                connectionHandler.reconnectLater(
+                        new TransactionCoordinatorClientException.CoordinatorNotFoundException(response.getMessage()));
+            }
             LOG.error("Got new txn for request {} error {}", response.getRequestId(), response.getError());
             op.callback.completeExceptionally(getExceptionByServerError(response.getError(), response.getMessage()));
         }
@@ -195,6 +199,10 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             }
             op.callback.complete(null);
         } else {
+            if (response.getError() == ServerError.TransactionCoordinatorNotFound) {
+                connectionHandler.reconnectLater(
+                        new TransactionCoordinatorClientException.CoordinatorNotFoundException(response.getMessage()));
+            }
             LOG.error("Add publish partition for request {} error {}.", response.getRequestId(), response.getError());
             op.callback.completeExceptionally(getExceptionByServerError(response.getError(), response.getMessage()));
         }
@@ -206,16 +214,21 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         if (LOG.isDebugEnabled()) {
             LOG.debug("Add subscription {} to txn {}.", subscriptionList, txnID);
         }
-        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+
+        CompletableFuture<Void> callback = new CompletableFuture<>();
+
+        if (!canSendRequest(callback)) {
+            return callback;
+        }
         long requestId = client.newRequestId();
         ByteBuf cmd = Commands.newAddSubscriptionToTxn(
                 requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), subscriptionList);
-        OpForVoidCallBack op = OpForVoidCallBack.create(cmd, completableFuture);
+        OpForVoidCallBack op = OpForVoidCallBack.create(cmd, callback);
         pendingRequests.put(requestId, op);
         timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
         cmd.retain();
         cnx().ctx().writeAndFlush(cmd, cnx().ctx().voidPromise());
-        return completableFuture;
+        return callback;
     }
 
     public void handleAddSubscriptionToTxnResponse(CommandAddSubscriptionToTxnResponse response) {
@@ -232,6 +245,10 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             }
             op.callback.complete(null);
         } else {
+            if (response.getError() == ServerError.TransactionCoordinatorNotFound) {
+                connectionHandler.reconnectLater(
+                        new TransactionCoordinatorClientException.CoordinatorNotFoundException(response.getMessage()));
+            }
             LOG.error("Add subscription to txn failed for request {} error {}.",
                     response.getRequestId(), response.getError());
             op.callback.completeExceptionally(getExceptionByServerError(response.getError(), response.getMessage()));
@@ -274,6 +291,10 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             }
             op.callback.complete(null);
         } else {
+            if (response.getError() == ServerError.TransactionCoordinatorNotFound) {
+                connectionHandler.reconnectLater(
+                        new TransactionCoordinatorClientException.CoordinatorNotFoundException(response.getMessage()));
+            }
             LOG.error("Got end txn response for request {} error {}", response.getRequestId(), response.getError());
             op.callback.completeExceptionally(getExceptionByServerError(response.getError(), response.getMessage()));
         }

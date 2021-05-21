@@ -204,7 +204,7 @@ void ConsumerImpl::connectionFailed(Result result) {
 }
 
 void ConsumerImpl::sendFlowPermitsToBroker(const ClientConnectionPtr& cnx, int numMessages) {
-    if (cnx) {
+    if (cnx && numMessages > 0) {
         LOG_DEBUG(getName() << "Send more permits: " << numMessages);
         SharedBuffer cmd = Commands::newFlow(consumerId_, static_cast<unsigned int>(numMessages));
         cnx->sendCommand(cmd);
@@ -1223,6 +1223,11 @@ void ConsumerImpl::trackMessage(const Message& msg) {
     } else {
         unAckedMessageTrackerPtr_->add(msg.getMessageId());
     }
+}
+
+bool ConsumerImpl::isConnected() const {
+    Lock lock(mutex_);
+    return !getCnx().expired() && state_ == Ready;
 }
 
 } /* namespace pulsar */

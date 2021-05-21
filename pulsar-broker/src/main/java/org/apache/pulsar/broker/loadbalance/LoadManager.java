@@ -29,8 +29,6 @@ import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
-import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
-import org.apache.pulsar.zookeeper.ZooKeeperCache.Deserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,13 +60,6 @@ public interface LoadManager {
      * Generate the load report.
      */
     LoadManagerReport generateLoadReport() throws Exception;
-
-    /**
-     * Returns {@link Deserializer} to deserialize load report.
-     *
-     * @return
-     */
-    Deserializer<? extends ServiceLookupData> getLoadReportDeserializer();
 
     /**
      * Set flag to force load report update.

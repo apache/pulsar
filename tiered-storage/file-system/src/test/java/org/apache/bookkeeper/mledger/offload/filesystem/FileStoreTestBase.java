@@ -31,14 +31,14 @@ import java.io.File;
 import java.nio.file.Files;
 import java.util.Properties;
 
-public class FileStoreTestBase {
+public abstract class FileStoreTestBase {
     protected FileSystemManagedLedgerOffloader fileSystemManagedLedgerOffloader;
     protected OrderedScheduler scheduler = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("offloader").build();
     protected final String basePath = "pulsar";
     private MiniDFSCluster hdfsCluster;
     private String hdfsURI;
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void start() throws Exception {
         File baseDir = Files.createTempDirectory(basePath).toFile().getAbsoluteFile();
         Configuration conf = new Configuration();
