@@ -25,15 +25,6 @@ import java.util.List;
 @Data
 public class TransactionInPendingAckStats {
 
-    /** The topic of this transaction ack. */
-    public String topic;
-
-    /** The subscription name of this transaction sub. */
-    public String subName;
-
-    /** The state of this transaction pending ack. */
-    public String state;
-
     /** The position of this transaction cumulative ack. */
     public String cumulativeAckPosition;
 

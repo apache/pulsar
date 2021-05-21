@@ -118,7 +118,6 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         TransactionInPendingAckStats transactionInPendingAckStats = admin.transactions()
                 .getTransactionInPendingAckStats(new TxnID(transaction.getTxnIdMostBits(),
                         transaction.getTxnIdLeastBits()), topic, subName).get();
-        assertEquals(transactionInPendingAckStats.state, "Ready");
         if (transactionInPendingAckStats.individualAckPosition.get(0)
                 .equals(PositionImpl.get(((MessageIdImpl) messageId1).getLedgerId(),
                         ((MessageIdImpl) messageId1).getEntryId()).toString())) {
@@ -131,8 +130,6 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
                             ((MessageIdImpl) messageId1).getEntryId()).toString());
         }
         assertNull(transactionInPendingAckStats.cumulativeAckPosition);
-        assertEquals(transactionInPendingAckStats.topic, topic);
-        assertEquals(transactionInPendingAckStats.subName, subName);
 
         consumer.acknowledgeCumulativeAsync(messageId2, transaction);
 
@@ -144,9 +141,6 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         assertEquals(transactionInPendingAckStats.cumulativeAckPosition,
                 PositionImpl.get(((MessageIdImpl) messageId2).getLedgerId(),
                         ((MessageIdImpl) messageId2).getEntryId()).toString());
-
-        assertEquals(transactionInPendingAckStats.topic, topic);
-        assertEquals(transactionInPendingAckStats.subName, subName);
     }
 
     private static void verifyCoordinatorStatus(long expectedCoordinatorId, long coordinatorId, String state,

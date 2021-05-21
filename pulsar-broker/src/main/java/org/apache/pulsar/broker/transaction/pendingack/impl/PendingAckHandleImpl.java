@@ -703,7 +703,6 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     @Override
     public TransactionInPendingAckStats getTransactionInPendingAckStats(TxnID txnID) {
         TransactionInPendingAckStats transactionInPendingAckStats = new TransactionInPendingAckStats();
-        transactionInPendingAckStats.state = getState().name();
         if (cumulativeAckOfTransaction != null && cumulativeAckOfTransaction.getLeft().equals(txnID)) {
             transactionInPendingAckStats.cumulativeAckPosition = this.cumulativeAckOfTransaction.getRight().toString();
         } else if (individualAckOfTransaction != null) {
@@ -713,8 +712,6 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 transactionInPendingAckStats.individualAckPosition = list;
             }
         }
-        transactionInPendingAckStats.topic = this.topicName;
-        transactionInPendingAckStats.subName = this.subName;
         return transactionInPendingAckStats;
     }
 
