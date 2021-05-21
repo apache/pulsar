@@ -86,8 +86,9 @@ public class AuthenticationProviderTokenTest {
                 .compact();
 
         @SuppressWarnings("unchecked")
-        Jwt<?, Claims> jwt = Jwts.parser()
+        Jwt<?, Claims> jwt = Jwts.parserBuilder()
                 .setSigningKey(AuthTokenUtils.decodeSecretKey(secretKey.getEncoded()))
+                .build()
                 .parse(token);
 
         assertNotNull(jwt);
@@ -107,8 +108,9 @@ public class AuthenticationProviderTokenTest {
                 Optional.empty());
 
         @SuppressWarnings("unchecked")
-        Jwt<?, Claims> jwt = Jwts.parser()
+        Jwt<?, Claims> jwt = Jwts.parserBuilder()
                 .setSigningKey(AuthTokenUtils.decodePublicKey(Decoders.BASE64.decode(publicKey), SignatureAlgorithm.RS256))
+                .build()
                 .parse(token);
 
         assertNotNull(jwt);
