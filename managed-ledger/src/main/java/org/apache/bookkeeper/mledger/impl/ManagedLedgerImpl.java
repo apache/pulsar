@@ -2458,23 +2458,26 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
 
-        long firstNonDeletedLedger = ledgers
-                .higherKey(ledgersToDelete.get(ledgersToDelete.size() - 1).getLedgerId());
-        PositionImpl highestPositionToDelete = new PositionImpl(firstNonDeletedLedger, -1);
+        LedgerInfo highestLedgerToDelete = ledgersToDelete.get(ledgersToDelete.size() - 1);
+        PositionImpl highestPositionToDelete = new PositionImpl(highestLedgerToDelete.getLedgerId(), highestLedgerToDelete.getEntries() - 1);
 
         cursors.forEach(cursor -> {
-            if (highestPositionToDelete.compareTo((PositionImpl) cursor.getMarkDeletedPosition()) > 0) {
-                cursor.asyncMarkDelete(highestPositionToDelete, new MarkDeleteCallback() {
-                    @Override
-                    public void markDeleteComplete(Object ctx) {
-                    }
+            if (!cursor.isDurable()) {
+                // Advance mark delete position if the highest position that can be deleted to is greater than the current mark deletion position
+                // if
+                if (highestPositionToDelete.compareTo((PositionImpl) cursor.getMarkDeletedPosition()) > 0) {
+                    cursor.asyncMarkDelete(highestPositionToDelete, new MarkDeleteCallback() {
+                        @Override
+                        public void markDeleteComplete(Object ctx) {
+                        }
 
-                    @Override
-                    public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
-                        log.warn("[{}] Failed to mark delete while trimming data ledgers: {}", name,
-                                exception.getMessage());
-                    }
-                }, null);
+                        @Override
+                        public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                            log.warn("[{}] Failed to mark delete while trimming data ledgers: {}", name,
+                                    exception.getMessage());
+                        }
+                    }, null);
+                }
             }
         });
     }
