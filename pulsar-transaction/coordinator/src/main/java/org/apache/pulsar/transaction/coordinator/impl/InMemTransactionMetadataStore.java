@@ -23,6 +23,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.LongAdder;
+
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStatus;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
@@ -41,11 +43,22 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
     private final TransactionCoordinatorID tcID;
     private final AtomicLong localID;
     private final ConcurrentMap<TxnID, TxnMetaImpl> transactions;
+    private final TransactionMetadataStoreStats transactionMetadataStoreStats;
+    private final LongAdder createTransactionCount;
+    private final LongAdder commitTransactionCount;
+    private final LongAdder abortTransactionCount;
+    private final LongAdder transactionTimeoutCount;
 
     InMemTransactionMetadataStore(TransactionCoordinatorID tcID) {
         this.tcID = tcID;
         this.localID = new AtomicLong(0L);
         this.transactions = new ConcurrentHashMap<>();
+        this.transactionMetadataStoreStats = new TransactionMetadataStoreStats();
+        this.createTransactionCount = new LongAdder();
+        this.commitTransactionCount = new LongAdder();
+        this.abortTransactionCount = new LongAdder();
+        this.transactionTimeoutCount = new LongAdder();
+
     }
 
     @Override
@@ -66,7 +79,7 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
             tcID.getId(),
             localID.getAndIncrement()
         );
-        TxnMetaImpl txn = new TxnMetaImpl(txnID);
+        TxnMetaImpl txn = new TxnMetaImpl(txnID, System.currentTimeMillis(), timeoutInMills);
         transactions.put(txnID, txn);
         return CompletableFuture.completedFuture(txnID);
     }
@@ -100,10 +113,14 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
     }
 
     @Override
-    public CompletableFuture<Void> updateTxnStatus(TxnID txnid, TxnStatus newStatus, TxnStatus expectedStatus) {
+    public CompletableFuture<Void> updateTxnStatus(TxnID txnid, TxnStatus newStatus, TxnStatus expectedStatus,
+                                                   boolean isTimeout) {
         return getTxnMeta(txnid).thenCompose(txn -> {
             try {
                 txn.updateTxnStatus(newStatus, expectedStatus);
+                if (isTimeout && expectedStatus == TxnStatus.ABORTING) {
+                    transactionTimeoutCount.increment();
+                }
                 return CompletableFuture.completedFuture(null);
             } catch (InvalidTxnStatusException e) {
                 CompletableFuture<Void> error = new CompletableFuture<>();
@@ -127,5 +144,15 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
     public CompletableFuture<Void> closeAsync() {
         transactions.clear();
         return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public TransactionMetadataStoreStats getStats() {
+        transactionMetadataStoreStats.setActives(transactions.size());
+        transactionMetadataStoreStats.setCoordinatorId(tcID.getId());
+        this.transactionMetadataStoreStats.setCreatedCount(this.createTransactionCount.longValue());
+        this.transactionMetadataStoreStats.setCommittedCount(this.commitTransactionCount.longValue());
+        this.transactionMetadataStoreStats.setAbortedCount(this.abortTransactionCount.longValue());
+        return transactionMetadataStoreStats;
     }
 }

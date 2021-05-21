@@ -93,4 +93,18 @@ public interface TxnMeta {
      */
     TxnMeta updateTxnStatus(TxnStatus newStatus,
                             TxnStatus expectedStatus) throws InvalidTxnStatusException;
+
+    /**
+     * Return the transaction open timestamp.
+     *
+     * @return transaction open timestamp.
+     */
+    long getOpenTimestamp();
+
+    /**
+     * Return the transaction timeout at.
+     *
+     * @return transaction timeout at.
+     */
+    long getTimeoutAt();
 }

@@ -91,7 +91,7 @@ public class TransactionMetadataStoreProviderTest {
         assertEquals(txnStatus, TxnStatus.OPEN);
 
         // update the status
-        this.store.updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN).get();
+        this.store.updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN, false).get();
 
         // get the new status
         TxnStatus newTxnStatus = this.store.getTxnStatus(txnID).get();
@@ -106,7 +106,7 @@ public class TransactionMetadataStoreProviderTest {
 
         // update the status
         try {
-            this.store.updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.COMMITTING).get();
+            this.store.updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.COMMITTING, false).get();
             fail("Should fail to update txn status if it is not in expected status");
         } catch (ExecutionException ee) {
             assertTrue(ee.getCause() instanceof InvalidTxnStatusException);
@@ -125,7 +125,7 @@ public class TransactionMetadataStoreProviderTest {
 
         // update the status
         try {
-            this.store.updateTxnStatus(txnID, TxnStatus.COMMITTED, TxnStatus.OPEN).get();
+            this.store.updateTxnStatus(txnID, TxnStatus.COMMITTED, TxnStatus.OPEN, false).get();
             fail("Should fail to update txn status if it can not transition to the new status");
         } catch (ExecutionException ee) {
             assertTrue(ee.getCause() instanceof InvalidTxnStatusException);
@@ -172,7 +172,7 @@ public class TransactionMetadataStoreProviderTest {
         assertEquals(txn.producedPartitions(), finalPartitions);
 
         // change the transaction to `COMMITTING`
-        this.store.updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN).get();
+        this.store.updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN, false).get();
 
         // add partitions should fail if it is already committing.
         List<String> newPartitions2 = new ArrayList<>();
@@ -232,7 +232,7 @@ public class TransactionMetadataStoreProviderTest {
         assertEquals(txn.ackedPartitions(), finalPartitions);
 
         // change the transaction to `COMMITTING`
-        this.store.updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN).get();
+        this.store.updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN, false).get();
 
         // add partitions should fail if it is already committing.
         List<TransactionSubscription> newPartitions2 = new ArrayList<>();
