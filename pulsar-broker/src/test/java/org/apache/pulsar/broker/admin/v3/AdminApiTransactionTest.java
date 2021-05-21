@@ -100,14 +100,14 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         Transaction transaction = pulsarClient.newTransaction()
                 .withTransactionTimeout(60, TimeUnit.SECONDS).build().get();
 
-        ManagedLedgerInternalStats managedLedgerInternalStats =
-                admin.transactions().getCoordinatorInternalStats(0, true).get();
+        ManagedLedgerInternalStats managedLedgerInternalStats = admin.transactions()
+                .getCoordinatorInternalStats(0, true).get().managedLedgerInternalStats;
         verifyManagedLegerInternalStats(managedLedgerInternalStats, 26);
 
         transaction.commit().get();
 
-        managedLedgerInternalStats =
-                admin.transactions().getCoordinatorInternalStats(0, false).get();
+        managedLedgerInternalStats = admin.transactions()
+                .getCoordinatorInternalStats(0, false).get().managedLedgerInternalStats;
         assertNull(managedLedgerInternalStats.ledgers.get(0).metadata);
     }
 

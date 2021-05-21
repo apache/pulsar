@@ -24,7 +24,7 @@ import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
+import org.apache.pulsar.common.policies.data.CoordinatorInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStatus;
 
 public class TransactionsImpl extends BaseResource implements Transactions {
@@ -75,22 +75,17 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     }
 
     @Override
-    public CompletableFuture<ManagedLedgerInternalStats> getCoordinatorInternalStats(int coordinatorId,
-                                                                                     boolean metadata) {
+    public CompletableFuture<CoordinatorInternalStats> getCoordinatorInternalStats(int coordinatorId,
+                                                                                   boolean metadata) {
         WebTarget path = adminV3Transactions.path("coordinatorInternalStats");
         path = path.queryParam("coordinatorId", coordinatorId);
         path = path.queryParam("metadata", metadata);
-        return getManageLedgerInternalStats(path, metadata);
-    }
-
-    private CompletableFuture<ManagedLedgerInternalStats> getManageLedgerInternalStats(WebTarget path,
-                                                                                       boolean metadata) {
         path = path.queryParam("metadata", metadata);
-        final CompletableFuture<ManagedLedgerInternalStats> future = new CompletableFuture<>();
+        final CompletableFuture<CoordinatorInternalStats> future = new CompletableFuture<>();
         asyncGetRequest(path,
-                new InvocationCallback<ManagedLedgerInternalStats>() {
+                new InvocationCallback<CoordinatorInternalStats>() {
                     @Override
-                    public void completed(ManagedLedgerInternalStats stats) {
+                    public void completed(CoordinatorInternalStats stats) {
                         future.complete(stats);
                     }
 
