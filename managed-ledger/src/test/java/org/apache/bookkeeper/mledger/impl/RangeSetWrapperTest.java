@@ -26,11 +26,14 @@ import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet.LongPair;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet.LongPairConsumer;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
@@ -43,15 +46,18 @@ public class RangeSetWrapperTest {
     OrderedScheduler orderedScheduler;
     RangeSetWrapper<LongPair> set;
     ManagedLedgerConfig managedLedgerConfig;
+    ManagedCursorImpl managedCursor;
 
     @BeforeMethod
     public void setUp() {
-        managedLedger = mock(ManagedLedgerImpl.class);
         initManagedLedgerConfig();
+        managedLedger = mock(ManagedLedgerImpl.class);
+        managedCursor = mock(ManagedCursorImpl.class);
         orderedScheduler = OrderedScheduler.newSchedulerBuilder()
                 .numThreads(2).build();
         doReturn(managedLedgerConfig).when(managedLedger).getConfig();
         doReturn(orderedScheduler).when(managedLedger).getScheduledExecutor();
+        doReturn(managedLedger).when(managedCursor).getManagedLedger();
     }
 
     private void initManagedLedgerConfig() {
@@ -79,7 +85,7 @@ public class RangeSetWrapperTest {
     }
 
     private void doTestAddForSameKey() {
-        set = new RangeSetWrapper<>(managedLedger, consumer);
+        set = new RangeSetWrapper(consumer, managedCursor);
         // add 0 to 5
         set.addOpenClosed(0, 0, 0, 5);
         // add 8,9,10
@@ -99,7 +105,7 @@ public class RangeSetWrapperTest {
 
     @Test
     public void testAddForDifferentKey() {
-        set = new RangeSetWrapper<>(managedLedger, consumer);
+        set = new RangeSetWrapper<>(consumer, managedCursor);
         // [98,100],[(1,5),(1,5)],[(1,10,1,15)],[(1,20),(1,20)],[(2,0),(2,10)]
         set.addOpenClosed(0, 98, 0, 99);
         set.addOpenClosed(0, 100, 1, 5);
@@ -117,7 +123,7 @@ public class RangeSetWrapperTest {
     @Test
     public void testAddForDifferentKey2() {
         managedLedgerConfig.setUnackedRangesOpenCacheSetEnabled(false);
-        set = new RangeSetWrapper<>(managedLedger, consumer);
+        set = new RangeSetWrapper<>(consumer, managedCursor);
         // [98,100],[(1,5),(1,5)],[(1,10,1,15)],[(1,20),(1,20)],[(2,0),(2,10)]
         set.addOpenClosed(0, 98, 0, 99);
         set.addOpenClosed(0, 100, 1, 5);
@@ -134,7 +140,7 @@ public class RangeSetWrapperTest {
 
     @Test
     public void testAddCompareCompareWithGuava() {
-        set = new RangeSetWrapper<>(managedLedger, consumer);
+        set = new RangeSetWrapper<>(consumer, managedCursor);
         com.google.common.collect.RangeSet<LongPair> gSet = TreeRangeSet.create();
 
         // add 10K values for key 0
@@ -173,7 +179,7 @@ public class RangeSetWrapperTest {
 
     @Test
     public void testDeleteCompareWithGuava() throws Exception {
-        RangeSetWrapper<LongPair> set = new RangeSetWrapper<>(managedLedger, consumer);
+        RangeSetWrapper<LongPair> set = new RangeSetWrapper<>(consumer, managedCursor);
         com.google.common.collect.RangeSet<LongPair> gSet = TreeRangeSet.create();
 
         // add 10K values for key 0
@@ -228,7 +234,7 @@ public class RangeSetWrapperTest {
 
     @Test
     public void testSpanWithGuava() {
-        set = new RangeSetWrapper<>(managedLedger, consumer);
+        set = new RangeSetWrapper<>(consumer, managedCursor);
         com.google.common.collect.RangeSet<LongPair> gSet = TreeRangeSet.create();
         set.addOpenClosed(0, 97, 0, 99);
         gSet.add(Range.openClosed(new LongPair(0, 97), new LongPair(0, 99)));
@@ -253,7 +259,7 @@ public class RangeSetWrapperTest {
 
     @Test
     public void testFirstRange() {
-        set = new RangeSetWrapper<>(managedLedger, consumer);
+        set = new RangeSetWrapper<>(consumer, managedCursor);
         assertNull(set.firstRange());
         set.addOpenClosed(0, 97, 0, 99);
         assertEquals(set.firstRange(), Range.openClosed(new LongPair(0, 97), new LongPair(0, 99)));
@@ -268,7 +274,7 @@ public class RangeSetWrapperTest {
 
     @Test
     public void testLastRange() {
-        set = new RangeSetWrapper<>(managedLedger, consumer);
+        set = new RangeSetWrapper<>(consumer, managedCursor);
         assertNull(set.lastRange());
         Range<LongPair> range = Range.openClosed(new LongPair(0, 97), new LongPair(0, 99));
         set.addOpenClosed(0, 97, 0, 99);
@@ -289,7 +295,7 @@ public class RangeSetWrapperTest {
 
     @Test
     public void testToString() {
-        set = new RangeSetWrapper<>(managedLedger, consumer);
+        set = new RangeSetWrapper<>(consumer, managedCursor);
         set.addOpenClosed(0, 97, 0, 99);
         assertEquals(set.toString(), "[(0:97..0:99]]");
         set.addOpenClosed(0, 98, 0, 105);
@@ -300,7 +306,7 @@ public class RangeSetWrapperTest {
 
     @Test
     public void testDeleteForDifferentKey() {
-        set = new RangeSetWrapper<>(managedLedger, consumer);
+        set = new RangeSetWrapper<>(consumer, managedCursor);
         set.addOpenClosed(0, 97, 0, 99);
         set.addOpenClosed(0, 99, 1, 5);
         set.addOpenClosed(1, 9, 1, 15);
@@ -331,7 +337,7 @@ public class RangeSetWrapperTest {
 
     @Test
     public void testDeleteWithAtMost() {
-        set = new RangeSetWrapper<>(managedLedger, consumer);
+        set = new RangeSetWrapper<>(consumer, managedCursor);
         set.addOpenClosed(0, 98, 0, 99);
         set.addOpenClosed(0, 100, 1, 5);
         set.addOpenClosed(1, 10, 1, 15);
@@ -357,7 +363,7 @@ public class RangeSetWrapperTest {
 
     @Test
     public void testDeleteWithAtMost2() {
-        set = new RangeSetWrapper<>(managedLedger, consumer);
+        set = new RangeSetWrapper<>(consumer, managedCursor);
         set.addOpenClosed(0, 98, 0, 99);
         set.addOpenClosed(0, 100, 1, 5);
         set.addOpenClosed(1, 10, 1, 15);
@@ -377,7 +383,7 @@ public class RangeSetWrapperTest {
         assertEquals(ranges.get(count), (Range.openClosed(new LongPair(2, 25), new LongPair(2, 28))));
 
         managedLedgerConfig.setUnackedRangesOpenCacheSetEnabled(false);
-        set = new RangeSetWrapper<>(managedLedger, consumer);
+        set = new RangeSetWrapper<>(consumer, managedCursor);
         set.addOpenClosed(0, 98, 0, 99);
         set.addOpenClosed(0, 100, 1, 5);
         set.addOpenClosed(1, 10, 1, 15);
@@ -397,7 +403,7 @@ public class RangeSetWrapperTest {
 
     @Test
     public void testDeleteWithLeastMost() {
-        set = new RangeSetWrapper<>(managedLedger, consumer);
+        set = new RangeSetWrapper<>(consumer, managedCursor);
         set.addOpenClosed(0, 98, 0, 99);
         set.addOpenClosed(0, 100, 1, 5);
         set.addOpenClosed(1, 10, 1, 15);
@@ -425,7 +431,7 @@ public class RangeSetWrapperTest {
 
     @Test
     public void testRangeContaining() {
-        set = new RangeSetWrapper<>(managedLedger, consumer);
+        set = new RangeSetWrapper<>(consumer, managedCursor);
         set.add(Range.closed(new LongPair(0, 98), new LongPair(0, 99)));
         set.add(Range.closed(new LongPair(0, 100), new LongPair(1, 5)));
         com.google.common.collect.RangeSet<LongPair> gSet = TreeRangeSet.create();
@@ -462,8 +468,47 @@ public class RangeSetWrapperTest {
     }
 
     @Test
+    public void testLruCache() {
+        RangeSetWrapper.LruCache<Integer, Integer> lruCache =
+                new RangeSetWrapper.LruCache<>();
+        lruCache.touch(1);
+        lruCache.touch(2);
+        lruCache.touch(3);
+        lruCache.touch(4);
+        assertEquals(lruCache.getEldestEntry().getKey().intValue(), 1);
+        lruCache.touch(4);
+        lruCache.touch(1);
+        assertEquals(lruCache.getEldestEntry().getKey().intValue(), 2);
+        lruCache.touch(2);
+        assertEquals(lruCache.getEldestEntry().getKey().intValue(), 3);
+        lruCache.remove(3);
+        assertEquals(lruCache.getEldestEntry().getKey().intValue(), 4);
+    }
+
+    @Test
+    public void testLruSchedule() {
+        LongPairConsumer<PositionImpl> positionRangeConverter = PositionImpl::new;
+        RangeSetWrapper<PositionImpl> wrapper = new RangeSetWrapper<>(positionRangeConverter, managedCursor);
+        wrapper.addOpenClosed(0, 1, 0, 99);
+        wrapper.addOpenClosed(0, 110, 0, 150);
+        wrapper.addOpenClosed(2, 1, 2, 99);
+        wrapper.addOpenClosed(2, 110, 2, 150);
+        wrapper.addOpenClosed(3, 1, 3, 99);
+        wrapper.addOpenClosed(3, 110, 3, 150);
+        // trigger touch
+        wrapper.contains(0, 20);
+        managedLedgerConfig.setMaxUnackedRangesInMemoryBytes(0);
+        Awaitility.await().atMost(20, TimeUnit.SECONDS).untilAsserted(() ->
+                assertEquals(wrapper.getRangeSet().size(), 2));
+        assertEquals(wrapper.getRangeSet().toString(), "[(0:1..0:99],(0:110..0:150]]");
+        assertEquals(wrapper.getLruCounter().getKeys().size(), 1);
+        List<Long> list = new ArrayList<>(wrapper.getLruCounter().getKeys());
+        assertEquals(list.get(0).longValue(), 0L);
+    }
+
+    @Test
     public void testCacheFlagConflict() {
-        set = new RangeSetWrapper<>(managedLedger, consumer);
+        set = new RangeSetWrapper<>(consumer, managedCursor);
         set.add(Range.openClosed(new LongPair(0, 1), new LongPair(0, 2)));
         set.add(Range.openClosed(new LongPair(0, 3), new LongPair(0, 4)));
         assertEquals(set.toString(), "[(0:1..0:2],(0:3..0:4]]");
@@ -485,9 +530,7 @@ public class RangeSetWrapperTest {
                     : previousUpper.getValue() - 1);
             int currentLowerValue = (int) (range.lowerBoundType().equals(BoundType.CLOSED) ? currentLower.getValue()
                     : currentLower.getValue() + 1);
-            boolean connected = (previousUpper.getKey() == currentLower.getKey())
-                    ? (previousUpperValue >= currentLowerValue)
-                    : false;
+            boolean connected = previousUpper.getKey() == currentLower.getKey() && (previousUpperValue >= currentLowerValue);
             if (connected) {
                 lastRange = Range.closed(lastRange.lowerEndpoint(), range.upperEndpoint());
             } else {

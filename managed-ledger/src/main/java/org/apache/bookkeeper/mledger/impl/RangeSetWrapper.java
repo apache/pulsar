@@ -20,36 +20,55 @@ package org.apache.bookkeeper.mledger.impl;
 
 
 import com.google.common.collect.Range;
+import org.apache.bookkeeper.client.LedgerEntry;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenLongPairRangeSet;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Enumeration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.Set;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSet<T>, AutoCloseable {
+    private static final Logger log = LoggerFactory.getLogger(RangeSetWrapper.class);
 
     private final LongPairRangeSet<T> rangeSet;
-    final LongPairConsumer<T> rangeConverter;
-    final ManagedLedgerImpl managedLedger;
-    final ManagedLedgerConfig config;
-    final ScheduledFuture<?> future;
-    final ConcurrentLinkedQueue<Long> pendingTouch = new ConcurrentLinkedQueue<>();
-    final LruCache<Long, Byte> lruCounter = new LruCache<>(10, 0.75f, true);
+    private final ManagedCursorImpl managedCursor;
+    private final LongPairConsumer<T> rangeConverter;
+    private final ManagedLedgerConfig config;
+    private final ScheduledFuture<?> future;
+    private final OrderedScheduler scheduler;
+    private final LruCache<Long, Byte> lruCounter = new LruCache<>();
 
-    public RangeSetWrapper(ManagedLedgerImpl managedLedger, LongPairConsumer<T> rangeConverter) {
+    public RangeSetWrapper(LongPairConsumer<T> rangeConverter, ManagedCursorImpl managedCursor) {
+        checkNotNull(managedCursor);
+        this.config = managedCursor.getManagedLedger().getConfig();
+        this.managedCursor = managedCursor;
         this.rangeConverter = rangeConverter;
-        this.config = managedLedger.getConfig();
-        this.managedLedger = managedLedger;
-        this.rangeSet = getLongPairRangeSetImpl();
-        future = config.isEnableLruCacheMaxUnackedRanges() ?
-                managedLedger.getScheduledExecutor()
-                        .scheduleAtFixedRate(new LruTask(this), 1, 1, TimeUnit.SECONDS) : null;
+        this.rangeSet = config.isUnackedRangesOpenCacheSetEnabled()
+                ? new ConcurrentOpenLongPairRangeSet<>(4096, rangeConverter)
+                : new LongPairRangeSet.DefaultRangeSet<>(rangeConverter);
+        if (managedCursor.getManagedLedger() instanceof ManagedLedgerImpl && config.isEnableLruCacheMaxUnackedRanges()) {
+            ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) managedCursor.getManagedLedger();
+            scheduler = managedLedger.getScheduledExecutor();
+            future = scheduler.scheduleWithFixedDelay(
+                    new LruTask(), 1, 5, TimeUnit.SECONDS);
+        } else {
+            future = null;
+            scheduler = null;
+        }
     }
 
     @Override
@@ -60,37 +79,75 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
 
     private void lruTouch(long ledgerId) {
         if (config.isEnableLruCacheMaxUnackedRanges()) {
-            pendingTouch.offer(ledgerId);
+            scheduler.execute(() -> lruCounter.touch(ledgerId));
         }
     }
 
-    private boolean isReachSwitchingThreshold() {
+    public boolean isReachLruSwitchThreshold() {
+        if (rangeSet instanceof ConcurrentOpenLongPairRangeSet) {
+            ConcurrentOpenLongPairRangeSet<T> set = (ConcurrentOpenLongPairRangeSet<T>) rangeSet;
+            return set.getRangeBitSetMapMemorySize() > config.getMaxUnackedRangesInMemoryBytes();
+        }
         // every position has 3 long properties
         return (long) size() * 24 > config.getMaxUnackedRangesInMemoryBytes();
     }
 
-    private LongPairRangeSet<T>  getLongPairRangeSetImpl() {
-        return config.isUnackedRangesOpenCacheSetEnabled()
-                ? new ConcurrentOpenLongPairRangeSet<>(4096, rangeConverter)
-                : new LongPairRangeSet.DefaultRangeSet<>(rangeConverter);
+    public LongPairRangeSet<T> getRangeSet() {
+        return rangeSet;
+    }
+
+    public LruCache<Long, Byte> getLruCounter() {
+        return lruCounter;
     }
 
     @Override
     public boolean contains(long key, long value) {
         lruTouch(key);
-        return rangeSet.contains(key, value);
+        boolean isContain = rangeSet.contains(key, value);
+        if (!isContain && managedCursor.getRangeMarker().containsKey(key)) {
+            tryLoadLruRangeFromLedger(key);
+            return rangeSet.contains(key, value);
+        }
+        return isContain;
     }
 
     @Override
-    public Range rangeContaining(long key, long value) {
+    public Range<T> rangeContaining(long key, long value) {
         lruTouch(key);
-        return rangeSet.rangeContaining(key, value);
+        Range<T> range = rangeSet.rangeContaining(key, value);
+        if(range == null && managedCursor.getRangeMarker().containsKey(key)){
+            tryLoadLruRangeFromLedger(key);
+            return rangeSet.rangeContaining(key, value);
+        }
+        return range;
     }
 
     @Override
     public void removeAtMost(long key, long value) {
         lruTouch(key);
         rangeSet.removeAtMost(key, value);
+    }
+
+    private void tryLoadLruRangeFromLedger(long key) {
+        if (config.isEnableLruCacheMaxUnackedRanges()) {
+            MLDataFormats.NestedPositionInfo positionInfo = managedCursor.getRangeMarker().get(key);
+            if (positionInfo == null) {
+                return;
+            }
+            try {
+                Enumeration<LedgerEntry> entryEnumeration = managedCursor.getCursorLedgerHandle()
+                                .readEntries(positionInfo.getLedgerId(), positionInfo.getEntryId());
+                if(entryEnumeration.hasMoreElements()){
+                    LedgerEntry ledgerEntry = entryEnumeration.nextElement();
+                    MLDataFormats.PositionInfo entryPosition =
+                            MLDataFormats.PositionInfo.parseDelimitedFrom(ledgerEntry.getEntryInputStream());
+                    managedCursor.recoverIndividualDeletedMessages(entryPosition.getIndividualDeletedMessagesList(),
+                            false);
+                }
+            } catch (Exception e) {
+                log.error("load lru entry failed", e);
+            }
+        }
     }
 
     public void add(Range<LongPair> range) {
@@ -103,11 +160,11 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
 
     public void remove(Range<T> range) {
         if (rangeSet instanceof ConcurrentOpenLongPairRangeSet) {
-            ConcurrentOpenLongPairRangeSet set = (ConcurrentOpenLongPairRangeSet) rangeSet;
+            ConcurrentOpenLongPairRangeSet<T> set = (ConcurrentOpenLongPairRangeSet<T>) rangeSet;
             Range<LongPair> longPairRange = (Range<LongPair>) range;
             set.remove(longPairRange);
         } else {
-            LongPairRangeSet.DefaultRangeSet set = (LongPairRangeSet.DefaultRangeSet) rangeSet;
+            LongPairRangeSet.DefaultRangeSet<T> set = (LongPairRangeSet.DefaultRangeSet<T>) rangeSet;
             set.remove(range);
         }
     }
@@ -163,7 +220,7 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
 
     @Override
     public void close() throws Exception {
-        if (future != null) {
+        if (future != null && !future.isCancelled()) {
             future.cancel(true);
         }
     }
@@ -173,79 +230,83 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
         return rangeSet.toString();
     }
 
-    private List<Range<PositionImpl>> getPositionRangeInLedger(long ledgerId) {
-        LongPairRangeSet<PositionImpl> set = (LongPairRangeSet<PositionImpl>) rangeSet;
-        List<Range<PositionImpl>> ranges = new ArrayList<>();
-        set.forEach(range -> {
-            if (range.upperEndpoint().getLedgerId() == ledgerId) {
-                ranges.add(range);
-            }
-            return true;
-        });
-        return ranges;
-    }
-
     class LruTask implements Runnable {
-        final RangeSetWrapper<PositionImpl> wrapper;
 
-        public LruTask(RangeSetWrapper rangeSetWrapper) {
-            this.wrapper = rangeSetWrapper;
-        }
         @Override
         public void run() {
-            Long key = pendingTouch.poll();
-            while (key != null) {
-                lruCounter.put(key, null);
-                key = pendingTouch.poll();
-            }
-
-            if (isReachSwitchingThreshold()) {
-                long eldestKey = lruCounter.removeEldestEntryAndGet();
-                if (rangeSet instanceof ConcurrentOpenLongPairRangeSet) {
-                    ConcurrentOpenLongPairRangeSet<PositionImpl> set =
-                            (ConcurrentOpenLongPairRangeSet<PositionImpl>) rangeSet;
-                    Range<LongPair> range = Range.openClosed(new LongPair(0, 0), new LongPair(0, 0));
-                    for (Range<PositionImpl> positionRange : getPositionRangeInLedger(eldestKey)) {
-                        range.lowerEndpoint().setKey(positionRange.lowerEndpoint().ledgerId);
-                        range.lowerEndpoint().setValue(positionRange.lowerEndpoint().entryId);
-                        range.upperEndpoint().setKey(positionRange.upperEndpoint().ledgerId);
-                        range.upperEndpoint().setValue(positionRange.upperEndpoint().entryId);
-                        set.remove(range);
-                    }
+            log.debug("start schedule LruTask");
+            // remove invalid key which is removed in rangeSet
+            Range<T> span = rangeSet.span();
+            for (Long ledgerId : lruCounter.getKeys()) {
+                if (span.lowerEndpoint().compareTo(rangeConverter.apply(ledgerId, Integer.MAX_VALUE - 1)) > 0) {
+                    lruCounter.remove(ledgerId);
+                    log.info("LruTask remove invalid key {}", ledgerId);
                 } else {
-                    LongPairRangeSet.DefaultRangeSet<PositionImpl> set =
-                            (LongPairRangeSet.DefaultRangeSet<PositionImpl>) rangeSet;
-                    for (Range<PositionImpl> positionRange : getPositionRangeInLedger(eldestKey)) {
-                        set.remove(positionRange);
-                    }
+                    break;
+                }
+            }
+            if (isReachLruSwitchThreshold() && lruCounter.size() > 1) {
+                long eldestKey = lruCounter.removeEldestEntryAndGet();
+                log.info("Reach switching threshold, try to remove eldest ledger {}, range size {}",
+                        eldestKey, rangeSet.size());
+                if (rangeSet instanceof ConcurrentOpenLongPairRangeSet) {
+                    ConcurrentOpenLongPairRangeSet<T> set =
+                            (ConcurrentOpenLongPairRangeSet<T>) rangeSet;
+                    set.remove(Range.openClosed(new LongPair(eldestKey, 0), new LongPair(eldestKey,
+                            Integer.MAX_VALUE - 1)));
+                } else {
+                    LongPairRangeSet.DefaultRangeSet<T> set =
+                            (LongPairRangeSet.DefaultRangeSet<T>) rangeSet;
+                    set.remove(Range.openClosed(rangeConverter.apply(eldestKey, 0),
+                            rangeConverter.apply(eldestKey, Integer.MAX_VALUE - 1)));
                 }
             }
         }
     }
 
-    static class LruCache<K,V> extends LinkedHashMap<K,V> {
-        Map.Entry<K,V> eldestEntry;
+    static class LruCache<K,V> {
+        private Field field;
+        final LinkedHashMap<K,V> linkedHashMap;
 
-        public LruCache(int initialCapacity,
-                        float loadFactor,
-                        boolean accessOrder) {
-            super(initialCapacity, loadFactor, accessOrder);
+        public LruCache() {
+            linkedHashMap = new LinkedHashMap<>(10, 0.75f, true);
         }
 
-        @Override
-        protected boolean removeEldestEntry(Map.Entry<K,V> eldest) {
-            eldestEntry = eldest;
-            return false;
+        public Set<K> getKeys() {
+            return linkedHashMap.keySet();
+        }
+
+        public V remove(K key) {
+            return linkedHashMap.remove(key);
+        }
+
+        public void touch(K key) {
+            linkedHashMap.putIfAbsent(key, null);
         }
 
         public K removeEldestEntryAndGet() {
-            K key = eldestEntry.getKey();
-            super.remove(key);
-            return key;
+            Map.Entry<K, V> entry = getEldestEntry();
+            if (entry != null) {
+                linkedHashMap.remove(entry.getKey());
+                return entry.getKey();
+            }
+            return null;
         }
 
         public Map.Entry<K, V> getEldestEntry() {
-            return eldestEntry;
+            try {
+                if (field == null) {
+                    field = LinkedHashMap.class.getDeclaredField("head");
+                    field.setAccessible(true);
+                }
+                return (Map.Entry<K, V>) field.get(linkedHashMap);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        public int size() {
+            return linkedHashMap.size();
         }
     }
 }

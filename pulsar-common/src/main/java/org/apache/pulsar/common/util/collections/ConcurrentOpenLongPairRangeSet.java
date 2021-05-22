@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.common.util.collections;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import java.util.ArrayList;
@@ -29,6 +28,7 @@ import java.util.NavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * A Concurrent set comprising zero or more ranges of type {@link LongPair}. This can be alternative of
@@ -365,6 +365,12 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
 
         updatedAfterCachedForSize = true;
         updatedAfterCachedForToString = true;
+    }
+
+    public int getRangeBitSetMapMemorySize() {
+        AtomicInteger count = new AtomicInteger(0);
+        rangeBitSetMap.forEach((key, value) -> count.addAndGet(value.size() / 8 + 8));
+        return count.get();
     }
 
     private int getSafeEntry(LongPair position) {
