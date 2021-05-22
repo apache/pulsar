@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar Metrics · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="&lt;style type=&quot;text/css&quot;&gt;"/><meta name="docsearch:version" content="2.7.1"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Pulsar Metrics · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="&lt;style type=&quot;text/css&quot;&gt;"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar Metrics · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="&lt;style type=&quot;text/css&quot;&gt;"/><meta name="docsearch:version" content="2.7.2"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Pulsar Metrics · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="&lt;style type=&quot;text/css&quot;&gt;"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
               (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
               (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
               m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.7.1</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/reference-metrics">English</a></li><li><a href="/docs/ja/reference-metrics">日本語</a></li><li><a href="/docs/fr/reference-metrics">Français</a></li><li><a href="/docs/ko/reference-metrics">한국어</a></li><li><a href="/docs/zh-TW/reference-metrics">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.7.2</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">命令行</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/reference-metrics">English</a></li><li><a href="/docs/ja/reference-metrics">日本語</a></li><li><a href="/docs/fr/reference-metrics">Français</a></li><li><a href="/docs/ko/reference-metrics">한국어</a></li><li><a href="/docs/zh-TW/reference-metrics">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -100,7 +100,7 @@
 <h3><a class="anchor" aria-hidden="true" id="服务器度量值"></a><a href="#服务器度量值" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>服务器度量值</h3>
 <table>
 <thead>
-<tr><th>配置项</th><th>类型</th><th>Description</th></tr>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
 </thead>
 <tbody>
 <tr><td>zookeeper_server_znode_count</td><td>计量表</td><td>存储的 z-nodes 数量。</td></tr>
@@ -113,7 +113,7 @@
 <h3><a class="anchor" aria-hidden="true" id="请求度量值"></a><a href="#请求度量值" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>请求度量值</h3>
 <table>
 <thead>
-<tr><th>配置项</th><th>类型</th><th>Description</th></tr>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
 </thead>
 <tbody>
 <tr><td>zookeeper_server_requests</td><td>计数器</td><td>特定服务器收到请求的总数。</td></tr>
@@ -125,7 +125,7 @@
 <h3><a class="anchor" aria-hidden="true" id="服务器度量值-1"></a><a href="#服务器度量值-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>服务器度量值</h3>
 <table>
 <thead>
-<tr><th>配置项</th><th>类型</th><th>Description</th></tr>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
 </thead>
 <tbody>
 <tr><td>bookie_SERVER_STATUS</td><td>计量表</td><td>bookie 服务器的服务状态。<br><ul><li>1: bookie 正运行于可写入模式。</li><li>0: bookie 正运行于只读模式。</li></ul></td></tr>
@@ -140,7 +140,7 @@
 <h3><a class="anchor" aria-hidden="true" id="日志度量值"></a><a href="#日志度量值" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>日志度量值</h3>
 <table>
 <thead>
-<tr><th>配置项</th><th>类型</th><th>Description</th></tr>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
 </thead>
 <tbody>
 <tr><td>bookie_journal_JOURNAL_SYNC_count</td><td>计数器</td><td>bookie 中日志 fsync 操作的总次数。 <code>success</code> 标签会被用于区分成功与失败。</td></tr>
@@ -154,7 +154,7 @@
 <h3><a class="anchor" aria-hidden="true" id="存储度量值"></a><a href="#存储度量值" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>存储度量值</h3>
 <table>
 <thead>
-<tr><th>配置项</th><th>类型</th><th>Description</th></tr>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
 </thead>
 <tbody>
 <tr><td>bookie_ledgers_count</td><td>计量表</td><td>bookie 中存储的 ledger 总数。</td></tr>
@@ -202,7 +202,7 @@
 </ul>
 <table>
 <thead>
-<tr><th>配置项</th><th>类型</th><th>Description</th></tr>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
 </thead>
 <tbody>
 <tr><td>pulsar_topics_count</td><td>计量表</td><td>命名空间下由此 broker 拥有的 Pulsar 主题数。</td></tr>
@@ -219,7 +219,7 @@
 <tr><td>pulsar_storage_write_rate</td><td>计量表</td><td>此命名空间写入到存储的总消息批处理(条目)数 (消息批处理/秒)。</td></tr>
 <tr><td>pulsar_storage_read_rate</td><td>计量表</td><td>此命名空间从存储中读取的总消息批处理(条目)数 (消息批处理/秒)。</td></tr>
 <tr><td>pulsar_subscription_delayed</td><td>计量表</td><td>被延迟派发的总消息批处理(条目)数。</td></tr>
-<tr><td>pulsar_storage_write_latency_le_*</td><td>直方图</td><td>The entry rate of a namespace that the storage write latency is smaller with a given threshold.<br> 可用的阈值： <br><ul><li>pulsar_storage_write_latency_le_0_5: &lt;= 0.5ms </li><li>pulsar_storage_write_latency_le_1: &lt;= 1ms</li><li>pulsar_storage_write_latency_le_5: &lt;= 5ms</li><li>pulsar_storage_write_latency_le_10: &lt;= 10ms</li><li>pulsar_storage_write_latency_le_20: &lt;= 20ms</li><li>pulsar_storage_write_latency_le_50: &lt;= 50ms</li><li>pulsar_storage_write_latency_le_100: &lt;= 100ms</li><li>pulsar_storage_write_latency_le_200: &lt;= 200ms</li><li>pulsar_storage_write_latency_le_1000: &lt;= 1s</li><li>pulsar_storage_write_latency_le_overflow: &gt; 1s</li></ul></td></tr>
+<tr><td>pulsar_storage_write_latency_le_*</td><td>直方图</td><td>The entry rate of a namespace that the storage write latency is smaller with a given threshold.<br> 可用的阈值： <br><ul><li>pulsar_storage_write_latency_le_0_5: &lt;= 0.5ms </li><li>pulsar_storage_write_latency_le_1: &lt;= 1ms</li><li>pulsar_storage_write_latency_le_5: &lt;= 5ms</li><li>pulsar_storage_write_latency_le_10: &lt;= 10ms</li><li>pulsar_storage_write_latency_le_20: &lt;= 20ms</li><li>pulsar_storage_write_latency_le_50: &lt;= 50ms</li><li>pulsar_storage_write_latency_le_100: &lt;= 100ms</li><li>pulsar_storage_write_latency_le_200: &lt;= 200ms</li><li>pulsar_storage_write_latency_le_1000: &lt;= 1s</li><li>pulsar_storage_write_latency_overflow: &gt; 1s</li></ul></td></tr>
 <tr><td>pulsar_entry_size_le_*</td><td>直方图</td><td>The entry rate of a namespace that the entry size is smaller with a given threshold.<br> Available thresholds: <br><ul><li>pulsar_entry_size_le_128: &lt;= 128 bytes </li><li>pulsar_entry_size_le_512: &lt;= 512 bytes</li><li>pulsar_entry_size_le_1_kb: &lt;= 1 KB</li><li>pulsar_entry_size_le_2_kb: &lt;= 2 KB</li><li>pulsar_entry_size_le_4_kb: &lt;= 4 KB</li><li>pulsar_entry_size_le_16_kb: &lt;= 16 KB</li><li>pulsar_entry_size_le_100_kb: &lt;= 100 KB</li><li>pulsar_entry_size_le_1_mb: &lt;= 1 MB</li><li>pulsar_entry_size_le_overflow: &gt; 1 MB</li></ul></td></tr>
 </tbody>
 </table>
@@ -228,7 +228,7 @@
 <p>所有的复制度量值也带有 <code>remoteCluster=${pulsar_remote_cluster}</code> 标签。</p>
 <table>
 <thead>
-<tr><th>配置项</th><th>类型</th><th>Description</th></tr>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
 </thead>
 <tbody>
 <tr><td>pulsar_replication_rate_in</td><td>计量表</td><td>命名空间从远程集群进行复制的总消息频率（消息/秒）。</td></tr>
@@ -250,7 +250,7 @@
 </ul>
 <table>
 <thead>
-<tr><th>配置项</th><th>类型</th><th>Description</th></tr>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
 </thead>
 <tbody>
 <tr><td>pulsar_subscriptions_count</td><td>计量表</td><td>主题下由此 broker 服务的 Pulsar 订阅数。</td></tr>
@@ -267,7 +267,7 @@
 <tr><td>pulsar_storage_write_rate</td><td>计量表</td><td>此主题写入到存储的总消息批处理(条目)数 (消息批处理/秒)。</td></tr>
 <tr><td>pulsar_storage_read_rate</td><td>计量表</td><td>此主题从存储中读取的总消息批处理(条目)数 (消息批处理/秒)。</td></tr>
 <tr><td>pulsar_subscription_delayed</td><td>计量表</td><td>被延迟派发的总消息批处理(条目)数。</td></tr>
-<tr><td>pulsar_storage_write_latency_le_*</td><td>直方图</td><td>The entry rate of a topic that the storage write latency is smaller with a given threshold.<br> 可用的阈值： <br><ul><li>pulsar_storage_write_latency_le_0_5: &lt;= 0.5ms </li><li>pulsar_storage_write_latency_le_1: &lt;= 1ms</li><li>pulsar_storage_write_latency_le_5: &lt;= 5ms</li><li>pulsar_storage_write_latency_le_10: &lt;= 10ms</li><li>pulsar_storage_write_latency_le_20: &lt;= 20ms</li><li>pulsar_storage_write_latency_le_50: &lt;= 50ms</li><li>pulsar_storage_write_latency_le_100: &lt;= 100ms</li><li>pulsar_storage_write_latency_le_200: &lt;= 200ms</li><li>pulsar_storage_write_latency_le_1000: &lt;= 1s</li><li>pulsar_storage_write_latency_le_overflow: &gt; 1s</li></ul></td></tr>
+<tr><td>pulsar_storage_write_latency_le_*</td><td>直方图</td><td>The entry rate of a topic that the storage write latency is smaller with a given threshold.<br> 可用的阈值： <br><ul><li>pulsar_storage_write_latency_le_0_5: &lt;= 0.5ms </li><li>pulsar_storage_write_latency_le_1: &lt;= 1ms</li><li>pulsar_storage_write_latency_le_5: &lt;= 5ms</li><li>pulsar_storage_write_latency_le_10: &lt;= 10ms</li><li>pulsar_storage_write_latency_le_20: &lt;= 20ms</li><li>pulsar_storage_write_latency_le_50: &lt;= 50ms</li><li>pulsar_storage_write_latency_le_100: &lt;= 100ms</li><li>pulsar_storage_write_latency_le_200: &lt;= 200ms</li><li>pulsar_storage_write_latency_le_1000: &lt;= 1s</li><li>pulsar_storage_write_latency_overflow: &gt; 1s</li></ul></td></tr>
 <tr><td>pulsar_entry_size_le_*</td><td>直方图</td><td>The entry rate of a topic that the entry size is smaller with a given threshold.<br> Available thresholds: <br><ul><li>pulsar_entry_size_le_128: &lt;= 128 bytes </li><li>pulsar_entry_size_le_512: &lt;= 512 bytes</li><li>pulsar_entry_size_le_1_kb: &lt;= 1 KB</li><li>pulsar_entry_size_le_2_kb: &lt;= 2 KB</li><li>pulsar_entry_size_le_4_kb: &lt;= 4 KB</li><li>pulsar_entry_size_le_16_kb: &lt;= 16 KB</li><li>pulsar_entry_size_le_100_kb: &lt;= 100 KB</li><li>pulsar_entry_size_le_1_mb: &lt;= 1 MB</li><li>pulsar_entry_size_le_overflow: &gt; 1 MB</li></ul></td></tr>
 <tr><td>pulsar_in_bytes_total</td><td>计数器</td><td>The total number of bytes received for this topic</td></tr>
 <tr><td>pulsar_in_messages_total</td><td>计数器</td><td>The total number of messages received for this topic</td></tr>
@@ -280,7 +280,7 @@
 <p>所有的复制度量值带有 <code>remoteCluster=${pulsar_remote_cluster}</code> 标签。</p>
 <table>
 <thead>
-<tr><th>配置项</th><th>类型</th><th>Description</th></tr>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
 </thead>
 <tbody>
 <tr><td>pulsar_replication_rate_in</td><td>计量表</td><td>主题从远程集群进行复制的总消息频率（消息/秒）。</td></tr>
@@ -297,7 +297,7 @@
 </ul>
 <table>
 <thead>
-<tr><th>配置项</th><th>类型</th><th>Description</th></tr>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
 </thead>
 <tbody>
 <tr><td>pulsar_ml_cache_evictions</td><td>计量表</td><td>在过去 1 分钟内的缓存驱逐数。</td></tr>
@@ -325,7 +325,7 @@
 </ul>
 <table>
 <thead>
-<tr><th>配置项</th><th>类型</th><th>Description</th></tr>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
 </thead>
 <tbody>
 <tr><td>pulsar_ml_AddEntryBytesRate</td><td>计量表</td><td>添加消息的字节/秒频率</td></tr>
@@ -356,7 +356,7 @@
 </ul>
 <table>
 <thead>
-<tr><th>配置项</th><th>类型</th><th>Description</th></tr>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
 </thead>
 <tbody>
 <tr><td>pulsar_lb_bandwidth_in_usage</td><td>计量表</td><td>正在使用的 broker 带宽</td></tr>
@@ -374,7 +374,7 @@
 </ul>
 <table>
 <thead>
-<tr><th>配置项</th><th>类型</th><th>Description</th></tr>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
 </thead>
 <tbody>
 <tr><td>pulsar_lb_unload_broker_count</td><td>计数器</td><td>在本次 bundle 卸载中卸载的 broker 计数</td></tr>
@@ -389,7 +389,7 @@
 </ul>
 <table>
 <thead>
-<tr><th>配置项</th><th>类型</th><th>Description</th></tr>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
 </thead>
 <tbody>
 <tr><td>pulsar_lb_bundles_split_count</td><td>计数器</td><td>在本次 bundle 切分检查中切分的 bundle 计数</td></tr>
@@ -408,7 +408,7 @@
 </ul>
 <table>
 <thead>
-<tr><th>配置项</th><th>类型</th><th>Description</th></tr>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
 </thead>
 <tbody>
 <tr><td>pulsar_subscription_back_log</td><td>计量表</td><td>The total backlog of a subscription (messages).</td></tr>
@@ -435,7 +435,7 @@
 </ul>
 <table>
 <thead>
-<tr><th>配置项</th><th>类型</th><th>Description</th></tr>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
 </thead>
 <tbody>
 <tr><td>pulsar_consumer_msg_rate_redeliver</td><td>计量表</td><td>The total message rate for message being redelivered (messages/second).</td></tr>
@@ -453,7 +453,7 @@
 </ul>
 <table>
 <thead>
-<tr><th>配置项</th><th>类型</th><th>Description</th></tr>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
 </thead>
 <tbody>
 <tr><td>pulsar_managedLedger_client_bookkeeper_ml_scheduler_completed_tasks_*</td><td>计量表</td><td>调度程序执行器已执行完成的任务数。 <br>由 <code>broker.conf</code> 中 <code>managedLedgerNumerThrad</code> 配置的调度器线程数所决定的度量值数。 <br></td></tr>
@@ -475,7 +475,7 @@
 </ul>
 <table>
 <thead>
-<tr><th>配置项</th><th>类型</th><th>Description</th></tr>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
 </thead>
 <tbody>
 <tr><td>pulsar_expired_token_count</td><td>计数器</td><td>The number of expired tokens in Pulsar.</td></tr>
@@ -492,7 +492,7 @@
 </ul>
 <table>
 <thead>
-<tr><th>配置项</th><th>类型</th><th>Description</th></tr>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
 </thead>
 <tbody>
 <tr><td>pulsar_authentication_success_count</td><td>计数器</td><td>The number of successful authentication operations.</td></tr>
@@ -507,7 +507,7 @@
 </ul>
 <table>
 <thead>
-<tr><th>配置项</th><th>类型</th><th>Description</th></tr>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
 </thead>
 <tbody>
 <tr><td>pulsar_function_processed_successfully_total</td><td>计数器</td><td>成功处理的消息总数。</td></tr>
@@ -531,7 +531,7 @@
 </ul>
 <table>
 <thead>
-<tr><th>配置项</th><th>类型</th><th>Description</th></tr>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
 </thead>
 <tbody>
 <tr><td>pulsar_proxy_active_connections</td><td>计量表</td><td>代理中当前活动的连接数量。</td></tr>
@@ -544,7 +544,7 @@
 <h2><a class="anchor" aria-hidden="true" id="pulsar-sql-worker"></a><a href="#pulsar-sql-worker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar SQL Worker</h2>
 <table>
 <thead>
-<tr><th>配置项</th><th>类型</th><th>Description</th></tr>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
 </thead>
 <tbody>
 <tr><td>split_bytes_read</td><td>计数器</td><td>从 BookKeeper 读取的字节数。</td></tr>
@@ -624,6 +624,6 @@
                 apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
                 indexName: 'apache_pulsar',
                 inputSelector: '#search_input_react',
-                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.7.1"]}
+                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.7.2"]}
               });
             </script></body></html>

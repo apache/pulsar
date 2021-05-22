@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Schema evolution and compatibility · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="通常情况下，Schema 不会在很长时间内保持不变。 相反地，它们会不断更新，以满足新的需求。"/><meta name="docsearch:version" content="2.7.1"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Schema evolution and compatibility · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="通常情况下，Schema 不会在很长时间内保持不变。 相反地，它们会不断更新，以满足新的需求。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Schema evolution and compatibility · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="通常情况下，Schema 不会在很长时间内保持不变。 相反地，它们会不断更新，以满足新的需求。"/><meta name="docsearch:version" content="2.7.2"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Schema evolution and compatibility · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="通常情况下，Schema 不会在很长时间内保持不变。 相反地，它们会不断更新，以满足新的需求。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
               (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
               (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
               m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.7.1</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/schema-evolution-compatibility">English</a></li><li><a href="/docs/ja/schema-evolution-compatibility">日本語</a></li><li><a href="/docs/fr/schema-evolution-compatibility">Français</a></li><li><a href="/docs/ko/schema-evolution-compatibility">한국어</a></li><li><a href="/docs/zh-TW/schema-evolution-compatibility">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.7.2</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">命令行</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/schema-evolution-compatibility">English</a></li><li><a href="/docs/ja/schema-evolution-compatibility">日本語</a></li><li><a href="/docs/fr/schema-evolution-compatibility">Français</a></li><li><a href="/docs/ko/schema-evolution-compatibility">한국어</a></li><li><a href="/docs/zh-TW/schema-evolution-compatibility">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -120,16 +120,16 @@
 <tr>
 <td> 
 <p><code>ALWAYS_COMPATIBLE</code></p>
-</td> 
+</td>
 <td> 
 <p>禁用 schema 兼容性检查。</p>
-</td> 
+</td>
 <td> 
 <p>允许所有更改</p>
-</td> 
+</td>
 <td> 
 <p>所有旧版本</p>
-</td> 
+</td>
 <td> 
 <p>任何请求</p>
 </td> 
@@ -137,16 +137,16 @@
 <tr>
 <td> 
 <p><code>ALWAYS_INCOMPATIBLE</code></p>
-</td> 
+</td>
 <td> 
 <p>禁用 schema 演化。</p>
-</td> 
+</td>
 <td> 
 <p>禁用更改</p>
-</td> 
+</td>
 <td> 
 <p>无</p>
-</td> 
+</td>
 <td> 
 <p>无</p>
 </td> 
@@ -154,19 +154,19 @@
 <tr>
 <td> 
 <p><code>BACKWARD</code></p>
-</td> 
+</td>
 <td> 
 <p>使用 schema V3 的 consumer 可以处理 producer 使用 schema V3 或 V2 编写的数据。</p>
-</td> 
+</td>
 <td> 
 <ul>
 <li><p>添加可选字段</p></li>
 <li><p>删除字段</p></li>
 </ul>
-</td> 
+</td>
 <td> 
 <p>最新版本</p>
-</td> 
+</td>
 <td> 
 <p>Consumers</p>
 </td> 
@@ -174,19 +174,19 @@
 <tr>
 <td> 
 <p><code>BACKWARD_TRANSITIVE</code></p>
-</td> 
+</td>
 <td> 
 <p>使用 schema V3 的 consumer 可以处理 producer 使用 schema V3、V2 或 V1 编写的数据。</p>
-</td> 
+</td>
 <td> 
 <ul>
 <li><p>添加可选字段</p></li>
 <li><p>删除字段</p></li>
 </ul>
-</td> 
+</td>
 <td> 
 <p>所有旧版本</p>
-</td> 
+</td>
 <td> 
 <p>Consumers</p>
 </td> 
@@ -194,19 +194,19 @@
 <tr>
 <td> 
 <p><code>FORWARD</code></p>
-</td> 
+</td>
 <td> 
 <p>使用 schema V3 或 V2 的 consumer 可以处理 producer 使用 schema V3 编写的数据。</p>
-</td> 
+</td>
 <td> 
 <ul>
 <li><p>添加字段</p></li>
 <li><p>删除可选字段</p></li>
 </ul>
-</td> 
+</td>
 <td> 
 <p>最新版本</p>
-</td> 
+</td>
 <td> 
 <p>Producers</p>
 </td> 
@@ -214,19 +214,19 @@
 <tr>
 <td> 
 <p><code>FORWARD_TRANSITIVE</code></p>
-</td> 
+</td>
 <td> 
 <p>使用 schema V3、V2 或 V1 的 consumer 可以处理 producer 使用 schema V3 编写的数据。</p>
-</td> 
+</td>
 <td> 
 <ul>
 <li><p>添加字段</p></li>
 <li><p>删除可选字段</p></li>
 </ul>
-</td> 
+</td>
 <td> 
 <p>所有旧版本</p>
-</td> 
+</td>
 <td> 
 <p>Producers</p>
 </td> 
@@ -234,18 +234,18 @@
 <tr>
 <td> 
 <p><code>FULL</code></p>
-</td> 
+</td>
 <td> 
 <p>Schema V3 和 V2 之间向后和向前兼容。</p>
-</td> 
+</td>
 <td> 
 <ul>
 <li>修改可选字段</li>
 </ul>
-</td> 
+</td>
 <td> 
 <p>最新版本</p>
-</td> 
+</td>
 <td> 
 <p>任何请求</p>
 </td> 
@@ -253,18 +253,18 @@
 <tr>
 <td> 
 <p><code>FULL_TRANSITIVE</code></p>
-</td> 
+</td>
 <td> 
 <p>Schema V3、V2 和 V1 之间向后和向前兼容。</p>
-</td> 
+</td>
 <td> 
 <ul>
 <li>修改可选字段</li>
 </ul>
-</td> 
+</td>
 <td> 
 <p>所有旧版本</p>
-</td> 
+</td>
 <td> 
 <p>任何请求</p>
 </td> 
@@ -286,10 +286,10 @@
 <tr>
 <td> 
 <p><code>ALWAYS_COMPATIBLE</code></p>
-</td> 
+</td>
 <td> 
 <p>禁用 schema 兼容性检查。</p>
-</td> 
+</td>
 <td> 
 <p>无</p>
 </td> 
@@ -297,10 +297,10 @@
 <tr>
 <td> 
 <p><code>ALWAYS_INCOMPATIBLE</code></p>
-</td> 
+</td>
 <td> 
 <p>禁用 schema 演化，即不允许 schema 更改。</p>
-</td> 
+</td>
 <td> 
 <ul>
 <li><p>除 Avro 和 JSON 以外所有类型的 schema，其默认 schema 兼容性检查策略为 <code>ALWAYS_INCOMPATIBLE</code> 。</p></li>
@@ -329,7 +329,7 @@
 <p>假设某 topic 包含三个 schema（V1、V2 和 V3），V1 是最旧的，V3 是最新的：</p>
 <table>
 <thead>
-<tr><th>兼容性检查策略</th><th>定义</th><th>Description</th></tr>
+<tr><th>兼容性检查策略</th><th>定义</th><th>说明</th></tr>
 </thead>
 <tbody>
 <tr><td></td><td></td><td></td></tr>
@@ -349,7 +349,7 @@
 <p>假设某 topic 包含三个 schema（V1、V2 和 V3），V1 是最旧的，V3 是最新的：</p>
 <table>
 <thead>
-<tr><th>兼容性检查策略</th><th>定义</th><th>Description</th></tr>
+<tr><th>兼容性检查策略</th><th>定义</th><th>说明</th></tr>
 </thead>
 <tbody>
 <tr><td></td><td></td><td></td></tr>
@@ -377,7 +377,7 @@
 <p>定义</p>
 </th>
 <th>
-<p>Description</p>
+<p>说明</p>
 </th>
 <th>
 <p>Note</p>
@@ -386,18 +386,18 @@
 <tr>
 <td> 
 <p><code>FULL</code></p>
-</td> 
+</td>
 <td> 
 <p>Schema 既向后兼容，也向前兼容，也就是说：</p>
 <p>使用最新 schema 的 consumer 可以处理 producer 使用新 schema 编写的数据。</p>
 <p>并且</p>
 <p>使用 schema 的 consumer 可以处理 producer 使用最新 schema 编写的数据。</p>
-</td> 
+</td>
 <td> 
 <p>使用 schema V3 的 consumer 可以处理 producer 使用 schema V3 或 V2 编写的数据。</p>
 <p>并且</p>
 <p>使用 schema V3 或 V2 的 consumer 可以处理 producer 使用 schema V3 编写的数据。</p>
-</td> 
+</td>
 <td> 
 <ul>
 <li><p>Avro 和 JSON 的默认 schema 兼容性检查策略为 `FULL'。</p></li>
@@ -408,15 +408,15 @@
 <tr>
 <td> 
 <p><code>FULL_TRANSITIVE</code></p>
-</td> 
+</td>
 <td> 
 <p>新的 schema 可以与所有注册过的 schema 向后或向前兼容。</p>
-</td> 
+</td>
 <td> 
 <p>使用 schema V3 的 consumer 可以处理 producer 使用 schema V3、V2 或 V1 编写的数据。</p>
 <p>并且</p>
 <p>使用 schema V3、V2 或 V1 的 consumer 可以处理 producer 使用 schema V3 编写的数据。</p>
-</td> 
+</td>
 <td> 
 <p>无</p>
 </td>
@@ -449,7 +449,7 @@
 <tr>
 <td> 
 <p><code>ALWAYS_COMPATIBLE</code></p>
-</td> 
+</td>
 <td> 
 <p>全部通过</p>
 </td> 
@@ -457,7 +457,7 @@
 <tr>
 <td> 
 <p><code>ALWAYS_INCOMPATIBLE</code></p>
-</td> 
+</td>
 <td> 
 <p>不能通过</p>
 </td> 
@@ -465,7 +465,7 @@
 <tr>
 <td> 
 <p><code>BACKWARD</code></p>
-</td> 
+</td>
 <td> 
 <p>可读取上一个 schema</p>
 </td> 
@@ -473,7 +473,7 @@
 <tr>
 <td> 
 <p><code>BACKWARD_TRANSITIVE</code></p>
-</td> 
+</td>
 <td> 
 <p>可以读取所有 schemas</p>
 </td> 
@@ -481,7 +481,7 @@
 <tr>
 <td> 
 <p><code>FORWARD</code></p>
-</td> 
+</td>
 <td> 
 <p>可读取上一个 schema</p>
 </td> 
@@ -489,7 +489,7 @@
 <tr>
 <td> 
 <p><code>FORWARD_TRANSITIVE</code></p>
-</td> 
+</td>
 <td> 
 <p>可读取上一个 schema</p>
 </td> 
@@ -497,7 +497,7 @@
 <tr>
 <td> 
 <p><code>FULL</code></p>
-</td> 
+</td>
 <td> 
 <p>可读取上一个 schema</p>
 </td> 
@@ -505,7 +505,7 @@
 <tr>
 <td> 
 <p><code>FULL_TRANSITIVE</code></p>
-</td> 
+</td>
 <td> 
 <p>可以读取所有 schemas</p>
 </td> 
@@ -523,16 +523,16 @@
 <p>优先升级</p>
 </th>
 <th>
-<p>Description</p>
+<p>说明</p>
 </th>
 </tr>
 <tr>
 <td> 
 <p><code>ALWAYS_COMPATIBLE</code></p>
-</td> 
+</td>
 <td> 
 <p>任何请求</p>
-</td> 
+</td>
 <td> 
 <p>兼容性检查被禁用。</p>
 <p>因此，您可以以<strong>任何顺序</strong>升级producers与consumers</p>
@@ -541,10 +541,10 @@
 <tr>
 <td> 
 <p><code>ALWAYS_INCOMPATIBLE</code></p>
-</td> 
+</td>
 <td> 
 <p>无</p>
-</td> 
+</td>
 <td> 
 <p>schema演化被禁用</p>
 </td> 
@@ -555,10 +555,10 @@
 <li><p><code>BACKWARD</code></p></li>
 <li><p><code>BACKWARD_TRANSITIVE</code></p></li>
 </ul>
-</td> 
+</td>
 <td> 
 <p>Consumers</p>
-</td> 
+</td>
 <td> 
 <p>不保证使用旧schema的consumer能读取使用新schema的producer产生的数据。</p>
 <p>因此，<strong>优先升级所有consumers</strong>，然后再开始生产新的数据</p>
@@ -570,10 +570,10 @@
 <li><p><code>FORWARD</code></p></li>
 <li><p><code>FORWARD_TRANSITIVE</code></p></li>
 </ul>
-</td> 
+</td>
 <td> 
 <p>Producers</p>
-</td> 
+</td>
 <td> 
 <p>不保证使用新schema的consumers能读取使用旧schema的producer产生的数据。</p>
 <p>因此，<strong>优先升级所有producers</strong>，让它们用上新的schema，并且保证先前使用旧schema生成的数据不再对consumers可用，然后再去升级consumers</p>
@@ -585,10 +585,10 @@
 <li><p><code>FULL</code></p></li>
 <li><p><code>FULL_TRANSITIVE</code></p></li>
 </ul>
-</td> 
+</td>
 <td> 
 <p>任何请求</p>
-</td> 
+</td>
 <td> 
 <p>不保证使用旧schema的consumers能读取使用新schema生产的数据，或使用新schema的consumers可以读取旧schema生产的数据</p>
 <p>因此，您可以以<strong>任何顺序</strong>升级producers与consumers</p>
@@ -648,6 +648,6 @@
                 apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
                 indexName: 'apache_pulsar',
                 inputSelector: '#search_input_react',
-                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.7.1"]}
+                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.7.2"]}
               });
             </script></body></html>

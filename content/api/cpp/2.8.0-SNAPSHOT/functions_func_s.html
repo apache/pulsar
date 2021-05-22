@@ -88,6 +88,7 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
       <li><a href="functions_func_h.html#index_h"><span>h</span></a></li>
       <li><a href="functions_func_i.html#index_i"><span>i</span></a></li>
       <li><a href="functions_func_l.html#index_l"><span>l</span></a></li>
+      <li><a href="functions_func_m.html#index_m"><span>m</span></a></li>
       <li><a href="functions_func_n.html#index_n"><span>n</span></a></li>
       <li><a href="functions_func_p.html#index_p"><span>p</span></a></li>
       <li><a href="functions_func_r.html#index_r"><span>r</span></a></li>
@@ -118,11 +119,11 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 : <a class="el" href="classpulsar_1_1_schema_info.html#ab0e388e0cc81a21da3917156053e16d2">pulsar::SchemaInfo</a>
 </li>
 <li>seek()
-: <a class="el" href="classpulsar_1_1_consumer.html#a949eda4ed6de3ecc2e4f793cce1dc06c">pulsar::Consumer</a>
+: <a class="el" href="classpulsar_1_1_consumer.html#a45800c18df817caabe6cd9c21e7d72b3">pulsar::Consumer</a>
 , <a class="el" href="classpulsar_1_1_reader.html#a6bec25700e5b4eb7be41625a9bc856bd">pulsar::Reader</a>
 </li>
 <li>seekAsync()
-: <a class="el" href="classpulsar_1_1_consumer.html#a52bb7deeca9c8376de61c88bb5db24e5">pulsar::Consumer</a>
+: <a class="el" href="classpulsar_1_1_consumer.html#af1c892616483868ce5e30be46e7a40bf">pulsar::Consumer</a>
 , <a class="el" href="classpulsar_1_1_reader.html#acba58f8fb3ecefc4a693a1091f3c4669">pulsar::Reader</a>
 </li>
 <li>send()
@@ -134,6 +135,9 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 <li>serialize()
 : <a class="el" href="classpulsar_1_1_message_id.html#a665b97923d70670a87361038e5ec3fe6">pulsar::MessageId</a>
 </li>
+<li>setAccessToken()
+: <a class="el" href="classpulsar_1_1_oauth2_token_result.html#ab8714dfd4aa25c2032efaa1f39d418fb">pulsar::Oauth2TokenResult</a>
+</li>
 <li>setAckGroupingMaxSize()
 : <a class="el" href="classpulsar_1_1_consumer_configuration.html#a593295c1aa0cd77c32a6cfdee80cd452">pulsar::ConsumerConfiguration</a>
 , <a class="el" href="classpulsar_1_1_reader_configuration.html#af3e84677688a37133d9b270f86aed8da">pulsar::ReaderConfiguration</a>
@@ -144,6 +148,9 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 </li>
 <li>setAllocatedContent()
 : <a class="el" href="classpulsar_1_1_message_builder.html#ae991bf6b34952c2ee0fee1c756b269cf">pulsar::MessageBuilder</a>
+</li>
+<li>setAllowOutOfOrderDelivery()
+: <a class="el" href="classpulsar_1_1_key_shared_policy.html#a81aa3f6f9f2c91f5f4ce5b89363dbcbb">pulsar::KeySharedPolicy</a>
 </li>
 <li>setAuth()
 : <a class="el" href="classpulsar_1_1_client_configuration.html#a16a85a3a43b649d3e45b4e998695b723">pulsar::ClientConfiguration</a>
@@ -203,8 +210,14 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 <li>setEventTimestamp()
 : <a class="el" href="classpulsar_1_1_message_builder.html#a445ac7f5cac5282ef8248df399995338">pulsar::MessageBuilder</a>
 </li>
+<li>setExpiresIn()
+: <a class="el" href="classpulsar_1_1_oauth2_token_result.html#a955b9f57e13635faad89dd0d4f080e35">pulsar::Oauth2TokenResult</a>
+</li>
 <li>setHashingScheme()
 : <a class="el" href="classpulsar_1_1_producer_configuration.html#a2c09224f38f05f3ec59abbe6e3325c5b">pulsar::ProducerConfiguration</a>
+</li>
+<li>setIdToken()
+: <a class="el" href="classpulsar_1_1_oauth2_token_result.html#a645d769212d85e7f0d9dd68eb72fefd6">pulsar::Oauth2TokenResult</a>
 </li>
 <li>setInitialSequenceId()
 : <a class="el" href="classpulsar_1_1_producer_configuration.html#af59f65213ee86b004f928ef2469d06e8">pulsar::ProducerConfiguration</a>
@@ -214,6 +227,12 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 </li>
 <li>setIOThreads()
 : <a class="el" href="classpulsar_1_1_client_configuration.html#a5081ce72cb0eb615fc209decdea7ca7a">pulsar::ClientConfiguration</a>
+</li>
+<li>setKey()
+: <a class="el" href="classpulsar_1_1_encryption_key_info.html#a243fb74066b5d6c7153660a4a5cd3290">pulsar::EncryptionKeyInfo</a>
+</li>
+<li>setKeySharedMode()
+: <a class="el" href="classpulsar_1_1_key_shared_policy.html#ab7779b7a5af8ca4267044f3590c4d60d">pulsar::KeySharedPolicy</a>
 </li>
 <li>setKeySharedPolicy()
 : <a class="el" href="classpulsar_1_1_consumer_configuration.html#a772dc1c4f223fc753ecfa50cc6a42d3f">pulsar::ConsumerConfiguration</a>
@@ -240,7 +259,7 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 : <a class="el" href="classpulsar_1_1_client_configuration.html#af210745300be240b56ba71b77edc06fe">pulsar::ClientConfiguration</a>
 </li>
 <li>setMessageId()
-: <a class="el" href="classpulsar_1_1_message.html#a6c7fdb24e403a61be70a3f8d7944596c">pulsar::Message</a>
+: <a class="el" href="classpulsar_1_1_message.html#ae428f176de39ae3342057c83a299c0dc">pulsar::Message</a>
 </li>
 <li>setMessageListener()
 : <a class="el" href="classpulsar_1_1_consumer_configuration.html#aeb4301821f8f471c6c542f486df9639d">pulsar::ConsumerConfiguration</a>
@@ -250,6 +269,9 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 </li>
 <li>setMessageRouter()
 : <a class="el" href="classpulsar_1_1_producer_configuration.html#a94179bae8b4d1a067651dcf03f10c476">pulsar::ProducerConfiguration</a>
+</li>
+<li>setMetadata()
+: <a class="el" href="classpulsar_1_1_encryption_key_info.html#a7ae2f1225fb8897ebbcc74cc7753cfaf">pulsar::EncryptionKeyInfo</a>
 </li>
 <li>setNegativeAckRedeliveryDelayMs()
 : <a class="el" href="classpulsar_1_1_consumer_configuration.html#aef99f71cd13324351864dd1e376d8788">pulsar::ConsumerConfiguration</a>
@@ -301,6 +323,12 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 : <a class="el" href="classpulsar_1_1_consumer_configuration.html#a265d2cd1e9d1d329eff9b98346f245c2">pulsar::ConsumerConfiguration</a>
 , <a class="el" href="classpulsar_1_1_reader_configuration.html#a0574cedc0bc7ccf457071df866830abe">pulsar::ReaderConfiguration</a>
 </li>
+<li>setRefreshToken()
+: <a class="el" href="classpulsar_1_1_oauth2_token_result.html#af4c586178ec5c1accd15245ca12c66c3">pulsar::Oauth2TokenResult</a>
+</li>
+<li>setReplicateSubscriptionStateEnabled()
+: <a class="el" href="classpulsar_1_1_consumer_configuration.html#a70a15216ef41c8bd38178bdc5e377a31">pulsar::ConsumerConfiguration</a>
+</li>
 <li>setReplicationClusters()
 : <a class="el" href="classpulsar_1_1_message_builder.html#a4debd882e7450dee0b83ac0bdfdee775">pulsar::MessageBuilder</a>
 </li>
@@ -347,11 +375,20 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 <li>setValidateHostName()
 : <a class="el" href="classpulsar_1_1_client_configuration.html#a5d51d3e2208e043824578901c3ff8b48">pulsar::ClientConfiguration</a>
 </li>
+<li>shutdown()
+: <a class="el" href="classpulsar_1_1_client.html#aecac8bf91b474339455fe0519f6ba71e">pulsar::Client</a>
+</li>
 <li>subscribe()
-: <a class="el" href="classpulsar_1_1_client.html#aea2d7918286ecd127751d06e191a5471">pulsar::Client</a>
+: <a class="el" href="classpulsar_1_1_client.html#a9f32b4d1101f8f2fb5029013c87779ab">pulsar::Client</a>
+</li>
+<li>subscribeAsync()
+: <a class="el" href="classpulsar_1_1_client.html#a85d82595856f515b22acb623e84daa4b">pulsar::Client</a>
 </li>
 <li>subscribeWithRegex()
 : <a class="el" href="classpulsar_1_1_client.html#a086549ca0d057be1e9d00ca483995621">pulsar::Client</a>
+</li>
+<li>subscribeWithRegexAsync()
+: <a class="el" href="classpulsar_1_1_client.html#a49a6024ae4ff44e1e02a59bc08d28c7a">pulsar::Client</a>
 </li>
 </ul>
 </div><!-- contents -->

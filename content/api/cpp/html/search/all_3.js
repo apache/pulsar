@@ -1,6 +1,7 @@
 var searchData=
 [
   ['defaultbatching',['DefaultBatching',['../classpulsar_1_1_producer_configuration.html#adeed584c68f90401147e31091e54c5e5af2acbf3fc9b0dc49d8af65a148d22e27',1,'pulsar::ProducerConfiguration']]],
+  ['defaultcryptokeyreader',['DefaultCryptoKeyReader',['../classpulsar_1_1_default_crypto_key_reader.html#ae4b1b1f371da031b371e318aa883d5a0',1,'pulsar::DefaultCryptoKeyReader']]],
   ['defaultcryptokeyreader',['DefaultCryptoKeyReader',['../classpulsar_1_1_default_crypto_key_reader.html',1,'pulsar']]],
   ['deprecated_20list',['Deprecated List',['../deprecated.html',1,'']]],
   ['deprecatedexception',['DeprecatedException',['../classpulsar_1_1_deprecated_exception.html',1,'pulsar']]],

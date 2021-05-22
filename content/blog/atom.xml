@@ -2,12 +2,25 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://pulsar.incubator.apache.org/blog</id>
     <title>Apache Pulsar Blog</title>
-    <updated>2020-12-24T06:00:00.000Z</updated>
+    <updated>2021-05-13T06:00:00.000Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://pulsar.incubator.apache.org/blog"/>
     <subtitle>The best place to stay up-to-date with the latest Apache Pulsar news and events.</subtitle>
     <logo>https://pulsar.incubator.apache.org/img/pulsar.svg</logo>
     <rights>Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</rights>
+    <entry>
+        <title type="html"><![CDATA[Apache Pulsar 2.7.2]]></title>
+        <id>https://pulsar.incubator.apache.org/blog/2021/05/13/Apache-Pulsar-2-7-2.html</id>
+        <link href="https://pulsar.incubator.apache.org/blog/2021/05/13/Apache-Pulsar-2-7-2.html"/>
+        <updated>2021-05-13T06:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<p>We are very glad to see the Apache Pulsar community has successfully released the 2.7.2 version.
+This is a minor release that introduces stability fixes and a few new features without breaking changes.</p>
+]]></summary>
+        <author>
+            <name>Enrico Olivelli</name>
+            <uri>https://twitter.com/eolivelli</uri>
+        </author>
+    </entry>
     <entry>
         <title type="html"><![CDATA[Apache Pulsar 2.7.0]]></title>
         <id>https://pulsar.incubator.apache.org/blog/2020/12/24/Apache-Pulsar-2-7-0.html</id>

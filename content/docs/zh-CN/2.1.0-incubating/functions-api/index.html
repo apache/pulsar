@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.1.0-incubating</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.1.0-incubating/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.1.0-incubating/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.1.0-incubating/functions-api">English</a></li><li><a href="/docs/ja/2.1.0-incubating/functions-api">日本語</a></li><li><a href="/docs/fr/2.1.0-incubating/functions-api">Français</a></li><li><a href="/docs/ko/2.1.0-incubating/functions-api">한국어</a></li><li><a href="/docs/zh-TW/2.1.0-incubating/functions-api">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.1.0-incubating</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.1.0-incubating/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.1.0-incubating/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">命令行</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.1.0-incubating/functions-api">English</a></li><li><a href="/docs/ja/2.1.0-incubating/functions-api">日本語</a></li><li><a href="/docs/fr/2.1.0-incubating/functions-api">Français</a></li><li><a href="/docs/ko/2.1.0-incubating/functions-api">한국어</a></li><li><a href="/docs/zh-TW/2.1.0-incubating/functions-api">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -124,7 +124,7 @@
 <p>在写Pulsar Functions时，有Java和Python两种语言可供你选择：</p>
 <table>
 <thead>
-<tr><th style="text-align:left">Interface</th><th style="text-align:left">Description</th><th style="text-align:left">使用场景</th></tr>
+<tr><th style="text-align:left">Interface</th><th style="text-align:left">说明</th><th style="text-align:left">使用场景</th></tr>
 </thead>
 <tbody>
 <tr><td style="text-align:left">语言原生接口</td><td style="text-align:left">不依赖特定Pulsar库或特殊依赖项（仅使用Java/Python自身的核心库）</td><td style="text-align:left">不需要获取函数 <a href="#context">内容</a>的函数。</td></tr>
@@ -256,7 +256,7 @@
 :</p>
 <table>
 <thead>
-<tr><th style="text-align:left">Function name</th><th style="text-align:left">Description</th></tr>
+<tr><th style="text-align:left">Function name</th><th style="text-align:left">说明</th></tr>
 </thead>
 <tbody>
 <tr><td style="text-align:left"><a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/ContextFunction.java"><code>ContextFunction</code></a></td><td style="text-align:left">Illustrates <a href="#context">context</a>-specific functionality like <a href="#java-logging">logging</a> and <a href="#java-metrics">metrics</a></td></tr>
@@ -531,7 +531,7 @@ String wotd = context.getUserConfigValueOrDefault(<span class="hljs-string">"wor
 :</p>
 <table>
 <thead>
-<tr><th style="text-align:left">Function file</th><th style="text-align:left">Description</th></tr>
+<tr><th style="text-align:left">Function file</th><th style="text-align:left">说明</th></tr>
 </thead>
 <tbody>
 <tr><td style="text-align:left"><a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/python-examples/exclamation_function.py"><code>exclamation_function.py</code></a></td><td style="text-align:left">Adds an exclamation point at the end of each incoming string</td></tr>

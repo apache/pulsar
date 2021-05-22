@@ -107,11 +107,9 @@ static AuthenticationPtr&#160;</td><td class="memItemRight" valign="bottom"><b>D
 <tr class="separator:a430f22348c1a089dd8589d87c6accf41"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a551395eda623d3454c758c3479423ce3"><td class="memItemLeft" align="right" valign="top">static AuthenticationPtr&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_auth_factory.html#a551395eda623d3454c758c3479423ce3">create</a> (const std::string &amp;pluginNameOrDynamicLibPath)</td></tr>
 <tr class="separator:a551395eda623d3454c758c3479423ce3"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:af84e99a6be262145d928e599946ab82d"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="af84e99a6be262145d928e599946ab82d"></a>
-static AuthenticationPtr&#160;</td><td class="memItemRight" valign="bottom"><b>create</b> (const std::string &amp;pluginNameOrDynamicLibPath, const std::string &amp;authParamsString)</td></tr>
+<tr class="memitem:af84e99a6be262145d928e599946ab82d"><td class="memItemLeft" align="right" valign="top">static AuthenticationPtr&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_auth_factory.html#af84e99a6be262145d928e599946ab82d">create</a> (const std::string &amp;pluginNameOrDynamicLibPath, const std::string &amp;authParamsString)</td></tr>
 <tr class="separator:af84e99a6be262145d928e599946ab82d"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a644b858e4a59482ecce5d1782bd4b452"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a644b858e4a59482ecce5d1782bd4b452"></a>
-static AuthenticationPtr&#160;</td><td class="memItemRight" valign="bottom"><b>create</b> (const std::string &amp;pluginNameOrDynamicLibPath, ParamMap &amp;params)</td></tr>
+<tr class="memitem:a644b858e4a59482ecce5d1782bd4b452"><td class="memItemLeft" align="right" valign="top">static AuthenticationPtr&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_auth_factory.html#a644b858e4a59482ecce5d1782bd4b452">create</a> (const std::string &amp;pluginNameOrDynamicLibPath, ParamMap &amp;params)</td></tr>
 <tr class="separator:a644b858e4a59482ecce5d1782bd4b452"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pro-static-methods"></a>
@@ -131,7 +129,7 @@ static std::vector&lt; void * &gt;&#160;</td><td class="memItemRight" valign="bo
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p><a class="el" href="classpulsar_1_1_auth_factory.html">AuthFactory</a> is used to create instances of <a class="el" href="classpulsar_1_1_authentication.html">Authentication</a> class when configuring a <a class="el" href="classpulsar_1_1_client.html">Client</a> instance. It loads the authentication from an external plugin.</p>
-<p>To use authentication methods that are internally supported, you should use <code>AuthTls::create("my-cert.pem", "my-private.key")</code> or similar. </p>
+<p>To use authentication methods that are internally supported, you should use <code><a class="el" href="classpulsar_1_1_auth_tls.html#a3a2603a8be94cdde4845c941dc8871cc">AuthTls::create</a>("my-cert.pem", "my-private.key")</code> or similar. </p>
 </div><h2 class="groupheader">Member Function Documentation</h2>
 <a class="anchor" id="a551395eda623d3454c758c3479423ce3"></a>
 <div class="memitem">
@@ -154,13 +152,94 @@ static std::vector&lt; void * &gt;&#160;</td><td class="memItemRight" valign="bo
   </tr>
 </table>
 </div><div class="memdoc">
-<p>Create </p><dl class="params"><dt>Parameters</dt><dd>
+<p>Create an AuthenticationPtr with an empty ParamMap</p>
+<dl class="section see"><dt>See also</dt><dd>create(const std::string&amp;, const ParamMap&amp;) </dd></dl>
+
+</div>
+</div>
+<a class="anchor" id="af84e99a6be262145d928e599946ab82d"></a>
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static AuthenticationPtr pulsar::AuthFactory::create </td>
+          <td>(</td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>pluginNameOrDynamicLibPath</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>authParamsString</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+<p>Create an AuthenticationPtr with a ParamMap that is converted from authParamsString</p>
+<dl class="section see"><dt>See also</dt><dd><a class="el" href="classpulsar_1_1_authentication.html#a0ff47251bd4184cd0e9155e76a5c35bb">Authentication::parseDefaultFormatAuthParams</a> </dd>
+<dd>
+create(const std::string&amp;, const ParamMap&amp;) </dd></dl>
+
+</div>
+</div>
+<a class="anchor" id="a644b858e4a59482ecce5d1782bd4b452"></a>
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static AuthenticationPtr pulsar::AuthFactory::create </td>
+          <td>(</td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>pluginNameOrDynamicLibPath</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">ParamMap &amp;&#160;</td>
+          <td class="paramname"><em>params</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+<p>Create an AuthenticationPtr</p>
+<p>When the first parameter represents the plugin name, the type of authentication can be one of the following:</p><ul>
+<li><a class="el" href="classpulsar_1_1_auth_tls.html">AuthTls</a> (if the plugin name is “tls”)</li>
+<li><a class="el" href="classpulsar_1_1_auth_token.html">AuthToken</a> (if the plugin name is “token” or “org.apache.pulsar.client.impl.auth.AuthenticationToken”)</li>
+<li><a class="el" href="classpulsar_1_1_auth_athenz.html">AuthAthenz</a> (if the plugin name is “athenz” or “org.apache.pulsar.client.impl.auth.AuthenticationAthenz”)</li>
+<li>AuthOauth2 (if the plugin name is “oauth2token” or “org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2”)</li>
+</ul>
+<dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">dynamicLibPath</td><td></td></tr>
+    <tr><td class="paramname">pluginNameOrDynamicLibPath</td><td>the plugin name or the path or a dynamic library that contains the implementation of <a class="el" href="classpulsar_1_1_authentication.html">Authentication</a> </td></tr>
+    <tr><td class="paramname">params</td><td>the ParamMap that is passed to Authentication::create method </td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd></dd></dl>
 
 </div>
 </div>

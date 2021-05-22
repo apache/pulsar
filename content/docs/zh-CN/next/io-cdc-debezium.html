@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/zh-CN/next/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class=""><a href="/docs/zh-CN/next/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/next/io-cdc-debezium">English</a></li><li><a href="/docs/ja/next/io-cdc-debezium">日本語</a></li><li><a href="/docs/fr/next/io-cdc-debezium">Français</a></li><li><a href="/docs/ko/next/io-cdc-debezium">한국어</a></li><li><a href="/docs/zh-TW/next/io-cdc-debezium">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/zh-CN/next/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class=""><a href="/docs/zh-CN/next/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">命令行</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/next/io-cdc-debezium">English</a></li><li><a href="/docs/ja/next/io-cdc-debezium">日本語</a></li><li><a href="/docs/fr/next/io-cdc-debezium">Français</a></li><li><a href="/docs/ko/next/io-cdc-debezium">한국어</a></li><li><a href="/docs/zh-TW/next/io-cdc-debezium">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -23,7 +23,7 @@
 <p>Debezium 源连接器的配置具有以下属性。</p>
 <table>
 <thead>
-<tr><th>配置项</th><th>Required</th><th>默认值</th><th>Description</th></tr>
+<tr><th>配置项</th><th>Required</th><th>默认值</th><th>说明</th></tr>
 </thead>
 <tbody>
 <tr><td><code>task.class</code></td><td>true</td><td>null</td><td>A source task class that implemented in Debezium.</td></tr>
@@ -84,7 +84,7 @@
     namespace: "default"
     name: "debezium-mysql-source"
     topicName: "debezium-mysql-topic"
-    archive: "connectors/pulsar-io-debezium-mysql-2.7.1.nar"
+    archive: "connectors/pulsar-io-debezium-mysql-2.7.2.nar"
     parallelism: 1
 
     configs:
@@ -137,11 +137,11 @@ This example shows how to change the data of a MySQL table using the Pulsar Debe
 
      * Use the **JSON** configuration file as shown previously. 
 
-        Make sure the nar file is available at `connectors/pulsar-io-debezium-mysql-2.7.1.nar`.
+        Make sure the nar file is available at `connectors/pulsar-io-debezium-mysql-2.7.2.nar`.
 
         ```bash
         $ bin/pulsar-admin source localrun \
-        --archive connectors/pulsar-io-debezium-mysql-2.7.1.nar \
+        --archive connectors/pulsar-io-debezium-mysql-2.7.2.nar \
         --name debezium-mysql-source --destination-topic-name debezium-mysql-topic \
         --tenant public \
         --namespace default \
@@ -217,7 +217,7 @@ You can use one of the following methods to create a configuration file.
     namespace: "default"
     name: "debezium-postgres-source"
     topicName: "debezium-postgres-topic"
-    archive: "connectors/pulsar-io-debezium-postgres-2.7.1.nar"
+    archive: "connectors/pulsar-io-debezium-postgres-2.7.2.nar"
     parallelism: 1
 
     configs:
@@ -257,11 +257,11 @@ This example shows how to change the data of a PostgreSQL table using the Pulsar
 
    * Use the **JSON** configuration file as shown previously. 
 
-     Make sure the nar file is available at `connectors/pulsar-io-debezium-postgres-2.7.1.nar`.
+     Make sure the nar file is available at `connectors/pulsar-io-debezium-postgres-2.7.2.nar`.
 
         ```bash
         $ bin/pulsar-admin source localrun \
-        --archive connectors/pulsar-io-debezium-postgres-2.7.1.nar \
+        --archive connectors/pulsar-io-debezium-postgres-2.7.2.nar \
         --name debezium-postgres-source \
         --destination-topic-name debezium-postgres-topic \
         --tenant public \
@@ -349,7 +349,7 @@ You need to create a configuration file before using the Pulsar Debezium connect
     namespace: "default"
     name: "debezium-mongodb-source"
     topicName: "debezium-mongodb-topic"
-    archive: "connectors/pulsar-io-debezium-mongodb-2.7.1.nar"
+    archive: "connectors/pulsar-io-debezium-mongodb-2.7.2.nar"
     parallelism: 1
 
     configs:
@@ -395,11 +395,11 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
 
    * Use the **JSON** configuration file as shown previously. 
 
-     Make sure the nar file is available at `connectors/pulsar-io-mongodb-2.7.1.nar`.
+     Make sure the nar file is available at `connectors/pulsar-io-mongodb-2.7.2.nar`.
 
         ```bash
         $ bin/pulsar-admin source localrun \
-        --archive connectors/pulsar-io-debezium-mongodb-2.7.1.nar \
+        --archive connectors/pulsar-io-debezium-mongodb-2.7.2.nar \
         --name debezium-mongodb-source \
         --destination-topic-name debezium-mongodb-topic \
         --tenant public \

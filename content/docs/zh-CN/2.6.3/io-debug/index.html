@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.6.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.6.3/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.6.3/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.6.3/io-debug">English</a></li><li><a href="/docs/ja/2.6.3/io-debug">日本語</a></li><li><a href="/docs/fr/2.6.3/io-debug">Français</a></li><li><a href="/docs/ko/2.6.3/io-debug">한국어</a></li><li><a href="/docs/zh-TW/2.6.3/io-debug">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.6.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.6.3/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.6.3/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">命令行</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.6.3/io-debug">English</a></li><li><a href="/docs/ja/2.6.3/io-debug">日本語</a></li><li><a href="/docs/fr/2.6.3/io-debug">Français</a></li><li><a href="/docs/ko/2.6.3/io-debug">한국어</a></li><li><a href="/docs/zh-TW/2.6.3/io-debug">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -77,22 +77,22 @@
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">How to debug Pulsar connectors</h1></header><article><div><span><p>本指南解释如何在本地运行或集群模式中调试连接器，并提供调试检查列表。 为了更好地演示如何调试 Pulsar 连接器，在这里以Mongo sink 连接器作为一个例子。</p>
 <p><strong>部署一个 Mongo sink 环境</strong></p>
 <ol>
-<li>开始一个 Mongo 服务。
+<li>启动一个 Mongo 服务。
 <pre><code class="hljs css language-bash">docker pull mongo:4
 docker run -d -p 27017:27017 --name pulsar-mongo -v <span class="hljs-variable">$PWD</span>/data:/data/db mongo:4
 </code></pre></li>
-<li>创建数据库和收藏集。
+<li>创建数据库和集合(Collection)。
 <pre><code class="hljs css language-bash">docker <span class="hljs-built_in">exec</span> -it pulsar-mongo /bin/bash
 mongo
 &gt; use pulsar
 &gt; db.createCollection(<span class="hljs-string">'messages'</span>)
 &gt; <span class="hljs-built_in">exit</span>
 </code></pre></li>
-<li>安装 Pulsar 独立模式.
+<li>启动 Pulsar 单机模式。
 <pre><code class="hljs css language-bash">docker pull apachepulsar/pulsar:2.4.0
 docker run -d -it -p 6650:6650 -p 8080:8080 -v <span class="hljs-variable">$PWD</span>/data:/pulsar/data --link pulsar-mongo --name pulsar-mongo-standalone apachepulsar/pulsar:2.4.0 bin/pulsar standalone
 </code></pre></li>
-<li>使用 <code>Mongo-sink config.yaml</code> 文件配置 Mongo sink
+<li>使用 <code>mongo-sink-config.yaml</code> 文件配置 Mongo sink。
 <pre><code class="hljs css language-bash">configs:
 mongoUri: <span class="hljs-string">"mongodb://pulsar-mongo:27017"</span>
 database: <span class="hljs-string">"pulsar"</span>
@@ -107,11 +107,11 @@ batchTimeMs: 500
 curl -O http://apache.01link.hk/pulsar/pulsar-2.4.0/connectors/pulsar-io-mongo-2.4.0.nar
 </code></pre></li>
 </ol>
-<h2><a class="anchor" aria-hidden="true" id="本地运行模式下的调试"></a><a href="#本地运行模式下的调试" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>本地运行模式下的调试</h2>
+<h2><a class="anchor" aria-hidden="true" id="在本地运行模式下调试"></a><a href="#在本地运行模式下调试" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>在本地运行模式下调试</h2>
 <p>使用 <code>localrun</code> 命令以本地模式启动 Mongo sink。</p>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="tip"></a><a href="#tip" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
-<p>关于 <code>本地运行</code> 命令的更多信息，请参阅 <a href="/docs/zh-CN/2.6.3/reference-connector-admin/#localrun-1"><code>本地运行</code></a>。</p>
+<p>关于 <code>localrun</code> 命令的更多信息，请参阅 <a href="/docs/zh-CN/2.6.3/reference-connector-admin/#localrun-1"><code>localrun</code></a>。</p>
 </blockquote>
 <pre><code class="hljs css language-bash">./bin/pulsar-admin sinks localrun \
 --archive pulsar-io-mongo-2.4.0.nar \ 
@@ -135,7 +135,7 @@ curl -O http://apache.01link.hk/pulsar/pulsar-2.4.0/connectors/pulsar-io-mongo-2
 </ul>
 <p>为了清楚地解释日志信息，此处将大块信息分解成小块，并为每个块添加描述。</p>
 <ul>
-<li><p>此日志信息显示解压后 nar 的存储路径。</p>
+<li><p>此日志信息显示解压后 nar 包的存储路径。</p>
 <pre><code class="hljs"><span class="hljs-number">08</span>:<span class="hljs-number">21</span>:<span class="hljs-number">54.132</span> [main] <span class="hljs-type">INFO</span>  org.apache.pulsar.common.nar.<span class="hljs-type">NarClassLoader</span> - <span class="hljs-type">Created</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">loader</span> <span class="hljs-keyword">with</span> <span class="hljs-title">paths</span></span>: [file:/tmp/pulsar-nar/pulsar-io-mongo<span class="hljs-number">-2.4</span><span class="hljs-number">.0</span>.nar-unpacked/, file:/tmp/pulsar-nar/pulsar-io-mongo<span class="hljs-number">-2.4</span><span class="hljs-number">.0</span>.nar-unpacked/<span class="hljs-type">META</span>-<span class="hljs-type">INF</span>/bundled-dependencies/,
 </code></pre>
 <blockquote>
@@ -175,7 +175,7 @@ componentType: SINK
 <pre><code class="hljs css language-bash">08:21:56.231 [cluster-ClusterId{value=<span class="hljs-string">'5d6396a3c9e77c0569ff00eb'</span>, description=<span class="hljs-string">'null'</span>}-pulsar-mongo:27017] INFO  org.mongodb.driver.connection - Opened connection [connectionId{localValue:1, serverValue:8}] to pulsar-mongo:27017
 08:21:56.326 [cluster-ClusterId{value=<span class="hljs-string">'5d6396a3c9e77c0569ff00eb'</span>, description=<span class="hljs-string">'null'</span>}-pulsar-mongo:27017] INFO  org.mongodb.driver.cluster - Monitor thread successfully connected to server with description ServerDescription{address=pulsar-mongo:27017, <span class="hljs-built_in">type</span>=STANDALONE, state=CONNECTED, ok=<span class="hljs-literal">true</span>, version=ServerVersion{versionList=[4, 2, 0]}, minWireVersion=0, maxWireVersion=8, maxDocumentSize=16777216, logicalSessionTimeoutMinutes=30, roundTripTimeNanos=89058800}
 </code></pre></li>
-<li><p>这张日志信息解释了消费者和客户的配置，包括主题名称、订阅名称、订阅类型等等。</p>
+<li><p>该日志信息说明了消费者和客户端配置，包括主题名称、订阅名称、订阅类型等等。</p>
 <pre><code class="hljs css language-bash">08:21:56.719 [pulsar-client-io-1-1] INFO  org.apache.pulsar.client.impl.ConsumerStatsRecorderImpl - Starting Pulsar consumer status recorder with config: {
 <span class="hljs-string">"topicNames"</span> : [ <span class="hljs-string">"test-mongo"</span> ],
 <span class="hljs-string">"topicsPattern"</span> : null,
@@ -233,11 +233,11 @@ componentType: SINK
 <p>You can use the following methods to debug a connector in cluster mode:</p>
 <ul>
 <li><a href="#use-connector-log">使用连接器日志</a></li>
-<li><a href="#use-admin-cli">使用管理员 CLI</a></li>
+<li><a href="#use-admin-cli">使用管理命令行工具（admin CLI）</a></li>
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="使用连接器日志-1"></a><a href="#使用连接器日志-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>使用连接器日志</h3>
-<p>在集群模式下，多个连接器可以运行在一个工作器。 要找到指定连接器的日志路径，请使用 <code>workerId</code> 来定位连接器日志。</p>
-<h3><a class="anchor" aria-hidden="true" id="使用管理员-cli"></a><a href="#使用管理员-cli" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>使用管理员 CLI</h3>
+<p>在集群模式下，多个连接器可以运行在一个 worker 上。 要找到指定连接器的日志路径，请使用 <code>workerId</code> 来定位连接器日志。</p>
+<h3><a class="anchor" aria-hidden="true" id="使用管理命令行工具（admin-cli）"></a><a href="#使用管理命令行工具（admin-cli）" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>使用管理命令行工具（admin CLI）</h3>
 <p>Pulsar admin CLI helps you debug Pulsar connectors with the following subcommands:</p>
 <ul>
 <li><p><a href="#get"><code>get</code></a></p></li>
@@ -255,7 +255,7 @@ componentType: SINK
 --parallelism 1
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="get"></a><a href="#get" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get</code></h3>
-<p>使用 <code>获取</code> 命令，获取关于 Mongo sink 连接器的基本信息，例如租户、命名空间、名称、平行状态等等。</p>
+<p>使用 <code>get</code> 命令，获取 Mongo sink 连接器的基本信息，例如租户、命名空间、名称、并行度等等。</p>
 <pre><code class="hljs css language-bash">./bin/pulsar-admin sinks get --tenant public --namespace default  --name pulsar-mongo-sink
 {
   <span class="hljs-string">"tenant"</span>: <span class="hljs-string">"public"</span>,
@@ -282,10 +282,10 @@ componentType: SINK
 </code></pre>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="tip-2"></a><a href="#tip-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
-<p>关于 <code>本地运行</code> 命令的更多信息，请参阅 <a href="/docs/zh-CN/2.6.3/reference-connector-admin/#get-1"><code>本地运行</code></a>。</p>
+<p>更多 <code>get</code> 命令信息，请参阅 <a href="/docs/zh-CN/2.6.3/reference-connector-admin/#get-1"><code>get</code></a> 章节。</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="status"></a><a href="#status" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>status</code></h3>
-<p>使用 <code>状态</code> 命令获取关于 Mongo sink 连接器的当前状态。 例如实例的数量、运行实例的数量、实例Id、WorkerId等。</p>
+<p>使用 <code>status</code> 命令获取 Mongo sink 连接器的当前状态，例如实例数量、正在运行实例的数量、instanceId、workerId 等。</p>
 <pre><code class="hljs css language-bash">./bin/pulsar-admin sinks status 
 --tenant public \
 --namespace default  \
@@ -313,11 +313,11 @@ componentType: SINK
 </code></pre>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="tip-3"></a><a href="#tip-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
-<p>关于 <code>状态</code> 命令的更多信息，见 <a href="/docs/zh-CN/2.6.3/reference-connector-admin/#stauts-1"><code>状态</code></a>。</p>
-<p>如果有多个连接器在 worker 上运行， <code>workerId</code> 可以找到指定连接器运行的工人。</p>
+<p>关于  <code>status</code> 命令的更多信息，可参阅 <a href="/docs/zh-CN/2.6.3/reference-connector-admin/#stauts-1"><code>status</code></a>。</p>
+<p>如果一个 worker 上运行着多个连接器，<code>workerId</code>可以找到指定的连接器所运行的 worker。</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="topics-stats"></a><a href="#topics-stats" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>topics stats</code></h3>
-<p>使用 <code>主题统计</code> 命令获取主题及其关联的生产者和消费者的统计信息 如本专题是否收到电文，是否有信息积压、现有许可和其他关键信息。 All rates are computed over a 1-minute window and are relative to the last completed 1-minute period.</p>
+<p>使用 <code>topics stats</code> 命令获取主题及其关联的生产者、消费者的统计信息，如主题是否已收到消息，或者是否有消息积压，或可用权限以及其它关键信息。 All rates are computed over a 1-minute window and are relative to the last completed 1-minute period.</p>
 <pre><code class="hljs css language-bash">./bin/pulsar-admin topics stats <span class="hljs-built_in">test</span>-mongo
 {
   <span class="hljs-string">"msgRateIn"</span> : 0.0,
@@ -364,26 +364,26 @@ componentType: SINK
 </code></pre>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="tip-4"></a><a href="#tip-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
-<p>关于 <code>主题统计</code> 命令的更多信息，请参阅 <a href="http://pulsar.apache.org/docs/en/pulsar-admin/#stats-1"><code>主题统计</code></a></p>
+<p>关于 <code>topic stats</code> 命令的更多信息，请参阅 <a href="http://pulsar.apache.org/docs/en/pulsar-admin/#stats-1"><code>topic stats</code></a>。</p>
 </blockquote>
-<h2><a class="anchor" aria-hidden="true" id="核对"></a><a href="#核对" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>核对</h2>
-<p>此清单显示调试连接器时要检查的主要区域。 它提醒应寻找什么办法来确保彻底审查和评估工具来获得连接器的地位。</p>
+<h2><a class="anchor" aria-hidden="true" id="检查清单"></a><a href="#检查清单" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>检查清单</h2>
+<p>此清单列出了调试连接器时要检查的主要事项。 该清单提醒我们应该注意什么，以确保彻底检查，并作为评估工具获取连接器状态。</p>
 <ul>
 <li><p>Pulsar 是否成功启动？</p></li>
 <li><p>外部服务运行正常吗？</p></li>
-<li><p>nar 包是否已完成？</p></li>
+<li><p>nar 包是否完整？</p></li>
 <li><p>连接器配置文件正确吗？</p></li>
-<li><p>在本地运行模式下，运行连接器并检查控制台上打印的信息(连接器日志)。</p></li>
+<li><p>在本地运行模式下，运行连接器并检查控制台输出的信息(连接器日志)。</p></li>
 <li><p>在集群模式中：</p>
 <ul>
-<li><p>使用 <code>获取</code> 命令来获取基本信息。</p></li>
-<li><p>使用 <code>状态</code> 命令获取当前状态。</p></li>
-<li><p>使用 <code>主题统计</code> 命令获取特定主题及其关联的生产者和消费者的统计信息。</p></li>
+<li><p>使用 <code>get</code>命令获取基本信息。</p></li>
+<li><p>使用 <code>status</code> 命令获取当前状态。</p></li>
+<li><p>使用 <code>topics stats</code> 命令获取特定主题及其关联的生产者和消费者的统计信息。</p></li>
 <li><p>检查连接器日志。</p></li>
 </ul></li>
-<li><p>输入外部系统并验证结果。</p></li>
+<li><p>进入外部系统并验证结果。</p></li>
 </ul>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.6.3/io-use"><span class="arrow-prev">← </span><span>Use</span></a><a class="docs-next button" href="/docs/zh-CN/2.6.3/io-connectors"><span>内置 connector</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#本地运行模式下的调试">本地运行模式下的调试</a><ul class="toc-headings"><li><a href="#使用连接器日志">使用连接器日志</a></li></ul></li><li><a href="#在集群模式中调试">在集群模式中调试</a><ul class="toc-headings"><li><a href="#使用连接器日志-1">使用连接器日志</a></li><li><a href="#使用管理员-cli">使用管理员 CLI</a></li><li><a href="#get"><code>get</code></a></li><li><a href="#status"><code>status</code></a></li><li><a href="#topics-stats"><code>topics stats</code></a></li></ul></li><li><a href="#核对">核对</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.6.3/io-use"><span class="arrow-prev">← </span><span>Use</span></a><a class="docs-next button" href="/docs/zh-CN/2.6.3/io-connectors"><span>内置 connector</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#在本地运行模式下调试">在本地运行模式下调试</a><ul class="toc-headings"><li><a href="#使用连接器日志">使用连接器日志</a></li></ul></li><li><a href="#在集群模式中调试">在集群模式中调试</a><ul class="toc-headings"><li><a href="#使用连接器日志-1">使用连接器日志</a></li><li><a href="#使用管理命令行工具（admin-cli）">使用管理命令行工具（admin CLI）</a></li><li><a href="#get"><code>get</code></a></li><li><a href="#status"><code>status</code></a></li><li><a href="#topics-stats"><code>topics stats</code></a></li></ul></li><li><a href="#检查清单">检查清单</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

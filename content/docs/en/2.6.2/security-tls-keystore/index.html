@@ -82,7 +82,7 @@ By default it uses PEM format file configuration. This page tries to describe us
 <p>The first step of deploying TLS is to generate the key and the certificate for each machine in the cluster.
 You can use Java’s <code>keytool</code> utility to accomplish this task. We will generate the key into a temporary keystore
 initially for broker, so that we can export and sign it later with CA.</p>
-<pre><code class="hljs css language-shell">keytool -keystore broker.keystore.jks -alias localhost -validity {validity} -genkey
+<pre><code class="hljs css language-shell">keytool -keystore broker.keystore.jks -alias localhost -validity {validity} -genkeypair -keyalg RSA
 </code></pre>
 <p>You need to specify two parameters in the above command:</p>
 <ol>

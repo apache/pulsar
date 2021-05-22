@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.1.0-incubating</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.1.0-incubating/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.1.0-incubating/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.1.0-incubating/client-libraries-go">English</a></li><li><a href="/docs/ja/2.1.0-incubating/client-libraries-go">日本語</a></li><li><a href="/docs/fr/2.1.0-incubating/client-libraries-go">Français</a></li><li><a href="/docs/ko/2.1.0-incubating/client-libraries-go">한국어</a></li><li><a href="/docs/zh-TW/2.1.0-incubating/client-libraries-go">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.1.0-incubating</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.1.0-incubating/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.1.0-incubating/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">命令行</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.1.0-incubating/client-libraries-go">English</a></li><li><a href="/docs/ja/2.1.0-incubating/client-libraries-go">日本語</a></li><li><a href="/docs/fr/2.1.0-incubating/client-libraries-go">Français</a></li><li><a href="/docs/ko/2.1.0-incubating/client-libraries-go">한국어</a></li><li><a href="/docs/zh-TW/2.1.0-incubating/client-libraries-go">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -91,7 +91,7 @@ For standard API docs, consult the <a href="https://godoc.org/github.com/apache/
 <pre><code class="hljs css language-bash">$ go get -u github.com/apache/incubator-pulsar/pulsar-client-go/pulsar
 </code></pre>
 <p>Or you can use <a href="https://github.com/golang/dep">dep</a> for managing the dependencies.</p>
-<pre><code class="hljs css language-bash">$ dep ensure -add github.com/apache/incubator-pulsar/pulsar-client-go/pulsar@v2.7.1
+<pre><code class="hljs css language-bash">$ dep ensure -add github.com/apache/incubator-pulsar/pulsar-client-go/pulsar@v2.7.2
 </code></pre>
 <p>Once installed locally, you can import it into your project:</p>
 <pre><code class="hljs css language-go"><span class="hljs-keyword">import</span> <span class="hljs-string">"github.com/apache/incubator-pulsar/pulsar-client-go/pulsar"</span>
@@ -131,7 +131,7 @@ For standard API docs, consult the <a href="https://godoc.org/github.com/apache/
 <p>The following configurable parameters are available for Pulsar clients:</p>
 <table>
 <thead>
-<tr><th style="text-align:left">参数名</th><th style="text-align:left">Description</th><th style="text-align:left">默认值</th></tr>
+<tr><th style="text-align:left">参数名</th><th style="text-align:left">说明</th><th style="text-align:left">默认值</th></tr>
 </thead>
 <tbody>
 <tr><td style="text-align:left"><code>URL</code></td><td style="text-align:left">The connection URL for the Pulsar cluster. See <a href="#urls">above</a> for more info</td><td style="text-align:left"></td></tr>
@@ -174,7 +174,7 @@ When you create a new Pulsar producer, the operation will block (waiting on a go
 <p>Pulsar Go producers have the following methods available:</p>
 <table>
 <thead>
-<tr><th style="text-align:left">Method</th><th style="text-align:left">Description</th><th style="text-align:left">Return type</th></tr>
+<tr><th style="text-align:left">Method</th><th style="text-align:left">说明</th><th style="text-align:left">Return type</th></tr>
 </thead>
 <tbody>
 <tr><td style="text-align:left"><code>Topic()</code></td><td style="text-align:left">Fetches the producer's <a href="/docs/zh-CN/2.1.0-incubating/reference-terminology#topic">topic</a></td><td style="text-align:left"><code>string</code></td></tr>
@@ -239,10 +239,10 @@ When you create a new Pulsar producer, the operation will block (waiting on a go
 <h3><a class="anchor" aria-hidden="true" id="producer-配置"></a><a href="#producer-配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producer 配置</h3>
 <table>
 <thead>
-<tr><th style="text-align:left">参数名</th><th style="text-align:left">Description</th><th style="text-align:left">默认值</th></tr>
+<tr><th style="text-align:left">参数名</th><th style="text-align:left">说明</th><th style="text-align:left">默认值</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>Topic</code></td><td style="text-align:left">The Pulsar <a href="/docs/zh-CN/2.1.0-incubating/reference-terminology#topic">topic</a> to which the producer will publish messages</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>主题（Topic）</code></td><td style="text-align:left">The Pulsar <a href="/docs/zh-CN/2.1.0-incubating/reference-terminology#topic">topic</a> to which the producer will publish messages</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>配置项</code></td><td style="text-align:left">A name for the producer. If you don't explicitly assign a name, Pulsar will automatically generate a globally unique name that you can access later using the <code>Name()</code> method. If you choose to explicitly assign a name, it will need to be unique across <em>all</em> Pulsar clusters, otherwise the creation operation will throw an error.</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>SendTimeout</code></td><td style="text-align:left">When publishing a message to a topic, the producer will wait for an acknowledgment from the responsible Pulsar <a href="/docs/zh-CN/2.1.0-incubating/reference-terminology#broker">broker</a>. If a message is not acknowledged within the threshold set by this parameter, an error will be thrown. If you set <code>SendTimeout</code> to -1, the timeout will be set to infinity (and thus removed). Removing the send timeout is recommended when using Pulsar's <a href="/docs/zh-CN/2.1.0-incubating/cookbooks-deduplication">message de-duplication</a> feature.</td><td style="text-align:left">30 seconds</td></tr>
 <tr><td style="text-align:left"><code>MaxPendingMessages</code></td><td style="text-align:left">The maximum size of the queue holding pending messages (i.e. messages waiting to receive an acknowledgment from the <a href="/docs/zh-CN/2.1.0-incubating/reference-terminology#broker">broker</a>). By default, when the queue is full all calls to the <code>Send</code> and <code>SendAsync</code> methods will fail <em>unless</em> <code>BlockIfQueueFull</code> is set to <code>true</code>.</td><td style="text-align:left"></td></tr>
@@ -286,11 +286,11 @@ consumer, err := client.Subscribe(consumerOpts)
 <p><strong>Blocking operation</strong>  <br>
 When you create a new Pulsar consumer, the operation will block (on a go channel) until either a producer is successfully created or an error is thrown.</p>
 </blockquote>
-<h3><a class="anchor" aria-hidden="true" id="consumer-operations"></a><a href="#consumer-operations" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumer operations</h3>
+<h3><a class="anchor" aria-hidden="true" id="消费者选项"></a><a href="#消费者选项" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>消费者选项</h3>
 <p>Pulsar Go consumers have the following methods available:</p>
 <table>
 <thead>
-<tr><th style="text-align:left">Method</th><th style="text-align:left">Description</th><th style="text-align:left">Return type</th></tr>
+<tr><th style="text-align:left">Method</th><th style="text-align:left">说明</th><th style="text-align:left">Return type</th></tr>
 </thead>
 <tbody>
 <tr><td style="text-align:left"><code>Topic()</code></td><td style="text-align:left">Returns the consumer's <a href="/docs/zh-CN/2.1.0-incubating/reference-terminology#topic">topic</a></td><td style="text-align:left"><code>string</code></td></tr>
@@ -348,10 +348,10 @@ When you create a new Pulsar consumer, the operation will block (on a go channel
 <h3><a class="anchor" aria-hidden="true" id="consumer-configuration"></a><a href="#consumer-configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumer configuration</h3>
 <table>
 <thead>
-<tr><th style="text-align:left">参数名</th><th style="text-align:left">Description</th><th style="text-align:left">默认值</th></tr>
+<tr><th style="text-align:left">参数名</th><th style="text-align:left">说明</th><th style="text-align:left">默认值</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>Topic</code></td><td style="text-align:left">The Pulsar <a href="/docs/zh-CN/2.1.0-incubating/reference-terminology#topic">topic</a> on which the consumer will establish a subscription and listen for messages</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>主题（Topic）</code></td><td style="text-align:left">The Pulsar <a href="/docs/zh-CN/2.1.0-incubating/reference-terminology#topic">topic</a> on which the consumer will establish a subscription and listen for messages</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>SubscriptionName</code></td><td style="text-align:left">The subscription name for this consumer</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>配置项</code></td><td style="text-align:left">The name of the consumer</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>AckTimeout</code></td><td style="text-align:left"></td><td style="text-align:left">0</td></tr>
@@ -376,7 +376,7 @@ When you create a new Pulsar reader, the operation will block (on a go channel) 
 <p>Pulsar Go readers have the following methods available:</p>
 <table>
 <thead>
-<tr><th style="text-align:left">Method</th><th style="text-align:left">Description</th><th style="text-align:left">Return type</th></tr>
+<tr><th style="text-align:left">Method</th><th style="text-align:left">说明</th><th style="text-align:left">Return type</th></tr>
 </thead>
 <tbody>
 <tr><td style="text-align:left"><code>Topic()</code></td><td style="text-align:left">Returns the reader's <a href="/docs/zh-CN/2.1.0-incubating/reference-terminology#topic">topic</a></td><td style="text-align:left"><code>string</code></td></tr>
@@ -433,10 +433,10 @@ reader, err := client.CreateReader(pulsar.ReaderOptions{
 <h3><a class="anchor" aria-hidden="true" id="reader-configuration"></a><a href="#reader-configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Reader configuration</h3>
 <table>
 <thead>
-<tr><th style="text-align:left">参数名</th><th style="text-align:left">Description</th><th style="text-align:left">默认值</th></tr>
+<tr><th style="text-align:left">参数名</th><th style="text-align:left">说明</th><th style="text-align:left">默认值</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>Topic</code></td><td style="text-align:left">The Pulsar <a href="/docs/zh-CN/2.1.0-incubating/reference-terminology#topic">topic</a> on which the reader will establish a subscription and listen for messages</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>主题（Topic）</code></td><td style="text-align:left">The Pulsar <a href="/docs/zh-CN/2.1.0-incubating/reference-terminology#topic">topic</a> on which the reader will establish a subscription and listen for messages</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>配置项</code></td><td style="text-align:left">The name of the reader</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>StartMessageID</code></td><td style="text-align:left">THe initial reader position, i.e. the message at which the reader begins processing messages. The options are <code>pulsar.EarliestMessage</code> (the earliest available message on the topic), <code>pulsar.LatestMessage</code> (the latest available message on the topic), or a <code>MessageID</code> object for a position that isn't earliest or latest.</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>MessageChannel</code></td><td style="text-align:left">The Go channel used by the reader. Messages that arrive from the Pulsar topic(s) will be passed to this channel.</td><td style="text-align:left"></td></tr>
@@ -463,7 +463,7 @@ reader, err := client.CreateReader(pulsar.ReaderOptions{
 <p>The following methods parameters are available for <code>ProducerMessage</code> objects:</p>
 <table>
 <thead>
-<tr><th style="text-align:left">参数名</th><th style="text-align:left">Description</th></tr>
+<tr><th style="text-align:left">参数名</th><th style="text-align:left">说明</th></tr>
 </thead>
 <tbody>
 <tr><td style="text-align:left"><code>Payload</code></td><td style="text-align:left">The actual data payload of the message</td></tr>
@@ -473,7 +473,7 @@ reader, err := client.CreateReader(pulsar.ReaderOptions{
 <tr><td style="text-align:left"><code>ReplicationClusters</code></td><td style="text-align:left">The clusters to which this message will be replicated. Pulsar brokers handle message replication automatically; you should only change this setting if you want to override the broker default.</td></tr>
 </tbody>
 </table>
-<h2><a class="anchor" aria-hidden="true" id="tls-encryption-and-authentication"></a><a href="#tls-encryption-and-authentication" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>TLS encryption and authentication</h2>
+<h2><a class="anchor" aria-hidden="true" id="tls-加密和身份验证"></a><a href="#tls-加密和身份验证" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>TLS 加密和身份验证</h2>
 <p>In order to use <a href="/docs/zh-CN/2.1.0-incubating/security-tls-transport">TLS encryption</a>, you'll need to configure your client to do so:</p>
 <ul>
 <li>Use <code>pulsar+ssl</code> URL type</li>
@@ -487,7 +487,7 @@ reader, err := client.CreateReader(pulsar.ReaderOptions{
     Authentication: NewAuthenticationTLS(<span class="hljs-string">"my-cert.pem"</span>, <span class="hljs-string">"my-key.pem"</span>),
 }
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.1.0-incubating/client-libraries-java"><span class="arrow-prev">← </span><span>Java</span></a><a class="docs-next button" href="/docs/zh-CN/2.1.0-incubating/client-libraries-python"><span>Python</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#安装">安装</a><ul class="toc-headings"><li><a href="#要求">要求</a></li><li><a href="#installing-go-package">Installing go package</a></li></ul></li><li><a href="#连接url">连接URL</a></li><li><a href="#creating-a-client">Creating a client</a></li><li><a href="#producers">Producers</a><ul class="toc-headings"><li><a href="#producer-operations">Producer operations</a></li><li><a href="#producer-配置">Producer 配置</a></li></ul></li><li><a href="#consumers">Consumers</a><ul class="toc-headings"><li><a href="#consumer-operations">Consumer operations</a></li><li><a href="#consumer-configuration">Consumer configuration</a></li></ul></li><li><a href="#readers">Readers</a><ul class="toc-headings"><li><a href="#reader-operations">Reader operations</a></li><li><a href="#reader-configuration">Reader configuration</a></li></ul></li><li><a href="#messages">Messages</a></li><li><a href="#tls-encryption-and-authentication">TLS encryption and authentication</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.1.0-incubating/client-libraries-java"><span class="arrow-prev">← </span><span>Java</span></a><a class="docs-next button" href="/docs/zh-CN/2.1.0-incubating/client-libraries-python"><span>Python</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#安装">安装</a><ul class="toc-headings"><li><a href="#要求">要求</a></li><li><a href="#installing-go-package">Installing go package</a></li></ul></li><li><a href="#连接url">连接URL</a></li><li><a href="#creating-a-client">Creating a client</a></li><li><a href="#producers">Producers</a><ul class="toc-headings"><li><a href="#producer-operations">Producer operations</a></li><li><a href="#producer-配置">Producer 配置</a></li></ul></li><li><a href="#consumers">Consumers</a><ul class="toc-headings"><li><a href="#消费者选项">消费者选项</a></li><li><a href="#consumer-configuration">Consumer configuration</a></li></ul></li><li><a href="#readers">Readers</a><ul class="toc-headings"><li><a href="#reader-operations">Reader operations</a></li><li><a href="#reader-configuration">Reader configuration</a></li></ul></li><li><a href="#messages">Messages</a></li><li><a href="#tls-加密和身份验证">TLS 加密和身份验证</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

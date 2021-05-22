@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.7.0</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.7.0/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.7.0/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.7.0/kubernetes-helm">English</a></li><li><a href="/docs/ja/2.7.0/kubernetes-helm">日本語</a></li><li><a href="/docs/fr/2.7.0/kubernetes-helm">Français</a></li><li><a href="/docs/ko/2.7.0/kubernetes-helm">한국어</a></li><li><a href="/docs/zh-TW/2.7.0/kubernetes-helm">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.7.0</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.7.0/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.7.0/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">命令行</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.7.0/kubernetes-helm">English</a></li><li><a href="/docs/ja/2.7.0/kubernetes-helm">日本語</a></li><li><a href="/docs/fr/2.7.0/kubernetes-helm">Français</a></li><li><a href="/docs/ko/2.7.0/kubernetes-helm">한국어</a></li><li><a href="/docs/zh-TW/2.7.0/kubernetes-helm">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -94,17 +94,17 @@
 <p>对于接下来的步骤，步骤 2 与步骤 3 适用于 <strong>开发者</strong>，步骤 4 和 步骤 5 适用于 <strong>管理员</strong>。</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="步骤-0：准备一个-kubernetes-集群"></a><a href="#步骤-0：准备一个-kubernetes-集群" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>步骤 0：准备一个 Kubernetes 集群</h2>
-<p>在安装 Pulsar Helm chart 之前，你必须创建一个 Kubernetes 集群。 你可以按照 <a href="/docs/zh-CN/2.7.0/helm-prepare">指示</a> 来准备一个Kubernetes集群。</p>
+<p>在安装 Pulsar Helm chart 之前，你必须创建一个 Kubernetes 集群。 你可以按照 <a href="/docs/zh-CN/2.7.0/helm-prepare">操作指南</a> 来准备一个 Kubernetes 集群。</p>
 <p>We use <a href="https://kubernetes.io/docs/getting-started-guides/minikube/">Minikube</a> in this quick start guide. 要准备一个 Kubernetes 集群，请遵循以下步骤：</p>
 <ol>
 <li><p>在 Minikube 上创建一个 Kubernetes 集群。</p>
 <pre><code class="hljs css language-bash">minikube start --memory=8192 --cpus=4 --kubernetes-version=&lt;k8s-version&gt;
 </code></pre>
-<p><code>&lt;k8s-version&gt;</code> 可以是 <a href="https://minikube.sigs.k8s.io/docs/reference/configuration/kubernetes/"> Minikube 安装程序支持的任意 Kubernetes 版本</a> 比如 <code>v1.16.1</code>。</p></li>
+<p><code>&lt;k8s-version&gt;</code> 可以是 <a href="https://minikube.sigs.k8s.io/docs/reference/configuration/kubernetes/"> Minikube 安装程序支持的任意 Kubernetes 版本</a> ，比如 <code>v1.16.1</code>。</p></li>
 <li><p>设置 <code>kubectl</code> 来使用 Minikube。</p>
 <pre><code class="hljs css language-bash">kubectl config use-context minikube
 </code></pre></li>
-<li><p>若要在 Minikube 上使用与本地 Kubernetes 集群的 <a href="https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/">Kubernetes Dashboard</a>，输入以下的命令：</p>
+<li><p>若要在 Minikube 上使用本地 Kubernetes 集群的 <a href="https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/">Kubernetes Dashboard</a>，输入以下的命令：</p>
 <pre><code class="hljs css language-bash">minikube dashboard
 </code></pre>
 <p>这条命令会自动用你的浏览器打开一个网页。</p></li>
@@ -120,7 +120,7 @@
 <pre><code class="hljs css language-bash">git <span class="hljs-built_in">clone</span> https://github.com/apache/pulsar-helm-chart
 <span class="hljs-built_in">cd</span> pulsar-helm-chart
 </code></pre></li>
-<li><p>运行脚本 <code>prepare_helm_release.sh</code> 来创建安装 Apache Pulsar Helm chart 所需的 secrets。 用户名 <code>pulsar</code> 与密码 <code>pulsar</code> 可用于登录 Grafana dashboard 与 Pulsar Manager。</p>
+<li><p>运行脚本 <code>prepare_helm_release.sh</code> 来创建安装 Apache Pulsar Helm chart 所需的密码信息。 用户名 <code>pulsar</code> 与密码 <code>pulsar</code> 可用于登录 Grafana dashboard 与 Pulsar Manager。</p>
 <pre><code class="hljs css language-bash">./scripts/pulsar/prepare_helm_release.sh \
     -n pulsar \
     -k pulsar-mini \
@@ -128,8 +128,8 @@
 </code></pre></li>
 <li><p>使用 Pulsar Helm chart 来将一个 Pulsar 集群安装至 Kubernetes。</p>
 <blockquote>
-<p><strong>NOTE</strong>  <br>
-You need to specify <code>--set initialize=true</code> when installing Pulsar the first time. This command installs and starts Apache Pulsar.</p>
+<p><strong>注意</strong>  <br>
+在首次安装 Pulsar 时，您需要指定参数<code>--set initialize=true</code>。 以下命令将会安装并启动Apache Pulsar。</p>
 <pre><code class="hljs css language-bash">    helm install \
         --values examples/values-minikube.yaml \
         --<span class="hljs-built_in">set</span> initialize=<span class="hljs-literal">true</span> \
@@ -207,7 +207,7 @@ pulsar-mini-zookeeper        ClusterIP      None             &lt;none&gt;       
 </ol>
 <h2><a class="anchor" aria-hidden="true" id="步骤-3：使用-pulsar-客户端生产和消费消息"></a><a href="#步骤-3：使用-pulsar-客户端生产和消费消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>步骤 3：使用 Pulsar 客户端生产和消费消息</h2>
 <p>你可以使用 Pulsar 客户端来创建生产者与消费者并用于生产和消费消息。</p>
-<p>默认地，Pulsar Helm chart 会通过 Kubernetes <code>LoadBalancer</code> 将 Pulsar 集群暴露出来。 在 Minikube 中，你可以使用如下命令来检查代理服务。</p>
+<p>默认情况下，Pulsar Helm chart 会通过 Kubernetes <code>LoadBalancer</code> 将 Pulsar 集群暴露出来。 在 Minikube 中，你可以使用如下命令来检查代理服务。</p>
 <pre><code class="hljs css language-bash">kubectl get services -n pulsar | grep pulsar-mini-proxy
 </code></pre>
 <p>你将看到类似如下的输出：</p>

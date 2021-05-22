@@ -96,7 +96,7 @@
 <p>Pay attention to the following required settings when configuring functions-worker in this mode.</p>
 <ul>
 <li><code>numFunctionPackageReplicas</code>: 存儲 function packages 的副本數。 預設值為 <code>1</code>，這對於單機模式部署非常有用。 對於生產環境部署，要確保高可用性，請將其設定調整為大於 <code>2</code>。</li>
-<li><code>pulsarFunctionsCluster</code>: 將值設置為你的 Pulsar 群集名稱（與 broker 配置中的 <code>clusterName</code> 設定相同）。</li>
+<li><code>pulsarFunctionsCluster</code>: 將值設定為你的 Pulsar群集名稱（與 broker 配置中的 <code>clusterName</code> 設定相同）。</li>
 </ul>
 <p>If authentication is enabled on the BookKeeper cluster, configure the following BookKeeper authentication settings.</p>
 <ul>
@@ -135,7 +135,7 @@
 <ul>
 <li><code>pulsarServiceUrl</code>: Pulsar 群集的服務 URL。</li>
 <li><code>pulsarWebServiceUrl</code>: Pulser 群集的 Web 服務 URL。</li>
-<li><code>pulsarFunctionsCluster</code>: 將值設置為你的 Pulsar 群集名稱（與 broker 配置中的 <code>clusterName</code> 設定相同）。</li>
+<li><code>pulsarFunctionsCluster</code>: 將值設定為你的 Pulsar群集名稱（與 broker 配置中的 <code>clusterName</code> 設定相同）。</li>
 </ul>
 <p>If authentication is enabled for your broker cluster, you <em>should</em> configure the authentication plugin and parameters for the functions worker to communicate with the brokers.</p>
 <ul>

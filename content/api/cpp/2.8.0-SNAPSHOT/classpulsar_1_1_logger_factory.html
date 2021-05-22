@@ -107,10 +107,45 @@ Inheritance diagram for pulsar::LoggerFactory:</div>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:a9fd7f68286de208bcee26239469b60ac"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a9fd7f68286de208bcee26239469b60ac"></a>
-virtual <a class="el" href="classpulsar_1_1_logger.html">Logger</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>getLogger</b> (const std::string &amp;fileName)=0</td></tr>
+<tr class="memitem:a9fd7f68286de208bcee26239469b60ac"><td class="memItemLeft" align="right" valign="top">virtual <a class="el" href="classpulsar_1_1_logger.html">Logger</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_logger_factory.html#a9fd7f68286de208bcee26239469b60ac">getLogger</a> (const std::string &amp;fileName)=0</td></tr>
 <tr class="separator:a9fd7f68286de208bcee26239469b60ac"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<h2 class="groupheader">Member Function Documentation</h2>
+<a class="anchor" id="a9fd7f68286de208bcee26239469b60ac"></a>
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">virtual <a class="el" href="classpulsar_1_1_logger.html">Logger</a>* pulsar::LoggerFactory::getLogger </td>
+          <td>(</td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>fileName</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">pure virtual</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+<p>Create a <a class="el" href="classpulsar_1_1_logger.html">Logger</a> that is created from the filename</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">fileName</td><td>the filename that is used to construct the <a class="el" href="classpulsar_1_1_logger.html">Logger</a> </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>a pointer to the created <a class="el" href="classpulsar_1_1_logger.html">Logger</a> instance </dd></dl>
+<dl class="section note"><dt>Note</dt><dd>the pointer must be allocated with the <code>new</code> keyword in C++ </dd></dl>
+
+<p>Implemented in <a class="el" href="classpulsar_1_1_simple_logger_factory.html#ae2619986ad9e48a1cf60ed0df9713c70">pulsar::SimpleLoggerFactory</a>.</p>
+
+</div>
+</div>
 <hr/>The documentation for this class was generated from the following file:<ul>
 <li>include/pulsar/<a class="el" href="_logger_8h_source.html">Logger.h</a></li>
 </ul>

@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.6.1</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.6.1/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.6.1/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.6.1/schema-understand">English</a></li><li><a href="/docs/ja/2.6.1/schema-understand">日本語</a></li><li><a href="/docs/fr/2.6.1/schema-understand">Français</a></li><li><a href="/docs/ko/2.6.1/schema-understand">한국어</a></li><li><a href="/docs/zh-TW/2.6.1/schema-understand">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.6.1</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.6.1/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.6.1/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">命令行</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.6.1/schema-understand">English</a></li><li><a href="/docs/ja/2.6.1/schema-understand">日本語</a></li><li><a href="/docs/fr/2.6.1/schema-understand">Français</a></li><li><a href="/docs/ko/2.6.1/schema-understand">한국어</a></li><li><a href="/docs/zh-TW/2.6.1/schema-understand">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -85,7 +85,7 @@
 <p>字段</p>
 </th>
 <th>
-<p>Description</p>
+<p>说明</p>
 </th>
 </tr>
 <tr>
@@ -146,7 +146,7 @@
 <p>目前，Pulsar 支持以下原始类型：</p>
 <table>
 <thead>
-<tr><th>原始类型</th><th>Description</th></tr>
+<tr><th>原始类型</th><th>说明</th></tr>
 </thead>
 <tbody>
 <tr><td><code>BOOLEAN</code></td><td>二进制值</td></tr>
@@ -199,7 +199,7 @@ consumer.receive();
 <p>目前，Pulsar 支持以下复杂类型：</p>
 <table>
 <thead>
-<tr><th>复杂类型</th><th>Description</th></tr>
+<tr><th>复杂类型</th><th>说明</th></tr>
 </thead>
 <tbody>
 <tr><td><code>keyvalue</code></td><td>复杂类型的键/值对。</td></tr>
@@ -326,7 +326,7 @@ Producer&lt;GenericRecord&gt; producer = client.newProducer(Schema.generic(schem
 <p>如果事先不知道 Pulsar topic 的 schema 类型，则可以使用 AUTO schema 向 broker 中 produce 或从 broker 中 consume 通用记录。</p>
 <table>
 <thead>
-<tr><th>Auto Schema 类型</th><th>Description</th></tr>
+<tr><th>Auto Schema 类型</th><th>说明</th></tr>
 </thead>
 <tbody>
 <tr><td><code>AUTO_PRODUCE</code></td><td>This is useful for transferring data <strong>from a producer to a Pulsar topic that has a schema</strong>.</td></tr>

@@ -1,0 +1,3 @@
+org.apache.pulsar.client.admin
+org.apache.pulsar.client.admin.internal
+org.apache.pulsar.client.admin.internal.http

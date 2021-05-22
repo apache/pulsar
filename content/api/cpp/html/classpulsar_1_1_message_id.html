@@ -103,8 +103,7 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:afa82010567ec14b0a630dbc6c10558ed"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="afa82010567ec14b0a630dbc6c10558ed"></a>
 <a class="el" href="classpulsar_1_1_message_id.html">MessageId</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operator=</b> (const <a class="el" href="classpulsar_1_1_message_id.html">MessageId</a> &amp;)</td></tr>
 <tr class="separator:afa82010567ec14b0a630dbc6c10558ed"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ac91b200bd36b9d887bebdadb747dd4ee"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ac91b200bd36b9d887bebdadb747dd4ee"></a>
-&#160;</td><td class="memItemRight" valign="bottom"><b>MessageId</b> (int32_t partition, int64_t ledgerId, int64_t entryId, int32_t batchIndex)</td></tr>
+<tr class="memitem:ac91b200bd36b9d887bebdadb747dd4ee"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_message_id.html#ac91b200bd36b9d887bebdadb747dd4ee">MessageId</a> (int32_t partition, int64_t ledgerId, int64_t entryId, int32_t batchIndex)</td></tr>
 <tr class="separator:ac91b200bd36b9d887bebdadb747dd4ee"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a665b97923d70670a87361038e5ec3fe6"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_message_id.html#a665b97923d70670a87361038e5ec3fe6">serialize</a> (std::string &amp;result) const </td></tr>
 <tr class="separator:a665b97923d70670a87361038e5ec3fe6"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -197,6 +196,63 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>NegativeAcksTracker<
 PULSAR_PUBLIC std::ostream &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operator&lt;&lt;</b> (std::ostream &amp;s, const <a class="el" href="classpulsar_1_1_message_id.html">MessageId</a> &amp;messageId)</td></tr>
 <tr class="separator:a2405614e27a19f057d5f01226e91723b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
+<a class="anchor" id="ac91b200bd36b9d887bebdadb747dd4ee"></a>
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">pulsar::MessageId::MessageId </td>
+          <td>(</td>
+          <td class="paramtype">int32_t&#160;</td>
+          <td class="paramname"><em>partition</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">int64_t&#160;</td>
+          <td class="paramname"><em>ledgerId</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">int64_t&#160;</td>
+          <td class="paramname"><em>entryId</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">int32_t&#160;</td>
+          <td class="paramname"><em>batchIndex</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">explicit</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+<p>Construct the <a class="el" href="classpulsar_1_1_message_id.html">MessageId</a></p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">partition</td><td>the partition number of a topic </td></tr>
+    <tr><td class="paramname">ledgerId</td><td>the ledger id </td></tr>
+    <tr><td class="paramname">entryId</td><td>the entry id </td></tr>
+    <tr><td class="paramname">batchIndex</td><td>the batch index of a single message in a batch </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
 <h2 class="groupheader">Member Function Documentation</h2>
 <a class="anchor" id="a3768dd552867827d694077ab6d7a55c8"></a>
 <div class="memitem">

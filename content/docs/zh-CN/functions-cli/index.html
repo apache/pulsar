@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar Functions command line tool · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="下表为 Pulsar Functions 命令行工具。 可用于了解 Pulsar Functions 的模式、命令、参数等。"/><meta name="docsearch:version" content="2.7.1"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Pulsar Functions command line tool · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="下表为 Pulsar Functions 命令行工具。 可用于了解 Pulsar Functions 的模式、命令、参数等。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar Functions command line tool · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="下表为 Pulsar Functions 命令行工具。 可用于了解 Pulsar Functions 的模式、命令、参数等。"/><meta name="docsearch:version" content="2.7.2"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Pulsar Functions command line tool · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="下表为 Pulsar Functions 命令行工具。 可用于了解 Pulsar Functions 的模式、命令、参数等。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
               (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
               (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
               m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.7.1</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/functions-cli">English</a></li><li><a href="/docs/ja/functions-cli">日本語</a></li><li><a href="/docs/fr/functions-cli">Français</a></li><li><a href="/docs/ko/functions-cli">한국어</a></li><li><a href="/docs/zh-TW/functions-cli">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.7.2</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">命令行</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/functions-cli">English</a></li><li><a href="/docs/ja/functions-cli">日本語</a></li><li><a href="/docs/fr/functions-cli">Français</a></li><li><a href="/docs/ko/functions-cli">한국어</a></li><li><a href="/docs/zh-TW/functions-cli">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -79,7 +79,7 @@
 <p>本地运行 Pulsar Functions ，而不是将其部署到 Pulsar 集群。</p>
 <table>
 <thead>
-<tr><th>配置项</th><th>Description</th><th>默认值</th></tr>
+<tr><th>配置项</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td>auto-ack</td><td>框架是否自动 ack 消息。</td><td>true</td></tr>
@@ -129,7 +129,7 @@
 <p>在集群模式下创建和部署 Pulsar Function。</p>
 <table>
 <thead>
-<tr><th>配置项</th><th>Description</th><th>默认值</th></tr>
+<tr><th>配置项</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td>auto-ack</td><td>框架是否自动 ack 消息。</td><td>true</td></tr>
@@ -172,7 +172,7 @@
 <p>删除运行在 Pulsar 集群上的 Pulsar Function。</p>
 <table>
 <thead>
-<tr><th>配置项</th><th>Description</th><th>默认值</th></tr>
+<tr><th>配置项</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td>fqfn</td><td>此 function 的完全限定名称（FQFN）。</td><td></td></tr>
@@ -185,7 +185,7 @@
 <p>更新已部署到 Pulsar 集群的 Pulsar Function。</p>
 <table>
 <thead>
-<tr><th>配置项</th><th>Description</th><th>默认值</th></tr>
+<tr><th>配置项</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td>auto-ack</td><td>框架是否自动 ack 消息。</td><td>true</td></tr>
@@ -229,7 +229,7 @@
 <p>获取关于 Pulsar Function 的信息。</p>
 <table>
 <thead>
-<tr><th>配置项</th><th>Description</th><th>默认值</th></tr>
+<tr><th>配置项</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td>fqfn</td><td>此 function 的完全限定名称（FQFN）。</td><td></td></tr>
@@ -242,7 +242,7 @@
 <p>重启 function 实例。</p>
 <table>
 <thead>
-<tr><th>配置项</th><th>Description</th><th>默认值</th></tr>
+<tr><th>配置项</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td>fqfn</td><td>此 function 的完全限定名称（FQFN）。</td><td></td></tr>
@@ -256,7 +256,7 @@
 <p>停止 function 实例。</p>
 <table>
 <thead>
-<tr><th>配置项</th><th>Description</th><th>默认值</th></tr>
+<tr><th>配置项</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td>fqfn</td><td>此 function 的完全限定名称（FQFN）。</td><td></td></tr>
@@ -270,7 +270,7 @@
 <p>启动已停止的 function 实例。</p>
 <table>
 <thead>
-<tr><th>配置项</th><th>Description</th><th>默认值</th></tr>
+<tr><th>配置项</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td>fqfn</td><td>此 function 的完全限定名称（FQFN）。</td><td></td></tr>
@@ -280,7 +280,7 @@
 <tr><td>租户</td><td>Pulsar Function 的租户。</td><td></td></tr>
 </tbody>
 </table>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/functions-deploy"><span class="arrow-prev">← </span><span>How-to: Deploy</span></a><a class="docs-next button" href="/docs/zh-CN/window-functions-context"><span>Window Functions: Context</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#localrun">localrun</a></li><li><a href="#create">create</a></li><li><a href="#delete">delete</a></li><li><a href="#update">update</a></li><li><a href="#get">get</a></li><li><a href="#restart">restart</a></li><li><a href="#stop">stop</a></li><li><a href="#start">start</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/functions-deploy"><span class="arrow-prev">← </span><span>操作：部署</span></a><a class="docs-next button" href="/docs/zh-CN/window-functions-context"><span>Window Functions: Context</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#localrun">localrun</a></li><li><a href="#create">create</a></li><li><a href="#delete">delete</a></li><li><a href="#update">update</a></li><li><a href="#get">get</a></li><li><a href="#restart">restart</a></li><li><a href="#stop">stop</a></li><li><a href="#start">start</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
@@ -333,6 +333,6 @@
                 apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
                 indexName: 'apache_pulsar',
                 inputSelector: '#search_input_react',
-                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.7.1"]}
+                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.7.2"]}
               });
             </script></body></html>

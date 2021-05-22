@@ -185,6 +185,10 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:ab0e049e62befb9b924307ba6f990cd97"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a2ebdd798b5464e104ca34fe9a7ddab17"><td class="memItemLeft" align="right" valign="top">InitialPosition&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_consumer_configuration.html#a2ebdd798b5464e104ca34fe9a7ddab17">getSubscriptionInitialPosition</a> () const </td></tr>
 <tr class="separator:a2ebdd798b5464e104ca34fe9a7ddab17"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a70a15216ef41c8bd38178bdc5e377a31"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_consumer_configuration.html#a70a15216ef41c8bd38178bdc5e377a31">setReplicateSubscriptionStateEnabled</a> (bool enabled)</td></tr>
+<tr class="separator:a70a15216ef41c8bd38178bdc5e377a31"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:abf4d3d14144f555511bce0c960702994"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_consumer_configuration.html#abf4d3d14144f555511bce0c960702994">isReplicateSubscriptionStateEnabled</a> () const </td></tr>
+<tr class="separator:abf4d3d14144f555511bce0c960702994"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a31e47b1ab57dd7788f777a7ce812f7a6"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_consumer_configuration.html#a31e47b1ab57dd7788f777a7ce812f7a6">hasProperty</a> (const std::string &amp;name) const </td></tr>
 <tr class="separator:a31e47b1ab57dd7788f777a7ce812f7a6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a42192fb1c47c3675876a64842a1c7129"><td class="memItemLeft" align="right" valign="top">const std::string &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_consumer_configuration.html#a42192fb1c47c3675876a64842a1c7129">getProperty</a> (const std::string &amp;name) const </td></tr>
@@ -610,6 +614,22 @@ false if the property is not defined </dd></dl>
 
 </div>
 </div>
+<a class="anchor" id="abf4d3d14144f555511bce0c960702994"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool pulsar::ConsumerConfiguration::isReplicateSubscriptionStateEnabled </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<dl class="section return"><dt>Returns</dt><dd>whether the subscription status should be replicated </dd></dl>
+
+</div>
+</div>
 <a class="anchor" id="a593295c1aa0cd77c32a6cfdee80cd452"></a>
 <div class="memitem">
 <div class="memproto">
@@ -966,6 +986,29 @@ false if the property is not defined </dd></dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">size</td><td>the new receiver queue size value </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a class="anchor" id="a70a15216ef41c8bd38178bdc5e377a31"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void pulsar::ConsumerConfiguration::setReplicateSubscriptionStateEnabled </td>
+          <td>(</td>
+          <td class="paramtype">bool&#160;</td>
+          <td class="paramname"><em>enabled</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Set whether the subscription status should be replicated. The default value is <code>false</code>.</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">replicateSubscriptionState</td><td>whether the subscription status should be replicated </td></tr>
   </table>
   </dd>
 </dl>

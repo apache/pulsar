@@ -112,17 +112,14 @@ Inheritance diagram for pulsar::Authentication:</div>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:aafe5c68d220ae0926a2c66953eafed57"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="aafe5c68d220ae0926a2c66953eafed57"></a>
-virtual const std::string&#160;</td><td class="memItemRight" valign="bottom"><b>getAuthMethodName</b> () const =0</td></tr>
+<tr class="memitem:aafe5c68d220ae0926a2c66953eafed57"><td class="memItemLeft" align="right" valign="top">virtual const std::string&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_authentication.html#aafe5c68d220ae0926a2c66953eafed57">getAuthMethodName</a> () const =0</td></tr>
 <tr class="separator:aafe5c68d220ae0926a2c66953eafed57"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a14811c36fc300cfa7769f7ee96018688"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a14811c36fc300cfa7769f7ee96018688"></a>
-virtual <a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbb">Result</a>&#160;</td><td class="memItemRight" valign="bottom"><b>getAuthData</b> (AuthenticationDataPtr &amp;authDataContent)</td></tr>
+<tr class="memitem:a14811c36fc300cfa7769f7ee96018688"><td class="memItemLeft" align="right" valign="top">virtual <a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbb">Result</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_authentication.html#a14811c36fc300cfa7769f7ee96018688">getAuthData</a> (AuthenticationDataPtr &amp;authDataContent)</td></tr>
 <tr class="separator:a14811c36fc300cfa7769f7ee96018688"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-static-methods"></a>
 Static Public Member Functions</h2></td></tr>
-<tr class="memitem:a0ff47251bd4184cd0e9155e76a5c35bb"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a0ff47251bd4184cd0e9155e76a5c35bb"></a>
-static ParamMap&#160;</td><td class="memItemRight" valign="bottom"><b>parseDefaultFormatAuthParams</b> (const std::string &amp;authParamsString)</td></tr>
+<tr class="memitem:a0ff47251bd4184cd0e9155e76a5c35bb"><td class="memItemLeft" align="right" valign="top">static ParamMap&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_authentication.html#a0ff47251bd4184cd0e9155e76a5c35bb">parseDefaultFormatAuthParams</a> (const std::string &amp;authParamsString)</td></tr>
 <tr class="separator:a0ff47251bd4184cd0e9155e76a5c35bb"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pro-attribs"></a>
@@ -137,6 +134,101 @@ Friends</h2></td></tr>
 class&#160;</td><td class="memItemRight" valign="bottom"><b>ClientConfiguration</b></td></tr>
 <tr class="separator:abea2ee50c7ded8ed569f7cedfbecd6f5"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<h2 class="groupheader">Member Function Documentation</h2>
+<a class="anchor" id="a14811c36fc300cfa7769f7ee96018688"></a>
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">virtual <a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbb">Result</a> pulsar::Authentication::getAuthData </td>
+          <td>(</td>
+          <td class="paramtype">AuthenticationDataPtr &amp;&#160;</td>
+          <td class="paramname"><em>authDataContent</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">virtual</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+<p>Get AuthenticationData from the current instance</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[out]</td><td class="paramname">authDataContent</td><td>the shared pointer of AuthenticationData. The content of AuthenticationData is changed to the internal data of the current instance. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>ResultOk </dd></dl>
+
+<p>Reimplemented in <a class="el" href="classpulsar_1_1_auth_athenz.html#a274c9e677c536166fd1d4f8af6161546">pulsar::AuthAthenz</a>, <a class="el" href="classpulsar_1_1_auth_token.html#a212a8af7680f196e4fba4e0152e6d0a5">pulsar::AuthToken</a>, and <a class="el" href="classpulsar_1_1_auth_tls.html#ae88d06f62a47e92e7c52e74df3cacb56">pulsar::AuthTls</a>.</p>
+
+</div>
+</div>
+<a class="anchor" id="aafe5c68d220ae0926a2c66953eafed57"></a>
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">virtual const std::string pulsar::Authentication::getAuthMethodName </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">pure virtual</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+<dl class="section return"><dt>Returns</dt><dd>the authentication method name supported by this provider </dd></dl>
+
+<p>Implemented in <a class="el" href="classpulsar_1_1_auth_athenz.html#a26aa4be56fd20b15823ce94250762ba6">pulsar::AuthAthenz</a>, <a class="el" href="classpulsar_1_1_auth_token.html#af9a1d58405e9fc9ea130f4dbc4d63a27">pulsar::AuthToken</a>, and <a class="el" href="classpulsar_1_1_auth_tls.html#a4cb16de5740f8153696b7b82e681dac9">pulsar::AuthTls</a>.</p>
+
+</div>
+</div>
+<a class="anchor" id="a0ff47251bd4184cd0e9155e76a5c35bb"></a>
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static ParamMap pulsar::Authentication::parseDefaultFormatAuthParams </td>
+          <td>(</td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>authParamsString</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+<p>Parse the authentication parameter string to a map whose key and value are both strings</p>
+<p>The parameter string can have multiple lines. The format of each line is a comma-separated “key:value” string.</p>
+<p>For example, “k1:v1,k2:v2” is parsed to two key-value pairs <code>(k1, v1)</code> and <code>(k2, v2)</code>.</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">authParamsString</td><td>the authentication parameter string to be parsed </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>the parsed map whose key and value are both strings </dd></dl>
+
+</div>
+</div>
 <hr/>The documentation for this class was generated from the following file:<ul>
 <li>include/pulsar/<a class="el" href="_authentication_8h_source.html">Authentication.h</a></li>
 </ul>

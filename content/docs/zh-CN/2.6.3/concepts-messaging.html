@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.6.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.6.3/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.6.3/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.6.3/concepts-messaging">English</a></li><li><a href="/docs/ja/2.6.3/concepts-messaging">日本語</a></li><li><a href="/docs/fr/2.6.3/concepts-messaging">Français</a></li><li><a href="/docs/ko/2.6.3/concepts-messaging">한국어</a></li><li><a href="/docs/zh-TW/2.6.3/concepts-messaging">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.6.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.6.3/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.6.3/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">命令行</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.6.3/concepts-messaging">English</a></li><li><a href="/docs/ja/2.6.3/concepts-messaging">日本語</a></li><li><a href="/docs/fr/2.6.3/concepts-messaging">Français</a></li><li><a href="/docs/ko/2.6.3/concepts-messaging">한국어</a></li><li><a href="/docs/zh-TW/2.6.3/concepts-messaging">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -80,7 +80,7 @@
 <p>消息是 Pulsar 的基础“单元”。 The following table lists the components of messages.</p>
 <table>
 <thead>
-<tr><th style="text-align:left">组件</th><th style="text-align:left">Description</th></tr>
+<tr><th style="text-align:left">组件</th><th style="text-align:left">说明</th></tr>
 </thead>
 <tbody>
 <tr><td style="text-align:left">Value / data payload</td><td style="text-align:left">The data carried by the message. All Pulsar messages contain raw bytes, although message data can also conform to data <a href="/docs/zh-CN/2.6.3/schema-get-started">schemas</a>.</td></tr>
@@ -102,7 +102,7 @@
 <p>Producer 可以以同步(sync) 或 异步(async) 的方式发布消息到 broker。</p>
 <table>
 <thead>
-<tr><th style="text-align:left">发送模式</th><th>Description</th></tr>
+<tr><th style="text-align:left">发送模式</th><th>说明</th></tr>
 </thead>
 <tbody>
 <tr><td style="text-align:left">同步发送</td><td>The producer waits for an acknowledgement from the broker after sending every message. If the acknowledgment is not received, the producer treats the sending operation as a failure.</td></tr>
@@ -146,7 +146,7 @@
 <p>可以通过同步(sync) 或者异步(async)的方式从<a href="/docs/zh-CN/2.6.3/reference-terminology#broker">brokers</a>接受消息。</p>
 <table>
 <thead>
-<tr><th style="text-align:left">发送模式</th><th style="text-align:left">Description</th></tr>
+<tr><th style="text-align:left">发送模式</th><th style="text-align:left">说明</th></tr>
 </thead>
 <tbody>
 <tr><td style="text-align:left">同步接收</td><td style="text-align:left">同步模式，在收到消息之前都是被阻塞的。</td></tr>
@@ -242,7 +242,7 @@ Currently, dead letter topic is enabled only in the shared subscription mode.</p
 </code></pre>
 <table>
 <thead>
-<tr><th style="text-align:left">Topic名称组成</th><th style="text-align:left">Description</th></tr>
+<tr><th style="text-align:left">Topic名称组成</th><th style="text-align:left">说明</th></tr>
 </thead>
 <tbody>
 <tr><td style="text-align:left"><code>持久化</code> / <code>非持久化</code></td><td style="text-align:left">用来标识 topic 的类型。 Pulsar 支持两种主题类型：<a href="/docs/zh-CN/2.6.3/concepts-architecture-overview#persistent-storage">持久化</a>和<a href="#non-persistent-topics">非持久化</a>。 主题默认是持久化类型，如果不特殊指定主题类型，那主题就是持久化的。 对于持久化的主题，所有的消息都会被持久化的保存到磁盘当中(如果 broker 不是单机模式，消息会被持久化到多块磁盘)，而非持久化的主题的数据不会被保存到磁盘里面。</td></tr>
@@ -341,7 +341,7 @@ Consumer&lt;<span class="hljs-keyword">byte</span>[]&gt; someTopicsConsumer = pu
  可用:</p>
 <table>
 <thead>
-<tr><th style="text-align:left">发送模式</th><th style="text-align:left">Description</th></tr>
+<tr><th style="text-align:left">发送模式</th><th style="text-align:left">说明</th></tr>
 </thead>
 <tbody>
 <tr><td style="text-align:left"><code>RoundRobinPartition</code></td><td style="text-align:left">如果消息没有指定 key，为了达到最大吞吐量，消息会以 round-robin 方式被路由所有分区。 请注意round-robin并不是作用于每条单独的消息，而是作用于延迟处理的批次边界，以确保批处理有效。 如果为消息指定了key，发往分区的消息会被分区生产者根据 key 做 hash，然后分散到对应的分区上。 这是默认的模式。</td></tr>
@@ -357,7 +357,7 @@ Consumer&lt;<span class="hljs-keyword">byte</span>[]&gt; someTopicsConsumer = pu
 指定的散列shema。</p>
 <table>
 <thead>
-<tr><th style="text-align:left">顺序保证</th><th style="text-align:left">Description</th><th style="text-align:left">路由策略与消息Key</th></tr>
+<tr><th style="text-align:left">顺序保证</th><th style="text-align:left">说明</th><th style="text-align:left">路由策略与消息Key</th></tr>
 </thead>
 <tbody>
 <tr><td style="text-align:left">每个 key 分区</td><td style="text-align:left">所有具有相同 key 的消息将按顺序排列并放置在相同的分区（Partition）中。</td><td style="text-align:left">使用 <code>SinglePartition</code> 或 <code>RoundRobinPartition</code> 模式，每条消息都需要有key。</td></tr>

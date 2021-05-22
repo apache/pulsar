@@ -177,12 +177,12 @@ configs:
 <p>You can create a connector using <strong>Admin CLI</strong>, <strong>REST API</strong> or <strong>JAVA admin API</strong>.</p>
 <h4><a class="anchor" aria-hidden="true" id="source-2"></a><a href="#source-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source</h4>
 <p>Create a source connector.</p>
-<div class="tabs"><div class="nav-tabs"><div id="tab-group-7432-tab-7433" class="nav-link active" data-group="group_7432" data-tab="tab-group-7432-content-7433">Admin CLI</div><div id="tab-group-7432-tab-7434" class="nav-link" data-group="group_7432" data-tab="tab-group-7432-content-7434">REST API</div><div id="tab-group-7432-tab-7435" class="nav-link" data-group="group_7432" data-tab="tab-group-7432-content-7435">Java Admin API</div></div><div class="tab-content"><div id="tab-group-7432-content-7433" class="tab-pane active" data-group="group_7432" tabindex="-1"><div><span><p>Use the <code>create</code> subcommand.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-8540-tab-8541" class="nav-link active" data-group="group_8540" data-tab="tab-group-8540-content-8541">Admin CLI</div><div id="tab-group-8540-tab-8542" class="nav-link" data-group="group_8540" data-tab="tab-group-8540-content-8542">REST API</div><div id="tab-group-8540-tab-8543" class="nav-link" data-group="group_8540" data-tab="tab-group-8540-content-8543">Java Admin API</div></div><div class="tab-content"><div id="tab-group-8540-content-8541" class="tab-pane active" data-group="group_8540" tabindex="-1"><div><span><p>Use the <code>create</code> subcommand.</p>
 <pre><code class="hljs">$ pulsar-<span class="hljs-keyword">admin</span> sources <span class="hljs-keyword">create</span> <span class="hljs-keyword">options</span><br /></code></pre>
 <p>For more information, see <a href="/docs/ja/2.5.0/io-cli#create">here</a>.</p>
-</span></div></div><div id="tab-group-7432-content-7434" class="tab-pane" data-group="group_7432" tabindex="-1"><div><span><p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/registerSource?version=2.7.1&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
+</span></div></div><div id="tab-group-8540-content-8542" class="tab-pane" data-group="group_8540" tabindex="-1"><div><span><p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/registerSource?version=2.7.2&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
 </p>
-</span></div></div><div id="tab-group-7432-content-7435" class="tab-pane" data-group="group_7432" tabindex="-1"><div><span><ul>
+</span></div></div><div id="tab-group-8540-content-8543" class="tab-pane" data-group="group_8540" tabindex="-1"><div><span><ul>
 <li><p>Create a source connector with a <strong>local file</strong>.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">createSource</span><span class="hljs-params">(SourceConfig sourceConfig,<br />                  String fileName)</span><br />           <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
 <p><strong>Parameter</strong></p>
@@ -224,12 +224,12 @@ configs:
 </span></div></div></div></div>
 <h4><a class="anchor" aria-hidden="true" id="sink-2"></a><a href="#sink-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sink</h4>
 <p>Create a sink connector.</p>
-<div class="tabs"><div class="nav-tabs"><div id="tab-group-7436-tab-7437" class="nav-link active" data-group="group_7436" data-tab="tab-group-7436-content-7437">Admin CLI</div><div id="tab-group-7436-tab-7438" class="nav-link" data-group="group_7436" data-tab="tab-group-7436-content-7438">REST API</div><div id="tab-group-7436-tab-7439" class="nav-link" data-group="group_7436" data-tab="tab-group-7436-content-7439">Java Admin API</div></div><div class="tab-content"><div id="tab-group-7436-content-7437" class="tab-pane active" data-group="group_7436" tabindex="-1"><div><span><p>Use the <code>create</code> subcommand.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-8544-tab-8545" class="nav-link active" data-group="group_8544" data-tab="tab-group-8544-content-8545">Admin CLI</div><div id="tab-group-8544-tab-8546" class="nav-link" data-group="group_8544" data-tab="tab-group-8544-content-8546">REST API</div><div id="tab-group-8544-tab-8547" class="nav-link" data-group="group_8544" data-tab="tab-group-8544-content-8547">Java Admin API</div></div><div class="tab-content"><div id="tab-group-8544-content-8545" class="tab-pane active" data-group="group_8544" tabindex="-1"><div><span><p>Use the <code>create</code> subcommand.</p>
 <pre><code class="hljs">$ pulsar-<span class="hljs-keyword">admin</span> sinks <span class="hljs-keyword">create</span> <span class="hljs-keyword">options</span><br /></code></pre>
 <p>For more information, see <a href="/docs/ja/2.5.0/io-cli#create-1">here</a>.</p>
-</span></div></div><div id="tab-group-7436-content-7438" class="tab-pane" data-group="group_7436" tabindex="-1"><div><span><p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/registerSink?version=2.7.1&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName</i></a>
+</span></div></div><div id="tab-group-8544-content-8546" class="tab-pane" data-group="group_8544" tabindex="-1"><div><span><p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/registerSink?version=2.7.2&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName</i></a>
 </p>
-</span></div></div><div id="tab-group-7436-content-7439" class="tab-pane" data-group="group_7436" tabindex="-1"><div><span><ul>
+</span></div></div><div id="tab-group-8544-content-8547" class="tab-pane" data-group="group_8544" tabindex="-1"><div><span><ul>
 <li><p>Create a sink connector with a <strong>local file</strong>.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">createSink</span><span class="hljs-params">(SinkConfig sinkConfig,<br />                String fileName)</span><br />         <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
 <p><strong>Parameter</strong></p>
@@ -271,29 +271,29 @@ configs:
 <p>You can start a connector using <strong>Admin CLI</strong> or <strong>REST API</strong>.</p>
 <h4><a class="anchor" aria-hidden="true" id="source-3"></a><a href="#source-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source</h4>
 <p>Start a source connector.</p>
-<div class="tabs"><div class="nav-tabs"><div id="tab-group-7440-tab-7441" class="nav-link active" data-group="group_7440" data-tab="tab-group-7440-content-7441">Admin CLI</div><div id="tab-group-7440-tab-7442" class="nav-link" data-group="group_7440" data-tab="tab-group-7440-content-7442">REST API</div></div><div class="tab-content"><div id="tab-group-7440-content-7441" class="tab-pane active" data-group="group_7440" tabindex="-1"><div><span><p>Use the <code>start</code> subcommand.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-8548-tab-8549" class="nav-link active" data-group="group_8548" data-tab="tab-group-8548-content-8549">Admin CLI</div><div id="tab-group-8548-tab-8550" class="nav-link" data-group="group_8548" data-tab="tab-group-8548-content-8550">REST API</div></div><div class="tab-content"><div id="tab-group-8548-content-8549" class="tab-pane active" data-group="group_8548" tabindex="-1"><div><span><p>Use the <code>start</code> subcommand.</p>
 <pre><code class="hljs">$ pulsar-<span class="hljs-keyword">admin</span> sources <span class="hljs-keyword">start</span> <span class="hljs-keyword">options</span><br /></code></pre>
 <p>For more information, see <a href="/docs/ja/2.5.0/io-cli#start">here</a>.</p>
-</span></div></div><div id="tab-group-7440-content-7442" class="tab-pane" data-group="group_7440" tabindex="-1"><div><span><ul>
+</span></div></div><div id="tab-group-8548-content-8550" class="tab-pane" data-group="group_8548" tabindex="-1"><div><span><ul>
 <li><p>Start <strong>all</strong> source connectors.</p>
-<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/startSource?version=2.7.1&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/start</i></a>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/startSource?version=2.7.2&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/start</i></a>
 </p></li>
 <li><p>Start a <strong>specified</strong> source connector.</p>
-<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/startSource?version=2.7.1&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId/start</i></a>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/startSource?version=2.7.2&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId/start</i></a>
 </p></li>
 </ul>
 </span></div></div></div></div>
 <h4><a class="anchor" aria-hidden="true" id="sink-3"></a><a href="#sink-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sink</h4>
 <p>Start a sink connector.</p>
-<div class="tabs"><div class="nav-tabs"><div id="tab-group-7443-tab-7444" class="nav-link active" data-group="group_7443" data-tab="tab-group-7443-content-7444">Admin CLI</div><div id="tab-group-7443-tab-7445" class="nav-link" data-group="group_7443" data-tab="tab-group-7443-content-7445">REST API</div></div><div class="tab-content"><div id="tab-group-7443-content-7444" class="tab-pane active" data-group="group_7443" tabindex="-1"><div><span><p>Use the <code>start</code> subcommand.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-8551-tab-8552" class="nav-link active" data-group="group_8551" data-tab="tab-group-8551-content-8552">Admin CLI</div><div id="tab-group-8551-tab-8553" class="nav-link" data-group="group_8551" data-tab="tab-group-8551-content-8553">REST API</div></div><div class="tab-content"><div id="tab-group-8551-content-8552" class="tab-pane active" data-group="group_8551" tabindex="-1"><div><span><p>Use the <code>start</code> subcommand.</p>
 <pre><code class="hljs">$ pulsar-<span class="hljs-keyword">admin</span> sinks <span class="hljs-keyword">start</span> <span class="hljs-keyword">options</span><br /></code></pre>
 <p>For more information, see <a href="/docs/ja/2.5.0/io-cli#start-1">here</a>.</p>
-</span></div></div><div id="tab-group-7443-content-7445" class="tab-pane" data-group="group_7443" tabindex="-1"><div><span><ul>
+</span></div></div><div id="tab-group-8551-content-8553" class="tab-pane" data-group="group_8551" tabindex="-1"><div><span><ul>
 <li><p>Start <strong>all</strong> sink connectors.</p>
-<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/startSink?version=2.7.1&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sinkName/start</i></a>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/startSink?version=2.7.2&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sinkName/start</i></a>
 </p></li>
 <li><p>Start a <strong>specified</strong> sink connector.</p>
-<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/startSink?version=2.7.1&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sinks/:tenant/:namespace/:sourceName/:instanceId/start</i></a>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/startSink?version=2.7.2&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sinks/:tenant/:namespace/:sourceName/:instanceId/start</i></a>
 </p></li>
 </ul>
 </span></div></div></div></div>
@@ -301,13 +301,13 @@ configs:
 <p>You can run a connector locally rather than deploying it on a Pulsar cluster using <strong>Admin CLI</strong>.</p>
 <h4><a class="anchor" aria-hidden="true" id="source-4"></a><a href="#source-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source</h4>
 <p>Run a source connector locally.</p>
-<div class="tabs"><div class="nav-tabs"><div id="tab-group-7446-tab-7447" class="nav-link active" data-group="group_7446" data-tab="tab-group-7446-content-7447">Admin CLI</div></div><div class="tab-content"><div id="tab-group-7446-content-7447" class="tab-pane active" data-group="group_7446" tabindex="-1"><div><span><p>Use the <code>localrun</code> subcommand.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-8554-tab-8555" class="nav-link active" data-group="group_8554" data-tab="tab-group-8554-content-8555">Admin CLI</div></div><div class="tab-content"><div id="tab-group-8554-content-8555" class="tab-pane active" data-group="group_8554" tabindex="-1"><div><span><p>Use the <code>localrun</code> subcommand.</p>
 <pre><code class="hljs"><span class="hljs-symbol">$</span> pulsar-admin sources localrun <span class="hljs-keyword">options</span><br /></code></pre>
 <p>For more information, see <a href="/docs/ja/2.5.0/io-cli#localrun">here</a>.</p>
 </span></div></div></div></div>
 <h4><a class="anchor" aria-hidden="true" id="sink-4"></a><a href="#sink-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sink</h4>
 <p>Run a sink connector locally.</p>
-<div class="tabs"><div class="nav-tabs"><div id="tab-group-7448-tab-7449" class="nav-link active" data-group="group_7448" data-tab="tab-group-7448-content-7449">Admin CLI</div></div><div class="tab-content"><div id="tab-group-7448-content-7449" class="tab-pane active" data-group="group_7448" tabindex="-1"><div><span><p>Use the <code>localrun</code> subcommand.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-8556-tab-8557" class="nav-link active" data-group="group_8556" data-tab="tab-group-8556-content-8557">Admin CLI</div></div><div class="tab-content"><div id="tab-group-8556-content-8557" class="tab-pane active" data-group="group_8556" tabindex="-1"><div><span><p>Use the <code>localrun</code> subcommand.</p>
 <pre><code class="hljs"><span class="hljs-symbol">$</span> pulsar-admin sinks localrun <span class="hljs-keyword">options</span><br /></code></pre>
 <p>For more information, see <a href="/docs/ja/2.5.0/io-cli#localrun-1">here</a>.</p>
 </span></div></div></div></div>
@@ -329,7 +329,7 @@ configs:
 </code></pre>
 <p>For more information, see <a href="/docs/ja/2.5.0/io-cli#get">here</a>.</p>
 <!--REST API-->
-<p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/getSourceInfo?version=2.7.1&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
+<p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/getSourceInfo?version=2.7.2&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
 </p>
 <pre><code class="hljs css language-java"><span class="hljs-function">SourceConfig <span class="hljs-title">getSource</span><span class="hljs-params">(String tenant,
                        String namespace,
@@ -391,7 +391,7 @@ configs:
 <p>Get the information of a sink connector.<!--DOCUSAURUS_CODE_TABS--><!--Admin CLI-->Use the <code>get</code> subcommand.</p>
 <pre><code class="hljs">$ pulsar-<span class="hljs-keyword">admin</span> sinks <span class="hljs-keyword">get</span> <span class="hljs-keyword">options</span>
 </code></pre>
-<p>For more information, see <a href="/docs/ja/2.5.0/io-cli#get-1">here</a>.<!--REST API-->Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/getSinkInfo?version=2.7.1&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName</i></a>
+<p>For more information, see <a href="/docs/ja/2.5.0/io-cli#get-1">here</a>.<!--REST API-->Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/getSinkInfo?version=2.7.2&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName</i></a>
 </p>
 <pre><code class="hljs css language-java"><span class="hljs-function">SinkConfig <span class="hljs-title">getSink</span><span class="hljs-params">(String tenant,
                    String namespace,
@@ -448,7 +448,7 @@ configs:
 <p>Get the list of all running source connectors.<!--DOCUSAURUS_CODE_TABS--><!--Admin CLI-->Use the <code>list</code> subcommand.</p>
 <pre><code class="hljs"><span class="hljs-symbol">$</span> pulsar-admin sources list <span class="hljs-keyword">options</span>
 </code></pre>
-<p>For more information, see <a href="/docs/ja/2.5.0/io-cli#list">here</a>.<!--REST API-->Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/listSources?version=2.7.1&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sources/:tenant/:namespace/</i></a>
+<p>For more information, see <a href="/docs/ja/2.5.0/io-cli#list">here</a>.<!--REST API-->Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/listSources?version=2.7.2&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sources/:tenant/:namespace/</i></a>
 </p>
 <pre><code class="hljs css language-java"><span class="hljs-function">List&lt;String&gt; <span class="hljs-title">listSources</span><span class="hljs-params">(String tenant,
                          String namespace)</span>
@@ -463,7 +463,7 @@ configs:
 <p>Get the list of all running sink connectors.<!--DOCUSAURUS_CODE_TABS--><!--Admin CLI-->Use the <code>list</code> subcommand.</p>
 <pre><code class="hljs"><span class="hljs-symbol">$</span> pulsar-admin sinks list <span class="hljs-keyword">options</span>
 </code></pre>
-<p>For more information, see <a href="/docs/ja/2.5.0/io-cli#list-1">here</a>.<!--REST API-->Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/listSinks?version=2.7.1&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sinks/:tenant/:namespace/</i></a>
+<p>For more information, see <a href="/docs/ja/2.5.0/io-cli#list-1">here</a>.<!--REST API-->Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/listSinks?version=2.7.2&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sinks/:tenant/:namespace/</i></a>
 </p>
 <pre><code class="hljs css language-java"><span class="hljs-function">List&lt;String&gt; <span class="hljs-title">listSinks</span><span class="hljs-params">(String tenant,
                        String namespace)</span>
@@ -481,11 +481,11 @@ configs:
 <pre><code class="hljs"><span class="hljs-symbol">$</span> pulsar-admin sources status <span class="hljs-keyword">options</span>
 </code></pre>
 <p>For more information, see <a href="/docs/ja/2.5.0/io-cli#status">here</a>.<!--REST API-->* Get the current status of <strong>all</strong> source connectors.</p>
-<p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/getSourceStatus?version=2.7.1&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/status</i></a>
+<p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/getSourceStatus?version=2.7.2&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/status</i></a>
 </p>
 <ul>
 <li><p>Gets the current status of a <strong>specified</strong> source connector.</p>
-<p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/getSourceStatus?version=2.7.1&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId/status</i></a>
+<p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/getSourceStatus?version=2.7.2&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId/status</i></a>
 <!--Java Admin API-->* Get the current status of <strong>all</strong> source connectors.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function">SourceStatus <span class="hljs-title">getSourceStatus</span><span class="hljs-params">(String tenant,
                             String namespace,
@@ -514,11 +514,11 @@ configs:
 <pre><code class="hljs"><span class="hljs-symbol">$</span> pulsar-admin sinks status <span class="hljs-keyword">options</span>
 </code></pre>
 <p>For more information, see <a href="/docs/ja/2.5.0/io-cli#status-1">here</a>.<!--REST API-->* Get the current status of <strong>all</strong> sink connectors.</p>
-<p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/getSinkStatus?version=2.7.1&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName/status</i></a>
+<p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/getSinkStatus?version=2.7.2&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName/status</i></a>
 </p>
 <ul>
 <li><p>Gets the current status of a <strong>specified</strong> sink connector.</p>
-<p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/getSinkInstanceStatus?version=2.7.1&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sinks/:tenant/:namespace/:sourceName/:instanceId/status</i></a>
+<p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/getSinkInstanceStatus?version=2.7.2&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sinks/:tenant/:namespace/:sourceName/:instanceId/status</i></a>
 <!--Java Admin API-->* Get the current status of <strong>all</strong> sink connectors.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function">SinkStatus <span class="hljs-title">getSinkStatus</span><span class="hljs-params">(String tenant,
                          String namespace,
@@ -549,7 +549,7 @@ configs:
 <p>Update a running Pulsar source connector.<!--DOCUSAURUS_CODE_TABS--><!--Admin CLI-->Use the <code>update</code> subcommand.</p>
 <pre><code class="hljs">$ pulsar-<span class="hljs-keyword">admin</span> sources <span class="hljs-keyword">update</span> <span class="hljs-keyword">options</span>
 </code></pre>
-<p>For more information, see <a href="/docs/ja/2.5.0/io-cli#update">here</a>.<!--REST API-->Send a <code>PUT</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/updateSource?version=2.7.1&amp;apiVersion=v3"><b>PUT</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
+<p>For more information, see <a href="/docs/ja/2.5.0/io-cli#update">here</a>.<!--REST API-->Send a <code>PUT</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/updateSource?version=2.7.2&amp;apiVersion=v3"><b>PUT</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
 <!--Java Admin API-->* Update a running source connector with a <strong>local file</strong>.</p>
 <pre><code class="hljs">```java
 void updateSource(SourceConfig sourceConfig,
@@ -612,7 +612,7 @@ For more information, see [`updateSource`](https://pulsar.apache.org/api/admin/2
 <p>Update a running Pulsar sink connector.<!--DOCUSAURUS_CODE_TABS--><!--Admin CLI-->Use the <code>update</code> subcommand.</p>
 <pre><code class="hljs">$ pulsar-<span class="hljs-keyword">admin</span> sinks <span class="hljs-keyword">update</span> <span class="hljs-keyword">options</span>
 </code></pre>
-<p>For more information, see <a href="/docs/ja/2.5.0/io-cli#update-1">here</a>.<!--REST API-->Send a <code>PUT</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/updateSink?version=2.7.1&amp;apiVersion=v3"><b>PUT</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName</i></a>
+<p>For more information, see <a href="/docs/ja/2.5.0/io-cli#update-1">here</a>.<!--REST API-->Send a <code>PUT</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/updateSink?version=2.7.2&amp;apiVersion=v3"><b>PUT</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName</i></a>
 <!--Java Admin API-->* Update a running sink connector with a <strong>local file</strong>.</p>
 <pre><code class="hljs">```java
 void updateSink(SinkConfig sinkConfig,
@@ -679,11 +679,11 @@ For more information, see [`updateSink`](https://pulsar.apache.org/api/admin/2.7
 <pre><code class="hljs"><span class="hljs-symbol">$</span> pulsar-admin sources stop <span class="hljs-keyword">options</span>
 </code></pre>
 <p>For more information, see <a href="/docs/ja/2.5.0/io-cli#stop">here</a>.<!--REST API-->* Stop <strong>all</strong> source connectors.</p>
-<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/stopSource?version=2.7.1&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/stopSource?version=2.7.2&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
 </p>
 <ul>
 <li><p>Stop a <strong>specified</strong> source connector.</p>
-<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/stopSource?version=2.7.1&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId</i></a>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/stopSource?version=2.7.2&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId</i></a>
 <!--Java Admin API-->* Stop <strong>all</strong> source connectors.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">stopSource</span><span class="hljs-params">(String tenant,
                 String namespace,
@@ -744,11 +744,11 @@ For more information, see [`stopSource`](https://pulsar.apache.org/api/admin/2.7
 <pre><code class="hljs"><span class="hljs-symbol">$</span> pulsar-admin sinks stop <span class="hljs-keyword">options</span>
 </code></pre>
 <p>For more information, see <a href="/docs/ja/2.5.0/io-cli#stop-1">here</a>.<!--REST API-->* Stop <strong>all</strong> sink connectors.</p>
-<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/stopSink?version=2.7.1&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName/stop</i></a>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/stopSink?version=2.7.2&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName/stop</i></a>
 </p>
 <ul>
 <li><p>Stop a <strong>specified</strong> sink connector.</p>
-<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/stopSink?version=2.7.1&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sinkeName/:instanceId/stop</i></a>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/stopSink?version=2.7.2&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sinkeName/:instanceId/stop</i></a>
 <!--Java Admin API-->* Stop <strong>all</strong> sink connectors.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">stopSink</span><span class="hljs-params">(String tenant,
             String namespace,
@@ -812,11 +812,11 @@ For more information, see [`stopSink`](https://pulsar.apache.org/api/admin/2.7.0
 <pre><code class="hljs">$ pulsar-<span class="hljs-keyword">admin</span> sources <span class="hljs-keyword">restart</span> <span class="hljs-keyword">options</span>
 </code></pre>
 <p>For more information, see <a href="/docs/ja/2.5.0/io-cli#restart">here</a>.<!--REST API-->* Restart <strong>all</strong> source connectors.</p>
-<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/restartSource?version=2.7.1&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/restart</i></a>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/restartSource?version=2.7.2&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/restart</i></a>
 </p>
 <ul>
 <li><p>Restart a <strong>specified</strong> source connector.</p>
-<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/restartSource?version=2.7.1&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId/restart</i></a>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/restartSource?version=2.7.2&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId/restart</i></a>
 <!--Java Admin API-->* Restart <strong>all</strong> source connectors.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">restartSource</span><span class="hljs-params">(String tenant,
                    String namespace,
@@ -877,11 +877,11 @@ For more information, see [`restartSource`](https://pulsar.apache.org/api/admin/
 <pre><code class="hljs">$ pulsar-<span class="hljs-keyword">admin</span> sinks <span class="hljs-keyword">restart</span> <span class="hljs-keyword">options</span>
 </code></pre>
 <p>For more information, see <a href="/docs/ja/2.5.0/io-cli#restart-1">here</a>.<!--REST API-->* Restart <strong>all</strong> sink connectors.</p>
-<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/restartSource?version=2.7.1&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sinkName/restart</i></a>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/restartSource?version=2.7.2&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sinkName/restart</i></a>
 </p>
 <ul>
 <li><p>Restart a <strong>specified</strong> sink connector.</p>
-<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/restartSource?version=2.7.1&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sinkName/:instanceId/restart</i></a>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/restartSource?version=2.7.2&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sinkName/:instanceId/restart</i></a>
 <!--Java Admin API-->* Restart all Pulsar sink connectors.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">restartSink</span><span class="hljs-params">(String tenant,
                  String namespace,
@@ -945,7 +945,7 @@ For more information, see [`restartSink`](https://pulsar.apache.org/api/admin/2.
 <pre><code class="hljs">$ pulsar-<span class="hljs-keyword">admin</span> sources <span class="hljs-keyword">delete</span> <span class="hljs-keyword">options</span>
 </code></pre>
 <p>For more information, see <a href="/docs/ja/2.5.0/io-cli#delete">here</a>.<!--REST API-->Delete al Pulsar source connector.</p>
-<p>Send a <code>DELETE</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/deregisterSource?version=2.7.1&amp;apiVersion=v3"><b>DELETE</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
+<p>Send a <code>DELETE</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/deregisterSource?version=2.7.2&amp;apiVersion=v3"><b>DELETE</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
 <!--Java Admin API-->Delete a source connector.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">deleteSource</span><span class="hljs-params">(String tenant,
                   String namespace,
@@ -979,7 +979,7 @@ For more information, see [`restartSink`](https://pulsar.apache.org/api/admin/2.
 <pre><code class="hljs">$ pulsar-<span class="hljs-keyword">admin</span> sinks <span class="hljs-keyword">delete</span> <span class="hljs-keyword">options</span>
 </code></pre>
 <p>For more information, see <a href="/docs/ja/2.5.0/io-cli#delete-1">here</a>.<!--REST API-->Delete a sink connector.</p>
-<p>Send a <code>DELETE</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/deregisterSink?version=2.7.1&amp;apiVersion=v3"><b>DELETE</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName</i></a>
+<p>Send a <code>DELETE</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/deregisterSink?version=2.7.2&amp;apiVersion=v3"><b>DELETE</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName</i></a>
 <!--Java Admin API-->Delete a Pulsar sink connector.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">deleteSink</span><span class="hljs-params">(String tenant,
                 String namespace,
