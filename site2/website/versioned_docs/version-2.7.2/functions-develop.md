@@ -657,6 +657,185 @@ $ bin/pulsar-admin functions create \
 
 All logs produced by `LoggingFunction` above can be accessed via the `persistent://public/default/logging-function-logs` topic.
 
+#### Customize Function log level
+Additionally, you can use the XML file, `functions_log4j2.xml`, to customize the function log level.
+To customize the function log level, create or update `functions_log4j2.xml` in your Pulsar conf directory (for example, `/etc/pulsar/` on bare-metal, or `/pulsar/conf` on Kubernetes) to contain contents such as:
+
+```xml
+<Configuration>
+    <name>pulsar-functions-instance</name>
+    <monitorInterval>30</monitorInterval>
+    <Properties>
+        <Property>
+            <name>pulsar.log.appender</name>
+            <value>RollingFile</value>
+        </Property>
+        <Property>
+            <name>pulsar.log.level</name>
+            <value>debug</value>
+        </Property>
+        <Property>
+            <name>bk.log.level</name>
+            <value>debug</value>
+        </Property>
+    </Properties>
+    <Appenders>
+        <Console>
+            <name>Console</name>
+            <target>SYSTEM_OUT</target>
+            <PatternLayout>
+                <Pattern>%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n</Pattern>
+            </PatternLayout>
+        </Console>
+        <RollingFile>
+            <name>RollingFile</name>
+            <fileName>${sys:pulsar.function.log.dir}/${sys:pulsar.function.log.file}.log</fileName>
+            <filePattern>${sys:pulsar.function.log.dir}/${sys:pulsar.function.log.file}-%d{MM-dd-yyyy}-%i.log.gz</filePattern>
+            <immediateFlush>true</immediateFlush>
+            <PatternLayout>
+                <Pattern>%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n</Pattern>
+            </PatternLayout>
+            <Policies>
+                <TimeBasedTriggeringPolicy>
+                    <interval>1</interval>
+                    <modulate>true</modulate>
+                </TimeBasedTriggeringPolicy>
+                <SizeBasedTriggeringPolicy>
+                    <size>1 GB</size>
+                </SizeBasedTriggeringPolicy>
+                <CronTriggeringPolicy>
+                    <schedule>0 0 0 * * ?</schedule>
+                </CronTriggeringPolicy>
+            </Policies>
+            <DefaultRolloverStrategy>
+                <Delete>
+                    <basePath>${sys:pulsar.function.log.dir}</basePath>
+                    <maxDepth>2</maxDepth>
+                    <IfFileName>
+                        <glob>*/${sys:pulsar.function.log.file}*log.gz</glob>
+                    </IfFileName>
+                    <IfLastModified>
+                        <age>30d</age>
+                    </IfLastModified>
+                </Delete>
+            </DefaultRolloverStrategy>
+        </RollingFile>
+        <RollingRandomAccessFile>
+            <name>BkRollingFile</name>
+            <fileName>${sys:pulsar.function.log.dir}/${sys:pulsar.function.log.file}.bk</fileName>
+            <filePattern>${sys:pulsar.function.log.dir}/${sys:pulsar.function.log.file}.bk-%d{MM-dd-yyyy}-%i.log.gz</filePattern>
+            <immediateFlush>true</immediateFlush>
+            <PatternLayout>
+                <Pattern>%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n</Pattern>
+            </PatternLayout>
+            <Policies>
+                <TimeBasedTriggeringPolicy>
+                    <interval>1</interval>
+                    <modulate>true</modulate>
+                </TimeBasedTriggeringPolicy>
+                <SizeBasedTriggeringPolicy>
+                    <size>1 GB</size>
+                </SizeBasedTriggeringPolicy>
+                <CronTriggeringPolicy>
+                    <schedule>0 0 0 * * ?</schedule>
+                </CronTriggeringPolicy>
+            </Policies>
+            <DefaultRolloverStrategy>
+                <Delete>
+                    <basePath>${sys:pulsar.function.log.dir}</basePath>
+                    <maxDepth>2</maxDepth>
+                    <IfFileName>
+                        <glob>*/${sys:pulsar.function.log.file}.bk*log.gz</glob>
+                    </IfFileName>
+                    <IfLastModified>
+                        <age>30d</age>
+                    </IfLastModified>
+                </Delete>
+            </DefaultRolloverStrategy>
+        </RollingRandomAccessFile>
+    </Appenders>
+    <Loggers>
+        <Logger>
+            <name>org.apache.pulsar.functions.runtime.shaded.org.apache.bookkeeper</name>
+            <level>${sys:bk.log.level}</level>
+            <additivity>false</additivity>
+            <AppenderRef>
+                <ref>BkRollingFile</ref>
+            </AppenderRef>
+        </Logger>
+        <Root>
+            <level>${sys:pulsar.log.level}</level>
+            <AppenderRef>
+                <ref>${sys:pulsar.log.appender}</ref>
+                <level>${sys:pulsar.log.level}</level>
+            </AppenderRef>
+        </Root>
+    </Loggers>
+</Configuration>
+```
+
+The properties set like:
+```xml
+        <Property>
+            <name>pulsar.log.level</name>
+            <value>debug</value>
+        </Property>
+```
+propagate to places where they are referenced, such as:
+```xml
+        <Root>
+            <level>${sys:pulsar.log.level}</level>
+            <AppenderRef>
+                <ref>${sys:pulsar.log.appender}</ref>
+                <level>${sys:pulsar.log.level}</level>
+            </AppenderRef>
+        </Root>
+```
+In the above example, debug level logging would be applied to ALL function logs.
+This may be more verbose than you desire. To be more selective, you can apply different log levels to different classes or modules. For example:
+
+```xml
+        <Logger>
+            <name>com.example.module</name>
+            <level>info</level>
+            <additivity>false</additivity>
+            <AppenderRef>
+                <ref>${sys:pulsar.log.appender}</ref>
+            </AppenderRef>
+        </Logger>
+```
+You can be more specific as well, such as applying a more verbose log level to a class in the module, such as:
+```xml
+        <Logger>
+            <name>com.example.module.className</name>
+            <level>debug</level>
+            <additivity>false</additivity>
+            <AppenderRef>
+                <ref>Console</ref>
+            </AppenderRef>
+        </Logger>
+```
+
+Each `<AppenderRef>` entry allows you to output the log to a target specified in the definition of the Appender.
+
+Additivity pertains to whether log messages will be duplicated if multiple Logger entries overlap.
+To disable additivity, specify
+```xml 
+<additivity>false</additivity>
+```
+as shown in examples above. Disabling additivity prevents duplication of log messages when one or more `<Logger>` entries contain classes or modules that overlap.
+
+The `<AppenderRef>` is defined in the `<Appenders>` section, such as:
+```xml
+<Console>
+  <name>Console</name>
+  <target>SYSTEM_OUT</target>
+  <PatternLayout>
+    <Pattern>%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n</Pattern>
+  </PatternLayout>
+</Console>
+```
+
 <!--Python-->
 Pulsar Functions that use the Python SDK have access to a logging object that can be used to produce logs at the chosen log level. The following example function that logs either a `WARNING`- or `INFO`-level log based on whether the incoming string contains the word `danger`.
 
@@ -684,6 +863,7 @@ $ bin/pulsar-admin functions create \
 ```
 
 All logs produced by `LoggingFunction` above can be accessed via the `logging-function-logs` topic.
+Additionally, you can specify the function log level through the broker XML file as described in [Customize Function log level](#customize-function-log-level).
 
 <!--Go-->
 The following Go Function example shows different log levels based on the function input.
@@ -711,6 +891,8 @@ func main() {
 ```
 
 When you use `logTopic` related functionalities in Go Function, import `github.com/apache/pulsar/pulsar-function-go/logutil`, and you do not have to use the `getLogger()` context object. 
+
+Additionally, you can specify the function log level through the broker XML file, as described here: [Customize Function log level](#customize-function-log-level)
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
