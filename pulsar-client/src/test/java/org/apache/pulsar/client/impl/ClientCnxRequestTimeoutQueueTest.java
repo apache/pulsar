@@ -50,7 +50,7 @@ public class ClientCnxRequestTimeoutQueueTest {
 
     @BeforeTest
     void setupClientCnx() throws Exception {
-        eventLoop = EventLoopUtil.newEventLoopGroup(1, new DefaultThreadFactory("testClientCnxTimeout"));
+        eventLoop = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("testClientCnxTimeout"));
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setKeepAliveIntervalSeconds(0);
         conf.setOperationTimeoutMs(1);

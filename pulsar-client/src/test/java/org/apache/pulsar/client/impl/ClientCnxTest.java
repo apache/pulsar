@@ -48,7 +48,7 @@ public class ClientCnxTest {
 
     @Test
     public void testClientCnxTimeout() throws Exception {
-        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, new DefaultThreadFactory("testClientCnxTimeout"));
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("testClientCnxTimeout"));
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setOperationTimeoutMs(10);
         conf.setKeepAliveIntervalSeconds(0);
@@ -75,7 +75,7 @@ public class ClientCnxTest {
     @Test
     public void testReceiveErrorAtSendConnectFrameState() throws Exception {
         ThreadFactory threadFactory = new DefaultThreadFactory("testReceiveErrorAtSendConnectFrameState");
-        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, threadFactory);
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, threadFactory);
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setOperationTimeoutMs(10);
         ClientCnx cnx = new ClientCnx(conf, eventLoop);
@@ -110,7 +110,7 @@ public class ClientCnxTest {
     @Test
     public void testGetLastMessageIdWithError() throws Exception {
         ThreadFactory threadFactory = new DefaultThreadFactory("testReceiveErrorAtSendConnectFrameState");
-        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, threadFactory);
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, threadFactory);
         ClientConfigurationData conf = new ClientConfigurationData();
         ClientCnx cnx = new ClientCnx(conf, eventLoop);
 

@@ -221,6 +221,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int numCacheExecutorThreadPoolSize = 10;
 
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Option to enable busy-wait settings. Default is false. "
+                    + "WARNING: This option will enable spin-waiting on executors and IO threads in order "
+                    + "to reduce latency during context switches. The spinning will consume 100% CPU even "
+                    + "when the broker is not doing any work. It is recommended to reduce the number of IO threads "
+                    + "and BK client threads to only have few CPU cores busy."
+    )
+    private boolean enableBusyWait = false;
+
     @FieldContext(category = CATEGORY_SERVER, doc = "Max concurrent web requests")
     private int maxConcurrentHttpRequests = 1024;
 

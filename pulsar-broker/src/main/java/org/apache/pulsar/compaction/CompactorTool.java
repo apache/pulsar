@@ -127,7 +127,8 @@ public class CompactorTool {
                 (int) brokerConfig.getZooKeeperSessionTimeoutMillis()).get();
         BookKeeperClientFactory bkClientFactory = new BookKeeperClientFactoryImpl();
 
-        EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(1, new DefaultThreadFactory("compactor-io"));
+        EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(1, false,
+                new DefaultThreadFactory("compactor-io"));
         BookKeeper bk = bkClientFactory.create(brokerConfig, zk, eventLoopGroup, Optional.empty(), null);
         try (PulsarClient pulsar = clientBuilder.build()) {
             Compactor compactor = new TwoPhaseCompactor(brokerConfig, pulsar, bk, scheduler);
