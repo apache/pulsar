@@ -42,6 +42,7 @@ import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.CompletableFutureCancellationHandler;
+import org.apache.pulsar.common.util.ExceptionHandler;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -339,6 +340,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             resumeReceivingFromPausedConsumersIfNeeded();
             return message;
         } catch (Exception e) {
+            ExceptionHandler.handleInterruptedException(e);
             throw PulsarClientException.unwrap(e);
         }
     }
@@ -356,6 +358,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             resumeReceivingFromPausedConsumersIfNeeded();
             return message;
         } catch (Exception e) {
+            ExceptionHandler.handleInterruptedException(e);
             throw PulsarClientException.unwrap(e);
         }
     }
@@ -365,6 +368,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         try {
             return internalBatchReceiveAsync().get();
         } catch (InterruptedException | ExecutionException e) {
+            ExceptionHandler.handleInterruptedException(e);
             State state = getState();
             if (state != State.Closing && state != State.Closed) {
                 stats.incrementNumBatchReceiveFailed();
