@@ -98,8 +98,6 @@ public abstract class BookKeeperClusterTestCase {
 
     @BeforeMethod(alwaysRun = true)
     public void setUp() throws Exception {
-        metadataStore = new FaultInjectionMetadataStore(MetadataStoreFactory.create("memory://local",
-                MetadataStoreConfig.builder().build()));
         executor = Executors.newCachedThreadPool();
         InMemoryMetaStore.reset();
         setMetastoreImplClass(baseConf);
@@ -108,6 +106,11 @@ public abstract class BookKeeperClusterTestCase {
         try {
             // start zookeeper service
             startZKCluster();
+
+            metadataStore = new FaultInjectionMetadataStore(MetadataStoreFactory.create(
+                    zkUtil.getZooKeeperConnectString(),
+                    MetadataStoreConfig.builder().build()));
+
             // start bookkeeper service
             startBKCluster();
         } catch (Exception e) {
