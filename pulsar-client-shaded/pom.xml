@@ -130,7 +130,7 @@
                 <includes>
                   <include>org.apache.pulsar:pulsar-client-original</include>
                   <include>org.apache.pulsar:pulsar-transaction-common</include>
-                  <include>org.apache.bookkeeper:bookkeeper-common-allocator</include>
+                  <include>org.apache.bookkeeper:*</include>
                   <include>org.apache.commons:commons-lang3</include>
                   <include>commons-codec:commons-codec</include>
                   <include>commons-collections:commons-collections</include>
@@ -159,7 +159,6 @@
                   <include>io.airlift:*</include>
 
                   <include>org.apache.pulsar:pulsar-common</include>
-                  <include>org.apache.bookkeeper:circe-checksum</include>
                   <include>com.yahoo.datasketches:sketches-core</include>
                   <include>org.objenesis:*</include>
                   <include>org.yaml:snakeyaml</include>
