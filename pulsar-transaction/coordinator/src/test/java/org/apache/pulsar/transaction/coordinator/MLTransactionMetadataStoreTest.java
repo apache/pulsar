@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.transaction.coordinator;
 
+import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
@@ -56,7 +57,9 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
     public void testTransactionOperation() throws Exception {
         ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
         factoryConf.setMaxCacheSize(0);
-        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, zkc, factoryConf);
+
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConf);
         TransactionCoordinatorID transactionCoordinatorID = new TransactionCoordinatorID(1);
         MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
                 new ManagedLedgerConfig());
@@ -123,7 +126,9 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
     public void testRecoverSequenceId(boolean isUseManagedLedger) throws Exception {
         ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
         factoryConf.setMaxCacheSize(0);
-        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, zkc, factoryConf);
+
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConf);
         TransactionCoordinatorID transactionCoordinatorID = new TransactionCoordinatorID(1);
         ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
         managedLedgerConfig.setMaxEntriesPerLedger(3);
@@ -164,7 +169,9 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
     public void testInitTransactionReader() throws Exception {
         ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
         factoryConf.setMaxCacheSize(0);
-        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, zkc, factoryConf);
+
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConf);
         TransactionCoordinatorID transactionCoordinatorID = new TransactionCoordinatorID(1);
         ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
         managedLedgerConfig.setMaxEntriesPerLedger(2);
@@ -268,7 +275,9 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
     public void testDeleteLog() throws Exception {
         ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
         factoryConf.setMaxCacheSize(0);
-        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, zkc, factoryConf);
+
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConf);
         TransactionCoordinatorID transactionCoordinatorID = new TransactionCoordinatorID(1);
         MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
                 new ManagedLedgerConfig());
@@ -328,7 +337,9 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
     public void testRecoverWhenDeleteFromCursor() throws Exception {
         ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
         factoryConf.setMaxCacheSize(0);
-        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, zkc, factoryConf);
+
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConf);
         TransactionCoordinatorID transactionCoordinatorID = new TransactionCoordinatorID(1);
         MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
                 new ManagedLedgerConfig());

@@ -23,7 +23,6 @@ import static com.google.common.base.Preconditions.checkState;
 import static java.lang.Math.min;
 import static org.apache.bookkeeper.mledger.util.Errors.isNoSuchLedgerExistsException;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.ImmutableMap;
@@ -275,12 +274,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     Map<String, byte[]> createdLedgerCustomMetadata;
 
     public ManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
-            ManagedLedgerConfig config, OrderedScheduler scheduledExecutor, OrderedExecutor orderedExecutor,
+            ManagedLedgerConfig config, OrderedScheduler scheduledExecutor,
             final String name) {
-        this(factory, bookKeeper, store, config, scheduledExecutor, orderedExecutor, name, null);
+        this(factory, bookKeeper, store, config, scheduledExecutor, name, null);
     }
     public ManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
-            ManagedLedgerConfig config, OrderedScheduler scheduledExecutor, OrderedExecutor orderedExecutor,
+            ManagedLedgerConfig config, OrderedScheduler scheduledExecutor,
             final String name, final Supplier<Boolean> mlOwnershipChecker) {
         this.factory = factory;
         this.bookKeeper = bookKeeper;
@@ -290,7 +289,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.ledgerMetadata = LedgerMetadataUtils.buildBaseManagedLedgerMetadata(name);
         this.digestType = BookKeeper.DigestType.fromApiDigestType(config.getDigestType());
         this.scheduledExecutor = scheduledExecutor;
-        this.executor = orderedExecutor;
+        this.executor = bookKeeper.getMainWorkerPool();
         TOTAL_SIZE_UPDATER.set(this, 0);
         NUMBER_OF_ENTRIES_UPDATER.set(this, 0);
         ENTRIES_ADDED_COUNTER_UPDATER.set(this, 0);

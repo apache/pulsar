@@ -56,20 +56,8 @@ public abstract class BlobStoreManagedLedgerOffloaderBase {
 
     protected BlobStoreManagedLedgerOffloaderBase() throws Exception {
         scheduler = OrderedScheduler.newSchedulerBuilder().numThreads(5).name("offloader").build();
-        bk = new PulsarMockBookKeeper(createMockZooKeeper(), scheduler.chooseThread(this));
+        bk = new PulsarMockBookKeeper(scheduler);
         provider = getBlobStoreProvider();
-    }
-
-    protected static MockZooKeeper createMockZooKeeper() throws Exception {
-        MockZooKeeper zk = MockZooKeeper.newInstance(MoreExecutors.newDirectExecutorService());
-        List<ACL> dummyAclList = new ArrayList<ACL>(0);
-
-        ZkUtils.createFullPathOptimistic(zk, "/ledgers/available/192.168.1.1:" + 5000,
-                "".getBytes(UTF_8), dummyAclList, CreateMode.PERSISTENT);
-
-        zk.create("/ledgers/LAYOUT", "1\nflat:1".getBytes(UTF_8), dummyAclList,
-                CreateMode.PERSISTENT);
-        return zk;
     }
 
     protected static MockManagedLedger createMockManagedLedger() {

@@ -32,6 +32,7 @@ import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import lombok.Cleanup;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -69,9 +70,10 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         config.setMaxCacheSize(10);
         config.setCacheEvictionWatermark(0.8);
 
-        factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle(), config);
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
 
-        EntryCacheManager cacheManager = factory.getEntryCacheManager();
+        EntryCacheManager cacheManager = factory2.getEntryCacheManager();
         EntryCache cache1 = cacheManager.getEntryCache(ml1);
         EntryCache cache2 = cacheManager.getEntryCache(ml2);
 
@@ -131,9 +133,10 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         config.setMaxCacheSize(10);
         config.setCacheEvictionWatermark(0.8);
 
-        factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle(), config);
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
 
-        EntryCacheManager cacheManager = factory.getEntryCacheManager();
+        EntryCacheManager cacheManager = factory2.getEntryCacheManager();
         EntryCache cache1 = cacheManager.getEntryCache(ml1);
 
         assertTrue(cache1.insert(EntryImpl.create(1, 1, new byte[4])));
@@ -154,9 +157,10 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         config.setMaxCacheSize(200);
         config.setCacheEvictionWatermark(0.8);
 
-        factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle(), config);
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
 
-        EntryCacheManager cacheManager = factory.getEntryCacheManager();
+        EntryCacheManager cacheManager = factory2.getEntryCacheManager();
         EntryCache cache1 = cacheManager.getEntryCache(ml1);
         List<EntryImpl> entries = new ArrayList<>();
 
@@ -186,9 +190,10 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         config.setMaxCacheSize(0);
         config.setCacheEvictionWatermark(0.8);
 
-        factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle(), config);
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
 
-        EntryCacheManager cacheManager = factory.getEntryCacheManager();
+        EntryCacheManager cacheManager = factory2.getEntryCacheManager();
         EntryCache cache1 = cacheManager.getEntryCache(ml1);
         EntryCache cache2 = cacheManager.getEntryCache(ml2);
 
@@ -223,10 +228,11 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         config.setMaxCacheSize(7 * 10);
         config.setCacheEvictionWatermark(0.8);
 
-        factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle(), config);
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
 
-        EntryCacheManager cacheManager = factory.getEntryCacheManager();
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("ledger");
+        EntryCacheManager cacheManager = factory2.getEntryCacheManager();
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory2.open("ledger");
         EntryCache cache1 = ledger.entryCache;
 
         for (int i = 0; i < 10; i++) {
@@ -252,10 +258,11 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         config.setCacheEvictionWatermark(0.8);
         config.setCacheEvictionFrequency(1);
 
-        factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle(), config);
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
 
-        EntryCacheManager cacheManager = factory.getEntryCacheManager();
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("ledger");
+        EntryCacheManager cacheManager = factory2.getEntryCacheManager();
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory2.open("ledger");
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
         ManagedCursorImpl c2 = (ManagedCursorImpl) ledger.openCursor("c2");
@@ -321,7 +328,8 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         config.setCacheEvictionFrequency(100);
         config.setCacheEvictionTimeThresholdMillis(100);
 
-        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle(), config);
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
 
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("test");
         ManagedCursor c1 = ledger.openCursor("c1");
@@ -346,8 +354,6 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
 
         assertEquals(cacheManager.getSize(), 0);
         assertEquals(cache.getSize(), 0);
-
-        factory.shutdown();
     }
 
     @Test(timeOut = 5000)
@@ -356,7 +362,9 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
 
         ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
         config.setMaxCacheSize(0);
-        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle(), config);
+
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
         EntryCacheManager cacheManager = factory.getEntryCacheManager();
         EntryCache entryCache = cacheManager.getEntryCache(ml1);
 

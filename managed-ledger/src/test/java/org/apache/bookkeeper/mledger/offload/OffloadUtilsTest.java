@@ -39,7 +39,7 @@ public class OffloadUtilsTest {
         map.put("key1", "value1");
         map.put("key2", "value2");
 
-        //only one copy of the offload metadata information is stored in zookeeper,
+        //only one copy of the offload metadata information is stored in metadata store,
         // and the original properties need to be cleared during offload
         OffloadUtils.setOffloadDriverMetadata(builder, "offload", map);
 

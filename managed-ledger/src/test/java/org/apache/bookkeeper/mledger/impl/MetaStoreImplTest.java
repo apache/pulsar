@@ -22,6 +22,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
@@ -34,15 +35,10 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
-import org.apache.bookkeeper.util.ZkUtils;
+import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.apache.pulsar.metadata.api.MetadataCache;
-import org.apache.pulsar.metadata.api.MetadataStore;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Stat;
-import org.apache.pulsar.metadata.impl.ZKMetadataStore;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.KeeperException.Code;
-import org.apache.zookeeper.MockZooKeeper;
-import org.apache.zookeeper.ZooDefs;
 import org.testng.annotations.Test;
 
 public class MetaStoreImplTest extends MockedBookKeeperTestCase {
@@ -57,12 +53,12 @@ public class MetaStoreImplTest extends MockedBookKeeperTestCase {
 
     @Test
     void getMLList() throws Exception {
-        MetaStore store = new MetaStoreImpl(new ZKMetadataStore(zkc), executor);
+        MetaStore store = new MetaStoreImpl(metadataStore, executor);
 
-        zkc.failConditional(Code.CONNECTIONLOSS, (op, path) -> {
-                return op == MockZooKeeper.Op.GET_CHILDREN
-                    && path.equals("/managed-ledgers");
-            });
+        metadataStore.failConditional(new MetadataStoreException("error"), (op, path) ->
+                op == FaultInjectionMetadataStore.OperationType.GET_CHILDREN
+                    && path.equals("/managed-ledgers")
+            );
 
         try {
             store.getManagedLedgers();
@@ -74,7 +70,7 @@ public class MetaStoreImplTest extends MockedBookKeeperTestCase {
 
     @Test
     void deleteNonExistingML() throws Exception {
-        MetaStore store = new MetaStoreImpl(new ZKMetadataStore(zkc), executor);
+        MetaStore store = new MetaStoreImpl(metadataStore, executor);
 
         AtomicReference<MetaStoreException> exception = new AtomicReference<>();
         CountDownLatch counter = new CountDownLatch(1);
@@ -99,10 +95,8 @@ public class MetaStoreImplTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void readMalformedML() throws Exception {
-        MetaStore store = new MetaStoreImpl(new ZKMetadataStore(zkc), executor);
-
-        zkc.create("/managed-ledgers/my_test", "non-valid".getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                CreateMode.PERSISTENT);
+        MetaStore store = new MetaStoreImpl(metadataStore, executor);
+        metadataStore.put("/managed-ledgers/my_test", "non-valid".getBytes(), Optional.empty()).join();
 
         final CountDownLatch latch = new CountDownLatch(1);
 
@@ -122,11 +116,10 @@ public class MetaStoreImplTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void readMalformedCursorNode() throws Exception {
-        MetaStore store = new MetaStoreImpl(new ZKMetadataStore(zkc), executor);
+        MetaStore store = new MetaStoreImpl(metadataStore, executor);
 
-        zkc.create("/managed-ledgers/my_test", "".getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-        zkc.create("/managed-ledgers/my_test/c1", "non-valid".getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                CreateMode.PERSISTENT);
+        metadataStore.put("/managed-ledgers/my_test", "".getBytes(), Optional.empty()).join();
+        metadataStore.put("/managed-ledgers/my_test/c1", "non-valid".getBytes(), Optional.empty()).join();
 
         final CountDownLatch latch = new CountDownLatch(1);
         store.asyncGetCursorInfo("my_test", "c1", new MetaStoreCallback<MLDataFormats.ManagedCursorInfo>() {
@@ -146,13 +139,13 @@ public class MetaStoreImplTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void failInCreatingMLnode() throws Exception {
-        MetaStore store = new MetaStoreImpl(new ZKMetadataStore(zkc), executor);
+        MetaStore store = new MetaStoreImpl(metadataStore, executor);
 
         final CompletableFuture<Void> promise = new CompletableFuture<>();
 
-        zkc.failConditional(Code.CONNECTIONLOSS, (op, path) -> {
-                return op == MockZooKeeper.Op.CREATE;
-            });
+        metadataStore.failConditional(new MetadataStoreException("error"), (op, path) ->
+                op == FaultInjectionMetadataStore.OperationType.PUT
+        );
 
         store.getManagedLedgerInfo("my_test", false, new MetaStoreCallback<MLDataFormats.ManagedLedgerInfo>() {
             public void operationFailed(MetaStoreException e) {
@@ -168,9 +161,9 @@ public class MetaStoreImplTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void updatingCursorNode() throws Exception {
-        MetaStore store = new MetaStoreImpl(new ZKMetadataStore(zkc), executor);
+        MetaStore store = new MetaStoreImpl(metadataStore, executor);
 
-        zkc.create("/managed-ledgers/my_test", "".getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        metadataStore.put("/managed-ledgers/my_test", "".getBytes(), Optional.empty()).join();
 
         final CompletableFuture<Void> promise = new CompletableFuture<>();
 
@@ -182,10 +175,10 @@ public class MetaStoreImplTest extends MockedBookKeeperTestCase {
 
             public void operationComplete(Void result, Stat version) {
                 // Update again using the version
-                zkc.failConditional(Code.CONNECTIONLOSS, (op, path) -> {
-                        return op == MockZooKeeper.Op.SET
-                            && path.contains("my_test") && path.contains("c1");
-                    });
+                metadataStore.failConditional(new MetadataStoreException("error"), (op, path) ->
+                        op == FaultInjectionMetadataStore.OperationType.PUT
+                                && path.contains("my_test") && path.contains("c1")
+                );
 
                 ManagedCursorInfo info = ManagedCursorInfo.newBuilder().setCursorsLedgerId(2).build();
                 store.asyncUpdateCursorInfo("my_test", "c1", info, version, new MetaStoreCallback<Void>() {
@@ -206,9 +199,9 @@ public class MetaStoreImplTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void updatingMLNode() throws Exception {
-        MetaStore store = new MetaStoreImpl(new ZKMetadataStore(zkc), executor);
+        MetaStore store = new MetaStoreImpl(metadataStore, executor);
 
-        zkc.create("/managed-ledgers/my_test", "".getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        metadataStore.put("/managed-ledgers/my_test", "".getBytes(), Optional.empty());
 
         final CompletableFuture<Void> promise = new CompletableFuture<>();
 
@@ -219,10 +212,10 @@ public class MetaStoreImplTest extends MockedBookKeeperTestCase {
 
             public void operationComplete(ManagedLedgerInfo mlInfo, Stat version) {
                 // Update again using the version
-                zkc.failConditional(Code.BADVERSION, (op, path) -> {
-                        return op == MockZooKeeper.Op.SET
-                            && path.contains("my_test");
-                    });
+                metadataStore.failConditional(new MetadataStoreException.BadVersionException("error"), (op, path) ->
+                        op == FaultInjectionMetadataStore.OperationType.PUT
+                                && path.contains("my_test")
+                );
 
                 store.asyncUpdateLedgerIds("my_test", mlInfo, version, new MetaStoreCallback<Void>() {
                     public void operationFailed(MetaStoreException e) {
@@ -243,18 +236,12 @@ public class MetaStoreImplTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testGetChildrenWatch() throws Exception {
-        MetadataStore store = new ZKMetadataStore(zkc);
-        MetadataCache<MyClass> objCache1 = store.getMetadataCache(MyClass.class);
+        MetadataCache<MyClass> objCache1 = metadataStore.getMetadataCache(MyClass.class);
 
         String path = "/managed-ledgers/prop-xyz/ns1/persistent";
         assertTrue(objCache1.getChildren(path).get().isEmpty());
 
-        CountDownLatch latch = new CountDownLatch(1);
-        ZkUtils.asyncCreateFullPathOptimistic(zkc, "/managed-ledgers/prop-xyz/ns1/persistent/t1", "".getBytes(),
-                ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT, (rc, path2, ctx, name) -> {
-                    latch.countDown();
-                }, null);
-        latch.await();
+        metadataStore.put("/managed-ledgers/prop-xyz/ns1/persistent/t1", "".getBytes(), Optional.empty()).join();
 
         ManagedLedgerTest.retryStrategically((test) -> {
             try {

@@ -42,6 +42,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
 
+import lombok.Cleanup;
 import org.HdrHistogram.Histogram;
 import org.HdrHistogram.Recorder;
 import org.apache.bookkeeper.client.api.DigestType;
@@ -57,6 +58,9 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.apache.pulsar.metadata.api.MetadataStore;
+import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -166,7 +170,11 @@ public class ManagedLedgerWriter {
 
         ManagedLedgerFactoryConfig mlFactoryConf = new ManagedLedgerFactoryConfig();
         mlFactoryConf.setMaxCacheSize(0);
-        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkConf, mlFactoryConf);
+
+        @Cleanup
+        MetadataStore metadataStore = MetadataStoreFactory.create(arguments.zookeeperServers,
+                MetadataStoreConfig.builder().build());
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkConf, mlFactoryConf);
 
         ManagedLedgerConfig mlConf = new ManagedLedgerConfig();
         mlConf.setEnsembleSize(arguments.ensembleSize);

@@ -42,6 +42,9 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.metadata.api.MetadataStore;
+import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 
 /**
  * Implementation of a cache for the Pulsar connector.
@@ -53,6 +56,7 @@ public class PulsarConnectorCache {
     @VisibleForTesting
     static PulsarConnectorCache instance;
 
+    private final MetadataStore metadataStore;
     private final ManagedLedgerFactory managedLedgerFactory;
 
     private final StatsProvider statsProvider;
@@ -67,6 +71,8 @@ public class PulsarConnectorCache {
 
 
     private PulsarConnectorCache(PulsarConnectorConfig pulsarConnectorConfig) throws Exception {
+        this.metadataStore = MetadataStoreFactory.create(pulsarConnectorConfig.getZookeeperUri(),
+                MetadataStoreConfig.builder().build());
         this.managedLedgerFactory = initManagedLedgerFactory(pulsarConnectorConfig);
         this.statsProvider = PulsarConnectorUtils.createInstance(pulsarConnectorConfig.getStatsProvider(),
                 StatsProvider.class, getClass().getClassLoader());
@@ -91,7 +97,7 @@ public class PulsarConnectorCache {
         return instance;
     }
 
-    private static ManagedLedgerFactory initManagedLedgerFactory(PulsarConnectorConfig pulsarConnectorConfig)
+    private ManagedLedgerFactory initManagedLedgerFactory(PulsarConnectorConfig pulsarConnectorConfig)
         throws Exception {
         ClientConfiguration bkClientConfiguration = new ClientConfiguration()
             .setZkServers(pulsarConnectorConfig.getZookeeperUri())
@@ -108,11 +114,9 @@ public class PulsarConnectorCache {
 
         ManagedLedgerFactoryConfig managedLedgerFactoryConfig = new ManagedLedgerFactoryConfig();
         managedLedgerFactoryConfig.setMaxCacheSize(pulsarConnectorConfig.getManagedLedgerCacheSizeMB());
-        managedLedgerFactoryConfig.setNumManagedLedgerWorkerThreads(
-                pulsarConnectorConfig.getManagedLedgerNumWorkerThreads());
         managedLedgerFactoryConfig.setNumManagedLedgerSchedulerThreads(
                 pulsarConnectorConfig.getManagedLedgerNumSchedulerThreads());
-        return new ManagedLedgerFactoryImpl(bkClientConfiguration, pulsarConnectorConfig.getZookeeperUri(),managedLedgerFactoryConfig);
+        return new ManagedLedgerFactoryImpl(metadataStore, bkClientConfiguration, managedLedgerFactoryConfig);
     }
 
     public ManagedLedgerConfig getManagedLedgerConfig(NamespaceName namespaceName, OffloadPolicies offloadPolicies,
@@ -193,6 +197,7 @@ public class PulsarConnectorCache {
             if (instance != null) {
                 instance.statsProvider.stop();
                 instance.managedLedgerFactory.shutdown();
+                instance.metadataStore.close();
                 instance.offloaderScheduler.shutdown();
                 instance.offloadersCache.close();
             }

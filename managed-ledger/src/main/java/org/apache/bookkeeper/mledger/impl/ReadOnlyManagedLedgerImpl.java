@@ -42,9 +42,9 @@ import org.apache.pulsar.metadata.api.Stat;
 public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
 
     public ReadOnlyManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
-            ManagedLedgerConfig config, OrderedScheduler scheduledExecutor, OrderedExecutor orderedExecutor,
+            ManagedLedgerConfig config, OrderedScheduler scheduledExecutor,
             String name) {
-        super(factory, bookKeeper, store, config, scheduledExecutor, orderedExecutor, name);
+        super(factory, bookKeeper, store, config, scheduledExecutor, name);
     }
 
     CompletableFuture<ReadOnlyCursor> initializeAndCreateCursor(PositionImpl startPosition) {

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.intercept;
 
+import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -104,7 +105,8 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
         log.info("Closing ledger and reopening");
 
         // / Reopen the same managed-ledger
-        ManagedLedgerFactoryImpl factory2 = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ledger = factory2.open("my_recovery_index_test_ledger", config);
 
         cursor = ledger.openCursor("c1");
@@ -119,7 +121,6 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
 
         cursor.close();
         ledger.close();
-        factory2.shutdown();
     }
 
     @Test
@@ -167,7 +168,8 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
         // reopen ledger
         ledger.close();
         // / Reopen the same managed-ledger
-        ManagedLedgerFactoryImpl factory2 = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ledger = factory2.open("my_ml_broker_entry_metadata_test_ledger", managedLedgerConfig);
 
         long thirdLedgerId = -1;
@@ -183,7 +185,6 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
         }
         cursor.close();
         ledger.close();
-        factory2.shutdown();
     }
 
     public static Set<BrokerEntryMetadataInterceptor> getBrokerEntryMetadataInterceptors() {

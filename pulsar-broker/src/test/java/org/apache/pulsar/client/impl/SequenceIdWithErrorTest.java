@@ -59,8 +59,8 @@ public class SequenceIdWithErrorTest extends BkEnsemblesTestBase {
         // broker to fail subsequent send operation and it will trigger a recover
         EventLoopGroup eventLoopGroup = new NioEventLoopGroup(1);
         ManagedLedgerClientFactory clientFactory = new ManagedLedgerClientFactory();
-        clientFactory.initialize(pulsar.getConfiguration(), pulsar.getZkClient(), pulsar.getBookKeeperClientFactory(),
-                eventLoopGroup);
+        clientFactory.initialize(pulsar.getConfiguration(), pulsar.getLocalMetadataStore(),
+                pulsar.getZkClient(), pulsar.getBookKeeperClientFactory(), eventLoopGroup);
         ManagedLedgerFactory mlFactory = clientFactory.getManagedLedgerFactory();
         ManagedLedger ml = mlFactory.open(TopicName.get(topicName).getPersistenceNamingEncoding());
         ml.close();
