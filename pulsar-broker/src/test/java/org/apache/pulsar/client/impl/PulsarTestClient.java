@@ -73,6 +73,7 @@ public class PulsarTestClient extends PulsarClientImpl {
         // An anonymous subclass of ClientCnx class is used to override the getRemoteEndpointProtocolVersion()
         // method.
         EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(clientConfigurationData.getNumIoThreads(),
+                false,
                 new DefaultThreadFactory("pulsar-client-io", Thread.currentThread().isDaemon()));
 
         AtomicReference<Supplier<ClientCnx>> clientCnxSupplierReference = new AtomicReference<>();

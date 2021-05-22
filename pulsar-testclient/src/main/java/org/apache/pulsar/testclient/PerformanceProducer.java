@@ -238,6 +238,9 @@ public class PerformanceProducer {
                 "used for handling connections to brokers, default is 1 thread")
         public int ioThreads = 1;
 
+        @Parameter(names = {"-bw", "--busy-wait"}, description = "Enable Busy-Wait on the Pulsar client")
+        public boolean enableBusyWait = false;
+
         @Parameter(names = { "-am", "--access-mode" }, description = "Producer access mode")
         public ProducerAccessMode producerAccessMode = ProducerAccessMode.Shared;
 
@@ -504,6 +507,7 @@ public class PerformanceProducer {
                     .connectionsPerBroker(arguments.maxConnections) //
                     .ioThreads(arguments.ioThreads) //
                     .statsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS) //
+                    .enableBusyWait(arguments.enableBusyWait)
                     .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
 
             if (isNotBlank(arguments.authPluginClassName)) {

@@ -82,8 +82,8 @@ public class DiscoveryService implements Closeable {
     public DiscoveryService(ServiceConfig serviceConfig) {
         checkNotNull(serviceConfig);
         this.config = serviceConfig;
-        this.acceptorGroup = EventLoopUtil.newEventLoopGroup(1, acceptorThreadFactory);
-        this.workerGroup = EventLoopUtil.newEventLoopGroup(numThreads, workersThreadFactory);
+        this.acceptorGroup = EventLoopUtil.newEventLoopGroup(1, false, acceptorThreadFactory);
+        this.workerGroup = EventLoopUtil.newEventLoopGroup(numThreads, false, workersThreadFactory);
     }
 
     /**

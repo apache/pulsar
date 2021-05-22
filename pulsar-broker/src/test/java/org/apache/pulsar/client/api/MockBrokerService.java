@@ -301,7 +301,7 @@ public class MockBrokerService {
         final int MaxMessageSize = 5 * 1024 * 1024;
 
         try {
-            workerGroup = EventLoopUtil.newEventLoopGroup(numThreads, threadFactory);
+            workerGroup = EventLoopUtil.newEventLoopGroup(numThreads, false, threadFactory);
 
             ServerBootstrap bootstrap = new ServerBootstrap();
             bootstrap.group(workerGroup, workerGroup);

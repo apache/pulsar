@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import java.util.Optional;
+import java.util.Properties;
 
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -86,6 +87,10 @@ public abstract class BkEnsemblesTestBase extends TestRetrySupport {
             config.setAdvertisedAddress("127.0.0.1");
             config.setAllowAutoTopicCreationType("non-partitioned");
             config.setZooKeeperOperationTimeoutSeconds(1);
+            config.setNumIOThreads(1);
+            Properties properties = new Properties();
+            properties.put("bookkeeper_numWorkerThreads", "1");
+            config.setProperties(properties);
             configurePulsar(config);
 
             pulsar = new PulsarService(config);
