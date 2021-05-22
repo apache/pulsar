@@ -2,7 +2,7 @@
 id: version-2.7.2-standalone
 title: Set up a standalone Pulsar locally
 sidebar_label: Run Pulsar locally
-id: standalone
+original_id: standalone
 ---
 
 For local development and testing, you can run Pulsar in standalone mode on your machine. The standalone mode includes a Pulsar broker, the necessary ZooKeeper and BookKeeper components running inside of a single Java Virtual Machine (JVM) process.
