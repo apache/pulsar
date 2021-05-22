@@ -31,11 +31,14 @@ import org.slf4j.LoggerFactory;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Enumeration;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -51,6 +54,7 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
     private final ScheduledFuture<?> future;
     private final OrderedScheduler scheduler;
     private final LruCache<Long, Byte> lruCounter = new LruCache<>();
+    private final Set<Long> dirtyKeyRecorder = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     public RangeSetWrapper(LongPairConsumer<T> rangeConverter, ManagedCursorImpl managedCursor) {
         checkNotNull(managedCursor);
@@ -74,6 +78,7 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
     @Override
     public void addOpenClosed(long lowerKey, long lowerValue, long upperKey, long upperValue) {
         lruTouch(upperKey);
+        dirtyKeyRecorder.add(upperKey);
         rangeSet.addOpenClosed(lowerKey, lowerValue, upperKey, upperValue);
     }
 
@@ -225,6 +230,10 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
         }
     }
 
+    public Set<Long> getDirtyKeyRecorder() {
+        return dirtyKeyRecorder;
+    }
+
     @Override
     public String toString() {
         return rangeSet.toString();
@@ -234,32 +243,39 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
 
         @Override
         public void run() {
-            log.debug("start schedule LruTask");
-            // remove invalid key which is removed in rangeSet
-            Range<T> span = rangeSet.span();
-            for (Long ledgerId : lruCounter.getKeys()) {
-                if (span.lowerEndpoint().compareTo(rangeConverter.apply(ledgerId, Integer.MAX_VALUE - 1)) > 0) {
-                    lruCounter.remove(ledgerId);
-                    log.info("LruTask remove invalid key {}", ledgerId);
-                } else {
-                    break;
+            try {
+                log.debug("start schedule LruTask, keys in cache:{}", lruCounter.getKeys());
+                // remove invalid key which is removed in rangeSet
+                Range<T> firstRange = rangeSet.firstRange();
+                // use Iterator to avoid ConcurrentModifyException
+                Iterator<Long> iterator = lruCounter.getKeys().iterator();
+                while (iterator.hasNext()) {
+                    long ledgerId = iterator.next();
+                    if (firstRange.lowerEndpoint().compareTo(rangeConverter.apply(ledgerId, Integer.MAX_VALUE - 1)) > 0) {
+                        iterator.remove();
+                        log.info("LruTask remove invalid key {}", ledgerId);
+                    } else {
+                        break;
+                    }
                 }
-            }
-            if (isReachLruSwitchThreshold() && lruCounter.size() > 1) {
-                long eldestKey = lruCounter.removeEldestEntryAndGet();
-                log.info("Reach switching threshold, try to remove eldest ledger {}, range size {}",
-                        eldestKey, rangeSet.size());
-                if (rangeSet instanceof ConcurrentOpenLongPairRangeSet) {
-                    ConcurrentOpenLongPairRangeSet<T> set =
-                            (ConcurrentOpenLongPairRangeSet<T>) rangeSet;
-                    set.remove(Range.openClosed(new LongPair(eldestKey, 0), new LongPair(eldestKey,
-                            Integer.MAX_VALUE - 1)));
-                } else {
-                    LongPairRangeSet.DefaultRangeSet<T> set =
-                            (LongPairRangeSet.DefaultRangeSet<T>) rangeSet;
-                    set.remove(Range.openClosed(rangeConverter.apply(eldestKey, 0),
-                            rangeConverter.apply(eldestKey, Integer.MAX_VALUE - 1)));
+                if (isReachLruSwitchThreshold() && lruCounter.size() > 1) {
+                    long eldestKey = lruCounter.removeEldestEntryAndGet();
+                    log.info("Reach switching threshold, try to remove eldest ledger {}, range size {}",
+                            eldestKey, rangeSet.size());
+                    if (rangeSet instanceof ConcurrentOpenLongPairRangeSet) {
+                        ConcurrentOpenLongPairRangeSet<T> set =
+                                (ConcurrentOpenLongPairRangeSet<T>) rangeSet;
+                        set.remove(Range.openClosed(new LongPair(eldestKey, 0), new LongPair(eldestKey,
+                                Integer.MAX_VALUE - 1)));
+                    } else {
+                        LongPairRangeSet.DefaultRangeSet<T> set =
+                                (LongPairRangeSet.DefaultRangeSet<T>) rangeSet;
+                        set.remove(Range.openClosed(rangeConverter.apply(eldestKey, 0),
+                                rangeConverter.apply(eldestKey, Integer.MAX_VALUE - 1)));
+                    }
                 }
+            } catch (Exception e) {
+                log.error("LruTask run failed", e);
             }
         }
     }
