@@ -418,7 +418,7 @@ public class PulsarCluster {
                 .withEnv("zkServers", ZKContainer.NAME)
                 .withEnv("zookeeperServers", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
                 .withEnv("pulsar.zookeeper-uri", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
-                .withEnv("pulsar.broker-service-url", "http://pulsar-broker-0:8080")
+                .withEnv("pulsar.web-service-url", "http://pulsar-broker-0:8080")
                 .withClasspathResourceMapping(
                         resourcePath, "/pulsar/conf/presto/config.properties", BindMode.READ_WRITE);
         if (spec.queryLastMessage) {
