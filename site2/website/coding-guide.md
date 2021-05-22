@@ -20,7 +20,7 @@ Apache Pulsar uses the following libraries a lot:
 
 Use these libraries whenever possible rather than introducing more dependencies. 
 
-Dependencies are bundled with our binary distributions, so we need to attach the relevant licenses. See [Third party dependencies and licensing](/community/licensing) for a guide on how to do it correctly.
+Dependencies are bundled with our binary distributions, so we need to attach the relevant licenses. See [Third party dependencies and licensing](https://pulsar.apache.org/docs/en/client-libraries/) for a guide on how to do it correctly.
 
 ## Future
 
