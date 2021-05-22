@@ -2115,7 +2115,8 @@ public class PersistentTopicsBase extends AdminResource {
         }).thenCompose(subscription -> {
             // Mark the cursor as "inactive" as it was created without a real consumer connected
             ((PersistentSubscription) subscription).deactivateCursor();
-            return subscription.resetCursor(PositionImpl.get(targetMessageId.getLedgerId(), targetMessageId.getEntryId()));
+            return subscription.resetCursor(
+                    PositionImpl.get(targetMessageId.getLedgerId(), targetMessageId.getEntryId()));
         }).thenRun(() -> {
             log.info("[{}][{}] Successfully created subscription {} at message id {}", clientAppId(),
                     topicName, subscriptionName, targetMessageId);
