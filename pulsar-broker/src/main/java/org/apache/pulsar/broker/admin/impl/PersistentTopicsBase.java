@@ -704,7 +704,7 @@ public class PersistentTopicsBase extends AdminResource {
         if (topicName.isPartitioned()) {
             internalUnloadNonPartitionedTopic(asyncResponse, authoritative);
         } else {
-            getPartitionedTopicMetadataAsync(topicName, authoritative, false).whenComplete((meta, t) -> {
+            getPartitionedTopicMetadataAsync(topicName, authoritative, false).thenAccept(meta -> {
                 if (meta.partitions > 0) {
                     final List<CompletableFuture<Void>> futures = Lists.newArrayList();
 
@@ -958,33 +958,25 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     private void internalUnloadNonPartitionedTopic(AsyncResponse asyncResponse, boolean authoritative) {
-        Topic topic;
         try {
             validateTopicOperation(topicName, TopicOperation.UNLOAD);
-            topic = getTopicReference(topicName);
         } catch (Exception e) {
-            log.error("[{}] Failed to unload topic {}", clientAppId(), topicName, e);
+            log.error("[{}] Failed to unload topic {}", clientAppId(), topicName, e.getMessage());
             resumeAsyncResponseExceptionally(asyncResponse, e);
             return;
         }
 
         validateTopicOwnershipAsync(topicName, authoritative)
+                .thenCompose(__ -> getTopicReference(topicName).close(false))
                 .thenRun(() -> {
-                    topic.close(false).whenComplete((r, ex) -> {
-                        if (ex != null) {
-                            log.error("[{}] Failed to unload topic {}, {}", clientAppId(), topicName,
-                                    ex.getMessage(), ex);
-                            asyncResponse.resume(new RestException(ex));
-
-                        } else {
-                            log.info("[{}] Successfully unloaded topic {}", clientAppId(), topicName);
-                            asyncResponse.resume(Response.noContent().build());
-                        }
-                    });
-                }).exceptionally(ex -> {
-            asyncResponse.resume(ex);
-            return null;
-        });
+                    log.info("[{}] Successfully unloaded topic {}", clientAppId(), topicName);
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to unload topic {}, {}", clientAppId(), topicName, ex.getMessage());
+                    asyncResponse.resume(ex.getCause());
+                    return null;
+                });
     }
 
     protected void internalDeleteTopic(boolean authoritative, boolean force, boolean deleteSchema) {
