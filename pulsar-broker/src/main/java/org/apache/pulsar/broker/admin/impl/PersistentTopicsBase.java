@@ -2092,50 +2092,52 @@ public class PersistentTopicsBase extends AdminResource {
     private void internalCreateSubscriptionForNonPartitionedTopic(
             AsyncResponse asyncResponse, String subscriptionName,
             MessageIdImpl targetMessageId, boolean authoritative, boolean replicated) {
-        try {
-            validateTopicOwnership(topicName, authoritative);
-            validateTopicOperation(topicName, TopicOperation.SUBSCRIBE);
 
-            boolean isAllowAutoTopicCreation = pulsar().getConfiguration().isAllowAutoTopicCreation();
-            PersistentTopic topic = (PersistentTopic) pulsar().getBrokerService()
-                    .getTopic(topicName.toString(), isAllowAutoTopicCreation).thenApply(Optional::get).join();
-            if (topic.getSubscriptions().containsKey(subscriptionName)) {
-                asyncResponse.resume(new RestException(Status.CONFLICT, "Subscription already exists for topic"));
-                return;
+        boolean isAllowAutoTopicCreation = pulsar().getConfiguration().isAllowAutoTopicCreation();
+
+        validateTopicOwnershipAsync(topicName, authoritative)
+                .thenCompose(__ -> {
+                    validateTopicOperation(topicName, TopicOperation.SUBSCRIBE);
+                    return pulsar().getBrokerService().getTopic(topicName.toString(), isAllowAutoTopicCreation);
+                }).thenApply(optTopic -> {
+            if (optTopic.isPresent()) {
+                return optTopic.get();
+            } else {
+                throw new RestException(Status.PRECONDITION_FAILED,
+                        "Topic does not exist and cannot be auto-created");
             }
-            topic.createSubscription(subscriptionName, InitialPosition.Latest, replicated).thenApply(subscription -> {
-                // Mark the cursor as "inactive" as it was created without a real consumer connected
-                ((PersistentSubscription) subscription).deactivateCursor();
-                subscription.resetCursor(PositionImpl.get(targetMessageId.getLedgerId(), targetMessageId.getEntryId()))
-                        .thenRun(() -> {
-                            log.info("[{}][{}] Successfully created subscription {} at message id {}", clientAppId(),
-                                    topicName, subscriptionName, targetMessageId);
-                            asyncResponse.resume(Response.noContent().build());
-                        }).exceptionally(ex -> {
-                            Throwable t = (ex instanceof CompletionException ? ex.getCause() : ex);
-                            log.warn("[{}][{}] Failed to create subscription {} at message id {}", clientAppId(),
-                                    topicName, subscriptionName, targetMessageId, t);
-                            if (t instanceof SubscriptionInvalidCursorPosition) {
-                                asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
-                                        "Unable to find position for position specified: " + t.getMessage()));
-                            } else if (t instanceof SubscriptionBusyException) {
-                                asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
-                                        "Failed for Subscription Busy: " + t.getMessage()));
-                            } else {
-                                resumeAsyncResponseExceptionally(asyncResponse, t);
-                            }
-                            return null;
-                        });
-                return null;
-            }).exceptionally(ex -> {
-                resumeAsyncResponseExceptionally(asyncResponse, ex.getCause());
-                return null;
-            });
-        } catch (Throwable e) {
-            log.warn("[{}][{}] Failed to create subscription {} at message id {}", clientAppId(), topicName,
-                    subscriptionName, targetMessageId, e);
-            resumeAsyncResponseExceptionally(asyncResponse, e);
-        }
+        }).thenCompose(topic -> {
+            if (topic.getSubscriptions().containsKey(subscriptionName)) {
+                throw new RestException(Status.CONFLICT, "Subscription already exists for topic");
+            }
+
+            return topic.createSubscription(subscriptionName, InitialPosition.Latest, replicated);
+        }).thenCompose(subscription -> {
+            // Mark the cursor as "inactive" as it was created without a real consumer connected
+            ((PersistentSubscription) subscription).deactivateCursor();
+            return subscription.resetCursor(PositionImpl.get(targetMessageId.getLedgerId(), targetMessageId.getEntryId()));
+        }).thenRun(() -> {
+            log.info("[{}][{}] Successfully created subscription {} at message id {}", clientAppId(),
+                    topicName, subscriptionName, targetMessageId);
+            asyncResponse.resume(Response.noContent().build());
+        }).exceptionally(ex -> {
+            Throwable t = (ex instanceof CompletionException ? ex.getCause() : ex);
+            if (!(t instanceof WebApplicationException)) {
+                log.warn("[{}][{}] Failed to create subscription {} at message id {}", clientAppId(), topicName,
+                        subscriptionName, targetMessageId, t);
+            }
+
+            if (t instanceof SubscriptionInvalidCursorPosition) {
+                asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
+                        "Unable to find position for position specified: " + t.getMessage()));
+            } else if (t instanceof SubscriptionBusyException) {
+                asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
+                        "Failed for Subscription Busy: " + t.getMessage()));
+            } else {
+                resumeAsyncResponseExceptionally(asyncResponse, t);
+            }
+            return null;
+        });
     }
 
     protected void internalResetCursorOnPosition(AsyncResponse asyncResponse, String subName, boolean authoritative,
@@ -2669,7 +2671,6 @@ public class PersistentTopicsBase extends AdminResource {
                     }
                 });
     }
-
 
     private RetentionPolicies getRetentionPolicies(TopicName topicName, TopicPolicies topicPolicies) {
         RetentionPolicies retentionPolicies = topicPolicies.getRetentionPolicies();
