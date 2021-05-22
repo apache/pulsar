@@ -99,6 +99,10 @@ class PulsarTest(TestCase):
         conf.consumer_name("my-name")
         self.assertEqual(conf.consumer_name(), "my-name")
 
+        self.assertEqual(conf.replicate_subscription_state_enabled(), False)
+        conf.replicate_subscription_state_enabled(True)
+        self.assertEqual(conf.replicate_subscription_state_enabled(), True)
+
     def test_client_logger(self):
         logger = logging.getLogger("pulsar")
         Client(self.serviceUrl, logger=logger)

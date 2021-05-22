@@ -273,6 +273,8 @@ void export_config() {
             .def("subscription_initial_position", &ConsumerConfiguration::getSubscriptionInitialPosition)
             .def("subscription_initial_position", &ConsumerConfiguration::setSubscriptionInitialPosition)
             .def("crypto_key_reader", &ConsumerConfiguration_setCryptoKeyReader, return_self<>())
+            .def("replicate_subscription_state_enabled", &ConsumerConfiguration::setReplicateSubscriptionStateEnabled)
+            .def("replicate_subscription_state_enabled", &ConsumerConfiguration::isReplicateSubscriptionStateEnabled)
             ;
 
     class_<ReaderConfiguration>("ReaderConfiguration")

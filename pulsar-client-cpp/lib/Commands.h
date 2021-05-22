@@ -89,7 +89,7 @@ class Commands {
                                      bool readCompacted, const std::map<std::string, std::string>& metadata,
                                      const SchemaInfo& schemaInfo,
                                      proto::CommandSubscribe_InitialPosition subscriptionInitialPosition,
-                                     KeySharedPolicy keySharedPolicy);
+                                     bool replicateSubscriptionState, KeySharedPolicy keySharedPolicy);
 
     static SharedBuffer newUnsubscribe(uint64_t consumerId, uint64_t requestId);
 

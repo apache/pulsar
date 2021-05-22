@@ -163,6 +163,14 @@ void ConsumerConfiguration::setPatternAutoDiscoveryPeriod(int periodInSeconds) {
 
 int ConsumerConfiguration::getPatternAutoDiscoveryPeriod() const { return impl_->patternAutoDiscoveryPeriod; }
 
+void ConsumerConfiguration::setReplicateSubscriptionStateEnabled(bool enabled) {
+    impl_->replicateSubscriptionStateEnabled = enabled;
+}
+
+bool ConsumerConfiguration::isReplicateSubscriptionStateEnabled() const {
+    return impl_->replicateSubscriptionStateEnabled;
+}
+
 bool ConsumerConfiguration::hasProperty(const std::string& name) const {
     const std::map<std::string, std::string>& m = impl_->properties;
     return m.find(name) != m.end();
