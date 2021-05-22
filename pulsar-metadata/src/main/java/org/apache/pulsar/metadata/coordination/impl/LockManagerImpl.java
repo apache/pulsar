@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
@@ -44,7 +45,7 @@ import org.apache.pulsar.metadata.cache.impl.JSONMetadataSerdeSimpleType;
 @Slf4j
 class LockManagerImpl<T> implements LockManager<T> {
 
-    private final Map<String, ResourceLockImpl<T>> locks = new HashMap<>();
+    private final Map<String, ResourceLockImpl<T>> locks = new ConcurrentHashMap<>();
     private final MetadataStoreExtended store;
     private final MetadataCache<T> cache;
     private final MetadataSerde<T> serde;
@@ -105,19 +106,15 @@ class LockManagerImpl<T> implements LockManager<T> {
     private void handleSessionEvent(SessionEvent se) {
         if (se == SessionEvent.SessionReestablished) {
             log.info("Metadata store session has been re-established. Revalidating all the existing locks.");
-            synchronized (this) {
-                locks.values().forEach(ResourceLockImpl::revalidate);
-            }
+            locks.values().forEach(ResourceLockImpl::revalidate);
         }
     }
 
     private void handleDataNotification(Notification n) {
         if (n.getType() == NotificationType.Deleted) {
-            synchronized (this) {
-                ResourceLockImpl<T> lock = locks.get(n.getPath());
-                if (lock != null) {
-                    lock.lockWasInvalidated();
-                }
+            ResourceLockImpl<T> lock = locks.get(n.getPath());
+            if (lock != null) {
+                lock.lockWasInvalidated();
             }
         }
     }
