@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockBookKeeper;
-import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockZooKeeper;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.matches;
 import static org.mockito.ArgumentMatchers.same;
@@ -47,10 +45,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
+import org.apache.bookkeeper.common.util.OrderedExecutor;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
@@ -74,6 +72,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleC
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandActiveConsumerChange;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
@@ -111,10 +110,12 @@ public class PersistentDispatcherFailoverConsumerTest {
     final String successTopicName = "persistent://part-perf/global/perf.t1/ptopic";
     final String failTopicName = "persistent://part-perf/global/perf.t1/pfailTopic";
 
+    private OrderedExecutor executor;
     private EventLoopGroup eventLoopGroup;
 
     @BeforeMethod
     public void setup() throws Exception {
+        executor = OrderedExecutor.newBuilder().numThreads(1).name("persistent-dispatcher-failover-test").build();
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
         svcConfig.setBrokerShutdownTimeoutMs(0L);
         pulsar = spy(new PulsarService(svcConfig));
@@ -123,12 +124,9 @@ public class PersistentDispatcherFailoverConsumerTest {
         mlFactoryMock = mock(ManagedLedgerFactory.class);
         doReturn(mlFactoryMock).when(pulsar).getManagedLedgerFactory();
 
+        doReturn(TransactionTestBase.createMockBookKeeper(executor))
+                .when(pulsar).getBookKeeperClient();
         eventLoopGroup = new NioEventLoopGroup();
-
-        mockZk = createMockZooKeeper();
-        doReturn(mockZk).when(pulsar).getZkClient();
-        doReturn(createMockBookKeeper(mockZk, ForkJoinPool.commonPool()))
-            .when(pulsar).getBookKeeperClient();
 
         ZooKeeperCache cache = mock(ZooKeeperCache.class);
         doReturn(30).when(cache).getZkOperationTimeoutSeconds();
@@ -210,10 +208,8 @@ public class PersistentDispatcherFailoverConsumerTest {
             pulsar.close();
             pulsar = null;
         }
-        if (mockZk != null) {
-            mockZk.close();
-        }
 
+        executor.shutdown();
         eventLoopGroup.shutdownGracefully().get();
     }
 

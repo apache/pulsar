@@ -178,7 +178,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         ZooKeeper mockZk = createMockZooKeeper();
         doReturn(mockZk).when(pulsar).getZkClient();
-        doReturn(createMockBookKeeper(mockZk, ForkJoinPool.commonPool()))
+        doReturn(createMockBookKeeper(executor))
             .when(pulsar).getBookKeeperClient();
 
         ZooKeeperCache cache = mock(ZooKeeperCache.class);
