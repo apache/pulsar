@@ -2697,7 +2697,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         try {
             clonedMarker = new ConcurrentHashMap<>(rangeMarker);
             // get range info and group by ledger ID
-            rangeGroupByLedgerId = getRangeGroupByLedgerId(dirtyRange);
+            rangeGroupByLedgerId = getRangeGroupByLedgerId(dirtyRange, mdEntry);
             deletionIndexInfoGroupByLedgerId = getDeletionIndexInfosGroupByLedgerId(dirtyRange);
         } finally {
             lock.readLock().unlock();
@@ -2912,12 +2912,13 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
-    Map<Long, List<MLDataFormats.MessageRange>> getRangeGroupByLedgerId(Set<Long> dirtyRange) {
+    Map<Long, List<MLDataFormats.MessageRange>> getRangeGroupByLedgerId(Set<Long> dirtyRange, MarkDeleteEntry mdEntry) {
         lock.readLock().lock();
         try {
             if (individualDeletedMessages.isEmpty()) {
                 return new HashMap<>();
             }
+            PositionImpl position = mdEntry == null ? new PositionImpl(-1, -1) : mdEntry.newPosition;
             Map<Long, List<MLDataFormats.MessageRange>> ledgerIdToMessageRange =
                     Maps.newHashMapWithExpectedSize(individualDeletedMessages.size());
             MLDataFormats.NestedPositionInfo.Builder nestedPositionBuilder = MLDataFormats.NestedPositionInfo
@@ -2926,6 +2927,10 @@ public class ManagedCursorImpl implements ManagedCursor {
             AtomicInteger acksSerializedSize = new AtomicInteger(0);
             individualDeletedMessages.forEach((positionRange) -> {
                 if (dirtyRange != null && !dirtyRange.contains(positionRange.upperEndpoint().ledgerId)) {
+                    return true;
+                }
+                if (position.getLedgerId() >= positionRange.upperEndpoint().ledgerId
+                        && position.getEntryId() >= positionRange.lowerEndpoint().entryId) {
                     return true;
                 }
                 nestedPositionBuilder.setLedgerId(positionRange.lowerEndpoint().ledgerId)

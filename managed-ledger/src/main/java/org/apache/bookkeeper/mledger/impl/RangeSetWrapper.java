@@ -257,15 +257,14 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
                 if (firstRange == null) {
                     return;
                 }
-                // use Iterator to avoid ConcurrentModifyException
+                // remove invalid key
                 Iterator<Long> iterator = lruCounter.getKeys().iterator();
                 while (iterator.hasNext()) {
                     long ledgerId = iterator.next();
-                    if (firstRange.lowerEndpoint().compareTo(rangeConverter.apply(ledgerId, Integer.MAX_VALUE - 1)) > 0) {
+                    if (firstRange.lowerEndpoint().compareTo(
+                            rangeConverter.apply(ledgerId, Integer.MAX_VALUE - 1)) > 0) {
                         iterator.remove();
                         log.info("LruTask remove invalid key {}", ledgerId);
-                    } else {
-                        break;
                     }
                 }
                 if (isReachLruSwitchThreshold() && lruCounter.size() > 1) {

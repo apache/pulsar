@@ -64,7 +64,7 @@ public class MultiEntryPositionTest extends MockedBookKeeperTestCase {
         c1.getIndividuallyDeletedMessagesSet().addOpenClosed(1, 0, 1, 1);
         c1.getIndividuallyDeletedMessagesSet().addOpenClosed(2, 0, 2, 1);
 
-        Map<Long, List<MLDataFormats.MessageRange>> rangeGroupByLedgerId = c1.getRangeGroupByLedgerId(null);
+        Map<Long, List<MLDataFormats.MessageRange>> rangeGroupByLedgerId = c1.getRangeGroupByLedgerId(null, null);
 
         assertEquals(rangeGroupByLedgerId.size(), 3);
         AtomicLong count = new AtomicLong(0);
@@ -79,7 +79,7 @@ public class MultiEntryPositionTest extends MockedBookKeeperTestCase {
 
         Set<Long> filter = new HashSet<>();
         filter.add(2L);
-        rangeGroupByLedgerId = c1.getRangeGroupByLedgerId(filter);
+        rangeGroupByLedgerId = c1.getRangeGroupByLedgerId(filter, null);
         assertEquals(rangeGroupByLedgerId.size(), 1);
         assertTrue(rangeGroupByLedgerId.containsKey(2L));
         c1.close();
@@ -145,7 +145,7 @@ public class MultiEntryPositionTest extends MockedBookKeeperTestCase {
         c1.getIndividuallyDeletedMessagesSet().addOpenClosed(0, 0, 0, 1);
         c1.getIndividuallyDeletedMessagesSet().addOpenClosed(1, 0, 1, 1);
         c1.getIndividuallyDeletedMessagesSet().addOpenClosed(2, 0, 2, 1);
-        Map<Long, List<MLDataFormats.MessageRange>> rangeGroupByLedgerId = c1.getRangeGroupByLedgerId(null);
+        Map<Long, List<MLDataFormats.MessageRange>> rangeGroupByLedgerId = c1.getRangeGroupByLedgerId(null, null);
         MLDataFormats.PositionInfo.Builder builder =
                 MLDataFormats.PositionInfo.newBuilder().setLedgerId(1).setEntryId(0);
         Map<Long, MLDataFormats.NestedPositionInfo> rangeMarker = new HashMap<>();
@@ -161,11 +161,11 @@ public class MultiEntryPositionTest extends MockedBookKeeperTestCase {
         // init marker
         c1.getRangeMarker().putAll(rangeMarker);
         c1.setLastMarkDeleteEntry(new ManagedCursorImpl.MarkDeleteEntry(
-                new PositionImpl(0, 0), new HashMap<>(), null, null));
+                new PositionImpl(-1, -1), new HashMap<>(), null, null));
         // init PendingMarkDeletes
         c1.getIndividuallyDeletedMessagesSet().addOpenClosed(3, 0, 3, 1);
         CompletableFuture<Void> future = new CompletableFuture<>();
-        c1.pendingMarkDeleteOps.add(new ManagedCursorImpl.MarkDeleteEntry(new PositionImpl(0, 0),
+        c1.pendingMarkDeleteOps.add(new ManagedCursorImpl.MarkDeleteEntry(new PositionImpl(-1, -1),
                 new HashMap<>(), new AsyncCallbacks.MarkDeleteCallback() {
             @Override
             public void markDeleteComplete(Object ctx) {
@@ -277,7 +277,7 @@ public class MultiEntryPositionTest extends MockedBookKeeperTestCase {
         c1.getIndividuallyDeletedMessagesSet().addOpenClosed(1, 0, 1, 1);
         c1.getIndividuallyDeletedMessagesSet().addOpenClosed(2, 0, 2, 1);
         CompletableFuture<Void> future = new CompletableFuture<>();
-        c1.internalMarkDelete(new ManagedCursorImpl.MarkDeleteEntry(new PositionImpl(1, 10), new HashMap<>(),
+        c1.internalMarkDelete(new ManagedCursorImpl.MarkDeleteEntry(new PositionImpl(1, 10), Collections.emptyMap(),
                 new AsyncCallbacks.MarkDeleteCallback() {
             @Override
             public void markDeleteComplete(Object ctx) {
@@ -295,32 +295,29 @@ public class MultiEntryPositionTest extends MockedBookKeeperTestCase {
         // markDelete position is (1, 10] , so only [(2:0..2:1]] is left
         assertEquals(marker.size(), 1);
         MLDataFormats.NestedPositionInfo positionInfo = marker.get((long) 2);
-        assertEquals(positionInfo.getLedgerId(), ledgerId);
-        assertEquals(positionInfo.getEntryId(), 3);
         assertEquals(c1.getIndividuallyDeletedMessages(), "[(2:0..2:1]]");
-        Enumeration<LedgerEntry> entries = c1.getCursorLedgerHandle().readEntries(positionInfo.getEntryId() - 2,
+        Enumeration<LedgerEntry> entries = c1.getCursorLedgerHandle().readEntries(positionInfo.getEntryId(),
                 positionInfo.getEntryId() + 1);
         int counter = 0;
         MLDataFormats.NestedPositionInfo.Builder positionBuilder = MLDataFormats.NestedPositionInfo.newBuilder();
         while (entries.hasMoreElements()) {
             LedgerEntry entry = entries.nextElement();
             MLDataFormats.PositionInfo position = MLDataFormats.PositionInfo.parseFrom(entry.getEntryInputStream());
-            if (counter == 3) {
+            if (counter == 1) {
                 // the last one is marker
-                assertEquals(position.getMarkerIndexInfoCount(), 3);
-                AtomicLong subCounter = new AtomicLong(positionInfo.getEntryId() - 2);
+                assertEquals(position.getMarkerIndexInfoCount(), 1);
                 position.getMarkerIndexInfoList().forEach(markerIndexInfo -> {
                     assertEquals(markerIndexInfo.getEntryPosition().getLedgerId(), ledgerId);
-                    assertEquals(markerIndexInfo.getEntryPosition().getEntryId(), subCounter.getAndIncrement());
+                    assertEquals(markerIndexInfo.getEntryPosition().getEntryId(), positionInfo.getEntryId());
                 });
-                assertEquals(subCounter.get(), 4);
                 continue;
             } else {
                 assertEquals(position.getMarkerIndexInfoCount(), 0);
             }
             MLDataFormats.MessageRange range = position.getIndividualDeletedMessagesList().get(0);
-            assertEquals(range.getLowerEndpoint(), positionBuilder.setLedgerId(counter).setEntryId(0).build());
-            assertEquals(range.getUpperEndpoint(), positionBuilder.setLedgerId(counter).setEntryId(1).build());
+            //(2:0 .. 2:1]
+            assertEquals(range.getLowerEndpoint(), positionBuilder.setLedgerId(2).setEntryId(0).build());
+            assertEquals(range.getUpperEndpoint(), positionBuilder.setLedgerId(2).setEntryId(1).build());
             counter++;
         }
     }
@@ -388,11 +385,12 @@ public class MultiEntryPositionTest extends MockedBookKeeperTestCase {
         while (entries.hasMoreElements()) {
             LedgerEntry entry = entries.nextElement();
             MLDataFormats.PositionInfo positionInfo = MLDataFormats.PositionInfo.parseFrom(entry.getEntryInputStream());
+            //the last entry is marker
             if (counter == 2) {
-                //the last entry is marker
-                assertEquals(positionInfo.getMarkerIndexInfoCount(), 4);
-                // start from 4, entryId is 6
-                AtomicLong subCounter = new AtomicLong(entryId - 2);
+                // mark deleted position is (5,5] , ranges 6 & 7 were left
+                assertEquals(positionInfo.getMarkerIndexInfoCount(), 2);
+                // start from 6
+                AtomicLong subCounter = new AtomicLong(entryId);
                 positionInfo.getMarkerIndexInfoList().forEach(markerIndexInfo -> {
                     assertEquals(markerIndexInfo.getEntryPosition().getLedgerId(), newLedgerId);
                     assertEquals(markerIndexInfo.getEntryPosition().getEntryId(), subCounter.getAndIncrement());
