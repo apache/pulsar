@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -52,6 +51,7 @@ import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -401,7 +401,7 @@ public class MessageImpl<T> implements Message<T> {
                     .atSchemaVersion(schemaVersion));
         } else if (schema instanceof AbstractSchema) {
             byte[] schemaVersion = getSchemaVersion();
-            return Optional.of(((AbstractSchema) schema)
+            return Optional.of(((AbstractSchema<?>) schema)
                     .atSchemaVersion(schemaVersion));
         } else {
             return Optional.of(schema);
@@ -419,11 +419,15 @@ public class MessageImpl<T> implements Message<T> {
 
     private void ensureSchemaIsLoaded() {
         if (schema instanceof AutoConsumeSchema) {
-            ((AutoConsumeSchema) schema).fetchSchemaIfNeeded();
+            ((AutoConsumeSchema) schema).fetchSchemaIfNeeded(BytesSchemaVersion.of(getSchemaVersion()));
         }
     }
+
     private SchemaInfo getSchemaInfo() {
         ensureSchemaIsLoaded();
+        if (schema instanceof AutoConsumeSchema) {
+            return ((AutoConsumeSchema) schema).getSchemaInfo(getSchemaVersion());
+        }
         return schema.getSchemaInfo();
     }
 
@@ -449,7 +453,7 @@ public class MessageImpl<T> implements Message<T> {
 
     private KeyValueSchema getKeyValueSchema() {
         if (schema instanceof AutoConsumeSchema) {
-            return (KeyValueSchema) ((AutoConsumeSchema) schema).getInternalSchema();
+            return (KeyValueSchema) ((AutoConsumeSchema) schema).getInternalSchema(getSchemaVersion());
         } else {
             return (KeyValueSchema) schema;
         }
@@ -476,7 +480,7 @@ public class MessageImpl<T> implements Message<T> {
                     (org.apache.pulsar.common.schema.KeyValue) kvSchema.decode(getKeyBytes(), getData(), schemaVersion);
             if (schema instanceof AutoConsumeSchema) {
                 return (T) AutoConsumeSchema.wrapPrimitiveObject(keyValue,
-                        schema.getSchemaInfo().getType(), schemaVersion);
+                        ((AutoConsumeSchema) schema).getSchemaInfo(schemaVersion).getType(), schemaVersion);
             } else {
                 return (T) keyValue;
             }
@@ -492,7 +496,7 @@ public class MessageImpl<T> implements Message<T> {
                     (org.apache.pulsar.common.schema.KeyValue) kvSchema.decode(getKeyBytes(), getData(), null);
             if (schema instanceof AutoConsumeSchema) {
                 return (T) AutoConsumeSchema.wrapPrimitiveObject(keyValue,
-                        schema.getSchemaInfo().getType(), null);
+                        ((AutoConsumeSchema) schema).getSchemaInfo(getSchemaVersion()).getType(), null);
             } else {
                 return (T) keyValue;
             }

@@ -23,6 +23,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
+import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.testng.annotations.Test;
 
 import java.util.concurrent.CompletableFuture;
@@ -74,7 +75,7 @@ public class AbstractGenericSchemaTest {
 
             GenericRecord record;
             if (decodeSchema instanceof AutoConsumeSchema) {
-                record = decodeSchema.decode(data, new byte[0]);
+                record = decodeSchema.decode(data, new LongSchemaVersion(0L).bytes());
             } else {
                 record = decodeSchema.decode(data);
             }

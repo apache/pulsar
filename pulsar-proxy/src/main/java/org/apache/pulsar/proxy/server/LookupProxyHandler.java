@@ -37,6 +37,7 @@ import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadata;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
+import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -357,6 +358,12 @@ public class LookupProxyHandler {
         final long clientRequestId = commandGetSchema.getRequestId();
         String serviceUrl = getBrokerServiceUrl(clientRequestId);
         String topic = commandGetSchema.getTopic();
+        Optional<SchemaVersion> schemaVersion;
+        if (commandGetSchema.hasSchemaVersion()) {
+            schemaVersion = Optional.of(commandGetSchema.getSchemaVersion()).map(BytesSchemaVersion::of);
+        } else {
+            schemaVersion = Optional.empty();
+        }
 
         if(!StringUtils.isNotBlank(serviceUrl)) {
             return;
@@ -375,12 +382,7 @@ public class LookupProxyHandler {
             // Connected to backend broker
             long requestId = proxyConnection.newRequestId();
             ByteBuf command;
-            byte[] schemaVersion = null;
-            if (commandGetSchema.hasSchemaVersion()) {
-                schemaVersion = commandGetSchema.getSchemaVersion();
-            }
-            command = Commands.newGetSchema(requestId, topic,
-                    Optional.ofNullable(schemaVersion).map(BytesSchemaVersion::of));
+            command = Commands.newGetSchema(requestId, topic, schemaVersion);
             clientCnx.sendGetRawSchema(command, requestId).whenComplete((r, t) -> {
                 if (t != null) {
                     log.warn("[{}] Failed to get schema {}: {}", clientAddress, topic, t);
