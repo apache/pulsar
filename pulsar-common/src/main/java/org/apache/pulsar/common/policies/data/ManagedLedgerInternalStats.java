@@ -20,8 +20,6 @@ package org.apache.pulsar.common.policies.data;
 
 import java.util.List;
 import java.util.Map;
-import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats.CursorStats;
-import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats.LedgerInfo;
 
 /**
  * ManagedLedger internal statistics.
@@ -68,4 +66,39 @@ public class ManagedLedgerInternalStats {
 
     /**The list of all cursors on this topic. Each subscription in the topic stats has a cursor. */
     public Map<String, CursorStats> cursors;
+
+    /**
+     * Ledger information.
+     */
+    public static class LedgerInfo {
+        public long ledgerId;
+        public long entries;
+        public long size;
+        public boolean offloaded;
+        public String metadata;
+        public boolean underReplicated;
+    }
+
+    /**
+     * Pulsar cursor statistics.
+     */
+    public static class CursorStats {
+        public String markDeletePosition;
+        public String readPosition;
+        public boolean waitingReadOp;
+        public int pendingReadOps;
+
+        public long messagesConsumedCounter;
+        public long cursorLedger;
+        public long cursorLedgerLastEntry;
+        public String individuallyDeletedMessages;
+        public String lastLedgerSwitchTimestamp;
+        public String state;
+        public long numberOfEntriesSinceFirstNotAckedMessage;
+        public int totalNonContiguousDeletedMessagesRange;
+        public boolean subscriptionHavePendingRead;
+        public boolean subscriptionHavePendingReplayRead;
+
+        public Map<String, Long> properties;
+    }
 }
