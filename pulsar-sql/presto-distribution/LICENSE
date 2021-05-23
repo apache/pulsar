@@ -256,6 +256,7 @@ The Apache Software License, Version 2.0
     - http2-common-9.4.27.v20200227.jar
     - http2-hpack-9.4.27.v20200227.jar
     - http2-http-client-transport-9.4.27.v20200227.jar
+    - jetty-alpn-java-client-9.4.27.v20200227.jar
     - http2-server-9.4.27.v20200227.jar
     - jetty-alpn-client-9.4.27.v20200227.jar
     - jetty-client-9.4.27.v20200227.jar
@@ -526,7 +527,6 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
     - jersey-media-multipart-2.34.jar
     - jersey-server-2.34.jar
     - jersey-common-2.34.jar
-    - jetty-alpn-java-client-9.4.27.v20200227.jar
  * JAXB
     - jaxb-api-2.3.1.jar
 
