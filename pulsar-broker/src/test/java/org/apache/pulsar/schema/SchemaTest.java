@@ -841,7 +841,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
             }
             log.info("auto consumer get native object class: {}, value: {}",
                     message.getValue().getNativeObject().getClass(), message.getValue().getNativeObject());
-            checkSchemaForAutoSchema(i, message);
+            checkSchemaForAutoSchema(message);
         }
     }
 
@@ -896,7 +896,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         consumer.close();
     }
 
-    private void checkSchemaForAutoSchema(int index, Message<GenericRecord> message) {
+    private void checkSchemaForAutoSchema(Message<GenericRecord> message) {
         if (!message.getReaderSchema().isPresent()) {
             Assert.fail("Failed to get reader schema for auto consume multiple schema topic.");
         }
