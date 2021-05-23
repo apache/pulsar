@@ -790,7 +790,7 @@ public class PersistentTopic extends AbstractTopic
     }
 
     public void updateUnackedMessagesAppliedOnSubscription(Policies policies) {
-        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
+        TopicPolicies topicPolicies = getTopicPolicies();
         if (topicPolicies != null && topicPolicies.isMaxUnackedMessagesOnSubscriptionSet()) {
             maxUnackedMessagesOnSubscriptionApplied = topicPolicies.getMaxUnackedMessagesOnSubscription();
         } else {
@@ -802,7 +802,7 @@ public class PersistentTopic extends AbstractTopic
     }
 
     private void updateUnackedMessagesExceededOnConsumer(Policies data) {
-        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
+        TopicPolicies topicPolicies = getTopicPolicies();
         if (topicPolicies != null && topicPolicies.isMaxUnackedMessagesOnConsumerSet()) {
             maxUnackedMessagesOnConsumerAppilied = topicPolicies.getMaxUnackedMessagesOnConsumer();
         } else {
@@ -1345,7 +1345,7 @@ public class PersistentTopic extends AbstractTopic
     public void checkCompaction() {
         TopicName name = TopicName.get(topic);
         try {
-            Long compactionThreshold = Optional.ofNullable(getTopicPolicies(name))
+            Long compactionThreshold = Optional.ofNullable(getTopicPolicies())
                 .map(TopicPolicies::getCompactionThreshold)
                 .orElse(null);
             if (compactionThreshold == null) {
@@ -2181,13 +2181,13 @@ public class PersistentTopic extends AbstractTopic
      * marked as inactive.
      */
     private boolean shouldTopicBeRetained() {
-        TopicName name = TopicName.get(topic);
         RetentionPolicies retentionPolicies = null;
         try {
-            retentionPolicies = Optional.ofNullable(getTopicPolicies(name))
+            retentionPolicies = Optional.ofNullable(getTopicPolicies())
                     .map(TopicPolicies::getRetentionPolicies)
                     .orElse(null);
             if (retentionPolicies == null){
+                TopicName name = TopicName.get(topic);
                 retentionPolicies = brokerService.pulsar().getConfigurationCache().policiesCache()
                         .get(AdminResource.path(POLICIES, name.getNamespace()))
                         .map(p -> p.retention_policies)
@@ -2238,7 +2238,7 @@ public class PersistentTopic extends AbstractTopic
             delayedDeliveryEnabled = data.delayed_delivery_policies.isActive();
         }
         //If the topic-level policy already exists, the namespace-level policy cannot override the topic-level policy.
-        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
+        TopicPolicies topicPolicies = getTopicPolicies();
         if (data.inactive_topic_policies != null) {
             if (topicPolicies == null || !topicPolicies.isInactiveTopicPoliciesSet()) {
                 this.inactiveTopicPolicies = data.inactive_topic_policies;
@@ -2656,7 +2656,7 @@ public class PersistentTopic extends AbstractTopic
         //Return Topic level message TTL if exist. If topic level policy or message ttl is not set,
         //fall back to namespace level message ttl then message ttl set for current broker.
         TopicName name = TopicName.get(topic);
-        TopicPolicies topicPolicies = getTopicPolicies(name);
+        TopicPolicies topicPolicies = getTopicPolicies();
         Policies policies = brokerService.pulsar().getConfigurationCache().policiesCache()
                 .get(AdminResource.path(POLICIES, name.getNamespace()))
                 .orElseThrow(KeeperException.NoNodeException::new);
@@ -2866,7 +2866,7 @@ public class PersistentTopic extends AbstractTopic
     }
 
     public long getDelayedDeliveryTickTimeMillis() {
-        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
+        TopicPolicies topicPolicies = getTopicPolicies();
         //Topic level setting has higher priority than namespace level
         if (topicPolicies != null && topicPolicies.isDelayedDeliveryTickTimeMillisSet()) {
             return topicPolicies.getDelayedDeliveryTickTimeMillis();
@@ -2879,7 +2879,7 @@ public class PersistentTopic extends AbstractTopic
     }
 
     public boolean isDelayedDeliveryEnabled() {
-        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
+        TopicPolicies topicPolicies = getTopicPolicies();
         //Topic level setting has higher priority than namespace level
         if (topicPolicies != null && topicPolicies.isDelayedDeliveryEnabledSet()) {
             return topicPolicies.getDelayedDeliveryEnabled();
@@ -2995,7 +2995,7 @@ public class PersistentTopic extends AbstractTopic
         if (StringUtils.isNotEmpty(subscriptionName) && getSubscription(subscriptionName) != null) {
             return false;
         }
-        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
+        TopicPolicies topicPolicies = getTopicPolicies();
         Integer maxSubsPerTopic = null;
         if (topicPolicies != null && topicPolicies.isMaxSubscriptionsPerTopicSet()) {
             maxSubsPerTopic = topicPolicies.getMaxSubscriptionsPerTopic();

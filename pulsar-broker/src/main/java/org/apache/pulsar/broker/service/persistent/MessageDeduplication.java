@@ -426,12 +426,12 @@ public class MessageDeduplication {
     }
 
     private CompletableFuture<Boolean> isDeduplicationEnabled() {
-        TopicName name = TopicName.get(topic.getName());
         //Topic level setting has higher priority than namespace level
-        TopicPolicies topicPolicies = topic.getTopicPolicies(name);
+        TopicPolicies topicPolicies = topic.getTopicPolicies();
         if (topicPolicies != null && topicPolicies.isDeduplicationSet()) {
             return CompletableFuture.completedFuture(topicPolicies.getDeduplicationEnabled());
         }
+        TopicName name = TopicName.get(topic.getName());
         return pulsar.getConfigurationCache().policiesCache()
                 .getAsync(AdminResource.path(POLICIES, name.getNamespace())).thenApply(policies -> {
                     // If namespace policies have the field set, it will override the broker-level setting
@@ -490,7 +490,7 @@ public class MessageDeduplication {
     public void takeSnapshot() {
         Integer interval = null;
         // try to get topic-level policies
-        TopicPolicies topicPolicies = topic.getTopicPolicies(TopicName.get(topic.getName()));
+        TopicPolicies topicPolicies = topic.getTopicPolicies();
         if (topicPolicies != null) {
             interval = topicPolicies.getDeduplicationSnapshotIntervalSeconds();
         }

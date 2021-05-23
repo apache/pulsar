@@ -148,7 +148,7 @@ public abstract class AbstractTopic implements Topic {
 
     protected boolean isProducersExceeded() {
         Integer maxProducers = null;
-        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
+        TopicPolicies topicPolicies = getTopicPolicies();
         if (topicPolicies != null) {
             maxProducers = topicPolicies.getMaxProducerPerTopic();
         }
@@ -198,7 +198,7 @@ public abstract class AbstractTopic implements Topic {
 
     protected boolean isConsumersExceededOnTopic() {
         Integer maxConsumers = null;
-        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
+        TopicPolicies topicPolicies = getTopicPolicies();
         if (topicPolicies != null) {
             maxConsumers = topicPolicies.getMaxConsumerPerTopic();
         }
@@ -779,7 +779,7 @@ public abstract class AbstractTopic implements Topic {
 
     private void updatePublishDispatcher(Policies policies) {
         //if topic-level policy exists, try to use topic-level publish rate policy
-        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
+        TopicPolicies topicPolicies = getTopicPolicies();
         if (topicPolicies != null && topicPolicies.isPublishRateSet()) {
             log.info("Using topic policy publish rate instead of namespace level topic publish rate on topic {}",
                     this.topic);
@@ -850,24 +850,10 @@ public abstract class AbstractTopic implements Topic {
 
     /**
      * Get {@link TopicPolicies} for this topic.
-     * @param topicName
      * @return TopicPolicies is exist else return null.
      */
-    public TopicPolicies getTopicPolicies(TopicName topicName) {
-        TopicName cloneTopicName = topicName;
-        if (topicName.isPartitioned()) {
-            cloneTopicName = TopicName.get(topicName.getPartitionedTopicName());
-        }
-        try {
-            return brokerService.pulsar().getTopicPoliciesService().getTopicPolicies(cloneTopicName);
-        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-            log.debug("Topic {} policies have not been initialized yet.", topicName.getPartitionedTopicName());
-            return null;
-        } catch (NullPointerException e) {
-            log.debug("Topic level policies are not enabled. "
-                    + "Please refer to systemTopicEnabled and topicLevelPoliciesEnabled on broker.conf");
-            return null;
-        }
+    public TopicPolicies getTopicPolicies() {
+        return brokerService.getTopicPolicies(TopicName.get(topic));
     }
 
     protected int getWaitingProducersCount() {
@@ -876,7 +862,7 @@ public abstract class AbstractTopic implements Topic {
 
     protected boolean isExceedMaximumMessageSize(int size) {
         Integer maxMessageSize = null;
-        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
+        TopicPolicies topicPolicies = getTopicPolicies();
         if (topicPolicies != null && topicPolicies.isMaxMessageSizeSet()) {
             maxMessageSize = topicPolicies.getMaxMessageSize();
         }

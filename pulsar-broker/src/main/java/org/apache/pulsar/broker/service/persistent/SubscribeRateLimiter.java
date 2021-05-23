@@ -51,7 +51,7 @@ public class SubscribeRateLimiter {
         subscribeRateLimiter = new ConcurrentHashMap<>();
         this.executorService = brokerService.pulsar().getExecutor();
         // get subscribeRate from topic level policies
-        this.subscribeRate = Optional.ofNullable(brokerService.getTopicPolicies(TopicName.get(this.topicName)))
+        this.subscribeRate = Optional.ofNullable(topic.getTopicPolicies())
                 .map(TopicPolicies::getSubscribeRate)
                 .orElse(null);
 
