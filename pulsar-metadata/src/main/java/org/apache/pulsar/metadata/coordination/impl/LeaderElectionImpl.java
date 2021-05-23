@@ -47,7 +47,7 @@ import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.cache.impl.JSONMetadataSerdeSimpleType;
-import org.apache.pulsar.metadata.cache.impl.MetadataSerde;
+import org.apache.pulsar.metadata.api.MetadataSerde;
 
 @Slf4j
 class LeaderElectionImpl<T> implements LeaderElection<T> {
@@ -303,7 +303,7 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
                 if (proposedValue.isPresent()) {
                     elect()
                             .exceptionally(ex -> {
-                                log.warn("Leader election for path {} has failed", ex);
+                                log.warn("Leader election for path {} has failed", path, ex);
                                 synchronized (LeaderElectionImpl.this) {
                                     try {
                                         stateChangesListener.accept(leaderElectionState);
@@ -313,7 +313,7 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
 
                                     if (internalState != InternalState.Closed) {
                                         executor.schedule(() -> {
-                                            log.info("Retrying Leader election for path {}");
+                                            log.info("Retrying Leader election for path {}", path);
                                             elect();
                                         }, LEADER_ELECTION_RETRY_DELAY_SECONDS, TimeUnit.SECONDS);
                                     }

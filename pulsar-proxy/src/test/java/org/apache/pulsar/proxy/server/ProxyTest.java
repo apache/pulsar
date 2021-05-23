@@ -23,14 +23,13 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
-
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
-
+import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -188,6 +187,29 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    /**
+     * test auto create partitioned topic by proxy
+     **/
+    @Test
+    public void testAutoCreateTopic() throws Exception{
+        int defaultPartition=2;
+        int defaultNumPartitions=pulsar.getConfiguration().getDefaultNumPartitions();
+        pulsar.getConfiguration().setAllowAutoTopicCreationType("partitioned");
+        pulsar.getConfiguration().setDefaultNumPartitions(defaultPartition);
+        try {
+            @Cleanup
+            PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
+              .build();
+            String topic = "persistent://sample/test/local/partitioned-proxy-topic";
+            CompletableFuture<List<String>> partitionNamesFuture = client.getPartitionsForTopic(topic);
+            List<String> partitionNames = partitionNamesFuture.get(30000, TimeUnit.MILLISECONDS);
+            Assert.assertEquals(partitionNames.size(), defaultPartition);
+        }finally {
+            pulsar.getConfiguration().setAllowAutoTopicCreationType("non-partitioned");
+            pulsar.getConfiguration().setDefaultNumPartitions(defaultNumPartitions);
+        }
+    }
+
     @Test
     public void testRegexSubscription() throws Exception {
         @Cleanup
@@ -290,7 +312,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
     private static PulsarClient getClientActiveConsumerChangeNotSupported(ClientConfigurationData conf)
             throws Exception {
         ThreadFactory threadFactory = new DefaultThreadFactory("pulsar-client-io", Thread.currentThread().isDaemon());
-        EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), threadFactory);
+        EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), false, threadFactory);
 
         ConnectionPool cnxPool = new ConnectionPool(conf, eventLoopGroup, () -> {
             return new ClientCnx(conf, eventLoopGroup, ProtocolVersion.v11_VALUE) {

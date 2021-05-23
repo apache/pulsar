@@ -1037,7 +1037,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                         consumers.remove(consumerId, consumerFuture);
                                     }
 
-                                }) //
+                                })
                                 .exceptionally(exception -> {
                                     if (exception.getCause() instanceof ConsumerBusyException) {
                                         if (log.isDebugEnabled()) {
@@ -1884,7 +1884,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
 
         service.pulsar().getTransactionMetadataStoreService()
-                .endTransaction(txnID, txnAction)
+                .endTransaction(txnID, txnAction, false)
                 .thenRun(() -> ctx.writeAndFlush(Commands.newEndTxnResponse(requestId,
                         txnID.getLeastSigBits(), txnID.getMostSigBits())))
                 .exceptionally(throwable -> {
@@ -1909,7 +1909,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         if (topicFuture != null) {
             topicFuture.whenComplete((optionalTopic, t) -> {
                 if (!optionalTopic.isPresent()) {
-                    log.error("handleEndTxnOnPartition faile ! The topic {} does not exist in broker, "
+                    log.error("handleEndTxnOnPartition fail ! The topic {} does not exist in broker, "
                             + "txnId: [{}], txnAction: [{}]", topic, txnID, TxnAction.valueOf(txnAction));
                     ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(
                             requestId, ServerError.ServiceNotReady,

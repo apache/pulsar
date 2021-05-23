@@ -19,7 +19,6 @@
 package org.apache.pulsar.functions.worker;
 
 import static org.testng.Assert.assertEquals;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Sets;
@@ -121,7 +120,6 @@ public class PulsarFunctionTlsTest {
             tempDirectories[i] = PulsarFunctionTestTemporaryDirectory.create(getClass().getSimpleName());
             tempDirectories[i].useTemporaryDirectoriesForWorkerConfig(workerConfig);
             workerConfig.setPulsarFunctionsNamespace("public/functions");
-            workerConfig.setPulsarFunctionsCluster("my-cluster");
             workerConfig.setSchedulerClassName(
                 org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler.class.getName());
             workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());

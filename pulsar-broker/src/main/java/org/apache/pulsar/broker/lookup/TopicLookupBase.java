@@ -43,6 +43,8 @@ import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.NamespaceOperation;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -130,14 +132,15 @@ public class TopicLookupBase extends PulsarWebResource {
 
     private void validateAdminAndClientPermission(TopicName topic) throws RestException, Exception {
         try {
-            validateAdminAccessForTenant(topic.getTenant());
+            validateTopicOperation(topic, TopicOperation.LOOKUP);
         } catch (Exception e) {
-            checkConnect(topic);
+            // unknown error marked as internal server error
+            throw new RestException(e);
         }
     }
 
     protected String internalGetNamespaceBundle(TopicName topicName) {
-        validateSuperUserAccess();
+        validateNamespaceOperation(topicName.getNamespaceObject(), NamespaceOperation.GET_BUNDLE);
         try {
             NamespaceBundle bundle = pulsar().getNamespaceService().getBundle(topicName);
             return bundle.getBundleRange();

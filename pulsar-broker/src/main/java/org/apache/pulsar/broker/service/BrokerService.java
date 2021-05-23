@@ -119,8 +119,6 @@ import org.apache.pulsar.broker.stats.prometheus.metrics.ObserverGauge;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.web.PulsarWebResource;
-import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect;
-import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect.EventListner;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -244,7 +242,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     private final int keepAliveIntervalSeconds;
     private final PulsarStats pulsarStats;
-    private final EventListner zkStatsListener;
     private final AuthenticationService authenticationService;
 
     public static final String BROKER_SERVICE_CONFIGURATION_PATH = "/admin/configuration";
@@ -271,7 +268,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     private Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors;
 
-    public BrokerService(PulsarService pulsar) throws Exception {
+    public BrokerService(PulsarService pulsar, EventLoopGroup eventLoopGroup) throws Exception {
         this.pulsar = pulsar;
         this.preciseTopicPublishRateLimitingEnable =
                 pulsar.getConfiguration().isPreciseTopicPublishRateLimiterEnable();
@@ -291,13 +288,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 .numThreads(pulsar.getConfiguration().getNumWorkerThreadsForNonPersistentTopic())
                 .name("broker-topic-workers").build();
         final DefaultThreadFactory acceptorThreadFactory = new DefaultThreadFactory("pulsar-acceptor");
-        final DefaultThreadFactory workersThreadFactory = new DefaultThreadFactory("pulsar-io");
-        final int numThreads = pulsar.getConfiguration().getNumIOThreads();
-        log.info("Using {} threads for broker service IO", numThreads);
 
         this.acceptorGroup = EventLoopUtil.newEventLoopGroup(
-                pulsar.getConfiguration().getNumAcceptorThreads(), acceptorThreadFactory);
-        this.workerGroup = EventLoopUtil.newEventLoopGroup(numThreads, workersThreadFactory);
+                pulsar.getConfiguration().getNumAcceptorThreads(), false, acceptorThreadFactory);
+        this.workerGroup = eventLoopGroup;
         this.statsUpdater = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-stats-updater"));
         this.authorizationService = new AuthorizationService(
@@ -352,9 +346,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                             + " unAckMsgSubscriptionPercentageLimitOnBrokerBlocked {} ",
                     pulsar.getConfiguration().getMaxUnackedMessagesPerSubscriptionOnBrokerBlocked());
         }
-
-        // register listener to capture zk-latency
-        zkStatsListener = (eventType, latencyMs) -> pulsarStats.recordZkLatencyTimeValue(eventType, latencyMs);
 
         this.delayedDeliveryTrackerFactory = DelayedDeliveryTrackerLoader
                 .loadDelayedDeliveryTrackerFactory(pulsar.getConfiguration());
@@ -468,9 +459,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         this.updateBrokerPublisherThrottlingMaxRate();
         this.startCheckReplicationPolicies();
         this.startDeduplicationSnapshotMonitor();
-        // register listener to capture zk-latency
-        ClientCnxnAspect.addListener(zkStatsListener);
-        ClientCnxnAspect.registerExecutor(pulsar.getExecutor());
     }
 
     protected void startStatsUpdater(int statsUpdateInitailDelayInSecs, int statsUpdateFrequencyInSecs) {
@@ -717,8 +705,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                                     log.warn("Error in closing authenticationService", e);
                                 }
                                 pulsarStats.close();
-                                ClientCnxnAspect.removeListener(zkStatsListener);
-                                ClientCnxnAspect.registerExecutor(null);
                                 try {
                                     delayedDeliveryTrackerFactory.close();
                                 } catch (IOException e) {
@@ -1037,7 +1023,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                         .enableTcpNoDelay(false)
                         .connectionsPerBroker(pulsar.getConfiguration().getReplicationConnectionsPerBroker())
                         .statsInterval(0, TimeUnit.SECONDS);
-                if (pulsar.getConfiguration().isAuthenticationEnabled()) {
+                if (data.getAuthenticationPlugin() != null && data.getAuthenticationParameters() != null) {
+                    clientBuilder.authentication(data.getAuthenticationPlugin(), data.getAuthenticationParameters());
+                } else if (pulsar.getConfiguration().isAuthenticationEnabled()) {
                     clientBuilder.authentication(pulsar.getConfiguration().getBrokerClientAuthenticationPlugin(),
                             pulsar.getConfiguration().getBrokerClientAuthenticationParameters());
                 }
@@ -1183,7 +1171,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             return;
         }
 
-        if (!checkMaxTopicsPerNamespace(topicName, 1, topicFuture)) {
+        if (createIfMissing && !checkMaxTopicsPerNamespace(topicName, 1, topicFuture)) {
             return;
         }
 
@@ -1803,7 +1791,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return pulsar;
     }
 
-    public ScheduledExecutorService executor() {
+    public EventLoopGroup executor() {
         return workerGroup;
     }
 

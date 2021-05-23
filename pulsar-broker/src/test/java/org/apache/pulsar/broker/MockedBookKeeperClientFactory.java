@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import io.netty.channel.EventLoopGroup;
 
 import java.io.IOException;
 import java.util.concurrent.Executors;
@@ -31,6 +32,7 @@ import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 
+import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
@@ -40,29 +42,29 @@ public class MockedBookKeeperClientFactory implements BookKeeperClientFactory {
     private static final Logger log = LoggerFactory.getLogger(MockedBookKeeperClientFactory.class);
 
     private final BookKeeper mockedBk;
-    private final ExecutorService executor;
+    private final OrderedExecutor executor;
 
     public MockedBookKeeperClientFactory() {
         try {
-            executor = Executors.newSingleThreadExecutor(
-                    new ThreadFactoryBuilder().setNameFormat("mock-bk-client-factory")
-                    .setUncaughtExceptionHandler((thread, ex) -> log.info("Uncaught exception", ex))
-                    .build());
-            mockedBk = new PulsarMockBookKeeper(null, executor);
+            executor = OrderedExecutor.newBuilder()
+                    .numThreads(1)
+                    .name("mock-bk-client-factory")
+                    .build();
+            mockedBk = new PulsarMockBookKeeper(executor);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
     @Override
-    public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient,
+    public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient, EventLoopGroup eventLoopGroup,
             Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
             Map<String, Object> properties) throws IOException {
         return mockedBk;
     }
 
     @Override
-    public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient,
+    public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient, EventLoopGroup eventLoopGroup,
                              Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
                              Map<String, Object> properties, StatsLogger statsLogger) throws IOException {
         return mockedBk;

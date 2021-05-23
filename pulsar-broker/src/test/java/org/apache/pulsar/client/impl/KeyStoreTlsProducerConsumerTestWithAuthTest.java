@@ -119,6 +119,7 @@ public class KeyStoreTlsProducerConsumerTestWithAuthTest extends ProducerConsume
         }
 
         Set<String> tlsProtocols = Sets.newConcurrentHashSet();
+        tlsProtocols.add("TLSv1.3");
         tlsProtocols.add("TLSv1.2");
 
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(lookupUrl)

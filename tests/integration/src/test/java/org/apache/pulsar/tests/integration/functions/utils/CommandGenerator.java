@@ -30,6 +30,9 @@ import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 @Setter
 @ToString
 public class CommandGenerator {
+    private static final long MB = 1048576L;
+    private static final long JAVA_RUNTIME_RAM_BYTES = 128 * MB;
+
     public enum Runtime {
         JAVA,
         PYTHON,
@@ -119,7 +122,6 @@ public class CommandGenerator {
                 }
                 break;
         }
-
         return commandBuilder.toString();
     }
 
@@ -192,6 +194,7 @@ public class CommandGenerator {
         switch (runtime){
             case JAVA:
                 commandBuilder.append(" --jar " + JAVAJAR);
+                commandBuilder.append(" --ram " + JAVA_RUNTIME_RAM_BYTES);
                 break;
             case PYTHON:
                 if (codeFile != null) {
@@ -281,6 +284,7 @@ public class CommandGenerator {
             switch (runtime) {
                 case JAVA:
                     commandBuilder.append(" --jar " + JAVAJAR);
+                    commandBuilder.append(" --ram " + JAVA_RUNTIME_RAM_BYTES);
                     break;
                 case PYTHON:
                     if (codeFile != null) {

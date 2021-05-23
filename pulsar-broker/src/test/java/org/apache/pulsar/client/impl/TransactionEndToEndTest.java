@@ -46,7 +46,6 @@ import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -61,6 +60,7 @@ import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientExce
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.internal.DefaultImplementation;
+import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -73,6 +73,7 @@ import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -142,6 +143,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .subscriptionName("test")
                 .enableBatchIndexAcknowledgment(true)
                 .subscribe();
+        Awaitility.await().until(consumer::isConnected);
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient
                 .newProducer()
@@ -215,6 +217,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .subscriptionName(subName)
                 .enableBatchIndexAcknowledgment(true)
                 .subscribe();
+        Awaitility.await().until(consumer::isConnected);
 
         // Can't receive transaction messages before abort.
         Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
@@ -305,6 +308,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(subscriptionType)
                 .subscribe();
+        Awaitility.await().until(consumer::isConnected);
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
@@ -380,6 +384,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .enableBatchIndexAcknowledgment(true)
                 .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS)
                 .subscribe();
+        Awaitility.await().until(consumer::isConnected);
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient
@@ -503,6 +508,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .subscriptionType(subscriptionType)
                 .ackTimeout(1, TimeUnit.MINUTES)
                 .subscribe();
+        Awaitility.await().until(consumer::isConnected);
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
@@ -630,7 +636,6 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             txnIDList.add(new TxnID(txn.getTxnIdMostBits(), txn.getTxnIdLeastBits()));
         }
 
-        pulsarClient.close();
         @Cleanup
         PulsarClientImpl recoverPulsarClient = (PulsarClientImpl) PulsarClient.builder()
                 .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
@@ -649,6 +654,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .subscriptionName("test")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
+        Awaitility.await().until(consumer::isConnected);
 
         for (int i = 0; i < txnCnt * messageCnt; i++) {
             Message<byte[]> message = consumer.receive();
@@ -665,6 +671,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .topic(topic)
                 .subscriptionName("test")
                 .subscribe();
+        Awaitility.await().until(consumer::isConnected);
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
@@ -826,5 +833,70 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         assertEquals(reReceiveMessage.getMessageId(), message.getMessageId());
 
+    }
+
+    @DataProvider(name = "ackType")
+    public static Object[] ackType() {
+        return new Object[] {CommandAck.AckType.Cumulative, CommandAck.AckType.Individual};
+    }
+
+    @Test(dataProvider = "ackType")
+    public void txnTransactionRedeliverNullDispatcher(CommandAck.AckType ackType) throws Exception {
+        String topic = NAMESPACE1 + "/txnTransactionRedeliverNullDispatcher";
+        final String subName = "test";
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topic)
+                .subscriptionName(subName)
+                .enableBatchIndexAcknowledgment(true)
+                .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS)
+                .subscribe();
+        Awaitility.await().until(consumer::isConnected);
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topic)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .enableBatching(false)
+                .create();
+
+
+        int messageCnt = 10;
+        for (int i = 0; i < messageCnt; i++) {
+            producer.send(("Hello Txn - " + i).getBytes(UTF_8));
+        }
+        Transaction txn = getTxn();
+        if (ackType == CommandAck.AckType.Individual) {
+            consumer.acknowledgeAsync(consumer.receive().getMessageId(), txn);
+        } else {
+            consumer.acknowledgeCumulativeAsync(consumer.receive().getMessageId(), txn);
+        }
+        topic = TopicName.get(topic).toString();
+        boolean exist = false;
+        for (int i = 0; i < getPulsarServiceList().size(); i++) {
+
+            Field field = BrokerService.class.getDeclaredField("topics");
+            field.setAccessible(true);
+            ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics =
+                    (ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>>) field
+                            .get(getPulsarServiceList().get(i).getBrokerService());
+            CompletableFuture<Optional<Topic>> topicFuture = topics.get(topic);
+
+            if (topicFuture != null) {
+                Optional<Topic> topicOptional = topicFuture.get();
+                if (topicOptional.isPresent()) {
+                    PersistentSubscription persistentSubscription =
+                            (PersistentSubscription) topicOptional.get().getSubscription(subName);
+                    field = persistentSubscription.getClass().getDeclaredField("dispatcher");
+                    field.setAccessible(true);
+                    field.set(persistentSubscription, null);
+                    exist = true;
+                }
+            }
+        }
+        txn.abort().get();
+        assertTrue(exist);
     }
 }

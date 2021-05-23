@@ -184,10 +184,10 @@ void ConsumerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
 
     ClientImplPtr client = client_.lock();
     uint64_t requestId = client->newRequestId();
-    SharedBuffer cmd =
-        Commands::newSubscribe(topic_, subscription_, consumerId_, requestId, getSubType(), consumerName_,
-                               subscriptionMode_, startMessageId_, readCompacted_, config_.getProperties(),
-                               config_.getSchema(), getInitialPosition(), config_.getKeySharedPolicy());
+    SharedBuffer cmd = Commands::newSubscribe(
+        topic_, subscription_, consumerId_, requestId, getSubType(), consumerName_, subscriptionMode_,
+        startMessageId_, readCompacted_, config_.getProperties(), config_.getSchema(), getInitialPosition(),
+        config_.isReplicateSubscriptionStateEnabled(), config_.getKeySharedPolicy());
     cnx->sendRequestWithId(cmd, requestId)
         .addListener(
             std::bind(&ConsumerImpl::handleCreateConsumer, shared_from_this(), cnx, std::placeholders::_1));
@@ -204,7 +204,7 @@ void ConsumerImpl::connectionFailed(Result result) {
 }
 
 void ConsumerImpl::sendFlowPermitsToBroker(const ClientConnectionPtr& cnx, int numMessages) {
-    if (cnx) {
+    if (cnx && numMessages > 0) {
         LOG_DEBUG(getName() << "Send more permits: " << numMessages);
         SharedBuffer cmd = Commands::newFlow(consumerId_, static_cast<unsigned int>(numMessages));
         cnx->sendCommand(cmd);

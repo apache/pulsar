@@ -33,6 +33,7 @@ import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.Timeout;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -81,6 +82,7 @@ import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.apache.pulsar.client.util.RetryUtil;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
@@ -855,7 +857,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
      * send the flow command to have the broker start pushing messages
      */
     private void sendFlowPermitsToBroker(ClientCnx cnx, int numMessages) {
-        if (cnx != null) {
+        if (cnx != null && numMessages > 0) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Adding {} additional permits", topic, subscription, numMessages);
             }
@@ -1454,10 +1456,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
         }
 
-        ByteBuf decryptedData = this.msgCrypto.decrypt(() -> msgMetadata, payload, conf.getCryptoKeyReader());
-        if (decryptedData != null) {
+
+        int maxDecryptedSize = msgCrypto.getMaxOutputSize(payload.readableBytes());
+        ByteBuf decryptedData = PulsarByteBufAllocator.DEFAULT.buffer(maxDecryptedSize);
+        ByteBuffer nioDecryptedData = decryptedData.nioBuffer(0, maxDecryptedSize);
+        if (msgCrypto.decrypt(() -> msgMetadata, payload.nioBuffer(), nioDecryptedData, conf.getCryptoKeyReader())) {
+            decryptedData.writerIndex(nioDecryptedData.limit());
             return decryptedData;
         }
+
+        decryptedData.release();
 
         switch (conf.getCryptoFailureAction()) {
             case CONSUME:
@@ -2198,7 +2206,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             this.connectionHandler.setClientCnx(clientCnx);
             clientCnx.registerConsumer(consumerId, this);
             if (conf.isAckReceiptEnabled() &&
-                    Commands.peerSupportsAckReceipt(clientCnx.getRemoteEndpointProtocolVersion())) {
+                    !Commands.peerSupportsAckReceipt(clientCnx.getRemoteEndpointProtocolVersion())) {
                 log.warn("Server don't support ack for receipt! " +
                         "ProtoVersion >=17 support! nowVersion : {}", clientCnx.getRemoteEndpointProtocolVersion());
             }

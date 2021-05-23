@@ -165,6 +165,27 @@ public class RateLimiterTest {
     }
 
     @Test
+    public void testDispatchRate() throws Exception {
+        final long rateTimeMSec = 1000;
+        final int permits = 100;
+        RateLimiter rate = new RateLimiter(null, permits, rateTimeMSec, TimeUnit.MILLISECONDS, null, true);
+        rate.tryAcquire(100);
+        rate.tryAcquire(100);
+        rate.tryAcquire(100);
+        assertEquals(rate.getAvailablePermits(), 0);
+
+        Thread.sleep(rateTimeMSec * 2);
+        // check after two rate-time: acquiredPermits is 100
+        assertEquals(rate.getAvailablePermits(), 0);
+
+        Thread.sleep(rateTimeMSec);
+        // check after three rate-time: acquiredPermits is 0
+        assertEquals(rate.getAvailablePermits() > 0, true);
+
+        rate.close();
+    }
+
+    @Test
     public void testRateLimiterWithPermitUpdater() throws Exception {
         long permits = 10;
         long rateTime = 1;

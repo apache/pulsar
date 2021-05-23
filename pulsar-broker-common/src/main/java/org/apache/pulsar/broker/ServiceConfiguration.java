@@ -25,6 +25,7 @@ import io.netty.util.internal.PlatformDependent;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
@@ -33,6 +34,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
+import org.apache.pulsar.broker.validator.MultipleListenerValidator;
 import org.apache.pulsar.common.configuration.Category;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
@@ -43,6 +45,7 @@ import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.sasl.SaslConstants;
+import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 
 /**
  * Pulsar service configuration object.
@@ -220,10 +223,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "Number of threads to use for pulsar broker service."
-                    + " The executor in thread pool will do transaction recover"
+            doc = "Option to enable busy-wait settings. Default is false. "
+                    + "WARNING: This option will enable spin-waiting on executors and IO threads in order "
+                    + "to reduce latency during context switches. The spinning will consume 100% CPU even "
+                    + "when the broker is not doing any work. It is recommended to reduce the number of IO threads "
+                    + "and BK client threads to only have few CPU cores busy."
     )
-    private int numTransactionExecutorThreadPoolSize = Runtime.getRuntime().availableProcessors();
+    private boolean enableBusyWait = false;
 
     @FieldContext(category = CATEGORY_SERVER, doc = "Max concurrent web requests")
     private int maxConcurrentHttpRequests = 1024;
@@ -1024,7 +1030,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_TLS,
         doc = "Specify the tls protocols the broker will use to negotiate during TLS Handshake.\n\n"
-            + "Example:- [TLSv1.2, TLSv1.1, TLSv1]"
+            + "Example:- [TLSv1.3, TLSv1.2]"
     )
     private Set<String> tlsProtocols = Sets.newTreeSet();
     @FieldContext(
@@ -1125,6 +1131,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "If >0, it will reject all HTTP requests with bodies larged than the configured limit"
     )
     private long httpMaxRequestSize = -1;
+
+    @FieldContext(
+        category =  CATEGORY_HTTP,
+        doc = "If true, the broker will reject all HTTP requests using the TRACE and TRACK verbs.\n"
+        + " This setting may be necessary if the broker is deployed into an environment that uses http port\n"
+        + " scanning and flags web servers allowing the TRACE method as insecure."
+    )
+    private boolean disableHttpDebugMethods = false;
 
     @FieldContext(
             category =  CATEGORY_HTTP,
@@ -1325,6 +1339,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Throttle value for bookkeeper client"
     )
     private int bookkeeperClientThrottleValue = 0;
+
+    @FieldContext(
+            category = CATEGORY_STORAGE_BK,
+            doc = "Number of BookKeeper client worker threads. Default is Runtime.getRuntime().availableProcessors()"
+    )
+    private int bookkeeperClientNumWorkerThreads = Runtime.getRuntime().availableProcessors();
+
 
     /**** --- Managed Ledger --- ****/
     @FieldContext(
@@ -2038,6 +2059,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_TRANSACTION,
+            doc = "Class name for transaction pending ack store provider"
+    )
+    private String transactionPendingAckStoreProviderClassName =
+            "org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStoreProvider";
+
+    @FieldContext(
+            category = CATEGORY_TRANSACTION,
+            doc = "Number of threads to use for pulsar transaction replay PendingAckStore or TransactionBuffer."
+                    + "Default is 5"
+    )
+    private int numTransactionReplayThreadPoolSize = Runtime.getRuntime().availableProcessors();
+
+    @FieldContext(
+            category = CATEGORY_TRANSACTION,
             doc = "Transaction buffer take snapshot transaction count"
     )
     private int transactionBufferSnapshotMaxTransactionCount = 1000;
@@ -2139,7 +2174,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_KEYSTORE_TLS,
             doc = "Specify the tls protocols the broker will use to negotiate during TLS handshake"
                   + " (a comma-separated list of protocol names).\n\n"
-                  + "Examples:- [TLSv1.2, TLSv1.1, TLSv1] \n"
+                  + "Examples:- [TLSv1.3, TLSv1.2] \n"
                   + " used by the internal client to authenticate with Pulsar brokers"
     )
     private Set<String> brokerClientTlsProtocols = Sets.newTreeSet();
@@ -2255,4 +2290,5 @@ public class ServiceConfiguration implements PulsarConfiguration {
             return brokerDeleteInactiveTopicsMaxInactiveDurationSeconds;
         }
     }
+
 }
