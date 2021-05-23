@@ -342,7 +342,7 @@ public class DispatchRateLimiter {
         if (msgRate > 0) {
             if (this.dispatchRateLimiterOnMessage == null) {
                 this.dispatchRateLimiterOnMessage = new RateLimiter(brokerService.pulsar().getExecutor(), msgRate,
-                        ratePeriod, TimeUnit.SECONDS, permitUpdaterMsg);
+                        ratePeriod, TimeUnit.SECONDS, permitUpdaterMsg, true);
             } else {
                 this.dispatchRateLimiterOnMessage.setRate(msgRate, dispatchRate.ratePeriodInSecond,
                         TimeUnit.SECONDS, permitUpdaterMsg);
@@ -362,7 +362,7 @@ public class DispatchRateLimiter {
         if (byteRate > 0) {
             if (this.dispatchRateLimiterOnByte == null) {
                 this.dispatchRateLimiterOnByte = new RateLimiter(brokerService.pulsar().getExecutor(), byteRate,
-                        ratePeriod, TimeUnit.SECONDS, permitUpdaterByte);
+                        ratePeriod, TimeUnit.SECONDS, permitUpdaterByte, true);
             } else {
                 this.dispatchRateLimiterOnByte.setRate(byteRate, dispatchRate.ratePeriodInSecond,
                         TimeUnit.SECONDS, permitUpdaterByte);
