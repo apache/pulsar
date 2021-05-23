@@ -62,6 +62,7 @@ public class RateLimiter implements AutoCloseable{
     // permitUpdate helps to update permit-rate at runtime
     private Supplier<Long> permitUpdater;
     private RateLimitFunction rateLimitFunction;
+    private boolean isDispatchRateLimiter;
 
     public RateLimiter(final long permits, final long rateTime, final TimeUnit timeUnit) {
         this(null, permits, rateTime, timeUnit, null);
@@ -74,7 +75,12 @@ public class RateLimiter implements AutoCloseable{
     }
 
     public RateLimiter(final ScheduledExecutorService service, final long permits, final long rateTime,
-            final TimeUnit timeUnit, Supplier<Long> permitUpdater) {
+                       final TimeUnit timeUnit, Supplier<Long> permitUpdater) {
+        this(service, permits, rateTime, timeUnit, permitUpdater, false);
+    }
+
+    public RateLimiter(final ScheduledExecutorService service, final long permits, final long rateTime,
+            final TimeUnit timeUnit, Supplier<Long> permitUpdater, boolean isDispatchRateLimiter) {
         checkArgument(permits > 0, "rate must be > 0");
         checkArgument(rateTime > 0, "Renew permit time must be > 0");
 
@@ -82,6 +88,7 @@ public class RateLimiter implements AutoCloseable{
         this.timeUnit = timeUnit;
         this.permits = permits;
         this.permitUpdater = permitUpdater;
+        this.isDispatchRateLimiter = isDispatchRateLimiter;
 
         if (service != null) {
             this.executorService = service;
@@ -174,15 +181,22 @@ public class RateLimiter implements AutoCloseable{
             renewTask = createTask();
         }
 
-        // acquired-permits can't be larger than the rate
-        if (acquirePermit > this.permits) {
-            acquiredPermits = this.permits;
-            return false;
-        }
         boolean canAcquire = acquirePermit < 0 || acquiredPermits < this.permits;
-        if (canAcquire) {
+        if (isDispatchRateLimiter) {
+            // for dispatch rate limiter just add acquirePermit
             acquiredPermits += acquirePermit;
+        } else {
+            // acquired-permits can't be larger than the rate
+            if (acquirePermit > this.permits) {
+                acquiredPermits = this.permits;
+                return false;
+            }
+
+            if (canAcquire) {
+                acquiredPermits += acquirePermit;
+            }
         }
+
         return canAcquire;
     }
 
@@ -245,7 +259,7 @@ public class RateLimiter implements AutoCloseable{
     }
 
     synchronized void renew() {
-        acquiredPermits = 0;
+        acquiredPermits = isDispatchRateLimiter ? Math.max(0, acquiredPermits - permits) : 0;
         if (permitUpdater != null) {
             long newPermitRate = permitUpdater.get();
             if (newPermitRate > 0) {
