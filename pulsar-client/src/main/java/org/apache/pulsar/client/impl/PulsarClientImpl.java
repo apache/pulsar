@@ -937,7 +937,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     private static EventLoopGroup getEventLoopGroup(ClientConfigurationData conf) {
         ThreadFactory threadFactory = getThreadFactory("pulsar-client-io");
-        return EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), threadFactory);
+        return EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), conf.isEnableBusyWait(), threadFactory);
     }
 
     private static ThreadFactory getThreadFactory(String poolName) {

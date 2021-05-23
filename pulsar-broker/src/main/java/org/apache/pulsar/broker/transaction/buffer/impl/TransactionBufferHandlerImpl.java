@@ -143,7 +143,8 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
                 } else {
                     log.error("endTxn error topic: [{}]", topic, throwable);
                     cache.invalidate(topic);
-                    cb.completeExceptionally(throwable);
+                    cb.completeExceptionally(
+                            new PulsarClientException.LookupException(throwable.getMessage()));
                     op.recycle();
                 }
             });

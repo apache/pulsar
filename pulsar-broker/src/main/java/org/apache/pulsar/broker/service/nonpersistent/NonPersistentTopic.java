@@ -35,6 +35,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.util.concurrent.atomic.LongAdder;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -75,6 +76,7 @@ import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublisherStats;
+import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
@@ -95,6 +97,9 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     private static final AtomicLongFieldUpdater<NonPersistentTopic> ENTRIES_ADDED_COUNTER_UPDATER =
             AtomicLongFieldUpdater.newUpdater(NonPersistentTopic.class, "entriesAddedCounter");
     private volatile long entriesAddedCounter = 0;
+
+    private final LongAdder bytesOutFromRemovedSubscriptions = new LongAdder();
+    private final LongAdder msgOutFromRemovedSubscriptions = new LongAdder();
 
     private static final FastThreadLocal<TopicStats> threadLocalTopicStats = new FastThreadLocal<TopicStats>() {
         @Override
@@ -778,6 +783,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         stats.msgInCounter = getMsgInCounter();
         stats.bytesInCounter = getBytesInCounter();
         stats.waitingPublishers = getWaitingProducersCount();
+        stats.bytesOutCounter = bytesOutFromRemovedSubscriptions.longValue();
+        stats.msgOutCounter = msgOutFromRemovedSubscriptions.longValue();
 
         subscriptions.forEach((name, subscription) -> {
             NonPersistentSubscriptionStats subStats = subscription.getStats();
@@ -974,7 +981,13 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     public CompletableFuture<Void> unsubscribe(String subscriptionName) {
         // checkInactiveSubscriptions iterates over subscriptions map and removing from the map with the same thread.
         // That creates deadlock. so, execute remove it in different thread.
-        return CompletableFuture.runAsync(() -> subscriptions.remove(subscriptionName), brokerService.executor());
+        return CompletableFuture.runAsync(() -> {
+            NonPersistentSubscription sub = subscriptions.remove(subscriptionName);
+            // preserve accumulative stats form removed subscription
+            SubscriptionStats stats = sub.getStats();
+            bytesOutFromRemovedSubscriptions.add(stats.bytesOutCounter);
+            msgOutFromRemovedSubscriptions.add(stats.msgOutCounter);
+        }, brokerService.executor());
     }
 
     @Override
