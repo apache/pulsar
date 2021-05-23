@@ -366,6 +366,9 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                     log.info("[{}] Successfully initialize managed ledger", name);
                     pendingInitializeLedgers.remove(name, pendingLedger);
                     future.complete(newledger);
+
+                    // May need to update the cursor position
+                    newledger.maybeUpdateCursorBeforeTrimmingConsumedLedger();
                 }
 
                 @Override
