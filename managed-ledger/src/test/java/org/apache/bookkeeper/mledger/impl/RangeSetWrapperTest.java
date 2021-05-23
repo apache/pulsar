@@ -56,6 +56,7 @@ public class RangeSetWrapperTest {
         orderedScheduler = OrderedScheduler.newSchedulerBuilder()
                 .numThreads(2).build();
         doReturn(managedLedgerConfig).when(managedLedger).getConfig();
+        doReturn(managedLedgerConfig).when(managedCursor).getConfig();
         doReturn(orderedScheduler).when(managedLedger).getScheduledExecutor();
         doReturn(managedLedger).when(managedCursor).getManagedLedger();
     }

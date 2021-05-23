@@ -421,25 +421,25 @@ public class MultiEntryPositionTest extends MockedBookKeeperTestCase {
         String name = "my_test_ledger" + UUID.randomUUID();
         ManagedLedger ledger = factory.open(name, config);
         ManagedCursorImpl cursor = initCursorAndData(ledger);
+        cursor.startCreatingNewMetadataLedger();
+        Awaitility.await().untilAsserted(() -> assertEquals(cursor.getState(), "Open"));
         Optional<MLDataFormats.PositionInfo> optionalPositionInfo =
                 cursor.getLastAvailableMarker(cursor.getCursorLedgerHandle());
         assertTrue(optionalPositionInfo.isPresent());
         List<MLDataFormats.MarkerIndexInfo> markerIndexInfos = optionalPositionInfo.get().getMarkerIndexInfoList();
-        assertEquals(markerIndexInfos.size(), 4);
+        assertEquals(markerIndexInfos.size(), 3);
 
         MetaStore mockMetaStore = mock(MetaStore.class);
-        doAnswer(new Answer<Object>() {
-            public Object answer(InvocationOnMock invocation) {
-                MLDataFormats.ManagedCursorInfo info = MLDataFormats.ManagedCursorInfo.newBuilder()
-                        .setCursorsLedgerId(cursor.getCursorLedger())
-                        .setMarkDeleteLedgerId(3).setMarkDeleteEntryId(1)
-                        .setLastActive(0L).build();
-                Stat stat = mock(Stat.class);
-                MetaStore.MetaStoreCallback<MLDataFormats.ManagedCursorInfo> callback =
-                        (MetaStore.MetaStoreCallback<MLDataFormats.ManagedCursorInfo>) invocation.getArguments()[2];
-                callback.operationComplete(info, stat);
-                return null;
-            }
+        doAnswer((Answer<Object>) invocation -> {
+            MLDataFormats.ManagedCursorInfo info = MLDataFormats.ManagedCursorInfo.newBuilder()
+                    .setCursorsLedgerId(cursor.getCursorLedger())
+                    .setMarkDeleteLedgerId(3).setMarkDeleteEntryId(1)
+                    .setLastActive(0L).build();
+            Stat stat = mock(Stat.class);
+            MetaStore.MetaStoreCallback<MLDataFormats.ManagedCursorInfo> callback =
+                    (MetaStore.MetaStoreCallback<MLDataFormats.ManagedCursorInfo>) invocation.getArguments()[2];
+            callback.operationComplete(info, stat);
+            return null;
         }).when(mockMetaStore).asyncGetCursorInfo(eq(name), eq("c1"), any(MetaStore.MetaStoreCallback.class));
         cursor.getRangeMarker().clear();
         cursor.getIndividuallyDeletedMessagesSet().clear();
@@ -459,6 +459,7 @@ public class MultiEntryPositionTest extends MockedBookKeeperTestCase {
         // markDelete position is (4,5]
         assertEquals(cursor.getRangeMarker().size(), 3);
         assertEquals(cursor.getIndividuallyDeletedMessagesSet().size(), 3);
+        assertEquals(cursor.getIndividuallyDeletedMessagesSet().toString(), "[(5:0..5:1],(6:0..6:1],(7:0..7:1]]");
     }
 
     private ManagedCursorImpl initCursorAndData(ManagedLedger ledger) throws InterruptedException, ManagedLedgerException, java.util.concurrent.ExecutionException {
@@ -505,5 +506,10 @@ public class MultiEntryPositionTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testCompatibility() throws Exception {
+    }
+
+    @Test
+    public void testLoadLruRangeFromLedger() throws Exception {
+
     }
 }

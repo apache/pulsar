@@ -59,7 +59,7 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
 
     public RangeSetWrapper(LongPairConsumer<T> rangeConverter, ManagedCursorImpl managedCursor) {
         checkNotNull(managedCursor);
-        this.config = managedCursor.getManagedLedger().getConfig();
+        this.config = managedCursor.getConfig();
         this.managedCursor = managedCursor;
         this.rangeConverter = rangeConverter;
         this.rangeSet = config.isUnackedRangesOpenCacheSetEnabled()
@@ -142,7 +142,7 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
             }
             try {
                 Enumeration<LedgerEntry> entryEnumeration = managedCursor.getCursorLedgerHandle()
-                                .readEntries(positionInfo.getLedgerId(), positionInfo.getEntryId());
+                                .readEntries(positionInfo.getEntryId(), positionInfo.getEntryId());
                 if(entryEnumeration.hasMoreElements()){
                     LedgerEntry ledgerEntry = entryEnumeration.nextElement();
                     MLDataFormats.PositionInfo entryPosition =
