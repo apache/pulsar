@@ -33,6 +33,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -230,6 +231,12 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
         }
     }
 
+    public Set<Long> getDirtyKeyRecords() {
+        Set<Long> set = new HashSet<>(dirtyKeyRecorder);
+        dirtyKeyRecorder.removeAll(set);
+        return set;
+    }
+
     public Set<Long> getDirtyKeyRecorder() {
         return dirtyKeyRecorder;
     }
@@ -247,6 +254,9 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
                 log.debug("start schedule LruTask, keys in cache:{}", lruCounter.getKeys());
                 // remove invalid key which is removed in rangeSet
                 Range<T> firstRange = rangeSet.firstRange();
+                if (firstRange == null) {
+                    return;
+                }
                 // use Iterator to avoid ConcurrentModifyException
                 Iterator<Long> iterator = lruCounter.getKeys().iterator();
                 while (iterator.hasNext()) {
@@ -307,6 +317,10 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
                 return entry.getKey();
             }
             return null;
+        }
+
+        public void clear() {
+            linkedHashMap.clear();
         }
 
         public Map.Entry<K, V> getEldestEntry() {

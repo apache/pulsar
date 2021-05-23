@@ -27,18 +27,28 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
+import org.apache.pulsar.metadata.api.Stat;
 import org.awaitility.Awaitility;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.testng.annotations.Test;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertTrue;
 
@@ -201,7 +211,6 @@ public class MultiEntryPositionTest extends MockedBookKeeperTestCase {
                     assertEquals(markerIndexInfo.getEntryPosition().getLedgerId(), newLedgerId);
                     assertEquals(markerIndexInfo.getEntryPosition().getEntryId(), subCounter.getAndIncrement());
                 });
-                assertEquals(subCounter.get(), 3);
                 continue;
             } else {
                 assertEquals(positionInfo.getMarkerIndexInfoCount(), 0);
@@ -315,5 +324,186 @@ public class MultiEntryPositionTest extends MockedBookKeeperTestCase {
             assertEquals(range.getUpperEndpoint(), positionBuilder.setLedgerId(counter).setEntryId(1).build());
             counter++;
         }
+    }
+
+    /**
+     * Covered chain: initialize -> createNewMetadataLedgerAndSwitch -> doCreateNewMetadataLedger -> switchToNewLedger
+     * @throws Exception
+     */
+    @Test
+    public void testInitialize() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setEnableLruCacheMaxUnackedRanges(true);
+        ManagedLedger ledger = factory.open("my_test_ledger" + UUID.randomUUID(), config);
+        ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
+        long ledgerId = c1.getCursorLedgerHandle().getId();
+        c1.getIndividuallyDeletedMessagesSet().addOpenClosed(4, 0, 4, 1);
+        c1.getIndividuallyDeletedMessagesSet().addOpenClosed(5, 0, 5, 1);
+        c1.getIndividuallyDeletedMessagesSet().addOpenClosed(6, 0, 6, 1);
+        c1.getIndividuallyDeletedMessagesSet().addOpenClosed(7, 0, 7, 1);
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        c1.initialize(new PositionImpl(5, 5), Collections.emptyMap(), new ManagedCursorImpl.VoidCallback() {
+            @Override
+            public void operationComplete() {
+                future.complete(null);
+            }
+
+            @Override
+            public void operationFailed(ManagedLedgerException exception) {
+                future.completeExceptionally(exception);
+            }
+        });
+        future.get();
+        assertEquals(c1.getIndividuallyDeletedMessagesSet().size(), 4);
+        assertEquals(c1.getCursorLedgerHandle().getId(), ++ledgerId);
+        assertEquals(c1.getCursorLedgerHandle().getLastAddConfirmed(), 0);
+
+        CompletableFuture<Void> future2 = new CompletableFuture<>();
+        c1.pendingMarkDeleteOps.add(new ManagedCursorImpl.MarkDeleteEntry(new PositionImpl(5, 5),
+                new HashMap<>(), new AsyncCallbacks.MarkDeleteCallback() {
+            @Override
+            public void markDeleteComplete(Object ctx) {
+                future2.complete(null);
+            }
+
+            @Override
+            public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                future2.completeExceptionally(exception);
+            }
+        }, null));
+        c1.internalFlushPendingMarkDeletes();
+        future2.get();
+        assertEquals(c1.getIndividuallyDeletedMessagesSet().toString(), "[(6:0..6:1],(7:0..7:1]]");
+        assertEquals(c1.getCursorLedgerHandle().getId(), ledgerId);
+        assertEquals(c1.getRangeMarker().size(), 2);
+        assertTrue(c1.getRangeMarker().containsKey(6L));
+        assertTrue(c1.getRangeMarker().containsKey(7L));
+
+        long entryId = c1.getRangeMarker().get(6L).getEntryId();
+        long newLedgerId = ledgerId;
+        Enumeration<LedgerEntry> entries = c1.getCursorLedgerHandle()
+                .readEntries(entryId, entryId + 2);
+        int counter = 0;
+        long startLedgerId = 6;
+        MLDataFormats.NestedPositionInfo.Builder positionBuilder = MLDataFormats.NestedPositionInfo.newBuilder();
+        while (entries.hasMoreElements()) {
+            LedgerEntry entry = entries.nextElement();
+            MLDataFormats.PositionInfo positionInfo = MLDataFormats.PositionInfo.parseFrom(entry.getEntryInputStream());
+            if (counter == 2) {
+                //the last entry is marker
+                assertEquals(positionInfo.getMarkerIndexInfoCount(), 4);
+                // start from 4, entryId is 6
+                AtomicLong subCounter = new AtomicLong(entryId - 2);
+                positionInfo.getMarkerIndexInfoList().forEach(markerIndexInfo -> {
+                    assertEquals(markerIndexInfo.getEntryPosition().getLedgerId(), newLedgerId);
+                    assertEquals(markerIndexInfo.getEntryPosition().getEntryId(), subCounter.getAndIncrement());
+                });
+                continue;
+            } else {
+                assertEquals(positionInfo.getMarkerIndexInfoCount(), 0);
+            }
+            MLDataFormats.MessageRange range = positionInfo.getIndividualDeletedMessagesList().get(0);
+            assertEquals(range.getLowerEndpoint(),
+                    positionBuilder.setLedgerId(startLedgerId + counter).setEntryId(0).build());
+            assertEquals(range.getUpperEndpoint(),
+                    positionBuilder.setLedgerId(startLedgerId + counter).setEntryId(1).build());
+            counter++;
+        }
+
+        c1.close();
+        ledger.close();
+    }
+
+    @Test
+    public void testRecovery() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setEnableLruCacheMaxUnackedRanges(true);
+        String name = "my_test_ledger" + UUID.randomUUID();
+        ManagedLedger ledger = factory.open(name, config);
+        ManagedCursorImpl cursor = initCursorAndData(ledger);
+        Optional<MLDataFormats.PositionInfo> optionalPositionInfo =
+                cursor.getLastAvailableMarker(cursor.getCursorLedgerHandle());
+        assertTrue(optionalPositionInfo.isPresent());
+        List<MLDataFormats.MarkerIndexInfo> markerIndexInfos = optionalPositionInfo.get().getMarkerIndexInfoList();
+        assertEquals(markerIndexInfos.size(), 4);
+
+        MetaStore mockMetaStore = mock(MetaStore.class);
+        doAnswer(new Answer<Object>() {
+            public Object answer(InvocationOnMock invocation) {
+                MLDataFormats.ManagedCursorInfo info = MLDataFormats.ManagedCursorInfo.newBuilder()
+                        .setCursorsLedgerId(cursor.getCursorLedger())
+                        .setMarkDeleteLedgerId(3).setMarkDeleteEntryId(1)
+                        .setLastActive(0L).build();
+                Stat stat = mock(Stat.class);
+                MetaStore.MetaStoreCallback<MLDataFormats.ManagedCursorInfo> callback =
+                        (MetaStore.MetaStoreCallback<MLDataFormats.ManagedCursorInfo>) invocation.getArguments()[2];
+                callback.operationComplete(info, stat);
+                return null;
+            }
+        }).when(mockMetaStore).asyncGetCursorInfo(eq(name), eq("c1"), any(MetaStore.MetaStoreCallback.class));
+        cursor.getRangeMarker().clear();
+        cursor.getIndividuallyDeletedMessagesSet().clear();
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        cursor.recover(new ManagedCursorImpl.VoidCallback() {
+            @Override
+            public void operationComplete() {
+                future.complete(null);
+            }
+
+            @Override
+            public void operationFailed(ManagedLedgerException exception) {
+                future.completeExceptionally(exception);
+            }
+        });
+        future.get();
+        // markDelete position is (4,5]
+        assertEquals(cursor.getRangeMarker().size(), 3);
+        assertEquals(cursor.getIndividuallyDeletedMessagesSet().size(), 3);
+    }
+
+    private ManagedCursorImpl initCursorAndData(ManagedLedger ledger) throws InterruptedException, ManagedLedgerException, java.util.concurrent.ExecutionException {
+        ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
+        long ledgerId = c1.getCursorLedgerHandle().getId();
+        c1.getIndividuallyDeletedMessagesSet().addOpenClosed(4, 0, 4, 1);
+        c1.getIndividuallyDeletedMessagesSet().addOpenClosed(5, 0, 5, 1);
+        c1.getIndividuallyDeletedMessagesSet().addOpenClosed(6, 0, 6, 1);
+        c1.getIndividuallyDeletedMessagesSet().addOpenClosed(7, 0, 7, 1);
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        c1.initialize(new PositionImpl(4, 5), Collections.emptyMap(), new ManagedCursorImpl.VoidCallback() {
+            @Override
+            public void operationComplete() {
+                future.complete(null);
+            }
+
+            @Override
+            public void operationFailed(ManagedLedgerException exception) {
+                future.completeExceptionally(exception);
+            }
+        });
+        future.get();
+        assertEquals(c1.getIndividuallyDeletedMessagesSet().size(), 4);
+        assertEquals(c1.getCursorLedgerHandle().getId(), ++ledgerId);
+        assertEquals(c1.getCursorLedgerHandle().getLastAddConfirmed(), 0);
+
+        CompletableFuture<Void> future2 = new CompletableFuture<>();
+        c1.pendingMarkDeleteOps.add(new ManagedCursorImpl.MarkDeleteEntry(new PositionImpl(4, 5),
+                new HashMap<>(), new AsyncCallbacks.MarkDeleteCallback() {
+            @Override
+            public void markDeleteComplete(Object ctx) {
+                future2.complete(null);
+            }
+
+            @Override
+            public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                future2.completeExceptionally(exception);
+            }
+        }, null));
+        c1.internalFlushPendingMarkDeletes();
+        future2.get();
+        return c1;
+    }
+
+    @Test
+    public void testCompatibility() throws Exception {
     }
 }

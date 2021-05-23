@@ -349,7 +349,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
-    private void recoverFromMultiEntry(ManagedCursorInfo info, VoidCallback callback) {
+    void recoverFromMultiEntry(ManagedCursorInfo info, VoidCallback callback) {
         ledger.mbean.startCursorLedgerOpenOp();
         long ledgerId = info.getCursorsLedgerId();
         OpenCallback openCallback = (rc, lh, ctx) -> {
@@ -364,13 +364,12 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
             PositionInfo markerPosition = optional.get();
             try {
+                rangeMarker.clear();
                 for (MLDataFormats.MarkerIndexInfo markerIndexInfo : markerPosition.getMarkerIndexInfoList()) {
                     MLDataFormats.NestedPositionInfo nestedPositionInfo = markerIndexInfo.getEntryPosition();
-                    Enumeration<LedgerEntry> entryEnumeration = lh.readEntries(nestedPositionInfo.getEntryId(),
-                            nestedPositionInfo.getEntryId());
-                    if (entryEnumeration.hasMoreElements()) {
-                        LedgerEntry entry = entryEnumeration.nextElement();
-                        PositionInfo entryPosition = PositionInfo.parseDelimitedFrom(entry.getEntryInputStream());
+                    LedgerEntry ledgerEntry = readEntries(lh, nestedPositionInfo.getEntryId());
+                    if (ledgerEntry != null) {
+                        PositionInfo entryPosition = PositionInfo.parseDelimitedFrom(ledgerEntry.getEntryInputStream());
                         if (entryPosition.getIndividualDeletedMessagesCount() > 0) {
                             recoverIndividualDeletedMessages(entryPosition.getIndividualDeletedMessagesList(), false);
                         }
@@ -378,6 +377,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                                 && entryPosition.getBatchedEntryDeletionIndexInfoCount() > 0) {
                             recoverBatchDeletedIndexes(entryPosition.getBatchedEntryDeletionIndexInfoList(), false);
                         }
+                        rangeMarker.put(markerIndexInfo.getTargetLedgerId(), nestedPositionInfo);
                     }
                     if (individualDeletedMessages.size() > config.getMaxUnackedRangesInMemoryBytes()) {
                         break;
@@ -392,9 +392,11 @@ public class ManagedCursorImpl implements ManagedCursor {
         };
         try {
             bookkeeper.asyncOpenLedger(ledgerId, digestType, config.getPassword(), openCallback, null);
+            ledger.mbean.endCursorLedgerOpenOp();
         } catch (Throwable t) {
             log.error("[{}] Encountered error on opening cursor ledger {} for cursor {}",
                     ledger.getName(), ledgerId, name, t);
+            ledger.mbean.endCursorLedgerOpenOp();
             openCallback.openComplete(BKException.Code.UnexpectedConditionException, null, null);
         }
     }
@@ -611,6 +613,25 @@ public class ManagedCursorImpl implements ManagedCursor {
                 callback.operationFailed(exception);
             }
         });
+    }
+
+    public LedgerEntry readEntries(LedgerHandle ledgerHandle, long entryId) {
+        CompletableFuture<LedgerEntry> future = new CompletableFuture<>();
+        ledgerHandle.asyncReadEntries(entryId, entryId, (rc1, lh1, seq, ctx1) -> {
+            if (rc1 != BKException.Code.OK) {
+                future.completeExceptionally(BKException.create(rc1));
+            }
+            if (seq.hasMoreElements()) {
+                future.complete(seq.nextElement());
+            } else {
+                future.complete(null);
+            }
+        }, null);
+        try {
+            return future.get(config.getMetadataOperationsTimeoutSeconds(), TimeUnit.SECONDS);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
@@ -1818,12 +1839,12 @@ public class ManagedCursorImpl implements ManagedCursor {
                 try {
                     individualDeletedMessages.removeAtMost(mdEntry.newPosition.getLedgerId(),
                             mdEntry.newPosition.getEntryId());
-                    cleanRangeMarker();
                     if (config.isDeletionAtBatchIndexLevelEnabled() && batchDeletedIndexes != null) {
                         Map<PositionImpl, BitSetRecyclable> subMap = batchDeletedIndexes.subMap(PositionImpl.earliest, false, PositionImpl.get(mdEntry.newPosition.getLedgerId(), mdEntry.newPosition.getEntryId()), true);
                         subMap.values().forEach(BitSetRecyclable::recycle);
                         subMap.clear();
                     }
+                    cleanRangeMarker();
                 } finally {
                     lock.writeLock().unlock();
                 }
@@ -2588,9 +2609,9 @@ public class ManagedCursorImpl implements ManagedCursor {
     private List<MLDataFormats.MarkerIndexInfo> buildMarkerIndexMap(
             Map<Long, MLDataFormats.NestedPositionInfo> rangeMarker) {
         MLDataFormats.MarkerIndexInfo.Builder builder = MLDataFormats.MarkerIndexInfo.newBuilder();
-        return rangeMarker.entrySet().stream().map((entry) ->
-                builder.setTargetLedgerId(entry.getKey()).setEntryPosition(entry.getValue()).build())
-                .collect(Collectors.toList());
+        return rangeMarker.entrySet().stream()
+                .map((entry) -> builder.setTargetLedgerId(entry.getKey()).setEntryPosition(entry.getValue())
+                        .build()).collect(Collectors.toList());
     }
 
     private Map<String, Long> buildPropertiesMap(List<LongProperty> longProperties) {
@@ -2680,20 +2701,19 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     private synchronized void persistPositionToMultiEntry(LedgerHandle lh, MarkDeleteEntry mdEntry, VoidCallback callback) {
         checkNotNull(lh);
-        RangeSetWrapper<PositionImpl> rangeSetWrapper;
+        RangeSetWrapper<PositionImpl> rangeSetWrapper = (RangeSetWrapper<PositionImpl>) individualDeletedMessages;
+        Set<Long> dirtyRange = new HashSet<>(rangeSetWrapper.getDirtyKeyRecords());
         Map<Long, MLDataFormats.NestedPositionInfo> clonedMarker;
         Map<Long, List<MLDataFormats.MessageRange>> rangeGroupByLedgerId;
         Map<Long, List<MLDataFormats.BatchedEntryDeletionIndexInfo>> deletionIndexInfoGroupByLedgerId;
-        lock.writeLock().lock();
+        lock.readLock().lock();
         try {
-            rangeSetWrapper = (RangeSetWrapper<PositionImpl>) individualDeletedMessages;
-            Set<Long> dirtyRange = new HashSet<>(rangeSetWrapper.getDirtyKeyRecorder());
             clonedMarker = new ConcurrentHashMap<>(rangeMarker);
             // get range info and group by ledger ID
             rangeGroupByLedgerId = getRangeGroupByLedgerId(dirtyRange);
             deletionIndexInfoGroupByLedgerId = getDeletionIndexInfosGroupByLedgerId(dirtyRange);
         } finally {
-            lock.writeLock().unlock();
+            lock.readLock().unlock();
         }
         List<CompletableFuture<Void>> callbacks = new ArrayList<>();
         PositionInfo.Builder entryBuilder = getPositionBuilder(mdEntry).addProperties(createLruEntryTag());
@@ -2724,7 +2744,6 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
         // save marker
         FutureUtil.waitForAll(callbacks).thenCompose((x) -> {
-            mbean.persistToLedger(true);
             // no entry is saved, so marker is not dirty
             if (rangeGroupByLedgerId.size() < 1) {
                 return CompletableFuture.completedFuture(null);
@@ -2733,6 +2752,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             writerBuilder.addAllMarkerIndexInfo(buildMarkerIndexMap(clonedMarker));
             return saveMarker(lh, writerBuilder.build().toByteArray());
         }).thenCompose((x) -> {
+            mbean.persistToLedger(true);
             // entries and marker were successfully saved, update the rangeMarker cache
             rangeMarker.putAll(clonedMarker);
             // check whether should create a new ledger
@@ -2744,6 +2764,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         }).exceptionally(e -> {
             log.warn("[{}] Error updating cursor {} position {} in meta-ledger {}", ledger.getName(), name,
                     mdEntry.newPosition, lh.getId(), e);
+            rangeSetWrapper.getDirtyKeyRecorder().addAll(dirtyRange);
             STATE_UPDATER.compareAndSet(ManagedCursorImpl.this, State.Open, State.NoLedger);
             mbean.persistToLedger(false);
             callback.operationFailed(e instanceof ManagedLedgerException ?
@@ -2787,6 +2808,12 @@ public class ManagedCursorImpl implements ManagedCursor {
         return future;
     }
 
+    /**
+     *
+     * @param oldHandle
+     * @param newHandle
+     * @return
+     */
     private CompletableFuture<Void> copyLruEntriesToNewLedger(LedgerHandle oldHandle, LedgerHandle newHandle) {
         CompletableFuture<Void> result = new CompletableFuture<>();
         // copy all entries in marker to new ledger
@@ -2826,7 +2853,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                 return;
             }
             PositionInfo.Builder writerBuilder = getPositionBuilder(lastMarkDeleteEntry)
-                    .addProperties(createLruMarkerTag()).addAllMarkerIndexInfo(buildMarkerIndexMap(clonedMap));
+                    .addProperties(createLruMarkerTag())
+                    .addAllMarkerIndexInfo(buildMarkerIndexMap(clonedMap));
             saveMarker(newHandle, writerBuilder.build().toByteArray()).whenComplete((re, ex) -> {
                 if (ex != null) {
                     result.completeExceptionally(ex);
@@ -2839,18 +2867,17 @@ public class ManagedCursorImpl implements ManagedCursor {
         return result;
     }
 
-    private Optional<PositionInfo> getLastAvailableMarker(LedgerHandle ledgerHandle) {
+    Optional<PositionInfo> getLastAvailableMarker(LedgerHandle ledgerHandle) {
         long entryId = ledgerHandle.getLastAddConfirmed();
         try {
             for (long i = entryId; i >= 0; i--) {
-                Enumeration<LedgerEntry> entryEnumeration = ledgerHandle.readEntries(i, i);
-                if (!entryEnumeration.hasMoreElements()) {
+                LedgerEntry entry = readEntries(ledgerHandle, i);
+                if (entry == null) {
                     return Optional.empty();
                 }
-                LedgerEntry ledgerEntry = entryEnumeration.nextElement();
-                PositionInfo positionInfo = PositionInfo.parseFrom(ledgerEntry.getEntry());
+                PositionInfo positionInfo = PositionInfo.parseFrom(entry.getEntryInputStream());
                 Map<String, Long> propertiesMap = buildPropertiesMap(positionInfo.getPropertiesList());
-                if(!propertiesMap.containsKey(LRU_ENTRY) && propertiesMap.containsKey(LRU_MARKER)){
+                if (!propertiesMap.containsKey(LRU_ENTRY) && !propertiesMap.containsKey(LRU_MARKER)) {
                     log.info("Currently not using lru mode");
                     return Optional.empty();
                 }
@@ -2866,36 +2893,41 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     Map<Long, List<MLDataFormats.BatchedEntryDeletionIndexInfo>> getDeletionIndexInfosGroupByLedgerId(
             Set<Long> dirtyRange) {
-        if (!config.isDeletionAtBatchIndexLevelEnabled() || batchDeletedIndexes == null || batchDeletedIndexes.isEmpty()) {
-            return Collections.emptyMap();
-        }
-        MLDataFormats.NestedPositionInfo.Builder nestedPositionBuilder = MLDataFormats.NestedPositionInfo
-                .newBuilder();
-        MLDataFormats.BatchedEntryDeletionIndexInfo.Builder batchDeletedIndexInfoBuilder = MLDataFormats.BatchedEntryDeletionIndexInfo
-                .newBuilder();
-        Map<Long, List<MLDataFormats.BatchedEntryDeletionIndexInfo>> ledgerIdToIndexInfo =
-                Maps.newHashMapWithExpectedSize(batchDeletedIndexes.size());
-        Iterator<Map.Entry<PositionImpl, BitSetRecyclable>> iterator = batchDeletedIndexes.entrySet().iterator();
-        while (iterator.hasNext() && ledgerIdToIndexInfo.size() < config.getMaxBatchDeletedIndexToPersist()) {
-            Map.Entry<PositionImpl, BitSetRecyclable> entry = iterator.next();
-            if (dirtyRange != null && !dirtyRange.contains(entry.getKey().getLedgerId())) {
-                continue;
+        lock.readLock().lock();
+        try {
+            if (!config.isDeletionAtBatchIndexLevelEnabled() || batchDeletedIndexes == null || batchDeletedIndexes.isEmpty()) {
+                return Collections.emptyMap();
             }
-            nestedPositionBuilder.setLedgerId(entry.getKey().getLedgerId());
-            nestedPositionBuilder.setEntryId(entry.getKey().getEntryId());
-            batchDeletedIndexInfoBuilder.setPosition(nestedPositionBuilder.build());
-            long[] array = entry.getValue().toLongArray();
-            List<Long> deleteSet = new ArrayList<>(array.length);
-            for (long l : array) {
-                deleteSet.add(l);
+            MLDataFormats.NestedPositionInfo.Builder nestedPositionBuilder = MLDataFormats.NestedPositionInfo
+                    .newBuilder();
+            MLDataFormats.BatchedEntryDeletionIndexInfo.Builder batchDeletedIndexInfoBuilder = MLDataFormats.BatchedEntryDeletionIndexInfo
+                    .newBuilder();
+            Map<Long, List<MLDataFormats.BatchedEntryDeletionIndexInfo>> ledgerIdToIndexInfo =
+                    Maps.newHashMapWithExpectedSize(batchDeletedIndexes.size());
+            Iterator<Map.Entry<PositionImpl, BitSetRecyclable>> iterator = batchDeletedIndexes.entrySet().iterator();
+            while (iterator.hasNext() && ledgerIdToIndexInfo.size() < config.getMaxBatchDeletedIndexToPersist()) {
+                Map.Entry<PositionImpl, BitSetRecyclable> entry = iterator.next();
+                if (dirtyRange != null && !dirtyRange.contains(entry.getKey().getLedgerId())) {
+                    continue;
+                }
+                nestedPositionBuilder.setLedgerId(entry.getKey().getLedgerId());
+                nestedPositionBuilder.setEntryId(entry.getKey().getEntryId());
+                batchDeletedIndexInfoBuilder.setPosition(nestedPositionBuilder.build());
+                long[] array = entry.getValue().toLongArray();
+                List<Long> deleteSet = new ArrayList<>(array.length);
+                for (long l : array) {
+                    deleteSet.add(l);
+                }
+                batchDeletedIndexInfoBuilder.clearDeleteSet();
+                batchDeletedIndexInfoBuilder.addAllDeleteSet(deleteSet);
+                List<MLDataFormats.BatchedEntryDeletionIndexInfo> list = ledgerIdToIndexInfo.computeIfAbsent(
+                        entry.getKey().getLedgerId(), (le) -> new ArrayList<>());
+                list.add(batchDeletedIndexInfoBuilder.build());
             }
-            batchDeletedIndexInfoBuilder.clearDeleteSet();
-            batchDeletedIndexInfoBuilder.addAllDeleteSet(deleteSet);
-            List<MLDataFormats.BatchedEntryDeletionIndexInfo> list = ledgerIdToIndexInfo.computeIfAbsent(
-                    entry.getKey().getLedgerId(), (le) -> new ArrayList<>());
-            list.add(batchDeletedIndexInfoBuilder.build());
+            return ledgerIdToIndexInfo;
+        } finally {
+            lock.readLock().unlock();
         }
-        return ledgerIdToIndexInfo;
     }
 
     Map<Long, List<MLDataFormats.MessageRange>> getRangeGroupByLedgerId(Set<Long> dirtyRange) {
