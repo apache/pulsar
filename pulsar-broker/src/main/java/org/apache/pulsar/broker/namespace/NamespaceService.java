@@ -998,12 +998,8 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public CompletableFuture<Boolean> checkTopicOwnership(TopicName topicName) {
-        try {
-            NamespaceBundle bundle = getBundle(topicName);
-            return ownershipCache.checkOwnership(bundle);
-        } catch (Exception ex) {
-            return FutureUtil.failedFuture(ex);
-        }
+        return getBundleAsync(topicName)
+                .thenCompose(bundle -> ownershipCache.checkOwnership(bundle));
     }
 
     public void removeOwnedServiceUnit(NamespaceBundle nsBundle) throws Exception {

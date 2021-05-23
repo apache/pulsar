@@ -1393,22 +1393,23 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     private void addTopicToStatsMaps(TopicName topicName, Topic topic) {
-        try {
-            NamespaceBundle namespaceBundle = pulsar.getNamespaceService().getBundle(topicName);
-
-            if (namespaceBundle != null) {
-                synchronized (multiLayerTopicsMap) {
-                    String serviceUnit = namespaceBundle.toString();
-                    multiLayerTopicsMap //
-                            .computeIfAbsent(topicName.getNamespace(), k -> new ConcurrentOpenHashMap<>()) //
-                            .computeIfAbsent(serviceUnit, k -> new ConcurrentOpenHashMap<>()) //
-                            .put(topicName.toString(), topic);
-                }
-            }
-            invalidateOfflineTopicStatCache(topicName);
-        } catch (Exception e) {
-            log.warn("Got exception when retrieving bundle name during create persistent topic", e);
-        }
+        pulsar.getNamespaceService().getBundleAsync(topicName)
+                .thenAccept(namespaceBundle -> {
+                    if (namespaceBundle != null) {
+                        synchronized (multiLayerTopicsMap) {
+                            String serviceUnit = namespaceBundle.toString();
+                            multiLayerTopicsMap //
+                                    .computeIfAbsent(topicName.getNamespace(), k -> new ConcurrentOpenHashMap<>()) //
+                                    .computeIfAbsent(serviceUnit, k -> new ConcurrentOpenHashMap<>()) //
+                                    .put(topicName.toString(), topic);
+                        }
+                    }
+                    invalidateOfflineTopicStatCache(topicName);
+                })
+                .exceptionally(ex -> {
+                    log.warn("Got exception when retrieving bundle name during create persistent topic", ex);
+                    return null;
+                });
     }
 
     public void refreshTopicToStatsMaps(NamespaceBundle oldBundle) {
