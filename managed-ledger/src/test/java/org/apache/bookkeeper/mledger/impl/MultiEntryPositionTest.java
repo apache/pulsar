@@ -29,7 +29,6 @@ import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.metadata.api.Stat;
 import org.awaitility.Awaitility;
-import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.testng.annotations.Test;
 import java.util.Arrays;
@@ -460,6 +459,49 @@ public class MultiEntryPositionTest extends MockedBookKeeperTestCase {
         assertEquals(cursor.getRangeMarker().size(), 3);
         assertEquals(cursor.getIndividuallyDeletedMessagesSet().size(), 3);
         assertEquals(cursor.getIndividuallyDeletedMessagesSet().toString(), "[(5:0..5:1],(6:0..6:1],(7:0..7:1]]");
+
+        // clean up and test setMaxUnackedRangesInMemoryBytes
+        cursor.getRangeMarker().clear();
+        cursor.getIndividuallyDeletedMessagesSet().clear();
+        config.setMaxUnackedRangesInMemoryBytes(0);
+
+        CompletableFuture<Void> future2 = new CompletableFuture<>();
+        cursor.recover(new ManagedCursorImpl.VoidCallback() {
+            @Override
+            public void operationComplete() {
+                future2.complete(null);
+            }
+
+            @Override
+            public void operationFailed(ManagedLedgerException exception) {
+                future2.completeExceptionally(exception);
+            }
+        });
+        future2.get();
+        assertEquals(cursor.getRangeMarker().size(), 1);
+        assertEquals(cursor.getIndividuallyDeletedMessagesSet().size(), 1);
+
+    }
+
+    @Test
+    public void testCompatibility() throws Exception {
+    }
+
+    @Test
+    public void testLoadLruRangeFromLedger() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setEnableLruCacheMaxUnackedRanges(true);
+        String name = "my_test_ledger" + UUID.randomUUID();
+        ManagedLedger ledger = factory.open(name, config);
+        ManagedCursorImpl cursor = initCursorAndData(ledger);
+        cursor.startCreatingNewMetadataLedger();
+        Awaitility.await().untilAsserted(() -> assertEquals(cursor.getState(), "Open"));
+
+        cursor.getIndividuallyDeletedMessagesSet().clear();
+        assertEquals(cursor.getIndividuallyDeletedMessagesSet().size(), 0);
+        // trigger load lru entry
+        assertTrue(cursor.getIndividuallyDeletedMessagesSet().contains(6, 1));
+        assertEquals(cursor.getIndividuallyDeletedMessagesSet().size(), 1);
     }
 
     private ManagedCursorImpl initCursorAndData(ManagedLedger ledger) throws InterruptedException, ManagedLedgerException, java.util.concurrent.ExecutionException {
@@ -502,14 +544,5 @@ public class MultiEntryPositionTest extends MockedBookKeeperTestCase {
         c1.internalFlushPendingMarkDeletes();
         future2.get();
         return c1;
-    }
-
-    @Test
-    public void testCompatibility() throws Exception {
-    }
-
-    @Test
-    public void testLoadLruRangeFromLedger() throws Exception {
-
     }
 }

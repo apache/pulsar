@@ -146,7 +146,7 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
                 if(entryEnumeration.hasMoreElements()){
                     LedgerEntry ledgerEntry = entryEnumeration.nextElement();
                     MLDataFormats.PositionInfo entryPosition =
-                            MLDataFormats.PositionInfo.parseDelimitedFrom(ledgerEntry.getEntryInputStream());
+                            MLDataFormats.PositionInfo.parseFrom(ledgerEntry.getEntry());
                     managedCursor.recoverIndividualDeletedMessages(entryPosition.getIndividualDeletedMessagesList(),
                             false);
                 }
