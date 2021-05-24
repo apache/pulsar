@@ -144,21 +144,21 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     }
 
     @Override
-    public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
+    public List<String> authenticate(AuthenticationDataSource authData, boolean multiRoles) throws AuthenticationException {
         try {
             // Get Token
             String token;
             token = getToken(authData);
             // Parse Token by validating
-            String role;
             List<String> principals = getPrincipals(authenticateToken(token));
-            if (principals == null) { // Empty list check has been done in getPrincipals.
-                role = null;
-            } else {
-                role = principals.get(0);
-            }
             AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
-            return role;
+            if(multiRoles){
+                return principals;
+            }else if(principals == null){ // Empty list check has been done in getPrincipals.
+                return null;
+            }else{
+                return Collections.singletonList(principals.get(0));
+            }
         } catch (AuthenticationException exception) {
             AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(), exception.getMessage());
             throw exception;
@@ -335,7 +335,11 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
         @Override
         public String getAuthRole() throws AuthenticationException {
-            return provider.getPrincipals(jwt).get(0);
+            List<String> roles = getAuthRoles();
+            if (roles == null || roles.isEmpty()) {
+                return null;
+            }
+            return roles.get(0);
         }
 
         @Override

@@ -799,6 +799,58 @@ public class AuthenticationProviderTokenTest {
         provider.close();
     }
 
+    @Test
+    public void testMultiRolesAuthenticate() throws Exception {
+        String authRoleClaim = "customClaim";
+        String authRole = "my-test-role";
+        String otherRole = "other-role";
+
+        KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
+
+        String privateKeyStr = AuthTokenUtils.encodeKeyBase64(keyPair.getPrivate());
+        String publicKeyStr = AuthTokenUtils.encodeKeyBase64(keyPair.getPublic());
+
+        AuthenticationProviderToken provider = new AuthenticationProviderToken();
+
+        Properties properties = new Properties();
+        // Use public key for validation
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_PUBLIC_KEY, publicKeyStr);
+        // Set custom claim field
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_AUTH_CLAIM, authRoleClaim);
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+        provider.initialize(conf);
+
+        // Use private key to generate token
+        PrivateKey privateKey = AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKeyStr), SignatureAlgorithm.RS256);
+        String token = Jwts.builder()
+                .setClaims(new HashMap<String, Object>() {{
+                    put(authRoleClaim, Arrays.asList(authRole, otherRole));
+                }})
+                .signWith(privateKey)
+                .compact();
+
+        // Pulsar protocol auth
+        List<String> roles = provider.authenticate(new AuthenticationDataSource() {
+            @Override
+            public boolean hasDataFromCommand() {
+                return true;
+            }
+
+            @Override
+            public String getCommandData() {
+                return token;
+            }
+        }, true);
+        assertEquals(roles, Arrays.asList(authRole, otherRole));
+
+        AuthenticationState authState = provider.newAuthState(AuthData.of(token.getBytes()), null, null);
+        assertEquals(authState.getAuthRoles(), Arrays.asList(authRole, otherRole));
+
+        provider.close();
+    }
+
     private static String createTokenWithAudience(Key signingKey, String audienceClaim, List<String> audience) {
         JwtBuilder builder = Jwts.builder()
                 .setSubject(SUBJECT)
