@@ -1434,7 +1434,7 @@ public class PulsarAdminToolTest {
         verify(transactions).getCoordinatorStatusList();
 
         cmdTransactions = new CmdTransactions(() -> admin);
-        cmdTransactions.run(split("transaction-in-pending-ack-stats -c 1 -id 2 -t test -s test"));
+        cmdTransactions.run(split("transaction-in-pending-ack-stats -m 1 -l 2 -t test -s test"));
         verify(transactions).getTransactionInPendingAckStats(
                 new TxnID(1, 2), "test", "test");
     }

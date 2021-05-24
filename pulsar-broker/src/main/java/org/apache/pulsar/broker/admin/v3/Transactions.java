@@ -62,22 +62,22 @@ public class Transactions extends TransactionsBase {
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
             @ApiResponse(code = 503, message = "This Broker is not configured "
                     + "with transactionCoordinatorEnabled=true."),
-            @ApiResponse(code = 500, message = "Topic don't owner by this broker!"),
+            @ApiResponse(code = 307, message = "Topic don't owner by this broker!"),
             @ApiResponse(code = 501, message = "Topic is not a persistent topic!"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
     public void getTransactionInPendingAckStats(@Suspended final AsyncResponse asyncResponse,
                                                 @QueryParam("authoritative")
                                                 @DefaultValue("false") boolean authoritative,
-                                                @QueryParam("coordinatorId")
-                                                @ApiParam(value = "Coordinator id", required = true)
-                                                        long coordinatorId,
-                                                @ApiParam(value = "Sequence id", required = true)
-                                                @QueryParam("sequenceId") long sequenceId,
-                                                @ApiParam(value = "Topic", required = true)
+                                                @QueryParam("mostSigBits")
+                                                @ApiParam(value = "Most sig bits of this transaction", required = true)
+                                                        long mostSigBits,
+                                                @ApiParam(value = "Least sig bits of this transaction", required = true)
+                                                @QueryParam("leastSigBits") long leastSigBits,
+                                                @ApiParam(value = "Topic name", required = true)
                                                 @QueryParam("topic") String topic,
                                                 @ApiParam(value = "Subscription name", required = true)
                                                 @QueryParam("subName") String subName) {
-        internalGetTransactionInPendingAckStats(asyncResponse, authoritative, coordinatorId,
-                sequenceId, topic, subName);
+        internalGetTransactionInPendingAckStats(asyncResponse, authoritative, mostSigBits,
+                leastSigBits, topic, subName);
     }
 }

@@ -44,11 +44,11 @@ public class CmdTransactions extends CmdBase {
 
     @Parameters(commandDescription = "Get transaction in pending ack stats")
     private class GetTransactionInPendingAckStats extends CliCommand {
-        @Parameter(names = {"-c", "--coordinator-id"}, description = "the coordinator id", required = true)
-        private int coordinatorId;
+        @Parameter(names = {"-m", "--most-sig-bits"}, description = "the most sig bits", required = true)
+        private int mostSigBits;
 
-        @Parameter(names = {"-id", "--sequencce-id"}, description = "the sequenceId", required = true)
-        private int sequenceId;
+        @Parameter(names = {"-l", "--least-sig-bits"}, description = "the least sig bits", required = true)
+        private long leastSigBits;
 
         @Parameter(names = {"-t", "--topic"}, description = "the topic name", required = true)
         private String topic;
@@ -58,7 +58,7 @@ public class CmdTransactions extends CmdBase {
 
         @Override
         void run() throws Exception {
-            getAdmin().transactions().getTransactionInPendingAckStats(new TxnID(coordinatorId, sequenceId),
+            getAdmin().transactions().getTransactionInPendingAckStats(new TxnID(mostSigBits, leastSigBits),
                     topic, subName);
         }
     }

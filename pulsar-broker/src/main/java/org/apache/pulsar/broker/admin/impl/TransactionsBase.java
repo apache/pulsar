@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.admin.impl;
 
 import static javax.ws.rs.core.Response.Status.INTERNAL_SERVER_ERROR;
 import static javax.ws.rs.core.Response.Status.SERVICE_UNAVAILABLE;
+import static javax.ws.rs.core.Response.Status.TEMPORARY_REDIRECT;
 import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.List;
@@ -100,7 +101,7 @@ public abstract class TransactionsBase extends AdminResource {
     }
 
     protected void internalGetTransactionInPendingAckStats(AsyncResponse asyncResponse, boolean authoritative,
-                                                           long coordinatorId, long sequenceID, String topic,
+                                                           long mostSigBits, long leastSigBits, String topic,
                                                            String subName) {
         if (pulsar().getConfig().isTransactionCoordinatorEnabled()) {
             validateTopicOwnership(TopicName.get(topic), authoritative);
@@ -121,13 +122,13 @@ public abstract class TransactionsBase extends AdminResource {
                     Topic topicObject = optionalTopic.get();
                     if (topicObject instanceof PersistentTopic) {
                         asyncResponse.resume(((PersistentTopic) topicObject)
-                                .getTransactionInPendingAckStats(new TxnID(coordinatorId, sequenceID), subName));
+                                .getTransactionInPendingAckStats(new TxnID(mostSigBits, leastSigBits), subName));
                     } else {
                         asyncResponse.resume(new RestException(NOT_IMPLEMENTED, "Topic is not a persistent topic!"));
                     }
                 });
             } else {
-                asyncResponse.resume(new RestException(INTERNAL_SERVER_ERROR, "Topic don't owner by this broker!"));
+                asyncResponse.resume(new RestException(TEMPORARY_REDIRECT, "Topic don't owner by this broker!"));
             }
         } else {
             asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE,

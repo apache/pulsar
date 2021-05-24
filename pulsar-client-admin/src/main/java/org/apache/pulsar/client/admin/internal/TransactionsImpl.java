@@ -79,8 +79,8 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     public CompletableFuture<TransactionInPendingAckStats> getTransactionInPendingAckStats(TxnID txnID, String topic,
                                                                                            String subName) {
         WebTarget path = adminV3Transactions.path("transactionInPendingAckStats");
-        path = path.queryParam("coordinatorId", txnID.getMostSigBits());
-        path = path.queryParam("sequenceId", txnID.getLeastSigBits());
+        path = path.queryParam("mostSigBits", txnID.getMostSigBits());
+        path = path.queryParam("leastSigBits", txnID.getLeastSigBits());
         path = path.queryParam("topic", topic);
         path = path.queryParam("subName", subName);
         final CompletableFuture<TransactionInPendingAckStats> future = new CompletableFuture<>();
