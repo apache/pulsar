@@ -55,7 +55,7 @@ public class CmdTransactions extends CmdBase {
 
         @Override
         void run() throws Exception {
-            getAdmin().transactions().getTransactionInBufferStats(new TxnID(mostSigBits, leastSigBits), topic);
+            print(getAdmin().transactions().getTransactionInBufferStats(new TxnID(mostSigBits, leastSigBits), topic));
         }
     }
 
