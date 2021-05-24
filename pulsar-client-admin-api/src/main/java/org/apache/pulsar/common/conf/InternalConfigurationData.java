@@ -18,12 +18,13 @@
  */
 package org.apache.pulsar.common.conf;
 
-import com.google.common.base.MoreObjects;
+import lombok.ToString;
 import java.util.Objects;
 
 /**
  * Internal configuration data.
  */
+@ToString
 public class InternalConfigurationData {
 
     private String zookeeperServers;
@@ -90,17 +91,6 @@ public class InternalConfigurationData {
                 ledgersRootPath,
                 bookkeeperMetadataServiceUri,
                 stateStorageServiceUrl);
-    }
-
-    @Override
-    public String toString() {
-        return MoreObjects.toStringHelper(this)
-            .add("zookeeperServers", zookeeperServers)
-            .add("configurationStoreServers", configurationStoreServers)
-            .add("ledgersRootPath", ledgersRootPath)
-            .add("bookkeeperMetadataServiceUri", bookkeeperMetadataServiceUri)
-            .add("stateStorageServiceUrl", stateStorageServiceUrl)
-            .toString();
     }
 
 }
