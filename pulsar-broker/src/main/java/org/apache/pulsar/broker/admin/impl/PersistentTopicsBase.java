@@ -44,6 +44,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
+import javax.swing.text.html.Option;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
@@ -970,7 +971,8 @@ public class PersistentTopicsBase extends AdminResource {
         }
 
         validateTopicOwnershipAsync(topicName, authoritative)
-                .thenCompose(__ -> getTopicReference(topicName).close(false))
+                .thenCompose(__ -> getTopicReferenceAsync(topicName))
+                .thenCompose(topic -> topic.close(false))
                 .thenRun(() -> {
                     log.info("[{}] Successfully unloaded topic {}", clientAppId(), topicName);
                     asyncResponse.resume(Response.noContent().build());
@@ -3401,6 +3403,17 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
+    private CompletableFuture<Topic> getTopicReferenceAsync(TopicName topicName) {
+        return pulsar().getBrokerService().getTopicIfExists(topicName.toString())
+                .thenCompose(optTopic -> {
+                    if (optTopic.isPresent()) {
+                        return CompletableFuture.completedFuture(optTopic.get());
+                    } else {
+                        return topicNotFoundReasonAsync(topicName);
+                    }
+                });
+    }
+
     private RestException topicNotFoundReason(TopicName topicName) {
         if (!topicName.isPartitioned()) {
             return new RestException(Status.NOT_FOUND, "Topic not found");
@@ -3417,6 +3430,26 @@ public class PersistentTopicsBase extends AdminResource {
             return new RestException(Status.NOT_FOUND, "Topic partitions were not yet created");
         }
         return new RestException(Status.NOT_FOUND, "Partitioned Topic not found");
+    }
+
+    private CompletableFuture<Topic> topicNotFoundReasonAsync(TopicName topicName) {
+        if (!topicName.isPartitioned()) {
+            return FutureUtil.failedFuture(new RestException(Status.NOT_FOUND, "Topic not found"));
+        }
+
+        return getPartitionedTopicMetadataAsync(
+                TopicName.get(topicName.getPartitionedTopicName()), false, false)
+                .thenApply(partitionedTopicMetadata -> {
+                    if (partitionedTopicMetadata == null || partitionedTopicMetadata.partitions == 0) {
+                        final String topicErrorType = partitionedTopicMetadata
+                                == null ? "has no metadata" : "has zero partitions";
+                        throw new RestException(Status.NOT_FOUND, String.format(
+                                "Partitioned Topic not found: %s %s", topicName.toString(), topicErrorType));
+                    } else if (!internalGetList().contains(topicName.toString())) {
+                        throw new RestException(Status.NOT_FOUND, "Topic partitions were not yet created");
+                    }
+                    throw new RestException(Status.NOT_FOUND, "Partitioned Topic not found");
+                });
     }
 
     private Topic getOrCreateTopic(TopicName topicName) {
