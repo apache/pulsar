@@ -37,7 +37,7 @@ public class CmdTransactions extends CmdBase {
             if (coordinatorId != null) {
                 print(getAdmin().transactions().getCoordinatorStatusById(coordinatorId));
             } else {
-                print(getAdmin().transactions().getCoordinatorStatusList());
+                print(getAdmin().transactions().getCoordinatorStatus());
             }
         }
     }
@@ -63,9 +63,28 @@ public class CmdTransactions extends CmdBase {
         }
     }
 
+
+    @Parameters(commandDescription = "Get transaction in buffer stats")
+    private class GetTransactionInBufferStats extends CliCommand {
+        @Parameter(names = {"-m", "--most-sig-bits"}, description = "the most sig bits", required = true)
+        private int mostSigBits;
+
+        @Parameter(names = {"-l", "--least-sig-bits"}, description = "the least sig bits", required = true)
+        private long leastSigBits;
+
+        @Parameter(names = {"-t", "--topic"}, description = "the topic", required = true)
+        private String topic;
+
+        @Override
+        void run() throws Exception {
+            print(getAdmin().transactions().getTransactionInBufferStats(new TxnID(mostSigBits, leastSigBits), topic));
+        }
+    }
+
     public CmdTransactions(Supplier<PulsarAdmin> admin) {
         super("transactions", admin);
         jcommander.addCommand("coordinator-status", new GetCoordinatorStatus());
+        jcommander.addCommand("transaction-in-buffer-stats", new GetTransactionInBufferStats());
         jcommander.addCommand("transaction-in-pending-ack-stats", new GetTransactionInPendingAckStats());
     }
 }

@@ -56,6 +56,29 @@ public class Transactions extends TransactionsBase {
     }
 
     @GET
+    @Path("/transactionInBufferStats")
+    @ApiOperation(value = "Get transaction state in transaction buffer.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
+            @ApiResponse(code = 503, message = "This Broker is not configured "
+                    + "with transactionCoordinatorEnabled=true."),
+            @ApiResponse(code = 307, message = "Topic don't owner by this broker!"),
+            @ApiResponse(code = 501, message = "Topic is not a persistent topic!"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void getTransactionInBufferStats(@Suspended final AsyncResponse asyncResponse,
+                                            @QueryParam("authoritative")
+                                            @DefaultValue("false") boolean authoritative,
+                                            @QueryParam("mostSigBits")
+                                            @ApiParam(value = "Most sig bits of this transaction", required = true)
+                                                    long mostSigBits,
+                                            @ApiParam(value = "Least sig bits of this transaction", required = true)
+                                            @QueryParam("leastSigBits") long leastSigBits,
+                                            @ApiParam(value = "Topic", required = true)
+                                            @QueryParam("topic") String topic) {
+        internalGetTransactionInBufferStats(asyncResponse, authoritative, mostSigBits, leastSigBits, topic);
+    }
+
+    @GET
     @Path("/transactionInPendingAckStats")
     @ApiOperation(value = "Get transaction state in pending ack.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
