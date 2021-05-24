@@ -48,7 +48,6 @@ import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.Lookup;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.NonPersistentTopics;
-import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.admin.ProxyStats;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.ResourceQuotas;
@@ -60,6 +59,7 @@ import org.apache.pulsar.client.admin.internal.OffloadProcessStatusImpl;
 import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
@@ -1421,7 +1421,7 @@ public class PulsarAdminToolTest {
         CompletableFuture<List<TransactionCoordinatorStatus>> lists = mock(CompletableFuture.class);
         doReturn(transactions).when(admin).transactions();
         doReturn(transactionMetadataStoreInfo).when(transactions).getCoordinatorStatusById(1);
-        doReturn(lists).when(transactions).getCoordinatorStatusList();
+        doReturn(lists).when(transactions).getCoordinatorStatus();
 
         CmdTransactions cmdTransactions = new CmdTransactions(() -> admin);
 
@@ -1430,7 +1430,11 @@ public class PulsarAdminToolTest {
 
         cmdTransactions = new CmdTransactions(() -> admin);
         cmdTransactions.run(split("coordinator-status"));
-        verify(transactions).getCoordinatorStatusList();
+        verify(transactions).getCoordinatorStatus();
+
+        cmdTransactions = new CmdTransactions(() -> admin);
+        cmdTransactions.run(split("transaction-in-buffer-stats -m 1 -t test -l 2"));
+        verify(transactions).getTransactionInBufferStats(new TxnID(1, 2), "test");
     }
 
     String[] split(String s) {

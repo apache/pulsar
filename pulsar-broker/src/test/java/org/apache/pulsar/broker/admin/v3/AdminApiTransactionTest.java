@@ -19,23 +19,32 @@
 package org.apache.pulsar.broker.admin.v3;
 
 import com.google.common.collect.Sets;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStatus;
+import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.packages.management.core.MockedPackagesStorageProvider;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 
 public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
 
@@ -68,32 +77,52 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         getTransaction().abort().get();
         TransactionCoordinatorStatus transactionCoordinatorStatus =
                 admin.transactions().getCoordinatorStatusById(1).get();
-        verifyCoordinatorStatus(1L, transactionCoordinatorStatus.coordinatorId,
-                transactionCoordinatorStatus.state,
-                transactionCoordinatorStatus.sequenceId, transactionCoordinatorStatus.lowWaterMark);
+        verifyCoordinatorStatus(transactionCoordinatorStatus.state,
+                transactionCoordinatorStatus.leastSigBits, transactionCoordinatorStatus.lowWaterMark);
 
         transactionCoordinatorStatus = admin.transactions().getCoordinatorStatusById(0).get();
-        verifyCoordinatorStatus(0L, transactionCoordinatorStatus.coordinatorId,
-                transactionCoordinatorStatus.state,
-                transactionCoordinatorStatus.sequenceId, transactionCoordinatorStatus.lowWaterMark);
-        List<TransactionCoordinatorStatus> list = admin.transactions().getCoordinatorStatusList().get();
+        verifyCoordinatorStatus(transactionCoordinatorStatus.state,
+                transactionCoordinatorStatus.leastSigBits, transactionCoordinatorStatus.lowWaterMark);
+        Map<Integer, TransactionCoordinatorStatus> status = admin.transactions().getCoordinatorStatus().get();
 
-        assertEquals(list.size(), 2);
+        assertEquals(status.size(), 2);
 
-        transactionCoordinatorStatus = list.get(0);
-        verifyCoordinatorStatus(0L, transactionCoordinatorStatus.coordinatorId,
-                transactionCoordinatorStatus.state,
-                transactionCoordinatorStatus.sequenceId, transactionCoordinatorStatus.lowWaterMark);
+        transactionCoordinatorStatus = status.get(0);
+        verifyCoordinatorStatus(transactionCoordinatorStatus.state,
+                transactionCoordinatorStatus.leastSigBits, transactionCoordinatorStatus.lowWaterMark);
 
-        transactionCoordinatorStatus = list.get(1);
-        verifyCoordinatorStatus(1L, transactionCoordinatorStatus.coordinatorId,
-                transactionCoordinatorStatus.state,
-                transactionCoordinatorStatus.sequenceId, transactionCoordinatorStatus.lowWaterMark);
+        transactionCoordinatorStatus = status.get(1);
+        verifyCoordinatorStatus(transactionCoordinatorStatus.state,
+                transactionCoordinatorStatus.leastSigBits, transactionCoordinatorStatus.lowWaterMark);
     }
 
-    private static void verifyCoordinatorStatus(long expectedCoordinatorId, long coordinatorId, String state,
+    @Test(timeOut = 20000)
+    public void testGetTransactionInBufferStats() throws Exception {
+        initTransaction(2);
+        TransactionImpl transaction = (TransactionImpl) getTransaction();
+        final String topic = "persistent://public/default/testGetTransactionInBufferStats";
+        admin.topics().createNonPartitionedTopic(topic);
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES).topic(topic).sendTimeout(0, TimeUnit.SECONDS).create();
+        MessageId messageId = producer.newMessage(transaction).value("Hello pulsar!".getBytes()).send();
+        TransactionInBufferStats transactionInBufferStats = admin.transactions()
+                .getTransactionInBufferStats(new TxnID(transaction.getTxnIdMostBits(),
+                        transaction.getTxnIdLeastBits()), topic).get();
+        PositionImpl position =
+                PositionImpl.get(((MessageIdImpl) messageId).getLedgerId(), ((MessageIdImpl) messageId).getEntryId());
+        assertEquals(transactionInBufferStats.startPosition, position.toString());
+        assertFalse(transactionInBufferStats.aborted);
+
+        transaction.abort().get();
+
+        transactionInBufferStats = admin.transactions()
+                .getTransactionInBufferStats(new TxnID(transaction.getTxnIdMostBits(),
+                        transaction.getTxnIdLeastBits()), topic).get();
+        assertNull(transactionInBufferStats.startPosition);
+        assertTrue(transactionInBufferStats.aborted);
+    }
+
+    private static void verifyCoordinatorStatus(String state,
                                                 long sequenceId, long lowWaterMark) {
-        assertEquals(coordinatorId, expectedCoordinatorId);
         assertEquals(state, "Ready");
         assertEquals(sequenceId, 0);
         assertEquals(lowWaterMark, 0);
