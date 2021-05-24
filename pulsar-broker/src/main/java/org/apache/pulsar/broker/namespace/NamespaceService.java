@@ -1237,8 +1237,8 @@ public class NamespaceService implements AutoCloseable {
                         synchronized (pulsar.getBrokerService().getMultiLayerTopicMap()) {
                             if (pulsar.getBrokerService().getMultiLayerTopicMap()
                                     .containsKey(namespaceName.toString())) {
-                                pulsar.getBrokerService().getMultiLayerTopicMap().get(namespaceName.toString()).values()
-                                        .forEach(bundle -> {
+                                pulsar.getBrokerService().getMultiLayerTopicMap().get(namespaceName.toString())
+                                        .forEach((__, bundle) -> {
                                             bundle.forEach((topicName, topic) -> {
                                                 if (topic instanceof NonPersistentTopic
                                                         && ((NonPersistentTopic) topic).isActive()) {

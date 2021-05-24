@@ -313,13 +313,13 @@ public class BrokersBase extends PulsarWebResource {
         // create non-partitioned topic manually and close the previous reader if present.
         try {
             pulsar().getBrokerService().getTopic(topic, true).get().ifPresent(t -> {
-                for (Subscription value : t.getSubscriptions().values()) {
+                t.getSubscriptions().forEach((__, value) -> {
                     try {
                         value.deleteForcefully();
                     } catch (Exception e) {
                         LOG.warn("Failed to delete previous subscription {} for health check", value.getName(), e);
                     }
-                }
+                });
             });
         } catch (Exception e) {
             LOG.warn("Failed to try to delete subscriptions for health check", e);

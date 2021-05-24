@@ -226,9 +226,10 @@ public class BacklogQuotaManager {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] target backlog expire time is [{}]", persistentTopic.getName(), target);
             }
-            for (PersistentSubscription subscription : persistentTopic.getSubscriptions().values()) {
-                subscription.getExpiryMonitor().expireMessages(target);
-            }
+
+            persistentTopic.getSubscriptions().forEach((__, subscription) ->
+                    subscription.getExpiryMonitor().expireMessages(target)
+            );
         } else {
             // If disabled precise time based backlog quota check, will try to remove whole ledger from cursor's backlog
             Long currentMillis = ((ManagedLedgerImpl) persistentTopic.getManagedLedger()).getClock().millis();
