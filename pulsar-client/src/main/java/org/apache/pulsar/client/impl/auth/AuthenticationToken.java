@@ -21,7 +21,9 @@ package org.apache.pulsar.client.impl.auth;
 
 import com.google.common.base.Charsets;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.Serializable;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -42,18 +44,16 @@ import org.apache.pulsar.client.api.PulsarClientException;
 public class AuthenticationToken implements Authentication, EncodedAuthenticationParameterSupport {
 
     private static final long serialVersionUID = 1L;
-    private transient Supplier<String> tokenSupplier = null;
+    private Supplier<String> tokenSupplier = null;
 
     public AuthenticationToken() {
     }
 
     public AuthenticationToken(String token) {
-        this(() -> token);
+        this(new SerializableTokenSupplier(token));
     }
 
-    public AuthenticationToken(Supplier<String> tokenSupplier) {
-        this.tokenSupplier = tokenSupplier;
-    }
+    public AuthenticationToken(Supplier<String> tokenSupplier) { this.tokenSupplier = tokenSupplier; }
 
     @Override
     public void close() throws IOException {
@@ -75,24 +75,18 @@ public class AuthenticationToken implements Authentication, EncodedAuthenticatio
         // Interpret the whole param string as the token. If the string contains the notation `token:xxxxx` then strip
         // the prefix
         if (encodedAuthParamString.startsWith("token:")) {
-            this.tokenSupplier = () -> encodedAuthParamString.substring("token:".length());
+            this.tokenSupplier = new SerializableTokenSupplier(encodedAuthParamString.substring("token:".length()));
         } else if (encodedAuthParamString.startsWith("file:")) {
             // Read token from a file
             URI filePath = URI.create(encodedAuthParamString);
-            this.tokenSupplier = () -> {
-                try {
-                    return new String(Files.readAllBytes(Paths.get(filePath)), Charsets.UTF_8).trim();
-                } catch (IOException e) {
-                    throw new RuntimeException("Failed to read token from file", e);
-                }
-            };
+            this.tokenSupplier = new SerializableURITokenSupplier(filePath);
         } else {
             try {
                 // Read token from json string
                 JsonObject authParams = new Gson().fromJson(encodedAuthParamString, JsonObject.class);
-                this.tokenSupplier = () -> authParams.get("token").getAsString();
+                this.tokenSupplier = new SerializableTokenSupplier(authParams.get("token").getAsString());
             } catch (JsonSyntaxException e) {
-                this.tokenSupplier = () -> encodedAuthParamString;
+                this.tokenSupplier = new SerializableTokenSupplier(encodedAuthParamString);
             }
         }
     }
@@ -107,4 +101,38 @@ public class AuthenticationToken implements Authentication, EncodedAuthenticatio
         // noop
     }
 
+    private static class SerializableURITokenSupplier implements Supplier<String>, Serializable {
+
+        private static final long serialVersionUID = 3160666668166028760L;
+        private final URI uri;
+
+        public SerializableURITokenSupplier(final URI uri) {
+            super();
+            this.uri = uri;
+        }
+
+        @Override
+        public String get() {
+            try {
+                return new String(Files.readAllBytes(Paths.get(uri)), Charsets.UTF_8).trim();
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to read token from file", e);
+            }
+        }
+    }
+
+    private static class SerializableTokenSupplier implements Supplier<String>, Serializable {
+
+        private static final long serialVersionUID = 5095234161799506913L;
+        private final String token;
+
+        public SerializableTokenSupplier(final String token) {
+            super();
+            this.token = token;
+        }
+
+        @Override
+        public String get() { return token; }
+
+    }
 }

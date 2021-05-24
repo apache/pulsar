@@ -32,7 +32,7 @@ If you want to deploy a single Pulsar cluster, see [Clusters and Brokers](gettin
 > This guide shows you how to deploy Pulsar in production in a non-Kubernetes environment. If you want to run a standalone Pulsar cluster on a single machine for development purposes, see the [Setting up a local cluster](getting-started-standalone.md) guide. If you want to run Pulsar on [Kubernetes](https://kubernetes.io), see the [Pulsar on Kubernetes](deploy-kubernetes.md) guide, which includes sections on running Pulsar on Kubernetes on [Google Kubernetes Engine](deploy-kubernetes#pulsar-on-google-kubernetes-engine) and on [Amazon Web Services](deploy-kubernetes#pulsar-on-amazon-web-services).
 
 ## System requirement
-Pulsar is currently available for **MacOS** and **Linux**. In order to use Pulsar, you need to install Java 8 from [Oracle download center](http://www.oracle.com/).
+Currently, Pulsar is available for 64-bit **macOS**, **Linux**, and **Windows**. To use Pulsar, you need to install 64-bit JRE/JDK 8 or later versions.
 
 ## Install Pulsar
 

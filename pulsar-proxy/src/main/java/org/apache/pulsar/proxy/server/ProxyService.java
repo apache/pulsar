@@ -143,8 +143,8 @@ public class ProxyService implements Closeable {
         } else {
             proxyLogLevel = 0;
         }
-        this.acceptorGroup = EventLoopUtil.newEventLoopGroup(1, acceptorThreadFactory);
-        this.workerGroup = EventLoopUtil.newEventLoopGroup(numThreads, workersThreadFactory);
+        this.acceptorGroup = EventLoopUtil.newEventLoopGroup(1, false, acceptorThreadFactory);
+        this.workerGroup = EventLoopUtil.newEventLoopGroup(numThreads, false, workersThreadFactory);
         this.authenticationService = authenticationService;
 
         statsExecutor = Executors
