@@ -42,6 +42,28 @@ public class CmdTransactions extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get transaction in pending ack stats")
+    private class GetTransactionInPendingAckStats extends CliCommand {
+        @Parameter(names = {"-m", "--most-sig-bits"}, description = "the most sig bits", required = true)
+        private int mostSigBits;
+
+        @Parameter(names = {"-l", "--least-sig-bits"}, description = "the least sig bits", required = true)
+        private long leastSigBits;
+
+        @Parameter(names = {"-t", "--topic"}, description = "the topic name", required = true)
+        private String topic;
+
+        @Parameter(names = {"-s", "--sub-name"}, description = "the subscription name", required = true)
+        private String subName;
+
+        @Override
+        void run() throws Exception {
+            getAdmin().transactions().getTransactionInPendingAckStats(new TxnID(mostSigBits, leastSigBits),
+                    topic, subName);
+        }
+    }
+
+
     @Parameters(commandDescription = "Get transaction in buffer stats")
     private class GetTransactionInBufferStats extends CliCommand {
         @Parameter(names = {"-m", "--most-sig-bits"}, description = "the most sig bits", required = true)
@@ -63,5 +85,6 @@ public class CmdTransactions extends CmdBase {
         super("transactions", admin);
         jcommander.addCommand("coordinator-status", new GetCoordinatorStatus());
         jcommander.addCommand("transaction-in-buffer-stats", new GetTransactionInBufferStats());
+        jcommander.addCommand("transaction-in-pending-ack-stats", new GetTransactionInPendingAckStats());
     }
 }

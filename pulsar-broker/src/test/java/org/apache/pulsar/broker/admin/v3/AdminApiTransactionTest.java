@@ -21,12 +21,15 @@ package org.apache.pulsar.broker.admin.v3;
 import com.google.common.collect.Sets;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.naming.TopicName;
@@ -34,6 +37,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStatus;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
+import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.packages.management.core.MockedPackagesStorageProvider;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
@@ -42,8 +46,8 @@ import org.testng.annotations.Test;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
 public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
@@ -121,6 +125,43 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         assertTrue(transactionInBufferStats.aborted);
     }
 
+    @Test(timeOut = 20000)
+    public void testGetTransactionPendingAckStats() throws Exception {
+        initTransaction(2);
+        final String topic = "persistent://public/default/testGetTransactionInBufferStats";
+        final String subName = "test";
+        admin.topics().createNonPartitionedTopic(topic);
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES).topic(topic).create();
+        Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES).topic(topic)
+                .subscriptionName(subName).subscribe();
+        producer.sendAsync("Hello pulsar!".getBytes());
+        producer.sendAsync("Hello pulsar!".getBytes());
+        producer.sendAsync("Hello pulsar!".getBytes());
+        producer.sendAsync("Hello pulsar!".getBytes());
+        TransactionImpl transaction = (TransactionImpl) getTransaction();
+        TransactionInPendingAckStats transactionInPendingAckStats = admin.transactions()
+                .getTransactionInPendingAckStats(new TxnID(transaction.getTxnIdMostBits(),
+                        transaction.getTxnIdLeastBits()), topic, subName).get();
+        assertNull(transactionInPendingAckStats.cumulativeAckPosition);
+
+        consumer.receive();
+        consumer.receive();
+        Message<byte[]> message = consumer.receive();
+        BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) message.getMessageId();
+        consumer.acknowledgeCumulativeAsync(batchMessageId, transaction).get();
+
+        transactionInPendingAckStats = admin.transactions()
+                .getTransactionInPendingAckStats(new TxnID(transaction.getTxnIdMostBits(),
+                        transaction.getTxnIdLeastBits()), topic, subName).get();
+
+        assertEquals(transactionInPendingAckStats.cumulativeAckPosition,
+                String.valueOf(batchMessageId.getLedgerId()) +
+                        ':' +
+                        batchMessageId.getEntryId() +
+                        ':' +
+                        batchMessageId.getBatchIndex());
+    }
+
     private static void verifyCoordinatorStatus(String state,
                                                 long sequenceId, long lowWaterMark) {
         assertEquals(state, "Ready");
@@ -138,6 +179,6 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
 
     private Transaction getTransaction() throws Exception {
         return pulsarClient.newTransaction()
-                .withTransactionTimeout(2, TimeUnit.SECONDS).build().get();
+                .withTransactionTimeout(5, TimeUnit.SECONDS).build().get();
     }
 }
