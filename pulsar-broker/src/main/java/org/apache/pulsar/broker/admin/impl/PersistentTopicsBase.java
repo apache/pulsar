@@ -729,7 +729,8 @@ public class PersistentTopicsBase extends AdminResource {
                                     } else if (th instanceof WebApplicationException) {
                                         asyncResponse.resume(th);
                                     } else {
-                                        log.error("[{}] Failed to unload topic {}", clientAppId(), topicName, exception);
+                                        log.error("[{}] Failed to unload topic {}", clientAppId(), topicName
+                                                exception);
                                         asyncResponse.resume(new RestException(exception));
                                     }
                                 } else {
