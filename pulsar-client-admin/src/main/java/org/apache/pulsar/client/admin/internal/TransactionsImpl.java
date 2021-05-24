@@ -37,9 +37,9 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     }
 
     @Override
-    public CompletableFuture<TransactionCoordinatorStatus> getCoordinatorStatusById(int coordinatorId) {
+    public CompletableFuture<TransactionCoordinatorStatus> getCoordinatorStatusById(int mostSigBits) {
         WebTarget path = adminV3Transactions.path("coordinatorStatus");
-        path = path.queryParam("coordinatorId", coordinatorId);
+        path = path.queryParam("mostSigBits", mostSigBits);
         final CompletableFuture<TransactionCoordinatorStatus> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<TransactionCoordinatorStatus>() {
@@ -78,8 +78,8 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     @Override
     public CompletableFuture<TransactionInBufferStats> getTransactionInBufferStats(TxnID txnID, String topic) {
         WebTarget path = adminV3Transactions.path("transactionInBufferStats");
-        path = path.queryParam("coordinatorId", txnID.getMostSigBits());
-        path = path.queryParam("sequenceId", txnID.getLeastSigBits());
+        path = path.queryParam("mostSigBits", txnID.getMostSigBits());
+        path = path.queryParam("leastSigBits", txnID.getLeastSigBits());
         path = path.queryParam("topic", topic);
         final CompletableFuture<TransactionInBufferStats> future = new CompletableFuture<>();
         asyncGetRequest(path,

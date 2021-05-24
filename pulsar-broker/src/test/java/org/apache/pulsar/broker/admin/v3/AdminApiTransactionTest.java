@@ -77,27 +77,27 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         getTransaction().abort().get();
         TransactionCoordinatorStatus transactionCoordinatorStatus =
                 admin.transactions().getCoordinatorStatusById(1).get();
-        verifyCoordinatorStatus(1L, transactionCoordinatorStatus.coordinatorId,
+        verifyCoordinatorStatus(1L, transactionCoordinatorStatus.mostSigBits,
                 transactionCoordinatorStatus.state,
-                transactionCoordinatorStatus.sequenceId, transactionCoordinatorStatus.lowWaterMark);
+                transactionCoordinatorStatus.leastSigBits, transactionCoordinatorStatus.lowWaterMark);
 
         transactionCoordinatorStatus = admin.transactions().getCoordinatorStatusById(0).get();
-        verifyCoordinatorStatus(0L, transactionCoordinatorStatus.coordinatorId,
+        verifyCoordinatorStatus(0L, transactionCoordinatorStatus.mostSigBits,
                 transactionCoordinatorStatus.state,
-                transactionCoordinatorStatus.sequenceId, transactionCoordinatorStatus.lowWaterMark);
+                transactionCoordinatorStatus.leastSigBits, transactionCoordinatorStatus.lowWaterMark);
         List<TransactionCoordinatorStatus> list = admin.transactions().getCoordinatorStatusList().get();
 
         assertEquals(list.size(), 2);
 
         transactionCoordinatorStatus = list.get(0);
-        verifyCoordinatorStatus(0L, transactionCoordinatorStatus.coordinatorId,
+        verifyCoordinatorStatus(0L, transactionCoordinatorStatus.mostSigBits,
                 transactionCoordinatorStatus.state,
-                transactionCoordinatorStatus.sequenceId, transactionCoordinatorStatus.lowWaterMark);
+                transactionCoordinatorStatus.leastSigBits, transactionCoordinatorStatus.lowWaterMark);
 
         transactionCoordinatorStatus = list.get(1);
-        verifyCoordinatorStatus(1L, transactionCoordinatorStatus.coordinatorId,
+        verifyCoordinatorStatus(1L, transactionCoordinatorStatus.mostSigBits,
                 transactionCoordinatorStatus.state,
-                transactionCoordinatorStatus.sequenceId, transactionCoordinatorStatus.lowWaterMark);
+                transactionCoordinatorStatus.leastSigBits, transactionCoordinatorStatus.lowWaterMark);
     }
 
     @Test(timeOut = 20000)

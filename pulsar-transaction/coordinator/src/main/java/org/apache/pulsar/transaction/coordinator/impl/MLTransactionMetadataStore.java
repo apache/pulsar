@@ -346,10 +346,10 @@ public class MLTransactionMetadataStore
     @Override
     public TransactionCoordinatorStatus getStatus() {
         TransactionCoordinatorStatus transactionCoordinatorStatus = new TransactionCoordinatorStatus();
-        transactionCoordinatorStatus.setCoordinatorId(tcID.getId());
+        transactionCoordinatorStatus.setMostSigBits(tcID.getId());
         transactionCoordinatorStatus.setLowWaterMark(getLowWaterMark());
         transactionCoordinatorStatus.setState(getState().name());
-        transactionCoordinatorStatus.setSequenceId(sequenceId.get());
+        transactionCoordinatorStatus.setLeastSigBits(sequenceId.get());
         return transactionCoordinatorStatus;
     }
 

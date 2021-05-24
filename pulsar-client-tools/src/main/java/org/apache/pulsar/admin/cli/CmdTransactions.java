@@ -29,13 +29,13 @@ public class CmdTransactions extends CmdBase {
 
     @Parameters(commandDescription = "Get transaction coordinator status")
     private class GetCoordinatorStatus extends CliCommand {
-        @Parameter(names = {"-c", "--coordinator-id"}, description = "the coordinator id", required = false)
-        private Integer coordinatorId;
+        @Parameter(names = {"-m", "--most-sig-bits"}, description = "the coordinator id", required = false)
+        private Integer mostSigBits;
 
         @Override
         void run() throws Exception {
-            if (coordinatorId != null) {
-                print(getAdmin().transactions().getCoordinatorStatusById(coordinatorId));
+            if (mostSigBits != null) {
+                print(getAdmin().transactions().getCoordinatorStatusById(mostSigBits));
             } else {
                 print(getAdmin().transactions().getCoordinatorStatusList());
             }
@@ -44,18 +44,18 @@ public class CmdTransactions extends CmdBase {
 
     @Parameters(commandDescription = "Get transaction in buffer stats")
     private class GetTransactionInBufferStats extends CliCommand {
-        @Parameter(names = {"-c", "--coordinator-id"}, description = "the coordinator id", required = true)
-        private int coordinatorId;
+        @Parameter(names = {"-m", "--most-sig-bits"}, description = "the most sig bits", required = true)
+        private int mostSigBits;
 
-        @Parameter(names = {"-id", "--sequence-id"}, description = "the sequence id", required = true)
-        private int sequenceId;
+        @Parameter(names = {"-l", "--least-sig-bits"}, description = "the least sig bits", required = true)
+        private long leastSigBits;
 
         @Parameter(names = {"-t", "--topic"}, description = "the topic", required = true)
         private String topic;
 
         @Override
         void run() throws Exception {
-            getAdmin().transactions().getTransactionInBufferStats(new TxnID(coordinatorId, sequenceId), topic);
+            getAdmin().transactions().getTransactionInBufferStats(new TxnID(mostSigBits, leastSigBits), topic);
         }
     }
 

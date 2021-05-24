@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.admin.impl;
 
 import static javax.ws.rs.core.Response.Status.INTERNAL_SERVER_ERROR;
 import static javax.ws.rs.core.Response.Status.SERVICE_UNAVAILABLE;
+import static javax.ws.rs.core.Response.Status.TEMPORARY_REDIRECT;
 import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.List;
@@ -101,7 +102,7 @@ public abstract class TransactionsBase extends AdminResource {
     }
 
     protected void internalGetTransactionInBufferStats(AsyncResponse asyncResponse, boolean authoritative,
-                                                       long coordinatorId, long sequenceID,
+                                                       long mostSigBits, long leastSigBits,
                                                        String topic) {
         if (pulsar().getConfig().isTransactionCoordinatorEnabled()) {
             validateTopicOwnership(TopicName.get(topic), authoritative);
@@ -121,14 +122,14 @@ public abstract class TransactionsBase extends AdminResource {
                     Topic topicObject = optionalTopic.get();
                     if (topicObject instanceof PersistentTopic) {
                         TransactionInBufferStats transactionInBufferStats = ((PersistentTopic) topicObject)
-                                .getTransactionInBufferStats(new TxnID(coordinatorId, sequenceID));
+                                .getTransactionInBufferStats(new TxnID(mostSigBits, leastSigBits));
                         asyncResponse.resume(transactionInBufferStats);
                     } else {
                         asyncResponse.resume(new RestException(NOT_IMPLEMENTED, "Topic is not a persistent topic!"));
                     }
                 });
             } else {
-                asyncResponse.resume(new RestException(INTERNAL_SERVER_ERROR, "Topic don't owner by this broker!"));
+                asyncResponse.resume(new RestException(TEMPORARY_REDIRECT, "Topic don't owner by this broker!"));
             }
         } else {
             asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE,
