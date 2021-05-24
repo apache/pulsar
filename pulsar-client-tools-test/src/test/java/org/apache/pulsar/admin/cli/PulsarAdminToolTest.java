@@ -1435,6 +1435,11 @@ public class PulsarAdminToolTest {
         cmdTransactions.run(split("transaction-in-pending-ack-stats -m 1 -l 2 -t test -s test"));
         verify(transactions).getTransactionInPendingAckStats(
                 new TxnID(1, 2), "test", "test");
+
+        cmdTransactions = new CmdTransactions(() -> admin);
+        cmdTransactions.run(split("transaction-status -m 1 -l 2"));
+        verify(transactions).getTransactionStatus(new TxnID(1, 2));
+
     }
 
     String[] split(String s) {

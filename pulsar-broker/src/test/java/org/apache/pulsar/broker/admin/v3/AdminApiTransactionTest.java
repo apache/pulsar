@@ -38,6 +38,7 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStatus;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
+import org.apache.pulsar.common.policies.data.TransactionStatus;
 import org.apache.pulsar.packages.management.core.MockedPackagesStorageProvider;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
@@ -160,6 +161,77 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
                         batchMessageId.getEntryId() +
                         ':' +
                         batchMessageId.getBatchIndex());
+    }
+
+    @Test(timeOut = 20000)
+    public void testGetTransactionStatus() throws Exception {
+        initTransaction(2);
+        long currentTime = System.currentTimeMillis();
+        TransactionImpl transaction = (TransactionImpl) getTransaction();
+        final String topic1 = "persistent://public/default/testGetTransactionStatus-1";
+        final String subName1 = "test1";
+        final String topic2 = "persistent://public/default/testGetTransactionStatus-2";
+        final String subName2 = "test2";
+        final String subName3 = "test3";
+        admin.topics().createNonPartitionedTopic(topic1);
+        admin.topics().createNonPartitionedTopic(topic2);
+
+        Producer<byte[]> producer1 = pulsarClient.newProducer(Schema.BYTES)
+                .sendTimeout(0, TimeUnit.SECONDS).topic(topic1).create();
+
+        Producer<byte[]> producer2 = pulsarClient.newProducer(Schema.BYTES)
+                .sendTimeout(0, TimeUnit.SECONDS).topic(topic2).create();
+
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer(Schema.BYTES).topic(topic1)
+                .subscriptionName(subName1).subscribe();
+
+        Consumer<byte[]> consumer2 = pulsarClient.newConsumer(Schema.BYTES).topic(topic2)
+                .subscriptionName(subName2).subscribe();
+
+        Consumer<byte[]> consumer3 = pulsarClient.newConsumer(Schema.BYTES).topic(topic2)
+                .subscriptionName(subName3).subscribe();
+
+        MessageId messageId1 = producer1.send("Hello pulsar!".getBytes());
+        MessageId messageId2 = producer2.send("Hello pulsar!".getBytes());
+        MessageId messageId3 = producer1.newMessage(transaction).value("Hello pulsar!".getBytes()).send();
+        MessageId messageId4 = producer2.newMessage(transaction).value("Hello pulsar!".getBytes()).send();
+
+        consumer1.acknowledgeCumulativeAsync(messageId1, transaction).get();
+        consumer2.acknowledgeCumulativeAsync(messageId2, transaction).get();
+        consumer3.acknowledgeCumulativeAsync(messageId2, transaction).get();
+        TxnID txnID = new TxnID(transaction.getTxnIdMostBits(), transaction.getTxnIdLeastBits());
+        TransactionStatus transactionStatus = admin.transactions()
+                .getTransactionStatus(new TxnID(transaction.getTxnIdMostBits(),
+                        transaction.getTxnIdLeastBits())).get();
+
+        assertEquals(transactionStatus.txnId, txnID.toString());
+        assertTrue(transactionStatus.openTimestamp > currentTime);
+        assertEquals(transactionStatus.timeoutAt, 5000L);
+        assertEquals(transactionStatus.status, "OPEN");
+
+        Map<String, TransactionInBufferStats> producedPartitions = transactionStatus.producedPartitions;
+        Map<String, Map<String, TransactionInPendingAckStats>> ackedPartitions = transactionStatus.ackedPartitions;
+
+        PositionImpl position1 = getPositionByMessageId(messageId1);
+        PositionImpl position2 = getPositionByMessageId(messageId2);
+        PositionImpl position3 = getPositionByMessageId(messageId3);
+        PositionImpl position4 = getPositionByMessageId(messageId4);
+
+        assertFalse(producedPartitions.get(topic1).aborted);
+        assertFalse(producedPartitions.get(topic2).aborted);
+        assertEquals(producedPartitions.get(topic1).startPosition, position3.toString());
+        assertEquals(producedPartitions.get(topic2).startPosition, position4.toString());
+
+        assertEquals(ackedPartitions.get(topic1).size(), 1);
+        assertEquals(ackedPartitions.get(topic2).size(), 2);
+        assertEquals(ackedPartitions.get(topic1).get(subName1).cumulativeAckPosition, position1.toString());
+        assertEquals(ackedPartitions.get(topic2).get(subName2).cumulativeAckPosition, position2.toString());
+        assertEquals(ackedPartitions.get(topic2).get(subName3).cumulativeAckPosition, position2.toString());
+
+    }
+
+    private static PositionImpl getPositionByMessageId(MessageId messageId) {
+        return PositionImpl.get(((MessageIdImpl) messageId).getLedgerId(), ((MessageIdImpl) messageId).getEntryId());
     }
 
     private static void verifyCoordinatorStatus(String state,

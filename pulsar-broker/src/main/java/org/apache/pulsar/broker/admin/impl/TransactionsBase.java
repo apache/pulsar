@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import static javax.ws.rs.core.Response.Status.INTERNAL_SERVER_ERROR;
 import static javax.ws.rs.core.Response.Status.SERVICE_UNAVAILABLE;
 import static javax.ws.rs.core.Response.Status.TEMPORARY_REDIRECT;
 import com.google.common.collect.Lists;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,12 +35,16 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStatus;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
+import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
+import org.apache.pulsar.common.policies.data.TransactionStatus;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
+import org.apache.pulsar.transaction.coordinator.TxnMeta;
 
 @Slf4j
 public abstract class TransactionsBase extends AdminResource {
@@ -171,6 +175,102 @@ public abstract class TransactionsBase extends AdminResource {
         } else {
             asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE,
                     "This Broker is not configured with transactionCoordinatorEnabled=true."));
+        }
+    }
+
+    protected void internalGetTransactionStatus(AsyncResponse asyncResponse,
+                                                boolean authoritative, int coordinatorId, long sequenceID) {
+        try {
+            if (pulsar().getConfig().isTransactionCoordinatorEnabled()) {
+                validateTopicOwnership(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getPartition(coordinatorId),
+                        authoritative);
+                Transactions transactions = pulsar().getAdminClient().transactions();
+                TxnMeta txnMeta = pulsar().getTransactionMetadataStoreService()
+                        .getTxnMeta(new TxnID(coordinatorId, sequenceID)).get();
+                TxnID txnID = txnMeta.id();
+                TransactionStatus transactionStatus = new TransactionStatus();
+                transactionStatus.txnId = txnID.toString();
+                transactionStatus.status = txnMeta.status().name();
+                transactionStatus.openTimestamp = txnMeta.getOpenTimestamp();
+                transactionStatus.timeoutAt = txnMeta.getTimeoutAt();
+
+                List<CompletableFuture<TransactionInPendingAckStats>> ackedPartitionsFutures = new ArrayList<>();
+                Map<String, Map<String, CompletableFuture<TransactionInPendingAckStats>>> ackFutures = new HashMap<>();
+                txnMeta.ackedPartitions().forEach(transactionSubscription -> {
+                    String topic = transactionSubscription.getTopic();
+                    String subName = transactionSubscription.getSubscription();
+                    CompletableFuture<TransactionInPendingAckStats> future =
+                            transactions.getTransactionInPendingAckStats(txnID, topic, subName);
+                    ackedPartitionsFutures.add(future);
+                    if (ackFutures.containsKey(topic)) {
+                        ackFutures.get(topic)
+                                .put(transactionSubscription.getSubscription(), future);
+                    } else {
+                        Map<String, CompletableFuture<TransactionInPendingAckStats>> pendingAckStatsMap =
+                                new HashMap<>();
+                        pendingAckStatsMap.put(transactionSubscription.getSubscription(), future);
+                        ackFutures.put(topic, pendingAckStatsMap);
+                    }
+                });
+
+                List<CompletableFuture<TransactionInBufferStats>> producedPartitionsFutures = new ArrayList<>();
+                Map<String, CompletableFuture<TransactionInBufferStats>> produceFutures = new HashMap<>();
+                txnMeta.producedPartitions().forEach(topic -> {
+                    CompletableFuture<TransactionInBufferStats> future =
+                            transactions.getTransactionInBufferStats(txnID, topic);
+                    producedPartitionsFutures.add(future);
+                    produceFutures.put(topic, future);
+
+                });
+
+                FutureUtil.waitForAll(ackedPartitionsFutures).whenComplete((v, e) -> {
+                    if (e != null) {
+                        asyncResponse.resume(new RestException(e));
+                        return;
+                    }
+
+                    FutureUtil.waitForAll(producedPartitionsFutures).whenComplete((x, t) -> {
+                        if (t != null) {
+                            asyncResponse.resume(new RestException(t));
+                            return;
+                        }
+
+                        Map<String, Map<String, TransactionInPendingAckStats>> ackedPartitions = new HashMap<>();
+                        Map<String, TransactionInBufferStats> producedPartitions = new HashMap<>();
+
+                        for (String topic : ackFutures.keySet()) {
+                            Map<String, TransactionInPendingAckStats> subs = new HashMap<>();
+                            for (String sub : ackFutures.get(topic).keySet()) {
+                                try {
+                                    subs.put(sub, ackFutures.get(topic).get(sub).get());
+                                } catch (Exception exception) {
+                                    asyncResponse.resume(new RestException(exception.getCause()));
+                                    return;
+                                }
+                            }
+
+                            ackedPartitions.put(topic, subs);
+                        }
+
+                        for (String topic : produceFutures.keySet()) {
+                            try {
+                                producedPartitions.put(topic, produceFutures.get(topic).get());
+                            } catch (Exception exception) {
+                                asyncResponse.resume(new RestException(exception.getCause()));
+                                return;
+                            }
+                        }
+                        transactionStatus.ackedPartitions = ackedPartitions;
+                        transactionStatus.producedPartitions = producedPartitions;
+                        asyncResponse.resume(transactionStatus);
+                    });
+                });
+            } else {
+                asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE,
+                        "This Broker is not configured with transactionCoordinatorEnabled=true."));
+            }
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e.getCause()));
         }
     }
 }

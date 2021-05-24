@@ -24,6 +24,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStatus;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
+import org.apache.pulsar.common.policies.data.TransactionStatus;
 
 public interface Transactions {
 
@@ -61,5 +62,13 @@ public interface Transactions {
      */
     CompletableFuture<TransactionInPendingAckStats> getTransactionInPendingAckStats(TxnID txnID, String topic,
                                                                                     String subName);
+
+    /**
+     * Get transaction status.
+     *
+     * @param txnID the id of this transaction
+     * @return the future status of this transaction.
+     */
+    CompletableFuture<TransactionStatus> getTransactionStatus(TxnID txnID);
 
 }

@@ -103,4 +103,26 @@ public class Transactions extends TransactionsBase {
         internalGetTransactionInPendingAckStats(asyncResponse, authoritative, mostSigBits,
                 leastSigBits, topic, subName);
     }
+
+    @GET
+    @Path("/transactionStatus")
+    @ApiOperation(value = "Get transaction status")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
+            @ApiResponse(code = 503, message = "This Broker is not configured "
+                    + "with transactionCoordinatorEnabled=true."),
+            @ApiResponse(code = 307, message = "Topic don't owner by this broker!"),
+            @ApiResponse(code = 501, message = "Topic is not a persistent topic!"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void getTransactionStatus(@Suspended final AsyncResponse asyncResponse,
+                                     @QueryParam("authoritative")
+                                     @DefaultValue("false") boolean authoritative,
+                                     @QueryParam("mostSigBits")
+                                         @ApiParam(value = "Most sig bits of this transaction", required = true)
+                                                 int mostSigBits,
+                                     @ApiParam(value = "Least sig bits of this transaction", required = true)
+                                         @QueryParam("leastSigBits") long leastSigBits) {
+        internalGetTransactionStatus(asyncResponse, authoritative, mostSigBits, leastSigBits);
+    }
+
 }

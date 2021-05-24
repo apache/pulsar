@@ -28,6 +28,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStatus;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
+import org.apache.pulsar.common.policies.data.TransactionStatus;
 
 public class TransactionsImpl extends BaseResource implements Transactions {
     private final WebTarget adminV3Transactions;
@@ -112,6 +113,27 @@ public class TransactionsImpl extends BaseResource implements Transactions {
                     @Override
                     public void completed(TransactionInPendingAckStats stats) {
                         future.complete(stats);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
+    public CompletableFuture<TransactionStatus> getTransactionStatus(TxnID txnID) {
+        WebTarget path = adminV3Transactions.path("transactionStatus");
+        path = path.queryParam("mostSigBits", txnID.getMostSigBits());
+        path = path.queryParam("leastSigBits", txnID.getLeastSigBits());
+        final CompletableFuture<TransactionStatus> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<TransactionStatus>() {
+                    @Override
+                    public void completed(TransactionStatus status) {
+                        future.complete(status);
                     }
 
                     @Override
