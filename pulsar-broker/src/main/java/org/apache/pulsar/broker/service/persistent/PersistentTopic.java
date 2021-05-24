@@ -132,6 +132,7 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
@@ -3063,6 +3064,10 @@ public class PersistentTopic extends AbstractTopic
 
     public boolean isTxnAborted(TxnID txnID) {
         return this.transactionBuffer.isTxnAborted(txnID);
+    }
+
+    public TransactionInBufferStats getTransactionInBufferStats(TxnID txnID) {
+        return this.transactionBuffer.getTransactionInBufferStats(txnID);
     }
 
     @Override
