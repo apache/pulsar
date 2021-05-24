@@ -117,7 +117,7 @@ public class TransactionImpl implements Transaction {
         return checkIfOpen().thenCompose(value -> {
             synchronized (TransactionImpl.this) {
                 // we need to issue the request to TC to register the acked topic
-                return registerSubscriptionMap.compute(topic, (key, future) -> {
+                return registerSubscriptionMap.compute(topic + "-" + subscription, (key, future) -> {
                     if (future != null) {
                         return future.thenCompose(ignored -> CompletableFuture.completedFuture(null));
                     } else {
