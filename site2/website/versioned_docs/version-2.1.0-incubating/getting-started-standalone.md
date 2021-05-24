@@ -15,7 +15,7 @@ For the purposes of local development and testing, you can run Pulsar in standal
 
 ### System requirements
 
-Pulsar is currently available for **MacOS** and **Linux**. In order to use Pulsar, you'll need to install [Java 8](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html).
+Currently, Pulsar is available for 64-bit **macOS**, **Linux**, and **Windows**. To use Pulsar, you need to install 64-bit JRE/JDK 8 or later versions.
 
 
 ### Installing Pulsar

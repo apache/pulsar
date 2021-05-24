@@ -32,6 +32,7 @@ import javax.net.ssl.SSLSession;
 import com.google.common.annotations.VisibleForTesting;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.RequiredTypeException;
+import io.jsonwebtoken.JwtParser;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Histogram;
 import org.apache.commons.lang3.StringUtils;
@@ -91,6 +92,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     private SignatureAlgorithm publicKeyAlg;
     private String audienceClaim;
     private String audience;
+    private JwtParser parser;
 
     // config keys
     private String confTokenSecretKeySettingName;
@@ -130,6 +132,8 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         this.roleClaim = getTokenRoleClaim(config);
         this.audienceClaim = getTokenAudienceClaim(config);
         this.audience = getTokenAudience(config);
+
+        this.parser = Jwts.parserBuilder().setSigningKey(this.validationKey).build();
 
         if (audienceClaim != null && audience == null ) {
             throw new IllegalArgumentException("Token Audience Claim [" + audienceClaim
@@ -195,7 +199,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     @SuppressWarnings("unchecked")
     private Jwt<?, Claims> authenticateToken(final String token) throws AuthenticationException {
         try {
-            Jwt<?, Claims> jwt = Jwts.parserBuilder().setSigningKey(validationKey).build().parseClaimsJws(token);
+            Jwt<?, Claims> jwt = parser.parseClaimsJws(token);
 
             if (audienceClaim != null) {
                 Object object = jwt.getBody().get(audienceClaim);

@@ -937,7 +937,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     private static EventLoopGroup getEventLoopGroup(ClientConfigurationData conf) {
         ThreadFactory threadFactory = getThreadFactory("pulsar-client-io");
-        return EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), threadFactory);
+        return EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), conf.isEnableBusyWait(), threadFactory);
     }
 
     private static ThreadFactory getThreadFactory(String poolName) {
@@ -987,7 +987,7 @@ public class PulsarClientImpl implements PulsarClient {
         return new MultiVersionSchemaInfoProvider(TopicName.get(topicName), this);
     }
 
-    private LoadingCache<String, SchemaInfoProvider> getSchemaProviderLoadingCache() {
+    protected LoadingCache<String, SchemaInfoProvider> getSchemaProviderLoadingCache() {
         return schemaProviderLoadingCache;
     }
 

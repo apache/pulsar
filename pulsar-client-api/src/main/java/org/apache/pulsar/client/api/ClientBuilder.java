@@ -473,6 +473,18 @@ public interface ClientBuilder extends Cloneable {
     ClientBuilder maxBackoffInterval(long duration, TimeUnit unit);
 
     /**
+     * Option to enable busy-wait settings. Default is false.
+     *
+     * <b>WARNING</b>: This option will enable spin-waiting on executors and IO threads in order to reduce latency
+     * during context switches. The spinning will consume 100% CPU even when the broker is not doing any work. It
+     * is recommended to reduce the number of IO threads and BK client threads to only have few CPU cores busy.
+     *
+     * @param enableBusyWait whether to enable busy wait
+     * @return the client builder instance
+     */
+    ClientBuilder enableBusyWait(boolean enableBusyWait);
+
+    /**
      * The clock used by the pulsar client.
      *
      * <p>The clock is currently used by producer for setting publish timestamps.

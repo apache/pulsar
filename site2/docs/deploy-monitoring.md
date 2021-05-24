@@ -65,6 +65,7 @@ brk_ml_cursor_persistLedgerSucceed(namespace="", ledger_name="", cursor_name:"")
 brk_ml_cursor_persistLedgerErrors(namespace="", ledger_name="", cursor_name:"")
 brk_ml_cursor_persistZookeeperSucceed(namespace="", ledger_name="", cursor_name:"")
 brk_ml_cursor_persistZookeeperErrors(namespace="", ledger_name="", cursor_name:"")
+brk_ml_cursor_nonContiguousDeletedMessagesRange(namespace="", ledger_name="", cursor_name:"")
 ```
 
 Those metrics are added in the Prometheus interface, you can monitor and check the metrics stats in the Grafana.
