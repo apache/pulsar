@@ -35,8 +35,15 @@
     <dependencies>
 
         <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>pulsar-client-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
+            <scope>provided</scope>
         </dependency>
 
     </dependencies>
