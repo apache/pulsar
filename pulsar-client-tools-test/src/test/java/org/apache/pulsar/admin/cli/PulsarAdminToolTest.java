@@ -1426,7 +1426,7 @@ public class PulsarAdminToolTest {
 
         CmdTransactions cmdTransactions = new CmdTransactions(() -> admin);
 
-        cmdTransactions.run(split("coordinator-status -c 1"));
+        cmdTransactions.run(split("coordinator-status -m 1"));
         verify(transactions).getCoordinatorStatusById(1);
 
         cmdTransactions = new CmdTransactions(() -> admin);
@@ -1434,7 +1434,7 @@ public class PulsarAdminToolTest {
         verify(transactions).getCoordinatorStatusList();
 
         cmdTransactions = new CmdTransactions(() -> admin);
-        cmdTransactions.run(split("transaction-in-buffer-stats -c 1 -t test -id 2"));
+        cmdTransactions.run(split("transaction-in-buffer-stats -m 1 -t test -l 2"));
         verify(transactions).getTransactionInBufferStats(new TxnID(1, 2), "test");
     }
 
