@@ -693,6 +693,30 @@ public abstract class PulsarWebResource {
         }
     }
 
+    protected CompletableFuture<Void> validateGlobalNamespaceOwnershipAsync(NamespaceName namespace) {
+        return checkLocalOrGetPeerReplicationCluster(pulsar(), namespace)
+                .thenAccept(peerClusterData -> {
+                    // if peer-cluster-data is present it means namespace is owned by that peer-cluster and request
+                    // should be redirect to the peer-cluster
+                    if (peerClusterData != null) {
+                        try {
+                            URI redirect = getRedirectionUrl(peerClusterData);
+                            // redirect to the cluster requested
+                            if (log.isDebugEnabled()) {
+                                log.debug("[{}] Redirecting the rest call to {}: cluster={}", clientAppId(),
+                                        redirect, peerClusterData);
+
+                            }
+                            throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+                        } catch (MalformedURLException mue) {
+                            throw new RestException(Status.SERVICE_UNAVAILABLE, String.format(
+                                    "Failed to validate global cluster configuration : ns=%s  emsg=%s", namespace,
+                                    mue.getMessage()));
+                        }
+                    }
+                });
+    }
+
     public static CompletableFuture<ClusterData> checkLocalOrGetPeerReplicationCluster(PulsarService pulsarService,
             NamespaceName namespace) {
         if (!namespace.isGlobal()) {
