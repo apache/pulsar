@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import static javax.ws.rs.core.Response.Status.INTERNAL_SERVER_ERROR;
 import static javax.ws.rs.core.Response.Status.SERVICE_UNAVAILABLE;
 import static javax.ws.rs.core.Response.Status.TEMPORARY_REDIRECT;
 import com.google.common.collect.Lists;
@@ -102,6 +101,42 @@ public abstract class TransactionsBase extends AdminResource {
         }
     }
 
+    protected void internalGetTransactionInPendingAckStats(AsyncResponse asyncResponse, boolean authoritative,
+                                                           long mostSigBits, long leastSigBits, String topic,
+                                                           String subName) {
+        if (pulsar().getConfig().isTransactionCoordinatorEnabled()) {
+            validateTopicOwnership(TopicName.get(topic), authoritative);
+            CompletableFuture<Optional<Topic>> topicFuture = pulsar().getBrokerService()
+                    .getTopics().get(TopicName.get(topic).toString());
+            if (topicFuture != null) {
+                topicFuture.whenComplete((optionalTopic, e) -> {
+
+                    if (e != null) {
+                        asyncResponse.resume(new RestException(e));
+                        return;
+                    }
+                    if (!optionalTopic.isPresent()) {
+                        asyncResponse.resume(new RestException(TEMPORARY_REDIRECT,
+                                "Topic don't owner by this broker!"));
+                        return;
+                    }
+                    Topic topicObject = optionalTopic.get();
+                    if (topicObject instanceof PersistentTopic) {
+                        asyncResponse.resume(((PersistentTopic) topicObject)
+                                .getTransactionInPendingAckStats(new TxnID(mostSigBits, leastSigBits), subName));
+                    } else {
+                        asyncResponse.resume(new RestException(NOT_IMPLEMENTED, "Topic is not a persistent topic!"));
+                    }
+                });
+            } else {
+                asyncResponse.resume(new RestException(TEMPORARY_REDIRECT, "Topic don't owner by this broker!"));
+            }
+        } else {
+            asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE,
+                    "This Broker is not configured with transactionCoordinatorEnabled=true."));
+        }
+    }
+
     protected void internalGetTransactionInBufferStats(AsyncResponse asyncResponse, boolean authoritative,
                                                        long mostSigBits, long leastSigBits,
                                                        String topic) {
@@ -116,7 +151,7 @@ public abstract class TransactionsBase extends AdminResource {
                         return;
                     }
                     if (!optionalTopic.isPresent()) {
-                        asyncResponse.resume(new RestException(INTERNAL_SERVER_ERROR,
+                        asyncResponse.resume(new RestException(TEMPORARY_REDIRECT,
                                 "Topic don't owner by this broker!"));
                         return;
                     }

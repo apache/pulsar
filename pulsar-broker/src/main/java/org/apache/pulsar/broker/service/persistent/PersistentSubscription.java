@@ -71,6 +71,7 @@ import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
+import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -1143,6 +1144,10 @@ public class PersistentSubscription implements Subscription {
 
     public boolean checkAndUnblockIfStuck() {
         return dispatcher != null ? dispatcher.checkAndUnblockIfStuck() : false;
+    }
+
+    public TransactionInPendingAckStats getTransactionInPendingAckStats(TxnID txnID) {
+        return this.pendingAckHandle.getTransactionInPendingAckStats(txnID);
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentSubscription.class);

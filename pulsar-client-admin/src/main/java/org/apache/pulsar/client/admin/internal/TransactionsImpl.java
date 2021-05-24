@@ -27,6 +27,7 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStatus;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
+import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 
 public class TransactionsImpl extends BaseResource implements Transactions {
     private final WebTarget adminV3Transactions;
@@ -86,6 +87,30 @@ public class TransactionsImpl extends BaseResource implements Transactions {
                 new InvocationCallback<TransactionInBufferStats>() {
                     @Override
                     public void completed(TransactionInBufferStats stats) {
+                        future.complete(stats);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
+    public CompletableFuture<TransactionInPendingAckStats> getTransactionInPendingAckStats(TxnID txnID, String topic,
+                                                                                           String subName) {
+        WebTarget path = adminV3Transactions.path("transactionInPendingAckStats");
+        path = path.queryParam("mostSigBits", txnID.getMostSigBits());
+        path = path.queryParam("leastSigBits", txnID.getLeastSigBits());
+        path = path.queryParam("topic", topic);
+        path = path.queryParam("subName", subName);
+        final CompletableFuture<TransactionInPendingAckStats> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<TransactionInPendingAckStats>() {
+                    @Override
+                    public void completed(TransactionInPendingAckStats stats) {
                         future.complete(stats);
                     }
 
