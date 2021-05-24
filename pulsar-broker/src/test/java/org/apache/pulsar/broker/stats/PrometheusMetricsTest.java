@@ -767,15 +767,21 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         String metricsStr = new String(statsOut.toByteArray());
         Multimap<String, Metric> metrics = parseMetrics(metricsStr);
         List<Metric> cm = (List<Metric>) metrics.get("pulsar_authentication_success_count");
-        Metric metric = cm.get(cm.size() - 1);
-        assertEquals(metric.tags.get("auth_method"), "token");
-        assertEquals(metric.tags.get("provider_name"), provider.getClass().getSimpleName());
+        boolean tokenFound = false;
+        for (Metric metric : cm) {
+            if (metric.tags.get("auth_method").equals("token")) {
+                tokenFound = true;
+                assertEquals(metric.tags.get("auth_method"), "token");
+                assertEquals(metric.tags.get("provider_name"), provider.getClass().getSimpleName());
 
-        cm = (List<Metric>) metrics.get("pulsar_authentication_failures_count");
-        metric = cm.get(cm.size() - 1);
-        assertEquals(metric.tags.get("auth_method"), "token");
-        assertEquals(metric.tags.get("reason"), authExceptionMessage);
-        assertEquals(metric.tags.get("provider_name"), provider.getClass().getSimpleName());
+                cm = (List<Metric>) metrics.get("pulsar_authentication_failures_count");
+                metric = cm.get(cm.size() - 1);
+                assertEquals(metric.tags.get("auth_method"), "token");
+                assertEquals(metric.tags.get("reason"), authExceptionMessage);
+                assertEquals(metric.tags.get("provider_name"), provider.getClass().getSimpleName());
+            }
+        }
+        assertTrue(tokenFound, "Token auth was not found");
     }
 
     @Test
