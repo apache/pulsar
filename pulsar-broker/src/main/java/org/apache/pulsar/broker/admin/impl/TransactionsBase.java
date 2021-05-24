@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import static javax.ws.rs.core.Response.Status.INTERNAL_SERVER_ERROR;
 import static javax.ws.rs.core.Response.Status.SERVICE_UNAVAILABLE;
+import static javax.ws.rs.core.Response.Status.TEMPORARY_REDIRECT;
 import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.List;
@@ -112,7 +112,7 @@ public abstract class TransactionsBase extends AdminResource {
                     }
 
                     if (!optionalTopic.isPresent()) {
-                        asyncResponse.resume(new RestException(INTERNAL_SERVER_ERROR,
+                        asyncResponse.resume(new RestException(TEMPORARY_REDIRECT,
                                 "Topic don't owner by this broker!"));
                         return;
                     }
@@ -124,7 +124,7 @@ public abstract class TransactionsBase extends AdminResource {
                     }
                 });
             } else {
-                asyncResponse.resume(new RestException(INTERNAL_SERVER_ERROR, "Topic don't owner by this broker!"));
+                asyncResponse.resume(new RestException(TEMPORARY_REDIRECT, "Topic don't owner by this broker!"));
             }
         } else {
             asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE, "Broker don't support transaction!"));
@@ -145,7 +145,7 @@ public abstract class TransactionsBase extends AdminResource {
                     }
 
                     if (!optionalTopic.isPresent()) {
-                        asyncResponse.resume(new RestException(INTERNAL_SERVER_ERROR,
+                        asyncResponse.resume(new RestException(TEMPORARY_REDIRECT,
                                 "Topic don't owner by this broker!"));
                         return;
                     }
@@ -157,7 +157,7 @@ public abstract class TransactionsBase extends AdminResource {
                     }
                 });
             } else {
-                asyncResponse.resume(new RestException(INTERNAL_SERVER_ERROR, "Topic don't owner by this broker!"));
+                asyncResponse.resume(new RestException(TEMPORARY_REDIRECT, "Topic don't owner by this broker!"));
             }
         } else {
             asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE, "Broker don't support transaction!"));

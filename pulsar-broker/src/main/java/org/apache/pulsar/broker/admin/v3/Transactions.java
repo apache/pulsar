@@ -62,7 +62,7 @@ public class Transactions extends TransactionsBase {
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
             @ApiResponse(code = 503, message = "This Broker is not configured "
                     + "with transactionCoordinatorEnabled=true."),
-            @ApiResponse(code = 500, message = "Topic don't owner by this broker!"),
+            @ApiResponse(code = 307, message = "Topic don't owner by this broker!"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
     public void getTransactionBufferStatus(@Suspended final AsyncResponse asyncResponse,
                                            @QueryParam("authoritative")
@@ -79,7 +79,7 @@ public class Transactions extends TransactionsBase {
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic or subName doesn't exist"),
             @ApiResponse(code = 503, message = "This Broker is not configured "
                     + "with transactionCoordinatorEnabled=true."),
-            @ApiResponse(code = 500, message = "Topic don't owner by this broker!"),
+            @ApiResponse(code = 307, message = "Topic don't owner by this broker!"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
     public void getPendingAckStatus(@Suspended final AsyncResponse asyncResponse,
                                     @QueryParam("authoritative")
