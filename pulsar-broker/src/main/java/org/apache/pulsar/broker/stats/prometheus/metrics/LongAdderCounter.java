@@ -18,20 +18,44 @@
  */
 package org.apache.pulsar.broker.stats.prometheus.metrics;
 
-import org.apache.bookkeeper.stats.Gauge;
+import java.util.concurrent.atomic.LongAdder;
+import org.apache.bookkeeper.stats.Counter;
 
 /**
- * A {@link Gauge} implementation that forwards on the value supplier.
+ * {@link Counter} implementation based on {@link LongAdder}.
+ *
+ * <p>LongAdder keeps a counter per-thread and then aggregates to get the result, in order to avoid contention between
+ * multiple threads.
  */
-public class SimpleGauge<T extends Number> {
+public class LongAdderCounter implements Counter {
+    private final LongAdder counter = new LongAdder();
 
-    private final Gauge<T> gauge;
+    public LongAdderCounter() {
 
-    public SimpleGauge(final Gauge<T> gauge) {
-        this.gauge = gauge;
     }
 
-    public Number getSample() {
-        return gauge.getSample();
+    @Override
+    public void clear() {
+        counter.reset();
+    }
+
+    @Override
+    public void inc() {
+        counter.increment();
+    }
+
+    @Override
+    public void dec() {
+        counter.decrement();
+    }
+
+    @Override
+    public void add(long delta) {
+        counter.add(delta);
+    }
+
+    @Override
+    public Long get() {
+        return counter.sum();
     }
 }
