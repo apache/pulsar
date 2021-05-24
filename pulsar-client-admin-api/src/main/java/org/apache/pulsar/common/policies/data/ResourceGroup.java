@@ -18,10 +18,7 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import com.google.common.base.MoreObjects;
 import lombok.Data;
-
-import java.util.Objects;
 
 @Data public class ResourceGroup {
     private int publishRateInMsgs = -1;
