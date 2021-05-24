@@ -37,9 +37,9 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     }
 
     @Override
-    public CompletableFuture<TransactionCoordinatorStatus> getCoordinatorStatusById(int mostSigBits) {
+    public CompletableFuture<TransactionCoordinatorStatus> getCoordinatorStatusById(int coordinatorId) {
         WebTarget path = adminV3Transactions.path("coordinatorStatus");
-        path = path.queryParam("mostSigBits", mostSigBits);
+        path = path.queryParam("coordinatorId", coordinatorId);
         final CompletableFuture<TransactionCoordinatorStatus> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<TransactionCoordinatorStatus>() {

@@ -51,8 +51,8 @@ public class Transactions extends TransactionsBase {
     public void getCoordinatorStatus(@Suspended final AsyncResponse asyncResponse,
                                      @QueryParam("authoritative")
                                                 @DefaultValue("false") boolean authoritative,
-                                     @QueryParam("mostSigBits") Integer mostSigBits) {
-        internalGetCoordinatorStatus(asyncResponse, authoritative, mostSigBits);
+                                     @QueryParam("coordinatorId") Integer coordinatorId) {
+        internalGetCoordinatorStatus(asyncResponse, authoritative, coordinatorId);
     }
 
     @GET

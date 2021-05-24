@@ -29,10 +29,10 @@ public interface Transactions {
     /**
      * Get transaction metadataStore status.
      *
-     * @param mostSigBits the id which get transaction coordinator
+     * @param coordinatorId the id which get transaction coordinator
      * @return the list future of transaction metadata store status.
      */
-    CompletableFuture<TransactionCoordinatorStatus> getCoordinatorStatusById(int mostSigBits);
+    CompletableFuture<TransactionCoordinatorStatus> getCoordinatorStatusById(int coordinatorId);
 
     /**
      * Get transaction metadataStore status.

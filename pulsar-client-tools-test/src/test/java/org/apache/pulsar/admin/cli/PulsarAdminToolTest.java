@@ -1426,7 +1426,7 @@ public class PulsarAdminToolTest {
 
         CmdTransactions cmdTransactions = new CmdTransactions(() -> admin);
 
-        cmdTransactions.run(split("coordinator-status -m 1"));
+        cmdTransactions.run(split("coordinator-status -c 1"));
         verify(transactions).getCoordinatorStatusById(1);
 
         cmdTransactions = new CmdTransactions(() -> admin);

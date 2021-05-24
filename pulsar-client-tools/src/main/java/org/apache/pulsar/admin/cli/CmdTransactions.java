@@ -29,13 +29,13 @@ public class CmdTransactions extends CmdBase {
 
     @Parameters(commandDescription = "Get transaction coordinator status")
     private class GetCoordinatorStatus extends CliCommand {
-        @Parameter(names = {"-m", "--most-sig-bits"}, description = "the coordinator id", required = false)
-        private Integer mostSigBits;
+        @Parameter(names = {"-c", "--coordinator-id"}, description = "the coordinator id", required = false)
+        private Integer coordinatorId;
 
         @Override
         void run() throws Exception {
-            if (mostSigBits != null) {
-                print(getAdmin().transactions().getCoordinatorStatusById(mostSigBits));
+            if (coordinatorId != null) {
+                print(getAdmin().transactions().getCoordinatorStatusById(coordinatorId));
             } else {
                 print(getAdmin().transactions().getCoordinatorStatusList());
             }
