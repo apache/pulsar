@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import com.google.common.base.Objects;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * The namespace isolation data for a given broker.
@@ -58,14 +58,14 @@ public class BrokerNamespaceIsolationData {
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(brokerName, namespaceRegex);
+        return Objects.hash(brokerName, namespaceRegex);
     }
 
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof BrokerNamespaceIsolationData) {
             BrokerNamespaceIsolationData other = (BrokerNamespaceIsolationData) obj;
-            return Objects.equal(brokerName, other.brokerName) && Objects.equal(namespaceRegex, other.namespaceRegex);
+            return Objects.equals(brokerName, other.brokerName) && Objects.equals(namespaceRegex, other.namespaceRegex);
         }
         return false;
     }

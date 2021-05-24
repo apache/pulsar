@@ -18,12 +18,11 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import com.google.common.base.Objects;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import java.util.Map;
-import org.apache.pulsar.common.policies.impl.AutoFailoverPolicyFactory;
+import java.util.Objects;
+import static org.apache.pulsar.client.admin.utils.DefaultImplementation.newAutoFailoverPolicyFromAutoFailoverPolicyFactory;
 
 /**
  * The auto failover policy configuration data.
@@ -59,22 +58,24 @@ public class AutoFailoverPolicyData {
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(policy_type, parameters);
+        return Objects.hash(policy_type, parameters);
     }
 
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof AutoFailoverPolicyData) {
             AutoFailoverPolicyData other = (AutoFailoverPolicyData) obj;
-            return Objects.equal(policy_type, other.policy_type) && Objects.equal(parameters, other.parameters);
+            return Objects.equals(policy_type, other.policy_type) && Objects.equals(parameters, other.parameters);
         }
 
         return false;
     }
 
     public void validate() {
-        checkArgument(policy_type != null && parameters != null);
-        AutoFailoverPolicyFactory.create(this);
+        if (!(policy_type != null && parameters != null)){
+            throw new IllegalArgumentException();
+        }
+        newAutoFailoverPolicyFromAutoFailoverPolicyFactory(this);
     }
 
     @Override

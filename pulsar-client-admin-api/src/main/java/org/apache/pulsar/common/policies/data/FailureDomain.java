@@ -18,11 +18,12 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import com.google.common.base.MoreObjects;
-import com.google.common.base.Objects;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
+import lombok.ToString;
+
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -32,6 +33,7 @@ import java.util.Set;
     value = "FailureDomain",
     description = "The data of a failure domain configuration in a cluster"
 )
+@ToString
 public class FailureDomain {
 
     @ApiModelProperty(
@@ -58,14 +60,9 @@ public class FailureDomain {
     public boolean equals(Object obj) {
         if (obj instanceof FailureDomain) {
             FailureDomain other = (FailureDomain) obj;
-            return Objects.equal(brokers, other.brokers);
+            return Objects.equals(brokers, other.brokers);
         }
 
         return false;
-    }
-
-    @Override
-    public String toString() {
-        return MoreObjects.toStringHelper(this).add("brokers", brokers).toString();
     }
 }

@@ -18,12 +18,11 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import com.google.common.base.Objects;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -69,7 +68,7 @@ public class NamespaceIsolationData {
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(namespaces, primary, secondary,
+        return Objects.hash(namespaces, primary, secondary,
                 auto_failover_policy);
     }
 
@@ -77,17 +76,20 @@ public class NamespaceIsolationData {
     public boolean equals(Object obj) {
         if (obj instanceof NamespaceIsolationData) {
             NamespaceIsolationData other = (NamespaceIsolationData) obj;
-            return Objects.equal(namespaces, other.namespaces) && Objects.equal(primary, other.primary)
-                    && Objects.equal(secondary, other.secondary)
-                    && Objects.equal(auto_failover_policy, other.auto_failover_policy);
+            return Objects.equals(namespaces, other.namespaces) && Objects.equals(primary, other.primary)
+                    && Objects.equals(secondary, other.secondary)
+                    && Objects.equals(auto_failover_policy, other.auto_failover_policy);
         }
 
         return false;
     }
 
     public void validate() {
-        checkArgument(namespaces != null && !namespaces.isEmpty() && primary != null && !primary.isEmpty()
-                && validateRegex(primary) && secondary != null && validateRegex(secondary) && auto_failover_policy != null);
+        if(!(namespaces != null && !namespaces.isEmpty() && primary != null && !primary.isEmpty()
+                && validateRegex(primary) && secondary != null && validateRegex(secondary)
+                && auto_failover_policy != null)) {
+            throw new IllegalArgumentException();
+        }
         auto_failover_policy.validate();
     }
 

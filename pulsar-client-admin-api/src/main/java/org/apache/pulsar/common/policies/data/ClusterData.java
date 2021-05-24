@@ -18,12 +18,11 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import com.google.common.base.MoreObjects;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import java.util.LinkedHashSet;
 import java.util.Objects;
+import lombok.ToString;
 import org.apache.pulsar.client.api.ProxyProtocol;
 
 /**
@@ -33,6 +32,7 @@ import org.apache.pulsar.client.api.ProxyProtocol;
     value = "ClusterData",
     description = "The configuration data for a cluster"
 )
+@ToString
 public class ClusterData {
     @ApiModelProperty(
         name = "serviceUrl",
@@ -110,7 +110,9 @@ public class ClusterData {
     }
 
     public void update(ClusterData other) {
-        checkNotNull(other);
+        if (other == null) {
+            throw new NullPointerException();
+        }
         this.serviceUrl = other.serviceUrl;
         this.serviceUrlTls = other.serviceUrlTls;
         this.brokerServiceUrl = other.brokerServiceUrl;
@@ -192,18 +194,6 @@ public class ClusterData {
     @Override
     public int hashCode() {
        return Objects.hash(this.toString());
-    }
-
-    @Override
-    public String toString() {
-        return MoreObjects.toStringHelper(this)
-                .add("serviceUrl", serviceUrl)
-                .add("serviceUrlTls", serviceUrlTls)
-                .add("brokerServiceUrl", brokerServiceUrl)
-                .add("brokerServiceUrlTls", brokerServiceUrlTls)
-                .add("proxyServiceUrl", proxyServiceUrl)
-                .add("proxyProtocol", proxyProtocol)
-                .add("peerClusterNames", peerClusterNames).toString();
     }
 
 }

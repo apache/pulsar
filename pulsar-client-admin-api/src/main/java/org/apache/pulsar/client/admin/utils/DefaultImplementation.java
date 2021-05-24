@@ -19,11 +19,14 @@
 package org.apache.pulsar.client.admin.utils;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
 import lombok.experimental.UtilityClass;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.common.policies.AutoFailoverPolicy;
+import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
 
 /**
  * Helper class for class instantiations and it also contains methods to work with schemas.
@@ -39,6 +42,10 @@ public class DefaultImplementation {
             "org.apache.pulsar.client.admin.internal.OffloadProcessStatusImpl",
                     LongRunningProcessStatus.Status.class, String.class, MessageId.class);
 
+    private static final Method AUTO_FAILOVER_POLICY_FACTORY_create = ReflectionUtils.getStaticMethod(
+            "org.apache.pulsar.common.policies.impl.AutoFailoverPolicyFactory",
+            "create", AutoFailoverPolicyData.class);
+
     public static PulsarAdminBuilder newAdminClientBuilder() {
         return ReflectionUtils.catchExceptions(() -> ADMIN_CLIENT_BUILDER_IMPL.newInstance());
     }
@@ -47,5 +54,9 @@ public class DefaultImplementation {
             , MessageId messageId) {
         return ReflectionUtils.catchExceptions(() -> OFFLOAD_PROCESS_STATUS_IMPL_status_string_messageid.newInstance(
                 status, lastError, messageId));
+    }
+
+    public static AutoFailoverPolicy newAutoFailoverPolicyFromAutoFailoverPolicyFactory(AutoFailoverPolicyData policyData) {
+        return ReflectionUtils.catchExceptions(() ->  (AutoFailoverPolicy) AUTO_FAILOVER_POLICY_FACTORY_create.invoke(policyData));
     }
 }
