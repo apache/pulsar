@@ -559,22 +559,20 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
     - org.glassfish.hk2-osgi-resource-locator-1.0.3.jar
     - org.glassfish.hk2.external-aopalliance-repackaged-2.6.1.jar
  * Jersey
-    - org.glassfish.jersey.containers-jersey-container-servlet-2.31.jar
-    - org.glassfish.jersey.containers-jersey-container-servlet-core-2.31.jar
-    - org.glassfish.jersey.core-jersey-client-2.31.jar
-    - org.glassfish.jersey.core-jersey-common-2.31.jar
-    - org.glassfish.jersey.core-jersey-server-2.31.jar
-    - org.glassfish.jersey.ext-jersey-entity-filtering-2.31.jar
-    - org.glassfish.jersey.media-jersey-media-jaxb-2.31.jar
-    - org.glassfish.jersey.media-jersey-media-json-jackson-2.31.jar
-    - org.glassfish.jersey.media-jersey-media-multipart-2.31.jar
-    - org.glassfish.jersey.inject-jersey-hk2-2.31.jar
+    - org.glassfish.jersey.containers-jersey-container-servlet-2.34.jar
+    - org.glassfish.jersey.containers-jersey-container-servlet-core-2.34.jar
+    - org.glassfish.jersey.core-jersey-client-2.34.jar
+    - org.glassfish.jersey.core-jersey-common-2.34.jar
+    - org.glassfish.jersey.core-jersey-server-2.34.jar
+    - org.glassfish.jersey.ext-jersey-entity-filtering-2.34.jar
+    - org.glassfish.jersey.media-jersey-media-json-jackson-2.34.jar
+    - org.glassfish.jersey.media-jersey-media-multipart-2.34.jar
+    - org.glassfish.jersey.inject-jersey-hk2-2.34.jar
  * Mimepull -- org.jvnet.mimepull-mimepull-1.9.13.jar
 
 Eclipse Distribution License 1.0 -- licenses/LICENSE-EDL-1.0.txt
  * Jakarta Activation
-   - jakarta.activation-jakarta.activation-api-1.2.2.jar
-   - com.sun.activation-jakarta.activation-1.2.2.jar
+    - jakarta.activation-jakarta.activation-api-1.2.2.jar
  * Jakarta XML Binding -- jakarta.xml.bind-jakarta.xml.bind-api-2.3.3.jar
 
 Eclipse Public License - v2.0 -- licenses/LICENSE-EPL-2.0.txt
