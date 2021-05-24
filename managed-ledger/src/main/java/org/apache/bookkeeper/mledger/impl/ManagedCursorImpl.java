@@ -55,6 +55,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -2698,7 +2699,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             clonedMarker = new ConcurrentHashMap<>(rangeMarker);
             // get range info and group by ledger ID
             rangeGroupByLedgerId = getRangeGroupByLedgerId(dirtyRange, mdEntry);
-            deletionIndexInfoGroupByLedgerId = getDeletionIndexInfosGroupByLedgerId(dirtyRange);
+            deletionIndexInfoGroupByLedgerId = getDeletionIndexInfosGroupByLedgerId(dirtyRange, mdEntry);
         } finally {
             lock.readLock().unlock();
         }
@@ -2874,7 +2875,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     Map<Long, List<MLDataFormats.BatchedEntryDeletionIndexInfo>> getDeletionIndexInfosGroupByLedgerId(
-            Set<Long> dirtyRange) {
+            Set<Long> dirtyRange, MarkDeleteEntry mdEntry) {
         lock.readLock().lock();
         try {
             if (!config.isDeletionAtBatchIndexLevelEnabled() || batchDeletedIndexes == null || batchDeletedIndexes.isEmpty()) {
@@ -2886,7 +2887,11 @@ public class ManagedCursorImpl implements ManagedCursor {
                     .newBuilder();
             Map<Long, List<MLDataFormats.BatchedEntryDeletionIndexInfo>> ledgerIdToIndexInfo =
                     Maps.newHashMapWithExpectedSize(batchDeletedIndexes.size());
-            Iterator<Map.Entry<PositionImpl, BitSetRecyclable>> iterator = batchDeletedIndexes.entrySet().iterator();
+            ConcurrentNavigableMap<PositionImpl, BitSetRecyclable> subMap =
+                    mdEntry == null ? batchDeletedIndexes
+                            : batchDeletedIndexes.subMap(mdEntry.newPosition, true,
+                            batchDeletedIndexes.lastKey(), true);
+            Iterator<Map.Entry<PositionImpl, BitSetRecyclable>> iterator = subMap.entrySet().iterator();
             while (iterator.hasNext() && ledgerIdToIndexInfo.size() < config.getMaxBatchDeletedIndexToPersist()) {
                 Map.Entry<PositionImpl, BitSetRecyclable> entry = iterator.next();
                 if (dirtyRange != null && !dirtyRange.contains(entry.getKey().getLedgerId())) {
@@ -2929,8 +2934,9 @@ public class ManagedCursorImpl implements ManagedCursor {
                 if (dirtyRange != null && !dirtyRange.contains(positionRange.upperEndpoint().ledgerId)) {
                     return true;
                 }
-                if (position.getLedgerId() >= positionRange.upperEndpoint().ledgerId
-                        && position.getEntryId() >= positionRange.lowerEndpoint().entryId) {
+                if (position.getLedgerId() > positionRange.upperEndpoint().ledgerId
+                        || (position.getLedgerId() == positionRange.lowerEndpoint().ledgerId
+                        && position.getEntryId() > positionRange.lowerEndpoint().entryId)) {
                     return true;
                 }
                 nestedPositionBuilder.setLedgerId(positionRange.lowerEndpoint().ledgerId)

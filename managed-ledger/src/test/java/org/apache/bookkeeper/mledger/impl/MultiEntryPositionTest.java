@@ -82,6 +82,12 @@ public class MultiEntryPositionTest extends MockedBookKeeperTestCase {
         rangeGroupByLedgerId = c1.getRangeGroupByLedgerId(filter, null);
         assertEquals(rangeGroupByLedgerId.size(), 1);
         assertTrue(rangeGroupByLedgerId.containsKey(2L));
+
+        rangeGroupByLedgerId = c1.getRangeGroupByLedgerId(null,
+                new ManagedCursorImpl.MarkDeleteEntry(new PositionImpl(1, 0), null, null, null));
+        assertEquals(rangeGroupByLedgerId.size(), 2);
+        assertTrue(rangeGroupByLedgerId.containsKey(1L));
+        assertTrue(rangeGroupByLedgerId.containsKey(2L));
         c1.close();
         ledger.close();
     }
@@ -101,7 +107,7 @@ public class MultiEntryPositionTest extends MockedBookKeeperTestCase {
         c1.getBatchDeletedIndexes().put(new PositionImpl(2,0), list.get(2));
 
         Map<Long, List<MLDataFormats.BatchedEntryDeletionIndexInfo>> map = c1.
-                getDeletionIndexInfosGroupByLedgerId(null);
+                getDeletionIndexInfosGroupByLedgerId(null, null);
 
         assertEquals(map.size(), 3);
         AtomicLong count = new AtomicLong(0);
@@ -114,8 +120,14 @@ public class MultiEntryPositionTest extends MockedBookKeeperTestCase {
 
         Set<Long> filter = new HashSet<>();
         filter.add(2L);
-        map = c1.getDeletionIndexInfosGroupByLedgerId(filter);
+        map = c1.getDeletionIndexInfosGroupByLedgerId(filter, null);
         assertEquals(map.size(), 1);
+        assertTrue(map.containsKey(2L));
+
+        map = c1.getDeletionIndexInfosGroupByLedgerId(null, new ManagedCursorImpl.MarkDeleteEntry(new PositionImpl(1, 0)
+                , null, null, null));
+        assertEquals(map.size(), 2);
+        assertTrue(map.containsKey(1L));
         assertTrue(map.containsKey(2L));
 
         c1.close();
@@ -483,6 +495,7 @@ public class MultiEntryPositionTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testCompatibility() throws Exception {
+
     }
 
     @Test
