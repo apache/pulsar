@@ -27,9 +27,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
-import org.apache.pulsar.metadata.api.Stat;
 import org.awaitility.Awaitility;
-import org.mockito.stubbing.Answer;
 import org.testng.annotations.Test;
 import java.util.Arrays;
 import java.util.Collections;
@@ -44,10 +42,6 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertTrue;
 
@@ -437,19 +431,6 @@ public class MultiEntryPositionTest extends MockedBookKeeperTestCase {
         assertTrue(optionalPositionInfo.isPresent());
         List<MLDataFormats.MarkerIndexInfo> markerIndexInfos = optionalPositionInfo.get().getMarkerIndexInfoList();
         assertEquals(markerIndexInfos.size(), 3);
-
-        MetaStore mockMetaStore = mock(MetaStore.class);
-        doAnswer((Answer<Object>) invocation -> {
-            MLDataFormats.ManagedCursorInfo info = MLDataFormats.ManagedCursorInfo.newBuilder()
-                    .setCursorsLedgerId(cursor.getCursorLedger())
-                    .setMarkDeleteLedgerId(3).setMarkDeleteEntryId(1)
-                    .setLastActive(0L).build();
-            Stat stat = mock(Stat.class);
-            MetaStore.MetaStoreCallback<MLDataFormats.ManagedCursorInfo> callback =
-                    (MetaStore.MetaStoreCallback<MLDataFormats.ManagedCursorInfo>) invocation.getArguments()[2];
-            callback.operationComplete(info, stat);
-            return null;
-        }).when(mockMetaStore).asyncGetCursorInfo(eq(name), eq("c1"), any(MetaStore.MetaStoreCallback.class));
         cursor.getRangeMarker().clear();
         cursor.getIndividuallyDeletedMessagesSet().clear();
         CompletableFuture<Void> future = new CompletableFuture<>();
@@ -490,12 +471,38 @@ public class MultiEntryPositionTest extends MockedBookKeeperTestCase {
         future2.get();
         assertEquals(cursor.getRangeMarker().size(), 1);
         assertEquals(cursor.getIndividuallyDeletedMessagesSet().size(), 1);
-
     }
 
     @Test
     public void testCompatibility() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setEnableLruCacheMaxUnackedRanges(true);
+        String name = "my_test_ledger" + UUID.randomUUID();
+        ManagedLedger ledger = factory.open(name, config);
+        ManagedCursorImpl cursor = initCursorAndData(ledger);
+        cursor.startCreatingNewMetadataLedger();
+        Awaitility.await().untilAsserted(() -> assertEquals(cursor.getState(), "Open"));
+        // disable lru
+        ledger.getConfig().setEnableLruCacheMaxUnackedRanges(false);
+        cursor.getConfig().setEnableLruCacheMaxUnackedRanges(false);
+        cursor.lastMarkDeleteEntry = null;
+        cursor.getRangeMarker().clear();
+        cursor.getIndividuallyDeletedMessagesSet().clear();
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        cursor.recover(new ManagedCursorImpl.VoidCallback() {
+            @Override
+            public void operationComplete() {
+                future.complete(null);
+            }
 
+            @Override
+            public void operationFailed(ManagedLedgerException exception) {
+                future.completeExceptionally(exception);
+            }
+        });
+        future.get();
+        assertEquals(cursor.lastMarkDeleteEntry.newPosition.ledgerId, cursor.getCursorLedgerHandle().getLastAddConfirmed());
+        assertEquals(cursor.lastMarkDeleteEntry.newPosition.entryId, -1);
     }
 
     @Test
