@@ -18,9 +18,9 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import com.google.common.collect.Sets;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
+import java.util.HashSet;
 import java.util.Set;
 import lombok.Data;
 
@@ -49,8 +49,8 @@ public class TenantInfo {
     private Set<String> allowedClusters;
 
     public TenantInfo() {
-        adminRoles = Sets.newHashSet();
-        allowedClusters = Sets.newHashSet();
+        adminRoles = new HashSet<>();
+        allowedClusters = new HashSet<>();
     }
 
     public TenantInfo(Set<String> adminRoles, Set<String> allowedClusters) {
