@@ -19,16 +19,15 @@
 package org.apache.pulsar.broker.admin.v3;
 
 import com.google.common.collect.Sets;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -40,7 +39,6 @@ import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -111,36 +109,31 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES).topic(topic).create();
         Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES).topic(topic)
                 .subscriptionName(subName).subscribe();
-        MessageId messageId1 = producer.send("Hello pulsar!".getBytes());
-        MessageId messageId2 = producer.send("Hello pulsar!".getBytes());
-        consumer.acknowledgeAsync(messageId1, transaction).get();
-        consumer.acknowledgeAsync(messageId2, transaction).get();
+        producer.sendAsync("Hello pulsar!".getBytes());
+        producer.sendAsync("Hello pulsar!".getBytes());
+        producer.sendAsync("Hello pulsar!".getBytes());
+        producer.sendAsync("Hello pulsar!".getBytes());
         TransactionInPendingAckStats transactionInPendingAckStats = admin.transactions()
                 .getTransactionInPendingAckStats(new TxnID(transaction.getTxnIdMostBits(),
                         transaction.getTxnIdLeastBits()), topic, subName).get();
-        if (transactionInPendingAckStats.individualAckPosition.get(0)
-                .equals(PositionImpl.get(((MessageIdImpl) messageId1).getLedgerId(),
-                        ((MessageIdImpl) messageId1).getEntryId()).toString())) {
-            assertEquals(transactionInPendingAckStats.individualAckPosition.get(1),
-                    PositionImpl.get(((MessageIdImpl) messageId2).getLedgerId(),
-                            ((MessageIdImpl) messageId2).getEntryId()).toString());
-        } else {
-            assertEquals(transactionInPendingAckStats.individualAckPosition.get(1),
-                    PositionImpl.get(((MessageIdImpl) messageId1).getLedgerId(),
-                            ((MessageIdImpl) messageId1).getEntryId()).toString());
-        }
         assertNull(transactionInPendingAckStats.cumulativeAckPosition);
 
-        consumer.acknowledgeCumulativeAsync(messageId2, transaction);
+        consumer.receive();
+        consumer.receive();
+        Message<byte[]> message = consumer.receive();
+        BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) message.getMessageId();
+        consumer.acknowledgeCumulativeAsync(batchMessageId, transaction).get();
 
         transactionInPendingAckStats = admin.transactions()
                 .getTransactionInPendingAckStats(new TxnID(transaction.getTxnIdMostBits(),
                         transaction.getTxnIdLeastBits()), topic, subName).get();
 
-        assertNull(transactionInPendingAckStats.individualAckPosition);
         assertEquals(transactionInPendingAckStats.cumulativeAckPosition,
-                PositionImpl.get(((MessageIdImpl) messageId2).getLedgerId(),
-                        ((MessageIdImpl) messageId2).getEntryId()).toString());
+                String.valueOf(batchMessageId.getLedgerId()) +
+                        ':' +
+                        batchMessageId.getEntryId() +
+                        ':' +
+                        batchMessageId.getBatchIndex());
     }
 
     private static void verifyCoordinatorStatus(long expectedCoordinatorId, long coordinatorId, String state,

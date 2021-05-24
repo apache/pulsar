@@ -704,13 +704,19 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     public TransactionInPendingAckStats getTransactionInPendingAckStats(TxnID txnID) {
         TransactionInPendingAckStats transactionInPendingAckStats = new TransactionInPendingAckStats();
         if (cumulativeAckOfTransaction != null && cumulativeAckOfTransaction.getLeft().equals(txnID)) {
-            transactionInPendingAckStats.cumulativeAckPosition = this.cumulativeAckOfTransaction.getRight().toString();
-        } else if (individualAckOfTransaction != null) {
-            if (individualAckOfTransaction.containsKey(txnID)) {
-                List<String> list = new ArrayList<>();
-                individualAckOfTransaction.get(txnID).keySet().forEach(position -> list.add(position.toString()));
-                transactionInPendingAckStats.individualAckPosition = list;
+            PositionImpl position = cumulativeAckOfTransaction.getRight();
+            StringBuilder stringBuilder = new StringBuilder()
+                    .append(position.getLedgerId())
+                    .append(':')
+                    .append(position.getEntryId());
+            if (cumulativeAckOfTransaction.getRight().hasAckSet()) {
+                BitSetRecyclable bitSetRecyclable =
+                        BitSetRecyclable.valueOf(cumulativeAckOfTransaction.getRight().getAckSet());
+                if (!bitSetRecyclable.isEmpty()) {
+                    stringBuilder.append(":").append(bitSetRecyclable.nextSetBit(0) - 1);
+                }
             }
+            transactionInPendingAckStats.cumulativeAckPosition = stringBuilder.toString();
         }
         return transactionInPendingAckStats;
     }

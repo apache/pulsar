@@ -27,7 +27,4 @@ public class TransactionInPendingAckStats {
 
     /** The position of this transaction cumulative ack. */
     public String cumulativeAckPosition;
-
-    /** The positions of this transaction individual ack. */
-    public List<String> individualAckPosition;
 }
