@@ -18,13 +18,11 @@
  */
 package org.apache.pulsar.policies.data.loadbalancer;
 
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import java.util.Map;
 
 /**
  * This class represents the overall load of the broker - it includes overall SystemResourceUsage and Bundle-usage.
  */
-@JsonDeserialize(using = LoadReportDeserializer.class)
 public interface LoadManagerReport extends ServiceLookupData {
 
     ResourceUsage getCpu();

@@ -25,6 +25,8 @@ import javax.ws.rs.ext.ContextResolver;
 import javax.ws.rs.ext.Provider;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
+import org.apache.pulsar.policies.data.loadbalancer.LoadReportDeserializer;
 
 /**
  * Provides custom configuration for jackson.
@@ -47,6 +49,9 @@ public class JacksonConfigurator implements ContextResolver<ObjectMapper> {
         // In this case we use SimpleAbstractTypeResolver to map interfaces to impls
         SimpleAbstractTypeResolver resolver = new SimpleAbstractTypeResolver();
         resolver.addMapping(OffloadProcessStatus.class, OffloadProcessStatusImpl.class);
+
+        // we use addDeserializer to replace @JsonDeserialize annotation in some POJOs
+        module.addDeserializer(LoadManagerReport.class, new LoadReportDeserializer());
 
         module.setAbstractTypes(resolver);
         mapper.registerModule(module);
