@@ -37,7 +37,7 @@ public class CmdTransactions extends CmdBase {
             if (coordinatorId != null) {
                 print(getAdmin().transactions().getCoordinatorStatusById(coordinatorId));
             } else {
-                print(getAdmin().transactions().getCoordinatorStatusList());
+                print(getAdmin().transactions().getCoordinatorStatus());
             }
         }
     }

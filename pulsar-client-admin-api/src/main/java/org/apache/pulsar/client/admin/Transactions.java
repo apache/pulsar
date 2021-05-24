@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.client.admin;
 
-import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStatus;
@@ -37,9 +37,9 @@ public interface Transactions {
     /**
      * Get transaction metadataStore status.
      *
-     * @return the list future of transaction metadata store status.
+     * @return the map future of transaction metadata store status.
      */
-    CompletableFuture<List<TransactionCoordinatorStatus>> getCoordinatorStatusList();
+    CompletableFuture<Map<Integer, TransactionCoordinatorStatus>> getCoordinatorStatus();
 
     /**
      * Get transaction in buffer stats.

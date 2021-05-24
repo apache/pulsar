@@ -22,8 +22,9 @@ import static javax.ws.rs.core.Response.Status.INTERNAL_SERVER_ERROR;
 import static javax.ws.rs.core.Response.Status.SERVICE_UNAVAILABLE;
 import static javax.ws.rs.core.Response.Status.TEMPORARY_REDIRECT;
 import com.google.common.collect.Lists;
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.container.AsyncResponse;
@@ -71,23 +72,23 @@ public abstract class TransactionsBase extends AdminResource {
                             return;
                         }
                     }
-                    List<TransactionCoordinatorStatus> metadataStoreInfoList = new ArrayList<>();
+                    Map<Integer, TransactionCoordinatorStatus> status = new HashMap<>();
                     FutureUtil.waitForAll(transactionMetadataStoreInfoFutures).whenComplete((result, e) -> {
                         if (e != null) {
                             asyncResponse.resume(new RestException(e));
                             return;
                         }
 
-                        for (CompletableFuture<TransactionCoordinatorStatus> transactionMetadataStoreInfoFuture
-                                : transactionMetadataStoreInfoFutures) {
+                        for (int i = 0; i < transactionMetadataStoreInfoFutures.size(); i++) {
                             try {
-                                metadataStoreInfoList.add(transactionMetadataStoreInfoFuture.get());
+                                status.put(i, transactionMetadataStoreInfoFutures.get(i).get());
                             } catch (Exception exception) {
                                 asyncResponse.resume(new RestException(exception.getCause()));
                                 return;
                             }
                         }
-                        asyncResponse.resume(metadataStoreInfoList);
+
+                        asyncResponse.resume(status);
                     });
                 }).exceptionally(ex -> {
                     log.error("[{}] Failed to get transaction coordinator state.", clientAppId(), ex);

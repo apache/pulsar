@@ -26,9 +26,6 @@ import lombok.Data;
 @Data
 public class TransactionCoordinatorStatus {
 
-    /** The transaction coordinatorId. */
-    public long mostSigBits;
-
     /** The state of this transaction metadataStore. */
     public String state;
 

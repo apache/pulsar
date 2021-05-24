@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
-import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
@@ -57,22 +57,22 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     }
 
     @Override
-    public CompletableFuture<List<TransactionCoordinatorStatus>> getCoordinatorStatusList() {
+    public CompletableFuture<Map<Integer, TransactionCoordinatorStatus>> getCoordinatorStatus() {
         WebTarget path = adminV3Transactions.path("coordinatorStatus");
-        final CompletableFuture<List<TransactionCoordinatorStatus>> statusList = new CompletableFuture<>();
+        final CompletableFuture<Map<Integer, TransactionCoordinatorStatus>> status = new CompletableFuture<>();
         asyncGetRequest(path,
-                new InvocationCallback<List<TransactionCoordinatorStatus>>() {
+                new InvocationCallback<Map<Integer, TransactionCoordinatorStatus>>() {
                     @Override
-                    public void completed(List<TransactionCoordinatorStatus> topics) {
-                        statusList.complete(topics);
+                    public void completed(Map<Integer, TransactionCoordinatorStatus> topics) {
+                        status.complete(topics);
                     }
 
                     @Override
                     public void failed(Throwable throwable) {
-                        statusList.completeExceptionally(getApiException(throwable.getCause()));
+                        status.completeExceptionally(getApiException(throwable.getCause()));
                     }
                 });
-        return statusList;
+        return status;
     }
 
     @Override

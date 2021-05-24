@@ -39,7 +39,7 @@ import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -77,26 +77,22 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         getTransaction().abort().get();
         TransactionCoordinatorStatus transactionCoordinatorStatus =
                 admin.transactions().getCoordinatorStatusById(1).get();
-        verifyCoordinatorStatus(1L, transactionCoordinatorStatus.mostSigBits,
-                transactionCoordinatorStatus.state,
+        verifyCoordinatorStatus(transactionCoordinatorStatus.state,
                 transactionCoordinatorStatus.leastSigBits, transactionCoordinatorStatus.lowWaterMark);
 
         transactionCoordinatorStatus = admin.transactions().getCoordinatorStatusById(0).get();
-        verifyCoordinatorStatus(0L, transactionCoordinatorStatus.mostSigBits,
-                transactionCoordinatorStatus.state,
+        verifyCoordinatorStatus(transactionCoordinatorStatus.state,
                 transactionCoordinatorStatus.leastSigBits, transactionCoordinatorStatus.lowWaterMark);
-        List<TransactionCoordinatorStatus> list = admin.transactions().getCoordinatorStatusList().get();
+        Map<Integer, TransactionCoordinatorStatus> status = admin.transactions().getCoordinatorStatus().get();
 
-        assertEquals(list.size(), 2);
+        assertEquals(status.size(), 2);
 
-        transactionCoordinatorStatus = list.get(0);
-        verifyCoordinatorStatus(0L, transactionCoordinatorStatus.mostSigBits,
-                transactionCoordinatorStatus.state,
+        transactionCoordinatorStatus = status.get(0);
+        verifyCoordinatorStatus(transactionCoordinatorStatus.state,
                 transactionCoordinatorStatus.leastSigBits, transactionCoordinatorStatus.lowWaterMark);
 
-        transactionCoordinatorStatus = list.get(1);
-        verifyCoordinatorStatus(1L, transactionCoordinatorStatus.mostSigBits,
-                transactionCoordinatorStatus.state,
+        transactionCoordinatorStatus = status.get(1);
+        verifyCoordinatorStatus(transactionCoordinatorStatus.state,
                 transactionCoordinatorStatus.leastSigBits, transactionCoordinatorStatus.lowWaterMark);
     }
 
@@ -125,9 +121,8 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         assertTrue(transactionInBufferStats.aborted);
     }
 
-    private static void verifyCoordinatorStatus(long expectedCoordinatorId, long coordinatorId, String state,
+    private static void verifyCoordinatorStatus(String state,
                                                 long sequenceId, long lowWaterMark) {
-        assertEquals(coordinatorId, expectedCoordinatorId);
         assertEquals(state, "Ready");
         assertEquals(sequenceId, 0);
         assertEquals(lowWaterMark, 0);
