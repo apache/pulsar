@@ -110,7 +110,7 @@ public class PulsarAdminException extends Exception {
      */
     public static class PreconditionFailedException extends PulsarAdminException {
         public PreconditionFailedException(Throwable t, String httpError, int statusCode) {
-            super(t, httpError, statusCode);;
+            super(t, httpError, statusCode);
         }
     }
 

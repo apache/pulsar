@@ -211,9 +211,11 @@ public class ResourceQuota {
     public boolean equals(Object obj) {
         if (obj instanceof ResourceQuota) {
             ResourceQuota other = (ResourceQuota) obj;
-            return Objects.equals(this.msgRateIn, other.msgRateIn) && Objects.equals(this.msgRateOut, other.msgRateOut)
+            return Objects.equals(this.msgRateIn, other.msgRateIn)
+                    && Objects.equals(this.msgRateOut, other.msgRateOut)
                     && Objects.equals(this.bandwidthIn, other.bandwidthIn)
-                    && Objects.equals(this.bandwidthOut, other.bandwidthOut) && Objects.equals(this.memory, other.memory)
+                    && Objects.equals(this.bandwidthOut, other.bandwidthOut)
+                    && Objects.equals(this.memory, other.memory)
                     && Objects.equals(this.dynamic, other.dynamic);
         }
         return false;

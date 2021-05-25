@@ -116,10 +116,12 @@ public class Policies {
 
     public Integer deduplicationSnapshotIntervalSeconds = null;
 
+    @SuppressWarnings("checkstyle:MemberName")
     public Set<String> subscription_types_enabled = new HashSet<>();
 
     public Map<String, String> properties = new HashMap<>();
-    @SuppressWarnings("checkstype:MemberName")
+
+    @SuppressWarnings("checkstyle:MemberName")
     public String resource_group_name = null;
 
     @Override
@@ -177,7 +179,8 @@ public class Policies {
                     && Objects.equals(max_producers_per_topic, other.max_producers_per_topic)
                     && Objects.equals(max_consumers_per_topic, other.max_consumers_per_topic)
                     && Objects.equals(max_unacked_messages_per_consumer, other.max_unacked_messages_per_consumer)
-                    && Objects.equals(max_unacked_messages_per_subscription, other.max_unacked_messages_per_subscription)
+                    && Objects.equals(max_unacked_messages_per_subscription,
+                        other.max_unacked_messages_per_subscription)
                     && Objects.equals(max_consumers_per_subscription, other.max_consumers_per_subscription)
                     && Objects.equals(compaction_threshold, other.compaction_threshold)
                     && offload_threshold == other.offload_threshold

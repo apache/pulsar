@@ -56,7 +56,9 @@ public class DefaultImplementation {
                 status, lastError, messageId));
     }
 
-    public static AutoFailoverPolicy newAutoFailoverPolicyFromAutoFailoverPolicyFactory(AutoFailoverPolicyData policyData) {
-        return ReflectionUtils.catchExceptions(() ->  (AutoFailoverPolicy) AUTO_FAILOVER_POLICY_FACTORY_create.invoke(policyData));
+    public static AutoFailoverPolicy newAutoFailoverPolicyFromAutoFailoverPolicyFactory(
+            AutoFailoverPolicyData policyData) {
+        return ReflectionUtils.catchExceptions(() ->
+                (AutoFailoverPolicy) AUTO_FAILOVER_POLICY_FACTORY_create.invoke(policyData));
     }
 }

@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import com.google.common.collect.ComparisonChain;
 import lombok.EqualsAndHashCode;
 
 /**
@@ -58,8 +57,11 @@ public class BrokerStatus implements Comparable<BrokerStatus> {
 
     @Override
     public int compareTo(BrokerStatus other) {
-        return ComparisonChain.start().compare(this.loadFactor, other.loadFactor)
-                .compare(this.brokerAddress, other.brokerAddress).result();
+        int result = Integer.compare(this.loadFactor, other.loadFactor);
+        if (result == 0) {
+            result = this.brokerAddress.compareTo(other.brokerAddress);
+        }
+        return result;
     }
 
     @Override

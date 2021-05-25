@@ -70,9 +70,12 @@ public class JacksonConfigurator implements ContextResolver<ObjectMapper> {
         mapper.addMixIn(FunctionConfig.class, JsonIgnorePropertiesMixIn.class);
         mapper.addMixIn(FunctionState.class, JsonIgnorePropertiesMixIn.class);
         mapper.addMixIn(FunctionStats.class, FunctionStatsMixIn.class);
-        mapper.addMixIn(FunctionStats.FunctionInstanceStats.class, FunctionStatsMixIn.FunctionInstanceStatsMixIn.class);
-        mapper.addMixIn(FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.class, FunctionStatsMixIn.FunctionInstanceStatsMixIn.FunctionInstanceStatsDataMixIn.class);
-        mapper.addMixIn(FunctionStats.FunctionInstanceStats.FunctionInstanceStatsDataBase.class, FunctionStatsMixIn.FunctionInstanceStatsMixIn.FunctionInstanceStatsDataBaseMixIn.class);
+        mapper.addMixIn(FunctionStats.FunctionInstanceStats.class,
+                FunctionStatsMixIn.FunctionInstanceStatsMixIn.class);
+        mapper.addMixIn(FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.class,
+                FunctionStatsMixIn.FunctionInstanceStatsMixIn.FunctionInstanceStatsDataMixIn.class);
+        mapper.addMixIn(FunctionStats.FunctionInstanceStats.FunctionInstanceStatsDataBase.class,
+                FunctionStatsMixIn.FunctionInstanceStatsMixIn.FunctionInstanceStatsDataBaseMixIn.class);
         mapper.addMixIn(Metrics.class, MetricsMixIn.class);
 
         module.setAbstractTypes(resolver);

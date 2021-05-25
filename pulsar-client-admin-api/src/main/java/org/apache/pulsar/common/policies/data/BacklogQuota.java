@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import lombok.ToString;
 import java.util.Objects;
+import lombok.ToString;
 
 /**
  * Unit of a backlog quota configuration for a scoped resource in a Pulsar instance.

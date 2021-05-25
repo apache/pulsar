@@ -33,7 +33,6 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.policies.data.BookiesClusterInfo;
-import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 
 public class BookiesImpl extends BaseResource implements Bookies {
     private final WebTarget adminBookies;

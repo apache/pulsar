@@ -20,11 +20,10 @@ package org.apache.pulsar.common.policies.data;
 
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
-import lombok.ToString;
-
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
+import lombok.ToString;
 
 /**
  * The data of a failure domain configuration in a cluster.

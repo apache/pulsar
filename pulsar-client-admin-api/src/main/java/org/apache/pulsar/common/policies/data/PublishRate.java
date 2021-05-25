@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import lombok.ToString;
 import java.util.Objects;
+import lombok.ToString;
 
 /**
  * Publish-rate to manage publish throttling.

@@ -16,11 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.policies.data;
-
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
-public abstract class ResourceQuotaMixIn {
-    @JsonIgnore
-    abstract public boolean isValid();
-}
+/**
+ * Implementation of policies.
+ */
+package org.apache.pulsar.common.partition;

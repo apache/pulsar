@@ -23,7 +23,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * Broker Information
+ * Broker Information.
  */
 @Data
 @AllArgsConstructor

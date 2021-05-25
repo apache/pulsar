@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.common.conf;
 
-import lombok.ToString;
 import java.util.Objects;
+import lombok.ToString;
 
 /**
  * Internal configuration data.
