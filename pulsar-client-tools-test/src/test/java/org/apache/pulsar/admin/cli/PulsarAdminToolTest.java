@@ -47,17 +47,18 @@ import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.Lookup;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.NonPersistentTopics;
-import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.admin.ProxyStats;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.ResourceQuotas;
 import org.apache.pulsar.client.admin.Schemas;
 import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.client.admin.Topics;
+import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.admin.internal.OffloadProcessStatusImpl;
 import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
@@ -1409,6 +1410,36 @@ public class PulsarAdminToolTest {
 
         proxyStats.run(split("topics"));
         verify(mockProxyStats).getTopics();
+    }
+
+    @Test
+    void transactions() throws Exception {
+        PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
+        Transactions transactions = Mockito.mock(Transactions.class);
+        doReturn(transactions).when(admin).transactions();
+
+        CmdTransactions cmdTransactions = new CmdTransactions(() -> admin);
+
+        cmdTransactions.run(split("coordinator-status -c 1"));
+        verify(transactions).getCoordinatorStatusById(1);
+
+        cmdTransactions = new CmdTransactions(() -> admin);
+        cmdTransactions.run(split("coordinator-status"));
+        verify(transactions).getCoordinatorStatus();
+
+        cmdTransactions = new CmdTransactions(() -> admin);
+        cmdTransactions.run(split("transaction-in-buffer-stats -m 1 -t test -l 2"));
+        verify(transactions).getTransactionInBufferStats(new TxnID(1, 2), "test");
+
+        cmdTransactions = new CmdTransactions(() -> admin);
+        cmdTransactions.run(split("transaction-in-pending-ack-stats -m 1 -l 2 -t test -s test"));
+        verify(transactions).getTransactionInPendingAckStats(
+                new TxnID(1, 2), "test", "test");
+
+        cmdTransactions = new CmdTransactions(() -> admin);
+        cmdTransactions.run(split("transaction-metadata -m 1 -l 2"));
+        verify(transactions).getTransactionMetadata(new TxnID(1, 2));
+
     }
 
     String[] split(String s) {

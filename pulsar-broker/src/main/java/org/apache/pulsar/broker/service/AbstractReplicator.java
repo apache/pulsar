@@ -121,37 +121,29 @@ public abstract class AbstractReplicator {
                 log.info("[{}][{} -> {}] Replicator already being started. Replicator state: {}", topicName,
                         localCluster, remoteCluster, state);
             }
+
             return;
         }
 
         log.info("[{}][{} -> {}] Starting replicator", topicName, localCluster, remoteCluster);
-        openCursorAsync().thenAccept(v ->
-            producerBuilder.createAsync()
-                .thenAccept(this::readEntries)
-                .exceptionally(ex -> {
-                    retryCreateProducer(ex);
-                    return null;
-        })).exceptionally(ex -> {
-            retryCreateProducer(ex);
+        producerBuilder.createAsync().thenAccept(producer -> {
+            readEntries(producer);
+        }).exceptionally(ex -> {
+            if (STATE_UPDATER.compareAndSet(this, State.Starting, State.Stopped)) {
+                long waitTimeMs = backOff.next();
+                log.warn("[{}][{} -> {}] Failed to create remote producer ({}), retrying in {} s", topicName,
+                        localCluster, remoteCluster, ex.getMessage(), waitTimeMs / 1000.0);
+
+                // BackOff before retrying
+                brokerService.executor().schedule(this::startProducer, waitTimeMs, TimeUnit.MILLISECONDS);
+            } else {
+                log.warn("[{}][{} -> {}] Failed to create remote producer. Replicator state: {}", topicName,
+                        localCluster, remoteCluster, STATE_UPDATER.get(this), ex);
+            }
             return null;
         });
+
     }
-
-    private void retryCreateProducer(Throwable ex) {
-        if (STATE_UPDATER.compareAndSet(this, State.Starting, State.Stopped)) {
-            long waitTimeMs = backOff.next();
-            log.warn("[{}][{} -> {}] Failed to create remote producer ({}), retrying in {} s", topicName,
-                localCluster, remoteCluster, ex.getMessage(), waitTimeMs / 1000.0);
-
-            // BackOff before retrying
-            brokerService.executor().schedule(this::startProducer, waitTimeMs, TimeUnit.MILLISECONDS);
-        } else {
-            log.warn("[{}][{} -> {}] Failed to create remote producer. Replicator state: {}", topicName,
-                localCluster, remoteCluster, STATE_UPDATER.get(this), ex);
-        }
-    }
-
-    protected abstract CompletableFuture<Void> openCursorAsync();
 
     protected synchronized CompletableFuture<Void> closeProducerAsync() {
         if (producer == null) {

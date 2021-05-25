@@ -543,6 +543,21 @@ public class PersistentTopicsBase extends AdminResource {
                                                                       boolean checkAllowAutoCreation) {
         PartitionedTopicMetadata metadata = getPartitionedTopicMetadata(topicName,
                 authoritative, checkAllowAutoCreation);
+        if (metadata.partitions == 0 && !checkAllowAutoCreation) {
+            // The topic may be a non-partitioned topic, so check if it exists here.
+            // However, when checkAllowAutoCreation is true, the client will create the topic if it doesn't exist.
+            // In this case, `partitions == 0` means the automatically created topic is a non-partitioned topic so we
+            // shouldn't check if the topic exists.
+            try {
+                if (!pulsar().getNamespaceService().checkTopicExists(topicName).get()) {
+                    throw new RestException(Status.NOT_FOUND,
+                            new PulsarClientException.NotFoundException("Topic not exist"));
+                }
+            } catch (InterruptedException | ExecutionException e) {
+                log.error("Failed to check if topic '{}' exists", topicName, e);
+                throw new RestException(Status.INTERNAL_SERVER_ERROR, "Failed to get topic metadata");
+            }
+        }
         if (metadata.partitions > 1) {
             validateClientVersion();
         }
@@ -689,41 +704,44 @@ public class PersistentTopicsBase extends AdminResource {
         if (topicName.isPartitioned()) {
             internalUnloadNonPartitionedTopic(asyncResponse, authoritative);
         } else {
-            getPartitionedTopicMetadataAsync(topicName, authoritative, false).whenComplete((meta, t) -> {
-                if (meta.partitions > 0) {
-                    final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+            getPartitionedTopicMetadataAsync(topicName, authoritative, false)
+                    .thenAccept(meta -> {
+                        if (meta.partitions > 0) {
+                            final List<CompletableFuture<Void>> futures = Lists.newArrayList();
 
-                    for (int i = 0; i < meta.partitions; i++) {
-                        TopicName topicNamePartition = topicName.getPartition(i);
-                        try {
-                            futures.add(pulsar().getAdminClient().topics().unloadAsync(topicNamePartition.toString()));
-                        } catch (Exception e) {
-                            log.error("[{}] Failed to unload topic {}", clientAppId(), topicNamePartition, e);
-                            asyncResponse.resume(new RestException(e));
-                            return;
-                        }
-                    }
-
-                    FutureUtil.waitForAll(futures).handle((result, exception) -> {
-                        if (exception != null) {
-                            Throwable th = exception.getCause();
-                            if (th instanceof NotFoundException) {
-                                asyncResponse.resume(new RestException(Status.NOT_FOUND, th.getMessage()));
-                            } else if (th instanceof WebApplicationException) {
-                                asyncResponse.resume(th);
-                            } else {
-                                log.error("[{}] Failed to unload topic {}", clientAppId(), topicName, exception);
-                                asyncResponse.resume(new RestException(exception));
+                            for (int i = 0; i < meta.partitions; i++) {
+                                TopicName topicNamePartition = topicName.getPartition(i);
+                                try {
+                                    futures.add(pulsar().getAdminClient().topics().unloadAsync(
+                                            topicNamePartition.toString()));
+                                } catch (Exception e) {
+                                    log.error("[{}] Failed to unload topic {}", clientAppId(), topicNamePartition, e);
+                                    asyncResponse.resume(new RestException(e));
+                                    return;
+                                }
                             }
+
+                            FutureUtil.waitForAll(futures).handle((result, exception) -> {
+                                if (exception != null) {
+                                    Throwable th = exception.getCause();
+                                    if (th instanceof NotFoundException) {
+                                        asyncResponse.resume(new RestException(Status.NOT_FOUND, th.getMessage()));
+                                    } else if (th instanceof WebApplicationException) {
+                                        asyncResponse.resume(th);
+                                    } else {
+                                        log.error("[{}] Failed to unload topic {}", clientAppId(), topicName,
+                                                exception);
+                                        asyncResponse.resume(new RestException(exception));
+                                    }
+                                } else {
+                                    asyncResponse.resume(Response.noContent().build());
+                                }
+                                return null;
+                            });
                         } else {
-                            asyncResponse.resume(Response.noContent().build());
+                            internalUnloadNonPartitionedTopic(asyncResponse, authoritative);
                         }
-                        return null;
-                    });
-                } else {
-                    internalUnloadNonPartitionedTopic(asyncResponse, authoritative);
-                }
-            }).exceptionally(t -> {
+                    }).exceptionally(t -> {
                 log.error("[{}] Failed to unload topic {}", clientAppId(), topicName, t);
                 if (t instanceof WebApplicationException) {
                     asyncResponse.resume(t);
@@ -943,26 +961,26 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     private void internalUnloadNonPartitionedTopic(AsyncResponse asyncResponse, boolean authoritative) {
-        Topic topic;
         try {
-            validateTopicOwnership(topicName, authoritative);
             validateTopicOperation(topicName, TopicOperation.UNLOAD);
-            topic = getTopicReference(topicName);
         } catch (Exception e) {
-            log.error("[{}] Failed to unload topic {}", clientAppId(), topicName, e);
+            log.error("[{}] Failed to unload topic {}", clientAppId(), topicName, e.getMessage());
             resumeAsyncResponseExceptionally(asyncResponse, e);
             return;
         }
-        topic.close(false).whenComplete((r, ex) -> {
-            if (ex != null) {
-                log.error("[{}] Failed to unload topic {}, {}", clientAppId(), topicName, ex.getMessage(), ex);
-                asyncResponse.resume(new RestException(ex));
 
-            } else {
-                log.info("[{}] Successfully unloaded topic {}", clientAppId(), topicName);
-                asyncResponse.resume(Response.noContent().build());
-            }
-        });
+        validateTopicOwnershipAsync(topicName, authoritative)
+                .thenCompose(__ -> getTopicReferenceAsync(topicName))
+                .thenCompose(topic -> topic.close(false))
+                .thenRun(() -> {
+                    log.info("[{}] Successfully unloaded topic {}", clientAppId(), topicName);
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to unload topic {}, {}", clientAppId(), topicName, ex.getMessage());
+                    asyncResponse.resume(ex.getCause());
+                    return null;
+                });
     }
 
     protected void internalDeleteTopic(boolean authoritative, boolean force, boolean deleteSchema) {
@@ -2070,50 +2088,53 @@ public class PersistentTopicsBase extends AdminResource {
     private void internalCreateSubscriptionForNonPartitionedTopic(
             AsyncResponse asyncResponse, String subscriptionName,
             MessageIdImpl targetMessageId, boolean authoritative, boolean replicated) {
-        try {
-            validateTopicOwnership(topicName, authoritative);
-            validateTopicOperation(topicName, TopicOperation.SUBSCRIBE);
 
-            boolean isAllowAutoTopicCreation = pulsar().getConfiguration().isAllowAutoTopicCreation();
-            PersistentTopic topic = (PersistentTopic) pulsar().getBrokerService()
-                    .getTopic(topicName.toString(), isAllowAutoTopicCreation).thenApply(Optional::get).join();
-            if (topic.getSubscriptions().containsKey(subscriptionName)) {
-                asyncResponse.resume(new RestException(Status.CONFLICT, "Subscription already exists for topic"));
-                return;
+        boolean isAllowAutoTopicCreation = pulsar().getConfiguration().isAllowAutoTopicCreation();
+
+        validateTopicOwnershipAsync(topicName, authoritative)
+                .thenCompose(__ -> {
+                    validateTopicOperation(topicName, TopicOperation.SUBSCRIBE);
+                    return pulsar().getBrokerService().getTopic(topicName.toString(), isAllowAutoTopicCreation);
+                }).thenApply(optTopic -> {
+            if (optTopic.isPresent()) {
+                return optTopic.get();
+            } else {
+                throw new RestException(Status.PRECONDITION_FAILED,
+                        "Topic does not exist and cannot be auto-created");
             }
-            topic.createSubscription(subscriptionName, InitialPosition.Latest, replicated).thenApply(subscription -> {
-                // Mark the cursor as "inactive" as it was created without a real consumer connected
-                ((PersistentSubscription) subscription).deactivateCursor();
-                subscription.resetCursor(PositionImpl.get(targetMessageId.getLedgerId(), targetMessageId.getEntryId()))
-                        .thenRun(() -> {
-                            log.info("[{}][{}] Successfully created subscription {} at message id {}", clientAppId(),
-                                    topicName, subscriptionName, targetMessageId);
-                            asyncResponse.resume(Response.noContent().build());
-                        }).exceptionally(ex -> {
-                            Throwable t = (ex instanceof CompletionException ? ex.getCause() : ex);
-                            log.warn("[{}][{}] Failed to create subscription {} at message id {}", clientAppId(),
-                                    topicName, subscriptionName, targetMessageId, t);
-                            if (t instanceof SubscriptionInvalidCursorPosition) {
-                                asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
-                                        "Unable to find position for position specified: " + t.getMessage()));
-                            } else if (t instanceof SubscriptionBusyException) {
-                                asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
-                                        "Failed for Subscription Busy: " + t.getMessage()));
-                            } else {
-                                resumeAsyncResponseExceptionally(asyncResponse, t);
-                            }
-                            return null;
-                        });
-                return null;
-            }).exceptionally(ex -> {
-                resumeAsyncResponseExceptionally(asyncResponse, ex.getCause());
-                return null;
-            });
-        } catch (Throwable e) {
-            log.warn("[{}][{}] Failed to create subscription {} at message id {}", clientAppId(), topicName,
-                    subscriptionName, targetMessageId, e);
-            resumeAsyncResponseExceptionally(asyncResponse, e);
-        }
+        }).thenCompose(topic -> {
+            if (topic.getSubscriptions().containsKey(subscriptionName)) {
+                throw new RestException(Status.CONFLICT, "Subscription already exists for topic");
+            }
+
+            return topic.createSubscription(subscriptionName, InitialPosition.Latest, replicated);
+        }).thenCompose(subscription -> {
+            // Mark the cursor as "inactive" as it was created without a real consumer connected
+            ((PersistentSubscription) subscription).deactivateCursor();
+            return subscription.resetCursor(
+                    PositionImpl.get(targetMessageId.getLedgerId(), targetMessageId.getEntryId()));
+        }).thenRun(() -> {
+            log.info("[{}][{}] Successfully created subscription {} at message id {}", clientAppId(),
+                    topicName, subscriptionName, targetMessageId);
+            asyncResponse.resume(Response.noContent().build());
+        }).exceptionally(ex -> {
+            Throwable t = (ex instanceof CompletionException ? ex.getCause() : ex);
+            if (!(t instanceof WebApplicationException)) {
+                log.warn("[{}][{}] Failed to create subscription {} at message id {}", clientAppId(), topicName,
+                        subscriptionName, targetMessageId, t);
+            }
+
+            if (t instanceof SubscriptionInvalidCursorPosition) {
+                asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
+                        "Unable to find position for position specified: " + t.getMessage()));
+            } else if (t instanceof SubscriptionBusyException) {
+                asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
+                        "Failed for Subscription Busy: " + t.getMessage()));
+            } else {
+                resumeAsyncResponseExceptionally(asyncResponse, t);
+            }
+            return null;
+        });
     }
 
     protected void internalResetCursorOnPosition(AsyncResponse asyncResponse, String subName, boolean authoritative,
@@ -2647,7 +2668,6 @@ public class PersistentTopicsBase extends AdminResource {
                     }
                 });
     }
-
 
     private RetentionPolicies getRetentionPolicies(TopicName topicName, TopicPolicies topicPolicies) {
         RetentionPolicies retentionPolicies = topicPolicies.getRetentionPolicies();
@@ -3382,6 +3402,17 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
+    private CompletableFuture<Topic> getTopicReferenceAsync(TopicName topicName) {
+        return pulsar().getBrokerService().getTopicIfExists(topicName.toString())
+                .thenCompose(optTopic -> {
+                    if (optTopic.isPresent()) {
+                        return CompletableFuture.completedFuture(optTopic.get());
+                    } else {
+                        return topicNotFoundReasonAsync(topicName);
+                    }
+                });
+    }
+
     private RestException topicNotFoundReason(TopicName topicName) {
         if (!topicName.isPartitioned()) {
             return new RestException(Status.NOT_FOUND, "Topic not found");
@@ -3398,6 +3429,26 @@ public class PersistentTopicsBase extends AdminResource {
             return new RestException(Status.NOT_FOUND, "Topic partitions were not yet created");
         }
         return new RestException(Status.NOT_FOUND, "Partitioned Topic not found");
+    }
+
+    private CompletableFuture<Topic> topicNotFoundReasonAsync(TopicName topicName) {
+        if (!topicName.isPartitioned()) {
+            return FutureUtil.failedFuture(new RestException(Status.NOT_FOUND, "Topic not found"));
+        }
+
+        return getPartitionedTopicMetadataAsync(
+                TopicName.get(topicName.getPartitionedTopicName()), false, false)
+                .thenApply(partitionedTopicMetadata -> {
+                    if (partitionedTopicMetadata == null || partitionedTopicMetadata.partitions == 0) {
+                        final String topicErrorType = partitionedTopicMetadata
+                                == null ? "has no metadata" : "has zero partitions";
+                        throw new RestException(Status.NOT_FOUND, String.format(
+                                "Partitioned Topic not found: %s %s", topicName.toString(), topicErrorType));
+                    } else if (!internalGetList().contains(topicName.toString())) {
+                        throw new RestException(Status.NOT_FOUND, "Topic partitions were not yet created");
+                    }
+                    throw new RestException(Status.NOT_FOUND, "Partitioned Topic not found");
+                });
     }
 
     private Topic getOrCreateTopic(TopicName topicName) {

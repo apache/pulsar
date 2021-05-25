@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockZooKeeper;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -34,6 +33,8 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.nio.NioEventLoopGroup;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -47,6 +48,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.naming.TopicName;
@@ -85,18 +87,21 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
         PulsarService pulsar = spy(new PulsarService(svcConfig));
         doReturn(svcConfig).when(pulsar).getConfiguration();
 
+        @Cleanup(value = "shutdownGracefully")
+        EventLoopGroup eventLoopGroup = new NioEventLoopGroup();
+
         mlFactoryMock = mock(ManagedLedgerFactory.class);
-        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(2));
         cursorMock = ledger.openCursor("c1");
         ledgerMock = ledger;
         mlFactoryMock = factory;
         doReturn(mlFactoryMock).when(pulsar).getManagedLedgerFactory();
 
-        ZooKeeper mockZk = createMockZooKeeper();
+        ZooKeeper mockZk = TransactionTestBase.createMockZooKeeper();
         doReturn(mockZk).when(pulsar).getZkClient();
 
-        brokerService = spy(new BrokerService(pulsar));
+        brokerService = spy(new BrokerService(pulsar, eventLoopGroup));
         doReturn(brokerService).when(pulsar).getBrokerService();
 
         serverCnx = spy(new ServerCnx(pulsar));

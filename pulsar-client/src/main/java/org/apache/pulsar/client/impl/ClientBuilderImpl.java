@@ -287,6 +287,12 @@ public class ClientBuilderImpl implements ClientBuilder {
     	return this;
     }
 
+    @Override
+    public ClientBuilder enableBusyWait(boolean enableBusyWait) {
+        conf.setEnableBusyWait(enableBusyWait);
+        return this;
+    }
+
     public ClientConfigurationData getClientConfigurationData() {
         return conf;
     }

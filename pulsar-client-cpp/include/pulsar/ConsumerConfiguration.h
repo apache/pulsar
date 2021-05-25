@@ -353,6 +353,19 @@ class PULSAR_PUBLIC ConsumerConfiguration {
     InitialPosition getSubscriptionInitialPosition() const;
 
     /**
+     * Set whether the subscription status should be replicated.
+     * The default value is `false`.
+     *
+     * @param replicateSubscriptionState whether the subscription status should be replicated
+     */
+    void setReplicateSubscriptionStateEnabled(bool enabled);
+
+    /**
+     * @return whether the subscription status should be replicated
+     */
+    bool isReplicateSubscriptionStateEnabled() const;
+
+    /**
      * Check whether the message has a specific property attached.
      *
      * @param name the name of the property to check

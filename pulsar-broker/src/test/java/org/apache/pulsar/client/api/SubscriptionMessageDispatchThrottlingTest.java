@@ -211,8 +211,8 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
      * verify rate-limiting should throttle message-dispatching based on byte-rate
      *
      * <pre>
-     *  1. dispatch-byte-rate = 100 bytes/sec
-     *  2. send 30 msgs : each with 10 byte
+     *  1. dispatch-byte-rate = 1000 bytes/sec
+     *  2. send 30 msgs : each with 100 byte
      *  3. it should take up to 2 second to receive all messages
      * </pre>
      *
@@ -227,7 +227,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         final String topicName = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/throttlingAll");
         final String subName = "my-subscriber-name-" + subscription;
 
-        final int byteRate = 100;
+        final int byteRate = 1000;
         DispatchRate dispatchRate = new DispatchRate(-1, byteRate, 1);
         admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
         admin.namespaces().setSubscriptionDispatchRate(namespace, dispatchRate);

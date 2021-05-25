@@ -64,6 +64,8 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.nio.NioEventLoopGroup;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
@@ -111,6 +113,7 @@ import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ProducerAccessMode;
+import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.protocol.ByteBufPair;
@@ -158,9 +161,11 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     private static final Logger log = LoggerFactory.getLogger(PersistentTopicTest.class);
 
     private OrderedExecutor executor;
+    private EventLoopGroup eventLoopGroup;
 
     @BeforeMethod
     public void setup() throws Exception {
+        eventLoopGroup = new NioEventLoopGroup();
         executor = OrderedExecutor.newBuilder().numThreads(1).build();
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
         svcConfig.setAdvertisedAddress("localhost");
@@ -174,7 +179,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         ZooKeeper mockZk = createMockZooKeeper();
         doReturn(mockZk).when(pulsar).getZkClient();
-        doReturn(createMockBookKeeper(mockZk, ForkJoinPool.commonPool()))
+        doReturn(createMockBookKeeper(executor))
             .when(pulsar).getBookKeeperClient();
 
         ZooKeeperCache cache = mock(ZooKeeperCache.class);
@@ -195,7 +200,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(zkCache).when(pulsar).getLocalZkCacheService();
         doReturn(executor).when(pulsar).getOrderedExecutor();
 
-        brokerService = spy(new BrokerService(pulsar));
+        brokerService = spy(new BrokerService(pulsar, eventLoopGroup));
         doReturn(brokerService).when(pulsar).getBrokerService();
 
         serverCnx = spy(new ServerCnx(pulsar));
@@ -206,6 +211,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .when(serverCnx).getCommandSender();
 
         NamespaceService nsSvc = mock(NamespaceService.class);
+        NamespaceBundle bundle = mock(NamespaceBundle.class);
+        doReturn(CompletableFuture.completedFuture(bundle)).when(nsSvc).getBundleAsync(any());
         doReturn(nsSvc).when(pulsar).getNamespaceService();
         doReturn(true).when(nsSvc).isServiceUnitOwned(any());
         doReturn(true).when(nsSvc).isServiceUnitActive(any());
@@ -226,6 +233,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         }
 
         executor.shutdownNow();
+        eventLoopGroup.shutdownGracefully().get();
     }
 
     @Test

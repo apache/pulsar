@@ -268,14 +268,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         cnxsPerThread.get().remove(this);
 
         // Connection is gone, close the producers immediately
-        producers.values().forEach((producerFuture) -> {
+        producers.forEach((__, producerFuture) -> {
             if (producerFuture.isDone() && !producerFuture.isCompletedExceptionally()) {
                 Producer producer = producerFuture.getNow(null);
                 producer.closeNow(true);
             }
         });
 
-        consumers.values().forEach((consumerFuture) -> {
+        consumers.forEach((__, consumerFuture) -> {
             Consumer consumer;
             if (consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally()) {
                 consumer = consumerFuture.getNow(null);
@@ -1887,7 +1887,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
 
         service.pulsar().getTransactionMetadataStoreService()
-                .endTransaction(txnID, txnAction)
+                .endTransaction(txnID, txnAction, false)
                 .thenRun(() -> ctx.writeAndFlush(Commands.newEndTxnResponse(requestId,
                         txnID.getLeastSigBits(), txnID.getMostSigBits())))
                 .exceptionally(throwable -> {

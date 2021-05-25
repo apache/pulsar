@@ -21,11 +21,19 @@ package org.apache.pulsar.broker.zookeeper;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
 import org.apache.pulsar.PulsarClusterMetadataSetup;
+import org.apache.pulsar.PulsarInitialNamespaceSetup;
+import org.apache.pulsar.broker.cache.ConfigurationCacheService;
+import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.broker.resources.TenantResources;
+import org.apache.pulsar.broker.web.PulsarWebResource;
+import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooKeeper;
@@ -41,8 +49,9 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 
 @Slf4j
 @Test(groups = "broker")
@@ -112,40 +121,73 @@ public class ClusterMetadataSetupTest {
 
         PulsarClusterMetadataSetup.main(args);
 
-        ZooKeeper localZk = PulsarClusterMetadataSetup.initZk(zkConnection, 30000);
-        // expected not exist
-        assertNull(localZk.exists("/ledgers", false));
+        try (MetadataStoreExtended localStore = PulsarClusterMetadataSetup
+                .initMetadataStore(zkConnection, 30000)) {
+            // expected not exist
+            assertFalse(localStore.exists("/ledgers").get());
 
-        String[] bookkeeperMetadataServiceUriArgs = {
-            "--cluster", "testReSetupClusterMetadata-cluster",
-            "--zookeeper", zkConnection,
-            "--configuration-store", zkConnection,
-            "--bookkeeper-metadata-service-uri", "zk+null://" + zkConnection + "/chroot/ledgers",
-            "--web-service-url", "http://127.0.0.1:8080",
-            "--web-service-url-tls", "https://127.0.0.1:8443",
-            "--broker-service-url", "pulsar://127.0.0.1:6650",
-            "--broker-service-url-tls","pulsar+ssl://127.0.0.1:6651"
+            String[] bookkeeperMetadataServiceUriArgs = {
+                    "--cluster", "testReSetupClusterMetadata-cluster",
+                    "--zookeeper", zkConnection,
+                    "--configuration-store", zkConnection,
+                    "--bookkeeper-metadata-service-uri", "zk+null://" + zkConnection + "/chroot/ledgers",
+                    "--web-service-url", "http://127.0.0.1:8080",
+                    "--web-service-url-tls", "https://127.0.0.1:8443",
+                    "--broker-service-url", "pulsar://127.0.0.1:6650",
+                    "--broker-service-url-tls", "pulsar+ssl://127.0.0.1:6651"
+            };
+
+            PulsarClusterMetadataSetup.main(bookkeeperMetadataServiceUriArgs);
+            try (MetadataStoreExtended bookkeeperMetadataServiceUriStore = PulsarClusterMetadataSetup
+                    .initMetadataStore(zkConnection, 30000)) {
+                // expected not exist
+                assertFalse(bookkeeperMetadataServiceUriStore.exists("/ledgers").get());
+            }
+
+            String[] args1 = {
+                    "--cluster", "testReSetupClusterMetadata-cluster",
+                    "--zookeeper", zkConnection,
+                    "--configuration-store", zkConnection,
+                    "--web-service-url", "http://127.0.0.1:8080",
+                    "--web-service-url-tls", "https://127.0.0.1:8443",
+                    "--broker-service-url", "pulsar://127.0.0.1:6650",
+                    "--broker-service-url-tls", "pulsar+ssl://127.0.0.1:6651"
+            };
+
+            PulsarClusterMetadataSetup.main(args1);
+
+            // expected exist
+            assertTrue(localStore.exists("/ledgers").get());
+        }
+    }
+
+    @Test
+    public void testInitialNamespaceSetup() throws Exception {
+        // missing arguments
+        assertEquals(PulsarInitialNamespaceSetup.doMain(new String[]{}), 1);
+        // invalid namespace
+        assertEquals(PulsarInitialNamespaceSetup.doMain(new String[]{
+                "--cluster", "testInitialNamespaceSetup-cluster",
+                "--configuration-store", "127.0.0.1:" + localZkS.getZookeeperPort(),
+                "a/b/c/d"
+        }), 1);
+
+        String[] args = {
+                "--cluster", "testInitialNamespaceSetup-cluster",
+                "--configuration-store", "127.0.0.1:" + localZkS.getZookeeperPort(),
+                "test/a",
+                "test/b",
+                "test/c",
         };
-
-        PulsarClusterMetadataSetup.main(bookkeeperMetadataServiceUriArgs);
-        ZooKeeper bookkeeperMetadataServiceUriZk = PulsarClusterMetadataSetup.initZk(zkConnection, 30000);
-        // expected not exist
-        assertNull(bookkeeperMetadataServiceUriZk.exists("/ledgers", false));
-
-        String[] args1 = {
-                "--cluster", "testReSetupClusterMetadata-cluster",
-                "--zookeeper", zkConnection,
-                "--configuration-store", zkConnection,
-                "--web-service-url", "http://127.0.0.1:8080",
-                "--web-service-url-tls", "https://127.0.0.1:8443",
-                "--broker-service-url", "pulsar://127.0.0.1:6650",
-                "--broker-service-url-tls","pulsar+ssl://127.0.0.1:6651"
-        };
-
-        PulsarClusterMetadataSetup.main(args1);
-
-        // expected exist
-        assertNotNull(localZk.exists("/ledgers", false));
+        assertEquals(PulsarInitialNamespaceSetup.doMain(args), 0);
+        try (MetadataStoreExtended store = MetadataStoreExtended.create("127.0.0.1:" + localZkS.getZookeeperPort(),
+                MetadataStoreConfig.builder().build())) {
+            TenantResources tenantResources = new TenantResources(store,
+                    PulsarResources.DEFAULT_OPERATION_TIMEOUT_SEC);
+            List<String> namespaces = tenantResources.getChildren(PulsarWebResource
+                    .path(ConfigurationCacheService.POLICIES, "test"));
+            assertEquals(new HashSet<>(namespaces), new HashSet<>(Arrays.asList("a", "b", "c")));
+        }
     }
 
     @BeforeMethod

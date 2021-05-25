@@ -25,6 +25,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 
 /**
  * A class represent a transaction buffer. The transaction buffer
@@ -147,4 +148,10 @@ public interface TransactionBuffer {
      * @return the stable position.
      */
     PositionImpl getMaxReadPosition();
+
+    /**
+     * Get transaction in buffer stats.
+     * @return the transaction in buffer stats.
+     */
+    TransactionInBufferStats getTransactionInBufferStats(TxnID txnID);
 }

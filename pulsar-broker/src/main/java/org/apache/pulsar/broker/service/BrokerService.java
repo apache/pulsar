@@ -269,7 +269,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     private Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors;
 
-    public BrokerService(PulsarService pulsar) throws Exception {
+    public BrokerService(PulsarService pulsar, EventLoopGroup eventLoopGroup) throws Exception {
         this.pulsar = pulsar;
         this.preciseTopicPublishRateLimitingEnable =
                 pulsar.getConfiguration().isPreciseTopicPublishRateLimiterEnable();
@@ -289,13 +289,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 .numThreads(pulsar.getConfiguration().getNumWorkerThreadsForNonPersistentTopic())
                 .name("broker-topic-workers").build();
         final DefaultThreadFactory acceptorThreadFactory = new DefaultThreadFactory("pulsar-acceptor");
-        final DefaultThreadFactory workersThreadFactory = new DefaultThreadFactory("pulsar-io");
-        final int numThreads = pulsar.getConfiguration().getNumIOThreads();
-        log.info("Using {} threads for broker service IO", numThreads);
 
         this.acceptorGroup = EventLoopUtil.newEventLoopGroup(
-                pulsar.getConfiguration().getNumAcceptorThreads(), acceptorThreadFactory);
-        this.workerGroup = EventLoopUtil.newEventLoopGroup(numThreads, workersThreadFactory);
+                pulsar.getConfiguration().getNumAcceptorThreads(), false, acceptorThreadFactory);
+        this.workerGroup = eventLoopGroup;
         this.statsUpdater = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-stats-updater"));
         this.authorizationService = new AuthorizationService(
@@ -1027,7 +1024,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                         .enableTcpNoDelay(false)
                         .connectionsPerBroker(pulsar.getConfiguration().getReplicationConnectionsPerBroker())
                         .statsInterval(0, TimeUnit.SECONDS);
-                if (pulsar.getConfiguration().isAuthenticationEnabled()) {
+                if (data.getAuthenticationPlugin() != null && data.getAuthenticationParameters() != null) {
+                    clientBuilder.authentication(data.getAuthenticationPlugin(), data.getAuthenticationParameters());
+                } else if (pulsar.getConfiguration().isAuthenticationEnabled()) {
                     clientBuilder.authentication(pulsar.getConfiguration().getBrokerClientAuthenticationPlugin(),
                             pulsar.getConfiguration().getBrokerClientAuthenticationParameters());
                 }
@@ -1395,22 +1394,23 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     private void addTopicToStatsMaps(TopicName topicName, Topic topic) {
-        try {
-            NamespaceBundle namespaceBundle = pulsar.getNamespaceService().getBundle(topicName);
-
-            if (namespaceBundle != null) {
-                synchronized (multiLayerTopicsMap) {
-                    String serviceUnit = namespaceBundle.toString();
-                    multiLayerTopicsMap //
-                            .computeIfAbsent(topicName.getNamespace(), k -> new ConcurrentOpenHashMap<>()) //
-                            .computeIfAbsent(serviceUnit, k -> new ConcurrentOpenHashMap<>()) //
-                            .put(topicName.toString(), topic);
-                }
-            }
-            invalidateOfflineTopicStatCache(topicName);
-        } catch (Exception e) {
-            log.warn("Got exception when retrieving bundle name during create persistent topic", e);
-        }
+        pulsar.getNamespaceService().getBundleAsync(topicName)
+                .thenAccept(namespaceBundle -> {
+                    if (namespaceBundle != null) {
+                        synchronized (multiLayerTopicsMap) {
+                            String serviceUnit = namespaceBundle.toString();
+                            multiLayerTopicsMap //
+                                    .computeIfAbsent(topicName.getNamespace(), k -> new ConcurrentOpenHashMap<>()) //
+                                    .computeIfAbsent(serviceUnit, k -> new ConcurrentOpenHashMap<>()) //
+                                    .put(topicName.toString(), topic);
+                        }
+                    }
+                    invalidateOfflineTopicStatCache(topicName);
+                })
+                .exceptionally(ex -> {
+                    log.warn("Got exception when retrieving bundle name during create persistent topic", ex);
+                    return null;
+                });
     }
 
     public void refreshTopicToStatsMaps(NamespaceBundle oldBundle) {
@@ -1667,7 +1667,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         for (String topic : topics.keys()) {
             TopicName topicName = TopicName.get(topic);
             if (serviceUnit.includes(topicName)) {
-                pulsar.getBrokerService().removeTopicFromCache(topicName.toString());
+                pulsar.getBrokerService().removeTopicFromCache(topicName.toString(), serviceUnit);
             }
         }
     }
@@ -1676,41 +1676,38 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return authorizationService;
     }
 
-    public void removeTopicFromCache(String topic) {
-        TopicName topicName = null;
-        NamespaceBundle namespaceBundle = null;
-        try {
-            topicName = TopicName.get(topic);
-            namespaceBundle = pulsar.getNamespaceService().getBundle(topicName);
-            checkArgument(namespaceBundle instanceof NamespaceBundle);
+    public CompletableFuture<Void> removeTopicFromCache(String topic) {
+        TopicName topicName = TopicName.get(topic);
+        return pulsar.getNamespaceService().getBundleAsync(topicName)
+                .thenAccept(namespaceBundle -> {
+                    removeTopicFromCache(topic, namespaceBundle);
+                });
+    }
 
-            String bundleName = namespaceBundle.toString();
-            String namespaceName = topicName.getNamespaceObject().toString();
+    public void removeTopicFromCache(String topic, NamespaceBundle namespaceBundle) {
+        String bundleName = namespaceBundle.toString();
+        String namespaceName = TopicName.get(topic).getNamespaceObject().toString();
 
-            synchronized (multiLayerTopicsMap) {
-                ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>> namespaceMap = multiLayerTopicsMap
-                        .get(namespaceName);
-                if (namespaceMap != null) {
-                    ConcurrentOpenHashMap<String, Topic> bundleMap = namespaceMap.get(bundleName);
-                    bundleMap.remove(topic);
-                    if (bundleMap.isEmpty()) {
-                        namespaceMap.remove(bundleName);
-                    }
+        synchronized (multiLayerTopicsMap) {
+            ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>> namespaceMap = multiLayerTopicsMap
+                    .get(namespaceName);
+            if (namespaceMap != null) {
+                ConcurrentOpenHashMap<String, Topic> bundleMap = namespaceMap.get(bundleName);
+                bundleMap.remove(topic);
+                if (bundleMap.isEmpty()) {
+                    namespaceMap.remove(bundleName);
+                }
 
-                    if (namespaceMap.isEmpty()) {
-                        multiLayerTopicsMap.remove(namespaceName);
-                        final ClusterReplicationMetrics clusterReplicationMetrics = pulsarStats
-                                .getClusterReplicationMetrics();
-                        replicationClients.forEach((cluster, client) -> {
-                            clusterReplicationMetrics.remove(clusterReplicationMetrics.getKeyName(namespaceName,
-                                    cluster));
-                        });
-                    }
+                if (namespaceMap.isEmpty()) {
+                    multiLayerTopicsMap.remove(namespaceName);
+                    final ClusterReplicationMetrics clusterReplicationMetrics = pulsarStats
+                            .getClusterReplicationMetrics();
+                    replicationClients.forEach((cluster, client) -> {
+                        clusterReplicationMetrics.remove(clusterReplicationMetrics.getKeyName(namespaceName,
+                                cluster));
+                    });
                 }
             }
-        } catch (Exception e) {
-            log.warn("Got exception when retrieving bundle name {} for topic {} during removeTopicFromCache", topicName,
-                    namespaceBundle, e);
         }
 
         topics.remove(topic);
@@ -1793,7 +1790,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return pulsar;
     }
 
-    public ScheduledExecutorService executor() {
+    public EventLoopGroup executor() {
         return workerGroup;
     }
 

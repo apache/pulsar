@@ -29,6 +29,7 @@ import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.atomic.LongAdder;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -70,6 +71,7 @@ import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
+import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -111,6 +113,9 @@ public class PersistentSubscription implements Subscription {
     private volatile Position lastMarkDeleteForTransactionMarker;
     private volatile boolean isDeleteTransactionMarkerInProcess = false;
     private final PendingAckHandle pendingAckHandle;
+
+    private final LongAdder bytesOutFromRemovedConsumers = new LongAdder();
+    private final LongAdder msgOutFromRemovedConsumer = new LongAdder();
 
     static {
         REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES.put(REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
@@ -274,7 +279,13 @@ public class PersistentSubscription implements Subscription {
         if (dispatcher != null) {
             dispatcher.removeConsumer(consumer);
         }
-        if (dispatcher.getConsumers().isEmpty()) {
+
+        // preserve accumulative stats form removed consumer
+        ConsumerStats stats = consumer.getStats();
+        bytesOutFromRemovedConsumers.add(stats.bytesOutCounter);
+        msgOutFromRemovedConsumer.add(stats.msgOutCounter);
+
+        if (dispatcher != null && dispatcher.getConsumers().isEmpty()) {
             deactivateCursor();
 
             if (!cursor.isDurable()) {
@@ -957,6 +968,8 @@ public class PersistentSubscription implements Subscription {
         subStats.lastExpireTimestamp = lastExpireTimestamp;
         subStats.lastConsumedFlowTimestamp = lastConsumedFlowTimestamp;
         subStats.lastMarkDeleteAdvancedTimestamp = lastMarkDeleteAdvancedTimestamp;
+        subStats.bytesOutCounter = bytesOutFromRemovedConsumers.longValue();
+        subStats.msgOutCounter = msgOutFromRemovedConsumer.longValue();
         Dispatcher dispatcher = this.dispatcher;
         if (dispatcher != null) {
             Map<String, List<String>> consumerKeyHashRanges = getType() == SubType.Key_Shared
@@ -1024,12 +1037,18 @@ public class PersistentSubscription implements Subscription {
 
     @Override
     public void redeliverUnacknowledgedMessages(Consumer consumer) {
-        dispatcher.redeliverUnacknowledgedMessages(consumer);
+        Dispatcher dispatcher = getDispatcher();
+        if (dispatcher != null) {
+            dispatcher.redeliverUnacknowledgedMessages(consumer);
+        }
     }
 
     @Override
     public void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions) {
-        dispatcher.redeliverUnacknowledgedMessages(consumer, positions);
+        Dispatcher dispatcher = getDispatcher();
+        if (dispatcher != null) {
+            dispatcher.redeliverUnacknowledgedMessages(consumer, positions);
+        }
     }
 
     private void trimByMarkDeletePosition(List<PositionImpl> positions) {
@@ -1126,6 +1145,10 @@ public class PersistentSubscription implements Subscription {
 
     public boolean checkAndUnblockIfStuck() {
         return dispatcher != null ? dispatcher.checkAndUnblockIfStuck() : false;
+    }
+
+    public TransactionInPendingAckStats getTransactionInPendingAckStats(TxnID txnID) {
+        return this.pendingAckHandle.getTransactionInPendingAckStats(txnID);
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentSubscription.class);
