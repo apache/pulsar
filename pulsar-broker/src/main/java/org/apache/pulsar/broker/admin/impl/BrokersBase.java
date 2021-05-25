@@ -46,7 +46,6 @@ import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.Message;
@@ -313,13 +312,13 @@ public class BrokersBase extends PulsarWebResource {
         // create non-partitioned topic manually and close the previous reader if present.
         try {
             pulsar().getBrokerService().getTopic(topic, true).get().ifPresent(t -> {
-                for (Subscription value : t.getSubscriptions().values()) {
+                t.getSubscriptions().forEach((__, value) -> {
                     try {
                         value.deleteForcefully();
                     } catch (Exception e) {
                         LOG.warn("Failed to delete previous subscription {} for health check", value.getName(), e);
                     }
-                }
+                });
             });
         } catch (Exception e) {
             LOG.warn("Failed to try to delete subscriptions for health check", e);
