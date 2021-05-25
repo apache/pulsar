@@ -3051,7 +3051,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     .values()) {
                 count += ls.getEntries();
             }
-            
+
             return count;
         }
     }
