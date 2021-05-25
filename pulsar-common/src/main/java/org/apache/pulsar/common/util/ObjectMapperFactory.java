@@ -21,8 +21,24 @@ package org.apache.pulsar.common.util;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.module.SimpleAbstractTypeResolver;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import io.netty.util.concurrent.FastThreadLocal;
+import org.apache.pulsar.client.admin.OffloadProcessStatus;
+import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.FunctionState;
+import org.apache.pulsar.common.functions.JsonIgnorePropertiesMixIn;
+import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.BacklogQuotaDeserializer;
+import org.apache.pulsar.common.policies.data.FunctionStats;
+import org.apache.pulsar.common.policies.data.FunctionStatsMixIn;
+import org.apache.pulsar.common.policies.data.ResourceQuota;
+import org.apache.pulsar.common.policies.data.ResourceQuotaMixIn;
+import org.apache.pulsar.common.stats.Metrics;
+import org.apache.pulsar.common.stats.MetricsMixIn;
+import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
+import org.apache.pulsar.policies.data.loadbalancer.LoadReportDeserializer;
 
 @SuppressWarnings("checkstyle:JavadocType")
 public class ObjectMapperFactory {
@@ -32,6 +48,7 @@ public class ObjectMapperFactory {
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         mapper.configure(DeserializationFeature.READ_UNKNOWN_ENUM_VALUES_AS_NULL, true);
         mapper.setSerializationInclusion(Include.NON_NULL);
+        setAnnotationsModule(mapper);
         return mapper;
     }
 
@@ -41,6 +58,7 @@ public class ObjectMapperFactory {
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         mapper.configure(DeserializationFeature.READ_UNKNOWN_ENUM_VALUES_AS_NULL, true);
         mapper.setSerializationInclusion(Include.NON_NULL);
+        setAnnotationsModule(mapper);
         return mapper;
     }
 
@@ -65,5 +83,29 @@ public class ObjectMapperFactory {
     public static ObjectMapper getThreadLocalYaml() {
         return YAML_MAPPER.get();
     }
+
+    private static void setAnnotationsModule(ObjectMapper mapper) {
+        SimpleModule module = new SimpleModule("AnnotationsModule");
+
+        // we use customized deserializer to replace jackson annotations in some POJOs
+        module.addDeserializer(LoadManagerReport.class, new LoadReportDeserializer());
+        module.addDeserializer(BacklogQuota.class, new BacklogQuotaDeserializer());
+
+        // we use MixIn class to add jackson annotations
+        mapper.addMixIn(ResourceQuota.class, ResourceQuotaMixIn.class);
+        mapper.addMixIn(FunctionConfig.class, JsonIgnorePropertiesMixIn.class);
+        mapper.addMixIn(FunctionState.class, JsonIgnorePropertiesMixIn.class);
+        mapper.addMixIn(FunctionStats.class, FunctionStatsMixIn.class);
+        mapper.addMixIn(FunctionStats.FunctionInstanceStats.class,
+                FunctionStatsMixIn.FunctionInstanceStatsMixIn.class);
+        mapper.addMixIn(FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.class,
+                FunctionStatsMixIn.FunctionInstanceStatsMixIn.FunctionInstanceStatsDataMixIn.class);
+        mapper.addMixIn(FunctionStats.FunctionInstanceStats.FunctionInstanceStatsDataBase.class,
+                FunctionStatsMixIn.FunctionInstanceStatsMixIn.FunctionInstanceStatsDataBaseMixIn.class);
+        mapper.addMixIn(Metrics.class, MetricsMixIn.class);
+
+        mapper.registerModule(module);
+    }
+
 
 }
