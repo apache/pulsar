@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import java.io.IOException;
 import java.text.DecimalFormat;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -114,7 +115,9 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
         ObjectWriter w = m.writerWithDefaultPrettyPrinter();
 
         try {
-            log.info("Starting Pulsar consumer status recorder with config: {}", w.writeValueAsString(conf));
+            ConsumerConfigurationData<?> config = conf.clone();
+            config.setTopicNames(Collections.singleton(consumer.getTopic()));
+            log.info("Starting Pulsar consumer status recorder with config: {}", w.writeValueAsString(config));
             log.info("Pulsar client config: {}", w.withoutAttribute("authentication").writeValueAsString(pulsarClient.getConfiguration()));
         } catch (IOException e) {
             log.error("Failed to dump config info", e);

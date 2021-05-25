@@ -102,7 +102,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     private final ConsumerStatsRecorder stats;
     private final UnAckedMessageTracker unAckedMessageTracker;
     private final ConsumerConfigurationData<T> internalConfig;
-    private static ConsumerConfigurationData orgConf = null;
 
     private volatile BatchMessageIdImpl startMessageId = null;
     private final long startMessageRollbackDurationInSec;
@@ -591,10 +590,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         internalConsumerConfig.setSubscriptionName(subscription);
         internalConsumerConfig.setConsumerName(consumerName);
         internalConsumerConfig.setMessageListener(null);
-        // output the org topic name
-        if (null != orgConf && internalConsumerConfig.getTopicNames().isEmpty()) {
-            internalConsumerConfig.getTopicNames().addAll(orgConf.getTopicNames());
-        }
         return internalConsumerConfig;
     }
 
@@ -841,7 +836,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
         // get topic name, then remove it from conf, so constructor will create a consumer with no topic.
         ConsumerConfigurationData cloneConf = conf.clone();
-        orgConf = conf.clone();
         String topicName = cloneConf.getSingleTopic();
         cloneConf.getTopicNames().remove(topicName);
 
