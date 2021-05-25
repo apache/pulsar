@@ -195,6 +195,7 @@ public class ServerCnxTest {
         doReturn(executor).when(pulsar).getOrderedExecutor();
 
         namespaceService = mock(NamespaceService.class);
+        doReturn(CompletableFuture.completedFuture(null)).when(namespaceService).getBundleAsync(any());
         doReturn(namespaceService).when(pulsar).getNamespaceService();
         doReturn(true).when(namespaceService).isServiceUnitOwned(any());
         doReturn(true).when(namespaceService).isServiceUnitActive(any());

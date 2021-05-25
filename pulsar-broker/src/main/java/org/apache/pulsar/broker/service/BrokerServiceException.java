@@ -63,6 +63,10 @@ public class BrokerServiceException extends Exception {
         public ServiceUnitNotReadyException(String msg) {
             super(msg);
         }
+
+        public ServiceUnitNotReadyException(String msg, Throwable t) {
+            super(msg, t);
+        }
     }
 
     public static class TopicClosedException extends BrokerServiceException {

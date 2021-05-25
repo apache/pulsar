@@ -96,6 +96,7 @@ import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.ZooDefs;
+import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -760,11 +761,6 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         TopicName topicName = TopicName.get("persistent", property, cluster, namespace, topic);
         assertEquals(persistentTopics.getPartitionedTopicMetadata(topicName, true, false).partitions, 5);
 
-        CountDownLatch notificationLatch = new CountDownLatch(2);
-        configurationCache.policiesCache().registerListener((path, data, stat) -> {
-            notificationLatch.countDown();
-        });
-
         // grant permission
         final Set<AuthAction> actions = Sets.newHashSet(AuthAction.produce);
         final String role = "test-role";
@@ -776,12 +772,12 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         // remove permission
         persistentTopics.revokePermissionsOnTopic(property, cluster, namespace, topic, role);
 
-        // Wait for cache to be updated
-        notificationLatch.await();
-
         // verify removed permission
-        permission = persistentTopics.getPermissionsOnTopic(property, cluster, namespace, topic);
-        assertTrue(permission.isEmpty());
+        Awaitility.await().untilAsserted(() -> {
+            Map<String, Set<AuthAction>> p = persistentTopics.getPermissionsOnTopic(property, cluster, namespace, topic);
+            assertTrue(p.isEmpty());
+        });
+
     }
 
     @Test

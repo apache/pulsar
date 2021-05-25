@@ -32,6 +32,8 @@ import static org.testng.Assert.fail;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
+import org.apache.pulsar.metadata.api.MetadataStore;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -130,6 +132,9 @@ public class NamespaceBundleTest {
         when(pulsar.getLocalZkCacheService()).thenReturn(localZkCache);
         when(localZkCache.policiesCache()).thenReturn(poilciesCache);
         doNothing().when(poilciesCache).registerListener(any());
+        MetadataStoreExtended store = mock(MetadataStoreExtended.class);
+        when(pulsar.getLocalMetadataStore()).thenReturn(store);
+        when(pulsar.getConfigurationMetadataStore()).thenReturn(store);
         return NamespaceBundleFactory.createFactory(pulsar, Hashing.crc32());
     }
 
