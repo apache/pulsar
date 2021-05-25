@@ -33,12 +33,16 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.Sources;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.functions.UpdateOptions;
+import org.apache.pulsar.common.io.BatchSourceConfig;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.powermock.api.mockito.PowerMockito;
@@ -74,6 +78,8 @@ public class TestCmdSources {
     private static final Long RAM = 1024L * 1024L;
     private static final Long DISK = 1024L * 1024L * 1024L;
     private static final String SINK_CONFIG_STRING = "{\"created_at\":\"Mon Jul 02 00:33:15 +0000 2018\"}";
+    private static final String BATCH_SOURCE_CONFIG_STRING = "{ \"discoveryTriggererClassName\" : \"org.apache.pulsar.io.batchdiscovery.CronTriggerer\","
+			+ "\"discoveryTriggererConfig\": {\"cron\": \"5 0 0 0 0 *\"} }";
 
     private PulsarAdmin pulsarAdmin;
     private Sources source;
@@ -132,6 +138,10 @@ public class TestCmdSources {
         sourceConfig.setResources(new Resources(CPU, RAM, DISK));
         sourceConfig.setConfigs(createSource.parseConfigs(SINK_CONFIG_STRING));
         return sourceConfig;
+    }
+    
+    public BatchSourceConfig getBatchSourceConfig() {
+    	return createSource.parseBatchSourceConfigs(BATCH_SOURCE_CONFIG_STRING);
     }
 
     @Test
@@ -390,6 +400,61 @@ public class TestCmdSources {
         testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
     }
 
+    @Test
+    public void testBatchSourceConfigCorrect() throws Exception {
+    	SourceConfig testSourceConfig = getSourceConfig();
+    	testSourceConfig.setBatchSourceConfig(getBatchSourceConfig());
+    	
+    	SourceConfig expectedSourceConfig = getSourceConfig();
+        expectedSourceConfig.setBatchSourceConfig(getBatchSourceConfig());
+        testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
+    }
+    
+    /*
+     * Test where the DiscoveryTriggererClassName is null
+     */
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Discovery Triggerer not specified")
+    public void testBatchSourceConfigMissingDiscoveryTriggererClassName() throws Exception {
+    	SourceConfig testSourceConfig = getSourceConfig();
+    	BatchSourceConfig batchSourceConfig = getBatchSourceConfig();
+    	batchSourceConfig.setDiscoveryTriggererClassName(null);
+    	testSourceConfig.setBatchSourceConfig(batchSourceConfig);
+    	
+    	SourceConfig expectedSourceConfig = getSourceConfig();
+        expectedSourceConfig.setBatchSourceConfig(batchSourceConfig);
+        testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
+    }
+    
+    /*
+     * Test where the class name does not implement the BatchSourceTriggerer interface
+     */
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Invalid Discovery Triggerer specified")
+    public void testBatchSourceConfigInvalidDiscoveryTriggererClassName() throws Exception {
+    	SourceConfig testSourceConfig = getSourceConfig();
+    	BatchSourceConfig batchSourceConfig = getBatchSourceConfig();
+    	batchSourceConfig.setDiscoveryTriggererClassName("java.lang.String");
+    	testSourceConfig.setBatchSourceConfig(batchSourceConfig);
+    	
+    	SourceConfig expectedSourceConfig = getSourceConfig();
+        expectedSourceConfig.setBatchSourceConfig(batchSourceConfig);
+        testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
+    }
+    
+    /*
+     * Test where the class name provided doesn't exist
+     */
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Invalid Discovery Triggerer specified")
+    public void testBatchSourceConfigDiscoveryTriggererClassNotFound() throws Exception {
+    	SourceConfig testSourceConfig = getSourceConfig();
+    	BatchSourceConfig batchSourceConfig = getBatchSourceConfig();
+    	batchSourceConfig.setDiscoveryTriggererClassName("com.foo.Bar");
+    	testSourceConfig.setBatchSourceConfig(batchSourceConfig);
+    	
+    	SourceConfig expectedSourceConfig = getSourceConfig();
+        expectedSourceConfig.setBatchSourceConfig(batchSourceConfig);
+        testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
+    }
+    
     public void testCmdSourceConfigFile(SourceConfig testSourceConfig, SourceConfig expectedSourceConfig) throws Exception {
 
         File file = Files.createTempFile("", "").toFile();

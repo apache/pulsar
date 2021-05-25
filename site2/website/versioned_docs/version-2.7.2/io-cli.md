@@ -57,6 +57,7 @@ $ pulsar-admin sources create options
 |Flag|Description|
 |----|---|
 | `-a`, `--archive` | The path to the NAR archive for the source. <br> It also supports url-path (http/https/file [file protocol assumes that file already exists on worker host]) from which worker can download the package.
+| `--batch-source-config` | BatchSource configuration key/values pairs provided as a JSON string, e.g., { "discoveryTriggererClassName" : "org.apache.pulsar.io.batchdiscovery.CronTriggerer", "discoveryTriggererConfig": {"cron": "*/5 * * * *"} }
 | `--classname` | The source's class name if `archive` is file-url-path (file://).
 | `--cpu` | The CPU (in cores) that needs to be allocated per source instance (applicable only to Docker runtime).
 | `--deserialization-classname` | The SerDe classname for the source.
@@ -89,6 +90,7 @@ $ pulsar-admin sources update options
 |Flag|Description|
 |----|---|
 | `-a`, `--archive` | The path to the NAR archive for the source. <br> It also supports url-path (http/https/file [file protocol assumes that file already exists on worker host]) from which worker can download the package.
+| `--batch-source-config` | BatchSource configuration key/values pairs provided as a JSON string, e.g., { "discoveryTriggererClassName" : "org.apache.pulsar.io.batchdiscovery.CronTriggerer", "discoveryTriggererConfig": {"cron": "*/5 * * * *"} }
 | `--classname` | The source's class name if `archive` is file-url-path (file://).
 | `--cpu` | The CPU (in cores) that needs to be allocated per source instance (applicable only to Docker runtime).
 | `--deserialization-classname` | The SerDe classname for the source.
