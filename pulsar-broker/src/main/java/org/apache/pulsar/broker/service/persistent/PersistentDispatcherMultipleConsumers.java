@@ -248,7 +248,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 // next entries as readCompletedEntries-callback was never called
                 if ((messagesToReplayNow.size() - deletedMessages.size()) == 0) {
                     havePendingReplayRead = false;
-                    readMoreEntries();
+                    // We should not call readMoreEntries() recursively in the same thread
+                    // as there is a risk of StackOverflowError
+                    topic.getBrokerService().executor().execute(() -> readMoreEntries());
                 }
             } else if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE) {
                 log.warn("[{}] Dispatcher read is blocked due to unackMessages {} reached to max {}", name,
