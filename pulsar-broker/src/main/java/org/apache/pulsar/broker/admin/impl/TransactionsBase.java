@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
+import static javax.ws.rs.core.Response.Status.NOT_FOUND;
 import static javax.ws.rs.core.Response.Status.SERVICE_UNAVAILABLE;
 import static javax.ws.rs.core.Response.Status.TEMPORARY_REDIRECT;
 import com.google.common.collect.Lists;
@@ -27,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
@@ -41,10 +43,12 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStatus;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
-import org.apache.pulsar.common.policies.data.TransactionStatus;
+import org.apache.pulsar.common.policies.data.TransactionMetadata;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
+import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.CoordinatorNotFoundException;
+import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.TransactionNotFoundException;
 
 @Slf4j
 public abstract class TransactionsBase extends AdminResource {
@@ -178,8 +182,8 @@ public abstract class TransactionsBase extends AdminResource {
         }
     }
 
-    protected void internalGetTransactionStatus(AsyncResponse asyncResponse,
-                                                boolean authoritative, int coordinatorId, long sequenceID) {
+    protected void internalGetTransactionMetadata(AsyncResponse asyncResponse,
+                                                  boolean authoritative, int coordinatorId, long sequenceID) {
         try {
             if (pulsar().getConfig().isTransactionCoordinatorEnabled()) {
                 validateTopicOwnership(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getPartition(coordinatorId),
@@ -188,11 +192,11 @@ public abstract class TransactionsBase extends AdminResource {
                 TxnMeta txnMeta = pulsar().getTransactionMetadataStoreService()
                         .getTxnMeta(new TxnID(coordinatorId, sequenceID)).get();
                 TxnID txnID = txnMeta.id();
-                TransactionStatus transactionStatus = new TransactionStatus();
-                transactionStatus.txnId = txnID.toString();
-                transactionStatus.status = txnMeta.status().name();
-                transactionStatus.openTimestamp = txnMeta.getOpenTimestamp();
-                transactionStatus.timeoutAt = txnMeta.getTimeoutAt();
+                TransactionMetadata transactionMetadata = new TransactionMetadata();
+                transactionMetadata.txnId = txnID.toString();
+                transactionMetadata.status = txnMeta.status().name();
+                transactionMetadata.openTimestamp = txnMeta.getOpenTimestamp();
+                transactionMetadata.timeoutAt = txnMeta.getTimeoutAt();
 
                 List<CompletableFuture<TransactionInPendingAckStats>> ackedPartitionsFutures = new ArrayList<>();
                 Map<String, Map<String, CompletableFuture<TransactionInPendingAckStats>>> ackFutures = new HashMap<>();
@@ -260,9 +264,9 @@ public abstract class TransactionsBase extends AdminResource {
                                 return;
                             }
                         }
-                        transactionStatus.ackedPartitions = ackedPartitions;
-                        transactionStatus.producedPartitions = producedPartitions;
-                        asyncResponse.resume(transactionStatus);
+                        transactionMetadata.ackedPartitions = ackedPartitions;
+                        transactionMetadata.producedPartitions = producedPartitions;
+                        asyncResponse.resume(transactionMetadata);
                     });
                 });
             } else {
@@ -270,7 +274,16 @@ public abstract class TransactionsBase extends AdminResource {
                         "This Broker is not configured with transactionCoordinatorEnabled=true."));
             }
         } catch (Exception e) {
-            asyncResponse.resume(new RestException(e.getCause()));
+            if (e instanceof ExecutionException) {
+                if (e.getCause() instanceof CoordinatorNotFoundException
+                        || e.getCause() instanceof TransactionNotFoundException) {
+                    asyncResponse.resume(new RestException(NOT_FOUND, e.getCause()));
+                    return;
+                }
+                asyncResponse.resume(new RestException(e.getCause()));
+            } else {
+                asyncResponse.resume(new RestException(e));
+            }
         }
     }
 }

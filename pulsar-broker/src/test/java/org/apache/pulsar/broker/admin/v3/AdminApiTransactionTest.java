@@ -38,7 +38,7 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStatus;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
-import org.apache.pulsar.common.policies.data.TransactionStatus;
+import org.apache.pulsar.common.policies.data.TransactionMetadata;
 import org.apache.pulsar.packages.management.core.MockedPackagesStorageProvider;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
@@ -164,13 +164,13 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test(timeOut = 20000)
-    public void testGetTransactionStatus() throws Exception {
+    public void testGetTransactionMetadata() throws Exception {
         initTransaction(2);
         long currentTime = System.currentTimeMillis();
         TransactionImpl transaction = (TransactionImpl) getTransaction();
-        final String topic1 = "persistent://public/default/testGetTransactionStatus-1";
+        final String topic1 = "persistent://public/default/testGetTransactionMetadata-1";
         final String subName1 = "test1";
-        final String topic2 = "persistent://public/default/testGetTransactionStatus-2";
+        final String topic2 = "persistent://public/default/testGetTransactionMetadata-2";
         final String subName2 = "test2";
         final String subName3 = "test3";
         admin.topics().createNonPartitionedTopic(topic1);
@@ -200,17 +200,17 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         consumer2.acknowledgeCumulativeAsync(messageId2, transaction).get();
         consumer3.acknowledgeCumulativeAsync(messageId2, transaction).get();
         TxnID txnID = new TxnID(transaction.getTxnIdMostBits(), transaction.getTxnIdLeastBits());
-        TransactionStatus transactionStatus = admin.transactions()
-                .getTransactionStatus(new TxnID(transaction.getTxnIdMostBits(),
+        TransactionMetadata transactionMetadata = admin.transactions()
+                .getTransactionMetadata(new TxnID(transaction.getTxnIdMostBits(),
                         transaction.getTxnIdLeastBits())).get();
 
-        assertEquals(transactionStatus.txnId, txnID.toString());
-        assertTrue(transactionStatus.openTimestamp > currentTime);
-        assertEquals(transactionStatus.timeoutAt, 5000L);
-        assertEquals(transactionStatus.status, "OPEN");
+        assertEquals(transactionMetadata.txnId, txnID.toString());
+        assertTrue(transactionMetadata.openTimestamp > currentTime);
+        assertEquals(transactionMetadata.timeoutAt, 5000L);
+        assertEquals(transactionMetadata.status, "OPEN");
 
-        Map<String, TransactionInBufferStats> producedPartitions = transactionStatus.producedPartitions;
-        Map<String, Map<String, TransactionInPendingAckStats>> ackedPartitions = transactionStatus.ackedPartitions;
+        Map<String, TransactionInBufferStats> producedPartitions = transactionMetadata.producedPartitions;
+        Map<String, Map<String, TransactionInPendingAckStats>> ackedPartitions = transactionMetadata.ackedPartitions;
 
         PositionImpl position1 = getPositionByMessageId(messageId1);
         PositionImpl position2 = getPositionByMessageId(messageId2);

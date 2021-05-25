@@ -22,7 +22,7 @@ import lombok.Data;
 import java.util.Map;
 
 @Data
-public class TransactionStatus {
+public class TransactionMetadata {
 
     /** The txnId of this transaction. */
     public String txnId;

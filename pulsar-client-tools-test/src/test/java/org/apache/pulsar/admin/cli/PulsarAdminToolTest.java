@@ -35,7 +35,6 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
@@ -1437,8 +1436,8 @@ public class PulsarAdminToolTest {
                 new TxnID(1, 2), "test", "test");
 
         cmdTransactions = new CmdTransactions(() -> admin);
-        cmdTransactions.run(split("transaction-status -m 1 -l 2"));
-        verify(transactions).getTransactionStatus(new TxnID(1, 2));
+        cmdTransactions.run(split("transaction-metadata -m 1 -l 2"));
+        verify(transactions).getTransactionMetadata(new TxnID(1, 2));
 
     }
 

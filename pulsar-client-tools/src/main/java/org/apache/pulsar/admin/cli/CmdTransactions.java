@@ -81,8 +81,8 @@ public class CmdTransactions extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get transaction status")
-    private class GetTransactionStatus extends CliCommand {
+    @Parameters(commandDescription = "Get transaction metadata")
+    private class GetTransactionMetadata extends CliCommand {
         @Parameter(names = {"-m", "--most-sig-bits"}, description = "the most sig bits", required = true)
         private int mostSigBits;
 
@@ -91,7 +91,7 @@ public class CmdTransactions extends CmdBase {
 
         @Override
         void run() throws Exception {
-            print(getAdmin().transactions().getTransactionStatus(new TxnID(mostSigBits, leastSigBits)));
+            print(getAdmin().transactions().getTransactionMetadata(new TxnID(mostSigBits, leastSigBits)));
         }
     }
 
@@ -100,6 +100,6 @@ public class CmdTransactions extends CmdBase {
         jcommander.addCommand("coordinator-status", new GetCoordinatorStatus());
         jcommander.addCommand("transaction-in-buffer-stats", new GetTransactionInBufferStats());
         jcommander.addCommand("transaction-in-pending-ack-stats", new GetTransactionInPendingAckStats());
-        jcommander.addCommand("transaction-status", new GetTransactionStatus());
+        jcommander.addCommand("transaction-metadata", new GetTransactionMetadata());
     }
 }
