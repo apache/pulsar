@@ -18,12 +18,13 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import com.google.common.base.MoreObjects;
+import lombok.ToString;
 import java.util.Objects;
 
 /**
  * Information about subscription rate.
  */
+@ToString
 public class SubscribeRate {
 
     public int subscribeThrottlingRatePerConsumer = -1;
@@ -52,10 +53,4 @@ public class SubscribeRate {
         return false;
     }
 
-    @Override
-    public String toString() {
-        return MoreObjects.toStringHelper(this)
-                .add("subscribeThrottlingRatePerConsumer", subscribeThrottlingRatePerConsumer)
-                .add("ratePeriodInSecond", ratePeriodInSecond).toString();
-    }
 }

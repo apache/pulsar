@@ -49,6 +49,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.Ledge
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesUtil;
 import org.apache.zookeeper.MockZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -992,7 +993,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
             return deletes.keySet();
         }
 
-        OffloadPolicies offloadPolicies = OffloadPolicies.create("S3", "", "", "",
+        OffloadPolicies offloadPolicies = OffloadPoliciesUtil.create("S3", "", "", "",
                 null, null,
                 null, null,
                 OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,

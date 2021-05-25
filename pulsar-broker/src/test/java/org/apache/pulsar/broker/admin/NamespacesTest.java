@@ -85,6 +85,7 @@ import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesUtil;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PolicyName;
@@ -1335,7 +1336,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertEquals(-1, admin.namespaces().getOffloadThreshold(namespace));
         // the ledger config should have the expected value
         ManagedLedgerConfig ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
-        MockLedgerOffloader offloader = new MockLedgerOffloader(OffloadPolicies.create("S3", "", "", "",
+        MockLedgerOffloader offloader = new MockLedgerOffloader(OffloadPoliciesUtil.create("S3", "", "", "",
                 null, null,
                 null, null,
                 OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
@@ -1352,7 +1353,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertEquals(100, admin.namespaces().getOffloadThreshold(namespace));
         ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
         admin.namespaces().getOffloadPolicies(namespace);
-        offloader = new MockLedgerOffloader(OffloadPolicies.create("S3", "", "", "",
+        offloader = new MockLedgerOffloader(OffloadPoliciesUtil.create("S3", "", "", "",
                 null, null,
                 null, null,
                 OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
@@ -1368,7 +1369,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().setOffloadThreshold(namespace, -2);
         assertEquals(-2, admin.namespaces().getOffloadThreshold(namespace));
         ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
-        offloader = new MockLedgerOffloader(OffloadPolicies.create("S3", "", "", "",
+        offloader = new MockLedgerOffloader(OffloadPoliciesUtil.create("S3", "", "", "",
                 null, null,
                 null, null,
                 OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
@@ -1384,7 +1385,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().setOffloadThreshold(namespace, -1);
         assertEquals(-1, admin.namespaces().getOffloadThreshold(namespace));
         ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
-        offloader = new MockLedgerOffloader(OffloadPolicies.create("S3", "", "", "",
+        offloader = new MockLedgerOffloader(OffloadPoliciesUtil.create("S3", "", "", "",
                 null, null,
                 null, null,
                 OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,

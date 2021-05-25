@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import com.google.common.collect.Maps;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -35,9 +35,9 @@ public class AuthPolicies {
     public final Map<String, Set<String>> subscription_auth_roles;
 
     public AuthPolicies() {
-        namespace_auth = Maps.newHashMap();
-        destination_auth = Maps.newHashMap();
-        subscription_auth_roles = Maps.newHashMap();
+        namespace_auth = new HashMap<>();
+        destination_auth = new HashMap<>();
+        subscription_auth_roles = new HashMap<>();
     }
 
     @Override

@@ -18,12 +18,13 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import com.google.common.base.MoreObjects;
+import lombok.ToString;
 import java.util.Objects;
 
 /**
  * Dispatch rate.
  */
+@ToString
 public class DispatchRate {
 
     public int dispatchThrottlingRateInMsg = -1;
@@ -68,13 +69,4 @@ public class DispatchRate {
         }
         return false;
     }
-
-    @Override
-    public String toString() {
-        return MoreObjects.toStringHelper(this)
-                .add("dispatchThrottlingRateInMsg", dispatchThrottlingRateInMsg)
-                .add("dispatchThrottlingRateInByte", dispatchThrottlingRateInByte)
-                .add("ratePeriodInSecond", ratePeriodInSecond).toString();
-    }
-
 }

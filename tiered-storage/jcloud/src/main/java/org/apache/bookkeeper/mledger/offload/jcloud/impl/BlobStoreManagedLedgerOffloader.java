@@ -56,6 +56,7 @@ import org.apache.bookkeeper.mledger.offload.jcloud.provider.BlobStoreLocation;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesUtil;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.blobstore.domain.BlobBuilder;
@@ -598,7 +599,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     public OffloadPolicies getOffloadPolicies() {
         Properties properties = new Properties();
         properties.putAll(config.getConfigProperties());
-        return OffloadPolicies.create(properties);
+        return OffloadPoliciesUtil.create(properties);
     }
 
     @Override

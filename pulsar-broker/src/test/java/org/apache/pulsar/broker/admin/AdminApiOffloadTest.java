@@ -48,6 +48,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesUtil;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -172,7 +173,7 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         long offloadDeletionLagInMillis = 100L;
         OffloadPolicies.OffloadedReadPriority priority = OffloadPolicies.OffloadedReadPriority.TIERED_STORAGE_FIRST;
 
-        OffloadPolicies offload1 = OffloadPolicies.create(
+        OffloadPolicies offload1 = OffloadPoliciesUtil.create(
                 driver, region, bucket, endpoint, null, null, null, null,
                 100, 100, offloadThresholdInBytes, offloadDeletionLagInMillis, priority);
         admin.namespaces().setOffloadPolicies(namespaceName, offload1);
@@ -215,7 +216,7 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         Awaitility.await()
                 .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topicName)));
         OffloadPolicies offloadPolicies = admin.topics().getOffloadPolicies(topicName, true);
-        OffloadPolicies brokerPolicies = OffloadPolicies
+        OffloadPolicies brokerPolicies = OffloadPoliciesUtil
                 .mergeConfiguration(null,null, pulsar.getConfiguration().getProperties());
 
         assertEquals(offloadPolicies, brokerPolicies);

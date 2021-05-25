@@ -18,38 +18,32 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import com.google.common.base.MoreObjects;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
-
-import java.util.List;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import javax.ws.rs.core.Response.Status;
-
-import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
-import org.apache.pulsar.common.util.RestException;
+import lombok.ToString;
 
 /**
  * Definition of Pulsar policies.
  */
+@ToString
 public class Policies {
 
     @SuppressWarnings("checkstyle:MemberName")
     public final AuthPolicies auth_policies = new AuthPolicies();
     @SuppressWarnings("checkstyle:MemberName")
-    public Set<String> replication_clusters = Sets.newHashSet();
+    public Set<String> replication_clusters = new HashSet<>();
     public BundlesData bundles;
     @SuppressWarnings("checkstyle:MemberName")
-    public Map<BacklogQuota.BacklogQuotaType, BacklogQuota> backlog_quota_map = Maps.newHashMap();
+    public Map<BacklogQuota.BacklogQuotaType, BacklogQuota> backlog_quota_map = new HashMap<>();
     @Deprecated
-    public Map<String, DispatchRate> clusterDispatchRate = Maps.newHashMap();
-    public Map<String, DispatchRate> topicDispatchRate = Maps.newHashMap();
-    public Map<String, DispatchRate> subscriptionDispatchRate = Maps.newHashMap();
-    public Map<String, DispatchRate> replicatorDispatchRate = Maps.newHashMap();
-    public Map<String, SubscribeRate> clusterSubscribeRate = Maps.newHashMap();
+    public Map<String, DispatchRate> clusterDispatchRate = new HashMap<>();
+    public Map<String, DispatchRate> topicDispatchRate = new HashMap<>();
+    public Map<String, DispatchRate> subscriptionDispatchRate = new HashMap<>();
+    public Map<String, DispatchRate> replicatorDispatchRate = new HashMap<>();
+    public Map<String, SubscribeRate> clusterSubscribeRate = new HashMap<>();
     public PersistencePolicies persistence = null;
 
     // If set, it will override the broker settings for enabling deduplication
@@ -58,10 +52,10 @@ public class Policies {
     public AutoTopicCreationOverride autoTopicCreationOverride = null;
     // If set, it will override the broker settings for allowing auto subscription creation
     public AutoSubscriptionCreationOverride autoSubscriptionCreationOverride = null;
-    public Map<String, PublishRate> publishMaxMessageRate = Maps.newHashMap();
+    public Map<String, PublishRate> publishMaxMessageRate = new HashMap<>();
 
     @SuppressWarnings("checkstyle:MemberName")
-    public Map<String, Integer> latency_stats_sample_rate = Maps.newHashMap();
+    public Map<String, Integer> latency_stats_sample_rate = new HashMap<>();
     @SuppressWarnings("checkstyle:MemberName")
     public Integer message_ttl_in_seconds = null;
     @SuppressWarnings("checkstyle:MemberName")
@@ -122,9 +116,9 @@ public class Policies {
 
     public Integer deduplicationSnapshotIntervalSeconds = null;
 
-    public Set<SubType> subscription_types_enabled = Sets.newHashSet();
+    public Set<String> subscription_types_enabled = new HashSet<>();
 
-    public Map<String, String> properties = Maps.newHashMap();
+    public Map<String, String> properties = new HashMap<>();
     @SuppressWarnings("checkstype:MemberName")
     public String resource_group_name = null;
 
@@ -201,85 +195,5 @@ public class Policies {
         return false;
     }
 
-    public static BundlesData defaultBundle() {
-        BundlesData bundle = new BundlesData(1);
-        List<String> boundaries = Lists.newArrayList();
-        boundaries.add(FIRST_BOUNDARY);
-        boundaries.add(LAST_BOUNDARY);
-        bundle.setBoundaries(boundaries);
-        return bundle;
-    }
 
-    public static void setStorageQuota(Policies polices, BacklogQuota quota) {
-        if (polices == null) {
-            return;
-        }
-        polices.backlog_quota_map.put(BacklogQuota.BacklogQuotaType.destination_storage, quota);
-    }
-
-    @Override
-    public String toString() {
-        return MoreObjects.toStringHelper(this).add("auth_policies", auth_policies)
-                .add("replication_clusters", replication_clusters)
-                .add("bundles", bundles)
-                .add("backlog_quota_map", backlog_quota_map)
-                .add("persistence", persistence)
-                .add("deduplicationEnabled", deduplicationEnabled)
-                .add("autoTopicCreationOverride", autoTopicCreationOverride)
-                .add("autoSubscriptionCreationOverride", autoSubscriptionCreationOverride)
-                .add("clusterDispatchRate", clusterDispatchRate)
-                .add("topicDispatchRate", topicDispatchRate)
-                .add("subscriptionDispatchRate", subscriptionDispatchRate)
-                .add("replicatorDispatchRate", replicatorDispatchRate)
-                .add("clusterSubscribeRate", clusterSubscribeRate)
-                .add("publishMaxMessageRate", publishMaxMessageRate)
-                .add("latency_stats_sample_rate", latency_stats_sample_rate)
-                .add("message_ttl_in_seconds", message_ttl_in_seconds)
-                .add("subscription_expiration_time_minutes", subscription_expiration_time_minutes)
-                .add("retention_policies", retention_policies)
-                .add("deleted", deleted)
-                .add("encryption_required", encryption_required)
-                .add("delayed_delivery_policies", delayed_delivery_policies)
-                .add("inactive_topic_policies", inactive_topic_policies)
-                .add("subscription_auth_mode", subscription_auth_mode)
-                .add("max_producers_per_topic", max_producers_per_topic)
-                .add("max_consumers_per_topic", max_consumers_per_topic)
-                .add("max_consumers_per_subscription", max_consumers_per_topic)
-                .add("max_unacked_messages_per_consumer", max_unacked_messages_per_consumer)
-                .add("max_unacked_messages_per_subscription", max_unacked_messages_per_subscription)
-                .add("compaction_threshold", compaction_threshold)
-                .add("offload_threshold", offload_threshold)
-                .add("offload_deletion_lag_ms", offload_deletion_lag_ms)
-                .add("schema_auto_update_compatibility_strategy", schema_auto_update_compatibility_strategy)
-                .add("schema_validation_enforced", schema_validation_enforced)
-                .add("schema_compatibility_Strategy", schema_compatibility_strategy)
-                .add("is_allow_auto_update_Schema", is_allow_auto_update_schema)
-                .add("offload_policies", offload_policies)
-                .add("subscription_types_enabled", subscription_types_enabled)
-                .add("properties", properties)
-                .add("resource_group_name", resource_group_name).toString();
-    }
-
-    private static final long MAX_BUNDLES = ((long) 1) << 32;
-
-    public static BundlesData getBundles(int numBundles) {
-        if (numBundles <= 0) {
-            throw new RestException(Status.BAD_REQUEST,
-                "Invalid number of bundles. Number of numbles has to be in the range of (0, 2^32].");
-        }
-        Long maxVal = MAX_BUNDLES;
-        Long segSize = maxVal / numBundles;
-        List<String> partitions = Lists.newArrayList();
-        partitions.add(String.format("0x%08x", 0L));
-        Long curPartition = segSize;
-        for (int i = 0; i < numBundles; i++) {
-            if (i != numBundles - 1) {
-                partitions.add(String.format("0x%08x", curPartition));
-            } else {
-                partitions.add(String.format("0x%08x", maxVal - 1));
-            }
-            curPartition += segSize;
-        }
-        return new BundlesData(partitions);
-    }
 }

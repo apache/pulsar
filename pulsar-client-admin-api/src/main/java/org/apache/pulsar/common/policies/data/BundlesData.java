@@ -18,13 +18,14 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import com.google.common.base.MoreObjects;
+import lombok.ToString;
 import java.util.List;
 import java.util.Objects;
 
 /**
  * Holder for bundles.
  */
+@ToString
 public class BundlesData {
     public List<String> boundaries;
     public int numBundles;
@@ -73,11 +74,6 @@ public class BundlesData {
         }
 
         return false;
-    }
-
-    @Override
-    public String toString() {
-        return MoreObjects.toStringHelper(this).add("numBundles", numBundles).add("boundaries", boundaries).toString();
     }
 
 }

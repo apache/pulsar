@@ -108,6 +108,7 @@ import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesUtil;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -758,7 +759,7 @@ public class PersistentTopicsBase extends AdminResource {
                 getTopicPolicies(topicName).map(TopicPolicies::getOffloadPolicies).orElse(null);
         if (applied) {
             OffloadPolicies namespacePolicy = getNamespacePolicies(namespaceName).offload_policies;
-            offloadPolicies = OffloadPolicies.mergeConfiguration(offloadPolicies
+            offloadPolicies = OffloadPoliciesUtil.mergeConfiguration(offloadPolicies
                     , namespacePolicy, pulsar().getConfiguration().getProperties());
         }
         return CompletableFuture.completedFuture(offloadPolicies);

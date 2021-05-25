@@ -18,8 +18,7 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import com.fasterxml.jackson.annotation.JsonAlias;
-import com.google.common.base.MoreObjects;
+import lombok.ToString;
 import java.util.Objects;
 
 /**
@@ -28,8 +27,8 @@ import java.util.Objects;
  * <p>A scoped resource is identified by a {@link BacklogQuotaType} enumeration type which is containing two attributes:
  * <code>limit</code> representing a quota limit in bytes and <code>policy</code> for backlog retention policy.
  */
+@ToString
 public class BacklogQuota {
-    @JsonAlias("limit")
     private long limitSize;
     // backlog quota by time in second
     private int limitTime;
@@ -87,12 +86,6 @@ public class BacklogQuota {
     @Override
     public int hashCode() {
         return Objects.hash(Long.valueOf(limitSize), Long.valueOf(limitTime), policy);
-    }
-
-    @Override
-    public String toString() {
-        return MoreObjects.toStringHelper(this).add("limitSize", limitSize).add("limitTime", limitTime)
-                .add("policy", policy).toString();
     }
 
     @Override

@@ -24,6 +24,8 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import javax.ws.rs.ext.ContextResolver;
 import javax.ws.rs.ext.Provider;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
+import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.BacklogQuotaDeserializer;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReportDeserializer;
@@ -50,8 +52,9 @@ public class JacksonConfigurator implements ContextResolver<ObjectMapper> {
         SimpleAbstractTypeResolver resolver = new SimpleAbstractTypeResolver();
         resolver.addMapping(OffloadProcessStatus.class, OffloadProcessStatusImpl.class);
 
-        // we use addDeserializer to replace @JsonDeserialize annotation in some POJOs
+        // we use customized deserializer to replace jackson annotations in some POJOs
         module.addDeserializer(LoadManagerReport.class, new LoadReportDeserializer());
+        module.addDeserializer(BacklogQuota.class, new BacklogQuotaDeserializer());
 
         module.setAbstractTypes(resolver);
         mapper.registerModule(module);

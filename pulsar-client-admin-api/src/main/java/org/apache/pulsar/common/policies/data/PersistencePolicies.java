@@ -18,12 +18,13 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import com.google.common.base.MoreObjects;
+import lombok.ToString;
 import java.util.Objects;
 
 /**
  * Configuration of bookkeeper persistence policies.
  */
+@ToString
 public class PersistencePolicies {
     private int bookkeeperEnsemble;
     private int bookkeeperWriteQuorum;
@@ -74,11 +75,5 @@ public class PersistencePolicies {
         }
 
         return false;
-    }
-
-    @Override
-    public String toString() {
-        return MoreObjects.toStringHelper(this).add("e", bookkeeperEnsemble).add("w", bookkeeperWriteQuorum)
-                .add("a", bookkeeperAckQuorum).add("ml-md-rate", managedLedgerMaxMarkDeleteRate).toString();
     }
 }

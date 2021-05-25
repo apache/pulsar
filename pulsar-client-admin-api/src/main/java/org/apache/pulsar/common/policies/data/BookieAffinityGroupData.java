@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import com.google.common.base.Objects;
+import java.util.Objects;
 
 /**
  * Description of a BookKeeper's affinity group.
@@ -38,15 +38,15 @@ public class BookieAffinityGroupData {
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(bookkeeperAffinityGroupPrimary, bookkeeperAffinityGroupSecondary);
+        return Objects.hash(bookkeeperAffinityGroupPrimary, bookkeeperAffinityGroupSecondary);
     }
 
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof BookieAffinityGroupData) {
             BookieAffinityGroupData other = (BookieAffinityGroupData) obj;
-            return Objects.equal(bookkeeperAffinityGroupPrimary, other.bookkeeperAffinityGroupPrimary)
-                    && Objects.equal(bookkeeperAffinityGroupSecondary, other.bookkeeperAffinityGroupSecondary);
+            return Objects.equals(bookkeeperAffinityGroupPrimary, other.bookkeeperAffinityGroupPrimary)
+                    && Objects.equals(bookkeeperAffinityGroupSecondary, other.bookkeeperAffinityGroupSecondary);
         }
         return false;
     }

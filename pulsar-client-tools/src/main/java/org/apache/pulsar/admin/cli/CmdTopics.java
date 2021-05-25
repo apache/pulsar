@@ -62,6 +62,7 @@ import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies.OffloadedReadPriority;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesUtil;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PublishRate;
@@ -1538,7 +1539,7 @@ public class CmdTopics extends CmdBase {
                 }
             }
 
-            OffloadPolicies offloadPolicies = OffloadPolicies.create(driver, region, bucket, endpoint,
+            OffloadPolicies offloadPolicies = OffloadPoliciesUtil.create(driver, region, bucket, endpoint,
                     s3Role, s3RoleSessionName,
                     awsId, awsSecret,
                     maxBlockSizeInBytes,

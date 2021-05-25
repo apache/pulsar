@@ -95,6 +95,7 @@ import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.PoliciesUtil;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -607,7 +608,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
                 Sets.newHashSet("use", "usw"));
         admin.tenants().updateTenant("prop-xyz", tenantInfo);
 
-        assertEquals(admin.namespaces().getPolicies("prop-xyz/use/ns1").bundles, Policies.defaultBundle());
+        assertEquals(admin.namespaces().getPolicies("prop-xyz/use/ns1").bundles, PoliciesUtil.defaultBundle());
 
         admin.namespaces().createNamespace("prop-xyz/use/ns2");
 
@@ -641,7 +642,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().grantPermissionOnNamespace("prop-xyz/use/ns1", "my-role", EnumSet.allOf(AuthAction.class));
 
         Policies policies = new Policies();
-        policies.bundles = Policies.defaultBundle();
+        policies.bundles = PoliciesUtil.defaultBundle();
         policies.auth_policies.namespace_auth.put("my-role", EnumSet.allOf(AuthAction.class));
 
         assertEquals(admin.namespaces().getPolicies("prop-xyz/use/ns1"), policies);

@@ -18,12 +18,13 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import com.google.common.base.MoreObjects;
+import lombok.ToString;
 import java.util.Objects;
 
 /**
  * Override of autoTopicCreation settings on a namespace level.
  */
+@ToString
 public class AutoTopicCreationOverride {
     public boolean allowAutoTopicCreation;
     public String topicType;
@@ -53,12 +54,6 @@ public class AutoTopicCreationOverride {
                     && Objects.equals(this.defaultNumPartitions, other.defaultNumPartitions);
         }
         return false;
-    }
-
-    @Override
-    public String toString() {
-        return MoreObjects.toStringHelper(this).add("allowAutoTopicCreation", allowAutoTopicCreation)
-                .add("topicType", topicType).add("defaultNumPartitions", defaultNumPartitions).toString();
     }
 
     public static boolean isValidOverride(AutoTopicCreationOverride override) {

@@ -18,12 +18,13 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import com.google.common.base.MoreObjects;
+import lombok.ToString;
 import java.util.Objects;
 
 /**
  * Publish-rate to manage publish throttling.
  */
+@ToString
 public class PublishRate {
 
     public int publishThrottlingRateInMsg = -1;
@@ -54,12 +55,6 @@ public class PublishRate {
                     && Objects.equals(publishThrottlingRateInByte, rate.publishThrottlingRateInByte);
         }
         return false;
-    }
-
-    @Override
-    public String toString() {
-        return MoreObjects.toStringHelper(this).add("publishThrottlingRateInMsg", publishThrottlingRateInMsg)
-                .add("publishThrottlingRateInByte", publishThrottlingRateInByte).toString();
     }
 
 }

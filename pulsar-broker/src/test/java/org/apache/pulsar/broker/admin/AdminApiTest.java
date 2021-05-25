@@ -121,6 +121,7 @@ import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.PoliciesUtil;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -677,7 +678,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 Sets.newHashSet("test", "usw"));
         admin.tenants().updateTenant("prop-xyz", tenantInfo);
 
-        assertEquals(admin.namespaces().getPolicies("prop-xyz/ns1").bundles, Policies.defaultBundle());
+        assertEquals(admin.namespaces().getPolicies("prop-xyz/ns1").bundles, PoliciesUtil.defaultBundle());
 
         admin.namespaces().createNamespace("prop-xyz/ns2", Sets.newHashSet("test"));
 
@@ -712,7 +713,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         Policies policies = new Policies();
         policies.replication_clusters = Sets.newHashSet("test");
-        policies.bundles = Policies.defaultBundle();
+        policies.bundles = PoliciesUtil.defaultBundle();
         policies.auth_policies.namespace_auth.put("spiffe://developer/passport-role", EnumSet.allOf(AuthAction.class));
         policies.auth_policies.namespace_auth.put("my-role", EnumSet.allOf(AuthAction.class));
 

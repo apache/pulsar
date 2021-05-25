@@ -58,6 +58,7 @@ import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies.OffloadedReadPriority;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesUtil;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -196,7 +197,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         ConcurrentHashMap<UUID, ReadHandle> offloads = new ConcurrentHashMap<UUID, ReadHandle>();
 
 
-        OffloadPolicies offloadPolicies = OffloadPolicies.create("S3", "", "", "",
+        OffloadPolicies offloadPolicies = OffloadPoliciesUtil.create("S3", "", "", "",
                 null, null,
                 null, null,
                 OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,

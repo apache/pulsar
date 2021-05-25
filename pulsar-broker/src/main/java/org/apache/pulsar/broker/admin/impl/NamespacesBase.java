@@ -23,8 +23,8 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.RESOURCEGROUPS;
 import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
-import static org.apache.pulsar.common.policies.data.Policies.defaultBundle;
-import static org.apache.pulsar.common.policies.data.Policies.getBundles;
+import static org.apache.pulsar.common.policies.data.PoliciesUtil.defaultBundle;
+import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.collect.Sets.SetView;
@@ -2398,7 +2398,7 @@ public abstract class NamespacesBase extends AdminResource {
                 PolicyOperation.READ);
         Set<SubscriptionType> subscriptionTypes = new HashSet<>();
         getNamespacePolicies(namespaceName).subscription_types_enabled.forEach(subType ->
-                subscriptionTypes.add(SubscriptionType.valueOf(subType.name())));
+                subscriptionTypes.add(SubscriptionType.valueOf(subType)));
         return subscriptionTypes;
     }
 
@@ -2406,8 +2406,8 @@ public abstract class NamespacesBase extends AdminResource {
         validateNamespacePolicyOperation(namespaceName, PolicyName.SUBSCRIPTION_AUTH_MODE,
                 PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
-        Set<SubType> subTypes = new HashSet<>();
-        subscriptionTypesEnabled.forEach(subscriptionType -> subTypes.add(SubType.valueOf(subscriptionType.name())));
+        Set<String> subTypes = new HashSet<>();
+        subscriptionTypesEnabled.forEach(subscriptionType -> subTypes.add(subscriptionType.name()));
         mutatePolicy((policies) -> {
                     policies.subscription_types_enabled = subTypes;
                     return policies;

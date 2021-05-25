@@ -18,12 +18,13 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import com.google.common.base.MoreObjects;
+import lombok.ToString;
 import java.util.Objects;
 
 /**
  * Override of autoSubscriptionCreation settings on a namespace level.
  */
+@ToString
 public class AutoSubscriptionCreationOverride {
     public boolean allowAutoSubscriptionCreation;
 
@@ -46,11 +47,5 @@ public class AutoSubscriptionCreationOverride {
             return Objects.equals(this.allowAutoSubscriptionCreation, other.allowAutoSubscriptionCreation);
         }
         return false;
-    }
-
-    @Override
-    public String toString() {
-        return MoreObjects.toStringHelper(this)
-                .add("allowAutoSubscriptionCreation", allowAutoSubscriptionCreation).toString();
     }
 }
