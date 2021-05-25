@@ -66,7 +66,7 @@ public interface Transactions {
     /**
      * Get transaction metadata.
      *
-     * @param txnID the id of this transaction
+     * @param txnID the ID of this transaction
      * @return the future metadata of this transaction.
      */
     CompletableFuture<TransactionMetadata> getTransactionMetadata(TxnID txnID);
