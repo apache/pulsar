@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import lombok.Data;
 import java.util.Map;
+import lombok.Data;
 
 @Data
 public class TransactionMetadata {

@@ -20,8 +20,6 @@ package org.apache.pulsar.common.policies.data;
 
 import lombok.Data;
 
-import java.util.List;
-
 @Data
 public class TransactionInPendingAckStats {
 
