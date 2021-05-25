@@ -155,4 +155,9 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
         this.transactionMetadataStoreStats.setAbortedCount(this.abortTransactionCount.longValue());
         return transactionMetadataStoreStats;
     }
+
+    @Override
+    public List<Long> getSlowTransactions(long timeout) {
+        return null;
+    }
 }

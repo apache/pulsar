@@ -20,6 +20,7 @@ package org.apache.pulsar.client.admin;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStatus;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
@@ -70,5 +71,27 @@ public interface Transactions {
      * @return the future metadata of this transaction.
      */
     CompletableFuture<TransactionMetadata> getTransactionMetadata(TxnID txnID);
+
+    /**
+     * Get slow transaction metadata by coordinatorId.
+     *
+     * @param coordinatorId the coordinator id of getting slow transaction status.
+     * @param timeout the timeout
+     * @param timeUnit the timeout timeUnit
+     * @return the future metadata of slow transactions.
+     */
+    CompletableFuture<Map<String, TransactionMetadata>> getSlowTransactionMetadataByCoordinatorId(Integer coordinatorId,
+                                                                                                  long timeout,
+                                                                                                  TimeUnit timeUnit);
+
+    /**
+     * Get slow transaction metadata.
+     *
+     * @param timeout the timeout
+     * @param timeUnit the timeout timeUnit
+     *
+     * @return the future metadata of slow transactions.
+     */
+    CompletableFuture<Map<String, TransactionMetadata>> getSlowTransactionMetadata(long timeout, TimeUnit timeUnit);
 
 }

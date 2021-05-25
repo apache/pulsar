@@ -20,6 +20,7 @@ package org.apache.pulsar.client.admin.internal;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import org.apache.pulsar.client.admin.Transactions;
@@ -142,6 +143,36 @@ public class TransactionsImpl extends BaseResource implements Transactions {
                     }
                 });
         return future;
+    }
+
+    @Override
+    public CompletableFuture<Map<String, TransactionMetadata>> getSlowTransactionMetadataByCoordinatorId(
+            Integer coordinatorId, long timeout, TimeUnit timeUnit) {
+        WebTarget path = adminV3Transactions.path("slowTransactionMetadata");
+        if (coordinatorId != null) {
+            path = path.queryParam("coordinatorId", coordinatorId);
+        }
+        path = path.queryParam("timeout", timeUnit.toMillis(timeout));
+        final CompletableFuture<Map<String, TransactionMetadata>> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<Map<String, TransactionMetadata>>() {
+                    @Override
+                    public void completed(Map<String, TransactionMetadata> metadataMap) {
+                        future.complete(metadataMap);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
+    public CompletableFuture<Map<String, TransactionMetadata>> getSlowTransactionMetadata(long timeout,
+                                                                                          TimeUnit timeUnit) {
+        return getSlowTransactionMetadataByCoordinatorId(null, timeout, timeUnit);
     }
 
 }

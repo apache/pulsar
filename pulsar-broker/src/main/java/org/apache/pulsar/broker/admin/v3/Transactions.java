@@ -63,7 +63,7 @@ public class Transactions extends TransactionsBase {
             @ApiResponse(code = 503, message = "This Broker is not configured "
                     + "with transactionCoordinatorEnabled=true."),
             @ApiResponse(code = 307, message = "Topic don't owner by this broker!"),
-            @ApiResponse(code = 501, message = "Topic is not a persistent topic!"),
+            @ApiResponse(code = 400, message = "Topic is not a persistent topic!"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
     public void getTransactionInBufferStats(@Suspended final AsyncResponse asyncResponse,
                                             @QueryParam("authoritative")
@@ -86,7 +86,7 @@ public class Transactions extends TransactionsBase {
             @ApiResponse(code = 503, message = "This Broker is not configured "
                     + "with transactionCoordinatorEnabled=true."),
             @ApiResponse(code = 307, message = "Topic don't owner by this broker!"),
-            @ApiResponse(code = 501, message = "Topic is not a persistent topic!"),
+            @ApiResponse(code = 400, message = "Topic is not a persistent topic!"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
     public void getTransactionInPendingAckStats(@Suspended final AsyncResponse asyncResponse,
                                                 @QueryParam("authoritative")
@@ -113,7 +113,7 @@ public class Transactions extends TransactionsBase {
             @ApiResponse(code = 503, message = "This Broker is not configured "
                     + "with transactionCoordinatorEnabled=true."),
             @ApiResponse(code = 307, message = "Topic don't owner by this broker!"),
-            @ApiResponse(code = 501, message = "Topic is not a persistent topic!"),
+            @ApiResponse(code = 400, message = "Topic is not a persistent topic!"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
     public void getTransactionMetadata(@Suspended final AsyncResponse asyncResponse,
                                        @QueryParam("authoritative")
@@ -124,6 +124,27 @@ public class Transactions extends TransactionsBase {
                                        @ApiParam(value = "Least sig bits of this transaction", required = true)
                                            @QueryParam("leastSigBits") long leastSigBits) {
         internalGetTransactionMetadata(asyncResponse, authoritative, mostSigBits, leastSigBits);
+    }
+
+    @GET
+    @Path("/slowTransactionMetadata")
+    @ApiOperation(value = "Get slow transaction metadata.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic "
+                    + "or coordinator or transaction doesn't exist"),
+            @ApiResponse(code = 503, message = "This Broker is not configured "
+                    + "with transactionCoordinatorEnabled=true."),
+            @ApiResponse(code = 307, message = "Topic don't owner by this broker!"),
+            @ApiResponse(code = 400, message = "Topic is not a persistent topic!"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void getSlowTransactionMetadata(@Suspended final AsyncResponse asyncResponse,
+                                           @QueryParam("authoritative")
+                                           @DefaultValue("false") boolean authoritative,
+                                           @QueryParam("timeout")
+                                               @ApiParam(value = "Timeout", required = true)
+                                                       int timeout,
+                                           @QueryParam("coordinatorId") Integer coordinatorId) {
+        internalGetSlowTransactionsMetadata(asyncResponse, authoritative, timeout, coordinatorId);
     }
 
 }

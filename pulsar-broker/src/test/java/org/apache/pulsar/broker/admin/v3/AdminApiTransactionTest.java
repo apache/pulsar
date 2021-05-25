@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.v3;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Sets;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -47,6 +48,7 @@ import org.testng.annotations.Test;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -228,6 +230,33 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         assertEquals(ackedPartitions.get(topic2).get(subName2).cumulativeAckPosition, position2.toString());
         assertEquals(ackedPartitions.get(topic2).get(subName3).cumulativeAckPosition, position2.toString());
 
+    }
+
+    @Test(timeOut = 20000)
+    public void testGetSlowTransactionMetadata() throws Exception {
+        initTransaction(2);
+        TransactionImpl transaction1 = (TransactionImpl) pulsarClient.newTransaction()
+                .withTransactionTimeout(60, TimeUnit.SECONDS).build().get();
+        TransactionImpl transaction2 = (TransactionImpl) pulsarClient.newTransaction()
+                .withTransactionTimeout(60, TimeUnit.SECONDS).build().get();
+        pulsarClient.newTransaction().withTransactionTimeout(20, TimeUnit.SECONDS).build();
+        pulsarClient.newTransaction().withTransactionTimeout(20, TimeUnit.SECONDS).build();
+
+        Map<String, TransactionMetadata> transactionMetadataMap =  admin.transactions()
+                .getSlowTransactionMetadata(30, TimeUnit.SECONDS).get();
+
+        assertEquals(transactionMetadataMap.size(), 2);
+
+        TxnID txnID1 = new TxnID(transaction1.getTxnIdMostBits(), transaction1.getTxnIdLeastBits());
+        TxnID txnID2 = new TxnID(transaction2.getTxnIdMostBits(), transaction2.getTxnIdLeastBits());
+
+        TransactionMetadata transactionMetadata = transactionMetadataMap.get(txnID1.toString());
+        assertNotNull(transactionMetadata);
+        assertEquals(transactionMetadata.timeoutAt, 60000);
+
+        transactionMetadata = transactionMetadataMap.get(txnID2.toString());
+        assertNotNull(transactionMetadata);
+        assertEquals(transactionMetadata.timeoutAt, 60000);
     }
 
     private static PositionImpl getPositionByMessageId(MessageId messageId) {
