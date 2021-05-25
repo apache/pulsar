@@ -18,11 +18,11 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import static org.apache.pulsar.client.admin.utils.DefaultImplementation.newAutoFailoverPolicyFromAutoFailoverPolicyFactory;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import java.util.Map;
 import java.util.Objects;
+import org.apache.pulsar.common.policies.impl.AutoFailoverPolicyFactory;
 
 /**
  * The auto failover policy configuration data.
@@ -75,7 +75,7 @@ public class AutoFailoverPolicyData {
         if (!(policy_type != null && parameters != null)){
             throw new IllegalArgumentException();
         }
-        newAutoFailoverPolicyFromAutoFailoverPolicyFactory(this);
+        AutoFailoverPolicyFactory.create(this);
     }
 
     @Override

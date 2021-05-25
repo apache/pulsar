@@ -21,16 +21,14 @@ package org.apache.pulsar.common.util;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.module.SimpleAbstractTypeResolver;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import io.netty.util.concurrent.FastThreadLocal;
-import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
 import org.apache.pulsar.common.functions.JsonIgnorePropertiesMixIn;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
-import org.apache.pulsar.common.policies.data.BacklogQuotaDeserializer;
+import org.apache.pulsar.common.policies.data.BacklogQuotaMixIn;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.FunctionStatsMixIn;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
@@ -89,9 +87,9 @@ public class ObjectMapperFactory {
 
         // we use customized deserializer to replace jackson annotations in some POJOs
         module.addDeserializer(LoadManagerReport.class, new LoadReportDeserializer());
-        module.addDeserializer(BacklogQuota.class, new BacklogQuotaDeserializer());
 
         // we use MixIn class to add jackson annotations
+        mapper.addMixIn(BacklogQuota.class, BacklogQuotaMixIn.class);
         mapper.addMixIn(ResourceQuota.class, ResourceQuotaMixIn.class);
         mapper.addMixIn(FunctionConfig.class, JsonIgnorePropertiesMixIn.class);
         mapper.addMixIn(FunctionState.class, JsonIgnorePropertiesMixIn.class);

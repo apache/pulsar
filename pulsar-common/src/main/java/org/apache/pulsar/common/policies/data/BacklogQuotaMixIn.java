@@ -16,28 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.admin.internal;
+package org.apache.pulsar.common.policies.data;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import javax.ws.rs.ext.ContextResolver;
-import javax.ws.rs.ext.Provider;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
+import com.fasterxml.jackson.annotation.JsonAlias;
 
-/**
- * Provides custom configuration for jackson.
- */
-@Provider
-public class JacksonConfigurator implements ContextResolver<ObjectMapper> {
-
-    private final ObjectMapper mapper;
-
-    public JacksonConfigurator() {
-        mapper = ObjectMapperFactory.create();
-    }
-
-    @Override
-    public ObjectMapper getContext(Class<?> type) {
-        return mapper;
-    }
-
+public abstract class BacklogQuotaMixIn {
+    @JsonAlias("limit")
+    private long limitSize;
 }

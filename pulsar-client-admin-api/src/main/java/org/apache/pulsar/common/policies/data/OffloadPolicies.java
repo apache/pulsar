@@ -128,95 +128,95 @@ public class OffloadPolicies implements Serializable {
 
     // common config
     @Configuration
-    private String offloadersDirectory = DEFAULT_OFFLOADER_DIRECTORY;
+    String offloadersDirectory = DEFAULT_OFFLOADER_DIRECTORY;
 
     @Configuration
-    private String managedLedgerOffloadDriver = null;
+    String managedLedgerOffloadDriver = null;
 
     @Configuration
-    private Integer managedLedgerOffloadMaxThreads = DEFAULT_OFFLOAD_MAX_THREADS;
+    Integer managedLedgerOffloadMaxThreads = DEFAULT_OFFLOAD_MAX_THREADS;
 
     @Configuration
-    private Integer managedLedgerOffloadPrefetchRounds = DEFAULT_OFFLOAD_MAX_PREFETCH_ROUNDS;
+    Integer managedLedgerOffloadPrefetchRounds = DEFAULT_OFFLOAD_MAX_PREFETCH_ROUNDS;
 
     @Configuration
-    private Long managedLedgerOffloadThresholdInBytes = DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES;
+    Long managedLedgerOffloadThresholdInBytes = DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES;
 
     @Configuration
-    private Long managedLedgerOffloadDeletionLagInMillis = DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS;
+    Long managedLedgerOffloadDeletionLagInMillis = DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS;
 
     @Configuration
-    private OffloadedReadPriority managedLedgerOffloadedReadPriority = DEFAULT_OFFLOADED_READ_PRIORITY;
+    OffloadedReadPriority managedLedgerOffloadedReadPriority = DEFAULT_OFFLOADED_READ_PRIORITY;
 
     // s3 config, set by service configuration or cli
     @Configuration
-    private String s3ManagedLedgerOffloadRegion = null;
+    String s3ManagedLedgerOffloadRegion = null;
 
     @Configuration
-    private String s3ManagedLedgerOffloadBucket = null;
+    String s3ManagedLedgerOffloadBucket = null;
 
     @Configuration
-    private String s3ManagedLedgerOffloadServiceEndpoint = null;
+    String s3ManagedLedgerOffloadServiceEndpoint = null;
 
     @Configuration
-    private Integer s3ManagedLedgerOffloadMaxBlockSizeInBytes = DEFAULT_MAX_BLOCK_SIZE_IN_BYTES;
+    Integer s3ManagedLedgerOffloadMaxBlockSizeInBytes = DEFAULT_MAX_BLOCK_SIZE_IN_BYTES;
 
     @Configuration
-    private Integer s3ManagedLedgerOffloadReadBufferSizeInBytes = DEFAULT_READ_BUFFER_SIZE_IN_BYTES;
+    Integer s3ManagedLedgerOffloadReadBufferSizeInBytes = DEFAULT_READ_BUFFER_SIZE_IN_BYTES;
 
     // s3 config, set by service configuration
     @Configuration
-    private String s3ManagedLedgerOffloadCredentialId = null;
+    String s3ManagedLedgerOffloadCredentialId = null;
 
     @Configuration
-    private String s3ManagedLedgerOffloadCredentialSecret = null;
+    String s3ManagedLedgerOffloadCredentialSecret = null;
 
     @Configuration
-    private String s3ManagedLedgerOffloadRole = null;
+    String s3ManagedLedgerOffloadRole = null;
 
     @Configuration
-    private String s3ManagedLedgerOffloadRoleSessionName = "pulsar-s3-offload";
+    String s3ManagedLedgerOffloadRoleSessionName = "pulsar-s3-offload";
 
     // gcs config, set by service configuration or cli
     @Configuration
-    private String gcsManagedLedgerOffloadRegion = null;
+    String gcsManagedLedgerOffloadRegion = null;
 
     @Configuration
-    private String gcsManagedLedgerOffloadBucket = null;
+    String gcsManagedLedgerOffloadBucket = null;
 
     @Configuration
-    private Integer gcsManagedLedgerOffloadMaxBlockSizeInBytes = DEFAULT_MAX_BLOCK_SIZE_IN_BYTES;
+    Integer gcsManagedLedgerOffloadMaxBlockSizeInBytes = DEFAULT_MAX_BLOCK_SIZE_IN_BYTES;
 
     @Configuration
-    private Integer gcsManagedLedgerOffloadReadBufferSizeInBytes = DEFAULT_READ_BUFFER_SIZE_IN_BYTES;
+    Integer gcsManagedLedgerOffloadReadBufferSizeInBytes = DEFAULT_READ_BUFFER_SIZE_IN_BYTES;
 
     // gcs config, set by service configuration
     @Configuration
-    private String gcsManagedLedgerOffloadServiceAccountKeyFile = null;
+    String gcsManagedLedgerOffloadServiceAccountKeyFile = null;
 
     // file system config, set by service configuration
     @Configuration
-    private String fileSystemProfilePath = null;
+    String fileSystemProfilePath = null;
 
     @Configuration
-    private String fileSystemURI = null;
+    String fileSystemURI = null;
 
     // --------- new offload configurations ---------
     // they are universal configurations and could be used to `aws-s3`, `google-cloud-storage` or `azureblob`.
     @Configuration
-    private String managedLedgerOffloadBucket;
+    String managedLedgerOffloadBucket;
 
     @Configuration
-    private String managedLedgerOffloadRegion;
+    String managedLedgerOffloadRegion;
 
     @Configuration
-    private String managedLedgerOffloadServiceEndpoint;
+    String managedLedgerOffloadServiceEndpoint;
 
     @Configuration
-    private Integer managedLedgerOffloadMaxBlockSizeInBytes;
+    Integer managedLedgerOffloadMaxBlockSizeInBytes;
 
     @Configuration
-    private Integer managedLedgerOffloadReadBufferSizeInBytes;
+    Integer managedLedgerOffloadReadBufferSizeInBytes;
 
     void compatibleWithBrokerConfigFile(Properties properties) {
         if (!properties.containsKey("managedLedgerOffloadThresholdInBytes")

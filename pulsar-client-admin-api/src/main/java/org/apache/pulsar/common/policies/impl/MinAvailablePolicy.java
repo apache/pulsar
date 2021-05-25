@@ -18,8 +18,7 @@
  */
 package org.apache.pulsar.common.policies.impl;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import com.google.common.base.Objects;
+import java.util.Objects;
 import java.util.SortedSet;
 import org.apache.pulsar.common.policies.AutoFailoverPolicy;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
@@ -45,23 +44,29 @@ public class MinAvailablePolicy extends AutoFailoverPolicy {
     }
 
     public MinAvailablePolicy(AutoFailoverPolicyData policyData) {
-        checkArgument(policyData.policy_type.equals(AutoFailoverPolicyType.min_available));
-        checkArgument(policyData.parameters.containsKey(MIN_LIMIT_KEY));
-        checkArgument(policyData.parameters.containsKey(USAGE_THRESHOLD_KEY));
+        if (!policyData.policy_type.equals(AutoFailoverPolicyType.min_available)) {
+            throw new IllegalArgumentException();
+        }
+        if (!policyData.parameters.containsKey(MIN_LIMIT_KEY)) {
+            throw new IllegalArgumentException();
+        }
+        if (!policyData.parameters.containsKey(USAGE_THRESHOLD_KEY)) {
+            throw new IllegalArgumentException();
+        }
         this.min_limit = Integer.parseInt(policyData.parameters.get(MIN_LIMIT_KEY));
         this.usage_threshold = Integer.parseInt(policyData.parameters.get(USAGE_THRESHOLD_KEY));
     }
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(min_limit, usage_threshold);
+        return Objects.hash(min_limit, usage_threshold);
     }
 
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof MinAvailablePolicy) {
             MinAvailablePolicy other = (MinAvailablePolicy) obj;
-            return Objects.equal(min_limit, other.min_limit) && Objects.equal(usage_threshold, other.usage_threshold);
+            return Objects.equals(min_limit, other.min_limit) && Objects.equals(usage_threshold, other.usage_threshold);
         }
         return false;
     }
