@@ -72,6 +72,7 @@ import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
+import org.apache.pulsar.client.admin.internal.BaseResource;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Producer;
@@ -800,8 +801,11 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 }));
 
         CompletableFuture<Void> preconditionFailed = new CompletableFuture<>();
-        preconditionFailed.completeExceptionally(new PulsarAdminException.PreconditionFailedException(
-                new ClientErrorException(Status.PRECONDITION_FAILED)));
+        ClientErrorException cee = new ClientErrorException(Status.PRECONDITION_FAILED);
+        int statusCode = cee.getResponse().getStatus();
+        String httpError = BaseResource.getReasonFromServer(cee);
+        preconditionFailed.completeExceptionally(new PulsarAdminException.PreconditionFailedException(cee,
+                httpError, statusCode));
         doReturn(preconditionFailed).when(namespacesAdmin)
                 .deleteNamespaceBundleAsync(Mockito.anyString(), Mockito.anyString());
 

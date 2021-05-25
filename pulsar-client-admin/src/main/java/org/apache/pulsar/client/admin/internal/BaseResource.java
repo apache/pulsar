@@ -265,7 +265,7 @@ public abstract class BaseResource {
         }
     }
 
-    private static String getReasonFromServer(WebApplicationException e) {
+    public static String getReasonFromServer(WebApplicationException e) {
         try {
             return e.getResponse().readEntity(ErrorData.class).reason.toString();
         } catch (Exception ex) {
