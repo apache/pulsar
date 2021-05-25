@@ -18,11 +18,9 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 import lombok.Data;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 /**
  * Status of Pulsar Sink.
@@ -86,7 +84,4 @@ public class SinkStatus {
         instances.add(sinkInstanceStatus);
     }
 
-    public static SinkStatus decode(String json) throws IOException {
-        return ObjectMapperFactory.getThreadLocal().readValue(json, SinkStatus.class);
-    }
 }
