@@ -460,7 +460,7 @@ public class NonPersistentSubscription implements Subscription {
             });
         }
 
-        subStats.type = getType();
+        subStats.type = getTypeString();
         subStats.msgDropRate = dispatcher.getMessageDropRate().getValueRate();
         return subStats;
     }
