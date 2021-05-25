@@ -112,17 +112,22 @@ public class PersistentTopicTest extends BrokerTestBase {
     }
 
     @Test
-    public void testLruEntryAck() throws Exception {
+    public void testLruEntryAckRecoveryFormZk() throws Exception {
         final String topicName = "persistent://prop/ns-abc/test" + UUID.randomUUID();
         final int msgNum = 50;
         final String sub = "my-sub";
 
+        cleanup();
         conf.setEnableLruCacheMaxUnackedRanges(true);
-        restartBroker();
+        setup();
 
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
                 .subscriptionName("my-sub").subscribe();
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
+        PersistentSubscription subscription = topic.getSubscription(sub);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) subscription.getCursor();
+
         @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).enableBatching(false).topic(topicName).create();
         for (int i = 0; i < msgNum; i++) {
@@ -136,43 +141,110 @@ public class PersistentTopicTest extends BrokerTestBase {
                 ackedMsg.add(msg);
             }
         }
+
+        assertTrue(cursor.getIndividuallyDeletedMessagesSet() instanceof RangeSetWrapper);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(cursor.getIndividuallyDeletedMessagesSet().toString(), "[(3:1..3:2],(3:3..3:4],(3:5..3:6],(3:7..3:8]]"));
+        RangeSetWrapper<PositionImpl> setWrapper =
+                (RangeSetWrapper<PositionImpl>) cursor.getIndividuallyDeletedMessagesSet();
+        assertTrue(setWrapper.getDirtyKeyRecorder().contains(3L));
+
         consumer.close();
+        conf.setEnableLruCacheMaxUnackedRanges(true);
+        restartBroker();
+
+        consumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+                .subscriptionName(sub).subscribe();
+        topic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
+        subscription = topic.getSubscription(sub);
+        ManagedCursorImpl cursor2 = (ManagedCursorImpl) subscription.getCursor();
+        assertTrue(cursor2.getIndividuallyDeletedMessagesSet() instanceof RangeSetWrapper);
+        setWrapper =
+                (RangeSetWrapper<PositionImpl>) cursor2.getIndividuallyDeletedMessagesSet();
+        assertEquals(cursor2.getIndividuallyDeletedMessagesSet().size(), 4);
+        assertEquals(cursor2.getIndividuallyDeletedMessagesSet().toString(),
+                "[(3:1..3:2],(3:3..3:4],(3:5..3:6],(3:7..3:8]]");
+
+        Set<Message<String>> restMessages = new HashSet<>();
+        while (true) {
+            Message<String> msg = consumer.receive(1, TimeUnit.SECONDS);
+            if (msg == null) {
+                break;
+            }
+            assertTrue(restMessages.add(msg));
+        }
+        assertTrue(setWrapper.getDirtyKeyRecorder().contains(3L));
+
+        assertEquals(restMessages.size(), msgNum - ackedMsg.size());
+        for (Message<String> message : ackedMsg) {
+            assertFalse(restMessages.contains(message));
+        }
+        consumer.close();
+    }
+
+    @Test
+    public void testLruEntryAckFromLedger() throws Exception {
+        final String topicName = "persistent://prop/ns-abc/test" + UUID.randomUUID();
+        final int msgNum = 50;
+        final String sub = "my-sub";
+
+        cleanup();
+        conf.setEnableLruCacheMaxUnackedRanges(true);
+        conf.setManagedLedgerMaxUnackedRangesToPersistInZooKeeper(0);
+        setup();
+
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                .subscriptionName(sub).subscribe();
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).enableBatching(false).topic(topicName).create();
+        for (int i = 0; i < msgNum; i++) {
+            producer.send("msg" + i);
+        }
 
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
         PersistentSubscription subscription = topic.getSubscription(sub);
-        ManagedCursorImpl cursor = (ManagedCursorImpl) subscription.getCursor();
+        final ManagedCursorImpl cursor = (ManagedCursorImpl) subscription.getCursor();
+
+        List<Message<String>> ackedMsg = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            Message<String> msg = consumer.receive(1, TimeUnit.SECONDS);
+            if (i % 2 == 0) {
+                consumer.acknowledge(msg);
+                ackedMsg.add(msg);
+            }
+        }
+
         assertTrue(cursor.getIndividuallyDeletedMessagesSet() instanceof RangeSetWrapper);
-        assertEquals(cursor.getIndividuallyDeletedMessagesSet().toString(), "[(3:1..3:2],(3:3..3:4],(3:5..3:6],(3:7..3:8]]");
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(cursor.getIndividuallyDeletedMessagesSet().toString(), "[(3:1..3:2],(3:3..3:4],(3:5..3:6],(3:7..3:8]]"));
         RangeSetWrapper<PositionImpl> setWrapper =
                 (RangeSetWrapper<PositionImpl>) cursor.getIndividuallyDeletedMessagesSet();
         Field field = ManagedCursorImpl.class.getDeclaredField("rangeMarker");
         field.setAccessible(true);
-        Map<Long, MLDataFormats.NestedPositionInfo> rangeMarker =
-                (Map<Long, MLDataFormats.NestedPositionInfo>) field.get(cursor);
-        //assertEquals(rangeMarker.size(), 1);
         assertTrue(setWrapper.getDirtyKeyRecorder().contains(3L));
 
+        consumer.close();
 
         conf.setEnableLruCacheMaxUnackedRanges(true);
+        conf.setManagedLedgerMaxUnackedRangesToPersistInZooKeeper(0);
         // trigger persist
         restartBroker();
 
         consumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
-                .subscriptionName("my-sub").subscribe();
+                .subscriptionName(sub).subscribe();
         topic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
         subscription = topic.getSubscription(sub);
-        cursor = (ManagedCursorImpl) subscription.getCursor();
-        assertTrue(cursor.getIndividuallyDeletedMessagesSet() instanceof RangeSetWrapper);
+        ManagedCursorImpl cursor2 = (ManagedCursorImpl) subscription.getCursor();
+        assertTrue(cursor2.getIndividuallyDeletedMessagesSet() instanceof RangeSetWrapper);
         setWrapper =
-                (RangeSetWrapper<PositionImpl>) cursor.getIndividuallyDeletedMessagesSet();
-        rangeMarker =
-                (Map<Long, MLDataFormats.NestedPositionInfo>) field.get(cursor);
-        //assertEquals(rangeMarker.size(), 1);
-        assertEquals(cursor.getIndividuallyDeletedMessagesSet().size(), 4);
-        assertEquals(cursor.getIndividuallyDeletedMessagesSet().toString(),
+                (RangeSetWrapper<PositionImpl>) cursor2.getIndividuallyDeletedMessagesSet();
+        Map<Long, MLDataFormats.NestedPositionInfo> rangeMarker =
+                (Map<Long, MLDataFormats.NestedPositionInfo>) field.get(cursor2);
+        assertEquals(rangeMarker.size(), 1);
+        assertEquals(cursor2.getIndividuallyDeletedMessagesSet().size(), 4);
+        assertEquals(cursor2.getIndividuallyDeletedMessagesSet().toString(),
                 "[(3:1..3:2],(3:3..3:4],(3:5..3:6],(3:7..3:8]]");
-        assertFalse(setWrapper.getDirtyKeyRecorder().contains(3L));
-        System.out.println("getIndividuallyDeletedMessagesSet2:" + rangeMarker);
 
         Set<Message<String>> restMessages = new HashSet<>();
         while (true) {
