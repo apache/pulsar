@@ -30,6 +30,7 @@ import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.policies.data.TransactionBufferStatus;
+import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.util.FutureUtil;
 
 /**
@@ -85,6 +86,11 @@ public class TransactionBufferDisable implements TransactionBuffer {
     @Override
     public PositionImpl getMaxReadPosition() {
         return PositionImpl.latest;
+    }
+
+    @Override
+    public TransactionInBufferStats getTransactionInBufferStats(TxnID txnID) {
+        return null;
     }
 
     @Override

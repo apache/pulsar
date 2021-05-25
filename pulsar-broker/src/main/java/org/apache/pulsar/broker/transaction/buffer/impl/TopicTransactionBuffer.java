@@ -51,6 +51,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TransactionBufferStatus;
+import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.jctools.queues.MessagePassingQueue;
@@ -387,6 +388,16 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         } else {
             return PositionImpl.earliest;
         }
+    }
+
+    @Override
+    public TransactionInBufferStats getTransactionInBufferStats(TxnID txnID) {
+        TransactionInBufferStats transactionInBufferStats = new TransactionInBufferStats();
+        transactionInBufferStats.aborted = isTxnAborted(txnID);
+        if (ongoingTxns.containsKey(txnID)) {
+            transactionInBufferStats.startPosition = ongoingTxns.get(txnID).toString();
+        }
+        return transactionInBufferStats;
     }
 
     @Override

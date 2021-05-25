@@ -42,6 +42,7 @@ import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionSealedE
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionStatusException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.policies.data.TransactionBufferStatus;
+import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 
@@ -363,6 +364,11 @@ class InMemTransactionBuffer implements TransactionBuffer {
     @Override
     public PositionImpl getMaxReadPosition() {
         return PositionImpl.latest;
+    }
+
+    @Override
+    public TransactionInBufferStats getTransactionInBufferStats(TxnID txnID) {
+        return null;
     }
 
     @Override

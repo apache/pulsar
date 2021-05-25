@@ -36,7 +36,7 @@
   <properties>
     <maven.compiler.source>1.8</maven.compiler.source>
     <maven.compiler.target>1.8</maven.compiler.target>
-    <jersey.version>2.31</jersey.version>
+    <jersey.version>2.34</jersey.version>
     <presto.version>332</presto.version>
     <airlift.version>0.170</airlift.version>
     <objenesis.version>2.6</objenesis.version>

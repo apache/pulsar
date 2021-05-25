@@ -18,10 +18,13 @@
  */
 package org.apache.pulsar.client.admin;
 
-import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.policies.data.TransactionBufferStatus;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStatus;
+import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
+import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStatus;
 
 public interface Transactions {
@@ -37,9 +40,29 @@ public interface Transactions {
     /**
      * Get transaction metadataStore status.
      *
-     * @return the list future of transaction metadata store status.
+     * @return the map future of transaction metadata store status.
      */
-    CompletableFuture<List<TransactionCoordinatorStatus>> getCoordinatorStatusList();
+    CompletableFuture<Map<Integer, TransactionCoordinatorStatus>> getCoordinatorStatus();
+
+    /**
+     * Get transaction in buffer stats.
+     *
+     * @param txnID the txnId
+     * @param topic the produce topic
+     * @return the future stats of transaction in buffer.
+     */
+    CompletableFuture<TransactionInBufferStats> getTransactionInBufferStats(TxnID txnID, String topic);
+
+    /**
+     * Get transaction in pending ack stats.
+     *
+     * @param txnID the txnId
+     * @param topic the ack topic
+     * @param subName the sub name of this transaction ack
+     * @return the future stats of transaction in pending ack.
+     */
+    CompletableFuture<TransactionInPendingAckStats> getTransactionInPendingAckStats(TxnID txnID, String topic,
+                                                                                    String subName);
 
     /**
      * Get transaction buffer status.

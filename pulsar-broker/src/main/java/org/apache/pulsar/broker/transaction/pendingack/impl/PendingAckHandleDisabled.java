@@ -28,6 +28,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedExcepti
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStatus;
 import org.apache.pulsar.common.util.FutureUtil;
 
@@ -78,6 +79,11 @@ public class PendingAckHandleDisabled implements PendingAckHandle {
     @Override
     public CompletableFuture<PendingAckHandle> pendingAckHandleFuture() {
         return pendingAckHandleCompletableFuture;
+    }
+
+    @Override
+    public TransactionInPendingAckStats getTransactionInPendingAckStats(TxnID txnID) {
+        return null;
     }
 
     @Override

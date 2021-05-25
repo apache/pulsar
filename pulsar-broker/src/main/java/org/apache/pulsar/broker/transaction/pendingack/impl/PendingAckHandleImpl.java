@@ -45,6 +45,7 @@ import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStatus;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
@@ -705,6 +706,27 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
     public void completeHandleFuture() {
         this.pendingAckHandleCompletableFuture.complete(PendingAckHandleImpl.this);
+    }
+
+    @Override
+    public TransactionInPendingAckStats getTransactionInPendingAckStats(TxnID txnID) {
+        TransactionInPendingAckStats transactionInPendingAckStats = new TransactionInPendingAckStats();
+        if (cumulativeAckOfTransaction != null && cumulativeAckOfTransaction.getLeft().equals(txnID)) {
+            PositionImpl position = cumulativeAckOfTransaction.getRight();
+            StringBuilder stringBuilder = new StringBuilder()
+                    .append(position.getLedgerId())
+                    .append(':')
+                    .append(position.getEntryId());
+            if (cumulativeAckOfTransaction.getRight().hasAckSet()) {
+                BitSetRecyclable bitSetRecyclable =
+                        BitSetRecyclable.valueOf(cumulativeAckOfTransaction.getRight().getAckSet());
+                if (!bitSetRecyclable.isEmpty()) {
+                    stringBuilder.append(":").append(bitSetRecyclable.nextSetBit(0) - 1);
+                }
+            }
+            transactionInPendingAckStats.cumulativeAckPosition = stringBuilder.toString();
+        }
+        return transactionInPendingAckStats;
     }
 
     @Override

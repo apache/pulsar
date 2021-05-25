@@ -22,6 +22,7 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import java.util.function.Supplier;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.transaction.TxnID;
 
 @Parameters(commandDescription = "Operations on transactions")
 public class CmdTransactions extends CmdBase {
@@ -36,7 +37,7 @@ public class CmdTransactions extends CmdBase {
             if (coordinatorId != null) {
                 print(getAdmin().transactions().getCoordinatorStatusById(coordinatorId));
             } else {
-                print(getAdmin().transactions().getCoordinatorStatusList());
+                print(getAdmin().transactions().getCoordinatorStatus());
             }
         }
     }
@@ -66,10 +67,51 @@ public class CmdTransactions extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get transaction in pending ack stats")
+    private class GetTransactionInPendingAckStats extends CliCommand {
+        @Parameter(names = {"-m", "--most-sig-bits"}, description = "the most sig bits", required = true)
+        private int mostSigBits;
+
+        @Parameter(names = {"-l", "--least-sig-bits"}, description = "the least sig bits", required = true)
+        private long leastSigBits;
+
+        @Parameter(names = {"-t", "--topic"}, description = "the topic name", required = true)
+        private String topic;
+
+        @Parameter(names = {"-s", "--sub-name"}, description = "the subscription name", required = true)
+        private String subName;
+
+        @Override
+        void run() throws Exception {
+            print(getAdmin().transactions().getTransactionInPendingAckStats(new TxnID(mostSigBits, leastSigBits),
+                    topic, subName));
+        }
+    }
+
+
+    @Parameters(commandDescription = "Get transaction in buffer stats")
+    private class GetTransactionInBufferStats extends CliCommand {
+        @Parameter(names = {"-m", "--most-sig-bits"}, description = "the most sig bits", required = true)
+        private int mostSigBits;
+
+        @Parameter(names = {"-l", "--least-sig-bits"}, description = "the least sig bits", required = true)
+        private long leastSigBits;
+
+        @Parameter(names = {"-t", "--topic"}, description = "the topic", required = true)
+        private String topic;
+
+        @Override
+        void run() throws Exception {
+            print(getAdmin().transactions().getTransactionInBufferStats(new TxnID(mostSigBits, leastSigBits), topic));
+        }
+    }
+
     public CmdTransactions(Supplier<PulsarAdmin> admin) {
         super("transactions", admin);
         jcommander.addCommand("coordinator-status", new GetCoordinatorStatus());
         jcommander.addCommand("transaction-buffer-status", new GetTransactionBufferStatus());
         jcommander.addCommand("pending-ack-status", new GetPendingAckStatus());
+        jcommander.addCommand("transaction-in-buffer-stats", new GetTransactionInBufferStats());
+        jcommander.addCommand("transaction-in-pending-ack-stats", new GetTransactionInPendingAckStats());
     }
 }

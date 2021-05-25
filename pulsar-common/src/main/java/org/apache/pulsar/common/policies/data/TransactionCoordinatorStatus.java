@@ -26,14 +26,11 @@ import lombok.Data;
 @Data
 public class TransactionCoordinatorStatus {
 
-    /** The transaction coordinatorId. */
-    public long coordinatorId;
-
     /** The state of this transaction metadataStore. */
     public String state;
 
     /** The sequenceId of transaction metadataStore. */
-    public long sequenceId;
+    public long leastSigBits;
 
     /** The low water mark of transaction metadataStore. */
     public long lowWaterMark;

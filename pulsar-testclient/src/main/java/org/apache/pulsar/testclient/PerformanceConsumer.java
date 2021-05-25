@@ -176,6 +176,9 @@ public class PerformanceConsumer {
 
         @Parameter(names = { "-pm", "--pool-messages" }, description = "Use the pooled message")
         private boolean poolMessages = true;
+
+        @Parameter(names = {"-bw", "--busy-wait"}, description = "Enable Busy-Wait on the Pulsar client")
+        public boolean enableBusyWait = false;
     }
 
     public static void main(String[] args) throws Exception {
@@ -315,6 +318,7 @@ public class PerformanceConsumer {
                 .connectionsPerBroker(arguments.maxConnections) //
                 .statsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS) //
                 .ioThreads(arguments.ioThreads) //
+                .enableBusyWait(arguments.enableBusyWait)
                 .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
         if (isNotBlank(arguments.authPluginClassName)) {
             clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);

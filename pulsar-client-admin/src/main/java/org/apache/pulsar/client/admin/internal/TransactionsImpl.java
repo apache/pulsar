@@ -18,14 +18,17 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
-import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.policies.data.TransactionBufferStatus;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStatus;
+import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
+import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStatus;
 
 public class TransactionsImpl extends BaseResource implements Transactions {
@@ -57,22 +60,68 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     }
 
     @Override
-    public CompletableFuture<List<TransactionCoordinatorStatus>> getCoordinatorStatusList() {
+    public CompletableFuture<Map<Integer, TransactionCoordinatorStatus>> getCoordinatorStatus() {
         WebTarget path = adminV3Transactions.path("coordinatorStatus");
-        final CompletableFuture<List<TransactionCoordinatorStatus>> statusList = new CompletableFuture<>();
+        final CompletableFuture<Map<Integer, TransactionCoordinatorStatus>> status = new CompletableFuture<>();
         asyncGetRequest(path,
-                new InvocationCallback<List<TransactionCoordinatorStatus>>() {
+                new InvocationCallback<Map<Integer, TransactionCoordinatorStatus>>() {
                     @Override
-                    public void completed(List<TransactionCoordinatorStatus> topics) {
-                        statusList.complete(topics);
+                    public void completed(Map<Integer, TransactionCoordinatorStatus> topics) {
+                        status.complete(topics);
                     }
 
                     @Override
                     public void failed(Throwable throwable) {
-                        statusList.completeExceptionally(getApiException(throwable.getCause()));
+                        status.completeExceptionally(getApiException(throwable.getCause()));
                     }
                 });
-        return statusList;
+        return status;
+    }
+
+    @Override
+    public CompletableFuture<TransactionInBufferStats> getTransactionInBufferStats(TxnID txnID, String topic) {
+        WebTarget path = adminV3Transactions.path("transactionInBufferStats");
+        path = path.queryParam("mostSigBits", txnID.getMostSigBits());
+        path = path.queryParam("leastSigBits", txnID.getLeastSigBits());
+        path = path.queryParam("topic", topic);
+        final CompletableFuture<TransactionInBufferStats> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<TransactionInBufferStats>() {
+                    @Override
+                    public void completed(TransactionInBufferStats stats) {
+                        future.complete(stats);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
+    public CompletableFuture<TransactionInPendingAckStats> getTransactionInPendingAckStats(TxnID txnID, String topic,
+                                                                                           String subName) {
+        WebTarget path = adminV3Transactions.path("transactionInPendingAckStats");
+        path = path.queryParam("mostSigBits", txnID.getMostSigBits());
+        path = path.queryParam("leastSigBits", txnID.getLeastSigBits());
+        path = path.queryParam("topic", topic);
+        path = path.queryParam("subName", subName);
+        final CompletableFuture<TransactionInPendingAckStats> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<TransactionInPendingAckStats>() {
+                    @Override
+                    public void completed(TransactionInPendingAckStats stats) {
+                        future.complete(stats);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
     }
 
     @Override
