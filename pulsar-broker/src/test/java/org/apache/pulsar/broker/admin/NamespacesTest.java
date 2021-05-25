@@ -994,28 +994,6 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testValidateNamespaceOwnershipWithBundles() throws Exception {
-        try {
-            URL localWebServiceUrl = new URL(pulsar.getSafeWebServiceAddress());
-            String bundledNsLocal = "test-bundled-namespace-1";
-            BundlesData bundleData = new BundlesData(Lists.newArrayList("0x00000000", "0xffffffff"));
-            createBundledTestNamespaces(this.testTenant, this.testLocalCluster, bundledNsLocal, bundleData);
-            final NamespaceName testNs = NamespaceName.get(this.testTenant, this.testLocalCluster, bundledNsLocal);
-            mockWebUrl(localWebServiceUrl, testNs);
-
-            OwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
-            doReturn(CompletableFuture.completedFuture(null)).when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
-            Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
-            ownership.setAccessible(true);
-            ownership.set(pulsar.getNamespaceService(), MockOwnershipCache);
-            namespaces.validateNamespaceOwnershipWithBundles(this.testTenant, this.testLocalCluster, bundledNsLocal,
-                    false, true, bundleData);
-        } catch (RestException e) {
-            fail("ValidateNamespaceOwnershipWithBundles failed");
-        }
-    }
-
-    @Test
     public void testRetention() throws Exception {
         try {
             URL localWebServiceUrl = new URL(pulsar.getSafeWebServiceAddress());
