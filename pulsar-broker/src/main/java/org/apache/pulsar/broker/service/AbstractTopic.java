@@ -147,11 +147,7 @@ public abstract class AbstractTopic implements Topic {
     }
 
     protected boolean isProducersExceeded() {
-        Integer maxProducers = null;
-        TopicPolicies topicPolicies = getTopicPolicies();
-        if (topicPolicies != null) {
-            maxProducers = topicPolicies.getMaxProducerPerTopic();
-        }
+        Integer maxProducers = getTopicPolicies().map(TopicPolicies::getMaxProducerPerTopic).orElse(null);
 
         if (maxProducers == null) {
             Policies policies;
@@ -197,11 +193,7 @@ public abstract class AbstractTopic implements Topic {
     }
 
     protected boolean isConsumersExceededOnTopic() {
-        Integer maxConsumers = null;
-        TopicPolicies topicPolicies = getTopicPolicies();
-        if (topicPolicies != null) {
-            maxConsumers = topicPolicies.getMaxConsumerPerTopic();
-        }
+        Integer maxConsumers = getTopicPolicies().map(TopicPolicies::getMaxConsumerPerTopic).orElse(null);
         if (maxConsumers == null) {
             Policies policies;
             try {
@@ -779,11 +771,11 @@ public abstract class AbstractTopic implements Topic {
 
     private void updatePublishDispatcher(Policies policies) {
         //if topic-level policy exists, try to use topic-level publish rate policy
-        TopicPolicies topicPolicies = getTopicPolicies();
-        if (topicPolicies != null && topicPolicies.isPublishRateSet()) {
+        Optional<PublishRate> topicPublishRate = getTopicPolicies().map(TopicPolicies::getPublishRate);
+        if (topicPublishRate.isPresent()) {
             log.info("Using topic policy publish rate instead of namespace level topic publish rate on topic {}",
                     this.topic);
-            updatePublishDispatcher(topicPolicies.getPublishRate());
+            updatePublishDispatcher(topicPublishRate.get());
             return;
         }
 
@@ -850,9 +842,9 @@ public abstract class AbstractTopic implements Topic {
 
     /**
      * Get {@link TopicPolicies} for this topic.
-     * @return TopicPolicies is exist else return null.
+     * @return TopicPolicies, if they exist. Otherwise, the value will not be present.
      */
-    public TopicPolicies getTopicPolicies() {
+    public Optional<TopicPolicies> getTopicPolicies() {
         return brokerService.getTopicPolicies(TopicName.get(topic));
     }
 
@@ -861,18 +853,14 @@ public abstract class AbstractTopic implements Topic {
     }
 
     protected boolean isExceedMaximumMessageSize(int size) {
-        Integer maxMessageSize = null;
-        TopicPolicies topicPolicies = getTopicPolicies();
-        if (topicPolicies != null && topicPolicies.isMaxMessageSizeSet()) {
-            maxMessageSize = topicPolicies.getMaxMessageSize();
-        }
-        if (maxMessageSize != null) {
-            if (maxMessageSize == 0) {
-                return false;
-            }
-            return size > maxMessageSize;
-        }
-        return false;
+        return getTopicPolicies()
+                .map(TopicPolicies::getMaxMessageSize)
+                .map(maxMessageSize -> {
+                    if (maxMessageSize == 0) {
+                        return false;
+                    }
+                    return size > maxMessageSize;
+                }).orElse(false);
     }
 
     /**
