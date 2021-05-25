@@ -1029,21 +1029,19 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                     clientBuilder.authentication(pulsar.getConfiguration().getBrokerClientAuthenticationPlugin(),
                             pulsar.getConfiguration().getBrokerClientAuthenticationParameters());
                 }
-                if (pulsar.getConfiguration().isBrokerClientTlsEnabled()) {
+                if (data.isBrokerClientTlsEnabled()) {
                     clientBuilder
                             .serviceUrl(isNotBlank(data.getBrokerServiceUrlTls()) ? data.getBrokerServiceUrlTls()
                                     : data.getServiceUrlTls())
                             .enableTls(true)
-                            .allowTlsInsecureConnection(pulsar.getConfiguration().isTlsAllowInsecureConnection());
-                    if (pulsar.getConfiguration().isBrokerClientTlsEnabledWithKeyStore()) {
+                            .allowTlsInsecureConnection(data.isTlsAllowInsecureConnection());
+                    if (data.isBrokerClientTlsEnabledWithKeyStore()) {
                         clientBuilder.useKeyStoreTls(true)
-                                .tlsTrustStoreType(pulsar.getConfiguration().getBrokerClientTlsTrustStoreType())
-                                .tlsTrustStorePath(pulsar.getConfiguration().getBrokerClientTlsTrustStore())
-                                .tlsTrustStorePassword(pulsar.getConfiguration()
-                                        .getBrokerClientTlsTrustStorePassword());
+                                .tlsTrustStoreType(data.getBrokerClientTlsTrustStoreType())
+                                .tlsTrustStorePath(data.getBrokerClientTlsTrustStore())
+                                .tlsTrustStorePassword(data.getBrokerClientTlsTrustStorePassword());
                     } else {
-                        clientBuilder.tlsTrustCertsFilePath(pulsar.getConfiguration()
-                                .getBrokerClientTrustCertsFilePath());
+                        clientBuilder.tlsTrustCertsFilePath(data.getBrokerClientTrustCertsFilePath());
                     }
                 } else {
                     clientBuilder.serviceUrl(
