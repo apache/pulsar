@@ -18,12 +18,11 @@
  */
 package org.apache.pulsar.common.stats;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonInclude.Include;
-import com.google.common.base.Objects;
-import com.google.common.collect.Maps;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
+import java.util.TreeMap;
 
 /**
  * WARNING : do not add any getters as the Jackson parser will output that getter.
@@ -36,17 +35,16 @@ public class Metrics {
 
     final Map<String, Object> metrics;
 
-    @JsonInclude(content = Include.NON_EMPTY)
     final Map<String, String> dimensions;
 
     public Metrics() {
-        metrics = Maps.newTreeMap();
-        dimensions = Maps.newHashMap();
+        metrics = new TreeMap<>();
+        dimensions = new HashMap<>();
     }
 
     // hide constructor
     protected Metrics(Map<String, String> unmodifiableDimensionMap) {
-        this.metrics = Maps.newTreeMap();
+        this.metrics = new TreeMap<>();
         this.dimensions = unmodifiableDimensionMap;
     }
 
@@ -58,7 +56,7 @@ public class Metrics {
      */
     public static Metrics create(Map<String, String> dimensionMap) {
         // make the dimensions map unmodifiable and immutable;
-        Map<String, String> map = Maps.newTreeMap();
+        Map<String, String> map = new TreeMap<>();
         map.putAll(dimensionMap);
         return new Metrics(Collections.unmodifiableMap(map));
     }
@@ -93,7 +91,7 @@ public class Metrics {
     @Override
     public boolean equals(Object obj) {
         // the business key will be my metrics dimension [ immutable ]
-        return (obj instanceof Metrics) && Objects.equal(this.dimensions, ((Metrics) obj).dimensions);
+        return (obj instanceof Metrics) && Objects.equals(this.dimensions, ((Metrics) obj).dimensions);
     }
 
     @Override

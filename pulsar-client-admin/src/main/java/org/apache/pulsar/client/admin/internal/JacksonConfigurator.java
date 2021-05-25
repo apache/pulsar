@@ -33,6 +33,8 @@ import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.FunctionStatsMixIn;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.policies.data.ResourceQuotaMixIn;
+import org.apache.pulsar.common.stats.Metrics;
+import org.apache.pulsar.common.stats.MetricsMixIn;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReportDeserializer;
@@ -71,6 +73,7 @@ public class JacksonConfigurator implements ContextResolver<ObjectMapper> {
         mapper.addMixIn(FunctionStats.FunctionInstanceStats.class, FunctionStatsMixIn.FunctionInstanceStatsMixIn.class);
         mapper.addMixIn(FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.class, FunctionStatsMixIn.FunctionInstanceStatsMixIn.FunctionInstanceStatsDataMixIn.class);
         mapper.addMixIn(FunctionStats.FunctionInstanceStats.FunctionInstanceStatsDataBase.class, FunctionStatsMixIn.FunctionInstanceStatsMixIn.FunctionInstanceStatsDataBaseMixIn.class);
+        mapper.addMixIn(Metrics.class, MetricsMixIn.class);
 
         module.setAbstractTypes(resolver);
         mapper.registerModule(module);
