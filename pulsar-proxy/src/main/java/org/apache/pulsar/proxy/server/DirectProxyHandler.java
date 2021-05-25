@@ -341,10 +341,10 @@ public class DirectProxyHandler {
             }
 
             channelFuture.addListener(future -> {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] [{}] Removing decoder from pipeline", inboundChannel, outboundChannel);
-                }
                 if (service.getProxyLogLevel() == 0) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] [{}] Removing decoder from pipeline", inboundChannel, outboundChannel);
+                    }
                     // direct tcp proxy
                     inboundChannel.pipeline().remove("frameDecoder");
                     outboundChannel.pipeline().remove("frameDecoder");
