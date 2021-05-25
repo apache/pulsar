@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 /**
  * Statistics for a non-persistent replicator.
  */
@@ -31,7 +29,9 @@ public class NonPersistentReplicatorStats extends ReplicatorStats {
     public double msgDropRate;
 
     public NonPersistentReplicatorStats add(NonPersistentReplicatorStats stats) {
-        checkNotNull(stats);
+        if (stats == null) {
+            throw new NullPointerException();
+        }
         super.add(stats);
         this.msgDropRate += stats.msgDropRate;
         return this;

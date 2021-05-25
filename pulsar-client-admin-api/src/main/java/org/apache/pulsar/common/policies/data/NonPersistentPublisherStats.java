@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 /**
  * Non-persistent publisher statistics.
  */
@@ -31,7 +29,9 @@ public class NonPersistentPublisherStats extends PublisherStats {
     public double msgDropRate;
 
     public NonPersistentPublisherStats add(NonPersistentPublisherStats stats) {
-        checkNotNull(stats);
+        if (stats == null) {
+            throw new NullPointerException();
+        }
         super.add(stats);
         this.msgDropRate += stats.msgDropRate;
         return this;

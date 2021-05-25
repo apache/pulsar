@@ -18,12 +18,10 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import com.google.common.collect.Lists;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 
 /**
  * Statistics about subscription.
@@ -73,7 +71,7 @@ public class SubscriptionStats {
     public long unackedMessages;
 
     /** Whether this subscription is Exclusive or Shared or Failover. */
-    public SubType type;
+    public String type;
 
     /** The name of the consumer that is active for single active consumer subscriptions i.e. failover or exclusive. */
     public String activeConsumerName;
@@ -118,7 +116,7 @@ public class SubscriptionStats {
     public int nonContiguousDeletedMessagesRangesSerializedSize;
 
     public SubscriptionStats() {
-        this.consumers = Lists.newArrayList();
+        this.consumers = new ArrayList<>();
         this.consumersAfterMarkDeletePosition = new LinkedHashMap<>();
     }
 
@@ -145,7 +143,9 @@ public class SubscriptionStats {
     // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current
     // stats
     public SubscriptionStats add(SubscriptionStats stats) {
-        checkNotNull(stats);
+        if (stats == null) {
+            throw new NullPointerException();
+        }
         this.msgRateOut += stats.msgRateOut;
         this.msgThroughputOut += stats.msgThroughputOut;
         this.bytesOutCounter += stats.bytesOutCounter;

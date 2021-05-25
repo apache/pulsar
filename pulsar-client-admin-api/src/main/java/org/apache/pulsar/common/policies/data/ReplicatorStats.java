@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 /**
  * Statistics about a replicator.
  */
@@ -62,7 +60,9 @@ public class ReplicatorStats {
     public String outboundConnectedSince;
 
     public ReplicatorStats add(ReplicatorStats stats) {
-        checkNotNull(stats);
+        if (stats == null) {
+            throw new NullPointerException();
+        }
         this.msgRateIn += stats.msgRateIn;
         this.msgThroughputIn += stats.msgThroughputIn;
         this.msgRateOut += stats.msgRateOut;

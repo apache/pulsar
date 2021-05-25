@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import com.google.common.collect.Maps;
+import java.util.HashMap;
 import java.util.Map;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 
@@ -34,7 +34,7 @@ public class PartitionedTopicStats extends TopicStats {
     public PartitionedTopicStats() {
         super();
         metadata = new PartitionedTopicMetadata();
-        partitions = Maps.newHashMap();
+        partitions = new HashMap<>();
     }
 
     public PartitionedTopicStats(PartitionedTopicMetadata metadata) {

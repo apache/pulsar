@@ -26,6 +26,8 @@ import javax.ws.rs.ext.Provider;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuotaDeserializer;
+import org.apache.pulsar.common.policies.data.ResourceQuota;
+import org.apache.pulsar.common.policies.data.ResourceQuotaMixIn;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReportDeserializer;
@@ -55,6 +57,9 @@ public class JacksonConfigurator implements ContextResolver<ObjectMapper> {
         // we use customized deserializer to replace jackson annotations in some POJOs
         module.addDeserializer(LoadManagerReport.class, new LoadReportDeserializer());
         module.addDeserializer(BacklogQuota.class, new BacklogQuotaDeserializer());
+
+        // we use MixIn class to add jackson annotations
+        mapper.addMixIn(ResourceQuota.class, ResourceQuotaMixIn.class);
 
         module.setAbstractTypes(resolver);
         mapper.registerModule(module);

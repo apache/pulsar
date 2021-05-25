@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import java.util.List;
 import java.util.Map;
 
@@ -97,7 +96,9 @@ public class ConsumerStats {
     private StringBuilder stringBuffer = new StringBuilder();
 
     public ConsumerStats add(ConsumerStats stats) {
-        checkNotNull(stats);
+        if (stats == null) {
+            throw new NullPointerException();
+        }
         this.msgRateOut += stats.msgRateOut;
         this.msgThroughputOut += stats.msgThroughputOut;
         this.bytesOutCounter += stats.bytesOutCounter;

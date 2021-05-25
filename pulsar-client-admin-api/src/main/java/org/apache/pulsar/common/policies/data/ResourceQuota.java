@@ -18,8 +18,7 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.google.common.base.Objects;
+import java.util.Objects;
 
 /**
  * Resource quota for a namespace or namespace bundle.
@@ -165,7 +164,6 @@ public class ResourceQuota {
     /**
      * Check if this is a valid quota definition.
      */
-    @JsonIgnore
     public boolean isValid() {
         if (this.msgRateIn > 0.0 && this.msgRateOut > 0.0 && this.bandwidthIn > 0.0 && this.bandwidthOut > 0.0
                 && this.memory > 0.0) {
@@ -205,7 +203,7 @@ public class ResourceQuota {
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(msgRateIn, msgRateOut, bandwidthIn,
+        return Objects.hash(msgRateIn, msgRateOut, bandwidthIn,
                 bandwidthOut, memory, dynamic);
     }
 
@@ -213,10 +211,10 @@ public class ResourceQuota {
     public boolean equals(Object obj) {
         if (obj instanceof ResourceQuota) {
             ResourceQuota other = (ResourceQuota) obj;
-            return Objects.equal(this.msgRateIn, other.msgRateIn) && Objects.equal(this.msgRateOut, other.msgRateOut)
-                    && Objects.equal(this.bandwidthIn, other.bandwidthIn)
-                    && Objects.equal(this.bandwidthOut, other.bandwidthOut) && Objects.equal(this.memory, other.memory)
-                    && Objects.equal(this.dynamic, other.dynamic);
+            return Objects.equals(this.msgRateIn, other.msgRateIn) && Objects.equals(this.msgRateOut, other.msgRateOut)
+                    && Objects.equals(this.bandwidthIn, other.bandwidthIn)
+                    && Objects.equals(this.bandwidthOut, other.bandwidthOut) && Objects.equals(this.memory, other.memory)
+                    && Objects.equals(this.dynamic, other.dynamic);
         }
         return false;
     }

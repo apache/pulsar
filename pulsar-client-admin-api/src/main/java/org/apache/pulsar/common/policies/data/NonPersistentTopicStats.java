@@ -18,11 +18,11 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * Statistics for a non-persistent topic.
@@ -45,9 +45,9 @@ public class NonPersistentTopicStats extends TopicStats {
     public Map<String, NonPersistentReplicatorStats> replication;
 
     public NonPersistentTopicStats() {
-        this.publishers = Lists.newArrayList();
-        this.subscriptions = Maps.newHashMap();
-        this.replication = Maps.newTreeMap();
+        this.publishers = new ArrayList<>();
+        this.subscriptions = new HashMap<>();
+        this.replication = new TreeMap<>();
     }
 
     public void reset() {
@@ -58,7 +58,9 @@ public class NonPersistentTopicStats extends TopicStats {
     // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current
     // stats.
     public NonPersistentTopicStats add(NonPersistentTopicStats stats) {
-        checkNotNull(stats);
+        if (stats == null) {
+            throw new NullPointerException();
+        }
         super.add(stats);
         this.msgDropRate += stats.msgDropRate;
         return this;

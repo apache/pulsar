@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import java.util.Map;
 import org.apache.pulsar.client.api.ProducerAccessMode;
 
@@ -71,7 +70,9 @@ public class PublisherStats {
     public Map<String, String> metadata;
 
     public PublisherStats add(PublisherStats stats) {
-        checkNotNull(stats);
+        if (stats == null) {
+            throw new NullPointerException();
+        }
         this.count++;
         this.msgRateIn += stats.msgRateIn;
         this.msgThroughputIn += stats.msgThroughputIn;
