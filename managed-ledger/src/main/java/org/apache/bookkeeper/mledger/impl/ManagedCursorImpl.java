@@ -2921,7 +2921,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         lock.readLock().lock();
         try {
             if (individualDeletedMessages.isEmpty()) {
-                return new HashMap<>();
+                return Collections.emptyMap();
             }
             PositionImpl position = mdEntry == null ? new PositionImpl(-1, -1) : mdEntry.newPosition;
             Map<Long, List<MLDataFormats.MessageRange>> ledgerIdToMessageRange =
@@ -2930,6 +2930,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     .newBuilder();
             MLDataFormats.MessageRange.Builder messageRangeBuilder = MLDataFormats.MessageRange.newBuilder();
             AtomicInteger acksSerializedSize = new AtomicInteger(0);
+            AtomicInteger counter = new AtomicInteger(0);
             individualDeletedMessages.forEach((positionRange) -> {
                 if (dirtyRange != null && !dirtyRange.contains(positionRange.upperEndpoint().ledgerId)) {
                     return true;
@@ -2950,7 +2951,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 List<MLDataFormats.MessageRange> list = ledgerIdToMessageRange
                         .computeIfAbsent(messageRange.getUpperEndpoint().getLedgerId(), (le) -> new ArrayList<>());
                 list.add(messageRange);
-                return ledgerIdToMessageRange.size() <= config.getMaxUnackedRangesToPersist();
+                return counter.incrementAndGet() <= config.getMaxUnackedRangesToPersist();
             });
             this.individualDeletedMessagesSerializedSize = acksSerializedSize.get();
             return ledgerIdToMessageRange;

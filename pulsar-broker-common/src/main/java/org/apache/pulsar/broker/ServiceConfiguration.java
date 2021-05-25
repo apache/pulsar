@@ -1522,7 +1522,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "If enabled, the maximum \"acknowledgment holes\" will not be limited. \n" +
                   "Only part of hotspot data will keep in memory by using LRU."
         )
-    private boolean enableLruCacheMaxUnackedRanges = true;
+    private boolean enableLruCacheMaxUnackedRanges = false;
     @FieldContext(
             category = CATEGORY_STORAGE_OFFLOADING,
             doc = "Max Bytes of UnackedRanges can keep in memory, only use for lru cache"
