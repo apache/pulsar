@@ -27,6 +27,7 @@ import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
 
 import java.lang.reflect.Field;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.ArrayList;
@@ -40,12 +41,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -69,6 +72,8 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
+import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
+import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -898,5 +903,62 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         }
         txn.abort().get();
         assertTrue(exist);
+    }
+
+    @Test
+    public void oneTransactionOneTopicWithMultiSubTest() throws Exception {
+        String topic = NAMESPACE1 + "/oneTransactionOneTopicWithMultiSubTest";
+        final String subName1 = "test1";
+        final String subName2 = "test2";
+        @Cleanup
+        Consumer<byte[]> consumer1 = pulsarClient
+                .newConsumer()
+                .topic(topic)
+                .subscriptionName(subName1)
+                .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS)
+                .subscribe();
+        Awaitility.await().until(consumer1::isConnected);
+
+        @Cleanup
+        Consumer<byte[]> consumer2 = pulsarClient
+                .newConsumer()
+                .topic(topic)
+                .subscriptionName(subName2)
+                .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS)
+                .subscribe();
+        Awaitility.await().until(consumer2::isConnected);
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topic)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .enableBatching(false)
+                .create();
+
+        MessageId messageId = producer.send(("Hello Pulsar").getBytes(UTF_8));
+        TransactionImpl txn = (TransactionImpl) getTxn();
+        consumer1.acknowledgeAsync(messageId, txn).get();
+        consumer2.acknowledgeAsync(messageId, txn).get();
+
+        boolean flag = false;
+        for (int i = 0; i < getPulsarServiceList().size(); i++) {
+            TransactionMetadataStoreService transactionMetadataStoreService =
+                    getPulsarServiceList().get(i).getTransactionMetadataStoreService();
+            if (transactionMetadataStoreService.getStores()
+                    .containsKey(TransactionCoordinatorID.get(txn.getTxnIdMostBits()))) {
+                List<TransactionSubscription> list = transactionMetadataStoreService
+                        .getTxnMeta(new TxnID(txn.getTxnIdMostBits(), txn.getTxnIdLeastBits())).get().ackedPartitions();
+                flag = true;
+                assertEquals(list.size(), 2);
+                if (list.get(0).getSubscription().equals(subName1)) {
+                    assertEquals(list.get(1).getSubscription(), subName2);
+                } else {
+                    assertEquals(list.get(0).getSubscription(), subName2);
+                    assertEquals(list.get(1).getSubscription(), subName1);
+                }
+            }
+        }
+        assertTrue(flag);
     }
 }
