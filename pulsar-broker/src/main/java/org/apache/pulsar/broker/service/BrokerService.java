@@ -1675,9 +1675,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return authorizationService;
     }
 
-    public void removeTopicFromCache(String topic) {
+    public CompletableFuture<Void> removeTopicFromCache(String topic) {
         TopicName topicName = TopicName.get(topic);
-        pulsar.getNamespaceService().getBundleAsync(topicName)
+        return pulsar.getNamespaceService().getBundleAsync(topicName)
                 .thenAccept(namespaceBundle -> {
                     removeTopicFromCache(topic, namespaceBundle);
                 });

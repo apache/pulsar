@@ -1175,17 +1175,22 @@ public class PersistentTopic extends AbstractTopic
                 @Override
                 public void closeComplete(Object ctx) {
                     // Everything is now closed, remove the topic from map
-                    brokerService.removeTopicFromCache(topic);
+                    brokerService.removeTopicFromCache(topic)
+                            .thenRun(() -> {
+                                replicatedSubscriptionsController.ifPresent(ReplicatedSubscriptionsController::close);
 
-                    replicatedSubscriptionsController.ifPresent(ReplicatedSubscriptionsController::close);
+                                dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
 
-                    dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
+                                subscribeRateLimiter.ifPresent(SubscribeRateLimiter::close);
 
-                    subscribeRateLimiter.ifPresent(SubscribeRateLimiter::close);
-
-                    brokerService.pulsar().getTopicPoliciesService().clean(TopicName.get(topic));
-                    log.info("[{}] Topic closed", topic);
-                    closeFuture.complete(null);
+                                brokerService.pulsar().getTopicPoliciesService().clean(TopicName.get(topic));
+                                log.info("[{}] Topic closed", topic);
+                                closeFuture.complete(null);
+                            })
+                    .exceptionally(ex -> {
+                        closeFuture.completeExceptionally(ex);
+                        return null;
+                    });
                 }
 
                 @Override
