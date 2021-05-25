@@ -18,11 +18,9 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 import lombok.Data;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 /**
  * Source status.
@@ -87,7 +85,4 @@ public class SourceStatus {
         instances.add(sourceInstanceStatus);
     }
 
-    public static SourceStatus decode(String json) throws IOException {
-        return ObjectMapperFactory.getThreadLocal().readValue(json, SourceStatus.class);
-    }
 }

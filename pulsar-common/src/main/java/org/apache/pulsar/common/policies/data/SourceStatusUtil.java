@@ -21,10 +21,10 @@ package org.apache.pulsar.common.policies.data;
 import java.io.IOException;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
-public class FunctionStatsUtil {
+public class SourceStatusUtil {
 
-    public static FunctionStats decode (String json) throws IOException {
-        return ObjectMapperFactory.getThreadLocal().readValue(json, FunctionStats.class);
+    public static SourceStatus decode(String json) throws IOException {
+        return ObjectMapperFactory.getThreadLocal().readValue(json, SourceStatus.class);
     }
 
 }
