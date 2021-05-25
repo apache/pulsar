@@ -18,9 +18,6 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import static org.apache.pulsar.common.util.FieldParser.value;
-
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.Serializable;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -130,99 +127,94 @@ public class OffloadPolicies implements Serializable {
 
     // common config
     @Configuration
-    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private String offloadersDirectory = DEFAULT_OFFLOADER_DIRECTORY;
+
     @Configuration
-    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private String managedLedgerOffloadDriver = null;
+
     @Configuration
-    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private Integer managedLedgerOffloadMaxThreads = DEFAULT_OFFLOAD_MAX_THREADS;
+
     @Configuration
-    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private Integer managedLedgerOffloadPrefetchRounds = DEFAULT_OFFLOAD_MAX_PREFETCH_ROUNDS;
+
     @Configuration
-    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private Long managedLedgerOffloadThresholdInBytes = DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES;
+
     @Configuration
-    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private Long managedLedgerOffloadDeletionLagInMillis = DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS;
+
     @Configuration
-    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private OffloadedReadPriority managedLedgerOffloadedReadPriority = DEFAULT_OFFLOADED_READ_PRIORITY;
 
     // s3 config, set by service configuration or cli
     @Configuration
-    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private String s3ManagedLedgerOffloadRegion = null;
+
     @Configuration
-    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private String s3ManagedLedgerOffloadBucket = null;
+
     @Configuration
-    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private String s3ManagedLedgerOffloadServiceEndpoint = null;
+
     @Configuration
-    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private Integer s3ManagedLedgerOffloadMaxBlockSizeInBytes = DEFAULT_MAX_BLOCK_SIZE_IN_BYTES;
+
     @Configuration
-    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private Integer s3ManagedLedgerOffloadReadBufferSizeInBytes = DEFAULT_READ_BUFFER_SIZE_IN_BYTES;
+
     // s3 config, set by service configuration
     @Configuration
-    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private String s3ManagedLedgerOffloadCredentialId = null;
+
     @Configuration
-    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private String s3ManagedLedgerOffloadCredentialSecret = null;
+
     @Configuration
-    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private String s3ManagedLedgerOffloadRole = null;
+
     @Configuration
-    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private String s3ManagedLedgerOffloadRoleSessionName = "pulsar-s3-offload";
 
     // gcs config, set by service configuration or cli
     @Configuration
-    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private String gcsManagedLedgerOffloadRegion = null;
+
     @Configuration
-    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private String gcsManagedLedgerOffloadBucket = null;
+
     @Configuration
-    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private Integer gcsManagedLedgerOffloadMaxBlockSizeInBytes = DEFAULT_MAX_BLOCK_SIZE_IN_BYTES;
+
     @Configuration
-    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private Integer gcsManagedLedgerOffloadReadBufferSizeInBytes = DEFAULT_READ_BUFFER_SIZE_IN_BYTES;
+
     // gcs config, set by service configuration
     @Configuration
-    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private String gcsManagedLedgerOffloadServiceAccountKeyFile = null;
 
     // file system config, set by service configuration
     @Configuration
-    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private String fileSystemProfilePath = null;
+
     @Configuration
-    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private String fileSystemURI = null;
 
     // --------- new offload configurations ---------
     // they are universal configurations and could be used to `aws-s3`, `google-cloud-storage` or `azureblob`.
     @Configuration
-    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private String managedLedgerOffloadBucket;
+
     @Configuration
-    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private String managedLedgerOffloadRegion;
+
     @Configuration
-    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private String managedLedgerOffloadServiceEndpoint;
+
     @Configuration
-    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private Integer managedLedgerOffloadMaxBlockSizeInBytes;
+
     @Configuration
-    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private Integer managedLedgerOffloadReadBufferSizeInBytes;
 
     void compatibleWithBrokerConfigFile(Properties properties) {
