@@ -48,7 +48,9 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.policies.data.FunctionStats;
+import org.apache.pulsar.common.policies.data.FunctionStatsUtil;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
+import org.apache.pulsar.common.policies.data.FunctionStatusUtil;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.functions.api.examples.AutoSchemaFunction;
@@ -266,7 +268,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 "--name", functionName
         );
 
-        FunctionStatus functionStatus = FunctionStatus.decode(containerExecResult.getStdout());
+        FunctionStatus functionStatus = FunctionStatusUtil.decode(containerExecResult.getStdout());
         assertEquals(functionStatus.getNumInstances(), 1);
         assertEquals(functionStatus.getNumRunning(), 1);
         assertEquals(functionStatus.getInstances().size(), 1);
@@ -441,7 +443,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 "--name", functionName
         );
 
-        FunctionStatus functionStatus = FunctionStatus.decode(result.getStdout());
+        FunctionStatus functionStatus = FunctionStatusUtil.decode(result.getStdout());
 
         assertEquals(functionStatus.getNumInstances(), 1);
         assertEquals(functionStatus.getNumRunning(), 1);
@@ -470,7 +472,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         log.info("FUNCTION STATS: {}", result.getStdout());
 
-        FunctionStats functionStats = FunctionStats.decode(result.getStdout());
+        FunctionStats functionStats = FunctionStatsUtil.decode(result.getStdout());
         assertEquals(functionStats.getReceivedTotal(), numMessages + 2);
         assertEquals(functionStats.getProcessedSuccessfullyTotal(), numMessages);
         assertEquals(functionStats.getSystemExceptionsTotal(), 0);
@@ -918,7 +920,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         );
 
         log.info("FUNCTION STATS: {}", result.getStdout());
-        FunctionStats functionStats = FunctionStats.decode(result.getStdout());
+        FunctionStats functionStats = FunctionStatsUtil.decode(result.getStdout());
 
         assertEquals(functionStats.getReceivedTotal(), 0);
         assertEquals(functionStats.getProcessedSuccessfullyTotal(), 0);
@@ -959,7 +961,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         log.info("FUNCTION STATS: {}", result.getStdout());
 
-        FunctionStats functionStats = FunctionStats.decode(result.getStdout());
+        FunctionStats functionStats = FunctionStatsUtil.decode(result.getStdout());
         assertEquals(functionStats.getReceivedTotal(), numMessages);
         assertEquals(functionStats.getProcessedSuccessfullyTotal(), numMessages);
         assertEquals(functionStats.getSystemExceptionsTotal(), 0);
@@ -1064,7 +1066,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             "--name", functionName
         );
 
-        FunctionStatus functionStatus = FunctionStatus.decode(result.getStdout());
+        FunctionStatus functionStatus = FunctionStatusUtil.decode(result.getStdout());
 
         assertEquals(functionStatus.getNumInstances(), parallelism);
         assertEquals(functionStatus.getNumRunning(), parallelism);

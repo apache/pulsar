@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.common.functions;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.Collection;
 import java.util.Map;
 import lombok.AllArgsConstructor;
@@ -34,7 +33,6 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 @Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
-@JsonIgnoreProperties(ignoreUnknown = true)
 public class FunctionConfig {
 
     /**

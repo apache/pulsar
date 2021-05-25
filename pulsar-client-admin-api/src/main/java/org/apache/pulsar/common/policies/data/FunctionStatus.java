@@ -18,11 +18,9 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 import lombok.Data;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 /**
  * Data lass containing status of Pulsar Function.
@@ -79,7 +77,4 @@ public class FunctionStatus {
         instances.add(functionInstanceStatus);
     }
 
-    public static FunctionStatus decode(String json) throws IOException {
-        return ObjectMapperFactory.getThreadLocal().readValue(json, FunctionStatus.class);
-    }
 }

@@ -18,25 +18,17 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonPropertyOrder;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 /**
  * Statistics for Pulsar Function.
  */
 @Data
-@JsonInclude(JsonInclude.Include.ALWAYS)
-@JsonPropertyOrder({"receivedTotal", "processedSuccessfullyTotal", "systemExceptionsTotal", "userExceptionsTotal",
-    "avgProcessLatency", "1min", "lastInvocation", "instances"})
 public class FunctionStats {
 
     /**
@@ -64,7 +56,6 @@ public class FunctionStats {
      **/
     public Double avgProcessLatency;
 
-    @JsonProperty("1min")
     public FunctionInstanceStats.FunctionInstanceStatsDataBase oneMin =
         new FunctionInstanceStats.FunctionInstanceStatsDataBase();
 
@@ -77,8 +68,6 @@ public class FunctionStats {
      * Function instance statistics.
      */
     @Data
-    @JsonInclude(JsonInclude.Include.ALWAYS)
-    @JsonPropertyOrder({ "instanceId", "metrics" })
     public static class FunctionInstanceStats {
 
         /** Instance Id of function instance. **/
@@ -88,9 +77,6 @@ public class FunctionStats {
        * Function instance statistics data base.
        */
       @Data
-        @JsonInclude(JsonInclude.Include.ALWAYS)
-        @JsonPropertyOrder({ "receivedTotal", "processedSuccessfullyTotal", "systemExceptionsTotal",
-            "userExceptionsTotal", "avgProcessLatency" })
         public static class FunctionInstanceStatsDataBase {
             /**
              * Total number of records function received from source for instance.
@@ -123,12 +109,8 @@ public class FunctionStats {
          */
         @EqualsAndHashCode(callSuper = true)
         @Data
-        @JsonInclude(JsonInclude.Include.ALWAYS)
-        @JsonPropertyOrder({ "receivedTotal", "processedSuccessfullyTotal", "systemExceptionsTotal",
-            "userExceptionsTotal", "avgProcessLatency", "1min", "lastInvocation", "userMetrics" })
         public static class FunctionInstanceStatsData extends FunctionInstanceStatsDataBase {
 
-            @JsonProperty("1min")
             public FunctionInstanceStatsDataBase oneMin = new FunctionInstanceStatsDataBase();
 
             /**
@@ -206,7 +188,4 @@ public class FunctionStats {
         return this;
     }
 
-    public static FunctionStats decode (String json) throws IOException {
-        return ObjectMapperFactory.getThreadLocal().readValue(json, FunctionStats.class);
-    }
 }
