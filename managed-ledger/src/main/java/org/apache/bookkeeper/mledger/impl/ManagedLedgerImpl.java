@@ -3485,8 +3485,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return lastConfirmedEntry;
     }
 
-    public String getState() {
-        return STATE_UPDATER.get(this).toString();
+    public State getState() {
+        return STATE_UPDATER.get(this);
     }
 
     public ManagedLedgerMBeanImpl getMBean() {

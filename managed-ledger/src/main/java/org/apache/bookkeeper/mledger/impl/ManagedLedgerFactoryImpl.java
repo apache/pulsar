@@ -324,10 +324,10 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
             if (existingFuture.isDone()) {
                 try {
                     ManagedLedgerImpl l = existingFuture.get();
-                    if (l.getState().equals(State.Fenced.toString()) || l.getState().equals(State.Closed.toString())) {
+                    if (l.getState() == State.Fenced || l.getState() == State.Closed) {
                         // Managed ledger is in unusable state. Recreate it.
                         log.warn("[{}] Attempted to open ledger in {} state. Removing from the map to recreate it",
-                                name, l.getState());
+                                name, l.getState().toString());
                         ledgers.remove(name, existingFuture);
                     }
                 } catch (Exception e) {
