@@ -38,7 +38,7 @@ int main() {
     Consumer consumer;
     ConsumerConfiguration config;
     config.setMessageListener(listener);
-    Result result = client.subscribe("persistent://prop/r1/ns1/my-topic", "consumer-1", config, consumer);
+    Result result = client.subscribe("persistent://public/default/my-topic", "consumer-1", config, consumer);
     if (result != ResultOk) {
         LOG_ERROR("Failed to subscribe: " << result);
         return -1;
