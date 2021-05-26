@@ -21,9 +21,7 @@ package org.apache.pulsar.broker.intercept;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.bookkeeper.client.LedgerHandle;
-import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.mledger.impl.OpAddEntry;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
@@ -96,10 +94,10 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
                         try {
                             LedgerEntry ledgerEntry = entries.getEntry(lh.getLastAddConfirmed());
                             if (ledgerEntry != null) {
+                                BrokerEntryMetadata brokerEntryMetadata =
+                                        Commands.parseBrokerEntryMetadataIfExist(ledgerEntry.getEntryBuffer());
                                 for (BrokerEntryMetadataInterceptor interceptor : brokerEntryMetadataInterceptors) {
                                     if (interceptor instanceof AppendIndexMetadataInterceptor) {
-                                        BrokerEntryMetadata brokerEntryMetadata =
-                                                Commands.parseBrokerEntryMetadataIfExist(ledgerEntry.getEntryBuffer());
                                         if (brokerEntryMetadata != null && brokerEntryMetadata.hasIndex()) {
                                             ((AppendIndexMetadataInterceptor) interceptor)
                                                     .recoveryIndexGenerator(brokerEntryMetadata.getIndex());

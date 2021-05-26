@@ -356,12 +356,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                 ledgers.put(id, info);
                                 if (managedLedgerInterceptor != null) {
                                     managedLedgerInterceptor.onManagedLedgerLastLedgerInitialize(name, lh)
-                                        .whenComplete((__, ex) -> {
-                                            if (ex != null) {
-                                                callback.initializeFailed(new ManagedLedgerInterceptException(ex));
-                                            } else {
-                                                initializeBookKeeper(callback);
-                                            }
+                                        .thenRun(() -> initializeBookKeeper(callback))
+                                        .exceptionally(ex -> {
+                                            callback.initializeFailed(
+                                                    new ManagedLedgerInterceptException(ex.getCause()));
+                                            return null;
                                         });
                                 } else {
                                     initializeBookKeeper(callback);
