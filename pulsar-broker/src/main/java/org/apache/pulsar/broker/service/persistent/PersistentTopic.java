@@ -132,8 +132,10 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
+import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
@@ -3051,6 +3053,14 @@ public class PersistentTopic extends AbstractTopic
             return getBrokerService().getPulsar().getConfiguration()
                     .getSubscriptionTypesEnabled().contains(subType.name());
         }
+    }
+
+    public TransactionBufferStats getTransactionBufferStats() {
+        return this.transactionBuffer.getStats();
+    }
+
+    public TransactionPendingAckStats getTransactionPendingAckStats(String subName) {
+        return this.subscriptions.get(subName).getTransactionPendingAckStats();
     }
 
     public PositionImpl getMaxReadPosition() {

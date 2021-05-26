@@ -21,10 +21,10 @@ package org.apache.pulsar.common.policies.data;
 import lombok.Data;
 
 /**
- * Transaction coordinator status.
+ * Transaction coordinator stats.
  */
 @Data
-public class TransactionCoordinatorStatus {
+public class TransactionCoordinatorStats {
 
     /** The state of this transaction metadataStore. */
     public String state;

@@ -46,6 +46,7 @@ import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStor
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
+import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
@@ -694,6 +695,13 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     @Override
     public CompletableFuture<PendingAckHandle> pendingAckHandleFuture() {
         return pendingAckHandleCompletableFuture;
+    }
+
+    @Override
+    public TransactionPendingAckStats getStats() {
+        TransactionPendingAckStats transactionPendingAckStats = new TransactionPendingAckStats();
+        transactionPendingAckStats.state = this.getState().name();
+        return transactionPendingAckStats;
     }
 
     public void completeHandleFuture() {

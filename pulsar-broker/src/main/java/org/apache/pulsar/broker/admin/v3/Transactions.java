@@ -41,18 +41,18 @@ import org.apache.pulsar.broker.admin.impl.TransactionsBase;
 public class Transactions extends TransactionsBase {
 
     @GET
-    @Path("/coordinatorStatus")
-    @ApiOperation(value = "Get transaction coordinator state.")
+    @Path("/coordinatorStats")
+    @ApiOperation(value = "Get transaction coordinator stats.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 503, message = "This Broker is not "
                     + "configured with transactionCoordinatorEnabled=true."),
             @ApiResponse(code = 404, message = "Transaction coordinator not found"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
-    public void getCoordinatorStatus(@Suspended final AsyncResponse asyncResponse,
-                                     @QueryParam("authoritative")
-                                                @DefaultValue("false") boolean authoritative,
-                                     @QueryParam("coordinatorId") Integer coordinatorId) {
-        internalGetCoordinatorStatus(asyncResponse, authoritative, coordinatorId);
+    public void getCoordinatorStats(@Suspended final AsyncResponse asyncResponse,
+                                    @QueryParam("authoritative")
+                                    @DefaultValue("false") boolean authoritative,
+                                    @QueryParam("coordinatorId") Integer coordinatorId) {
+        internalGetCoordinatorStats(asyncResponse, authoritative, coordinatorId);
     }
 
     @GET
@@ -62,8 +62,8 @@ public class Transactions extends TransactionsBase {
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
             @ApiResponse(code = 503, message = "This Broker is not configured "
                     + "with transactionCoordinatorEnabled=true."),
-            @ApiResponse(code = 307, message = "Topic don't owner by this broker!"),
-            @ApiResponse(code = 501, message = "Topic is not a persistent topic!"),
+            @ApiResponse(code = 307, message = "Topic is not owned by this broker!"),
+            @ApiResponse(code = 400, message = "Topic is not a persistent topic!"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
     public void getTransactionInBufferStats(@Suspended final AsyncResponse asyncResponse,
                                             @QueryParam("authoritative")
@@ -85,8 +85,8 @@ public class Transactions extends TransactionsBase {
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
             @ApiResponse(code = 503, message = "This Broker is not configured "
                     + "with transactionCoordinatorEnabled=true."),
-            @ApiResponse(code = 307, message = "Topic don't owner by this broker!"),
-            @ApiResponse(code = 501, message = "Topic is not a persistent topic!"),
+            @ApiResponse(code = 307, message = "Topic is not owned by this broker!"),
+            @ApiResponse(code = 400, message = "Topic is not a persistent topic!"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
     public void getTransactionInPendingAckStats(@Suspended final AsyncResponse asyncResponse,
                                                 @QueryParam("authoritative")
@@ -105,6 +105,44 @@ public class Transactions extends TransactionsBase {
     }
 
     @GET
+    @Path("/transactionBufferStats")
+    @ApiOperation(value = "Get transaction buffer stats in topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
+            @ApiResponse(code = 503, message = "This Broker is not configured "
+                    + "with transactionCoordinatorEnabled=true."),
+            @ApiResponse(code = 307, message = "Topic is not owned by this broker!"),
+            @ApiResponse(code = 400, message = "Topic is not a persistent topic!"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void getTransactionBufferStats(@Suspended final AsyncResponse asyncResponse,
+                                          @QueryParam("authoritative")
+                                          @DefaultValue("false") boolean authoritative,
+                                          @ApiParam(value = "Topic name", required = true)
+                                              @QueryParam("topic") String topic) {
+        internalGetTransactionBufferStats(asyncResponse, authoritative, topic);
+    }
+
+    @GET
+    @Path("/pendingAckStats")
+    @ApiOperation(value = "Get transaction pending ack stats in topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic or subName doesn't exist"),
+            @ApiResponse(code = 503, message = "This Broker is not configured "
+                    + "with transactionCoordinatorEnabled=true."),
+            @ApiResponse(code = 307, message = "Topic is not owned by this broker!"),
+            @ApiResponse(code = 400, message = "Topic is not a persistent topic!"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void getPendingAckStats(@Suspended final AsyncResponse asyncResponse,
+                                   @QueryParam("authoritative")
+                                   @DefaultValue("false") boolean authoritative,
+                                   @ApiParam(value = "Topic name", required = true)
+                                       @QueryParam("topic") String topic,
+                                   @ApiParam(value = "Subscription name", required = true)
+                                       @QueryParam("subName") String subName) {
+        internalGetPendingAckStats(asyncResponse, authoritative, topic, subName);
+    }
+
+    @GET
     @Path("/transactionMetadata")
     @ApiOperation(value = "Get transaction metadata")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
@@ -112,7 +150,7 @@ public class Transactions extends TransactionsBase {
                     + "or coordinator or transaction doesn't exist"),
             @ApiResponse(code = 503, message = "This Broker is not configured "
                     + "with transactionCoordinatorEnabled=true."),
-            @ApiResponse(code = 307, message = "Topic don't owner by this broker!"),
+            @ApiResponse(code = 307, message = "Topic is not owned by this broker!"),
             @ApiResponse(code = 501, message = "Topic is not a persistent topic!"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
     public void getTransactionMetadata(@Suspended final AsyncResponse asyncResponse,
@@ -125,5 +163,4 @@ public class Transactions extends TransactionsBase {
                                            @QueryParam("leastSigBits") long leastSigBits) {
         internalGetTransactionMetadata(asyncResponse, authoritative, mostSigBits, leastSigBits);
     }
-
 }
