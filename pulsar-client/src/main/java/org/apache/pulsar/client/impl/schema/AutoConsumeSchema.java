@@ -108,7 +108,7 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
         SchemaVersion sv = BytesSchemaVersion.of(schemaVersion);
         fetchSchemaIfNeeded(sv);
         ensureSchemaInitialized(sv);
-        return adapt(schemaMap.get(sv).decode(bytes), schemaVersion);
+        return adapt(schemaMap.get(sv).decode(bytes, schemaVersion), schemaVersion);
     }
 
     @Override
