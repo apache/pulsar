@@ -987,11 +987,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 if (allTopicPartitionsNumber.get() > maxReceiverQueueSize) {
                     setMaxReceiverQueueSize(allTopicPartitionsNumber.get());
                 }
-                int numTopics = this.topics.values().stream().mapToInt(Integer::intValue).sum();
-                int currentAllTopicsPartitionsNumber = allTopicPartitionsNumber.get();
-                checkState(currentAllTopicsPartitionsNumber == numTopics,
-                    "allTopicPartitionsNumber " + currentAllTopicsPartitionsNumber
-                        + " not equals expected: " + numTopics);
 
                 // We have successfully created new consumers, so we can start receiving messages for them
                 startReceivingMessages(
