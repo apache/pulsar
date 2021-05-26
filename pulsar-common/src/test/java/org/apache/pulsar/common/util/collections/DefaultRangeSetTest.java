@@ -33,10 +33,15 @@ public class DefaultRangeSetTest {
                 new LongPairRangeSet.DefaultRangeSet<>(consumer);
         ConcurrentOpenLongPairRangeSet<LongPairRangeSet.LongPair> rangeSet =
                 new ConcurrentOpenLongPairRangeSet<>(consumer);
+
         assertNull(set.firstRange());
         assertNull(set.lastRange());
+        assertNull(set.span());
+
         assertNull(rangeSet.firstRange());
         assertNull(rangeSet.lastRange());
+        assertNull(rangeSet.span());
+
         try {
             set.contains(null);
             fail("should fail");
@@ -47,5 +52,6 @@ public class DefaultRangeSetTest {
             fail("should fail");
         } catch (NullPointerException ignore) {
         }
+
     }
 }
