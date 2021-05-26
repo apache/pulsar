@@ -209,6 +209,19 @@ public interface Message<T> {
     byte[] getSchemaVersion();
 
     /**
+     * Get the schema associated to the message.
+     * Please note that this schema is usually equal to the Schema you passed
+     * during the construction of the Consumer or the Reader.
+     * But if you are consuming the topic using the GenericObject interface
+     * this method will return the schema associated with the message.
+     * @return The schema used to decode the payload of message.
+     * @see Schema#AUTO_CONSUME()
+     */
+    default Optional<Schema<?>> getReaderSchema() {
+        return Optional.empty();
+    }
+
+    /**
      * Check whether the message is replicated from other cluster.
      *
      * @since 2.4.0

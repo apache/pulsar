@@ -30,6 +30,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -99,6 +100,7 @@ public class TransactionTest extends TransactionTestBase {
                 .subscriptionType(SubscriptionType.Shared)
                 .enableBatchIndexAcknowledgment(true)
                 .subscribe();
+        Awaitility.await().until(transferConsumer::isConnected);
         log.info("transfer consumer create finished");
 
         @Cleanup
@@ -114,6 +116,7 @@ public class TransactionTest extends TransactionTestBase {
                 .subscriptionName("integration-test")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
+        Awaitility.await().until(balanceUpdateConsumer::isConnected);
         log.info("balance update consumer create finished");
 
         while (true) {

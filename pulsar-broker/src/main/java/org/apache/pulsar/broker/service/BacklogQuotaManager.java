@@ -31,7 +31,6 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -226,9 +225,10 @@ public class BacklogQuotaManager {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] target backlog expire time is [{}]", persistentTopic.getName(), target);
             }
-            for (PersistentSubscription subscription : persistentTopic.getSubscriptions().values()) {
-                subscription.getExpiryMonitor().expireMessages(target);
-            }
+
+            persistentTopic.getSubscriptions().forEach((__, subscription) ->
+                    subscription.getExpiryMonitor().expireMessages(target)
+            );
         } else {
             // If disabled precise time based backlog quota check, will try to remove whole ledger from cursor's backlog
             Long currentMillis = ((ManagedLedgerImpl) persistentTopic.getManagedLedger()).getClock().millis();

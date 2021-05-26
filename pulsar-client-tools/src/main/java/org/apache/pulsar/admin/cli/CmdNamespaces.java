@@ -1050,6 +1050,9 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(names = { "-l", "--limit" }, description = "Size limit (eg: 10M, 16G)", required = true)
         private String limitStr;
 
+        @Parameter(names = { "-lt", "--limitTime" }, description = "Time limit in second, non-positive number for disabling time limit.")
+        private int limitTime = -1;
+
         @Parameter(names = { "-p", "--policy" }, description = "Retention policy to enforce when the limit is reached. "
                 + "Valid options are: [producer_request_hold, producer_exception, consumer_backlog_eviction]", required = true)
         private String policyStr;
@@ -1069,7 +1072,7 @@ public class CmdNamespaces extends CmdBase {
             limit = validateSizeString(limitStr);
 
             String namespace = validateNamespace(params);
-            getAdmin().namespaces().setBacklogQuota(namespace, new BacklogQuota(limit, policy));
+            getAdmin().namespaces().setBacklogQuota(namespace, new BacklogQuota(limit, limitTime, policy));
         }
     }
 

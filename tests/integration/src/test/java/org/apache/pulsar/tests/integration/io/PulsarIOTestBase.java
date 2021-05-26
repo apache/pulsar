@@ -29,10 +29,6 @@ public abstract class PulsarIOTestBase extends PulsarFunctionsTestBase {
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	protected void testSink(SinkTester tester, boolean builtin) throws Exception {
-        if (pulsarCluster == null) {
-            super.setupCluster();
-            super.setupFunctionWorkers();
-        }
         tester.startServiceContainer(pulsarCluster);
         try {
         	PulsarIOSinkRunner runner = new PulsarIOSinkRunner(pulsarCluster, functionRuntimeType.toString());
@@ -41,16 +37,11 @@ public abstract class PulsarIOTestBase extends PulsarFunctionsTestBase {
             tester.stopServiceContainer(pulsarCluster);
         }
     }
-	
+
 	@SuppressWarnings("rawtypes")
 	protected <ServiceContainerT extends GenericContainer>  void testSink(SinkTester<ServiceContainerT> sinkTester,
 			boolean builtinSink,
 			SourceTester<ServiceContainerT> sourceTester) throws Exception {
-
-		if (pulsarCluster == null) {
-			super.setupCluster();
-			super.setupFunctionWorkers();
-		}
 
 		ServiceContainerT serviceContainer = sinkTester.startServiceContainer(pulsarCluster);
 

@@ -50,6 +50,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.crypto.SecretKey;
 import javax.naming.AuthenticationException;
+import lombok.Cleanup;
 import org.apache.commons.io.IOUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
@@ -97,12 +98,13 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         String baseTopic1 = "persistent://" + ns1 + "/testMetricsTopicCount";
         String baseTopic2 = "persistent://" + ns2 + "/testMetricsTopicCount";
         for (int i = 0; i < 6; i++) {
-            admin.topics().createNonPartitionedTopic(baseTopic1 + UUID.randomUUID().toString());
+            admin.topics().createNonPartitionedTopic(baseTopic1 + UUID.randomUUID());
         }
         for (int i = 0; i < 3; i++) {
-            admin.topics().createNonPartitionedTopic(baseTopic2 + UUID.randomUUID().toString());
+            admin.topics().createNonPartitionedTopic(baseTopic2 + UUID.randomUUID());
         }
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
+        @Cleanup
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
         String metricsStr = statsOut.toString();
@@ -116,6 +118,35 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                 assertEquals(item.value, 3.0);
             }
         });
+    }
+
+    @Test
+    public void testMetricsAvgMsgSize2() throws Exception {
+        String ns1 = "prop/ns-abc1";
+        admin.namespaces().createNamespace(ns1, 1);
+        String baseTopic1 = "persistent://" + ns1 + "/testMetricsTopicCount";
+        String topicName = baseTopic1 + UUID.randomUUID();
+        Producer producer = pulsarClient.newProducer().producerName("my-pub")
+                .topic(topicName).create();
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
+                .getTopic(topicName, false).get().get();
+        org.apache.pulsar.broker.service.Producer producerInServer = persistentTopic.getProducers().get("my-pub");
+        producerInServer.getStats().msgRateIn = 10;
+        producerInServer.getStats().msgThroughputIn = 100;
+        @Cleanup
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, true, statsOut);
+        String metricsStr = statsOut.toString();
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        assertTrue(metrics.containsKey("pulsar_average_msg_size"));
+        assertEquals(metrics.get("pulsar_average_msg_size").size(), 1);
+        Collection<Metric> avgMsgSizes = metrics.get("pulsar_average_msg_size");
+        avgMsgSizes.forEach(item -> {
+            if (ns1.equals(item.tags.get("namespace"))) {
+                assertEquals(item.value, 10);
+            }
+        });
+        producer.close();
     }
 
     @Test
@@ -744,7 +775,10 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test
     public void testManagedLedgerBookieClientStats() throws Exception {
+        @Cleanup
         Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
+
+        @Cleanup
         Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic2").create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
@@ -775,15 +809,10 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(cm.get(0).tags.get("cluster"), "test");
 
         cm = (List<Metric>) metrics.get("pulsar_managedLedger_client_bookkeeper_ml_workers_completed_tasks_0");
-        assertEquals(cm.size(), 1);
-        assertEquals(cm.get(0).tags.get("cluster"), "test");
+        assertEquals(cm.size(), 0);
 
         cm = (List<Metric>) metrics.get("pulsar_managedLedger_client_bookkeeper_ml_workers_task_execution_count");
-        assertEquals(cm.size(), 2);
-        assertEquals(cm.get(0).tags.get("cluster"), "test");
-
-        p1.close();
-        p2.close();
+        assertEquals(cm.size(), 0);
     }
 
     @Test
@@ -1110,7 +1139,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     /**
      * Hacky parsing of Prometheus text format. Should be good enough for unit tests
      */
-    private static Multimap<String, Metric> parseMetrics(String metrics) {
+    public static Multimap<String, Metric> parseMetrics(String metrics) {
         Multimap<String, Metric> parsed = ArrayListMultimap.create();
 
         // Example of lines are

@@ -205,10 +205,6 @@
                                     <shadedPattern>org.apache.pulsar.functions.runtime.shaded.net.jpountz</shadedPattern>
                                 </relocation>
                                 <relocation>
-                                    <pattern>org.aspectj</pattern>
-                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.aspectj</shadedPattern>
-                                </relocation>
-                                <relocation>
                                     <pattern>commons-configuration</pattern>
                                     <shadedPattern>org.apache.pulsar.functions.runtime.shaded.commons-configuration</shadedPattern>
                                 </relocation>

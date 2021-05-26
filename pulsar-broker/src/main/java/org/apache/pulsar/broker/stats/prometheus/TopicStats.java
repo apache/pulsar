@@ -37,6 +37,7 @@ class TopicStats {
     long bytesInCounter;
     long msgOutCounter;
     long bytesOutCounter;
+    double averageMsgSize;
 
     long storageSize;
     public long msgBacklog;
@@ -105,6 +106,7 @@ class TopicStats {
         metric(stream, cluster, namespace, topic, "pulsar_rate_out", stats.rateOut);
         metric(stream, cluster, namespace, topic, "pulsar_throughput_in", stats.throughputIn);
         metric(stream, cluster, namespace, topic, "pulsar_throughput_out", stats.throughputOut);
+        metric(stream, cluster, namespace, topic, "pulsar_average_msg_size", stats.averageMsgSize);
 
         metric(stream, cluster, namespace, topic, "pulsar_storage_size", stats.storageSize);
         metric(stream, cluster, namespace, topic, "pulsar_msg_backlog", stats.msgBacklog);

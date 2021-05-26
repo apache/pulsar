@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import javax.servlet.ServletContext;
@@ -49,6 +50,7 @@ import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriInfo;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
@@ -437,37 +439,6 @@ public abstract class PulsarWebResource {
         return false;
     }
 
-    /**
-     * Checks whether the broker is the owner of all the namespace bundles. Otherwise, if authoritative is false, it
-     * will throw an exception to redirect to assigned owner or leader; if authoritative is true then it will try to
-     * acquire all the namespace bundles.
-     *
-     * @param tenant tenant name
-     * @param cluster cluster name
-     * @param namespace namespace name
-     * @param authoritative if it is an authoritative request
-     * @param readOnly if the request is read-only
-     * @param bundleData bundle data
-     */
-    protected void validateNamespaceOwnershipWithBundles(String tenant, String cluster, String namespace,
-            boolean authoritative, boolean readOnly, BundlesData bundleData) {
-        NamespaceName fqnn = NamespaceName.get(tenant, cluster, namespace);
-
-        try {
-            NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory().getBundles(fqnn,
-                    bundleData);
-            for (NamespaceBundle bundle : bundles.getBundles()) {
-                validateBundleOwnership(bundle, authoritative, readOnly);
-            }
-        } catch (WebApplicationException wae) {
-            // propagate already wrapped-up WebApplicationExceptions
-            throw wae;
-        } catch (Exception oe) {
-            log.debug("Failed to find owner for namespace {}", fqnn, oe);
-            throw new RestException(oe);
-        }
-    }
-
     protected void validateBundleOwnership(String tenant, String cluster, String namespace, boolean authoritative,
             boolean readOnly, NamespaceBundle bundle) {
         NamespaceName fqnn = NamespaceName.get(tenant, cluster, namespace);
@@ -614,48 +585,69 @@ public abstract class PulsarWebResource {
      * @param authoritative
      */
     protected void validateTopicOwnership(TopicName topicName, boolean authoritative) {
+        try {
+            validateTopicOwnershipAsync(topicName, authoritative).join();
+        } catch (CompletionException ce) {
+            if (ce.getCause() instanceof WebApplicationException) {
+                throw (WebApplicationException) ce.getCause();
+            } else {
+                throw new RestException(ce.getCause());
+            }
+        }
+    }
+
+    protected CompletableFuture<Void> validateTopicOwnershipAsync(TopicName topicName, boolean authoritative) {
         NamespaceService nsService = pulsar().getNamespaceService();
 
-        try {
-            // per function name, this is trying to acquire the whole namespace ownership
-            LookupOptions options = LookupOptions.builder()
-                    .authoritative(authoritative)
-                    .requestHttps(isRequestHttps())
-                    .readOnly(false)
-                    .loadTopicsInBundle(false).build();
-            Optional<URL> webUrl = nsService.getWebServiceUrl(topicName, options);
-            // Ensure we get a url
-            if (webUrl == null || !webUrl.isPresent()) {
-                log.info("Unable to get web service url");
-                throw new RestException(Status.PRECONDITION_FAILED, "Failed to find ownership for topic:" + topicName);
-            }
+        LookupOptions options = LookupOptions.builder()
+                .authoritative(authoritative)
+                .requestHttps(isRequestHttps())
+                .readOnly(false)
+                .loadTopicsInBundle(false)
+                .build();
 
-            if (!nsService.isServiceUnitOwned(topicName)) {
-                boolean newAuthoritative = isLeaderBroker(pulsar());
-                // Replace the host and port of the current request and redirect
-                URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(webUrl.get().getHost())
-                        .port(webUrl.get().getPort()).replaceQueryParam("authoritative", newAuthoritative).build();
-                // Redirect
-                log.debug("Redirecting the rest call to {}", redirect);
-                throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
-            }
-        } catch (TimeoutException te) {
-            String msg = String.format("Finding owner for topic %s timed out", topicName);
-            log.error(msg, te);
-            throw new RestException(Status.INTERNAL_SERVER_ERROR, msg);
-        } catch (IllegalArgumentException iae) {
-            // namespace format is not valid
-            log.debug("Failed to find owner for topic: {}", topicName, iae);
-            throw new RestException(Status.PRECONDITION_FAILED, "Can't find owner for topic " + topicName);
-        } catch (IllegalStateException ise) {
-            log.debug("Failed to find owner for topic: {}", topicName, ise);
-            throw new RestException(Status.PRECONDITION_FAILED, "Can't find owner for topic " + topicName);
-        } catch (WebApplicationException wae) {
-            throw wae;
-        } catch (Exception oe) {
-            log.debug("Failed to find owner for topic: {}", topicName, oe);
-            throw new RestException(oe);
-        }
+        return nsService.getWebServiceUrlAsync(topicName, options)
+                .thenApply(webUrl -> {
+                    // Ensure we get a url
+                    if (webUrl == null || !webUrl.isPresent()) {
+                        log.info("Unable to get web service url");
+                        throw new RestException(Status.PRECONDITION_FAILED,
+                                "Failed to find ownership for topic:" + topicName);
+                    }
+                    return webUrl.get();
+                }).thenCompose(webUrl -> nsService.isServiceUnitOwnedAsync(topicName)
+                        .thenApply(isTopicOwned -> Pair.of(webUrl, isTopicOwned))
+                ).thenAccept(pair -> {
+                    URL webUrl = pair.getLeft();
+                    boolean isTopicOwned = pair.getRight();
+
+                    if (!isTopicOwned) {
+                        boolean newAuthoritative = isLeaderBroker(pulsar());
+                        // Replace the host and port of the current request and redirect
+                        URI redirect = UriBuilder.fromUri(uri.getRequestUri())
+                                .host(webUrl.getHost())
+                                .port(webUrl.getPort())
+                                .replaceQueryParam("authoritative", newAuthoritative)
+                                .build();
+                        // Redirect
+                        if (log.isDebugEnabled()) {
+                            log.debug("Redirecting the rest call to {}", redirect);
+                        }
+                        throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+                    }
+                }).exceptionally(ex -> {
+                    if (ex.getCause() instanceof IllegalArgumentException
+                            || ex.getCause() instanceof IllegalStateException) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("Failed to find owner for topic: {}", topicName, ex);
+                        }
+                        throw new RestException(Status.PRECONDITION_FAILED, "Can't find owner for topic " + topicName);
+                    } else if (ex.getCause() instanceof WebApplicationException) {
+                        throw (WebApplicationException) ex.getCause();
+                    } else {
+                        throw new RestException(ex.getCause());
+                    }
+                });
     }
 
     /**
@@ -699,6 +691,30 @@ public abstract class PulsarWebResource {
             throw new RestException(Status.SERVICE_UNAVAILABLE, String.format(
                     "Failed to validate global cluster configuration : ns=%s  emsg=%s", namespace, e.getMessage()));
         }
+    }
+
+    protected CompletableFuture<Void> validateGlobalNamespaceOwnershipAsync(NamespaceName namespace) {
+        return checkLocalOrGetPeerReplicationCluster(pulsar(), namespace)
+                .thenAccept(peerClusterData -> {
+                    // if peer-cluster-data is present it means namespace is owned by that peer-cluster and request
+                    // should be redirect to the peer-cluster
+                    if (peerClusterData != null) {
+                        try {
+                            URI redirect = getRedirectionUrl(peerClusterData);
+                            // redirect to the cluster requested
+                            if (log.isDebugEnabled()) {
+                                log.debug("[{}] Redirecting the rest call to {}: cluster={}", clientAppId(),
+                                        redirect, peerClusterData);
+
+                            }
+                            throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+                        } catch (MalformedURLException mue) {
+                            throw new RestException(Status.SERVICE_UNAVAILABLE, String.format(
+                                    "Failed to validate global cluster configuration : ns=%s  emsg=%s", namespace,
+                                    mue.getMessage()));
+                        }
+                    }
+                });
     }
 
     public static CompletableFuture<ClusterData> checkLocalOrGetPeerReplicationCluster(PulsarService pulsarService,

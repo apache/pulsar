@@ -36,6 +36,7 @@ import static org.testng.Assert.fail;
 
 import com.google.common.hash.Hashing;
 
+import java.util.EnumSet;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -50,12 +51,16 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
+import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.extended.CreateOption;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.zookeeper.LocalZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.KeeperException.NoNodeException;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.ZooKeeper;
 import org.powermock.reflect.Whitebox;
@@ -79,7 +84,8 @@ public class OwnershipCacheTest {
     private BrokerService brokerService;
     private OrderedScheduler executor;
     private ZooKeeper zkc;
-    private ZooKeeper otherZkc;
+    private MetadataStoreExtended store;
+    private MetadataStoreExtended otherStore;
     private MockZooKeeper mockZkc;
     private ZookeeperServerTest zookeeperServer;
 
@@ -93,15 +99,22 @@ public class OwnershipCacheTest {
         zookeeperServer = new ZookeeperServerTest(0);
         zookeeperServer.start();
 
-        zkc = new ZooKeeper(zookeeperServer.getHostPort(), 5000, null);
-        otherZkc = new ZooKeeper(zookeeperServer.getHostPort(), 5000, null);
+        store = MetadataStoreExtended.create(zookeeperServer.getHostPort(),
+                MetadataStoreConfig.builder().sessionTimeoutMillis(5000).build());
+        otherStore = MetadataStoreExtended.create(zookeeperServer.getHostPort(),
+                MetadataStoreConfig.builder().sessionTimeoutMillis(5000).build());
         mockZkc = MockZooKeeper.newInstance();
+
+        zkc = new ZooKeeper(zookeeperServer.getHostPort(), 5000, null);
         zkCache = new LocalZooKeeperCache(zkc, 30, executor);
         localCache = spy(new LocalZooKeeperCacheService(zkCache, null));
         ZooKeeperDataCache<LocalPolicies> poilciesCache = mock(ZooKeeperDataCache.class);
         when(pulsar.getLocalZkCacheService()).thenReturn(localCache);
         when(localCache.policiesCache()).thenReturn(poilciesCache);
+        when(pulsar.getConfigurationMetadataStore()).thenReturn(store);
         doNothing().when(poilciesCache).registerListener(any());
+
+        when(pulsar.getLocalMetadataStore()).thenReturn(store);
 
         bundleFactory = new NamespaceBundleFactory(pulsar, Hashing.crc32());
         nsService = mock(NamespaceService.class);
@@ -123,7 +136,8 @@ public class OwnershipCacheTest {
         executor.shutdownNow();
         zkCache.stop();
         zkc.close();
-        otherZkc.close();
+        store.close();
+        otherStore.close();
         mockZkc.close();
         zookeeperServer.close();
     }
@@ -171,10 +185,15 @@ public class OwnershipCacheTest {
         // case 3: some other broker owned the namespace, getOrSetOwner() should return other broker's URL
         // The only chance that we lost an already existing ephemeral node is when the broker dies or unload has
         // succeeded in both cases, the ownerInfoCache will be updated (i.e. invalidated the entry)
-        localCache.ownerInfoCache().invalidate(ServiceUnitZkUtils.path(testFullBundle));
-        ServiceUnitZkUtils.acquireNameSpace(zkCache.getZooKeeper(), ServiceUnitZkUtils.path(testFullBundle),
-                new NamespaceEphemeralData("pulsar://otherhost:8881", "pulsar://otherhost:8884",
-                        "http://localhost:8080", "https://localhost:4443", false));
+        localCache.ownerInfoCache().invalidate(ServiceUnitUtils.path(testFullBundle));
+
+        pulsar.getLocalMetadataStore().put(ServiceUnitUtils.path(testFullBundle),
+                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(
+                        new NamespaceEphemeralData("pulsar://otherhost:8881",
+                                "pulsar://otherhost:8884",
+                                "http://localhost:8080",
+                                "https://localhost:4443", false)),
+                Optional.of(-1L), EnumSet.of(CreateOption.Ephemeral)).join();
         data1 = cache.tryAcquiringOwnership(testFullBundle).get();
         assertEquals(data1.getNativeUrl(), "pulsar://otherhost:8881");
         assertEquals(data1.getNativeUrlTls(), "pulsar://otherhost:8884");
@@ -189,9 +208,14 @@ public class OwnershipCacheTest {
         // case 1: no one owns the namespace
         assertFalse(cache.getOwnerAsync(testBundle).get().isPresent());
         // case 2: someone owns the namespace
-        ServiceUnitZkUtils.acquireNameSpace(otherZkc, ServiceUnitZkUtils.path(testBundle),
-                new NamespaceEphemeralData("pulsar://otherhost:8881", "pulsar://otherhost:8884",
-                        "http://otherhost:8080", "https://otherhost:4443", false));
+
+        pulsar.getLocalMetadataStore().put(ServiceUnitUtils.path(testBundle),
+                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(
+                        new NamespaceEphemeralData("pulsar://otherhost:8881",
+                                "pulsar://otherhost:8884",
+                                "http://localhost:8080",
+                                "https://localhost:4443", false)),
+                Optional.of(-1L), EnumSet.of(CreateOption.Ephemeral)).join();
 
         // try to acquire, which will load the read-only cache
         NamespaceEphemeralData data1 = cache.tryAcquiringOwnership(testBundle).get();
@@ -232,9 +256,13 @@ public class OwnershipCacheTest {
             // OK for not owned namespace
         }
         // case 2: someone else owns the namespace
-        ServiceUnitZkUtils.acquireNameSpace(otherZkc, ServiceUnitZkUtils.path(testBundle),
-                new NamespaceEphemeralData("pulsar://otherhost:8881", "pulsar://otherhost:8884",
-                        "http://otherhost:8080", "https://otherhost:4443", false));
+        otherStore.put(ServiceUnitUtils.path(testBundle),
+                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(
+                        new NamespaceEphemeralData("pulsar://otherhost:8881",
+                                "pulsar://otherhost:8884",
+                                "http://localhost:8080",
+                                "https://localhost:4443", false)),
+                Optional.of(-1L), EnumSet.of(CreateOption.Ephemeral)).join();
         try {
             checkNotNull(cache.getOwnedBundle(testBundle));
             fail("Should have failed");
@@ -257,9 +285,9 @@ public class OwnershipCacheTest {
         }
         // case 3: this broker owns the namespace
         // delete the ephemeral node by others
-        otherZkc.delete(ServiceUnitZkUtils.path(testBundle), -1);
+        otherStore.delete(ServiceUnitUtils.path(testBundle), Optional.empty()).join();
         // force to read directly from ZK
-        localCache.ownerInfoCache().invalidate(ServiceUnitZkUtils.path(testBundle));
+        localCache.ownerInfoCache().invalidate(ServiceUnitUtils.path(testBundle));
         data1 = cache.tryAcquiringOwnership(testBundle).get();
         assertEquals(data1.getNativeUrl(), selfBrokerUrl);
         assertFalse(data1.isDisabled());
@@ -277,9 +305,13 @@ public class OwnershipCacheTest {
         assertTrue(cache.getOwnedBundles().isEmpty());
 
         // case 2: someone else owns the namespace
-        ServiceUnitZkUtils.acquireNameSpace(otherZkc, ServiceUnitZkUtils.path(testBundle),
-                new NamespaceEphemeralData("pulsar://otherhost:8881", "pulsar://otherhost:8884",
-                        "http://otherhost:8080", "https://otherhost:4443", false));
+        otherStore.put(ServiceUnitUtils.path(testBundle),
+                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(
+                        new NamespaceEphemeralData("pulsar://otherhost:8881",
+                                "pulsar://otherhost:8884",
+                                "http://otherhost:8080",
+                                "https://otherhost:4443", false)),
+                Optional.of(-1L), EnumSet.of(CreateOption.Ephemeral)).join();
         assertTrue(cache.getOwnedBundles().isEmpty());
 
         Thread.sleep(500);
@@ -292,9 +324,9 @@ public class OwnershipCacheTest {
         assertTrue(cache.getOwnedBundles().isEmpty());
         // case 3: this broker owns the namespace
         // delete the ephemeral node by others
-        otherZkc.delete(ServiceUnitZkUtils.path(testBundle), -1);
+        otherStore.delete(ServiceUnitUtils.path(testBundle), Optional.empty()).join();
         // force to read directly from ZK
-        localCache.ownerInfoCache().invalidate(ServiceUnitZkUtils.path(testBundle));
+        localCache.ownerInfoCache().invalidate(ServiceUnitUtils.path(testBundle));
         data1 = cache.tryAcquiringOwnership(testBundle).get();
         assertEquals(data1.getNativeUrl(), selfBrokerUrl);
         assertFalse(data1.isDisabled());
@@ -323,19 +355,14 @@ public class OwnershipCacheTest {
 
         Thread.sleep(500);
 
-        try {
-            zkCache.getZooKeeper().getData(ServiceUnitZkUtils.path(bundle), null, null);
-            fail("Should have failed");
-        } catch (NoNodeException nne) {
-            // OK
-        }
+        assertFalse(store.exists(ServiceUnitUtils.path(bundle)).join());
     }
 
     @Test
     public void testReestablishOwnership() throws Exception {
         OwnershipCache cache = new OwnershipCache(this.pulsar, bundleFactory, nsService);
         NamespaceBundle testFullBundle = bundleFactory.getFullBundle(NamespaceName.get("pulsar/test/ns-8"));
-        String testFullBundlePath = ServiceUnitZkUtils.path(testFullBundle);
+        String testFullBundlePath = ServiceUnitUtils.path(testFullBundle);
 
         // no one owns the namespace
         assertFalse(cache.getOwnerAsync(testFullBundle).get().isPresent());

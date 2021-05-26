@@ -17,7 +17,7 @@
 # under the License.
 #
 
-FROM openjdk:8-jdk-slim
+FROM openjdk:11-jdk-slim
 
 RUN groupadd -g 10001 pulsar
 RUN adduser -u 10000 --gid 10001 --disabled-login --disabled-password --gecos '' pulsar
@@ -30,7 +30,7 @@ RUN chown -R root:root /pulsar
 COPY target/scripts /pulsar/bin
 RUN chmod a+rx /pulsar/bin/*
 
-RUN echo networkaddress.cache.ttl=1 >> $JAVA_HOME/jre/lib/security/java.security
+RUN echo networkaddress.cache.ttl=1 >> $JAVA_HOME/conf/security/java.security
 
 WORKDIR /pulsar
 

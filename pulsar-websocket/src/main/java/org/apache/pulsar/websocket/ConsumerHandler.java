@@ -217,6 +217,8 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                 handlePermit(command);
             } else if ("unsubscribe".equals(command.type)) {
                 handleUnsubscribe(command);
+            } else if ("negativeAcknowledge".equals(command.type)) {
+                handleNack(command);
             } else if ("isEndOfTopic".equals(command.type)) {
                 handleEndOfTopic();
             } else {
@@ -260,11 +262,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         consumer.unsubscribe();
     }
 
-    private void handleAck(ConsumerCommand command) throws IOException {
-        // We should have received an ack
-        MessageId msgId = MessageId.fromByteArrayWithTopic(Base64.getDecoder().decode(command.messageId),
-                topic.toString());
-        consumer.acknowledgeAsync(msgId).thenAccept(consumer -> numMsgsAcked.increment());
+    private void checkResumeReceive() {
         if (!this.pullMode) {
             int pending = pendingMessages.getAndDecrement();
             if (pending >= maxPendingMessages) {
@@ -272,6 +270,22 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                 receiveMessage();
             }
         }
+    }
+
+    private void handleAck(ConsumerCommand command) throws IOException {
+        // We should have received an ack
+        MessageId msgId = MessageId.fromByteArrayWithTopic(Base64.getDecoder().decode(command.messageId),
+                topic.toString());
+        consumer.acknowledgeAsync(msgId).thenAccept(consumer -> numMsgsAcked.increment());
+        checkResumeReceive();
+    }
+
+    private void handleNack(ConsumerCommand command) throws IOException {
+        MessageId msgId = MessageId.fromByteArrayWithTopic(Base64.getDecoder().decode(command.messageId),
+            topic.toString());
+        System.out.println(msgId);
+        consumer.negativeAcknowledge(msgId);
+        checkResumeReceive();
     }
 
     private void handlePermit(ConsumerCommand command) throws IOException {
@@ -382,6 +396,9 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
             if (queryParams.containsKey("deadLetterTopic")) {
                 dlpBuilder.deadLetterTopic(queryParams.get("deadLetterTopic"));
+            }
+            if (queryParams.containsKey("negativeAckRedeliveryDelay")) {
+                builder.negativeAckRedeliveryDelay(Integer.parseInt(queryParams.get("negativeAckRedeliveryDelay")), TimeUnit.MILLISECONDS);
             }
             builder.deadLetterPolicy(dlpBuilder.build());
         }

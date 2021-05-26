@@ -22,11 +22,12 @@ package org.apache.pulsar.functions.instance;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Preconditions;
 
+import com.scurrilous.circe.checksum.Crc32cIntChecksum;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import lombok.Getter;
@@ -50,6 +51,7 @@ import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.StateStore;
 import org.apache.pulsar.functions.api.StateStoreContext;
+import org.apache.pulsar.functions.instance.JavaInstance.AsyncFuncRequest;
 import org.apache.pulsar.functions.instance.state.BKStateStoreProviderImpl;
 import org.apache.pulsar.functions.instance.state.InstanceStateManager;
 import org.apache.pulsar.functions.instance.state.StateManager;
@@ -67,6 +69,7 @@ import org.apache.pulsar.functions.sink.PulsarSinkConfig;
 import org.apache.pulsar.functions.sink.PulsarSinkDisable;
 import org.apache.pulsar.functions.source.MultiConsumerPulsarSourceConfig;
 import org.apache.pulsar.functions.source.MultiConsumerPulsarSource;
+import org.apache.pulsar.functions.source.PulsarSource;
 import org.apache.pulsar.functions.source.PulsarSourceConfig;
 import org.apache.pulsar.functions.source.SingleConsumerPulsarSource;
 import org.apache.pulsar.functions.source.SingleConsumerPulsarSourceConfig;
@@ -239,6 +242,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         try {
             setup();
 
+            Thread currentThread = Thread.currentThread();
+
             while (true) {
                 currentRecord = readInput();
 
@@ -253,7 +258,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 }
 
                 addLogTopicHandler();
-                CompletableFuture<JavaExecutionResult> result;
+                JavaExecutionResult result;
 
                 // set last invocation time
                 stats.setLastInvocation(System.currentTimeMillis());
@@ -263,7 +268,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
                 // process the message
                 Thread.currentThread().setContextClassLoader(functionClassLoader);
-                result = javaInstance.handleMessage(currentRecord, currentRecord.getValue());
+                result = javaInstance.handleMessage(
+                    currentRecord, currentRecord.getValue(), this::handleResult,
+                    cause -> currentThread.interrupt());
                 Thread.currentThread().setContextClassLoader(instanceClassLoader);
 
                 // register end time
@@ -271,11 +278,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
                 removeLogTopicHandler();
 
-                try {
-                    processResult(currentRecord, result);
-                } catch (Exception e) {
-                    log.warn("Failed to process result of message {}", currentRecord, e);
-                    currentRecord.fail();
+                if (result != null) {
+                    // process the synchronous results
+                    handleResult(currentRecord, result);
                 }
             }
         } catch (Throwable t) {
@@ -317,28 +322,29 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
     }
 
-    private void processResult(Record srcRecord,
-                               CompletableFuture<JavaExecutionResult> result) throws Exception {
-        result.whenComplete((result1, throwable) -> {
-            if (throwable != null || result1.getUserException() != null) {
-                Throwable t = throwable != null ? throwable : result1.getUserException();
-                log.warn("Encountered exception when processing message {}",
-                        srcRecord, t);
-                stats.incrUserExceptions(t);
-                srcRecord.fail();
+    private void processAsyncResults() throws InterruptedException {
+
+    }
+
+    private void handleResult(Record srcRecord, JavaExecutionResult result) {
+        if (result.getUserException() != null) {
+            Exception t = result.getUserException();
+            log.warn("Encountered exception when processing message {}",
+                    srcRecord, t);
+            stats.incrUserExceptions(t);
+            srcRecord.fail();
+        } else {
+            if (result.getResult() != null) {
+                sendOutputMessage(srcRecord, result.getResult());
             } else {
-                if (result1.getResult() != null) {
-                    sendOutputMessage(srcRecord, result1.getResult());
-                } else {
-                    if (instanceConfig.getFunctionDetails().getAutoAck()) {
-                        // the function doesn't produce any result or the user doesn't want the result.
-                        srcRecord.ack();
-                    }
+                if (instanceConfig.getFunctionDetails().getAutoAck()) {
+                    // the function doesn't produce any result or the user doesn't want the result.
+                    srcRecord.ack();
                 }
-                // increment total successfully processed
-                stats.incrTotalProcessedSuccessfully();
             }
-        });
+            // increment total successfully processed
+            stats.incrTotalProcessedSuccessfully();
+        }
     }
 
     private void sendOutputMessage(Record srcRecord, Object output) {
@@ -350,7 +356,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         } catch (Exception e) {
             log.info("Encountered exception in sink write: ", e);
             stats.incrSinkExceptions(e);
-            throw new RuntimeException(e);
+            // fail the source record
+            srcRecord.fail();
         } finally {
             Thread.currentThread().setContextClassLoader(instanceClassLoader);
         }
@@ -564,6 +571,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private void setupLogHandler() {
         if (instanceConfig.getFunctionDetails().getLogTopic() != null &&
                 !instanceConfig.getFunctionDetails().getLogTopic().isEmpty()) {
+            // make sure Crc32cIntChecksum class is loaded before logging starts
+            // to prevent "SSE4.2 CRC32C provider initialized" appearing in log topic
+            new Crc32cIntChecksum();
             logAppender = new LogAppender(client, instanceConfig.getFunctionDetails().getLogTopic(),
                     FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails()));
             logAppender.start();
@@ -724,6 +734,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             } else {
                 this.source.open(ObjectMapperFactory.getThreadLocal().readValue(sourceSpec.getConfigs(),
                         new TypeReference<Map<String, Object>>() {}), contextImpl);
+            }
+            if (this.source instanceof PulsarSource) {
+                contextImpl.setInputConsumers(((PulsarSource) this.source).getInputConsumers());
             }
         } catch (Exception e) {
             log.error("Source open produced uncaught exception: ", e);

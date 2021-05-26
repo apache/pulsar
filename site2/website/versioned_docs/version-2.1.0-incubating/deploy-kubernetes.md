@@ -75,7 +75,7 @@ or using [`helm`](#deploying-pulsar-components-helm).
 
 You can run Kubernetes on [Amazon Web Services](https://aws.amazon.com/) (AWS) in a variety of ways. A very simple way that was [recently introduced](https://aws.amazon.com/blogs/compute/kubernetes-clusters-aws-kops/) involves using the [Kubernetes Operations](https://github.com/kubernetes/kops) (kops) tool.
 
-You can find detailed instructions for setting up a Kubernetes cluster on AWS [here](https://github.com/kubernetes/kops/blob/master/docs/aws.md).
+You can find detailed instructions for setting up a Kubernetes cluster on AWS [here](https://github.com/kubernetes/kops/blob/master/docs/getting_started/aws.md).
 
 When you create a cluster using those instructions, your `kubectl` config in `~/.kube/config` (on MacOS and Linux) will be updated for you, so you probably won't need to change your configuration. Nonetheless, you can ensure that `kubectl` can interact with your cluster by listing the nodes in the cluster:
 

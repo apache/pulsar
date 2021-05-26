@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
+import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.Encoded;
 import javax.ws.rs.GET;
@@ -90,8 +91,7 @@ public class NonPersistentTopics extends PersistentTopics {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Is check configuration required to automatically create topic")
             @QueryParam("checkAllowAutoCreation") @DefaultValue("false") boolean checkAllowAutoCreation) {
-        validateTopicName(tenant, namespace, encodedTopic);
-        return getPartitionedTopicMetadata(topicName, authoritative, checkAllowAutoCreation);
+        return super.getPartitionedMetadata(tenant, namespace, encodedTopic, authoritative, checkAllowAutoCreation);
     }
 
     @GET
@@ -376,6 +376,32 @@ public class NonPersistentTopics extends PersistentTopics {
             }
             return null;
         });
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/truncate")
+    @ApiOperation(value = "Truncate a topic.",
+            notes = "NonPersistentTopic does not support truncate.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 412, message = "NonPersistentTopic does not support truncate.")
+    })
+    public void truncateTopic(
+            @Suspended final AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative){
+        asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED.getStatusCode(),
+                "unsupport truncate"));
+    }
+
+    protected void validateAdminOperationOnTopic(TopicName topicName, boolean authoritative) {
+        validateAdminAccessForTenant(topicName.getTenant());
+        validateTopicOwnership(topicName, authoritative);
     }
 
     private Topic getTopicReference(TopicName topicName) {

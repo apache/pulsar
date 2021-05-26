@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
@@ -30,6 +31,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
@@ -47,6 +49,7 @@ import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -171,6 +174,46 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         Assert.assertFalse(readLatest.hasMessageAvailable());
     }
 
+    @Test
+    public void testMultiTopicSeekByFunction() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/test" + UUID.randomUUID();
+        int msgNum = 10;
+        publishMessages(topicName, msgNum, false);
+        Reader<byte[]> reader = pulsarClient
+                .newReader().startMessageIdInclusive().startMessageId(MessageId.latest)
+                .topic(topicName).subscriptionName("my-sub").create();
+        long now = System.currentTimeMillis();
+        reader.seek((topic) -> now);
+        assertNull(reader.readNext(1, TimeUnit.SECONDS));
+        // seek by time
+        reader.seek((topic) -> {
+            assertFalse(TopicName.get(topic).isPartitioned());
+            return now - 999999;
+        });
+        int count = 0;
+        while (true) {
+            Message<byte[]> message = reader.readNext(1, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
+            }
+            count++;
+        }
+        assertEquals(count, msgNum);
+        // seek by msg id
+        reader.seek((topic) -> {
+            assertFalse(TopicName.get(topic).isPartitioned());
+            return MessageId.earliest;
+        });
+        count = 0;
+        while (true) {
+            Message<byte[]> message = reader.readNext(1, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
+            }
+            count++;
+        }
+        assertEquals(count, msgNum);
+    }
 
     @Test
     public void testReadFromPartition() throws Exception {

@@ -76,6 +76,11 @@
 
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-alpn-conscrypt-server</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-servlet</artifactId>
     </dependency>
 
@@ -97,6 +102,11 @@
     <dependency>
       <groupId>org.glassfish.jersey.media</groupId>
       <artifactId>jersey-media-json-jackson</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>jakarta.activation</groupId>
+      <artifactId>jakarta.activation-api</artifactId>
     </dependency>
 
     <dependency>
