@@ -41,6 +41,7 @@ import org.apache.pulsar.client.util.ConsumerName;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.CompletableFutureCancellationHandler;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
@@ -916,7 +917,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
 
         List<CompletableFuture<Consumer<T>>> futureList;
-        if (numPartitions > 0) {
+        if (numPartitions != PartitionedTopicMetadata.NON_PARTITIONED) {
             // Below condition is true if subscribeAsync() has been invoked second time with same
             // topicName before the first invocation had reached this point.
             boolean isTopicBeingSubscribedForInOtherThread = this.topics.putIfAbsent(topicName, numPartitions) != null;
@@ -955,7 +956,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     })
                 .collect(Collectors.toList());
         } else {
-            boolean isTopicBeingSubscribedForInOtherThread = this.topics.putIfAbsent(topicName, 0) != null;
+            boolean isTopicBeingSubscribedForInOtherThread = this.topics.putIfAbsent(topicName,
+                    PartitionedTopicMetadata.NON_PARTITIONED) != null;
             if (isTopicBeingSubscribedForInOtherThread) {
                 String errorMessage = String.format("[%s] Failed to subscribe for topic [%s] in topics consumer. "
                     + "Topic is already being subscribed for in other thread.", topic, topicName);
@@ -1223,7 +1225,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     private CompletableFuture<Void> subscribeIncreasedTopicPartitions(String topicName) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         int oldPartitionNumber = topics.get(topicName);
-        if (oldPartitionNumber == 0) {
+        if (oldPartitionNumber == PartitionedTopicMetadata.NON_PARTITIONED) {
             return CompletableFuture.completedFuture(null);
         }
 
