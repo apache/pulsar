@@ -23,6 +23,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.gson.Gson;
 import java.time.Duration;
 import java.util.Collections;
@@ -32,7 +36,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -43,17 +49,27 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecord;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.examples.AutoSchemaFunction;
 import org.apache.pulsar.functions.api.examples.AvroSchemaTestFunction;
+import org.apache.pulsar.functions.api.examples.MergeTopicFunction;
 import org.apache.pulsar.functions.api.examples.pojo.AvroTestObject;
+import org.apache.pulsar.functions.api.examples.pojo.Users;
 import org.apache.pulsar.functions.api.examples.serde.CustomObject;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
@@ -70,6 +86,8 @@ import org.testng.annotations.Test;
  */
 @Slf4j
 public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public PulsarFunctionsTest(FunctionRuntimeType functionRuntimeType) {
         super(functionRuntimeType);
@@ -534,7 +552,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                         null,
                         PUBLISH_JAVA_CLASS,
                         schema,
-                        Collections.singletonMap("publish-topic", outputTopicName));
+                        Collections.singletonMap("publish-topic", outputTopicName),
+                        null, null);
                 break;
             case PYTHON:
                 submitFunction(
@@ -545,7 +564,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                         PUBLISH_FUNCTION_PYTHON_FILE,
                         PUBLISH_PYTHON_CLASS,
                         schema,
-                        Collections.singletonMap("publish-topic", outputTopicName));
+                        Collections.singletonMap("publish-topic", outputTopicName),
+                        null, null);
                 break;
             case GO:
                 submitFunction(
@@ -556,7 +576,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                         PUBLISH_FUNCTION_GO_FILE,
                         null,
                         schema,
-                        Collections.singletonMap("publish-topic", outputTopicName));
+                        Collections.singletonMap("publish-topic", outputTopicName),
+                        null, null);
         }
 
         // get function info
@@ -765,17 +786,20 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                            String functionFile,
                                            String functionClass,
                                            Schema<T> inputTopicSchema) throws Exception {
-        submitFunction(runtime, inputTopicName, outputTopicName, functionName, functionFile, functionClass, inputTopicSchema, null);
+        submitFunction(runtime, inputTopicName, outputTopicName, functionName, functionFile, functionClass,
+                inputTopicSchema, null, null, null);
     }
 
     private <T> void submitFunction(Runtime runtime,
-                                           String inputTopicName,
-                                           String outputTopicName,
-                                           String functionName,
-                                           String functionFile,
-                                           String functionClass,
-                                           Schema<T> inputTopicSchema,
-                                           Map<String, String> userConfigs) throws Exception {
+                                    String inputTopicName,
+                                    String outputTopicName,
+                                    String functionName,
+                                    String functionFile,
+                                    String functionClass,
+                                    Schema<T> inputTopicSchema,
+                                    Map<String, String> userConfigs,
+                                    String customSchemaInputs,
+                                    String outputSchemaType) throws Exception {
 
         CommandGenerator generator;
         log.info("------- INPUT TOPIC: '{}'", inputTopicName);
@@ -790,6 +814,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         generator.setFunctionName(functionName);
         if (userConfigs != null) {
             generator.setUserConfig(userConfigs);
+        }
+        if (customSchemaInputs != null) {
+            generator.setCustomSchemaInputs(customSchemaInputs);
+        }
+        if (outputSchemaType != null) {
+            generator.setSchemaType(outputSchemaType);
         }
         String command = "";
 
@@ -1520,4 +1550,188 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         client.close();
     }
 
+    protected void testMergeFunction() throws Exception {
+        log.info("start merge function test ...");
+
+        String ns = "public/ns-merge-" + randomName(8);
+        @Cleanup
+        PulsarAdmin pulsarAdmin = getPulsarAdmin();
+        pulsarAdmin.namespaces().createNamespace(ns);
+        pulsarAdmin.namespaces().setSchemaCompatibilityStrategy(ns, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+
+        @Cleanup
+        PulsarClient pulsarClient = getPulsarClient();
+
+        ObjectNode inputSpecNode = objectMapper.createObjectNode();
+        Map<String, AtomicInteger> topicMsgCntMap = new ConcurrentHashMap<>();
+        prepareDataForMergeFunction(ns, pulsarClient, inputSpecNode, topicMsgCntMap);
+
+        final String outputTopic = "test-merge-output-" + randomName(8);
+        @Cleanup
+        Consumer<GenericRecord> consumer = pulsarClient
+                .newConsumer(Schema.AUTO_CONSUME())
+                .subscriptionName("test-merge-fn")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .topic(outputTopic)
+                .subscribe();
+
+        final String functionName = "test-merge-fn-" + randomName(8);
+        submitFunction(
+                Runtime.JAVA,
+                null,
+                outputTopic,
+                functionName,
+                null,
+                MergeTopicFunction.class.getName(),
+                null,
+                null,
+                inputSpecNode.toString(),
+                SchemaType.AUTO_PUBLISH.name().toUpperCase());
+
+        getFunctionInfoSuccess(functionName);
+
+        Message<GenericRecord> message;
+        do {
+            message = consumer.receive(30, TimeUnit.SECONDS);
+            if (message != null) {
+                String baseTopic = message.getProperty("baseTopic");
+                GenericRecord genericRecord = message.getValue();
+                log.info("receive msg baseTopic: {}, schemaType: {}, nativeClass: {}, nativeObject: {}",
+                        baseTopic,
+                        genericRecord.getSchemaType(),
+                        genericRecord.getNativeObject().getClass(),
+                        genericRecord.getNativeObject());
+                checkSchemaForAutoSchema(message, baseTopic);
+                topicMsgCntMap.get(baseTopic).decrementAndGet();
+                consumer.acknowledge(message);
+            }
+        } while (message != null);
+
+        for (Map.Entry<String, AtomicInteger> entry : topicMsgCntMap.entrySet()) {
+            assertEquals(entry.getValue().get(), 0,
+                    "topic " + entry.getKey() + " left message cnt is not 0.");
+        }
+
+        deleteFunction(functionName);
+
+        getFunctionInfoNotFound(functionName);
+        log.info("finish merge function test.");
+    }
+
+    private void prepareDataForMergeFunction(String ns,
+                                             PulsarClient pulsarClient,
+                                             ObjectNode inputSpecNode,
+                                             Map<String, AtomicInteger> topicMsgCntMap) throws PulsarClientException {
+        int messagePerTopic = 10;
+        generateDataByDifferentSchema(ns, "merge-schema-bytes", randomName(8), pulsarClient,
+                Schema.BYTES, "bytes schema test".getBytes(), messagePerTopic, inputSpecNode, topicMsgCntMap);
+        generateDataByDifferentSchema(ns, "merge-schema-string", randomName(8), pulsarClient,
+                Schema.STRING, "string schema test", messagePerTopic, inputSpecNode, topicMsgCntMap);
+        generateDataByDifferentSchema(ns, "merge-schema-json-userv1", randomName(8), pulsarClient,
+                Schema.JSON(Users.UserV1.class), new Users.UserV1("ran", 33),
+                messagePerTopic, inputSpecNode, topicMsgCntMap);
+        generateDataByDifferentSchema(ns, "merge-schema-json-userv2", randomName(8), pulsarClient,
+                Schema.JSON(Users.UserV2.class), new Users.UserV2("tang", 18, "123123123"),
+                messagePerTopic, inputSpecNode, topicMsgCntMap);
+        generateDataByDifferentSchema(ns, "merge-schema-avro-userv2", randomName(8), pulsarClient,
+                Schema.AVRO(Users.UserV2.class), new Users.UserV2("tang", 20, "456456456"),
+                messagePerTopic, inputSpecNode, topicMsgCntMap);
+        generateDataByDifferentSchema(ns, "merge-schema-k-int-v-json-userv1-separate",
+                randomName(8), pulsarClient,
+                Schema.KeyValue(Schema.INT32, Schema.JSON(Users.UserV1.class), KeyValueEncodingType.SEPARATED),
+                new KeyValue<>(100, new Users.UserV1("ran", 40)),
+                messagePerTopic, inputSpecNode, topicMsgCntMap);
+        generateDataByDifferentSchema(ns, "merge-schema-k-json-userv2-v-json-userv1-inline",
+                randomName(8), pulsarClient,
+                Schema.KeyValue(Schema.JSON(Users.UserV2.class), Schema.JSON(Users.UserV1.class),
+                        KeyValueEncodingType.INLINE),
+                new KeyValue<>(new Users.UserV2("tang", 20, "789789789"),
+                        new Users.UserV1("ran", 40)),
+                messagePerTopic, inputSpecNode, topicMsgCntMap);
+    }
+
+    private void generateDataByDifferentSchema(String ns,
+                                               String baseTopic,
+                                               String topicRandomSuffix,
+                                               PulsarClient pulsarClient,
+                                               Schema schema,
+                                               Object data,
+                                               int messageCnt,
+                                               ObjectNode inputSpecNode,
+                                               Map<String, AtomicInteger> topicMsgCntMap) throws PulsarClientException {
+        String topic = ns + "/" + baseTopic + "-" + topicRandomSuffix;
+        Producer producer = pulsarClient.newProducer(schema)
+                .topic(topic)
+                .create();
+        for (int i = 0; i < messageCnt; i++) {
+            producer.newMessage().value(data).property("baseTopic", baseTopic).send();
+        }
+        ObjectNode confNode = objectMapper.createObjectNode();
+        confNode.put("schemaType", SchemaType.AUTO_CONSUME.name().toUpperCase());
+        inputSpecNode.put(topic, confNode.toString());
+        topicMsgCntMap.put(baseTopic, new AtomicInteger(messageCnt));
+        producer.close();
+    }
+
+    private void checkSchemaForAutoSchema(Message<GenericRecord> message, String baseTopic) {
+        if (!message.getReaderSchema().isPresent()) {
+            fail("Failed to get reader schema for auto consume multiple schema topic.");
+        }
+        Object nativeObject = message.getValue().getNativeObject();
+        JsonNode jsonNode;
+        KeyValue<?, ?> kv;
+        switch (baseTopic) {
+            case "merge-schema-bytes":
+                assertEquals(new String((byte[]) nativeObject), "bytes schema test");
+                break;
+            case "merge-schema-string":
+                assertEquals((String) nativeObject, "string schema test");
+                break;
+            case "merge-schema-json-userv1":
+                jsonNode = (JsonNode) nativeObject;
+                assertEquals(jsonNode.get("name").textValue(), "ran");
+                assertEquals(jsonNode.get("age").intValue(), 33);
+                break;
+            case "merge-schema-json-userv2":
+                jsonNode = (JsonNode) nativeObject;
+                assertEquals(jsonNode.get("name").textValue(), "tang");
+                assertEquals(jsonNode.get("age").intValue(), 18);
+                assertEquals(jsonNode.get("phone").textValue(), "123123123");
+                break;
+            case "merge-schema-avro-userv2":
+                org.apache.avro.generic.GenericRecord genericRecord =
+                        (org.apache.avro.generic.GenericRecord) nativeObject;
+                assertEquals(genericRecord.get("name"), "tang");
+                assertEquals(genericRecord.get("age"), 20);
+                assertEquals(genericRecord.get("phone"), "456456456");
+                break;
+            case "merge-schema-k-int-v-json-userv1-separate":
+                kv = (KeyValue<Integer, GenericRecord>) nativeObject;
+                assertEquals(kv.getKey(), 100);
+                jsonNode = ((GenericJsonRecord) kv.getValue()).getJsonNode();
+                assertEquals(jsonNode.get("name").textValue(), "ran");
+                assertEquals(jsonNode.get("age").intValue(), 40);
+                break;
+            case "merge-schema-k-json-userv2-v-json-userv1-inline":
+                kv = (KeyValue<GenericRecord, GenericRecord>) nativeObject;
+                jsonNode = ((GenericJsonRecord) kv.getKey()).getJsonNode();
+                assertEquals(jsonNode.get("name").textValue(), "tang");
+                assertEquals(jsonNode.get("age").intValue(), 20);
+                assertEquals(jsonNode.get("phone").textValue(), "789789789");
+                jsonNode = ((GenericJsonRecord) kv.getValue()).getJsonNode();
+                assertEquals(jsonNode.get("name").textValue(), "ran");
+                assertEquals(jsonNode.get("age").intValue(), 40);
+                break;
+            default:
+                // nothing to do
+        }
+    }
+
+    private PulsarClient getPulsarClient() throws PulsarClientException {
+        return PulsarClient.builder().serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
+    }
+
+    private PulsarAdmin getPulsarAdmin() throws PulsarClientException {
+        return PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
+    }
 }

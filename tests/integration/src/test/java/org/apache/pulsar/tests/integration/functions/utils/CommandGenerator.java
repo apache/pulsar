@@ -57,6 +57,8 @@ public class CommandGenerator {
     private Long windowLengthDurationMs;
     private Integer slidingIntervalCount;
     private Long slidingIntervalDurationMs;
+    private String customSchemaInputs;
+    private String schemaType;
 
     private Map<String, String> userConfig = new HashMap<>();
     public static final String JAVAJAR = "/pulsar/examples/java-test-functions.jar";
@@ -102,6 +104,12 @@ public class CommandGenerator {
         }
         if (sinkTopic != null) {
             commandBuilder.append(" --output " + sinkTopic);
+        }
+        if (customSchemaInputs != null) {
+            commandBuilder.append(" --custom-schema-inputs " + customSchemaInputs);
+        }
+        if (schemaType != null) {
+            commandBuilder.append(" --schema-type " + schemaType);
         }
         switch (runtime){
             case JAVA:
@@ -189,6 +197,12 @@ public class CommandGenerator {
         }
         if (slidingIntervalDurationMs != null)  {
             commandBuilder.append(" --slidingIntervalDurationMs " + slidingIntervalDurationMs);
+        }
+        if (customSchemaInputs != null) {
+            commandBuilder.append(" --custom-schema-inputs " + customSchemaInputs);
+        }
+        if (schemaType != null) {
+            commandBuilder.append(" --schema-type " + schemaType);
         }
 
         switch (runtime){
@@ -278,6 +292,12 @@ public class CommandGenerator {
         }
         if (slidingIntervalDurationMs != null)  {
             commandBuilder.append(" --slidingIntervalDurationMs " + slidingIntervalDurationMs);
+        }
+        if (customSchemaInputs != null) {
+            commandBuilder.append(" --custom-schema-inputs " + customSchemaInputs);
+        }
+        if (schemaType != null) {
+            commandBuilder.append(" --schema-type " + schemaType);
         }
 
         if (codeFile != null) {
