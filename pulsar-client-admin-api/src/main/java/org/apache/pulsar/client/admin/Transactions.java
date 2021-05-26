@@ -59,7 +59,7 @@ public interface Transactions {
      *
      * @param txnID the txnId
      * @param topic the ack topic
-     * @param subName the sub name of this transaction ack
+     * @param subName the subscription name of this transaction ack
      * @return the future stats of transaction in pending ack.
      */
     CompletableFuture<TransactionInPendingAckStats> getTransactionInPendingAckStats(TxnID txnID, String topic,
@@ -85,7 +85,7 @@ public interface Transactions {
      * Get transaction pending ack stats.
      *
      * @param topic the topic of this transaction pending ack stats
-     * @param subName the topic of this transaction pending ack stats
+     * @param subName the subscription name of this transaction pending ack stats
      * @return the future stats of transaction pending ack.
      */
     CompletableFuture<TransactionPendingAckStats> getPendingAckStats(String topic, String subName);
