@@ -235,13 +235,13 @@ public abstract class BaseResource {
                     case 412:
                         return new PreconditionFailedException(cee, httpError, statusCode);
                     default:
-                        return new PulsarAdminException(cee, httpError, statusCode);
+                        return new PulsarAdminException(httpError, cee, httpError, statusCode);
                 }
             } else {
                 WebApplicationException wae = (WebApplicationException) e;
                 int statusCode = wae.getResponse().getStatus();
                 String httpError = getReasonFromServer(wae);
-                return new PulsarAdminException(wae, httpError, statusCode);
+                return new PulsarAdminException(httpError, wae, httpError, statusCode);
             }
         } else {
             return new PulsarAdminException(e);

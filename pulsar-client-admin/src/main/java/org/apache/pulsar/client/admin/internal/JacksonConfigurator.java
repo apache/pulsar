@@ -19,9 +19,25 @@
 package org.apache.pulsar.client.admin.internal;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.module.SimpleAbstractTypeResolver;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import javax.ws.rs.ext.ContextResolver;
 import javax.ws.rs.ext.Provider;
+import org.apache.pulsar.client.admin.OffloadProcessStatus;
+import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.FunctionState;
+import org.apache.pulsar.common.functions.JsonIgnorePropertiesMixIn;
+import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.BacklogQuotaMixIn;
+import org.apache.pulsar.common.policies.data.FunctionStats;
+import org.apache.pulsar.common.policies.data.FunctionStatsMixIn;
+import org.apache.pulsar.common.policies.data.ResourceQuota;
+import org.apache.pulsar.common.policies.data.ResourceQuotaMixIn;
+import org.apache.pulsar.common.stats.Metrics;
+import org.apache.pulsar.common.stats.MetricsMixIn;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
+import org.apache.pulsar.policies.data.loadbalancer.LoadReportDeserializer;
 
 /**
  * Provides custom configuration for jackson.
@@ -33,6 +49,37 @@ public class JacksonConfigurator implements ContextResolver<ObjectMapper> {
 
     public JacksonConfigurator() {
         mapper = ObjectMapperFactory.create();
+        setInterfaceDefaultMapperModule();
+    }
+
+    private void setInterfaceDefaultMapperModule() {
+        SimpleModule module = new SimpleModule("InterfaceDefaultMapperModule");
+
+        // we not specific @JsonDeserialize annotation in OffloadProcessStatus
+        // because we do not want to have jackson dependency in pulsar-client-admin-api
+        // In this case we use SimpleAbstractTypeResolver to map interfaces to impls
+        SimpleAbstractTypeResolver resolver = new SimpleAbstractTypeResolver();
+        resolver.addMapping(OffloadProcessStatus.class, OffloadProcessStatusImpl.class);
+
+        // we use customized deserializer to replace jackson annotations in some POJOs
+        module.addDeserializer(LoadManagerReport.class, new LoadReportDeserializer());
+
+        // we use MixIn class to add jackson annotations
+        mapper.addMixIn(BacklogQuota.class, BacklogQuotaMixIn.class);
+        mapper.addMixIn(ResourceQuota.class, ResourceQuotaMixIn.class);
+        mapper.addMixIn(FunctionConfig.class, JsonIgnorePropertiesMixIn.class);
+        mapper.addMixIn(FunctionState.class, JsonIgnorePropertiesMixIn.class);
+        mapper.addMixIn(FunctionStats.class, FunctionStatsMixIn.class);
+        mapper.addMixIn(FunctionStats.FunctionInstanceStats.class,
+                FunctionStatsMixIn.FunctionInstanceStatsMixIn.class);
+        mapper.addMixIn(FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.class,
+                FunctionStatsMixIn.FunctionInstanceStatsMixIn.FunctionInstanceStatsDataMixIn.class);
+        mapper.addMixIn(FunctionStats.FunctionInstanceStats.FunctionInstanceStatsDataBase.class,
+                FunctionStatsMixIn.FunctionInstanceStatsMixIn.FunctionInstanceStatsDataBaseMixIn.class);
+        mapper.addMixIn(Metrics.class, MetricsMixIn.class);
+
+        module.setAbstractTypes(resolver);
+        mapper.registerModule(module);
     }
 
     @Override

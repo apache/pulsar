@@ -74,7 +74,7 @@ public class PulsarAdminException extends Exception {
      */
     public static class NotAuthorizedException extends PulsarAdminException {
         public NotAuthorizedException(Throwable t, String httpError, int statusCode) {
-            super(t, httpError, statusCode);
+            super(httpError, t, httpError, statusCode);
         }
     }
 
@@ -83,7 +83,7 @@ public class PulsarAdminException extends Exception {
      */
     public static class NotFoundException extends PulsarAdminException {
         public NotFoundException(Throwable t, String httpError, int statusCode) {
-            super(t, httpError, statusCode);
+            super(httpError, t, httpError, statusCode);
         }
     }
 
@@ -92,7 +92,7 @@ public class PulsarAdminException extends Exception {
      */
     public static class NotAllowedException extends PulsarAdminException {
         public NotAllowedException(Throwable t, String httpError, int statusCode) {
-            super(t, httpError, statusCode);
+            super(httpError, t, httpError, statusCode);
         }
     }
 
@@ -101,7 +101,7 @@ public class PulsarAdminException extends Exception {
      */
     public static class ConflictException extends PulsarAdminException {
         public ConflictException(Throwable t, String httpError, int statusCode) {
-            super(t, httpError, statusCode);
+            super(httpError, t, httpError, statusCode);
         }
     }
 
@@ -110,7 +110,7 @@ public class PulsarAdminException extends Exception {
      */
     public static class PreconditionFailedException extends PulsarAdminException {
         public PreconditionFailedException(Throwable t, String httpError, int statusCode) {
-            super(t, httpError, statusCode);
+            super(httpError, t, httpError, statusCode);
         }
     }
 
