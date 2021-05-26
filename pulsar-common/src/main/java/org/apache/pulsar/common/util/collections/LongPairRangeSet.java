@@ -26,6 +26,7 @@ import com.google.common.collect.TreeRangeSet;
 import lombok.EqualsAndHashCode;
 
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
@@ -268,7 +269,11 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
 
         @Override
         public Range<T> firstRange() {
-            return set.asRanges().iterator().next();
+            Iterator<Range<T>> iterable = set.asRanges().iterator();
+            if (iterable.hasNext()) {
+                return set.asRanges().iterator().next();
+            }
+            return null;
         }
 
         @Override
