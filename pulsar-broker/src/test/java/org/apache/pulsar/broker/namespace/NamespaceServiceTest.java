@@ -156,7 +156,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         // (3) validate ownership of new split bundles by local owner
         bundleList.forEach(b -> {
             try {
-                byte[] data = this.pulsar.getLocalZkCache().getZooKeeper().getData(ServiceUnitZkUtils.path(b), null,
+                byte[] data = this.pulsar.getLocalZkCache().getZooKeeper().getData(ServiceUnitUtils.path(b), null,
                         new Stat());
                 NamespaceEphemeralData node = ObjectMapperFactory.getThreadLocal().readValue(data,
                         NamespaceEphemeralData.class);
@@ -294,7 +294,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         pulsar.getNamespaceService().unloadNamespaceBundle(bundle).join();
 
         try {
-            pulsar.getLocalZkCache().getZooKeeper().getData(ServiceUnitZkUtils.path(bundle), null, null);
+            pulsar.getLocalZkCache().getZooKeeper().getData(ServiceUnitUtils.path(bundle), null, null);
             fail("it should fail as node is not present");
         } catch (org.apache.zookeeper.KeeperException.NoNodeException e) {
             // ok
@@ -331,7 +331,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         pulsar.getNamespaceService().unloadNamespaceBundle(bundle, 1, TimeUnit.SECONDS).join();
 
         try {
-            pulsar.getLocalZkCache().getZooKeeper().getData(ServiceUnitZkUtils.path(bundle), null, null);
+            pulsar.getLocalZkCache().getZooKeeper().getData(ServiceUnitUtils.path(bundle), null, null);
             fail("it should fail as node is not present");
         } catch (org.apache.zookeeper.KeeperException.NoNodeException e) {
             // ok
@@ -454,7 +454,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         // (3) validate ownership of new split bundles by local owner
         bundleList.forEach(b -> {
             try {
-                byte[] data = this.pulsar.getLocalZkCache().getZooKeeper().getData(ServiceUnitZkUtils.path(b), null,
+                byte[] data = this.pulsar.getLocalZkCache().getZooKeeper().getData(ServiceUnitUtils.path(b), null,
                         new Stat());
                 NamespaceEphemeralData node = ObjectMapperFactory.getThreadLocal().readValue(data,
                         NamespaceEphemeralData.class);
@@ -516,7 +516,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         bCacheField.setAccessible(true);
         ((AsyncLoadingCache<NamespaceName, NamespaceBundles>) bCacheField.get(utilityFactory)).put(nsname,
                 CompletableFuture.completedFuture(bundles));
-        return utilityFactory.splitBundles(targetBundle, 2, null);
+        return utilityFactory.splitBundles(targetBundle, 2, null).join();
     }
 
     private static final Logger log = LoggerFactory.getLogger(NamespaceServiceTest.class);

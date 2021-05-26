@@ -18,8 +18,14 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-public class TransactionPendingAckStatus {
+public class TransactionBufferStats {
 
-    /** The state of this pending ack. */
+    /** The state of this transaction buffer. */
     public String state;
+
+    /** The max read position of this transaction buffer. */
+    public String maxReadPosition;
+
+    /** The last snapshot timestamps of this transaction buffer. */
+    public long lastSnapshotTimestamps;
 }

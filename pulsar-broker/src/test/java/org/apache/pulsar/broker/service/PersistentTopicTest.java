@@ -113,6 +113,7 @@ import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ProducerAccessMode;
+import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.protocol.ByteBufPair;
@@ -210,6 +211,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .when(serverCnx).getCommandSender();
 
         NamespaceService nsSvc = mock(NamespaceService.class);
+        NamespaceBundle bundle = mock(NamespaceBundle.class);
+        doReturn(CompletableFuture.completedFuture(bundle)).when(nsSvc).getBundleAsync(any());
         doReturn(nsSvc).when(pulsar).getNamespaceService();
         doReturn(true).when(nsSvc).isServiceUnitOwned(any());
         doReturn(true).when(nsSvc).isServiceUnitActive(any());

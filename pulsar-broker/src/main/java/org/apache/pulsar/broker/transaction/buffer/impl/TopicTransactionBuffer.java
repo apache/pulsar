@@ -50,7 +50,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.TransactionBufferStatus;
+import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
@@ -401,12 +401,12 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     }
 
     @Override
-    public TransactionBufferStatus getStatus() {
-        TransactionBufferStatus transactionBufferStatus = new TransactionBufferStatus();
-        transactionBufferStatus.lastSnapshotTimestamps = this.lastSnapshotTimestamps;
-        transactionBufferStatus.state = this.getState().name();
-        transactionBufferStatus.maxReadPosition = this.maxReadPosition.toString();
-        return transactionBufferStatus;
+    public TransactionBufferStats getStats() {
+        TransactionBufferStats transactionBufferStats = new TransactionBufferStats();
+        transactionBufferStats.lastSnapshotTimestamps = this.lastSnapshotTimestamps;
+        transactionBufferStats.state = this.getState().name();
+        transactionBufferStats.maxReadPosition = this.maxReadPosition.toString();
+        return transactionBufferStats;
     }
 
     @Override

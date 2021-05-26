@@ -29,7 +29,7 @@ import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.policies.data.TransactionBufferStatus;
+import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.util.FutureUtil;
 
@@ -94,7 +94,7 @@ public class TransactionBufferDisable implements TransactionBuffer {
     }
 
     @Override
-    public TransactionBufferStatus getStatus() {
+    public TransactionBufferStats getStats() {
         return null;
     }
 }

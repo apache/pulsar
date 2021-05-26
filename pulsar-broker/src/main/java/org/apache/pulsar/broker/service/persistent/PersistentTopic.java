@@ -132,10 +132,10 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
-import org.apache.pulsar.common.policies.data.TransactionBufferStatus;
+import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
-import org.apache.pulsar.common.policies.data.TransactionPendingAckStatus;
+import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
@@ -1179,17 +1179,22 @@ public class PersistentTopic extends AbstractTopic
                 @Override
                 public void closeComplete(Object ctx) {
                     // Everything is now closed, remove the topic from map
-                    brokerService.removeTopicFromCache(topic);
+                    brokerService.removeTopicFromCache(topic)
+                            .thenRun(() -> {
+                                replicatedSubscriptionsController.ifPresent(ReplicatedSubscriptionsController::close);
 
-                    replicatedSubscriptionsController.ifPresent(ReplicatedSubscriptionsController::close);
+                                dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
 
-                    dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
+                                subscribeRateLimiter.ifPresent(SubscribeRateLimiter::close);
 
-                    subscribeRateLimiter.ifPresent(SubscribeRateLimiter::close);
-
-                    brokerService.pulsar().getTopicPoliciesService().clean(TopicName.get(topic));
-                    log.info("[{}] Topic closed", topic);
-                    closeFuture.complete(null);
+                                brokerService.pulsar().getTopicPoliciesService().clean(TopicName.get(topic));
+                                log.info("[{}] Topic closed", topic);
+                                closeFuture.complete(null);
+                            })
+                    .exceptionally(ex -> {
+                        closeFuture.completeExceptionally(ex);
+                        return null;
+                    });
                 }
 
                 @Override
@@ -1330,8 +1335,8 @@ public class PersistentTopic extends AbstractTopic
             int messageTtlInSeconds = getMessageTTL();
 
             if (messageTtlInSeconds != 0) {
-                subscriptions.values().forEach((sub) -> sub.expireMessages(messageTtlInSeconds));
-                replicators.values().forEach((replicator)
+                subscriptions.forEach((__, sub) -> sub.expireMessages(messageTtlInSeconds));
+                replicators.forEach((__, replicator)
                         -> ((PersistentReplicator) replicator).expireMessages(messageTtlInSeconds));
             }
         } catch (Exception e) {
@@ -3061,12 +3066,12 @@ public class PersistentTopic extends AbstractTopic
         }
     }
 
-    public TransactionBufferStatus getTransactionBufferStatus() {
-        return this.transactionBuffer.getStatus();
+    public TransactionBufferStats getTransactionBufferStats() {
+        return this.transactionBuffer.getStats();
     }
 
-    public TransactionPendingAckStatus getTransactionPendingAckStatus(String subName) {
-        return this.subscriptions.get(subName).getTransactionPendingAckStatus();
+    public TransactionPendingAckStats getTransactionPendingAckStats(String subName) {
+        return this.subscriptions.get(subName).getTransactionPendingAckStats();
     }
 
     public PositionImpl getMaxReadPosition() {

@@ -27,34 +27,34 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 @Parameters(commandDescription = "Operations on transactions")
 public class CmdTransactions extends CmdBase {
 
-    @Parameters(commandDescription = "Get transaction coordinator status")
-    private class GetCoordinatorStatus extends CliCommand {
+    @Parameters(commandDescription = "Get transaction coordinator stats")
+    private class GetCoordinatorStats extends CliCommand {
         @Parameter(names = {"-c", "--coordinator-id"}, description = "the coordinator id", required = false)
         private Integer coordinatorId;
 
         @Override
         void run() throws Exception {
             if (coordinatorId != null) {
-                print(getAdmin().transactions().getCoordinatorStatusById(coordinatorId));
+                print(getAdmin().transactions().getCoordinatorStatsById(coordinatorId));
             } else {
-                print(getAdmin().transactions().getCoordinatorStatus());
+                print(getAdmin().transactions().getCoordinatorStats());
             }
         }
     }
 
-    @Parameters(commandDescription = "Get transaction buffer status")
-    private class GetTransactionBufferStatus extends CliCommand {
+    @Parameters(commandDescription = "Get transaction buffer stats")
+    private class GetTransactionBufferStats extends CliCommand {
         @Parameter(names = {"-t", "--topic"}, description = "the topic", required = true)
         private String topic;
 
         @Override
         void run() throws Exception {
-            print(getAdmin().transactions().getTransactionBufferStatus(topic));
+            print(getAdmin().transactions().getTransactionBufferStats(topic));
         }
     }
 
-    @Parameters(commandDescription = "Get transaction pending ack status")
-    private class GetPendingAckStatus extends CliCommand {
+    @Parameters(commandDescription = "Get transaction pending ack stats")
+    private class GetPendingAckStats extends CliCommand {
         @Parameter(names = {"-t", "--topic"}, description = "the topic", required = true)
         private String topic;
 
@@ -63,7 +63,7 @@ public class CmdTransactions extends CmdBase {
 
         @Override
         void run() throws Exception {
-            print(getAdmin().transactions().getPendingAckStatus(topic, subName));
+            print(getAdmin().transactions().getPendingAckStats(topic, subName));
         }
     }
 
@@ -106,12 +106,27 @@ public class CmdTransactions extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get transaction metadata")
+    private class GetTransactionMetadata extends CliCommand {
+        @Parameter(names = {"-m", "--most-sig-bits"}, description = "the most sig bits", required = true)
+        private int mostSigBits;
+
+        @Parameter(names = {"-l", "--least-sig-bits"}, description = "the least sig bits", required = true)
+        private long leastSigBits;
+
+        @Override
+        void run() throws Exception {
+            print(getAdmin().transactions().getTransactionMetadata(new TxnID(mostSigBits, leastSigBits)));
+        }
+    }
+
     public CmdTransactions(Supplier<PulsarAdmin> admin) {
         super("transactions", admin);
-        jcommander.addCommand("coordinator-status", new GetCoordinatorStatus());
-        jcommander.addCommand("transaction-buffer-status", new GetTransactionBufferStatus());
-        jcommander.addCommand("pending-ack-status", new GetPendingAckStatus());
+        jcommander.addCommand("coordinator-stats", new GetCoordinatorStats());
+        jcommander.addCommand("transaction-buffer-stats", new GetTransactionBufferStats());
+        jcommander.addCommand("pending-ack-stats", new GetPendingAckStats());
         jcommander.addCommand("transaction-in-buffer-stats", new GetTransactionInBufferStats());
         jcommander.addCommand("transaction-in-pending-ack-stats", new GetTransactionInPendingAckStats());
+        jcommander.addCommand("transaction-metadata", new GetTransactionMetadata());
     }
 }

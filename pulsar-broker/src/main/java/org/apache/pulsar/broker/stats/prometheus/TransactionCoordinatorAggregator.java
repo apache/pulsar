@@ -40,7 +40,7 @@ public class TransactionCoordinatorAggregator {
         pulsar.getTransactionMetadataStoreService().getStores()
                 .forEach((transactionCoordinatorID, transactionMetadataStore) -> {
                     transactionCoordinatorStats.reset();
-                    TransactionMetadataStoreStats transactionMetadataStoreStats = transactionMetadataStore.getStats();
+                    TransactionMetadataStoreStats transactionMetadataStoreStats = transactionMetadataStore.getMetadataStoreStats();
                     transactionCoordinatorStats.actives =
                             transactionMetadataStoreStats.getActives();
                     transactionCoordinatorStats.committedCount =

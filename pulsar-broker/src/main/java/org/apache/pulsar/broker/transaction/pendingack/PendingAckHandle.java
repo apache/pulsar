@@ -29,7 +29,7 @@ import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
-import org.apache.pulsar.common.policies.data.TransactionPendingAckStatus;
+import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 
 /**
@@ -140,11 +140,11 @@ public interface PendingAckHandle {
     TransactionInPendingAckStats getTransactionInPendingAckStats(TxnID txnID);
 
     /**
-     * Get pending ack handle status.
+     * Get pending ack handle stats.
      *
-     * @return the status of this pending ack handle.
+     * @return the stats of this pending ack handle.
      */
-    TransactionPendingAckStatus getStatus();
+    TransactionPendingAckStats getStats();
 
     /**
      * Close the pending ack handle.

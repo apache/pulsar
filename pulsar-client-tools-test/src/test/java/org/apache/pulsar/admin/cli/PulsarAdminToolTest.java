@@ -35,7 +35,6 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
@@ -1420,11 +1419,11 @@ public class PulsarAdminToolTest {
 
         CmdTransactions cmdTransactions = new CmdTransactions(() -> admin);
 
-        cmdTransactions.run(split("coordinator-status -c 1"));
-        verify(transactions).getCoordinatorStatusById(1);
+        cmdTransactions.run(split("coordinator-stats -c 1"));
+        verify(transactions).getCoordinatorStatsById(1);
 
         cmdTransactions = new CmdTransactions(() -> admin);
-        cmdTransactions.run(split("coordinator-status"));
+        cmdTransactions.run(split("coordinator-stats"));
 
         cmdTransactions = new CmdTransactions(() -> admin);
         cmdTransactions.run(split("transaction-in-buffer-stats -m 1 -t test -l 2"));
@@ -1436,12 +1435,16 @@ public class PulsarAdminToolTest {
                 new TxnID(1, 2), "test", "test");
 
         cmdTransactions = new CmdTransactions(() -> admin);
-        cmdTransactions.run(split("transaction-buffer-status -t test"));
-        verify(transactions).getTransactionBufferStatus("test");
+        cmdTransactions.run(split("transaction-metadata -m 1 -l 2"));
+        verify(transactions).getTransactionMetadata(new TxnID(1, 2));
 
         cmdTransactions = new CmdTransactions(() -> admin);
-        cmdTransactions.run(split("pending-ack-status -t test -s test"));
-        verify(transactions).getPendingAckStatus("test", "test");
+        cmdTransactions.run(split("transaction-buffer-stats -t test"));
+        verify(transactions).getTransactionBufferStats("test");
+
+        cmdTransactions = new CmdTransactions(() -> admin);
+        cmdTransactions.run(split("pending-ack-stats -t test -s test"));
+        verify(transactions).getPendingAckStats("test", "test");
     }
 
     String[] split(String s) {
