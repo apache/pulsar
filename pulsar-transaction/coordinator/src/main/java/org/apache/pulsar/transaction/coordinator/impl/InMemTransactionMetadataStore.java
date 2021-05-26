@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.policies.data.TransactionCoordinatorStatus;
+import org.apache.pulsar.common.policies.data.TransactionCoordinatorStats;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
@@ -136,7 +136,7 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
     }
 
     @Override
-    public TransactionCoordinatorStatus getStatus() {
+    public TransactionCoordinatorStats getCoordinatorStats() {
         return null;
     }
 
@@ -147,7 +147,7 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
     }
 
     @Override
-    public TransactionMetadataStoreStats getStats() {
+    public TransactionMetadataStoreStats getMetadataStoreStats() {
         transactionMetadataStoreStats.setActives(transactions.size());
         transactionMetadataStoreStats.setCoordinatorId(tcID.getId());
         this.transactionMetadataStoreStats.setCreatedCount(this.createTransactionCount.longValue());
@@ -157,7 +157,7 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
     }
 
     @Override
-    public List<Long> getSlowTransactions(long timeout) {
+    public List<TxnMeta> getSlowTransactions(long timeout) {
         return null;
     }
 }

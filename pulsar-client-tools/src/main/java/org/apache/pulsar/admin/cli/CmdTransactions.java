@@ -29,18 +29,43 @@ import org.apache.pulsar.common.util.RelativeTimeUtil;
 @Parameters(commandDescription = "Operations on transactions")
 public class CmdTransactions extends CmdBase {
 
-    @Parameters(commandDescription = "Get transaction coordinator status")
-    private class GetCoordinatorStatus extends CliCommand {
+    @Parameters(commandDescription = "Get transaction coordinator stats")
+    private class GetCoordinatorStats extends CliCommand {
         @Parameter(names = {"-c", "--coordinator-id"}, description = "the coordinator id", required = false)
         private Integer coordinatorId;
 
         @Override
         void run() throws Exception {
             if (coordinatorId != null) {
-                print(getAdmin().transactions().getCoordinatorStatusById(coordinatorId));
+                print(getAdmin().transactions().getCoordinatorStatsById(coordinatorId));
             } else {
-                print(getAdmin().transactions().getCoordinatorStatus());
+                print(getAdmin().transactions().getCoordinatorStats());
             }
+        }
+    }
+
+    @Parameters(commandDescription = "Get transaction buffer stats")
+    private class GetTransactionBufferStats extends CliCommand {
+        @Parameter(names = {"-t", "--topic"}, description = "the topic", required = true)
+        private String topic;
+
+        @Override
+        void run() throws Exception {
+            print(getAdmin().transactions().getTransactionBufferStats(topic));
+        }
+    }
+
+    @Parameters(commandDescription = "Get transaction pending ack stats")
+    private class GetPendingAckStats extends CliCommand {
+        @Parameter(names = {"-t", "--topic"}, description = "the topic", required = true)
+        private String topic;
+
+        @Parameter(names = {"-s", "--sub-name"}, description = "the subscription name", required = true)
+        private String subName;
+
+        @Override
+        void run() throws Exception {
+            print(getAdmin().transactions().getPendingAckStats(topic, subName));
         }
     }
 
@@ -60,8 +85,8 @@ public class CmdTransactions extends CmdBase {
 
         @Override
         void run() throws Exception {
-            getAdmin().transactions().getTransactionInPendingAckStats(new TxnID(mostSigBits, leastSigBits),
-                    topic, subName);
+            print(getAdmin().transactions().getTransactionInPendingAckStats(new TxnID(mostSigBits, leastSigBits),
+                    topic, subName));
         }
     }
 
@@ -97,8 +122,8 @@ public class CmdTransactions extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get slow transaction metadata")
-    private class GetSlowTransactionMetadata extends CliCommand {
+    @Parameters(commandDescription = "Get slow transactions.")
+    private class GetSlowTransactions extends CliCommand {
         @Parameter(names = {"-c", "--coordinator-id"}, description = "The coordinator id", required = false)
         private Integer coordinatorId;
 
@@ -111,20 +136,22 @@ public class CmdTransactions extends CmdBase {
             long timeout =
                     TimeUnit.SECONDS.toMillis(RelativeTimeUtil.parseRelativeTimeInSeconds(timeoutStr));
             if (coordinatorId != null) {
-                print(getAdmin().transactions().getSlowTransactionMetadataByCoordinatorId(coordinatorId,
+                print(getAdmin().transactions().getSlowTransactionsByCoordinatorId(coordinatorId,
                         timeout, TimeUnit.MILLISECONDS));
             } else {
-                print(getAdmin().transactions().getSlowTransactionMetadata(timeout, TimeUnit.MILLISECONDS));
+                print(getAdmin().transactions().getSlowTransactions(timeout, TimeUnit.MILLISECONDS));
             }
         }
     }
 
     public CmdTransactions(Supplier<PulsarAdmin> admin) {
         super("transactions", admin);
-        jcommander.addCommand("coordinator-status", new GetCoordinatorStatus());
+        jcommander.addCommand("coordinator-stats", new GetCoordinatorStats());
+        jcommander.addCommand("transaction-buffer-stats", new GetTransactionBufferStats());
+        jcommander.addCommand("pending-ack-stats", new GetPendingAckStats());
         jcommander.addCommand("transaction-in-buffer-stats", new GetTransactionInBufferStats());
         jcommander.addCommand("transaction-in-pending-ack-stats", new GetTransactionInPendingAckStats());
         jcommander.addCommand("transaction-metadata", new GetTransactionMetadata());
-        jcommander.addCommand("slow-transaction-metadata", new GetSlowTransactionMetadata());
+        jcommander.addCommand("slow-transactions", new GetSlowTransactions());
     }
 }

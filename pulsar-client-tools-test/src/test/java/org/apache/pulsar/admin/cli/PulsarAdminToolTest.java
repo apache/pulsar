@@ -1419,12 +1419,11 @@ public class PulsarAdminToolTest {
 
         CmdTransactions cmdTransactions = new CmdTransactions(() -> admin);
 
-        cmdTransactions.run(split("coordinator-status -c 1"));
-        verify(transactions).getCoordinatorStatusById(1);
+        cmdTransactions.run(split("coordinator-stats -c 1"));
+        verify(transactions).getCoordinatorStatsById(1);
 
         cmdTransactions = new CmdTransactions(() -> admin);
-        cmdTransactions.run(split("coordinator-status"));
-        verify(transactions).getCoordinatorStatus();
+        cmdTransactions.run(split("coordinator-stats"));
 
         cmdTransactions = new CmdTransactions(() -> admin);
         cmdTransactions.run(split("transaction-in-buffer-stats -m 1 -t test -l 2"));
@@ -1440,14 +1439,21 @@ public class PulsarAdminToolTest {
         verify(transactions).getTransactionMetadata(new TxnID(1, 2));
 
         cmdTransactions = new CmdTransactions(() -> admin);
-        cmdTransactions.run(split("slow-transaction-metadata -c 1 -t 1h"));
-        verify(transactions).getSlowTransactionMetadataByCoordinatorId(
+        cmdTransactions.run(split("slow-transactions -c 1 -t 1h"));
+        verify(transactions).getSlowTransactionsByCoordinatorId(
                 1, 3600000, TimeUnit.MILLISECONDS);
 
         cmdTransactions = new CmdTransactions(() -> admin);
-        cmdTransactions.run(split("slow-transaction-metadata -t 1h"));
-        verify(transactions).getSlowTransactionMetadata(3600000, TimeUnit.MILLISECONDS);
+        cmdTransactions.run(split("slow-transactions -t 1h"));
+        verify(transactions).getSlowTransactions(3600000, TimeUnit.MILLISECONDS);
 
+        cmdTransactions = new CmdTransactions(() -> admin);
+        cmdTransactions.run(split("transaction-buffer-stats -t test"));
+        verify(transactions).getTransactionBufferStats("test");
+
+        cmdTransactions = new CmdTransactions(() -> admin);
+        cmdTransactions.run(split("pending-ack-stats -t test -s test"));
+        verify(transactions).getPendingAckStats("test", "test");
     }
 
     String[] split(String s) {

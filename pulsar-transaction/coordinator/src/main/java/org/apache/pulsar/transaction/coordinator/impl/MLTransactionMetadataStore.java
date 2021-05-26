@@ -31,7 +31,7 @@ import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.Subscription;
-import org.apache.pulsar.common.policies.data.TransactionCoordinatorStatus;
+import org.apache.pulsar.common.policies.data.TransactionCoordinatorStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionLogReplayCallback;
@@ -375,12 +375,12 @@ public class MLTransactionMetadataStore
     }
 
     @Override
-    public TransactionCoordinatorStatus getStatus() {
-        TransactionCoordinatorStatus transactionCoordinatorStatus = new TransactionCoordinatorStatus();
-        transactionCoordinatorStatus.setLowWaterMark(getLowWaterMark());
-        transactionCoordinatorStatus.setState(getState().name());
-        transactionCoordinatorStatus.setLeastSigBits(sequenceId.get());
-        return transactionCoordinatorStatus;
+    public TransactionCoordinatorStats getCoordinatorStats() {
+        TransactionCoordinatorStats transactionCoordinatorstats = new TransactionCoordinatorStats();
+        transactionCoordinatorstats.setLowWaterMark(getLowWaterMark());
+        transactionCoordinatorstats.setState(getState().name());
+        transactionCoordinatorstats.setLeastSigBits(sequenceId.get());
+        return transactionCoordinatorstats;
     }
 
     private CompletableFuture<Pair<TxnMeta, List<Position>>> getTxnPositionPair(TxnID txnID) {
@@ -408,7 +408,7 @@ public class MLTransactionMetadataStore
     }
 
     @Override
-    public TransactionMetadataStoreStats getStats() {
+    public TransactionMetadataStoreStats getMetadataStoreStats() {
         this.transactionMetadataStoreStats.setCoordinatorId(tcID.getId());
         this.transactionMetadataStoreStats.setActives(txnMetaMap.size());
         this.transactionMetadataStoreStats.setCreatedCount(this.createdTransactionCount.longValue());
@@ -420,14 +420,14 @@ public class MLTransactionMetadataStore
     }
 
     @Override
-    public List<Long> getSlowTransactions(long timeout) {
-        List<Long> list = new ArrayList<>();
+    public List<TxnMeta> getSlowTransactions(long timeout) {
+        List<TxnMeta> txnMetas = new ArrayList<>();
         txnMetaMap.forEach((k, v) -> {
             if (v.getLeft().getTimeoutAt() > timeout) {
-                list.add(k);
+                txnMetas.add(v.getLeft());
             }
         });
-        return list;
+        return txnMetas;
     }
 
     public static List<Subscription> txnSubscriptionToSubscription(List<TransactionSubscription> tnxSubscriptions) {
