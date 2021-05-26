@@ -21,6 +21,7 @@ package org.apache.pulsar.transaction.coordinator;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
@@ -43,9 +44,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
+import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.State.WriteFailed;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
 
@@ -365,6 +368,38 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
                         new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl());
 
         Awaitility.await().until(transactionMetadataStore::checkIfReady);
+    }
+
+    @Test
+    public void testManageLedgerWriteFailState() throws Exception {
+        ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
+        factoryConf.setMaxCacheSize(0);
+
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConf);
+        TransactionCoordinatorID transactionCoordinatorID = new TransactionCoordinatorID(1);
+        MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
+                new ManagedLedgerConfig());
+        MLTransactionMetadataStore transactionMetadataStore =
+                new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
+                        new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl());
+
+        Awaitility.await().until(transactionMetadataStore::checkIfReady);
+        transactionMetadataStore.newTransaction(5000).get();
+        Field field = MLTransactionLogImpl.class.getDeclaredField("managedLedger");
+        field.setAccessible(true);
+        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) field.get(mlTransactionLog);
+        field = ManagedLedgerImpl.class.getDeclaredField("STATE_UPDATER");
+        field.setAccessible(true);
+        AtomicReferenceFieldUpdater state = (AtomicReferenceFieldUpdater) field.get(managedLedger);
+        state.set(managedLedger, WriteFailed);
+        try {
+            transactionMetadataStore.newTransaction(5000).get();
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof ManagedLedgerException.ManagedLedgerAlreadyClosedException);
+        }
+        transactionMetadataStore.newTransaction(5000).get();
+
     }
 
     public class TransactionTimeoutTrackerImpl implements TransactionTimeoutTracker {
