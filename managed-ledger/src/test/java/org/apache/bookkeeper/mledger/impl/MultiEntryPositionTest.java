@@ -136,7 +136,7 @@ public class MultiEntryPositionTest extends MockedBookKeeperTestCase {
      * persistPositionToLedger -> remove individualDeletedMessages
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 30000)
     public void testCopyLruEntriesToNewLedger() throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setEnableLruCacheMaxUnackedRanges(true);
@@ -191,41 +191,39 @@ public class MultiEntryPositionTest extends MockedBookKeeperTestCase {
         assertEquals(c1.getRangeMarker().size(), 4);
         // After copying, flushPendingMarkDeletes will be triggered.
         // Copying will occupy entryId 0-3, and flushPendingMarkDeletes will occupy 4-7.
-        AtomicLong entryIdCounter = new AtomicLong(4);
+        Set<Long> entryIds = new HashSet<>(Arrays.asList(4L, 5L, 6L, 7L));
+        Set<Long> ledgerIds = new HashSet<>(Arrays.asList(0L, 1L, 2L, 3L));
         AtomicLong ledgerIdCounter = new AtomicLong(0);
         long newLedgerId = ledgerId + 1;
         c1.getRangeMarker().forEach((key, value) -> {
-            // in IndividuallyDeletedMessages ledgerId is from 0 to 3
-            assertEquals(key.longValue(), ledgerIdCounter.getAndIncrement());
+            assertTrue(entryIds.remove(value.getEntryId()));
+            assertTrue(ledgerIds.remove(key));
             assertEquals(value.getLedgerId(), newLedgerId);
-            assertEquals(value.getEntryId(), entryIdCounter.getAndIncrement());
         });
 
         // Verify the copied entry and marker
         Enumeration<LedgerEntry> entries = c1.getCursorLedgerHandle().readEntries(0, 3);
         int counter = 0;
+        int markerNum = 0;
         MLDataFormats.NestedPositionInfo.Builder positionBuilder = MLDataFormats.NestedPositionInfo.newBuilder();
         while (entries.hasMoreElements()) {
             LedgerEntry entry = entries.nextElement();
             MLDataFormats.PositionInfo positionInfo = MLDataFormats.PositionInfo.parseFrom(entry.getEntryInputStream());
-            if (counter == 3) {
-                //the last entry is marker
+            if (positionInfo.getMarkerIndexInfoCount() > 0) {
+                markerNum++;
                 assertEquals(positionInfo.getMarkerIndexInfoCount(), 3);
-                AtomicLong subCounter = new AtomicLong(0);
                 positionInfo.getMarkerIndexInfoList().forEach(markerIndexInfo -> {
                     assertEquals(markerIndexInfo.getEntryPosition().getLedgerId(), newLedgerId);
-                    assertEquals(markerIndexInfo.getEntryPosition().getEntryId(), subCounter.getAndIncrement());
                 });
                 continue;
-            } else {
-                assertEquals(positionInfo.getMarkerIndexInfoCount(), 0);
             }
             MLDataFormats.MessageRange range = positionInfo.getIndividualDeletedMessagesList().get(0);
-            assertEquals(range.getLowerEndpoint(), positionBuilder.setLedgerId(counter).setEntryId(0).build());
-            assertEquals(range.getUpperEndpoint(), positionBuilder.setLedgerId(counter).setEntryId(1).build());
+            assertEquals(range.getLowerEndpoint().getEntryId(), 0);
+            assertEquals(range.getUpperEndpoint().getEntryId(), 1);
             counter++;
         }
         assertEquals(counter, 3);
+        assertEquals(markerNum, 1);
 
         // Verify entries and marker created by flushPendingMarkDeletes
         entries = c1.getCursorLedgerHandle().readEntries(4, 7);
@@ -417,7 +415,7 @@ public class MultiEntryPositionTest extends MockedBookKeeperTestCase {
         ledger.close();
     }
 
-    @Test
+    @Test(timeOut = 30000)
     public void testRecovery() throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setEnableLruCacheMaxUnackedRanges(true);
@@ -427,7 +425,7 @@ public class MultiEntryPositionTest extends MockedBookKeeperTestCase {
         cursor.startCreatingNewMetadataLedger();
         Awaitility.await().untilAsserted(() -> assertEquals(cursor.getState(), "Open"));
         Optional<MLDataFormats.PositionInfo> optionalPositionInfo =
-                cursor.getLastAvailableMarker(cursor.getCursorLedgerHandle());
+                cursor.getLastAvailableMarker(cursor.getCursorLedgerHandle(), null, null).get();
         assertTrue(optionalPositionInfo.isPresent());
         List<MLDataFormats.MarkerIndexInfo> markerIndexInfos = optionalPositionInfo.get().getMarkerIndexInfoList();
         assertEquals(markerIndexInfos.size(), 3);
@@ -469,7 +467,7 @@ public class MultiEntryPositionTest extends MockedBookKeeperTestCase {
             }
         });
         future2.get();
-        assertEquals(cursor.getRangeMarker().size(), 1);
+        assertEquals(cursor.getRangeMarker().size(), 3);
         assertEquals(cursor.getIndividuallyDeletedMessagesSet().size(), 1);
     }
 

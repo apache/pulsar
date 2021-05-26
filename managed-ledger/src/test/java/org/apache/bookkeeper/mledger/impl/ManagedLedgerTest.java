@@ -2750,7 +2750,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         MutableObject<Boolean> failed = new MutableObject<>();
         failed.setValue(false);
         CountDownLatch createLedgerDoneLatch = new CountDownLatch(1);
-        cursor2.getValue().createNewMetadataLedgerAndSwitch(new VoidCallback() {
+        cursor2.getValue().createNewMetadataLedger(new VoidCallback() {
 
             @Override
             public void operationComplete() {

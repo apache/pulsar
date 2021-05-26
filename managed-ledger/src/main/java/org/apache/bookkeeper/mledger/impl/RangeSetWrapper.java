@@ -110,7 +110,7 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
     public boolean contains(long key, long value) {
         lruTouch(key);
         boolean isContain = rangeSet.contains(key, value);
-        if (!isContain && managedCursor.getRangeMarker().containsKey(key)) {
+        if (!isContain && shouldLoadLruRangeFromLedger(key, value)) {
             tryLoadLruRangeFromLedger(key);
             return rangeSet.contains(key, value);
         }
@@ -121,7 +121,7 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
     public Range<T> rangeContaining(long key, long value) {
         lruTouch(key);
         Range<T> range = rangeSet.rangeContaining(key, value);
-        if(range == null && managedCursor.getRangeMarker().containsKey(key)){
+        if(range == null && shouldLoadLruRangeFromLedger(key, value)){
             tryLoadLruRangeFromLedger(key);
             return rangeSet.rangeContaining(key, value);
         }
@@ -132,6 +132,22 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
     public void removeAtMost(long key, long value) {
         lruTouch(key);
         rangeSet.removeAtMost(key, value);
+    }
+
+    public boolean shouldLoadLruRangeFromLedger(long key, long value) {
+        if (!config.isEnableLruCacheMaxUnackedRanges()) {
+            return false;
+        }
+        T range = rangeConverter.apply(key, value);
+        Range<T> lower = rangeSet.firstRange();
+        Range<T> upper = rangeSet.lastRange();
+        if (lower == null || upper == null) {
+            return managedCursor.getRangeMarker().containsKey(key);
+        }
+        if (range.compareTo(lower.lowerEndpoint()) >= 0 || range.compareTo(upper.upperEndpoint()) <= 0) {
+            return false;
+        }
+        return true;
     }
 
     private void tryLoadLruRangeFromLedger(long key) {
