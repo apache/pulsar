@@ -356,6 +356,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             return true;
                         }
                     } catch (InterruptedException | ExecutionException e) {
+                        e.printStackTrace();
                     }
                 }
                 return false;

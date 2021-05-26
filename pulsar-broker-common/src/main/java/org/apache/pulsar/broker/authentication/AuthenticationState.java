@@ -40,6 +40,9 @@ public interface AuthenticationState {
     String getAuthRole() throws AuthenticationException;
 
     default List<String> getAuthRoles() throws AuthenticationException {
+        if (getAuthRole() == null) {
+            return Collections.emptyList();
+        }
         return Collections.singletonList(getAuthRole());
     }
 

@@ -59,6 +59,9 @@ public class OneStageAuthenticationState implements AuthenticationState {
 
     @Override
     public String getAuthRole() {
+        if (authRoles == null || authRoles.isEmpty()) {
+            return null;
+        }
         return authRoles.get(0);
     }
 

@@ -144,6 +144,15 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     }
 
     @Override
+    public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
+        List<String> principals = authenticate(authData, false);
+        if (principals == null) {
+            return null;
+        }
+        return principals.get(0);
+    }
+
+    @Override
     public List<String> authenticate(AuthenticationDataSource authData, boolean multiRoles) throws AuthenticationException {
         try {
             // Get Token

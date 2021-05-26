@@ -66,7 +66,7 @@ public interface AuthenticationProvider extends Closeable {
      *             if the credentials are not valid
      */
     default String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
-        return authenticate(authData, false).get(0);
+        throw new AuthenticationException("Not supported");
     }
 
     default List<String> authenticate(AuthenticationDataSource authData, boolean multiRoles) throws AuthenticationException {
