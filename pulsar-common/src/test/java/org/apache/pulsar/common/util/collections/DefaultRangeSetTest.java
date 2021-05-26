@@ -21,6 +21,7 @@ package org.apache.pulsar.common.util.collections;
 import org.testng.annotations.Test;
 
 import static org.testng.AssertJUnit.assertNull;
+import static org.testng.AssertJUnit.assertTrue;
 import static org.testng.AssertJUnit.fail;
 
 public class DefaultRangeSetTest {
@@ -52,6 +53,11 @@ public class DefaultRangeSetTest {
             fail("should fail");
         } catch (NullPointerException ignore) {
         }
+
+        rangeSet.addOpenClosed(9, 0, 10, 10);
+        set.addOpenClosed(9, 0, 10, 10);
+        assertTrue(rangeSet.contains(10,1));
+        assertTrue(set.contains(10,1));
 
     }
 }
