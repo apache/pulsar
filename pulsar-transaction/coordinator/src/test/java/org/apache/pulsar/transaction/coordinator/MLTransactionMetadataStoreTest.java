@@ -49,6 +49,7 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.State.WriteFailed;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
 
@@ -73,7 +74,7 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         while (true) {
             checkReplayRetryCount++;
             if (checkReplayRetryCount > 3) {
-                Assert.fail();
+                fail();
                 break;
             }
             if (transactionMetadataStore.checkIfReady()) {
@@ -108,7 +109,7 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
 
                 try {
                     transactionMetadataStore.getTxnMeta(txnID).get();
-                    Assert.fail();
+                    fail();
                 } catch (ExecutionException e) {
                     Assert.assertTrue(e.getCause() instanceof TransactionNotFoundException);
                 }
@@ -186,7 +187,7 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         int checkReplayRetryCount = 0;
         while (true) {
             if (checkReplayRetryCount > 3) {
-                Assert.fail();
+                fail();
                 break;
             }
             if (transactionMetadataStore.checkIfReady()) {
@@ -226,7 +227,7 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
 
                 while (true) {
                     if (checkReplayRetryCount > 6) {
-                        Assert.fail();
+                        fail();
                         break;
                     }
                     if (transactionMetadataStoreTest.checkIfReady()) {
@@ -247,14 +248,14 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
                                 .updateTxnStatus(txnID2, TxnStatus.COMMITTED, TxnStatus.COMMITTING, false).get();
                         try {
                             transactionMetadataStoreTest.getTxnMeta(txnID1).get();
-                            Assert.fail();
+                            fail();
                         } catch (ExecutionException e) {
                             Assert.assertTrue(e.getCause() instanceof TransactionNotFoundException);
                         }
 
                         try {
                             transactionMetadataStoreTest.getTxnMeta(txnID2).get();
-                            Assert.fail();
+                            fail();
                         } catch (ExecutionException e) {
                             Assert.assertTrue(e.getCause() instanceof TransactionNotFoundException);
                         }
@@ -290,7 +291,7 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         int checkReplayRetryCount = 0;
         while (true) {
             if (checkReplayRetryCount > 3) {
-                Assert.fail();
+                fail();
                 break;
             }
             if (transactionMetadataStore.checkIfReady()) {
@@ -395,6 +396,7 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         state.set(managedLedger, WriteFailed);
         try {
             transactionMetadataStore.newTransaction(5000).get();
+            fail();
         } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof ManagedLedgerException.ManagedLedgerAlreadyClosedException);
         }
