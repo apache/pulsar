@@ -247,6 +247,26 @@ All the managedLedger metrics are labelled with the following labels:
 | pulsar_ml_ReadEntriesSucceeded | Gauge | The number of readEntries requests that succeeded |
 | pulsar_ml_StoredMessagesSize | Gauge | The total size of the messages in active ledgers (accounting for the multiple copies stored) |
 
+### Managed cursor acknowledgment state
+
+The acknowledgment state is persistent to the ledger first. When the acknowledgment state fails to be persistent to the ledger, they are persistent to ZooKeeper. To track the stats of acknowledgment, you can configure the metrics for the managed cursor.
+
+All the cursor acknowledgment state metrics are labelled with the following labels:
+
+- namespace: `namespace=${pulsar_namespace}`. `${pulsar_namespace}` is the namespace name.
+
+- ledger_name: `ledger_name=${pulsar_ledger_name}`. `${pulsar_ledger_name}` is the ledger name.
+
+- cursor_name: `ledger_name=${pulsar_cursor_name}`. `${pulsar_cursor_name}` is the cursor name.
+
+Name	|Type	|Description
+|---|---|---
+brk_ml_cursor_persistLedgerSucceed(namespace="", ledger_name="", cursor_name:"")|Gauge|The number of acknowledgment states that is persistent to a ledger.|
+brk_ml_cursor_persistLedgerErrors(namespace="", ledger_name="", cursor_name:"")|Gauge|The number of ledger errors occurred when acknowledgment states fail to be persistent to the ledger.|
+brk_ml_cursor_persistZookeeperSucceed(namespace="", ledger_name="", cursor_name:"")|Gauge|The number of acknowledgment states that is persistent to ZooKeeper.
+brk_ml_cursor_persistZookeeperErrors(namespace="", ledger_name="", cursor_name:"")|Gauge|The number of ledger errors occurred when acknowledgment states fail to be persistent to ZooKeeper.
+brk_ml_cursor_nonContiguousDeletedMessagesRange(namespace="", ledger_name="", cursor_name:"")|Gauge|The number of non-contiguous deleted messages ranges.
+
 ### LoadBalancing metrics
 All the loadbalancing metrics are labelled with the following labels:
 - cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
