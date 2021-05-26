@@ -50,6 +50,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
@@ -87,6 +88,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     private final int takeSnapshotIntervalNumber;
 
     private final int takeSnapshotIntervalTime;
+
+    private volatile long lastSnapshotTimestamps;
 
     public TopicTransactionBuffer(PersistentTopic topic, CompletableFuture<Void> transactionBufferFuture) {
         super(State.None);
@@ -313,6 +316,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 snapshot.setAborts(list);
             }
             writer.writeAsync(snapshot).thenAccept((messageId) -> {
+                this.lastSnapshotTimestamps = System.currentTimeMillis();
                 if (log.isDebugEnabled()) {
                     log.debug("[{}]Transaction buffer take snapshot success! "
                             + "messageId : {}", topic.getName(), messageId);
@@ -394,6 +398,15 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             transactionInBufferStats.startPosition = ongoingTxns.get(txnID).toString();
         }
         return transactionInBufferStats;
+    }
+
+    @Override
+    public TransactionBufferStats getStats() {
+        TransactionBufferStats transactionBufferStats = new TransactionBufferStats();
+        transactionBufferStats.lastSnapshotTimestamps = this.lastSnapshotTimestamps;
+        transactionBufferStats.state = this.getState().name();
+        transactionBufferStats.maxReadPosition = this.maxReadPosition.toString();
+        return transactionBufferStats;
     }
 
     @Override
