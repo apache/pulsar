@@ -24,9 +24,12 @@ import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import java.util.LinkedHashSet;
 import java.util.Objects;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
+import lombok.experimental.Accessors;
 import org.apache.pulsar.client.api.ProxyProtocol;
 
 /**
@@ -39,6 +42,9 @@ import org.apache.pulsar.client.api.ProxyProtocol;
 @Getter
 @Setter
 @Builder
+@AllArgsConstructor
+@NoArgsConstructor
+@Accessors(chain = true)
 public class ClusterData {
     @ApiModelProperty(
         name = "serviceUrl",
@@ -138,9 +144,6 @@ public class ClusterData {
         value = "Path for the trusted TLS certificate file for outgoing connection to a server (broker)"
     )
     private String brokerClientTrustCertsFilePath;
-
-    public ClusterData() {
-    }
 
     public ClusterData(String serviceUrl) {
         this(serviceUrl, "");

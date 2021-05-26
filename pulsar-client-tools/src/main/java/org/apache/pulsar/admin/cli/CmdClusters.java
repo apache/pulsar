@@ -107,20 +107,6 @@ public class CmdClusters extends CmdBase {
         void run() throws PulsarAdminException {
             String cluster = getOneArgument(params);
 
-            if (brokerClientTlsEnabled) {
-                if (brokerClientTlsEnabledWithKeyStore) {
-                    if (StringUtils.isAnyBlank(brokerClientTlsTrustStoreType, brokerClientTlsTrustStore, brokerClientTlsTrustStorePassword)) {
-                        throw new RuntimeException(
-                                "You must specify brokerClientTlsTrustStoreType, brokerClientTlsTrustStore and brokerClientTlsTrustStorePassword"
-                                        + " when enable brokerClientTlsEnabledWithKeyStore");
-                    }
-                } else {
-                    if (StringUtils.isBlank(brokerClientTrustCertsFilePath)) {
-                        throw new RuntimeException("You must specify brokerClientTrustCertsFilePath"
-                                + " when brokerClientTlsEnabledWithKeyStore is not enable");
-                    }
-                }
-            }
             ClusterData clusterData = ClusterData.builder()
                     .serviceUrl(serviceUrl)
                     .serviceUrlTls(serviceUrlTls)
@@ -138,8 +124,26 @@ public class CmdClusters extends CmdBase {
                     .brokerClientTlsTrustStorePassword(brokerClientTlsTrustStorePassword)
                     .brokerClientTrustCertsFilePath(brokerClientTrustCertsFilePath)
                     .build();
-
+            validateClusterData(clusterData);
             getAdmin().clusters().createCluster(cluster, clusterData);
+        }
+    }
+
+    private void validateClusterData(ClusterData clusterData) {
+        if (clusterData.isBrokerClientTlsEnabled()) {
+            if (clusterData.isBrokerClientTlsEnabledWithKeyStore()) {
+                if (StringUtils.isAnyBlank(clusterData.getBrokerClientTlsTrustStoreType(), clusterData.getBrokerClientTlsTrustStore(),
+                        clusterData.getBrokerClientTlsTrustStorePassword())) {
+                    throw new RuntimeException(
+                            "You must specify brokerClientTlsTrustStoreType, brokerClientTlsTrustStore and brokerClientTlsTrustStorePassword"
+                                    + " when enable brokerClientTlsEnabledWithKeyStore");
+                }
+            } else {
+                if (StringUtils.isBlank(clusterData.getBrokerClientTrustCertsFilePath())) {
+                    throw new RuntimeException("You must specify brokerClientTrustCertsFilePath"
+                            + " when brokerClientTlsEnabledWithKeyStore is not enable");
+                }
+            }
         }
     }
 
@@ -172,10 +176,49 @@ public class CmdClusters extends CmdBase {
         @Parameter(names = "--proxy-protocol", description = "protocol to decide type of proxy routing eg: SNI", required = false)
         private ProxyProtocol proxyProtocol;
 
+        @Parameter(names = "--tls-enable", description = "Enable tls connection", required = false)
+        private boolean brokerClientTlsEnabled = false;
+
+        @Parameter(names = "--tls-allow-insecure", description = "Allow insecure tls connection", required = false)
+        private boolean tlsAllowInsecureConnection = false;
+
+        @Parameter(names = "--tls-enable-keystore", description = "Whether use KeyStore type to authenticate", required = false)
+        private boolean brokerClientTlsEnabledWithKeyStore = false;
+
+        @Parameter(names = "--tls-trust-store-type", description = "TLS TrustStore type configuration for internal client eg: JKS", required = false)
+        private String brokerClientTlsTrustStoreType = "JKS";
+
+        @Parameter(names = "--tls-trust-store", description = "TLS TrustStore path for internal client", required = false)
+        private String brokerClientTlsTrustStore;
+
+        @Parameter(names = "--tls-trust-store-pwd", description = "TLS TrustStore password for internal client", required = false)
+        private String brokerClientTlsTrustStorePassword;
+
+        @Parameter(names = "--tls-trust-certs-filepath", description = "path for the trusted TLS certificate file", required = false)
+        private String brokerClientTrustCertsFilePath;
+
         void run() throws PulsarAdminException {
             String cluster = getOneArgument(params);
-            getAdmin().clusters().updateCluster(cluster, new ClusterData(serviceUrl, serviceUrlTls, brokerServiceUrl,
-                    brokerServiceUrlTls, proxyServiceUrl, authenticationPlugin, authenticationParameters, proxyProtocol));
+
+            ClusterData clusterData = ClusterData.builder()
+                    .serviceUrl(serviceUrl)
+                    .serviceUrlTls(serviceUrlTls)
+                    .brokerServiceUrl(brokerServiceUrl)
+                    .brokerServiceUrlTls(brokerServiceUrlTls)
+                    .proxyServiceUrl(proxyServiceUrl)
+                    .authenticationPlugin(authenticationPlugin)
+                    .authenticationParameters(authenticationParameters)
+                    .proxyProtocol(proxyProtocol)
+                    .brokerClientTlsEnabled(brokerClientTlsEnabled)
+                    .tlsAllowInsecureConnection(tlsAllowInsecureConnection)
+                    .brokerClientTlsEnabledWithKeyStore(brokerClientTlsEnabledWithKeyStore)
+                    .brokerClientTlsTrustStore(brokerClientTlsTrustStore)
+                    .brokerClientTlsTrustStoreType(brokerClientTlsTrustStoreType)
+                    .brokerClientTlsTrustStorePassword(brokerClientTlsTrustStorePassword)
+                    .brokerClientTrustCertsFilePath(brokerClientTrustCertsFilePath)
+                    .build();
+            validateClusterData(clusterData);
+            getAdmin().clusters().updateCluster(cluster, clusterData);
         }
     }
 

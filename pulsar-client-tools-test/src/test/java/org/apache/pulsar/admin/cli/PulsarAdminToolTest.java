@@ -250,6 +250,27 @@ public class PulsarAdminToolTest {
 
         clusters.run(split("delete my-secure-cluster"));
         verify(mockClusters).deleteCluster("my-secure-cluster");
+
+        // test create cluster with tls
+        clusters = new CmdClusters(() -> admin);
+        clusters.run(split("create my-tls-cluster --url-secure https://my-service.url:4443 --tls-enable "
+                + "--tls-enable-keystore --tls-trust-store-type JKS --tls-trust-store /var/private/tls/client.truststore.jks "
+                + "--tls-trust-store-pwd clientpw"));
+        ClusterData data = new ClusterData(null, "https://my-service.url:4443");
+        data.setBrokerClientTlsEnabled(true)
+                .setBrokerClientTlsEnabledWithKeyStore(true)
+                .setBrokerClientTlsTrustStoreType("JKS")
+                .setBrokerClientTlsTrustStore("/var/private/tls/client.truststore.jks")
+                .setBrokerClientTlsTrustStorePassword("clientpw");
+        verify(mockClusters).createCluster("my-tls-cluster", data);
+
+        clusters.run(split("update my-tls-cluster --url-secure https://my-service.url:4443 --tls-enable "
+                + "--tls-trust-certs-filepath /path/to/ca.cert.pem"));
+        data.setBrokerClientTlsEnabledWithKeyStore(false)
+                .setBrokerClientTlsTrustStore(null)
+                .setBrokerClientTlsTrustStorePassword(null)
+                .setBrokerClientTrustCertsFilePath("/path/to/ca.cert.pem");
+        verify(mockClusters).updateCluster("my-tls-cluster", data);
     }
 
     @Test
