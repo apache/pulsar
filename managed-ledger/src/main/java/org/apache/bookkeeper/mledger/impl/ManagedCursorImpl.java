@@ -481,6 +481,9 @@ public class ManagedCursorImpl implements ManagedCursor {
             recoveredProperties = Maps.newHashMap();
             for (int i = 0; i < positionInfo.getPropertiesCount(); i++) {
                 LongProperty property = positionInfo.getProperties(i);
+                if (LRU_MARKER.equals(property.getName()) || LRU_ENTRY.equals(property.getName())) {
+                    continue;
+                }
                 recoveredProperties.put(property.getName(), property.getValue());
             }
         }
@@ -556,7 +559,9 @@ public class ManagedCursorImpl implements ManagedCursor {
             , boolean cleanOldData) {
         lock.writeLock().lock();
         try {
-            this.batchDeletedIndexes.clear();
+            if (cleanOldData) {
+                this.batchDeletedIndexes.clear();
+            }
             batchDeletedIndexInfoList.forEach(batchDeletedIndexInfo -> {
                 if (batchDeletedIndexInfo.getDeleteSetCount() > 0) {
                     long[] array = new long[batchDeletedIndexInfo.getDeleteSetCount()];
@@ -2106,40 +2111,76 @@ public class ManagedCursorImpl implements ManagedCursor {
      * @return a list of entries not containing deleted messages
      */
     List<Entry> filterReadEntries(List<Entry> entries) {
+        Range<PositionImpl> entriesRange = Range.closed((PositionImpl) entries.get(0).getPosition(),
+                (PositionImpl) entries.get(entries.size() - 1).getPosition());
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] [{}] Filtering entries {} - alreadyDeleted: {}", ledger.getName(), name, entriesRange,
+                    individualDeletedMessages);
+        }
         lock.readLock().lock();
         try {
-            Range<PositionImpl> entriesRange = Range.closed((PositionImpl) entries.get(0).getPosition(),
-                    (PositionImpl) entries.get(entries.size() - 1).getPosition());
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] Filtering entries {} - alreadyDeleted: {}", ledger.getName(), name, entriesRange,
-                        individualDeletedMessages);
-            }
-
-            if (individualDeletedMessages.isEmpty() || !entriesRange.isConnected(individualDeletedMessages.span())) {
-                // There are no individually deleted messages in this entry list, no need to perform filtering
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] [{}] No filtering needed for entries {}", ledger.getName(), name, entriesRange);
-                }
-                return entries;
-            } else {
-                // Remove from the entry list all the entries that were already marked for deletion
-                return Lists.newArrayList(Collections2.filter(entries, entry -> {
-                    boolean includeEntry = !individualDeletedMessages.contains(
-                            ((PositionImpl) entry.getPosition()).getLedgerId(),
-                            ((PositionImpl) entry.getPosition()).getEntryId());
-                    if (!includeEntry) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] [{}] Filtering entry at {} - already deleted", ledger.getName(), name,
-                                    entry.getPosition());
-                        }
-
-                        entry.release();
+            if (!shouldLoadLruRange(entriesRange)) {
+                if (individualDeletedMessages.isEmpty() || !entriesRange.isConnected(individualDeletedMessages.span())) {
+                    // There are no individually deleted messages in this entry list, no need to perform filtering
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] [{}] No filtering needed for entries {}", ledger.getName(), name, entriesRange);
                     }
-                    return includeEntry;
-                }));
+                    return entries;
+                } else {
+                    // Remove from the entry list all the entries that were already marked for deletion
+                    return doFilterEntries(entries);
+                }
             }
         } finally {
             lock.readLock().unlock();
+        }
+        return LoadLruRangeAndFilterReadEntries(entries);
+    }
+
+    private ArrayList<Entry> doFilterEntries(List<Entry> entries) {
+        return Lists.newArrayList(Collections2.filter(entries, entry -> {
+            boolean includeEntry = !individualDeletedMessages.contains(
+                    ((PositionImpl) entry.getPosition()).getLedgerId(),
+                    ((PositionImpl) entry.getPosition()).getEntryId());
+            if (!includeEntry) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] [{}] Filtering entry at {} - already deleted", ledger.getName(), name,
+                            entry.getPosition());
+                }
+
+                entry.release();
+            }
+            return includeEntry;
+        }));
+    }
+
+    private boolean shouldLoadLruRange(Range<PositionImpl> entriesRange) {
+        if (!config.isEnableLruCacheMaxUnackedRanges()) {
+            return false;
+        }
+        if (entriesRange.isConnected(individualDeletedMessages.span())) {
+            return false;
+        }
+        long lowerLedgerId = entriesRange.lowerEndpoint().getLedgerId();
+        long upperLedgerId = entriesRange.upperEndpoint().getLedgerId();
+        if (lowerLedgerId == upperLedgerId) {
+            return rangeMarker.containsKey(lowerLedgerId);
+        }
+        for (long i = lowerLedgerId; i < upperLedgerId; i++) {
+            if (rangeMarker.containsKey(lowerLedgerId)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private ArrayList<Entry> LoadLruRangeAndFilterReadEntries(List<Entry> entries) {
+        // After loading from ledger, ranges will be written to individualDeletedMessages, so we need write lock.
+        lock.writeLock().lock();
+        try {
+            return doFilterEntries(entries);
+        } finally {
+            lock.writeLock().unlock();
         }
     }
 
