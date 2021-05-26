@@ -404,7 +404,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         persistentTopics.updatePartitionedTopic(testTenant, testNamespace, partitionedTopicName, true, false, 10);
     }
 
-    @Test
+    @Test(timeOut = 10_000)
     public void testUnloadTopic() {
         final String topicName = "standard-topic-to-be-unload";
         final String partitionTopicName = "partition-topic-to-be-unload";
@@ -413,7 +413,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         AsyncResponse response = mock(AsyncResponse.class);
         persistentTopics.unloadTopic(response, testTenant, testNamespace, "topic-not-exist", true);
         ArgumentCaptor<RestException> errCaptor = ArgumentCaptor.forClass(RestException.class);
-        verify(response, timeout(5000).times(1)).resume(errCaptor.capture());
+        verify(response, timeout(45_000).times(1)).resume(errCaptor.capture());
         Assert.assertEquals(errCaptor.getValue().getResponse().getStatus(), Response.Status.NOT_FOUND.getStatusCode());
 
         // 2) create non partitioned topic and unload
@@ -444,12 +444,12 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
     }
 
-    @Test
+    @Test(timeOut = 10_000)
     public void testUnloadTopicShallThrowNotFoundWhenTopicNotExist() {
         AsyncResponse response = mock(AsyncResponse.class);
         persistentTopics.unloadTopic(response, testTenant, testNamespace,"non-existent-topic", true);
         ArgumentCaptor<RestException> responseCaptor = ArgumentCaptor.forClass(RestException.class);
-        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        verify(response, timeout(45_000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getResponse().getStatus(), Response.Status.NOT_FOUND.getStatusCode());
     }
 
@@ -709,4 +709,5 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(e.getResponse().getStatus(), Response.Status.BAD_REQUEST.getStatusCode());
         }
     }
+
 }

@@ -46,6 +46,7 @@ import org.testng.annotations.Test;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.Security;
@@ -546,10 +547,9 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
         String encAlgo = encryptionCtx.getAlgorithm();
         int batchSize = encryptionCtx.getBatchSize().orElse(0);
 
-        ByteBuf payloadBuf = Unpooled.wrappedBuffer(msg.getData());
+        ByteBuffer payloadBuf = ByteBuffer.wrap(msg.getData());
         // try to decrypt use default MessageCryptoBc
         MessageCrypto crypto = new MessageCryptoBc("test", false);
-
         MessageMetadata msgMetadata = new MessageMetadata()
                 .setEncryptionParam(encrParam)
                 .setProducerName("test")
@@ -566,11 +566,12 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
                 .setKey(encryptionKeyName)
                 .setValue(dataKey);
 
-        ByteBuf decryptedPayload = crypto.decrypt(() -> msgMetadata, payloadBuf, reader);
+        ByteBuffer decryptedPayload = ByteBuffer.allocate(crypto.getMaxOutputSize(payloadBuf.remaining()));
+        crypto.decrypt(() -> msgMetadata, payloadBuf, decryptedPayload, reader);
 
         // try to uncompress
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(compressionType);
-        ByteBuf uncompressedPayload = codec.decode(decryptedPayload, uncompressedSize);
+        ByteBuf uncompressedPayload = codec.decode(Unpooled.wrappedBuffer(decryptedPayload), uncompressedSize);
 
         if (batchSize > 0) {
             SingleMessageMetadata singleMessageMetadata = new SingleMessageMetadata();

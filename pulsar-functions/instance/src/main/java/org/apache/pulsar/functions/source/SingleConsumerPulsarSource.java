@@ -28,6 +28,8 @@ import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.SourceContext;
 
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -41,6 +43,7 @@ public class SingleConsumerPulsarSource<T> extends PulsarSource<T> {
     private final ClassLoader functionClassLoader;
     private final TopicSchema topicSchema;
     private Consumer<T> consumer;
+    private final List<Consumer<T>> inputConsumers = new LinkedList<>();
 
     public SingleConsumerPulsarSource(PulsarClient pulsarClient,
                                       SingleConsumerPulsarSourceConfig pulsarSourceConfig,
@@ -71,6 +74,7 @@ public class SingleConsumerPulsarSource<T> extends PulsarSource<T> {
 
         ConsumerBuilder<T> cb = createConsumeBuilder(topic, pulsarSourceConsumerConfig);
         consumer = cb.subscribeAsync().join();
+        inputConsumers.add(consumer);
     }
 
     @Override
@@ -82,6 +86,11 @@ public class SingleConsumerPulsarSource<T> extends PulsarSource<T> {
     @VisibleForTesting
     Consumer<T> getInputConsumer() {
         return consumer;
+    }
+
+    @Override
+    public List<Consumer<T>> getInputConsumers() {
+        return inputConsumers;
     }
 
     @Override

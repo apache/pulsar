@@ -21,6 +21,7 @@ package org.apache.pulsar.client.api;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -29,6 +30,8 @@ import lombok.Cleanup;
 
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -42,6 +45,8 @@ import static org.testng.Assert.assertEquals;
 
 @Test(groups = "broker-api")
 public class ConsumerRedeliveryTest extends ProducerConsumerBase {
+
+    private static final Logger log = LoggerFactory.getLogger(ConsumerRedeliveryTest.class);
 
     @BeforeClass
     @Override
@@ -189,4 +194,57 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
         consumer.close();
     }
 
+    /**
+     * Validates broker should dispatch messages to consumer which still has the permit to consume more messages.
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testConsumerWithPermitReceiveBatchMessages() throws Exception {
+
+        log.info("-- Starting {} test --", methodName);
+
+        final int queueSize = 10;
+        int batchSize = 100;
+        String subName = "my-subscriber-name";
+        String topicName = "permitReceiveBatchMessages"+(UUID.randomUUID().toString());
+        ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
+                .receiverQueueSize(queueSize).subscriptionType(SubscriptionType.Shared).subscriptionName(subName)
+                .subscribe();
+
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName);
+
+        producerBuilder.enableBatching(true);
+        producerBuilder.batchingMaxPublishDelay(2000, TimeUnit.MILLISECONDS);
+        producerBuilder.batchingMaxMessages(100);
+
+        Producer<byte[]> producer = producerBuilder.create();
+        for (int i = 0; i < batchSize; i++) {
+            String message = "my-message-" + i;
+            producer.sendAsync(message.getBytes());
+        }
+        producer.flush();
+
+        for (int i = 0; i < queueSize; i++) {
+            String message = "my-message-" + i;
+            producer.sendAsync(message.getBytes());
+        }
+        producer.flush();
+
+        retryStrategically((test) -> {
+            return consumer1.getTotalIncomingMessages() == batchSize;
+        }, 5, 2000);
+
+        assertEquals(consumer1.getTotalIncomingMessages(), batchSize);
+
+        ConsumerImpl<byte[]> consumer2 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
+                .receiverQueueSize(queueSize).subscriptionType(SubscriptionType.Shared).subscriptionName(subName)
+                .subscribe();
+
+        retryStrategically((test) -> {
+            return consumer2.getTotalIncomingMessages() == queueSize;
+        }, 5, 2000);
+        assertEquals(consumer2.getTotalIncomingMessages(), queueSize);
+        log.info("-- Exiting {} test --", methodName);
+    }
 }

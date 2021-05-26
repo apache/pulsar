@@ -44,6 +44,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 import org.apache.pulsar.client.impl.Backoff;
@@ -252,8 +253,13 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<byte[]> {
                 LOG.error("[{}] Failed to published message for replicator of {}-{}: Attempts:{}", kinesisSink.streamName,
                         resultContext.getPartitionId(), resultContext.getRecordSequence(), stringBuffer.toString());
             } else {
-                LOG.error("[{}] Failed to published message for replicator of {}-{}, {} ", kinesisSink.streamName,
+                if (StringUtils.isEmpty(exception.getMessage())) {
+                    LOG.error("[{}] Failed to published message for replicator of {}-{}", kinesisSink.streamName,
+                        resultContext.getPartitionId(), resultContext.getRecordSequence(), exception);
+                } else {
+                    LOG.error("[{}] Failed to published message for replicator of {}-{}, {} ", kinesisSink.streamName,
                         resultContext.getPartitionId(), resultContext.getRecordSequence(), exception.getMessage());
+                }
             }
             kinesisSink.previousPublishFailed = TRUE;
             if (kinesisSink.sinkContext != null) {

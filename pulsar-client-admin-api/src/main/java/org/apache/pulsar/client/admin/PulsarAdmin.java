@@ -20,7 +20,6 @@ package org.apache.pulsar.client.admin;
 
 import java.io.Closeable;
 import org.apache.pulsar.client.admin.utils.DefaultImplementation;
-import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
@@ -148,11 +147,6 @@ public interface PulsarAdmin extends Closeable {
     String getServiceUrl();
 
     /**
-     * @return the client Configuration Data that is being used
-     */
-    ClientConfigurationData getClientConfigData();
-
-    /**
      * @return the schemas
      */
     Schemas schemas();
@@ -161,6 +155,12 @@ public interface PulsarAdmin extends Closeable {
      * @return the packages management object
      */
     Packages packages();
+
+    /**
+     *
+     * @return the transactions management object
+     */
+    Transactions transactions();
 
     /**
      * Close the PulsarAdminClient and release all the resources.
