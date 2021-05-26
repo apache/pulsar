@@ -1999,8 +1999,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                 log.debug("[{}] [{}] Filtering entries {} - alreadyDeleted: {}", ledger.getName(), name, entriesRange,
                         individualDeletedMessages);
             }
-            Range<PositionImpl> span = individualDeletedMessages.span();
-            if (individualDeletedMessages.isEmpty() || span == null || !entriesRange.isConnected(span)) {
+            if (individualDeletedMessages.isEmpty() || individualDeletedMessages.span() == null ||
+                    !entriesRange.isConnected(individualDeletedMessages.span())) {
                 // There are no individually deleted messages in this entry list, no need to perform filtering
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] [{}] No filtering needed for entries {}", ledger.getName(), name, entriesRange);
