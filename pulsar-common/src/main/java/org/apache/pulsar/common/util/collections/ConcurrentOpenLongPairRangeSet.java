@@ -171,6 +171,9 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
 
     @Override
     public Range<T> span() {
+        if (rangeBitSetMap.size() == 0) {
+            return null;
+        }
         Entry<Long, BitSet> firstSet = rangeBitSetMap.firstEntry();
         Entry<Long, BitSet> lastSet = rangeBitSetMap.lastEntry();
         int first = firstSet.getValue().nextSetBit(0);

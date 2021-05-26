@@ -115,6 +115,12 @@ public class ConcurrentOpenLongPairRangeSetTest {
     }
 
     @Test
+    public void testNPE() {
+        ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
+        assertNull(set.span());
+    }
+
+    @Test
     public void testDeleteCompareWithGuava() {
 
         ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
