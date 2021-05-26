@@ -355,9 +355,17 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                         .setTimestamp(clock.millis()).build();
                                 ledgers.put(id, info);
                                 if (managedLedgerInterceptor != null) {
-                                    managedLedgerInterceptor.onManagedLedgerLastLedgerInitialize(name, lh);
+                                    managedLedgerInterceptor.onManagedLedgerLastLedgerInitialize(name, lh)
+                                        .whenComplete((__, ex) -> {
+                                            if (ex != null) {
+                                                callback.initializeFailed(new ManagedLedgerInterceptException(ex));
+                                            } else {
+                                                initializeBookKeeper(callback);
+                                            }
+                                        });
+                                } else {
+                                    initializeBookKeeper(callback);
                                 }
-                                initializeBookKeeper(callback);
                             } else if (isNoSuchLedgerExistsException(rc)) {
                                 log.warn("[{}] Ledger not found: {}", name, ledgers.lastKey());
                                 ledgers.remove(ledgers.lastKey());
