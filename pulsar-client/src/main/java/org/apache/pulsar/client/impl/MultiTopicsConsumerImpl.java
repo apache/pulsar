@@ -955,7 +955,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     })
                 .collect(Collectors.toList());
         } else {
-            boolean isTopicBeingSubscribedForInOtherThread = this.topics.putIfAbsent(topicName, 1) != null;
+            boolean isTopicBeingSubscribedForInOtherThread = this.topics.putIfAbsent(topicName, 0) != null;
             if (isTopicBeingSubscribedForInOtherThread) {
                 String errorMessage = String.format("[%s] Failed to subscribe for topic [%s] in topics consumer. "
                     + "Topic is already being subscribed for in other thread.", topic, topicName);
@@ -1222,6 +1222,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     // subscribe increased partitions for a given topic
     private CompletableFuture<Void> subscribeIncreasedTopicPartitions(String topicName) {
         CompletableFuture<Void> future = new CompletableFuture<>();
+        int oldPartitionNumber = topics.get(topicName);
+        if (oldPartitionNumber == 0) {
+            return CompletableFuture.completedFuture(null);
+        }
 
         //Drop the disconnected consumers to allow the auto discovery
         consumers.entrySet().removeIf(e -> TopicName.get(e.getKey()).getPartitionedTopicName().equals(topicName) && !e.getValue().isConnected());
@@ -1230,7 +1234,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         topics.put(topicName, connectedPartitions);
 
         client.getPartitionsForTopic(topicName).thenCompose(list -> {
-            int oldPartitionNumber = topics.get(topicName);
             int currentPartitionNumber = Long.valueOf(list.stream().filter(t -> TopicName.get(t).isPartitioned()).count()).intValue();
 
             if (log.isDebugEnabled()) {
