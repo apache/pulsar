@@ -24,6 +24,7 @@ import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.impl.OpAddEntry;
 
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Interceptor for ManagedLedger.
@@ -51,7 +52,7 @@ public interface ManagedLedgerInterceptor {
      * @param name name of ManagedLedger
      * @param ledgerHandle a LedgerHandle.
      */
-    void onManagedLedgerLastLedgerInitialize(String name, LedgerHandle ledgerHandle);
+    CompletableFuture<Void> onManagedLedgerLastLedgerInitialize(String name, LedgerHandle ledgerHandle);
 
     /**
      * @param propertiesMap  map of properties.

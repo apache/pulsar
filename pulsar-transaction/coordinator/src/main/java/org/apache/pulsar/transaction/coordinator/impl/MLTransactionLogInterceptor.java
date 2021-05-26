@@ -25,6 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Store max sequenceID in ManagedLedger properties, in order to recover transaction log.
@@ -47,8 +48,8 @@ public class MLTransactionLogInterceptor implements ManagedLedgerInterceptor {
     }
 
     @Override
-    public void onManagedLedgerLastLedgerInitialize(String name, LedgerHandle ledgerHandle) {
-
+    public CompletableFuture<Void> onManagedLedgerLastLedgerInitialize(String name, LedgerHandle ledgerHandle) {
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
