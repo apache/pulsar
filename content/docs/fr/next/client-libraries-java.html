@@ -173,22 +173,19 @@ stringProducer.send(<span class="hljs-string">"My message"</span>);
 </code></pre>
 <blockquote>
 <p>Make sure that you close your producers, consumers, and clients when you do not need them.</p>
-<pre><code class="hljs css language-java"></code></pre>
-</blockquote>
-<p>producer.close();
+<pre><code class="hljs css language-java">producer.close();
 consumer.close();
-client.close();</p>
-<pre><code class="hljs">
-Les opérations de fermeture peuvent également être asynchrones :
-
-```java
-producer.closeAsync()
-   .thenRun(<span class="hljs-function"><span class="hljs-params">()</span> -&gt;</span> System.out.println(<span class="hljs-string">"Producer closed"</span>))
-   .exceptionally(<span class="hljs-function"><span class="hljs-params">(ex)</span> -&gt;</span> {
+client.close();
+</code></pre>
+<p>Les opérations de fermeture peuvent également être asynchrones :</p>
+<pre><code class="hljs css language-java">producer.closeAsync()
+   .thenRun(() -&gt; System.out.println(<span class="hljs-string">"Producer closed"</span>))
+   .exceptionally((ex) -&gt; {
        System.err.println(<span class="hljs-string">"Failed to close producer: "</span> + ex);
-       <span class="hljs-keyword">return</span> null;
+       <span class="hljs-keyword">return</span> <span class="hljs-keyword">null</span>;
    });
 </code></pre>
+</blockquote>
 <h3><a class="anchor" aria-hidden="true" id="configure-producer"></a><a href="#configure-producer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure producer</h3>
 <p>If you instantiate a <code>Producer</code> object by specifying only a topic name as the example above, use the default configuration for producer.</p>
 <p>If you create a producer, you can use the <code>loadConf</code> configuration. The following parameters are available in <code>loadConf</code>.</p>
@@ -200,9 +197,9 @@ producer.closeAsync()
 <p>If a message is not acknowledged by a server before the <code>sendTimeout</code> expires, an error occurs.|30000 boolean|<code>blockIfQueueFull</code>|If it is set to <code>true</code>, when the outgoing message queue is full, the <code>Send</code> and <code>SendAsync</code> methods of producer block, rather than failing and throwing errors.</p>
 <p>If it is set to <code>false</code>, when the outgoing message queue is full, the <code>Send</code> and <code>SendAsync</code> methods of producer fail and <code>ProducerQueueIsFullError</code> exceptions occur.</p>
 <p>The <code>MaxPendingMessages</code> parameter determines the size of the outgoing message queue.|false int|<code>maxPendingMessages</code>|The maximum size of a queue holding pending messages.</p>
-<p>For example, a message waiting to receive an acknowledgment from a <a href="reference-terminology.md#broker">broker</a>.</p>
+<p>For example, a message waiting to receive an acknowledgment from a <a href="/docs/fr/next/reference-terminology#broker">broker</a>.</p>
 <p>By default, when the queue is full, all calls to the <code>Send</code> and <code>SendAsync</code> methods fail <strong>unless</strong> you set <code>BlockIfQueueFull</code> to <code>true</code>.|1000 int|<code>maxPendingMessagesAcrossPartitions</code>|The maximum number of pending messages across partitions.</p>
-<p>Use the setting to lower the max pending messages for each partition ({@link #setMaxPendingMessages(int)}) if the total number exceeds the configured value.|50000 MessageRoutingMode|<code>messageRoutingMode</code>|Message routing logic for producers on <a href="concepts-architecture-overview.md#partitioned-topics">partitioned topics</a>.</p>
+<p>Use the setting to lower the max pending messages for each partition ({@link #setMaxPendingMessages(int)}) if the total number exceeds the configured value.|50000 MessageRoutingMode|<code>messageRoutingMode</code>|Message routing logic for producers on <a href="/docs/fr/next/concepts-architecture-overview#partitioned-topics">partitioned topics</a>.</p>
 <p>Apply the logic only when setting no key on messages.</p>
 <p>Available options are as follows:</p>
 <ul>
@@ -243,11 +240,11 @@ You can configure parameters if you do not want to use the default configuration
   
   ### Routage des messages
   
-  Lorsque vous utilisez des topics partitionnés, vous pouvez spécifier le mode de routage lorsque vous publiez des messages avec un producteur. For more information on specifying a routing mode using the Java client, see the [Partitioned Topics](cookbooks-partitioned.md) cookbook.
+  Lorsque vous utilisez des topics partitionnés, vous pouvez spécifier le mode de routage lorsque vous publiez des messages avec un producteur. For more information on specifying a routing mode using the Java client, see the [Partitioned Topics](/docs/fr/next/cookbooks-partitioned) cookbook.
   
   ### Envoi Asynchrone
   
-  You can publish messages [asynchronously](concepts-messaging.md#send-modes) using the Java client. With async send, the producer puts the message in a blocking queue and returns it immediately. Then the client library sends the message to the broker in the background. If the queue is full (max size configurable), the producer is blocked or fails immediately when calling the API, depending on arguments passed to the producer.
+  You can publish messages [asynchronously](/docs/fr/next/concepts-messaging#send-modes) using the Java client. With async send, the producer puts the message in a blocking queue and returns it immediately. Then the client library sends the message to the broker in the background. If the queue is full (max size configurable), the producer is blocked or fails immediately when calling the API, depending on arguments passed to the producer.
   
   The following is an example.
   
@@ -276,9 +273,9 @@ You can configure parameters if you do not want to use the default configuration
   
   ## Consumer
   
-  Dans Pulsar, les consommateurs s'abonnent à des topics et traitent les messages que les producteurs publient sur ces topics. Vous pouvez instancier un nouveau [consommateur](reference-terminology.md#consumer) en instanciant d'abord un objet {@inject : javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient} et en lui passant l'URL d'un broker Pulsar (comme [ci-dessus](#client-configuration)).
+  Dans Pulsar, les consommateurs s'abonnent à des topics et traitent les messages que les producteurs publient sur ces topics. Vous pouvez instancier un nouveau [consommateur](/docs/fr/next/reference-terminology#consumer) en instanciant d'abord un objet {@inject : javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient} et en lui passant l'URL d'un broker Pulsar (comme [ci-dessus](#client-configuration)).
   
-  Une fois que vous avez instancié un objet {@inject : javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient}, vous pouvez créer un {@inject : javadoc:Consumer:/client/org/apache/pulsar/client/api/Consumer} en précisant un [topic](reference-terminology.md#topic) et un [abonnement](concepts-messaging.md#subscription-modes).
+  Une fois que vous avez instancié un objet {@inject : javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient}, vous pouvez créer un {@inject : javadoc:Consumer:/client/org/apache/pulsar/client/api/Consumer} en précisant un [topic](/docs/fr/next/reference-terminology#topic) et un [abonnement](/docs/fr/next/concepts-messaging#subscription-modes).
   
   ```java
   Consumer consumer = client.newConsumer()
@@ -287,7 +284,7 @@ You can configure parameters if you do not want to use the default configuration
           .subscribe();
   ```
   
-  The `subscribe` method will auto subscribe the consumer to the specified topic and subscription. Une façon de faire écouter le consommateur sur le topic est de configurer une boucle `while`. In this example loop, the consumer listens for messages, prints the contents of any received message, and then [acknowledges](reference-terminology.md#acknowledgment-ack) that the message has been processed. If the processing logic fails, you can use [negative acknowledgement](reference-terminology.md#acknowledgment-ack) to redeliver the message later.
+  The `subscribe` method will auto subscribe the consumer to the specified topic and subscription. Une façon de faire écouter le consommateur sur le topic est de configurer une boucle `while`. In this example loop, the consumer listens for messages, prints the contents of any received message, and then [acknowledges](/docs/fr/next/reference-terminology#acknowledgment-ack) that the message has been processed. If the processing logic fails, you can use [negative acknowledgement](/docs/fr/next/reference-terminology#acknowledgment-ack) to redeliver the message later.
   
   ```java
   while (true) {
@@ -441,7 +438,7 @@ You can configure parameters if you do not want to use the default configuration
   
   ### Réception Asynchrone
   
-  The `receive` method receives messages synchronously (the consumer process is blocked until a message is available). You can also use [async receive](concepts-messaging.md#receive-modes), which returns a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture) object immediately once a new message is available.
+  The `receive` method receives messages synchronously (the consumer process is blocked until a message is available). You can also use [async receive](/docs/fr/next/concepts-messaging#receive-modes), which returns a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture) object immediately once a new message is available.
   
   The following is an example.
   
@@ -495,7 +492,7 @@ You can configure parameters if you do not want to use the default configuration
   
   ### Abonnements multi-topics
   
-  En plus d'abonner un consommateur à un unique topic Pulsar, vous pouvez également vous abonner à plusieurs topic simultanément en utilisant [les abonnements multi-topics](concepts-messaging.md#multi-topic-subscriptions). Pour utiliser les abonnements multi-topics, vous pouvez fournir une expression régulière (regex) ou une `List` de topics. Si vous sélectionnez des topics via des regex, tous les topics doivent être dans le même espace de nommage Pulsar.
+  En plus d'abonner un consommateur à un unique topic Pulsar, vous pouvez également vous abonner à plusieurs topic simultanément en utilisant [les abonnements multi-topics](/docs/fr/next/concepts-messaging#multi-topic-subscriptions). Pour utiliser les abonnements multi-topics, vous pouvez fournir une expression régulière (regex) ou une `List` de topics. Si vous sélectionnez des topics via des regex, tous les topics doivent être dans le même espace de nommage Pulsar.
   
   The followings are some examples.
   
@@ -773,7 +770,7 @@ You can configure parameters if you do not want to use the default configuration
   
   ## Reader
   
-  With the [reader interface](concepts-clients.md#reader-interface), Pulsar clients can &quot;manually position&quot; themselves within a topic and reading all messages from a specified message onward. The Pulsar API for Java enables you to create {@inject: javadoc:Reader:/client/org/apache/pulsar/client/api/Reader} objects by specifying a topic and a {@inject: javadoc:MessageId:/client/org/apache/pulsar/client/api/MessageId}.
+  With the [reader interface](/docs/fr/next/concepts-clients#reader-interface), Pulsar clients can &quot;manually position&quot; themselves within a topic and reading all messages from a specified message onward. The Pulsar API for Java enables you to create {@inject: javadoc:Reader:/client/org/apache/pulsar/client/api/Reader} objects by specifying a topic and a {@inject: javadoc:MessageId:/client/org/apache/pulsar/client/api/MessageId}.
   
   The following is an example.
   
@@ -855,7 +852,7 @@ You can configure parameters if you do not want to use the default configuration
   
   ## Schema
   
-  In Pulsar, all message data consists of byte arrays &quot;under the hood.&quot; [Message schemas](schema-get-started.md) enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). Si vous construisez, par exemple, un [producteur](#producers) sans spécifier un schéma, alors le producteur ne peut produire que des messages de type `byte[]`. The following is an example.
+  In Pulsar, all message data consists of byte arrays &quot;under the hood.&quot; [Message schemas](/docs/fr/next/schema-get-started) enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). Si vous construisez, par exemple, un [producteur](#producers) sans spécifier un schéma, alors le producteur ne peut produire que des messages de type `byte[]`. The following is an example.
   
   ```java
   Producer&lt;byte[]&gt; producer = client.newProducer()
@@ -863,7 +860,7 @@ You can configure parameters if you do not want to use the default configuration
           .create();
   ```
   
-  Le producteur ci-dessus est équivalent à un `Producer&lt;byte[]&gt;` (en fait, vous devriez *toujours* spécifier explicitement le type). Si vous souhaitez utiliser un producteur pour un type de données différent, vous devrez spécifier un **schéma** qui informe Pulsar quel type de données sera transmis sur le [topic](reference-terminology.md#topic).
+  Le producteur ci-dessus est équivalent à un `Producer&lt;byte[]&gt;` (en fait, vous devriez *toujours* spécifier explicitement le type). Si vous souhaitez utiliser un producteur pour un type de données différent, vous devrez spécifier un **schéma** qui informe Pulsar quel type de données sera transmis sur le [topic](/docs/fr/next/reference-terminology#topic).
   
   ### Exemple de schéma
   
@@ -951,11 +948,11 @@ You can configure parameters if you do not want to use the default configuration
   
   ## Autentification
   
-  Pulsar currently supports three authentication schemes: [TLS](security-tls-authentication.md), [Athenz](security-athenz.md), and [Oauth2](security-oauth2.md). You can use the Pulsar Java client with all of them.
+  Pulsar currently supports three authentication schemes: [TLS](/docs/fr/next/security-tls-authentication), [Athenz](/docs/fr/next/security-athenz), and [Oauth2](/docs/fr/next/security-oauth2). You can use the Pulsar Java client with all of them.
   
   ### TLS Authentication
   
-  Pour utiliser [TLS](security-tls-authentication.md), vous devez mettre TLS à `true` en utilisant la méthode `setUseTls` et faire pointer votre client Pulsar vers un cert path TLS, et fournir les chemins pour les fichiers des certificats et des clés.
+  Pour utiliser [TLS](/docs/fr/next/security-tls-authentication), vous devez mettre TLS à `true` en utilisant la méthode `setUseTls` et faire pointer votre client Pulsar vers un cert path TLS, et fournir les chemins pour les fichiers des certificats et des clés.
   
   The following is an example.
   
@@ -977,7 +974,7 @@ You can configure parameters if you do not want to use the default configuration
   
   ### Athenz
   
-  Pour utiliser [Athenz](security-athenz.md) comme fournisseur d'authentification, vous devez [utiliser TLS](#tls-authentication) et fournir des valeurs pour quatre paramètres dans une map :
+  Pour utiliser [Athenz](/docs/fr/next/security-athenz) comme fournisseur d'authentification, vous devez [utiliser TLS](#tls-authentication) et fournir des valeurs pour quatre paramètres dans une map :
   
   * `tenantDomain`
   * `tenantService`
@@ -1011,7 +1008,7 @@ You can configure parameters if you do not want to use the default configuration
   
   ### Oauth2
   
-  The following example shows how to use [Oauth2](security-oauth2.md) as an authentication provider for the Pulsar Java client.
+  The following example shows how to use [Oauth2](/docs/fr/next/security-oauth2) as an authentication provider for the Pulsar Java client.
   
   You can use the factory method to configure authentication for Pulsar Java client.
   

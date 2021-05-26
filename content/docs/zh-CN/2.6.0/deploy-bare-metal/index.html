@@ -269,42 +269,37 @@ $ <span class="hljs-built_in">echo</span> 1 &gt; data/zookeeper/myid
 </table>
 <blockquote>
 <p>如果你没有 DNS 服务器，你能够使用多个域名组成的格式的服务的 URL，格式如下:</p>
-<pre><code class="hljs css language-properties"></code></pre>
+<pre><code class="hljs css language-properties"><span class="hljs-meta">--web-service-url</span> <span class="hljs-string">http://host1:8080,host2:8080,host3:8080 \
+--web-service-url-tls https://host1:8443,host2:8443,host3:8443 \
+--broker-service-url pulsar://host1:6650,host2:6650,host3:6650 \
+--broker-service-url-tls pulsar+ssl://host1:6651,host2:6651,host3:6651</span>
+</code></pre>
 </blockquote>
-<p>--web-service-url <a href="http://host1:8080">http://host1:8080</a>,host2:8080,host3:8080 <br>
---web-service-url-tls <a href="https://host1:8443">https://host1:8443</a>,host2:8443,host3:8443 <br>
---broker-service-url <a href="pulsar://host1:6650">pulsar://host1:6650</a>,host2:6650,host3:6650 <br>
---broker-service-url-tls <a href="pulsar+ssl://host1:6651">pulsar+ssl://host1:6651</a>,host2:6651,host3:6651</p>
-<pre><code class="hljs">
-<span class="hljs-section">## 部署 Bookeeper 集群</span>
-
-[<span class="hljs-string">BookKeeper</span>](<span class="hljs-link">https://bookkeeper.apache.org</span>) handles all persistent data storage in Pulsar. 你必须先部署一个 BookKeeper 集群，才能够使用 Pulsar。 You can choose to run a <span class="hljs-strong">**3-bookie BookKeeper cluster**</span>.
-
-你能够通过配置文件[<span class="hljs-string">`conf/bookkeeper.conf`</span>](<span class="hljs-link">reference-configuration.md#bookkeeper</span>)去配置 BookKeeper bookies。 配置 bookies 最重要的一步，是要确保[<span class="hljs-string">` zkServers`</span>](<span class="hljs-link">reference-configuration.md#bookkeeper-zkServers</span>)设置为 Zookeeper 集群的连接信息。 如下所示：
-
-<span class="hljs-code">```properties
-zkServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
-</span></code></pre>
-<p>一旦你适当地修改了<code>zkServers</code> 参数，你可以修改任何你需要的其他配置。 你可以在 <a href="reference-configuration.md#bookkeeper">here</a>了解到完整的可用的 BookKeeper 配置项列表。 然而，建议通过<a href="http://bookkeeper.apache.org/docs/latest/reference/config/"> Bookeeper 官方文档</a>了解更多深层的信息。</p>
+<h2><a class="anchor" aria-hidden="true" id="部署-bookeeper-集群"></a><a href="#部署-bookeeper-集群" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>部署 Bookeeper 集群</h2>
+<p><a href="https://bookkeeper.apache.org">BookKeeper</a> handles all persistent data storage in Pulsar. 你必须先部署一个 BookKeeper 集群，才能够使用 Pulsar。 You can choose to run a <strong>3-bookie BookKeeper cluster</strong>.</p>
+<p>你能够通过配置文件<a href="/docs/zh-CN/2.6.0/reference-configuration#bookkeeper"><code>conf/bookkeeper.conf</code></a>去配置 BookKeeper bookies。 配置 bookies 最重要的一步，是要确保<a href="/docs/zh-CN/2.6.0/reference-configuration#bookkeeper-zkServers"><code>zkServers</code></a>设置为 Zookeeper 集群的连接信息。 如下所示：</p>
+<pre><code class="hljs css language-properties"><span class="hljs-attr">zkServers</span>=<span class="hljs-string">zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181</span>
+</code></pre>
+<p>一旦你适当地修改了<code>zkServers</code> 参数，你可以修改任何你需要的其他配置。 你可以在 <a href="/docs/zh-CN/2.6.0/reference-configuration#bookkeeper">here</a>了解到完整的可用的 BookKeeper 配置项列表。 然而，建议通过<a href="http://bookkeeper.apache.org/docs/latest/reference/config/"> Bookeeper 官方文档</a>了解更多深层的信息。</p>
 <p>一旦修改完<code>conf/bookkeeper.conf</code>文件的相关配置，你就可以在每台 Bookeeper 机器上启动 bookie。 You can start up each bookie either in the background, using <a href="https://en.wikipedia.org/wiki/Nohup">nohup</a>, or in the foreground.</p>
-<p>To start the bookie in the background, use the <a href="reference-cli-tools.md#pulsar-daemon"><code>pulsar-daemon</code></a> CLI tool:</p>
+<p>To start the bookie in the background, use the <a href="/docs/zh-CN/2.6.0/reference-cli-tools#pulsar-daemon"><code>pulsar-daemon</code></a> CLI tool:</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-daemon start bookie
 </code></pre>
 <p>To start the bookie in the foreground:</p>
 <pre><code class="hljs css language-bash">$ bin/bookkeeper bookie
 </code></pre>
-<p>你可以通过运行<a href="reference-cli-tools.md#shell">BookKeeper shell</a>上的<code>bookiesanity</code>命令验证 bookie 是否正常工作：</p>
+<p>你可以通过运行<a href="/docs/zh-CN/2.6.0/reference-cli-tools#shell">BookKeeper shell</a>上的<code>bookiesanity</code>命令验证 bookie 是否正常工作：</p>
 <pre><code class="hljs css language-bash">$ bin/bookkeeper shell bookiesanity
 </code></pre>
 <p>这个命令会在本地的 bookie 创建一个临时的 BookKeeper ledger，往里面写一些条目，然后读取它，最后删除这个 ledger。</p>
-<p>启动了所有的 bookie 后，你能够在任意一台bookie上，使用<a href="reference-cli-tools.md#shell">BookKeeper shell</a>的<code>simpletest</code>命令，去校验集群内所有的 bookie 是否都已经启动。</p>
+<p>启动了所有的 bookie 后，你能够在任意一台bookie上，使用<a href="/docs/zh-CN/2.6.0/reference-cli-tools#shell">BookKeeper shell</a>的<code>simpletest</code>命令，去校验集群内所有的 bookie 是否都已经启动。</p>
 <pre><code class="hljs css language-bash">$ bin/bookkeeper shell simpletest --ensemble &lt;num-bookies&gt; --writeQuorum &lt;num-bookies&gt; --ackQuorum &lt;num-bookies&gt; --numEntries &lt;num-entries&gt;
 </code></pre>
 <p>这个命令会在集群上创建和bookie<code>同等数量</code>的ledger，并往里面写一些条目，然后读取它，最后删除这个ledger。</p>
 <h2><a class="anchor" aria-hidden="true" id="部署-pulsar-broker"></a><a href="#部署-pulsar-broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>部署 Pulsar broker</h2>
 <p>Pulsar brokers are the last thing you need to deploy in your Pulsar cluster. Broker 用来处理 Pulsar 消息，并且提供管理Pulsar的接口。 A good choice is to run <strong>3 brokers</strong>, one for each machine that already runs a BookKeeper bookie.</p>
 <h3><a class="anchor" aria-hidden="true" id="配置-broker"></a><a href="#配置-broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置 Broker</h3>
-<p>Broker 配置中有一些非常重要的参数，这些参数可以确保每个Broker 连接到已部署的 ZooKeeper 集群。 需要确认 <a href="reference-configuration.md#broker-zookeeperServers"> <code>zookeeperServers</code></a> 和 <a href="reference-configuration.md#broker-configurationStoreServers"><code>configurationStoreServers</code></a> 配置项的值是正确的。 在当前情况下，由于只有一个集群，没有单独用来存储配置的 Zookeeper 集群，那么配置项<code>configurationStoreServers</code>和<code>zookeeperServers</code> 是一样的值。</p>
+<p>Broker 配置中有一些非常重要的参数，这些参数可以确保每个Broker 连接到已部署的 ZooKeeper 集群。 需要确认 <a href="/docs/zh-CN/2.6.0/reference-configuration#broker-zookeeperServers"> <code>zookeeperServers</code></a> 和 <a href="/docs/zh-CN/2.6.0/reference-configuration#broker-configurationStoreServers"><code>configurationStoreServers</code></a> 配置项的值是正确的。 在当前情况下，由于只有一个集群，没有单独用来存储配置的 Zookeeper 集群，那么配置项<code>configurationStoreServers</code>和<code>zookeeperServers</code> 是一样的值。</p>
 <pre><code class="hljs css language-properties"><span class="hljs-attr">zookeeperServers</span>=<span class="hljs-string">zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181</span>
 <span class="hljs-attr">configurationStoreServers</span>=<span class="hljs-string">zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181</span>
 </code></pre>
@@ -319,42 +314,32 @@ zkServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.
 </code></pre>
 <blockquote>
 <p>如果你部署的是单节点的 Pulsar 集群，你需要把配置文件<code>conf/broker.conf</code>的副本数量配置为<code>1</code>.</p>
-<pre><code class="hljs css language-properties"></code></pre>
+<pre><code class="hljs css language-properties"><span class="hljs-comment"># Number of bookies to use when creating a ledger</span>
+<span class="hljs-attr">managedLedgerDefaultEnsembleSize</span>=<span class="hljs-string">1</span>
+<span class="hljs-comment">
+# Number of copies to store for each message</span>
+<span class="hljs-attr">managedLedgerDefaultWriteQuorum</span>=<span class="hljs-string">1</span>
+<span class="hljs-comment">
+# Number of guaranteed copies (acks to wait before write is complete)</span>
+<span class="hljs-attr">managedLedgerDefaultAckQuorum</span>=<span class="hljs-string">1</span>
+</code></pre>
 </blockquote>
-<h1><a class="anchor" aria-hidden="true" id="number-of-bookies-to-use-when-creating-a-ledger"></a><a href="#number-of-bookies-to-use-when-creating-a-ledger" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Number of bookies to use when creating a ledger</h1>
-<p>managedLedgerDefaultEnsembleSize=1</p>
-<h1><a class="anchor" aria-hidden="true" id="number-of-copies-to-store-for-each-message"></a><a href="#number-of-copies-to-store-for-each-message" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Number of copies to store for each message</h1>
-<p>managedLedgerDefaultWriteQuorum=1</p>
-<h1><a class="anchor" aria-hidden="true" id="number-of-guaranteed-copies-acks-to-wait-before-write-is-complete"></a><a href="#number-of-guaranteed-copies-acks-to-wait-before-write-is-complete" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Number of guaranteed copies (acks to wait before write is complete)</h1>
-<p>managedLedgerDefaultAckQuorum=1</p>
-<pre><code class="hljs">
-<span class="hljs-section">### 启用 Pulsar Function(可选)</span>
-
-If you want to enable [<span class="hljs-string">Pulsar Functions</span>](<span class="hljs-link">/docs/zh-CN/2.6.0/functions-overview</span>), you can follow the instructions as below:
-<span class="hljs-bullet">
-1. </span>将<span class="hljs-code">`conf/broker.conf`</span>文件的配置项<span class="hljs-code">` functionsWorkerEnabled`</span>设置为<span class="hljs-code">`true`</span>，启用函数 worker，
-
-<span class="hljs-code">    ```conf</span>
-<span class="hljs-code">    functionsWorkerEnabled=true</span>
-<span class="hljs-code">    ```</span>
-<span class="hljs-bullet">
-2. </span>修改<span class="hljs-code">`conf/functions_worker.yml`</span>的配置项<span class="hljs-code">` pulsarFunctionsCluster`</span> 为集群的名称，该名称和[<span class="hljs-string">初始化集群元数据</span>](<span class="hljs-link">#initialize-cluster-metadata</span>)使用的集群名字是同一个。
-
-<span class="hljs-code">    ```conf</span>
-<span class="hljs-code">    pulsarFunctionsCluster: pulsar-cluster-1</span>
-<span class="hljs-code">    ```</span>
-
-如果想了解更多函数 worker 部署相关的信息，请参考[<span class="hljs-string">函数 worker 部署和管理</span>](<span class="hljs-link">/docs/zh-CN/2.6.0/functions-worker</span>)。
-
-<span class="hljs-section">### 启动 Broker</span>
-
-你可以将配置文件[<span class="hljs-string">`conf/broker.conf`</span>](<span class="hljs-link">/docs/zh-CN/2.6.0/reference-configuration#broker</span>)提供的任何配置项，修改为你需要的值。 一旦确定了配置，就可以启动 Pulsar 集群里的 broker。 和 Zookeeper 和 BookKeeper 一样，你可以选择前台启动或后台启动。
-
-You can start a broker in the foreground using the [<span class="hljs-string">`pulsar broker`</span>](<span class="hljs-link">/docs/zh-CN/2.6.0/reference-cli-tools#pulsar-broker</span>) command:
-
-<span class="hljs-code">```bash
-$ bin/pulsar broker
-</span></code></pre>
+<h3><a class="anchor" aria-hidden="true" id="启用-pulsar-function可选"></a><a href="#启用-pulsar-function可选" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>启用 Pulsar Function(可选)</h3>
+<p>If you want to enable <a href="/docs/zh-CN/2.6.0/functions-overview">Pulsar Functions</a>, you can follow the instructions as below:</p>
+<ol>
+<li><p>将<code>conf/broker.conf</code>文件的配置项<code>functionsWorkerEnabled</code>设置为<code>true</code>，启用函数 worker，</p>
+<pre><code class="hljs css language-conf"><span class="hljs-attr">functionsWorkerEnabled</span>=<span class="hljs-literal">true</span>
+</code></pre></li>
+<li><p>修改<code>conf/functions_worker.yml</code>的配置项<code>pulsarFunctionsCluster</code> 为集群的名称，该名称和<a href="#initialize-cluster-metadata">初始化集群元数据</a>使用的集群名字是同一个。</p>
+<pre><code class="hljs css language-conf">pulsarFunctionsCluster: pulsar-cluster<span class="hljs-number">-1</span>
+</code></pre></li>
+</ol>
+<p>如果想了解更多函数 worker 部署相关的信息，请参考<a href="/docs/zh-CN/2.6.0/functions-worker">函数 worker 部署和管理</a>。</p>
+<h3><a class="anchor" aria-hidden="true" id="启动-broker"></a><a href="#启动-broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>启动 Broker</h3>
+<p>你可以将配置文件<a href="/docs/zh-CN/2.6.0/reference-configuration#broker"><code>conf/broker.conf</code></a>提供的任何配置项，修改为你需要的值。 一旦确定了配置，就可以启动 Pulsar 集群里的 broker。 和 Zookeeper 和 BookKeeper 一样，你可以选择前台启动或后台启动。</p>
+<p>You can start a broker in the foreground using the <a href="/docs/zh-CN/2.6.0/reference-cli-tools#pulsar-broker"><code>pulsar broker</code></a> command:</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar broker
+</code></pre>
 <p>You can start a broker in the background using the <a href="/docs/zh-CN/2.6.0/reference-cli-tools#pulsar-daemon"><code>pulsar-daemon</code></a> CLI tool:</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-daemon start broker
 </code></pre>
@@ -367,17 +352,14 @@ $ bin/pulsar broker
 </code></pre>
 <blockquote>
 <p>如果你没有 DNS 服务器，你能够使用多个域名组成的格式的服务的 URL：</p>
-<pre><code class="hljs css language-properties"></code></pre>
+<pre><code class="hljs css language-properties"><span class="hljs-attr">webServiceUrl</span>=<span class="hljs-string">http://host1:8080,host2:8080,host3:8080</span>
+<span class="hljs-attr">brokerServiceurl</span>=<span class="hljs-string">pulsar://host1:6650,host2:6650,host3:6650</span>
+</code></pre>
 </blockquote>
-<p>webServiceUrl=<a href="http://host1:8080">http://host1:8080</a>,host2:8080,host3:8080
-brokerServiceurl=<a href="pulsar://host1:6650">pulsar://host1:6650</a>,host2:6650,host3:6650</p>
-<pre><code class="hljs">
-完成后，你能够发送消息到 Pulsar 主题：
-
-<span class="hljs-string">```</span>bash
-$ bin/pulsar-client produce \
-<span class="hljs-symbol">  persistent:</span>//<span class="hljs-meta">public</span>/<span class="hljs-meta">default</span>/<span class="hljs-keyword">test</span> \
-  -n <span class="hljs-number">1</span> \
+<p>完成后，你能够发送消息到 Pulsar 主题：</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-client produce \
+  persistent://public/default/<span class="hljs-built_in">test</span> \
+  -n 1 \
   -m <span class="hljs-string">"Hello Pulsar"</span>
 </code></pre>
 <blockquote>
@@ -408,13 +390,13 @@ Hello Pulsar
   --namespace default \
   --name exclamation
 </code></pre>
-<p>检查是否按照预期<a href="functions-deploying.md#triggering-pulsar-functions">触发</a>函数运行。</p>
+<p>检查是否按照预期<a href="/docs/zh-CN/2.6.0/functions-deploying#triggering-pulsar-functions">触发</a>函数运行。</p>
 <pre><code class="hljs css language-bash">bin/pulsar-admin <span class="hljs-built_in">functions</span> trigger --name exclamation --trigger-value <span class="hljs-string">"hello world"</span>
 </code></pre>
 <p>你能够看到如下的输出：</p>
 <pre><code class="hljs css language-shell">hello world!
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.6.0/deploy-kubernetes"><span class="arrow-prev">← </span><span>Kubernetes</span></a><a class="docs-next button" href="/docs/zh-CN/2.6.0/deploy-bare-metal-multi-cluster"><span>裸机多集群部署</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#准备工作">准备工作</a><ul class="toc-headings"><li><a href="#要求">要求</a></li><li><a href="#硬件条件">硬件条件</a></li></ul></li><li><a href="#pulsar-二进制包安装">Pulsar 二进制包安装</a></li><li><a href="#安装内置-connectors可选httpspulsarapacheorgdocsennextstandaloneinstall-builtin-connectors-optional"><a href="https://pulsar.apache.org/docs/en/next/standalone/#install-builtin-connectors-optional">安装内置 Connectors(可选)</a></a></li><li><a href="#安装分层存储可选httpspulsarapacheorgdocsennextstandaloneinstall-tiered-storage-offloaders-optional"><a href="https://pulsar.apache.org/docs/en/next/standalone/#install-tiered-storage-offloaders-optional">安装分层存储(可选)</a></a></li><li><a href="#部署-zookeeper-集群">部署 Zookeeper 集群</a></li><li><a href="#初始化集群元数据">初始化集群元数据</a></li><li><a href="#部署-pulsar-broker">部署 Pulsar broker</a><ul class="toc-headings"><li><a href="#配置-broker">配置 Broker</a></li></ul></li><li><a href="#连接集群">连接集群</a></li><li><a href="#运行函数">运行函数</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.6.0/deploy-kubernetes"><span class="arrow-prev">← </span><span>Kubernetes</span></a><a class="docs-next button" href="/docs/zh-CN/2.6.0/deploy-bare-metal-multi-cluster"><span>裸机多集群部署</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#准备工作">准备工作</a><ul class="toc-headings"><li><a href="#要求">要求</a></li><li><a href="#硬件条件">硬件条件</a></li></ul></li><li><a href="#pulsar-二进制包安装">Pulsar 二进制包安装</a></li><li><a href="#安装内置-connectors可选httpspulsarapacheorgdocsennextstandaloneinstall-builtin-connectors-optional"><a href="https://pulsar.apache.org/docs/en/next/standalone/#install-builtin-connectors-optional">安装内置 Connectors(可选)</a></a></li><li><a href="#安装分层存储可选httpspulsarapacheorgdocsennextstandaloneinstall-tiered-storage-offloaders-optional"><a href="https://pulsar.apache.org/docs/en/next/standalone/#install-tiered-storage-offloaders-optional">安装分层存储(可选)</a></a></li><li><a href="#部署-zookeeper-集群">部署 Zookeeper 集群</a></li><li><a href="#初始化集群元数据">初始化集群元数据</a></li><li><a href="#部署-bookeeper-集群">部署 Bookeeper 集群</a></li><li><a href="#部署-pulsar-broker">部署 Pulsar broker</a><ul class="toc-headings"><li><a href="#配置-broker">配置 Broker</a></li><li><a href="#启用-pulsar-function可选">启用 Pulsar Function(可选)</a></li><li><a href="#启动-broker">启动 Broker</a></li></ul></li><li><a href="#连接集群">连接集群</a></li><li><a href="#运行函数">运行函数</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

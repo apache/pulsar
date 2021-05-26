@@ -175,22 +175,19 @@ stringProducer.send(<span class="hljs-string">"My message"</span>);
 </code></pre>
 <blockquote>
 <p>Make sure that you close your producers, consumers, and clients when you do not need them.</p>
-<pre><code class="hljs css language-java"></code></pre>
-</blockquote>
-<p>producer.close();
+<pre><code class="hljs css language-java">producer.close();
 consumer.close();
-client.close();</p>
-<pre><code class="hljs">
-关闭操作也可以是异步的：
-
-```java
-producer.closeAsync()
-   .thenRun(<span class="hljs-function"><span class="hljs-params">()</span> -&gt;</span> System.out.println(<span class="hljs-string">"Producer closed"</span>));
-   .exceptionally(<span class="hljs-function"><span class="hljs-params">(ex)</span> -&gt;</span> {
+client.close();
+</code></pre>
+<p>关闭操作也可以是异步的：</p>
+<pre><code class="hljs css language-java">producer.closeAsync()
+   .thenRun(() -&gt; System.out.println(<span class="hljs-string">"Producer closed"</span>));
+   .exceptionally((ex) -&gt; {
        System.err.println(<span class="hljs-string">"Failed to close producer: "</span> + ex);
        <span class="hljs-keyword">return</span> ex;
    });
 </code></pre>
+</blockquote>
 <h3><a class="anchor" aria-hidden="true" id="配置producer（生产者）"></a><a href="#配置producer（生产者）" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置Producer（生产者）</h3>
 <p>If you instantiate a <code>Producer</code> object by specifying only a topic name as the example above, use the default configuration for producer.</p>
 <p>If you create a producer, you can use the <code>loadConf</code> configuration. The following parameters are available in <code>loadConf</code>.</p>
@@ -202,9 +199,9 @@ producer.closeAsync()
 <p>If a message is not acknowledged by a server before the <code>发送超时</code> expires, an error occurs.|30000 boolean|<code>blockIfQueueFull</code>|If it is set to <code>true</code>, when the outgoing message queue is full, the <code>Send</code> and <code>SendAsync</code> methods of producer block, rather than failing and throwing errors.</p>
 <p>If it is set to <code>false</code>, when the outgoing message queue is full, the <code>Send</code> and <code>SendAsync</code> methods of producer fail and <code>ProducerQueueIsFullError</code> exceptions occur.</p>
 <p>The <code>MaxPendingMessages</code> parameter determines the size of the outgoing message queue.|false int|<code>maxPendingMessages</code>|The maximum size of a queue holding pending messages.</p>
-<p>For example, a message waiting to receive an acknowledgment from a <a href="reference-terminology.md#broker">broker</a>.</p>
+<p>For example, a message waiting to receive an acknowledgment from a <a href="/docs/zh-CN/next/reference-terminology#broker">broker</a>.</p>
 <p>By default, when the queue is full, all calls to the <code>Send</code> and <code>SendAsync</code> methods fail <strong>unless</strong> you set <code>BlockIfQueueFull</code> to <code>true</code>.|1000 int|<code>maxPendingMessagesAcrossPartitions</code>|The maximum number of pending messages across partitions.</p>
-<p>Use the setting to lower the max pending messages for each partition ({@link #setMaxPendingMessages(int)}) if the total number exceeds the configured value.|50000 MessageRoutingMode|<code>messageRoutingMode</code>|Message routing logic for producers on <a href="concepts-architecture-overview.md#partitioned-topics">partitioned topics</a>.</p>
+<p>Use the setting to lower the max pending messages for each partition ({@link #setMaxPendingMessages(int)}) if the total number exceeds the configured value.|50000 MessageRoutingMode|<code>messageRoutingMode</code>|Message routing logic for producers on <a href="/docs/zh-CN/next/concepts-architecture-overview#partitioned-topics">partitioned topics</a>.</p>
 <p>Apply the logic only when setting no key on messages.</p>
 <p>Available options are as follows:</p>
 <ul>
@@ -245,11 +242,11 @@ You can configure parameters if you do not want to use the default configuration
   
   ### 消息路由
   
-  当使用分区主题时，当你使用生产者发布消息时你可以指定路由模式。 For more information on specifying a routing mode using the Java client, see the [Partitioned Topics](cookbooks-partitioned.md) cookbook.
+  当使用分区主题时，当你使用生产者发布消息时你可以指定路由模式。 For more information on specifying a routing mode using the Java client, see the [Partitioned Topics](/docs/zh-CN/next/cookbooks-partitioned) cookbook.
   
   ### 异步发送
   
-  You can publish messages [asynchronously](concepts-messaging.md#send-modes) using the Java client. With async send, the producer puts the message in a blocking queue and returns it immediately. Then the client library sends the message to the broker in the background. If the queue is full (max size configurable), the producer is blocked or fails immediately when calling the API, depending on arguments passed to the producer.
+  You can publish messages [asynchronously](/docs/zh-CN/next/concepts-messaging#send-modes) using the Java client. With async send, the producer puts the message in a blocking queue and returns it immediately. Then the client library sends the message to the broker in the background. If the queue is full (max size configurable), the producer is blocked or fails immediately when calling the API, depending on arguments passed to the producer.
   
   The following is an example.
   
@@ -278,9 +275,9 @@ You can configure parameters if you do not want to use the default configuration
   
   ## 消费者（Consumer）
   
-  在Pulsar中，消费者订阅topic主题并处理生产者发布到这些主题的消息。 你可以首先实例化一个{@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient}对象并传递给他一个borker([如上所示](#client-configuration)) URL来实例化一个[消费者](reference-terminology.md#consumer)。
+  在Pulsar中，消费者订阅topic主题并处理生产者发布到这些主题的消息。 你可以首先实例化一个{@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient}对象并传递给他一个borker([如上所示](#client-configuration)) URL来实例化一个[消费者](/docs/zh-CN/next/reference-terminology#consumer)。
   
-  一旦实例化一个{@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient} 对象，你可以指定一个[主题](reference-terminology.md#topic)和一个[订阅](concepts-messaging.md#subscription-modes)来创建一个 {@inject: javadoc:Consumer:/client/org/apache/pulsar/client/api/Consumer}消费者。
+  一旦实例化一个{@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient} 对象，你可以指定一个[主题](/docs/zh-CN/next/reference-terminology#topic)和一个[订阅](/docs/zh-CN/next/concepts-messaging#subscription-modes)来创建一个 {@inject: javadoc:Consumer:/client/org/apache/pulsar/client/api/Consumer}消费者。
   
   ```java
   Consumer consumer = client.newConsumer()
@@ -289,7 +286,7 @@ You can configure parameters if you do not want to use the default configuration
           .subscribe();
   ```
   
-  The `subscribe` method will auto subscribe the consumer to the specified topic and subscription. 一种让消费者监听主题的方法是使用`while`循环。 In this example loop, the consumer listens for messages, prints the contents of any received message, and then [acknowledges](reference-terminology.md#acknowledgment-ack) that the message has been processed. If the processing logic fails, you can use [negative acknowledgement](reference-terminology.md#acknowledgment-ack) to redeliver the message later.
+  The `subscribe` method will auto subscribe the consumer to the specified topic and subscription. 一种让消费者监听主题的方法是使用`while`循环。 In this example loop, the consumer listens for messages, prints the contents of any received message, and then [acknowledges](/docs/zh-CN/next/reference-terminology#acknowledgment-ack) that the message has been processed. If the processing logic fails, you can use [negative acknowledgement](/docs/zh-CN/next/reference-terminology#acknowledgment-ack) to redeliver the message later.
   
   ```java
   while (true) {
@@ -443,7 +440,7 @@ You can configure parameters if you do not want to use the default configuration
   
   ### 异步接收
   
-  The `receive` method receives messages synchronously (the consumer process is blocked until a message is available). You can also use [async receive](concepts-messaging.md#receive-modes), which returns a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture) object immediately once a new message is available.
+  The `receive` method receives messages synchronously (the consumer process is blocked until a message is available). You can also use [async receive](/docs/zh-CN/next/concepts-messaging#receive-modes), which returns a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture) object immediately once a new message is available.
   
   The following is an example.
   
@@ -497,7 +494,7 @@ You can configure parameters if you do not want to use the default configuration
   
   ### 多主题订阅
   
-  消费者除了订阅单个Pulsar主题外，你还可以使用[多主题订阅](concepts-messaging.md#multi-topic-subscriptions)订阅多个主题。 若要使用多主题订阅, 可以提供一个topic正则表达式 (regex) 或 主题`List` 。 如果通过 regex 选择主题, 则所有主题都必须位于同一Pulsar命名空间中。
+  消费者除了订阅单个Pulsar主题外，你还可以使用[多主题订阅](/docs/zh-CN/next/concepts-messaging#multi-topic-subscriptions)订阅多个主题。 若要使用多主题订阅, 可以提供一个topic正则表达式 (regex) 或 主题`List` 。 如果通过 regex 选择主题, 则所有主题都必须位于同一Pulsar命名空间中。
   
   The followings are some examples.
   
@@ -775,7 +772,7 @@ You can configure parameters if you do not want to use the default configuration
   
   ## Reader
   
-  With the [reader interface](concepts-clients.md#reader-interface), Pulsar clients can &quot;manually position&quot; themselves within a topic and reading all messages from a specified message onward. The Pulsar API for Java enables you to create {@inject: javadoc:Reader:/client/org/apache/pulsar/client/api/Reader} objects by specifying a topic and a {@inject: javadoc:MessageId:/client/org/apache/pulsar/client/api/MessageId}.
+  With the [reader interface](/docs/zh-CN/next/concepts-clients#reader-interface), Pulsar clients can &quot;manually position&quot; themselves within a topic and reading all messages from a specified message onward. The Pulsar API for Java enables you to create {@inject: javadoc:Reader:/client/org/apache/pulsar/client/api/Reader} objects by specifying a topic and a {@inject: javadoc:MessageId:/client/org/apache/pulsar/client/api/MessageId}.
   
   The following is an example.
   
@@ -857,7 +854,7 @@ You can configure parameters if you do not want to use the default configuration
   
   ## Schema
   
-  In Pulsar, all message data consists of byte arrays &quot;under the hood.&quot; [Message schemas](schema-get-started.md) enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). 如果在不指定schema的情况下构造 [生产者](#producers)，则生产者只能生成类型为 `byte[] `的消息。 The following is an example.
+  In Pulsar, all message data consists of byte arrays &quot;under the hood.&quot; [Message schemas](/docs/zh-CN/next/schema-get-started) enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). 如果在不指定schema的情况下构造 [生产者](#producers)，则生产者只能生成类型为 `byte[] `的消息。 The following is an example.
   
   ```java
   Producer&lt;byte[]&gt; producer = client.newProducer()
@@ -865,7 +862,7 @@ You can configure parameters if you do not want to use the default configuration
           .create();
   ```
   
-  上面的生产者相当于 `Producer&lt;byte[]&gt;` (实际上, 你应该 *总是* 显式指定类型)。 如果你想让产生者使用不同类型的数据，你需要指定一个**schema**来通知Pulsar 在[topic](reference-terminology.md#topic)上传输哪种类型的数据。
+  上面的生产者相当于 `Producer&lt;byte[]&gt;` (实际上, 你应该 *总是* 显式指定类型)。 如果你想让产生者使用不同类型的数据，你需要指定一个**schema**来通知Pulsar 在[topic](/docs/zh-CN/next/reference-terminology#topic)上传输哪种类型的数据。
   
   ### Schema实例
   
@@ -953,11 +950,11 @@ You can configure parameters if you do not want to use the default configuration
   
   ## 身份验证
   
-  Pulsar currently supports three authentication schemes: [TLS](security-tls-authentication.md), [Athenz](security-athenz.md), and [Oauth2](security-oauth2.md). You can use the Pulsar Java client with all of them.
+  Pulsar currently supports three authentication schemes: [TLS](/docs/zh-CN/next/security-tls-authentication), [Athenz](/docs/zh-CN/next/security-athenz), and [Oauth2](/docs/zh-CN/next/security-oauth2). You can use the Pulsar Java client with all of them.
   
   ### TLS 认证
   
-  要使用[TLS](security-tls-authentication.md)，你需要使用`setUseTls`方法设置TLS为`true`，将您的Pulsar客户端指向TLS证书路径，并提供证书和密钥文件的路径。
+  要使用[TLS](/docs/zh-CN/next/security-tls-authentication)，你需要使用`setUseTls`方法设置TLS为`true`，将您的Pulsar客户端指向TLS证书路径，并提供证书和密钥文件的路径。
   
   The following is an example.
   
@@ -979,7 +976,7 @@ You can configure parameters if you do not want to use the default configuration
   
   ### Athenz
   
-  要使用[Athenz](security-athenz.md)做为身份认证提供者，你需要[use TLS](#tls-authentication)并且在hash提供如下四个参数的值：
+  要使用[Athenz](/docs/zh-CN/next/security-athenz)做为身份认证提供者，你需要[use TLS](#tls-authentication)并且在hash提供如下四个参数的值：
   
   * `tenantDomain`
   * `tenantService`
@@ -1013,7 +1010,7 @@ You can configure parameters if you do not want to use the default configuration
   
   ### Oauth2
   
-  The following example shows how to use [Oauth2](security-oauth2.md) as an authentication provider for the Pulsar Java client.
+  The following example shows how to use [Oauth2](/docs/zh-CN/next/security-oauth2) as an authentication provider for the Pulsar Java client.
   
   你可以在 Pulsar Java 客户端中使用工厂方法配置身份认证操作。
   

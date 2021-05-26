@@ -106,6 +106,7 @@
 </thead>
 <tbody>
 <tr><td><code>-a</code>, <code>--archive</code></td><td>The path to the NAR archive for the source. <br> It also supports url-path (http/https/file [file protocol assumes that file already exists on worker host]) from which worker can download the package.</td></tr>
+<tr><td><code>--batch-source-config</code></td><td>BatchSource configuration key/values pairs provided as a JSON string, e.g., { &quot;discoveryTriggererClassName&quot; : &quot;org.apache.pulsar.io.batchdiscovery.CronTriggerer&quot;, &quot;discoveryTriggererConfig&quot;: {&quot;cron&quot;: &quot;*/5 * * * *&quot;} }</td></tr>
 <tr><td><code>--classname</code></td><td>The source's class name if <code>archive</code> is file-url-path (file://).</td></tr>
 <tr><td><code>--cpu</code></td><td>The CPU (in cores) that needs to be allocated per source instance (applicable only to Docker runtime).</td></tr>
 <tr><td><code>--deserialization-classname</code></td><td>The SerDe classname for the source.</td></tr>
@@ -136,6 +137,7 @@
 </thead>
 <tbody>
 <tr><td><code>-a</code>, <code>--archive</code></td><td>The path to the NAR archive for the source. <br> It also supports url-path (http/https/file [file protocol assumes that file already exists on worker host]) from which worker can download the package.</td></tr>
+<tr><td><code>--batch-source-config</code></td><td>BatchSource configuration key/values pairs provided as a JSON string, e.g., { &quot;discoveryTriggererClassName&quot; : &quot;org.apache.pulsar.io.batchdiscovery.CronTriggerer&quot;, &quot;discoveryTriggererConfig&quot;: {&quot;cron&quot;: &quot;*/5 * * * *&quot;} }</td></tr>
 <tr><td><code>--classname</code></td><td>The source's class name if <code>archive</code> is file-url-path (file://).</td></tr>
 <tr><td><code>--cpu</code></td><td>The CPU (in cores) that needs to be allocated per source instance (applicable only to Docker runtime).</td></tr>
 <tr><td><code>--deserialization-classname</code></td><td>The SerDe classname for the source.</td></tr>

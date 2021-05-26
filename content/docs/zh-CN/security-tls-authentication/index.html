@@ -102,34 +102,29 @@
 <p>你可以从此命令获得证书、 <code>admin.cert.pem</code>和一个密钥。 <code>admin.key-pk8.pem</code> 使用 <code>ca.cert. em</code>， 客户可以使用此证书和此密钥向 broker 和 proxy 进行身份验证，作为 <code>管理员</code></p>
 <blockquote>
 <p>Note If the &quot;unable to load CA private key&quot; error occurs and the reason of this error is &quot;No such file or directory: /etc/pki/CA/private/cakey.pem&quot; in this step. Try the command below:</p>
-<pre><code class="hljs css language-bash"></code></pre>
+<pre><code class="hljs css language-bash">$ <span class="hljs-built_in">cd</span> /etc/pki/tls/misc/CA
+$ ./CA -newca
+</code></pre>
+<p>生成 <code>cakey.pem</code>。</p>
 </blockquote>
-<p>$ cd /etc/pki/tls/misc/CA
-$ ./CA -newca</p>
-<pre><code class="hljs">
-生成 `cakey.pem`。
-
-<span class="hljs-comment">## 在 broker 上启用 TLS 认证</span>
-
-要配置 broker 来验证客户端，请在 `broker.conf`中添加以下参数，和 [配置一起启用tls transport](security-tls-transport.md#broker-configuration)：
-
-```properties
-<span class="hljs-comment"># Configuration to enable authentication</span>
-<span class="hljs-attribute">authenticationEnabled</span>=<span class="hljs-literal">true</span>
-<span class="hljs-attribute">authenticationProviders</span>=org.apache.pulsar.broker.authentication.AuthenticationProviderTls
-
-<span class="hljs-comment"># operations and publish/consume from all topics</span>
-<span class="hljs-attribute">superUserRoles</span>=admin
-
-<span class="hljs-comment"># Authentication settings of the broker itself. Used when the broker connects to other brokers, either in same or other clusters</span>
-<span class="hljs-attribute">brokerClientTlsEnabled</span>=<span class="hljs-literal">true</span>
-<span class="hljs-attribute">brokerClientAuthenticationPlugin</span>=org.apache.pulsar.client.impl.auth.AuthenticationTls
-brokerClientAuthenticationParameters={<span class="hljs-string">"tlsCertFile"</span>:<span class="hljs-string">"/path/my-ca/admin.cert.pem,tlsKeyFile:/path/my-ca/admin.key-pk8.pem"</span>}
-<span class="hljs-attribute">brokerClientTrustCertsFilePath</span>=/path/my-ca/certs/ca.cert.pem
+<h2><a class="anchor" aria-hidden="true" id="在-broker-上启用-tls-认证"></a><a href="#在-broker-上启用-tls-认证" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>在 broker 上启用 TLS 认证</h2>
+<p>要配置 broker 来验证客户端，请在 <code>broker.conf</code>中添加以下参数，和 <a href="/docs/zh-CN/security-tls-transport#broker-configuration">配置一起启用tls transport</a>：</p>
+<pre><code class="hljs css language-properties"><span class="hljs-comment"># Configuration to enable authentication</span>
+<span class="hljs-attr">authenticationEnabled</span>=<span class="hljs-string">true</span>
+<span class="hljs-attr">authenticationProviders</span>=<span class="hljs-string">org.apache.pulsar.broker.authentication.AuthenticationProviderTls</span>
+<span class="hljs-comment">
+# operations and publish/consume from all topics</span>
+<span class="hljs-attr">superUserRoles</span>=<span class="hljs-string">admin</span>
+<span class="hljs-comment">
+# Authentication settings of the broker itself. Used when the broker connects to other brokers, either in same or other clusters</span>
+<span class="hljs-attr">brokerClientTlsEnabled</span>=<span class="hljs-string">true</span>
+<span class="hljs-attr">brokerClientAuthenticationPlugin</span>=<span class="hljs-string">org.apache.pulsar.client.impl.auth.AuthenticationTls</span>
+<span class="hljs-attr">brokerClientAuthenticationParameters</span>=<span class="hljs-string">{"tlsCertFile":"/path/my-ca/admin.cert.pem,tlsKeyFile:/path/my-ca/admin.key-pk8.pem"}</span>
+<span class="hljs-attr">brokerClientTrustCertsFilePath</span>=<span class="hljs-string">/path/my-ca/certs/ca.cert.pem</span>
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="在-proxy-上启用-tls-身份验证"></a><a href="#在-proxy-上启用-tls-身份验证" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>在 proxy 上启用 TLS 身份验证</h2>
-<p>要配置 proxy 服务器来验证客户端，请在 <code>代理.conf</code>的配置中加上 <a href="security-tls-transport.md#proxy-configuration">来启用tls transport</a>:</p>
-<p>代理服务器应该有自己的客户端密钥对。 你需要在 broker 的 <code>代理角色</code> 中配置此密钥对的角色标记。 详情请访问 <a href="security-authorization.md">认证指南</a>。</p>
+<p>要配置 proxy 服务器来验证客户端，请在 <code>代理.conf</code>的配置中加上 <a href="/docs/zh-CN/security-tls-transport#proxy-configuration">来启用tls transport</a>:</p>
+<p>代理服务器应该有自己的客户端密钥对。 你需要在 broker 的 <code>代理角色</code> 中配置此密钥对的角色标记。 详情请访问 <a href="/docs/zh-CN/security-authorization">认证指南</a>。</p>
 <pre><code class="hljs css language-properties"><span class="hljs-comment"># For clients connecting to the proxy</span>
 <span class="hljs-attr">authenticationEnabled</span>=<span class="hljs-string">true</span>
 <span class="hljs-attr">authenticationProviders</span>=<span class="hljs-string">org.apache.pulsar.broker.authentication.AuthenticationProviderTls</span>
@@ -141,7 +136,7 @@ brokerClientAuthenticationParameters={<span class="hljs-string">"tlsCertFile"</s
 <h2><a class="anchor" aria-hidden="true" id="客户端配置"></a><a href="#客户端配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>客户端配置</h2>
 <p>When you use TLS authentication, client connects via TLS transport. You need to configure the client to use <code>https://</code> and 8443 port for the web service URL, <code>pulsar+ssl://</code> and 6651 port for the broker service URL.</p>
 <h3><a class="anchor" aria-hidden="true" id="命令行工具"></a><a href="#命令行工具" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>命令行工具</h3>
-<p><a href="reference-cli-tools.md">命令行工具</a> <a href="reference-pulsar-admin.md"><code>pulsar-admin</code></a>, <a href="reference-cli-tools.md#pulsar-perf"><code>pulsar-perf</code></a> <a href="reference-cli-tools.md#pulsar-client"><code>pulsar-client</code></a> 使用 <code>conf/client. onf</code> 配置文件在 Pulsar 安装中。</p>
+<p><a href="/docs/zh-CN/reference-cli-tools">命令行工具</a> <a href="/docs/zh-CN/pulsar-admin"><code>pulsar-admin</code></a>, <a href="/docs/zh-CN/reference-cli-tools#pulsar-perf"><code>pulsar-perf</code></a> <a href="/docs/zh-CN/reference-cli-tools#pulsar-client"><code>pulsar-client</code></a> 使用 <code>conf/client. onf</code> 配置文件在 Pulsar 安装中。</p>
 <p>你需要添加以下参数到该文件以使用 Pulsar 的 CLI 工具使用 TLS 身份验证：</p>
 <pre><code class="hljs css language-properties"><span class="hljs-attr">webServiceUrl</span>=<span class="hljs-string">https://broker.example.com:8443/</span>
 <span class="hljs-attr">brokerServiceUrl</span>=<span class="hljs-string">pulsar+ssl://broker.example.com:6651/</span>
@@ -207,7 +202,7 @@ pulsar::AuthenticationPtr auth = pulsar::AuthTls::create(<span class="hljs-strin
                          .AuthenticateUsingClientCertificate(clientCertificate)
                          .Build();
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/security-tls-transport"><span class="arrow-prev">← </span><span>使用TLS进行传输加密</span></a><a class="docs-next button" href="/docs/zh-CN/security-tls-keystore"><span class="function-name-prevnext">Using TLS with KeyStore configure</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#tls-身份验证概述">TLS 身份验证概述</a><ul class="toc-headings"><li><a href="#创建客户证书">创建客户证书</a></li></ul></li><li><a href="#在-proxy-上启用-tls-身份验证">在 proxy 上启用 TLS 身份验证</a></li><li><a href="#客户端配置">客户端配置</a><ul class="toc-headings"><li><a href="#命令行工具">命令行工具</a></li><li><a href="#java-客户端">Java 客户端</a></li><li><a href="#python-client">Python client</a></li><li><a href="#c-client">C++ client</a></li><li><a href="#nodejs-客户端">Node.js 客户端</a></li><li><a href="#c-client-1">C# client</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/security-tls-transport"><span class="arrow-prev">← </span><span>使用TLS进行传输加密</span></a><a class="docs-next button" href="/docs/zh-CN/security-tls-keystore"><span class="function-name-prevnext">Using TLS with KeyStore configure</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#tls-身份验证概述">TLS 身份验证概述</a><ul class="toc-headings"><li><a href="#创建客户证书">创建客户证书</a></li></ul></li><li><a href="#在-broker-上启用-tls-认证">在 broker 上启用 TLS 认证</a></li><li><a href="#在-proxy-上启用-tls-身份验证">在 proxy 上启用 TLS 身份验证</a></li><li><a href="#客户端配置">客户端配置</a><ul class="toc-headings"><li><a href="#命令行工具">命令行工具</a></li><li><a href="#java-客户端">Java 客户端</a></li><li><a href="#python-client">Python client</a></li><li><a href="#c-client">C++ client</a></li><li><a href="#nodejs-客户端">Node.js 客户端</a></li><li><a href="#c-client-1">C# client</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

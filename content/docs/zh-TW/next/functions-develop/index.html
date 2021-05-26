@@ -94,10 +94,8 @@
 <blockquote>
 <p>注意 可以在 Python2 或 Python3 中編寫 Pulsar Functions。 但是，Pulsar 只是將 <code>python</code> 作為解譯器。</p>
 <p>如果在僅支持 python3 的 Ubuntu 系統上運行 Pulsar Functions，則可能無法運行 functions。 在這種情況下，可以創建 syblink 來解決。 如果在系統中安裝任何依賴於 Python 2.x 的套件，系統都會運行失敗。解決方案仍在開發中 <a href="https://github.com/apache/pulsar/issues/5518">Issue 5518</a>。</p>
-<pre><code class="hljs css language-bash"></code></pre>
+<pre><code class="hljs css language-bash">sudo update-alternatives --install /usr/bin/python python /usr/bin/python3 10<br /></code></pre>
 </blockquote>
-<p>sudo update-alternatives --install /usr/bin/python python /usr/bin/python3 10</p>
-<pre><code class="hljs"></code></pre>
 </span></div></div></div></div>
 <p>使用 Pulsar Functions SDK 的範例如下。<div class="tabs"><div class="nav-tabs"><div id="tab-group-2563-tab-2564" class="nav-link active" data-group="group_2563" data-tab="tab-group-2563-content-2564">Java</div><div id="tab-group-2563-tab-2565" class="nav-link" data-group="group_2563" data-tab="tab-group-2563-content-2565">Python</div><div id="tab-group-2563-tab-2566" class="nav-link" data-group="group_2563" data-tab="tab-group-2563-content-2566">Go</div></div><div class="tab-content"><div id="tab-group-2563-content-2564" class="tab-pane active" data-group="group_2563" tabindex="-1"><div><span><pre><code class="hljs css language-Java"><span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Context;<br /><span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Function;<br /><br /><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">ExclamationFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">Function</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">String</span>&gt; </span>{<br />    <span class="hljs-meta">@Override</span><br />    <span class="hljs-function"><span class="hljs-keyword">public</span> String <span class="hljs-title">process</span><span class="hljs-params">(String input, Context context)</span> </span>{<br />        <span class="hljs-keyword">return</span> String.format(<span class="hljs-string">&quot;%s!&quot;</span>, input);<br />    }<br />}<br /></code></pre></p>
 <p>有關完整的代碼，請參見 <a href="https://github.com/apache/pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/ExclamationFunction.java">here</a>。</p>
@@ -114,7 +112,7 @@
 <p>要自定義 Java 型別，需要實現以下介面接口。</p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">interface</span> <span class="hljs-title">SerDe</span>&lt;<span class="hljs-title">T</span>&gt; </span>{<br />    <span class="hljs-function">T <span class="hljs-title">deserialize</span><span class="hljs-params">(<span class="hljs-keyword">byte</span>[] input)</span></span>;<br />    <span class="hljs-keyword">byte</span>[] serialize(T input);<br />}<br /></code></pre>
 <p>SerDe works in the following ways in Java Functions. - If the input and output topics have schema, Pulsar Functions use schema for SerDe. - If the input or output topics do not exist, Pulsar Functions adopt the following rules to determine SerDe: - If the schema type is specified, Pulsar Functions use the specified schema type. - If SerDe is specified, Pulsar Functions use the specified SerDe, and the schema type for input and output topics is <code>Byte</code>. - If neither the schema type nor SerDe is specified, Pulsar Functions use the built-in SerDe. For non-primitive schema type, the built-in SerDe serializes and deserializes objects in the <code>JSON</code> format.</p>
-</span></div></div><div id="tab-group-2567-content-2569" class="tab-pane" data-group="group_2567" tabindex="-1"><div><span><p>在運行 <a href="functions-deploy.md#cluster-mode">creating</a> 或 <a href="functions-deploy.md#local-run-mode">running</a> function 時，可以指定 SerDe。</p>
+</span></div></div><div id="tab-group-2567-content-2569" class="tab-pane" data-group="group_2567" tabindex="-1"><div><span><p>在運行 <a href="/docs/zh-TW/next/functions-deploy#cluster-mode">creating</a> 或 <a href="/docs/zh-TW/next/functions-deploy#local-run-mode">running</a> function 時，可以指定 SerDe。</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \<br />  --tenant public \<br />  --namespace default \<br />  --name my_function \<br />  --py my_function.py \<br />  --classname my_function.MyFunction \<br />  --custom-serde-inputs <span class="hljs-string">'{"input-topic-1":"Serde1","input-topic-2":"Serde2"}'</span> \<br />  --output-serde-classname Serde3 \<br />  --output output-topic-1<br /></code></pre>
 <p>此案例包含兩個輸入 topic：<code>input-topic-1</code> 和<code>input-topic-2</code>，它們分別映對到不同的 SerDe 類別 (映對必須指定為 JSON 字串)。 The output topic, <code>output-topic-1</code>, uses the <code>Serde3</code> class for SerDe. 目前，所有 Pulsar Functions 邏輯（包括處理函數和 SerDe 類別）都必須包含在同一個 Python 檔案中。</p>
 <p>在將 Pulsar Functions 用於 Python 時，有三個 SerDe 可供選擇：</p>
@@ -145,7 +143,7 @@
 <li>將 <code>Tweet</code> 和 <code>TweetSerde</code> 類別打包到一個 JAR 中。</li>
 <li>部署 function 時，指定 JAR 和 SerDe 類別名稱的路徑。</li>
 </ul>
-<p>The following is an example of <a href="reference-pulsar-admin.md#create-1"><code>create</code></a> operation.</p>
+<p>The following is an example of <a href="/docs/zh-TW/next/pulsar-admin#create-1"><code>create</code></a> operation.</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \<br />  --jar /path/to/your.jar \<br />  --output-serde-classname com.example.serde.TweetSerde \<br />  <span class="hljs-comment"># Other function attributes</span><br /></code></pre>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="自定義-serde-類必須與-function-的實作打包在同一個-jar-裡。"></a><a href="#自定義-serde-類必須與-function-的實作打包在同一個-jar-裡。" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>自定義 SerDe 類必須與 function 的實作打包在同一個 JAR 裡。</h4>
@@ -171,10 +169,10 @@
 <li>信息發送到的 topic 名稱。</li>
 <li>與該 function 相關聯的所有輸入/輸出 topic 的名稱。</li>
 <li>用於 [SerDe] (#serde) 的類別名稱。</li>
-<li>與該 function 相關聯的 <a href="reference-terminology.md#tenant">tenant</a> 與 namespace。</li>
+<li>與該 function 相關聯的 <a href="/docs/zh-TW/next/reference-terminology#tenant">tenant</a> 與 namespace。</li>
 <li>運行該 function 的 Pulsar Functions 實例 ID。</li>
 <li>該 function 的版本。</li>
-<li>該 function 用來產生 function 日誌信息的 <a href="functions-develop.md#logger">logger object</a> 。</li>
+<li>該 function 用來產生 function 日誌信息的 <a href="/docs/zh-TW/next/functions-develop#logger">logger object</a> 。</li>
 <li>訪問通過 CLI 所傳遞進來的 <a href="#user-config">user configuration</a> 值。</li>
 <li>一個用來記錄 <a href="#metrics">metrics</a> 的介面接口。</li>
 <li>一個用於在 <a href="#state-storage">state storage</a> 中存儲和檢索 state 的介面接口。</li>
@@ -267,8 +265,8 @@
 <p>You can monitor Pulsar Functions that have been deployed with the following methods:</p>
 <ul>
 <li><p>Check the metrics provided by Pulsar.</p>
-<p>Pulsar Functions expose the metrics that can be collected and used for monitoring the health of <strong>Java, Python, and Go</strong> functions. You can check the metrics by following the <a href="deploy-monitoring.md">monitoring</a> guide.</p>
-<p>For the complete list of the function metrics, see <a href="reference-metrics.md#pulsar-functions">here</a>.</p></li>
+<p>Pulsar Functions expose the metrics that can be collected and used for monitoring the health of <strong>Java, Python, and Go</strong> functions. You can check the metrics by following the <a href="/docs/zh-TW/next/deploy-monitoring">monitoring</a> guide.</p>
+<p>For the complete list of the function metrics, see <a href="/docs/zh-TW/next/reference-metrics#pulsar-functions">here</a>.</p></li>
 <li><p>Set and check your customized metrics.</p>
 <p>In addition to the metrics provided by Pulsar, Pulsar allows you to customize metrics for <strong>Java and Python</strong> functions. Function workers collect user-defined metrics to Prometheus automatically and you can check them in Grafana.</p></li>
 </ul>
@@ -279,7 +277,7 @@
 <pre><code class="hljs css language-python"><span class="hljs-keyword">from</span> pulsar <span class="hljs-keyword">import</span> Function<br /><br /><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">MetricRecorderFunction</span><span class="hljs-params">(Function)</span>:</span><br />    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">process</span><span class="hljs-params">(self, input, context)</span>:</span><br />        context.record_metric(<span class="hljs-string">'hit-count'</span>, <span class="hljs-number">1</span>)<br /><br />        <span class="hljs-keyword">if</span> input == <span class="hljs-number">11</span>:<br />            context.record_metric(<span class="hljs-string">'elevens-count'</span>, <span class="hljs-number">1</span>)<br /></code></pre>
 </span></div></div><div id="tab-group-2588-content-2591" class="tab-pane" data-group="group_2588" tabindex="-1"><div><span></span></div></div></div></div>
 <h2><a class="anchor" aria-hidden="true" id="安全"></a><a href="#安全" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>安全</h2>
-<p>如果要在 Pulsar Functions 上啟用安全性，首先應在 <a href="functions-worker.md">Functions Workers</a> 上啟用安全性功能。 相關更多詳細訊息，請參閱 <a href="functions-worker.md#security-settings">Security settings</a>。</p>
+<p>如果要在 Pulsar Functions 上啟用安全性，首先應在 <a href="/docs/zh-TW/next/functions-worker">Functions Workers</a> 上啟用安全性功能。 相關更多詳細訊息，請參閱 <a href="/docs/zh-TW/next/functions-worker#security-settings">Security settings</a>。</p>
 <p>Pulsar Functions 可以支持以下的 providers:</p>
 <ul>
 <li>ClearTextSecretsProvider</li>
@@ -304,7 +302,7 @@
 State storage is not available in Go.</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="api"></a><a href="#api" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>API</h3>
-<div class="tabs"><div class="nav-tabs"><div id="tab-group-2596-tab-2597" class="nav-link active" data-group="group_2596" data-tab="tab-group-2596-content-2597">Java</div><div id="tab-group-2596-tab-2598" class="nav-link" data-group="group_2596" data-tab="tab-group-2596-content-2598">Python</div></div><div class="tab-content"><div id="tab-group-2596-content-2597" class="tab-pane active" data-group="group_2596" tabindex="-1"><div><span><p><a href="functions-develop.md#context">Context</a> object when you are using Java SDK functions.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2596-tab-2597" class="nav-link active" data-group="group_2596" data-tab="tab-group-2596-content-2597">Java</div><div id="tab-group-2596-tab-2598" class="nav-link" data-group="group_2596" data-tab="tab-group-2596-content-2598">Python</div></div><div class="tab-content"><div id="tab-group-2596-content-2597" class="tab-pane active" data-group="group_2596" tabindex="-1"><div><span><p><a href="/docs/zh-TW/next/functions-develop#context">Context</a> object when you are using Java SDK functions.</p>
 <h4><a class="anchor" aria-hidden="true" id="incrcounter"></a><a href="#incrcounter" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>incrCounter</h4>
 <pre><code class="hljs css language-java">    <span class="hljs-comment">/**<br />     * Increment the builtin distributed counter refered by key<br />     * <span class="hljs-doctag">@param</span> key The name of the key<br />     * <span class="hljs-doctag">@param</span> amount The amount to be incremented<br />     */</span><br />    <span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">incrCounter</span><span class="hljs-params">(String key, <span class="hljs-keyword">long</span> amount)</span></span>;<br /></code></pre>
 <p>The application can use <code>incrCounter</code> to change the counter of a given <code>key</code> by the given <code>amount</code>.</p>
