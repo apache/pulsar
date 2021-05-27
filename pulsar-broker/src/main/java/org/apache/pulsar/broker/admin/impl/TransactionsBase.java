@@ -35,8 +35,12 @@ import java.util.concurrent.TimeUnit;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
+import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
+import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionNotFoundException;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.web.RestException;
@@ -48,6 +52,7 @@ import org.apache.pulsar.common.policies.data.TransactionCoordinatorStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionMetadata;
+import org.apache.pulsar.common.policies.data.TransactionPendingAckInternalStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
@@ -488,6 +493,67 @@ public abstract class TransactionsBase extends AdminResource {
                 } else {
                     asyncResponse.resume(new RestException(METHOD_NOT_ALLOWED,
                             "Broker don't use MLTransactionMetadataStore!"));
+                }
+            } else {
+                asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE,
+                        "This Broker is not configured with transactionCoordinatorEnabled=true."));
+            }
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e.getCause()));
+        }
+    }
+
+    protected void internalGetPendingAckInternalStats(AsyncResponse asyncResponse, boolean authoritative,
+                                                      TopicName topicName, String subName, boolean metadata) {
+        try {
+            if (pulsar().getConfig().isTransactionCoordinatorEnabled()) {
+                validateTopicOwnership(topicName, authoritative);
+                CompletableFuture<Optional<Topic>> topicFuture = pulsar().getBrokerService()
+                        .getTopics().get(topicName.toString());
+                if (topicFuture != null) {
+                    topicFuture.whenComplete((optionalTopic, e) -> {
+
+                        if (e != null) {
+                            asyncResponse.resume(new RestException(e));
+                            return;
+                        }
+                        if (!optionalTopic.isPresent()) {
+                            asyncResponse.resume(new RestException(TEMPORARY_REDIRECT,
+                                    "Topic is not owned by this broker!"));
+                            return;
+                        }
+                        Topic topicObject = optionalTopic.get();
+                        if (topicObject instanceof PersistentTopic) {
+                            try {
+                                ManagedLedger managedLedger = ((PersistentTopic) topicObject)
+                                        .getPendingAckManagedLedger(subName).get();
+                                TransactionPendingAckInternalStats stats = new TransactionPendingAckInternalStats();
+                                stats.managedLedgerInternalStats =
+                                        managedLedger.getManagedLedgerInternalStats(metadata).get();
+                                asyncResponse.resume(stats);
+                            } catch (Exception exception) {
+                                if (exception instanceof ExecutionException) {
+                                    if (exception.getCause() instanceof ServiceUnitNotReadyException) {
+                                        asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE,
+                                                exception.getCause()));
+                                        return;
+                                    } else if (exception.getCause() instanceof NotAllowedException) {
+                                        asyncResponse.resume(new RestException(METHOD_NOT_ALLOWED,
+                                                exception.getCause()));
+                                        return;
+                                    } else if (exception.getCause() instanceof SubscriptionNotFoundException) {
+                                        asyncResponse.resume(new RestException(NOT_FOUND, exception.getCause()));
+                                        return;
+                                    }
+                                }
+                                asyncResponse.resume(new RestException(exception));
+                            }
+                        } else {
+                            asyncResponse.resume(new RestException(BAD_REQUEST, "Topic is not a persistent topic!"));
+                        }
+                    });
+                } else {
+                    asyncResponse.resume(new RestException(TEMPORARY_REDIRECT, "Topic is not owned by this broker!"));
                 }
             } else {
                 asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE,

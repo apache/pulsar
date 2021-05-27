@@ -28,6 +28,7 @@ import org.apache.pulsar.common.policies.data.TransactionCoordinatorStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionMetadata;
+import org.apache.pulsar.common.policies.data.TransactionPendingAckInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
 
 public interface Transactions {
@@ -158,5 +159,29 @@ public interface Transactions {
      */
     CoordinatorInternalStats getCoordinatorInternalStats(int coordinatorId,
                                                          boolean metadata) throws PulsarAdminException;
+
+    /**
+     * Get pending ack internal stats.
+     *
+     * @param topic the topic of get pending ack internal stats
+     * @param subName the subscription name of this pending ack
+     * @param metadata whether to obtain ledger metadata
+     *
+     * @return the future internal stats of pending ack
+     */
+    CompletableFuture<TransactionPendingAckInternalStats> getPendingAckInternalStatsAsync(String topic, String subName,
+                                                                                          boolean metadata);
+
+    /**
+     * Get pending ack internal stats.
+     *
+     * @param topic the topic of get pending ack internal stats
+     * @param subName the subscription name of this pending ack
+     * @param metadata whether to obtain ledger metadata
+     *
+     * @return the internal stats of pending ack
+     */
+    TransactionPendingAckInternalStats getPendingAckInternalStats(String topic, String subName,
+                                                                  boolean metadata) throws PulsarAdminException;
 
 }
