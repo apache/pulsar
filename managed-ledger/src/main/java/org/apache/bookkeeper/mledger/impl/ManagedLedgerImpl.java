@@ -127,7 +127,10 @@ import org.apache.bookkeeper.net.BookieId;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.OffloadPolicies.OffloadedReadPriority;
+import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.metadata.api.Stat;
@@ -355,9 +358,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                         .setTimestamp(clock.millis()).build();
                                 ledgers.put(id, info);
                                 if (managedLedgerInterceptor != null) {
-                                    managedLedgerInterceptor.onManagedLedgerLastLedgerInitialize(name, lh);
+                                    managedLedgerInterceptor.onManagedLedgerLastLedgerInitialize(name, lh)
+                                        .thenRun(() -> initializeBookKeeper(callback))
+                                        .exceptionally(ex -> {
+                                            callback.initializeFailed(
+                                                    new ManagedLedgerInterceptException(ex.getCause()));
+                                            return null;
+                                        });
+                                } else {
+                                    initializeBookKeeper(callback);
                                 }
-                                initializeBookKeeper(callback);
                             } else if (isNoSuchLedgerExistsException(rc)) {
                                 log.warn("[{}] Ledger not found: {}", name, ledgers.lastKey());
                                 ledgers.remove(ledgers.lastKey());
@@ -2406,7 +2416,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 return;
             }
 
-            advanceNonDurableCursors(ledgersToDelete);
+            advanceCursorsIfNecessary(ledgersToDelete);
 
             PositionImpl currentLastConfirmedEntry = lastConfirmedEntry;
             // Update metadata
@@ -2475,20 +2485,29 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     /**
      * Non-durable cursors have to be moved forward when data is trimmed since they are not retain that data.
+     * This method also addresses a corner case for durable cursors in which the cursor is caught up, i.e. the mark delete position
+     * happens to be the last entry in a ledger.  If the ledger is deleted, then subsequent calculations for backlog
+     * size may not be accurate since the method getNumberOfEntries we use in backlog calculation will not be able to fetch
+     * the ledger info of a deleted ledger.  Thus, we need to update the mark delete position to the "-1" entry of the first ledger
+     * that is not marked for deletion.
      * This is to make sure that the `consumedEntries` counter is correctly updated with the number of skipped
      * entries and the stats are reported correctly.
      */
-    private void advanceNonDurableCursors(List<LedgerInfo> ledgersToDelete) {
+    private void advanceCursorsIfNecessary(List<LedgerInfo> ledgersToDelete) {
         if (ledgersToDelete.isEmpty()) {
             return;
         }
 
-        long firstNonDeletedLedger = ledgers
-                .higherKey(ledgersToDelete.get(ledgersToDelete.size() - 1).getLedgerId());
+        // need to move mark delete for non-durable cursors to the first ledger NOT marked for deletion
+        // calling getNumberOfEntries latter for a ledger that is already deleted will be problematic and return incorrect results
+        long firstNonDeletedLedger = ledgers.higherKey(ledgersToDelete.get(ledgersToDelete.size() - 1).getLedgerId());
         PositionImpl highestPositionToDelete = new PositionImpl(firstNonDeletedLedger, -1);
 
         cursors.forEach(cursor -> {
-            if (highestPositionToDelete.compareTo((PositionImpl) cursor.getMarkDeletedPosition()) > 0) {
+            // move the mark delete position to the highestPositionToDelete only if it is smaller than the add confirmed
+            // to prevent the edge case where the cursor is caught up to the latest and highestPositionToDelete may be larger than the last add confirmed
+            if (highestPositionToDelete.compareTo((PositionImpl) cursor.getMarkDeletedPosition()) > 0
+                    && highestPositionToDelete.compareTo((PositionImpl) cursor.getManagedLedger().getLastConfirmedEntry()) <= 0 ) {
                 cursor.asyncMarkDelete(highestPositionToDelete, new MarkDeleteCallback() {
                     @Override
                     public void markDeleteComplete(Object ctx) {
@@ -3825,7 +3844,71 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         });
         return future;
     }
-  
+
+    @Override
+    public CompletableFuture<ManagedLedgerInternalStats> getManagedLedgerInternalStats(boolean includeLedgerMetadata) {
+        CompletableFuture<ManagedLedgerInternalStats> statFuture = new CompletableFuture<>();
+        ManagedLedgerInternalStats stats = new ManagedLedgerInternalStats();
+
+        stats.entriesAddedCounter = this.getEntriesAddedCounter();
+        stats.numberOfEntries = this.getNumberOfEntries();
+        stats.totalSize = this.getTotalSize();
+        stats.currentLedgerEntries = this.getCurrentLedgerEntries();
+        stats.currentLedgerSize = this.getCurrentLedgerSize();
+        stats.lastLedgerCreatedTimestamp = DateFormatter.format(this.getLastLedgerCreatedTimestamp());
+        if (this.getLastLedgerCreationFailureTimestamp() != 0) {
+            stats.lastLedgerCreationFailureTimestamp =
+                    DateFormatter.format(this.getLastLedgerCreationFailureTimestamp());
+        }
+
+        stats.waitingCursorsCount = this.getWaitingCursorsCount();
+        stats.pendingAddEntriesCount = this.getPendingAddEntriesCount();
+
+        stats.lastConfirmedEntry = this.getLastConfirmedEntry().toString();
+        stats.state = this.getState();
+
+        stats.ledgers = Lists.newArrayList();
+        this.getLedgersInfo().forEach((id, li) -> {
+            ManagedLedgerInternalStats.LedgerInfo info = new ManagedLedgerInternalStats.LedgerInfo();
+            info.ledgerId = li.getLedgerId();
+            info.entries = li.getEntries();
+            info.size = li.getSize();
+            info.offloaded = li.hasOffloadContext() && li.getOffloadContext().getComplete();
+            stats.ledgers.add(info);
+            if (includeLedgerMetadata) {
+                this.getLedgerMetadata(li.getLedgerId()).handle((lMetadata, ex) -> {
+                    if (ex == null) {
+                        info.metadata = lMetadata;
+                    }
+                    return null;
+                });
+            }
+
+            stats.cursors = Maps.newTreeMap();
+            this.getCursors().forEach(c -> {
+                ManagedCursorImpl cursor = (ManagedCursorImpl) c;
+                PersistentTopicInternalStats.CursorStats cs = new PersistentTopicInternalStats.CursorStats();
+                cs.markDeletePosition = cursor.getMarkDeletedPosition().toString();
+                cs.readPosition = cursor.getReadPosition().toString();
+                cs.waitingReadOp = cursor.hasPendingReadRequest();
+                cs.pendingReadOps = cursor.getPendingReadOpsCount();
+                cs.messagesConsumedCounter = cursor.getMessagesConsumedCounter();
+                cs.cursorLedger = cursor.getCursorLedger();
+                cs.cursorLedgerLastEntry = cursor.getCursorLedgerLastEntry();
+                cs.individuallyDeletedMessages = cursor.getIndividuallyDeletedMessages();
+                cs.lastLedgerSwitchTimestamp = DateFormatter.format(cursor.getLastLedgerSwitchTimestamp());
+                cs.state = cursor.getState();
+                cs.numberOfEntriesSinceFirstNotAckedMessage =
+                        cursor.getNumberOfEntriesSinceFirstNotAckedMessage();
+                cs.totalNonContiguousDeletedMessagesRange = cursor.getTotalNonContiguousDeletedMessagesRange();
+                cs.properties = cursor.getProperties();
+                stats.cursors.put(cursor.getName(), cs);
+            });
+        });
+        statFuture.complete(stats);
+        return statFuture;
+    }
+
     public CompletableFuture<Set<BookieId>> getEnsemblesAsync(long ledgerId) {
         LedgerInfo ledgerInfo = ledgers.get(ledgerId);
         if (ledgerInfo != null && ledgerInfo.hasOffloadContext()) {

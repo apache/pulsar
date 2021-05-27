@@ -40,7 +40,6 @@ import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.net.BookieId;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
@@ -50,8 +49,6 @@ import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamespaceBundle;
-import org.apache.pulsar.common.naming.NamespaceBundleFactory;
-import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
@@ -133,13 +130,6 @@ public abstract class AdminResource extends PulsarWebResource {
     @Override
     protected void validateAdminAccessForTenant(String property) {
         super.validateAdminAccessForTenant(property);
-    }
-
-    // This is a stub method for Mockito
-    @Override
-    protected void validateNamespaceOwnershipWithBundles(String property, String cluster, String namespace,
-            boolean authoritative, boolean readOnly, BundlesData bundleData) {
-        super.validateNamespaceOwnershipWithBundles(property, cluster, namespace, authoritative, readOnly, bundleData);
     }
 
     // This is a stub method for Mockito
@@ -323,9 +313,8 @@ public abstract class AdminResource extends PulsarWebResource {
             Policies policies = namespaceResources().get(policyPath)
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace does not exist"));
             // fetch bundles from LocalZK-policies
-            NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory()
-                    .getBundles(namespaceName);
-            BundlesData bundleData = NamespaceBundleFactory.getBundlesData(bundles);
+            BundlesData bundleData = pulsar().getNamespaceService().getNamespaceBundleFactory()
+                    .getBundles(namespaceName).getBundlesData();
             policies.bundles = bundleData != null ? bundleData : policies.bundles;
 
             return policies;
@@ -351,7 +340,7 @@ public abstract class AdminResource extends PulsarWebResource {
                         .thenCompose(bundles -> {
                     BundlesData bundleData = null;
                     try {
-                        bundleData = NamespaceBundleFactory.getBundlesData(bundles);
+                        bundleData = bundles.getBundlesData();
                     } catch (Exception e) {
                         log.error("[{}] Failed to get namespace policies {}", clientAppId(), namespaceName, e);
                         return FutureUtil.failedFuture(new RestException(e));
@@ -473,30 +462,25 @@ public abstract class AdminResource extends PulsarWebResource {
             TopicName topicName, boolean authoritative, boolean checkAllowAutoCreation) {
         try {
             validateClusterOwnership(topicName.getCluster());
-            // validates global-namespace contains local/peer cluster: if peer/local cluster present then lookup can
-            // serve/redirect request else fail partitioned-metadata-request so, client fails while creating
-            // producer/consumer
-            validateGlobalNamespaceOwnership(topicName.getNamespaceObject());
         } catch (Exception e) {
             return FutureUtil.failedFuture(e);
         }
 
-        try {
-            validateTopicOperation(topicName, TopicOperation.LOOKUP);
-        } catch (RestException e) {
-            return FutureUtil.failedFuture(e);
-        } catch (Exception e) {
-            // unknown error marked as internal server error
-            log.warn("Unexpected error while authorizing lookup. topic={}, role={}. Error: {}", topicName,
-                    clientAppId(), e.getMessage(), e);
-            return FutureUtil.failedFuture(e);
-        }
-
-        if (checkAllowAutoCreation) {
-            return pulsar().getBrokerService().fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName);
-        } else {
-            return pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName);
-        }
+        // validates global-namespace contains local/peer cluster: if peer/local cluster present then lookup can
+        // serve/redirect request else fail partitioned-metadata-request so, client fails while creating
+        // producer/consumer
+        return validateGlobalNamespaceOwnershipAsync(topicName.getNamespaceObject())
+                .thenRun(() -> {
+                    validateTopicOperation(topicName, TopicOperation.LOOKUP);
+                })
+                .thenCompose(__ -> {
+                    if (checkAllowAutoCreation) {
+                        return pulsar().getBrokerService()
+                                .fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName);
+                    } else {
+                        return pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName);
+                    }
+                });
     }
 
     protected PartitionedTopicMetadata getPartitionedTopicMetadata(TopicName topicName,
@@ -569,9 +553,8 @@ public abstract class AdminResource extends PulsarWebResource {
             Policies policies = namespaceResources().get(AdminResource.path(POLICIES, property, cluster, namespace))
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace does not exist"));
             // fetch bundles from LocalZK-policies
-            NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory()
-                    .getBundles(NamespaceName.get(property, cluster, namespace));
-            BundlesData bundleData = NamespaceBundleFactory.getBundlesData(bundles);
+            BundlesData bundleData  = pulsar().getNamespaceService().getNamespaceBundleFactory()
+                    .getBundles(NamespaceName.get(property, cluster, namespace)).getBundlesData();
             policies.bundles = bundleData != null ? bundleData : policies.bundles;
             return policies;
         } catch (RestException re) {
@@ -838,59 +821,44 @@ public abstract class AdminResource extends PulsarWebResource {
         stats.state = ml.getState();
 
         stats.ledgers = Lists.newArrayList();
-        pulsar().getAvailableBookiesAsync().whenComplete((bookies, e) -> {
-            if (e != null) {
-                log.error("[{}] Failed to fetch available bookies.", topic, e);
-                statFuture.completeExceptionally(e);
-            } else {
-                ml.getLedgersInfo().forEach((id, li) -> {
-                    PersistentTopicInternalStats.LedgerInfo info = new PersistentTopicInternalStats.LedgerInfo();
-                    info.ledgerId = li.getLedgerId();
-                    info.entries = li.getEntries();
-                    info.size = li.getSize();
-                    info.offloaded = li.hasOffloadContext() && li.getOffloadContext().getComplete();
-                    stats.ledgers.add(info);
-                    if (includeLedgerMetadata) {
-                        ml.getLedgerMetadata(li.getLedgerId()).handle((lMetadata, ex) -> {
-                            if (ex == null) {
-                                info.metadata = lMetadata;
-                            }
-                            return null;
-                        });
-                        ml.getEnsemblesAsync(li.getLedgerId()).handle((ensembles, ex) -> {
-                            if (ex == null) {
-                                info.underReplicated = !bookies.containsAll(ensembles.stream().map(BookieId::toString)
-                                        .collect(Collectors.toList()));
-                            }
-                            return null;
-                        });
+        ml.getLedgersInfo().forEach((id, li) -> {
+            ManagedLedgerInternalStats.LedgerInfo info = new PersistentTopicInternalStats.LedgerInfo();
+            info.ledgerId = li.getLedgerId();
+            info.entries = li.getEntries();
+            info.size = li.getSize();
+            info.offloaded = li.hasOffloadContext() && li.getOffloadContext().getComplete();
+            stats.ledgers.add(info);
+            if (includeLedgerMetadata) {
+                ml.getLedgerMetadata(li.getLedgerId()).handle((lMetadata, ex) -> {
+                    if (ex == null) {
+                        info.metadata = lMetadata;
                     }
-
-                    stats.cursors = Maps.newTreeMap();
-                    ml.getCursors().forEach(c -> {
-                        ManagedCursorImpl cursor = (ManagedCursorImpl) c;
-                        PersistentTopicInternalStats.CursorStats cs = new PersistentTopicInternalStats.CursorStats();
-                        cs.markDeletePosition = cursor.getMarkDeletedPosition().toString();
-                        cs.readPosition = cursor.getReadPosition().toString();
-                        cs.waitingReadOp = cursor.hasPendingReadRequest();
-                        cs.pendingReadOps = cursor.getPendingReadOpsCount();
-                        cs.messagesConsumedCounter = cursor.getMessagesConsumedCounter();
-                        cs.cursorLedger = cursor.getCursorLedger();
-                        cs.cursorLedgerLastEntry = cursor.getCursorLedgerLastEntry();
-                        cs.individuallyDeletedMessages = cursor.getIndividuallyDeletedMessages();
-                        cs.lastLedgerSwitchTimestamp = DateFormatter.format(cursor.getLastLedgerSwitchTimestamp());
-                        cs.state = cursor.getState();
-                        cs.numberOfEntriesSinceFirstNotAckedMessage =
-                                cursor.getNumberOfEntriesSinceFirstNotAckedMessage();
-                        cs.totalNonContiguousDeletedMessagesRange = cursor.getTotalNonContiguousDeletedMessagesRange();
-                        cs.properties = cursor.getProperties();
-                        stats.cursors.put(cursor.getName(), cs);
-                    });
+                    return null;
                 });
-                statFuture.complete(stats);
             }
-        });
 
+            stats.cursors = Maps.newTreeMap();
+            ml.getCursors().forEach(c -> {
+                ManagedCursorImpl cursor = (ManagedCursorImpl) c;
+                PersistentTopicInternalStats.CursorStats cs = new PersistentTopicInternalStats.CursorStats();
+                cs.markDeletePosition = cursor.getMarkDeletedPosition().toString();
+                cs.readPosition = cursor.getReadPosition().toString();
+                cs.waitingReadOp = cursor.hasPendingReadRequest();
+                cs.pendingReadOps = cursor.getPendingReadOpsCount();
+                cs.messagesConsumedCounter = cursor.getMessagesConsumedCounter();
+                cs.cursorLedger = cursor.getCursorLedger();
+                cs.cursorLedgerLastEntry = cursor.getCursorLedgerLastEntry();
+                cs.individuallyDeletedMessages = cursor.getIndividuallyDeletedMessages();
+                cs.lastLedgerSwitchTimestamp = DateFormatter.format(cursor.getLastLedgerSwitchTimestamp());
+                cs.state = cursor.getState();
+                cs.numberOfEntriesSinceFirstNotAckedMessage =
+                        cursor.getNumberOfEntriesSinceFirstNotAckedMessage();
+                cs.totalNonContiguousDeletedMessagesRange = cursor.getTotalNonContiguousDeletedMessagesRange();
+                cs.properties = cursor.getProperties();
+                stats.cursors.put(cursor.getName(), cs);
+            });
+        });
+        statFuture.complete(stats);
         return statFuture;
     }
 }

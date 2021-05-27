@@ -27,6 +27,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import com.google.common.collect.Lists;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.InvalidTxnStatusException;
@@ -55,7 +56,7 @@ public class TransactionImpl implements Transaction {
     private final long txnIdMostBits;
 
     private final Map<String, CompletableFuture<Void>> registerPartitionMap;
-    private final Map<String, CompletableFuture<Void>> registerSubscriptionMap;
+    private final Map<Pair<String, String>, CompletableFuture<Void>> registerSubscriptionMap;
     private final TransactionCoordinatorClientImpl tcClient;
     private Map<ConsumerImpl<?>, Integer> cumulativeAckConsumers;
 
@@ -117,7 +118,7 @@ public class TransactionImpl implements Transaction {
         return checkIfOpen().thenCompose(value -> {
             synchronized (TransactionImpl.this) {
                 // we need to issue the request to TC to register the acked topic
-                return registerSubscriptionMap.compute(topic, (key, future) -> {
+                return registerSubscriptionMap.compute(Pair.of(topic, subscription), (key, future) -> {
                     if (future != null) {
                         return future.thenCompose(ignored -> CompletableFuture.completedFuture(null));
                     } else {

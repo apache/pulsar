@@ -192,8 +192,8 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         Policies policies = null;
         Integer maxConsumersPerSubscription = null;
         try {
-            maxConsumersPerSubscription = Optional.ofNullable(brokerService
-                    .getTopicPolicies(TopicName.get(topic)))
+            maxConsumersPerSubscription = brokerService
+                    .getTopicPolicies(TopicName.get(topic))
                     .map(TopicPolicies::getMaxConsumersPerSubscription)
                     .orElse(null);
             if (maxConsumersPerSubscription == null) {
@@ -235,9 +235,5 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
 
     protected byte[] peekStickyKey(ByteBuf metadataAndPayload) {
         return Commands.peekStickyKey(metadataAndPayload, subscription.getTopicName(), subscription.getName());
-    }
-
-    protected void addMessageToReplay(long ledgerId, long entryId) {
-        // No-op
     }
 }

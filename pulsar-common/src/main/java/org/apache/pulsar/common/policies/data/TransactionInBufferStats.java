@@ -20,21 +20,12 @@ package org.apache.pulsar.common.policies.data;
 
 import lombok.Data;
 
-/**
- * Transaction coordinator status.
- */
 @Data
-public class TransactionCoordinatorStatus {
+public class TransactionInBufferStats {
 
-    /** The transaction coordinatorId. */
-    public long coordinatorId;
+    /** The start position of this transaction in transaction buffer. */
+    public String startPosition;
 
-    /** The state of this transaction metadataStore. */
-    public String state;
-
-    /** The sequenceId of transaction metadataStore. */
-    public long sequenceId;
-
-    /** The low water mark of transaction metadataStore. */
-    public long lowWaterMark;
+    /** The flag of this transaction have been aborted. */
+    public boolean aborted;
 }

@@ -33,6 +33,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.TerminateCallback;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 
 /**
  * A ManagedLedger it's a superset of a BookKeeper ledger concept.
@@ -606,4 +607,12 @@ public interface ManagedLedger {
      * The truncate operation will move all cursors to the end of the topic and delete all inactive ledgers.
      */
     CompletableFuture<Void> asyncTruncate();
+
+    /**
+     * Get managed ledger internal stats
+     *
+     * @param includeLedgerMetadata the flag to control it include ledger metadata
+     * @return the future of managed ledger internal stats
+     */
+    CompletableFuture<ManagedLedgerInternalStats> getManagedLedgerInternalStats(boolean includeLedgerMetadata);
 }

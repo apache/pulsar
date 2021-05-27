@@ -1393,22 +1393,23 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     private void addTopicToStatsMaps(TopicName topicName, Topic topic) {
-        try {
-            NamespaceBundle namespaceBundle = pulsar.getNamespaceService().getBundle(topicName);
-
-            if (namespaceBundle != null) {
-                synchronized (multiLayerTopicsMap) {
-                    String serviceUnit = namespaceBundle.toString();
-                    multiLayerTopicsMap //
-                            .computeIfAbsent(topicName.getNamespace(), k -> new ConcurrentOpenHashMap<>()) //
-                            .computeIfAbsent(serviceUnit, k -> new ConcurrentOpenHashMap<>()) //
-                            .put(topicName.toString(), topic);
-                }
-            }
-            invalidateOfflineTopicStatCache(topicName);
-        } catch (Exception e) {
-            log.warn("Got exception when retrieving bundle name during create persistent topic", e);
-        }
+        pulsar.getNamespaceService().getBundleAsync(topicName)
+                .thenAccept(namespaceBundle -> {
+                    if (namespaceBundle != null) {
+                        synchronized (multiLayerTopicsMap) {
+                            String serviceUnit = namespaceBundle.toString();
+                            multiLayerTopicsMap //
+                                    .computeIfAbsent(topicName.getNamespace(), k -> new ConcurrentOpenHashMap<>()) //
+                                    .computeIfAbsent(serviceUnit, k -> new ConcurrentOpenHashMap<>()) //
+                                    .put(topicName.toString(), topic);
+                        }
+                    }
+                    invalidateOfflineTopicStatCache(topicName);
+                })
+                .exceptionally(ex -> {
+                    log.warn("Got exception when retrieving bundle name during create persistent topic", ex);
+                    return null;
+                });
     }
 
     public void refreshTopicToStatsMaps(NamespaceBundle oldBundle) {
@@ -1665,7 +1666,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         for (String topic : topics.keys()) {
             TopicName topicName = TopicName.get(topic);
             if (serviceUnit.includes(topicName)) {
-                pulsar.getBrokerService().removeTopicFromCache(topicName.toString());
+                pulsar.getBrokerService().removeTopicFromCache(topicName.toString(), serviceUnit);
             }
         }
     }
@@ -1674,41 +1675,38 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return authorizationService;
     }
 
-    public void removeTopicFromCache(String topic) {
-        TopicName topicName = null;
-        NamespaceBundle namespaceBundle = null;
-        try {
-            topicName = TopicName.get(topic);
-            namespaceBundle = pulsar.getNamespaceService().getBundle(topicName);
-            checkArgument(namespaceBundle instanceof NamespaceBundle);
+    public CompletableFuture<Void> removeTopicFromCache(String topic) {
+        TopicName topicName = TopicName.get(topic);
+        return pulsar.getNamespaceService().getBundleAsync(topicName)
+                .thenAccept(namespaceBundle -> {
+                    removeTopicFromCache(topic, namespaceBundle);
+                });
+    }
 
-            String bundleName = namespaceBundle.toString();
-            String namespaceName = topicName.getNamespaceObject().toString();
+    public void removeTopicFromCache(String topic, NamespaceBundle namespaceBundle) {
+        String bundleName = namespaceBundle.toString();
+        String namespaceName = TopicName.get(topic).getNamespaceObject().toString();
 
-            synchronized (multiLayerTopicsMap) {
-                ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>> namespaceMap = multiLayerTopicsMap
-                        .get(namespaceName);
-                if (namespaceMap != null) {
-                    ConcurrentOpenHashMap<String, Topic> bundleMap = namespaceMap.get(bundleName);
-                    bundleMap.remove(topic);
-                    if (bundleMap.isEmpty()) {
-                        namespaceMap.remove(bundleName);
-                    }
+        synchronized (multiLayerTopicsMap) {
+            ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>> namespaceMap = multiLayerTopicsMap
+                    .get(namespaceName);
+            if (namespaceMap != null) {
+                ConcurrentOpenHashMap<String, Topic> bundleMap = namespaceMap.get(bundleName);
+                bundleMap.remove(topic);
+                if (bundleMap.isEmpty()) {
+                    namespaceMap.remove(bundleName);
+                }
 
-                    if (namespaceMap.isEmpty()) {
-                        multiLayerTopicsMap.remove(namespaceName);
-                        final ClusterReplicationMetrics clusterReplicationMetrics = pulsarStats
-                                .getClusterReplicationMetrics();
-                        replicationClients.forEach((cluster, client) -> {
-                            clusterReplicationMetrics.remove(clusterReplicationMetrics.getKeyName(namespaceName,
-                                    cluster));
-                        });
-                    }
+                if (namespaceMap.isEmpty()) {
+                    multiLayerTopicsMap.remove(namespaceName);
+                    final ClusterReplicationMetrics clusterReplicationMetrics = pulsarStats
+                            .getClusterReplicationMetrics();
+                    replicationClients.forEach((cluster, client) -> {
+                        clusterReplicationMetrics.remove(clusterReplicationMetrics.getKeyName(namespaceName,
+                                cluster));
+                    });
                 }
             }
-        } catch (Exception e) {
-            log.warn("Got exception when retrieving bundle name {} for topic {} during removeTopicFromCache", topicName,
-                    namespaceBundle, e);
         }
 
         topics.remove(topic);
@@ -2555,35 +2553,25 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     /**
-     * Get {@link TopicPolicies} for this topic.
+     * Get {@link TopicPolicies} for the parameterized topic.
      * @param topicName
-     * @return TopicPolicies is exist else return null.
+     * @return TopicPolicies, if they exist. Otherwise, the value will not be present.
      */
-    public TopicPolicies getTopicPolicies(TopicName topicName) {
+    public Optional<TopicPolicies> getTopicPolicies(TopicName topicName) {
+        if (!pulsar().getConfig().isTopicLevelPoliciesEnabled()) {
+            return Optional.empty();
+        }
         TopicName cloneTopicName = topicName;
         if (topicName.isPartitioned()) {
             cloneTopicName = TopicName.get(topicName.getPartitionedTopicName());
         }
         try {
-            checkTopicLevelPolicyEnable();
-            return pulsar.getTopicPoliciesService().getTopicPolicies(cloneTopicName);
+            return Optional.ofNullable(pulsar.getTopicPoliciesService().getTopicPolicies(cloneTopicName));
         } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
             log.debug("Topic {} policies have not been initialized yet.", topicName.getPartitionedTopicName());
-            return null;
-        } catch (RestException | NullPointerException e) {
-            log.debug("Topic level policies are not enabled. "
-                    + "Please refer to systemTopicEnabled and topicLevelPoliciesEnabled on broker.conf");
-            return null;
+            return Optional.empty();
         }
     }
-
-    private void checkTopicLevelPolicyEnable() {
-        if (!pulsar().getConfig().isTopicLevelPoliciesEnabled()) {
-            throw new RestException(Response.Status.METHOD_NOT_ALLOWED,
-                    "Topic level policies is disabled, to enable the topic level policy and retry.");
-        }
-    }
-
 
     private <T> boolean checkMaxTopicsPerNamespace(TopicName topicName, int numPartitions,
                                             CompletableFuture<T> topicFuture) {

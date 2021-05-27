@@ -165,6 +165,10 @@ public class ManagedLedgerException extends Exception {
         public ManagedLedgerInterceptException(String msg) {
             super(msg);
         }
+
+        public ManagedLedgerInterceptException(Throwable e) {
+            super(e);
+        }
     }
 
     @Override

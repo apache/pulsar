@@ -28,6 +28,8 @@ import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedExcepti
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
+import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 
 /**
@@ -128,6 +130,21 @@ public interface PendingAckHandle {
      * @return the future of result.
      */
     CompletableFuture<PendingAckHandle> pendingAckHandleFuture();
+
+    /**
+     * Get transaction in pending ack stats.
+     *
+     * @param txnID the txnID
+     * @return the stats of this transaction in pending ack.
+     */
+    TransactionInPendingAckStats getTransactionInPendingAckStats(TxnID txnID);
+
+    /**
+     * Get pending ack handle stats.
+     *
+     * @return the stats of this pending ack handle.
+     */
+    TransactionPendingAckStats getStats();
 
     /**
      * Close the pending ack handle.
