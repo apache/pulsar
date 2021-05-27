@@ -1029,20 +1029,18 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                     clientBuilder.authentication(pulsar.getConfiguration().getBrokerClientAuthenticationPlugin(),
                             pulsar.getConfiguration().getBrokerClientAuthenticationParameters());
                 }
+                String serviceUrlTls = isNotBlank(data.getBrokerServiceUrlTls()) ? data.getBrokerServiceUrlTls()
+                        : data.getServiceUrlTls();
                 if (data.isBrokerClientTlsEnabled()) {
-                    clientBuilder
-                            .serviceUrl(isNotBlank(data.getBrokerServiceUrlTls()) ? data.getBrokerServiceUrlTls()
-                                    : data.getServiceUrlTls())
-                            .enableTls(true)
-                            .allowTlsInsecureConnection(data.isTlsAllowInsecureConnection());
-                    if (data.isBrokerClientTlsEnabledWithKeyStore()) {
-                        clientBuilder.useKeyStoreTls(true)
-                                .tlsTrustStoreType(data.getBrokerClientTlsTrustStoreType())
-                                .tlsTrustStorePath(data.getBrokerClientTlsTrustStore())
-                                .tlsTrustStorePassword(data.getBrokerClientTlsTrustStorePassword());
-                    } else {
-                        clientBuilder.tlsTrustCertsFilePath(data.getBrokerClientTrustCertsFilePath());
-                    }
+                    configTlsSettings(clientBuilder, serviceUrlTls,
+                            data.isBrokerClientTlsEnabledWithKeyStore(), data.isTlsAllowInsecureConnection(),
+                            data.getBrokerClientTlsTrustStoreType(), data.getBrokerClientTlsTrustStore(),
+                            data.getBrokerClientTlsTrustStorePassword(), data.getBrokerClientTrustCertsFilePath());
+                } else if (pulsar.getConfiguration().isBrokerClientTlsEnabled()) {
+                    configTlsSettings(clientBuilder, serviceUrlTls,
+                            pulsar.getConfiguration().isBrokerClientTlsEnabledWithKeyStore(), pulsar.getConfiguration().isTlsAllowInsecureConnection(),
+                            pulsar.getConfiguration().getBrokerClientTlsTrustStoreType(), pulsar.getConfiguration().getBrokerClientTlsTrustStore(),
+                            pulsar.getConfiguration().getBrokerClientTlsTrustStorePassword(), pulsar.getConfiguration().getBrokerClientTrustCertsFilePath());
                 } else {
                     clientBuilder.serviceUrl(
                             isNotBlank(data.getBrokerServiceUrl()) ? data.getBrokerServiceUrl() : data.getServiceUrl());
@@ -1059,6 +1057,24 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 throw new RuntimeException(e);
             }
         });
+    }
+
+    private void configTlsSettings(ClientBuilder clientBuilder, String serviceUrl,
+                                   boolean brokerClientTlsEnabledWithKeyStore, boolean isTlsAllowInsecureConnection,
+                                   String brokerClientTlsTrustStoreType, String brokerClientTlsTrustStore,
+                                   String brokerClientTlsTrustStorePassword, String brokerClientTrustCertsFilePath) {
+        clientBuilder
+                .serviceUrl(serviceUrl)
+                .enableTls(true)
+                .allowTlsInsecureConnection(isTlsAllowInsecureConnection);
+        if (brokerClientTlsEnabledWithKeyStore) {
+            clientBuilder.useKeyStoreTls(true)
+                    .tlsTrustStoreType(brokerClientTlsTrustStoreType)
+                    .tlsTrustStorePath(brokerClientTlsTrustStore)
+                    .tlsTrustStorePassword(brokerClientTlsTrustStorePassword);
+        } else {
+            clientBuilder.tlsTrustCertsFilePath(brokerClientTrustCertsFilePath);
+        }
     }
 
     public PulsarAdmin getClusterPulsarAdmin(String cluster) {
