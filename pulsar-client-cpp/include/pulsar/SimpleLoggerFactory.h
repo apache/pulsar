@@ -44,7 +44,7 @@ namespace pulsar {
  * Client client("pulsar://localhost:6650", conf);
  * ```
  */
-class SimpleLoggerFactory : public LoggerFactory {
+class PULSAR_PUBLIC SimpleLoggerFactory : public LoggerFactory {
    public:
     explicit SimpleLoggerFactory() = default;
     explicit SimpleLoggerFactory(Logger::Level level) : level_(level) {}

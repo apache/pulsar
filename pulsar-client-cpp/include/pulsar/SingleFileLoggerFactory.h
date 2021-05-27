@@ -45,7 +45,7 @@ namespace pulsar {
  * Client client("pulsar://localhost:6650", conf);
  * ```
  */
-class SingleFileLoggerFactory : public pulsar::LoggerFactory {
+class PULSAR_PUBLIC SingleFileLoggerFactory : public pulsar::LoggerFactory {
    public:
     /**
      * Create a SingleFileLoggerFactory instance.
