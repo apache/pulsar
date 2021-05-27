@@ -107,7 +107,7 @@ public class CommandGenerator {
             commandBuilder.append(" --output " + sinkTopic);
         }
         if (customSchemaInputs != null) {
-            commandBuilder.append(" --custom-schema-inputs " + customSchemaInputs);
+            commandBuilder.append(" --custom-schema-inputs \'" + customSchemaInputs + "\'");
         }
         if (schemaType != null) {
             commandBuilder.append(" --schema-type " + schemaType);
@@ -200,7 +200,7 @@ public class CommandGenerator {
             commandBuilder.append(" --slidingIntervalDurationMs " + slidingIntervalDurationMs);
         }
         if (customSchemaInputs != null) {
-            commandBuilder.append(" --custom-schema-inputs " + customSchemaInputs);
+            commandBuilder.append(" --custom-schema-inputs \'" + customSchemaInputs + "\'");
         }
         if (schemaType != null) {
             commandBuilder.append(" --schema-type " + schemaType);
@@ -295,7 +295,7 @@ public class CommandGenerator {
             commandBuilder.append(" --slidingIntervalDurationMs " + slidingIntervalDurationMs);
         }
         if (customSchemaInputs != null) {
-            commandBuilder.append(" --custom-schema-inputs " + customSchemaInputs);
+            commandBuilder.append(" --custom-schema-inputs \'" + customSchemaInputs + "\'");
         }
         if (schemaType != null) {
             commandBuilder.append(" --schema-type " + schemaType);
