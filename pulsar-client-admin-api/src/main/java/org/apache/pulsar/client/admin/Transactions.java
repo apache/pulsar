@@ -141,7 +141,7 @@ public interface Transactions {
     /**
      * Get transaction coordinator internal stats.
      *
-     * @param coordinatorId the coordinator id
+     * @param coordinatorId the coordinator ID
      * @param metadata is get ledger metadata
      *
      * @return the future internal stats of this coordinator
