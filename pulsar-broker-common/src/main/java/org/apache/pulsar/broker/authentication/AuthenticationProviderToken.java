@@ -161,11 +161,11 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             // Parse Token by validating
             List<String> principals = getPrincipals(authenticateToken(token));
             AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
-            if(multiRoles){
+            if (multiRoles) {
                 return principals;
-            }else if(principals == null){ // Empty list check has been done in getPrincipals.
+            } else if (principals == null) { // Empty list check has been done in getPrincipals.
                 return null;
-            }else{
+            } else {
                 return Collections.singletonList(principals.get(0));
             }
         } catch (AuthenticationException exception) {

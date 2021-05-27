@@ -19,8 +19,8 @@
 
 package org.apache.pulsar.broker.authentication;
 
-import com.google.common.collect.Lists;
 import java.net.SocketAddress;
+import java.util.Collections;
 import java.util.List;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
@@ -50,7 +50,7 @@ public class OneStageAuthenticationState implements AuthenticationState {
             this.authRoles = provider.authenticate(authenticationDataSource, true);
         } catch (AuthenticationException e) {
             if (e.getMessage().equals(MULTI_ROLE_NOT_SUPPORTED)) {
-                this.authRoles = Lists.newArrayList(provider.authenticate(authenticationDataSource));
+                this.authRoles = Collections.singletonList(provider.authenticate(authenticationDataSource));
             } else {
                 throw e;
             }

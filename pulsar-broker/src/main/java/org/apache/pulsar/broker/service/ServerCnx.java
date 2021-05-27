@@ -356,7 +356,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             return true;
                         }
                     } catch (InterruptedException | ExecutionException e) {
-                        e.printStackTrace();
+                        log.warn("Exception occurred while trying to authorize topic operation {}: {}", operation, e);
                     }
                 }
                 return false;
@@ -794,12 +794,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             // Not find provider named authMethod. Most used for tests.
             // In AuthenticationDisabled, it will set authMethod "none".
             if (authenticationProvider == null) {
-                authRoles = Collections.singletonList(getBrokerService()
-                        .getAuthenticationService()
-                        .getAnonymousUserRole()
-                        .orElseThrow(() ->
+                final String anonymousUserRole = getBrokerService().getAuthenticationService().getAnonymousUserRole().
+                        orElseThrow(() ->
                                 new AuthenticationException("No anonymous role, and no authentication provider "
-                                        + "configured")));
+                                        + "configured"));
+                authRoles = StringUtils.isNotEmpty(anonymousUserRole)
+                        ? Collections.singletonList(anonymousUserRole) : Collections.emptyList();
                 completeConnect(clientProtocolVersion, clientVersion);
                 return;
             }
