@@ -802,7 +802,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                     String outputSchemaType) throws Exception {
 
         CommandGenerator generator;
-        log.info("------- INPUT TOPIC: '{}'", inputTopicName);
+        log.info("------- INPUT TOPIC: '{}', customSchemaInputs: {}", inputTopicName, customSchemaInputs);
         if (inputTopicName.endsWith(".*")) {
             log.info("----- CREATING TOPIC PATTERN FUNCTION --- ");
             generator = CommandGenerator.createTopicPatternGenerator(inputTopicName, functionClass);
@@ -1578,7 +1578,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         final String functionName = "test-merge-fn-" + randomName(8);
         submitFunction(
                 Runtime.JAVA,
-                null,
+                "",
                 outputTopic,
                 functionName,
                 null,

@@ -24,6 +24,7 @@ import java.util.Map;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 
 @Getter
@@ -99,7 +100,7 @@ public class CommandGenerator {
         if(runtime != Runtime.GO){
             commandBuilder.append(" --className " + functionClassName);
         }
-        if (sourceTopic != null) {
+        if (StringUtils.isNotEmpty(sourceTopic)) {
             commandBuilder.append(" --inputs " + sourceTopic);
         }
         if (sinkTopic != null) {
@@ -156,7 +157,7 @@ public class CommandGenerator {
         if (runtime != Runtime.GO){
             commandBuilder.append(" --className " + functionClassName);
         }
-        if (sourceTopic != null) {
+        if (StringUtils.isNotEmpty(sourceTopic)) {
             commandBuilder.append(" --inputs " + sourceTopic);
         }
         if (sourceTopicPattern != null) {
@@ -254,7 +255,7 @@ public class CommandGenerator {
         if (functionClassName != null) {
             commandBuilder.append(" --className " + functionClassName);
         }
-        if (sourceTopic != null) {
+        if (StringUtils.isNotEmpty(sourceTopic)) {
             commandBuilder.append(" --inputs " + sourceTopic);
         }
         if (customSereSourceTopics != null && !customSereSourceTopics.isEmpty()) {
