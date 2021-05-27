@@ -1038,9 +1038,12 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                             data.getBrokerClientTlsTrustStorePassword(), data.getBrokerClientTrustCertsFilePath());
                 } else if (pulsar.getConfiguration().isBrokerClientTlsEnabled()) {
                     configTlsSettings(clientBuilder, serviceUrlTls,
-                            pulsar.getConfiguration().isBrokerClientTlsEnabledWithKeyStore(), pulsar.getConfiguration().isTlsAllowInsecureConnection(),
-                            pulsar.getConfiguration().getBrokerClientTlsTrustStoreType(), pulsar.getConfiguration().getBrokerClientTlsTrustStore(),
-                            pulsar.getConfiguration().getBrokerClientTlsTrustStorePassword(), pulsar.getConfiguration().getBrokerClientTrustCertsFilePath());
+                            pulsar.getConfiguration().isBrokerClientTlsEnabledWithKeyStore(),
+                            pulsar.getConfiguration().isTlsAllowInsecureConnection(),
+                            pulsar.getConfiguration().getBrokerClientTlsTrustStoreType(),
+                            pulsar.getConfiguration().getBrokerClientTlsTrustStore(),
+                            pulsar.getConfiguration().getBrokerClientTlsTrustStorePassword(),
+                            pulsar.getConfiguration().getBrokerClientTrustCertsFilePath());
                 } else {
                     clientBuilder.serviceUrl(
                             isNotBlank(data.getBrokerServiceUrl()) ? data.getBrokerServiceUrl() : data.getServiceUrl());
