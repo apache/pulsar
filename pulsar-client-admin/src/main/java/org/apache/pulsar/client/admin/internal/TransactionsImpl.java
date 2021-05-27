@@ -30,8 +30,8 @@ import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.CoordinatorInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
+import org.apache.pulsar.common.policies.data.TransactionCoordinatorInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
@@ -258,16 +258,16 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     }
 
     @Override
-    public CompletableFuture<CoordinatorInternalStats> getCoordinatorInternalStatsAsync(int coordinatorId,
-                                                                                        boolean metadata) {
+    public CompletableFuture<TransactionCoordinatorInternalStats> getCoordinatorInternalStatsAsync(int coordinatorId,
+                                                                                                   boolean metadata) {
         WebTarget path = adminV3Transactions.path("coordinatorInternalStats");
         path = path.path(coordinatorId + "");
         path = path.queryParam("metadata", metadata);
-        final CompletableFuture<CoordinatorInternalStats> future = new CompletableFuture<>();
+        final CompletableFuture<TransactionCoordinatorInternalStats> future = new CompletableFuture<>();
         asyncGetRequest(path,
-                new InvocationCallback<CoordinatorInternalStats>() {
+                new InvocationCallback<TransactionCoordinatorInternalStats>() {
                     @Override
-                    public void completed(CoordinatorInternalStats stats) {
+                    public void completed(TransactionCoordinatorInternalStats stats) {
                         future.complete(stats);
                     }
 
@@ -280,8 +280,9 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     }
 
     @Override
-    public CoordinatorInternalStats getCoordinatorInternalStats(int coordinatorId,
-                                                                boolean metadata) throws PulsarAdminException {
+    public TransactionCoordinatorInternalStats getCoordinatorInternalStats(int coordinatorId,
+                                                                           boolean metadata)
+            throws PulsarAdminException {
         try {
             return getCoordinatorInternalStatsAsync(coordinatorId, metadata)
                     .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);

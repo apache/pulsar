@@ -19,10 +19,13 @@
 package org.apache.pulsar.common.policies.data;
 
 /**
- * Transaction pending ack internal stats.
+ * Transaction log stats.
  */
-public class TransactionPendingAckInternalStats {
+public class TransactionLogStats {
 
-    /** The transaction log stats*/
-    public TransactionLogStats pendingAckLogStats;
+    /** The managed ledger name*/
+    public String managedLedgerName ;
+
+    /** The manage ledger internal stats*/
+    public ManagedLedgerInternalStats managedLedgerInternalStats;
 }

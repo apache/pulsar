@@ -22,8 +22,8 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.policies.data.CoordinatorInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
+import org.apache.pulsar.common.policies.data.TransactionCoordinatorInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
@@ -147,18 +147,19 @@ public interface Transactions {
      *
      * @return the future internal stats of this coordinator
      */
-    CompletableFuture<CoordinatorInternalStats> getCoordinatorInternalStatsAsync(int coordinatorId, boolean metadata);
+    CompletableFuture<TransactionCoordinatorInternalStats> getCoordinatorInternalStatsAsync(int coordinatorId,
+                                                                                            boolean metadata);
 
     /**
      * Get transaction coordinator internal stats.
      *
-     * @param coordinatorId the coordinator id
+     * @param coordinatorId the coordinator ID
      * @param metadata whether to obtain ledger metadata
      *
      * @return the internal stats of this coordinator
      */
-    CoordinatorInternalStats getCoordinatorInternalStats(int coordinatorId,
-                                                         boolean metadata) throws PulsarAdminException;
+    TransactionCoordinatorInternalStats getCoordinatorInternalStats(int coordinatorId,
+                                                                    boolean metadata) throws PulsarAdminException;
 
     /**
      * Get pending ack internal stats.
