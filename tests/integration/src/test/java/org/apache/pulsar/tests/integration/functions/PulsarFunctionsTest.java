@@ -1713,9 +1713,9 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             case "merge-schema-avro-userv2":
                 org.apache.avro.generic.GenericRecord genericRecord =
                         (org.apache.avro.generic.GenericRecord) nativeObject;
-                assertEquals(genericRecord.get("name"), "tang");
+                assertEquals(genericRecord.get("name").toString(), "tang");
                 assertEquals(genericRecord.get("age"), 20);
-                assertEquals(genericRecord.get("phone"), "456456456");
+                assertEquals(genericRecord.get("phone").toString(), "456456456");
                 break;
             case "merge-schema-k-int-v-json-userv1-separate":
                 kv = (KeyValue<Integer, GenericRecord>) nativeObject;
