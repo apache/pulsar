@@ -327,7 +327,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                     if (l.getState() == State.Fenced || l.getState() == State.Closed) {
                         // Managed ledger is in unusable state. Recreate it.
                         log.warn("[{}] Attempted to open ledger in {} state. Removing from the map to recreate it",
-                                name, l.getState().toString());
+                                name, l.getState());
                         ledgers.remove(name, existingFuture);
                     }
                 } catch (Exception e) {
