@@ -3865,7 +3865,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         stats.pendingAddEntriesCount = this.getPendingAddEntriesCount();
 
         stats.lastConfirmedEntry = this.getLastConfirmedEntry().toString();
-        stats.state = this.getState();
+        stats.state = this.getState().toString();
 
         stats.ledgers = Lists.newArrayList();
         this.getLedgersInfo().forEach((id, li) -> {
