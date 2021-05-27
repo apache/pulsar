@@ -20,6 +20,7 @@ package org.apache.pulsar.client.admin;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStats;
@@ -89,5 +90,54 @@ public interface Transactions {
      * @return the future stats of transaction pending ack.
      */
     CompletableFuture<TransactionPendingAckStats> getPendingAckStats(String topic, String subName);
+
+    /**
+     * Get slow transactions by coordinator id.
+     *
+     * @param coordinatorId the coordinator id of getting slow transaction status.
+     * @param timeout the timeout
+     * @param timeUnit the timeout timeUnit
+     * @return the future metadata of slow transactions.
+     */
+    CompletableFuture<Map<String, TransactionMetadata>> getSlowTransactionsByCoordinatorIdAsync(Integer coordinatorId,
+                                                                                                long timeout,
+                                                                                                TimeUnit timeUnit);
+
+    /**
+     * Get slow transactions by coordinator id.
+     *
+     * @param coordinatorId the coordinator id of getting slow transaction status.
+     * @param timeout the timeout
+     * @param timeUnit the timeout timeUnit
+     * @return the metadata of slow transactions.
+     */
+    Map<String, TransactionMetadata> getSlowTransactionsByCoordinatorId(Integer coordinatorId,
+                                                                        long timeout,
+                                                                        TimeUnit timeUnit) throws Exception;
+
+    /**
+     * Get slow transactions.
+     *
+     * @param timeout the timeout
+     * @param timeUnit the timeout timeUnit
+     *
+     * @return the future metadata of slow transactions.
+     */
+    CompletableFuture<Map<String, TransactionMetadata>> getSlowTransactionsAsync(long timeout,
+                                                                                 TimeUnit timeUnit);
+
+
+    /**
+     * Get slow transactions.
+     *
+     * @param timeout the timeout
+     * @param timeUnit the timeout timeUnit
+     *
+     * @return the metadata of slow transactions.
+     */
+    CompletableFuture<Map<String, TransactionMetadata>> getSlowTransactions(long timeout,
+                                                                            TimeUnit timeUnit) throws Exception;
+
+
 
 }

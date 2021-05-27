@@ -49,6 +49,7 @@ import org.testng.annotations.Test;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -170,7 +171,6 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
     public void testGetTransactionMetadata() throws Exception {
         initTransaction(2);
         long currentTime = System.currentTimeMillis();
-        TransactionImpl transaction = (TransactionImpl) getTransaction();
         final String topic1 = "persistent://public/default/testGetTransactionMetadata-1";
         final String subName1 = "test1";
         final String topic2 = "persistent://public/default/testGetTransactionMetadata-2";
@@ -178,6 +178,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         final String subName3 = "test3";
         admin.topics().createNonPartitionedTopic(topic1);
         admin.topics().createNonPartitionedTopic(topic2);
+        TransactionImpl transaction = (TransactionImpl) getTransaction();
 
         Producer<byte[]> producer1 = pulsarClient.newProducer(Schema.BYTES)
                 .sendTimeout(0, TimeUnit.SECONDS).topic(topic1).create();
@@ -281,6 +282,33 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
                 getPendingAckStats(topic, subName).get();
 
         assertEquals(transactionPendingAckStats.state, "Ready");
+    }
+
+    @Test(timeOut = 20000)
+    public void testGetSlowTransactions() throws Exception {
+        initTransaction(2);
+        TransactionImpl transaction1 = (TransactionImpl) pulsarClient.newTransaction()
+                .withTransactionTimeout(60, TimeUnit.SECONDS).build().get();
+        TransactionImpl transaction2 = (TransactionImpl) pulsarClient.newTransaction()
+                .withTransactionTimeout(60, TimeUnit.SECONDS).build().get();
+        pulsarClient.newTransaction().withTransactionTimeout(20, TimeUnit.SECONDS).build();
+        pulsarClient.newTransaction().withTransactionTimeout(20, TimeUnit.SECONDS).build();
+
+        Map<String, TransactionMetadata> transactionMetadataMap =  admin.transactions()
+                .getSlowTransactionsAsync(30, TimeUnit.SECONDS).get();
+
+        assertEquals(transactionMetadataMap.size(), 2);
+
+        TxnID txnID1 = new TxnID(transaction1.getTxnIdMostBits(), transaction1.getTxnIdLeastBits());
+        TxnID txnID2 = new TxnID(transaction2.getTxnIdMostBits(), transaction2.getTxnIdLeastBits());
+
+        TransactionMetadata transactionMetadata = transactionMetadataMap.get(txnID1.toString());
+        assertNotNull(transactionMetadata);
+        assertEquals(transactionMetadata.timeoutAt, 60000);
+
+        transactionMetadata = transactionMetadataMap.get(txnID2.toString());
+        assertNotNull(transactionMetadata);
+        assertEquals(transactionMetadata.timeoutAt, 60000);
     }
 
     private static PositionImpl getPositionByMessageId(MessageId messageId) {

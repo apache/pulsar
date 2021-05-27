@@ -419,6 +419,17 @@ public class MLTransactionMetadataStore
         return transactionMetadataStoreStats;
     }
 
+    @Override
+    public List<TxnMeta> getSlowTransactions(long timeout) {
+        List<TxnMeta> txnMetas = new ArrayList<>();
+        txnMetaMap.forEach((k, v) -> {
+            if (v.getLeft().getTimeoutAt() > timeout) {
+                txnMetas.add(v.getLeft());
+            }
+        });
+        return txnMetas;
+    }
+
     public static List<Subscription> txnSubscriptionToSubscription(List<TransactionSubscription> tnxSubscriptions) {
         List<Subscription> subscriptions = new ArrayList<>(tnxSubscriptions.size());
         for (TransactionSubscription transactionSubscription : tnxSubscriptions) {

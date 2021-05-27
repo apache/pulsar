@@ -27,6 +27,7 @@ import javax.ws.rs.Consumes;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.container.AsyncResponse;
@@ -151,7 +152,7 @@ public class Transactions extends TransactionsBase {
             @ApiResponse(code = 503, message = "This Broker is not configured "
                     + "with transactionCoordinatorEnabled=true."),
             @ApiResponse(code = 307, message = "Topic is not owned by this broker!"),
-            @ApiResponse(code = 501, message = "Topic is not a persistent topic!"),
+            @ApiResponse(code = 400, message = "Topic is not a persistent topic!"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
     public void getTransactionMetadata(@Suspended final AsyncResponse asyncResponse,
                                        @QueryParam("authoritative")
@@ -162,5 +163,24 @@ public class Transactions extends TransactionsBase {
                                        @ApiParam(value = "Least sig bits of this transaction", required = true)
                                            @QueryParam("leastSigBits") long leastSigBits) {
         internalGetTransactionMetadata(asyncResponse, authoritative, mostSigBits, leastSigBits);
+    }
+
+    @GET
+    @Path("/slowTransactions/{timeout}")
+    @ApiOperation(value = "Get slow transactions.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic "
+                    + "or coordinator or transaction doesn't exist"),
+            @ApiResponse(code = 503, message = "This Broker is not configured "
+                    + "with transactionCoordinatorEnabled=true."),
+            @ApiResponse(code = 307, message = "Topic don't owner by this broker!"),
+            @ApiResponse(code = 400, message = "Topic is not a persistent topic!"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void getSlowTransactions(@Suspended final AsyncResponse asyncResponse,
+                                    @QueryParam("authoritative")
+                                    @DefaultValue("false") boolean authoritative,
+                                    @PathParam("timeout") String timeout,
+                                    @QueryParam("coordinatorId") Integer coordinatorId) {
+        internalGetSlowTransactions(asyncResponse, authoritative, Long.parseLong(timeout), coordinatorId);
     }
 }
