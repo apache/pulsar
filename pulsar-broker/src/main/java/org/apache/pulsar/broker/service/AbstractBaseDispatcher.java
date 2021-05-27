@@ -200,8 +200,9 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         return key;
     }
 
-    protected void addMessageToReplay(long ledgerId, long entryId) {
+    protected boolean addMessageToReplay(long ledgerId, long entryId) {
         // No-op
+        return false;
     }
 
     private void handleTxnCommitMarker(Entry entry) {
@@ -234,5 +235,4 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
             }
         });
     }
-
 }
