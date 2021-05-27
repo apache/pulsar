@@ -32,13 +32,13 @@ public class ManagedLedgerInternalStats {
     /** The total number of entries being tracked. */
     public long numberOfEntries;
 
-    /**The total storage size in bytes of all messages. */
+    /**The total storage size of all messages (in bytes). */
     public long totalSize;
 
     /**The count of messages written to the ledger that is currently open for writing. */
     public long currentLedgerEntries;
 
-    /**The size in bytes of messages written to the ledger that is currently open for writing.. */
+    /**The size of messages written to the ledger that is currently open for writing (in bytes). */
     public long currentLedgerSize;
 
     /**The time when the last ledger is created. */
@@ -53,7 +53,7 @@ public class ManagedLedgerInternalStats {
     /**The number of messages that complete (asynchronous) write requests. */
     public int pendingAddEntriesCount;
 
-    /**The ledgerid:entryid of the last message that is written successfully.
+    /**The ledgerid: entryid of the last message that is written successfully.
      * If the entryid is -1, then the ledger is open, yet no entries are written. */
     public String lastConfirmedEntry;
 

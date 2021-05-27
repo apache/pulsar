@@ -152,7 +152,7 @@ public interface Transactions {
      * Get transaction coordinator internal stats.
      *
      * @param coordinatorId the coordinator id
-     * @param metadata is get ledger metadata
+     * @param metadata whether to obtain ledger metadata
      *
      * @return the internal stats of this coordinator
      */
