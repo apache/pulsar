@@ -2159,4 +2159,29 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topics().getCompactionThreshold(topic, true).longValue(), brokerPolicy);
     }
 
+    @Test(timeOut = 30000)
+    public void testProduceConsumeOnTopicPolicy() {
+        final String msg = "send message ";
+        int numMsg = 10;
+        try {
+            Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(persistenceTopic)
+                    .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                    .subscriptionName("test").subscribe();
+
+            Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(persistenceTopic).create();
+
+            for (int i = 0; i < numMsg; ++i) {
+                producer.newMessage().value(msg + i).send();
+            }
+
+            for (int i = 0; i < numMsg; ++i) {
+                Message<String> message = consumer.receive(100, TimeUnit.MILLISECONDS);
+                Assert.assertEquals(message.getValue(), msg + i);
+            }
+        } catch (PulsarClientException e) {
+            log.error("Failed to send/produce message, ", e);
+            Assert.fail();
+        }
+    }
+
 }
