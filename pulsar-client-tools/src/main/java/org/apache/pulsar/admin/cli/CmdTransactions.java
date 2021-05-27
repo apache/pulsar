@@ -153,7 +153,7 @@ public class CmdTransactions extends CmdBase {
         private boolean metadata = false;
         @Override
         void run() throws Exception {
-            print(getAdmin().transactions().getCoordinatorInternalStatsAsync(coordinatorId, metadata));
+            print(getAdmin().transactions().getCoordinatorInternalStats(coordinatorId, metadata));
         }
     }
 

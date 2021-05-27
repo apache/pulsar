@@ -1428,7 +1428,7 @@ public class PulsarAdminToolTest {
 
         cmdTransactions = new CmdTransactions(() -> admin);
         cmdTransactions.run(split("coordinator-internal-stats -c 1 -m"));
-        verify(transactions).getCoordinatorInternalStatsAsync(1, true);
+        verify(transactions).getCoordinatorInternalStats(1, true);
 
         cmdTransactions = new CmdTransactions(() -> admin);
         cmdTransactions.run(split("transaction-in-buffer-stats -m 1 -t test -l 2"));
