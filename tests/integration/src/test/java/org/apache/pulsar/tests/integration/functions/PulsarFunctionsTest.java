@@ -60,6 +60,7 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecord;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.schema.KeyValue;
@@ -1562,6 +1563,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         PulsarAdmin pulsarAdmin = getPulsarAdmin();
         pulsarAdmin.namespaces().createNamespace(ns);
         pulsarAdmin.namespaces().setSchemaCompatibilityStrategy(ns, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+        pulsarAdmin.namespaces().setRetention(ns, new RetentionPolicies(60, 10));
 
         @Cleanup
         PulsarClient pulsarClient = getPulsarClient();
@@ -1675,6 +1677,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         inputSpecNode.put(topic, confNode.toString());
         topicMsgCntMap.put(baseTopic, new AtomicInteger(messageCnt));
         producer.close();
+        log.info("[merge-fn] generate data for schema {}", schema.getSchemaInfo());
     }
 
     private void checkSchemaForAutoSchema(Message<GenericRecord> message, String baseTopic) {
