@@ -2629,6 +2629,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             });
         }).exceptionally(e -> {
             ledger.mbean.endCursorLedgerCreateOp();
+            callback.operationFailed(createManagedLedgerException(e));
             return null;
         });
 
@@ -2667,6 +2668,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         ledger.asyncCreateLedger(bookkeeper, config, digestType, (rc, lh, ctx) -> {
 
             if (ledger.checkAndCompleteLedgerOpTask(rc, lh, ctx)) {
+                future.complete(null);
                 return;
             }
 
