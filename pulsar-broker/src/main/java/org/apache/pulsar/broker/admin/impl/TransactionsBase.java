@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
@@ -47,6 +48,7 @@ import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionMetadata;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
+import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.CoordinatorNotFoundException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.TransactionNotFoundException;
@@ -60,8 +62,15 @@ public abstract class TransactionsBase extends AdminResource {
             if (coordinatorId != null) {
                 validateTopicOwnership(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getPartition(coordinatorId),
                         authoritative);
-                asyncResponse.resume(pulsar().getTransactionMetadataStoreService().getStores()
-                        .get(TransactionCoordinatorID.get(coordinatorId)).getCoordinatorStats());
+                TransactionMetadataStore transactionMetadataStore =
+                        pulsar().getTransactionMetadataStoreService().getStores()
+                                .get(TransactionCoordinatorID.get(coordinatorId));
+                if (transactionMetadataStore == null) {
+                    asyncResponse.resume(new RestException(NOT_FOUND,
+                            "Transaction coordinator not found! coordinator id : " + coordinatorId));
+                    return;
+                }
+                asyncResponse.resume(transactionMetadataStore.getCoordinatorStats());
             } else {
                 getPartitionedTopicMetadataAsync(TopicName.TRANSACTION_COORDINATOR_ASSIGN,
                         false, false).thenAccept(partitionMetadata -> {
@@ -249,91 +258,16 @@ public abstract class TransactionsBase extends AdminResource {
     }
 
     protected void internalGetTransactionMetadata(AsyncResponse asyncResponse,
-                                                  boolean authoritative, int coordinatorId, long sequenceID) {
+                                                  boolean authoritative, int mostSigBits, long leastSigBits) {
         try {
             if (pulsar().getConfig().isTransactionCoordinatorEnabled()) {
-                validateTopicOwnership(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getPartition(coordinatorId),
+                validateTopicOwnership(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getPartition(mostSigBits),
                         authoritative);
-                Transactions transactions = pulsar().getAdminClient().transactions();
+                CompletableFuture<TransactionMetadata> transactionMetadataFuture = new CompletableFuture<>();
                 TxnMeta txnMeta = pulsar().getTransactionMetadataStoreService()
-                        .getTxnMeta(new TxnID(coordinatorId, sequenceID)).get();
-                TxnID txnID = txnMeta.id();
-                TransactionMetadata transactionMetadata = new TransactionMetadata();
-                transactionMetadata.txnId = txnID.toString();
-                transactionMetadata.status = txnMeta.status().name();
-                transactionMetadata.openTimestamp = txnMeta.getOpenTimestamp();
-                transactionMetadata.timeoutAt = txnMeta.getTimeoutAt();
-
-                List<CompletableFuture<TransactionInPendingAckStats>> ackedPartitionsFutures = new ArrayList<>();
-                Map<String, Map<String, CompletableFuture<TransactionInPendingAckStats>>> ackFutures = new HashMap<>();
-                txnMeta.ackedPartitions().forEach(transactionSubscription -> {
-                    String topic = transactionSubscription.getTopic();
-                    String subName = transactionSubscription.getSubscription();
-                    CompletableFuture<TransactionInPendingAckStats> future =
-                            transactions.getTransactionInPendingAckStats(txnID, topic, subName);
-                    ackedPartitionsFutures.add(future);
-                    if (ackFutures.containsKey(topic)) {
-                        ackFutures.get(topic)
-                                .put(transactionSubscription.getSubscription(), future);
-                    } else {
-                        Map<String, CompletableFuture<TransactionInPendingAckStats>> pendingAckStatsMap =
-                                new HashMap<>();
-                        pendingAckStatsMap.put(transactionSubscription.getSubscription(), future);
-                        ackFutures.put(topic, pendingAckStatsMap);
-                    }
-                });
-
-                List<CompletableFuture<TransactionInBufferStats>> producedPartitionsFutures = new ArrayList<>();
-                Map<String, CompletableFuture<TransactionInBufferStats>> produceFutures = new HashMap<>();
-                txnMeta.producedPartitions().forEach(topic -> {
-                    CompletableFuture<TransactionInBufferStats> future =
-                            transactions.getTransactionInBufferStats(txnID, topic);
-                    producedPartitionsFutures.add(future);
-                    produceFutures.put(topic, future);
-
-                });
-
-                FutureUtil.waitForAll(ackedPartitionsFutures).whenComplete((v, e) -> {
-                    if (e != null) {
-                        asyncResponse.resume(new RestException(e));
-                        return;
-                    }
-                    FutureUtil.waitForAll(producedPartitionsFutures).whenComplete((x, t) -> {
-                        if (t != null) {
-                            asyncResponse.resume(new RestException(t));
-                            return;
-                        }
-
-                        Map<String, Map<String, TransactionInPendingAckStats>> ackedPartitions = new HashMap<>();
-                        Map<String, TransactionInBufferStats> producedPartitions = new HashMap<>();
-
-                        for (String topic : ackFutures.keySet()) {
-                            Map<String, TransactionInPendingAckStats> subs = new HashMap<>();
-                            for (String sub : ackFutures.get(topic).keySet()) {
-                                try {
-                                    subs.put(sub, ackFutures.get(topic).get(sub).get());
-                                } catch (Exception exception) {
-                                    asyncResponse.resume(new RestException(exception.getCause()));
-                                    return;
-                                }
-                            }
-
-                            ackedPartitions.put(topic, subs);
-                        }
-
-                        for (String topic : produceFutures.keySet()) {
-                            try {
-                                producedPartitions.put(topic, produceFutures.get(topic).get());
-                            } catch (Exception exception) {
-                                asyncResponse.resume(new RestException(exception.getCause()));
-                                return;
-                            }
-                        }
-                        transactionMetadata.ackedPartitions = ackedPartitions;
-                        transactionMetadata.producedPartitions = producedPartitions;
-                        asyncResponse.resume(transactionMetadata);
-                    });
-                });
+                        .getTxnMeta(new TxnID(mostSigBits, leastSigBits)).get();
+                getTransactionMetadata(txnMeta, transactionMetadataFuture);
+                asyncResponse.resume(transactionMetadataFuture.get(10, TimeUnit.SECONDS));
             } else {
                 asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE,
                         "This Broker is not configured with transactionCoordinatorEnabled=true."));
@@ -349,6 +283,184 @@ public abstract class TransactionsBase extends AdminResource {
             } else {
                 asyncResponse.resume(new RestException(e));
             }
+        }
+    }
+
+    private void getTransactionMetadata(TxnMeta txnMeta,
+                                        CompletableFuture<TransactionMetadata> transactionMetadataFuture)
+            throws PulsarServerException {
+        Transactions transactions = pulsar().getAdminClient().transactions();
+        TransactionMetadata transactionMetadata = new TransactionMetadata();
+        TxnID txnID = txnMeta.id();
+        transactionMetadata.txnId = txnID.toString();
+        transactionMetadata.status = txnMeta.status().name();
+        transactionMetadata.openTimestamp = txnMeta.getOpenTimestamp();
+        transactionMetadata.timeoutAt = txnMeta.getTimeoutAt();
+
+        List<CompletableFuture<TransactionInPendingAckStats>> ackedPartitionsFutures = new ArrayList<>();
+        Map<String, Map<String, CompletableFuture<TransactionInPendingAckStats>>> ackFutures = new HashMap<>();
+        txnMeta.ackedPartitions().forEach(transactionSubscription -> {
+            String topic = transactionSubscription.getTopic();
+            String subName = transactionSubscription.getSubscription();
+            CompletableFuture<TransactionInPendingAckStats> future =
+                    transactions.getTransactionInPendingAckStats(txnID, topic, subName);
+            ackedPartitionsFutures.add(future);
+            if (ackFutures.containsKey(topic)) {
+                ackFutures.get(topic)
+                        .put(transactionSubscription.getSubscription(), future);
+            } else {
+                Map<String, CompletableFuture<TransactionInPendingAckStats>> pendingAckStatsMap =
+                        new HashMap<>();
+                pendingAckStatsMap.put(transactionSubscription.getSubscription(), future);
+                ackFutures.put(topic, pendingAckStatsMap);
+            }
+        });
+
+        List<CompletableFuture<TransactionInBufferStats>> producedPartitionsFutures = new ArrayList<>();
+        Map<String, CompletableFuture<TransactionInBufferStats>> produceFutures = new HashMap<>();
+        txnMeta.producedPartitions().forEach(topic -> {
+            CompletableFuture<TransactionInBufferStats> future =
+                    transactions.getTransactionInBufferStats(txnID, topic);
+            producedPartitionsFutures.add(future);
+            produceFutures.put(topic, future);
+
+        });
+
+        FutureUtil.waitForAll(ackedPartitionsFutures).whenComplete((v, e) -> {
+            if (e != null) {
+                transactionMetadataFuture.completeExceptionally(e);
+                return;
+            }
+
+            FutureUtil.waitForAll(producedPartitionsFutures).whenComplete((x, t) -> {
+                if (t != null) {
+                    transactionMetadataFuture.completeExceptionally(e);
+                    return;
+                }
+
+                Map<String, Map<String, TransactionInPendingAckStats>> ackedPartitions = new HashMap<>();
+                Map<String, TransactionInBufferStats> producedPartitions = new HashMap<>();
+
+                for (String topic : ackFutures.keySet()) {
+                    Map<String, TransactionInPendingAckStats> subs = new HashMap<>();
+                    for (String sub : ackFutures.get(topic).keySet()) {
+                        try {
+                            subs.put(sub, ackFutures.get(topic).get(sub).get());
+                        } catch (Exception exception) {
+                            transactionMetadataFuture.completeExceptionally(exception);
+                            return;
+                        }
+                    }
+
+                    ackedPartitions.put(topic, subs);
+                }
+
+                for (String topic : produceFutures.keySet()) {
+                    try {
+                        producedPartitions.put(topic, produceFutures.get(topic).get());
+                    } catch (Exception exception) {
+                        transactionMetadataFuture.completeExceptionally(exception);
+                        return;
+                    }
+                }
+                transactionMetadata.ackedPartitions = ackedPartitions;
+                transactionMetadata.producedPartitions = producedPartitions;
+                transactionMetadataFuture.complete(transactionMetadata);
+            });
+        });
+    }
+
+    protected void internalGetSlowTransactions(AsyncResponse asyncResponse,
+                                               boolean authoritative, long timeout, Integer coordinatorId) {
+        try {
+            if (pulsar().getConfig().isTransactionCoordinatorEnabled()) {
+                if (coordinatorId != null) {
+                    validateTopicOwnership(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getPartition(coordinatorId),
+                            authoritative);
+                    TransactionMetadataStore transactionMetadataStore =
+                            pulsar().getTransactionMetadataStoreService().getStores()
+                                    .get(TransactionCoordinatorID.get(coordinatorId));
+                    if (transactionMetadataStore == null) {
+                        asyncResponse.resume(new RestException(NOT_FOUND,
+                                "Transaction coordinator not found! coordinator id : " + coordinatorId));
+                        return;
+                    }
+                    List<TxnMeta> transactions = transactionMetadataStore.getSlowTransactions(timeout);
+                    List<CompletableFuture<TransactionMetadata>> completableFutures = new ArrayList<>();
+                    for (TxnMeta txnMeta : transactions) {
+                        CompletableFuture<TransactionMetadata> completableFuture = new CompletableFuture<>();
+                        getTransactionMetadata(txnMeta, completableFuture);
+                        completableFutures.add(completableFuture);
+                    }
+
+                    FutureUtil.waitForAll(completableFutures).whenComplete((v, e) -> {
+                        if (e != null) {
+                            asyncResponse.resume(new RestException(e.getCause()));
+                            return;
+                        }
+
+                        Map<String, TransactionMetadata> transactionMetadata = new HashMap<>();
+                        for (CompletableFuture<TransactionMetadata> future : completableFutures) {
+                            try {
+                                transactionMetadata.put(future.get().txnId, future.get());
+                            } catch (Exception exception) {
+                                asyncResponse.resume(new RestException(exception.getCause()));
+                                return;
+                            }
+                        }
+                        asyncResponse.resume(transactionMetadata);
+                    });
+                } else {
+                    getPartitionedTopicMetadataAsync(TopicName.TRANSACTION_COORDINATOR_ASSIGN,
+                            false, false).thenAccept(partitionMetadata -> {
+                        if (partitionMetadata.partitions == 0) {
+                            asyncResponse.resume(new RestException(Response.Status.NOT_FOUND,
+                                    "Transaction coordinator not found"));
+                            return;
+                        }
+                        List<CompletableFuture<Map<String, TransactionMetadata>>> completableFutures =
+                                Lists.newArrayList();
+                        for (int i = 0; i < partitionMetadata.partitions; i++) {
+                            try {
+                                completableFutures
+                                        .add(pulsar().getAdminClient().transactions()
+                                                .getSlowTransactionsByCoordinatorIdAsync(i, timeout,
+                                                        TimeUnit.MILLISECONDS));
+                            } catch (PulsarServerException e) {
+                                asyncResponse.resume(new RestException(e));
+                                return;
+                            }
+                        }
+                        Map<String, TransactionMetadata> transactionMetadataMaps = new HashMap<>();
+                        FutureUtil.waitForAll(completableFutures).whenComplete((result, e) -> {
+                            if (e != null) {
+                                asyncResponse.resume(new RestException(e));
+                                return;
+                            }
+
+                            for (CompletableFuture<Map<String, TransactionMetadata>> transactionMetadataMap
+                                    : completableFutures) {
+                                try {
+                                    transactionMetadataMaps.putAll(transactionMetadataMap.get());
+                                } catch (Exception exception) {
+                                    asyncResponse.resume(new RestException(exception.getCause()));
+                                    return;
+                                }
+                            }
+                            asyncResponse.resume(transactionMetadataMaps);
+                        });
+                    }).exceptionally(ex -> {
+                        log.error("[{}] Failed to get transaction coordinator state.", clientAppId(), ex);
+                        resumeAsyncResponseExceptionally(asyncResponse, ex);
+                        return null;
+                    });
+
+                }
+            } else {
+                asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE, "Broker don't support transaction!"));
+            }
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
         }
     }
 }

@@ -1439,6 +1439,15 @@ public class PulsarAdminToolTest {
         verify(transactions).getTransactionMetadata(new TxnID(1, 2));
 
         cmdTransactions = new CmdTransactions(() -> admin);
+        cmdTransactions.run(split("slow-transactions -c 1 -t 1h"));
+        verify(transactions).getSlowTransactionsByCoordinatorId(
+                1, 3600000, TimeUnit.MILLISECONDS);
+
+        cmdTransactions = new CmdTransactions(() -> admin);
+        cmdTransactions.run(split("slow-transactions -t 1h"));
+        verify(transactions).getSlowTransactions(3600000, TimeUnit.MILLISECONDS);
+
+        cmdTransactions = new CmdTransactions(() -> admin);
         cmdTransactions.run(split("transaction-buffer-stats -t test"));
         verify(transactions).getTransactionBufferStats("test");
 

@@ -20,6 +20,7 @@ package org.apache.pulsar.client.admin.internal;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import org.apache.pulsar.client.admin.Transactions;
@@ -187,5 +188,47 @@ public class TransactionsImpl extends BaseResource implements Transactions {
         return future;
     }
 
+    @Override
+    public CompletableFuture<Map<String, TransactionMetadata>> getSlowTransactionsByCoordinatorIdAsync(
+            Integer coordinatorId, long timeout, TimeUnit timeUnit) {
+        WebTarget path = adminV3Transactions.path("slowTransactions");
+        path = path.path(timeUnit.toMillis(timeout) + "");
+        if (coordinatorId != null) {
+            path = path.queryParam("coordinatorId", coordinatorId);
+        }
+        final CompletableFuture<Map<String, TransactionMetadata>> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<Map<String, TransactionMetadata>>() {
+                    @Override
+                    public void completed(Map<String, TransactionMetadata> metadataMap) {
+                        future.complete(metadataMap);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
+    public Map<String, TransactionMetadata> getSlowTransactionsByCoordinatorId(Integer coordinatorId,
+                                                                               long timeout,
+                                                                               TimeUnit timeUnit) throws Exception {
+        return getSlowTransactionsByCoordinatorIdAsync(coordinatorId, timeout, timeUnit).get();
+    }
+
+    @Override
+    public CompletableFuture<Map<String, TransactionMetadata>> getSlowTransactionsAsync(long timeout,
+                                                                                        TimeUnit timeUnit) {
+        return getSlowTransactionsByCoordinatorIdAsync(null, timeout, timeUnit);
+    }
+
+    @Override
+    public CompletableFuture<Map<String, TransactionMetadata>> getSlowTransactions(long timeout,
+                                                                                   TimeUnit timeUnit) throws Exception {
+        return getSlowTransactions(timeout, timeUnit);
+    }
 
 }

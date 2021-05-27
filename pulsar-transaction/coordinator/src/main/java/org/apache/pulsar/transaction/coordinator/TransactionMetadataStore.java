@@ -131,4 +131,11 @@ public interface TransactionMetadataStore {
      * @return TransactionMetadataStoreStats {@link TransactionMetadataStoreStats}
      */
     TransactionMetadataStoreStats getMetadataStoreStats();
+
+    /**
+     * Get the transactions witch timeout is bigger than given timeout.
+     *
+     * @return {@link TxnMeta} the txnMetas of slow transactions
+     */
+    List<TxnMeta> getSlowTransactions(long timeout);
 }

@@ -20,9 +20,11 @@ package org.apache.pulsar.admin.cli;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.util.RelativeTimeUtil;
 
 @Parameters(commandDescription = "Operations on transactions")
 public class CmdTransactions extends CmdBase {
@@ -120,6 +122,28 @@ public class CmdTransactions extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get slow transactions.")
+    private class GetSlowTransactions extends CliCommand {
+        @Parameter(names = {"-c", "--coordinator-id"}, description = "The coordinator id", required = false)
+        private Integer coordinatorId;
+
+        @Parameter(names = { "-t", "--time" }, description = "The transaction timeout time. "
+                + "(eg: 1s, 10s, 1m, 5h, 3d)", required = true)
+        private String timeoutStr = "1s";
+
+        @Override
+        void run() throws Exception {
+            long timeout =
+                    TimeUnit.SECONDS.toMillis(RelativeTimeUtil.parseRelativeTimeInSeconds(timeoutStr));
+            if (coordinatorId != null) {
+                print(getAdmin().transactions().getSlowTransactionsByCoordinatorId(coordinatorId,
+                        timeout, TimeUnit.MILLISECONDS));
+            } else {
+                print(getAdmin().transactions().getSlowTransactions(timeout, TimeUnit.MILLISECONDS));
+            }
+        }
+    }
+
     public CmdTransactions(Supplier<PulsarAdmin> admin) {
         super("transactions", admin);
         jcommander.addCommand("coordinator-stats", new GetCoordinatorStats());
@@ -128,5 +152,6 @@ public class CmdTransactions extends CmdBase {
         jcommander.addCommand("transaction-in-buffer-stats", new GetTransactionInBufferStats());
         jcommander.addCommand("transaction-in-pending-ack-stats", new GetTransactionInPendingAckStats());
         jcommander.addCommand("transaction-metadata", new GetTransactionMetadata());
+        jcommander.addCommand("slow-transactions", new GetSlowTransactions());
     }
 }
