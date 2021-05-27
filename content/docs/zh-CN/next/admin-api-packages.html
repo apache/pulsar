@@ -76,7 +76,7 @@
               }
             });
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">管理Package</h1></header><article><div><span><p>Package 管理允许使用版本管理，并将简化对 Function、Sink 和 Source 的升级回滚过程。 当需要在不同的命名空间下使用相同的 Function、Sink 或 Source 时，可以将它们上传到一个共用的 Package 管理系统中。</p>
-<h2><a class="anchor" aria-hidden="true" id="包名"></a><a href="#包名" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>包名</h2>
+<h2><a class="anchor" aria-hidden="true" id="package-名"></a><a href="#package-名" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Package 名</h2>
 <p>一个完整的<code>pacakge</code>由五个部分组成：<code>type</code>、<code>tenant</code>、<code>namespace</code>、<code>package name</code>、<code>version</code>。</p>
 <table>
 <thead>
@@ -88,7 +88,7 @@
 <tr><td><code>version</code></td><td>Package 的版本号</td></tr>
 </tbody>
 </table>
-<p>以下是Package的定义示例。</p>
+<p>以下是 Package 的定义示例。</p>
 <pre><code class="hljs css language-java"><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">PackageName</span> </span>{
    <span class="hljs-keyword">private</span> <span class="hljs-keyword">final</span> PackageType type;
    <span class="hljs-keyword">private</span> <span class="hljs-keyword">final</span> String namespace;
@@ -102,33 +102,33 @@
 }
 
 </code></pre>
-<h2><a class="anchor" aria-hidden="true" id="package链接"></a><a href="#package链接" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Package链接</h2>
-<p>Package通过URL来标识位置。 Package的URL遵循以下格式：</p>
+<h2><a class="anchor" aria-hidden="true" id="package-链接"></a><a href="#package-链接" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Package 链接</h2>
+<p>Package 通过 URL 来标识位置。 Package 的 URL 遵循以下格式：</p>
 <pre><code class="hljs css language-shell">&lt;type&gt;://&lt;tenant&gt;/&lt;namespace&gt;/&lt;package name&gt;@&lt;version&gt;
 </code></pre>
-<p>以下是一些Package的URL示例：</p>
+<p>以下是一些 Package 的 URL 示例：</p>
 <p><code>sink://public/default/mysql-sink@1.0</code>   <br>
 <code>function://my-tenant/my-ns/my-function@0.1</code>   <br>
 <code>source://my-tenant/my-ns/mysql-cdc-source@2.3</code></p>
-<p>Package管理系统存储了每个Package的数据、版本和元数据。 元数据包含的内容如下表所示。</p>
+<p>Package 管理系统存储了每个 Package 的数据、版本和元数据。 元数据包含的内容如下表所示。</p>
 <table>
 <thead>
-<tr><th>metadata</th><th>说明</th></tr>
+<tr><th>元数据</th><th>说明</th></tr>
 </thead>
 <tbody>
-<tr><td>描述</td><td>Package的描述</td></tr>
-<tr><td>联系方式</td><td>Package的联系方式。 比如团队的邮箱地址。</td></tr>
-<tr><td>创建时间</td><td>Package的创建时间。</td></tr>
-<tr><td>修改时间</td><td>Package的修改时间</td></tr>
+<tr><td>描述</td><td>Package 的描述</td></tr>
+<tr><td>联系方式</td><td>Package 的联系方式： 比如团队邮箱地址。</td></tr>
+<tr><td>创建时间</td><td>Package 的创建时间。</td></tr>
+<tr><td>修改时间</td><td>Package 的修改时间</td></tr>
 <tr><td>properties</td><td>一个存储自定义信息的键值对。</td></tr>
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="permissions"></a><a href="#permissions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Permissions</h2>
-<p>Package的层级通过租户和命名空间来组织，所以你可以直接将租户和命名空间的权限应用到Package上。</p>
-<h2><a class="anchor" aria-hidden="true" id="package管理资源"></a><a href="#package管理资源" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Package管理资源</h2>
-<p>你可以通过命令行、RESTful风格接口和Java客户端来管理Package。</p>
-<h3><a class="anchor" aria-hidden="true" id="上传package"></a><a href="#上传package" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>上传Package</h3>
-<p>你可以通过以下方式将Package上传到Package管理服务中。</p>
+<p>Package 的层级通过租户和命名空间来组织，所以你可以直接将租户和命名空间的权限应用到 Package 上。</p>
+<h2><a class="anchor" aria-hidden="true" id="package-管理资源"></a><a href="#package-管理资源" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Package 管理资源</h2>
+<p>你可以通过命令行、REST API 和 Java 客户端来管理 Package。</p>
+<h3><a class="anchor" aria-hidden="true" id="上传-package"></a><a href="#上传-package" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>上传 Package</h3>
+<p>你可以通过以下方式将 Package 上传到 Package 管理服务中。</p>
 <div class="tabs"><div class="nav-tabs"><div id="tab-group-1262-tab-1263" class="nav-link active" data-group="group_1262" data-tab="tab-group-1262-content-1263">pulsar-admin</div><div id="tab-group-1262-tab-1264" class="nav-link" data-group="group_1262" data-tab="tab-group-1262-content-1264">REST API</div><div id="tab-group-1262-tab-1265" class="nav-link" data-group="group_1262" data-tab="tab-group-1262-content-1265">JAVA</div></div><div class="tab-content"><div id="tab-group-1262-content-1263" class="tab-pane active" data-group="group_1262" tabindex="-1"><div><span><pre><code class="hljs css language-shell">bin/pulsar-admin packages upload functions://public/default/example@v0.1 --path package-file --description package-description<br /></code></pre>
 </span></div></div><div id="tab-group-1262-content-1264" class="tab-pane" data-group="group_1262" tabindex="-1"><div><span><p><a href="https://pulsar.incubator.apache.org/admin-rest-api#/admin/v3/packages/:type/:tenant/:namespace/:packageName/:version/?version=2.7.2&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/packages/:type/:tenant/:namespace/:packageName/:version/?version=2.7.2</i></a>
 </p>
@@ -198,7 +198,7 @@
 <p>使用异步调用的方式删除一个特定版本的Package。</p>
 <pre><code class="hljs css language-java">   <span class="hljs-function">CompletableFuture&lt;Void&gt; <span class="hljs-title">deleteAsync</span><span class="hljs-params">(String packageName)</span></span>;<br /></code></pre>
 </span></div></div></div></div>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/admin-api-functions"><span class="arrow-prev">← </span><span>Functions</span></a><a class="docs-next button" href="/docs/zh-CN/next/adaptors-kafka"><span>Kafka 客户端封装</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#包名">包名</a></li><li><a href="#package链接">Package链接</a></li><li><a href="#permissions">Permissions</a></li><li><a href="#package管理资源">Package管理资源</a><ul class="toc-headings"><li><a href="#上传package">上传Package</a></li><li><a href="#下载package">下载Package</a></li><li><a href="#列出package的所有版本">列出Package的所有版本</a></li><li><a href="#列出某个命名空间下指定类型的package">列出某个命名空间下指定类型的Package</a></li><li><a href="#获取package的元数据">获取Package的元数据</a></li><li><a href="#更新package的元数据">更新Package的元数据</a></li><li><a href="#删除package">删除Package</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/admin-api-functions"><span class="arrow-prev">← </span><span>Functions</span></a><a class="docs-next button" href="/docs/zh-CN/next/adaptors-kafka"><span>Kafka 客户端封装</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#package-名">Package 名</a></li><li><a href="#package-链接">Package 链接</a></li><li><a href="#permissions">Permissions</a></li><li><a href="#package-管理资源">Package 管理资源</a><ul class="toc-headings"><li><a href="#上传-package">上传 Package</a></li><li><a href="#下载package">下载Package</a></li><li><a href="#列出package的所有版本">列出Package的所有版本</a></li><li><a href="#列出某个命名空间下指定类型的package">列出某个命名空间下指定类型的Package</a></li><li><a href="#获取package的元数据">获取Package的元数据</a></li><li><a href="#更新package的元数据">更新Package的元数据</a></li><li><a href="#删除package">删除Package</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

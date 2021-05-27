@@ -315,10 +315,10 @@ Consumer&lt;<span class="hljs-keyword">byte</span>[]&gt; someTopicsConsumer = pu
 <tr><th style="text-align:left">发送模式</th><th style="text-align:left">说明</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>RoundRobinPartition</code></td><td style="text-align:left">如果消息没有指定 key，为了达到最大吞吐量，消息会以 round-robin 方式被路由所有分区。 请注意round-robin并不是作用于每条单独的消息，而是作用于延迟处理的批次边界，以确保批处理有效。 如果为消息指定了key，发往分区的消息会被分区生产者根据 key 做 hash，然后分散到对应的分区上。 这是默认的模式。</td></tr>
-<tr><td style="text-align:left"><code>SinglePartition</code></td><td style="text-align:left">如果消息没有指定 key，生产者将会随机选择一个分区，并发送所有消息。 如果为消息指定了key，发往分区的消息会被分区生产者根据 key 做 hash，然后分散到对应的分区上。</td></tr>
-<tr><td style="text-align:left"><code>CustomPartition</code></td><td style="text-align:left">使用自定义消息路由，可以定制消息如何进入特定的分区。 可以使用 <a href="/docs/zh-CN/2.5.1/client-libraries-java">Java client</a> 或实现<a href="https://pulsar.incubator.apache.org/api/client/2.7.0-SNAPSHOT/org/apache/pulsar/client/api/MessageRouter">MessageRouter</a>
-接口来实现自定义的路由模式。</td></tr>
+<tr><td style="text-align:left"><code>RoundRobinPartition</code></td><td style="text-align:left">如果消息没有指定 key，为了达到最大吞吐量，生产者会以 round-robin 方式将消息发布到所有分区。 请注意round-robin并不是作用于每条单独的消息，而是作用于延迟处理的批次边界，以确保批处理有效。 如果消息指定了key，分区生产者会根据key的hash值将该消息分配到对应的分区。 这是默认的模式。</td></tr>
+<tr><td style="text-align:left"><code>SinglePartition</code></td><td style="text-align:left">如果消息没有指定 key，生产者将会随机选择一个分区，并发布所有消息到这个分区。 如果消息指定了key，分区生产者会根据key的hash值将该消息分配到对应的分区。</td></tr>
+<tr><td style="text-align:left"><code>CustomPartition</code></td><td style="text-align:left">使用自定义消息路由器实现来决定特定消息的分区。 用户可以创建自定义路由模式：使用 <a href="/docs/zh-CN/2.5.1/client-libraries-java">Java client</a> 并实现<a href="https://pulsar.incubator.apache.org/api/client/2.7.0-SNAPSHOT/org/apache/pulsar/client/api/MessageRouter">MessageRouter</a>
+接口。</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="顺序保证"></a><a href="#顺序保证" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>顺序保证</h3>
@@ -331,8 +331,8 @@ Consumer&lt;<span class="hljs-keyword">byte</span>[]&gt; someTopicsConsumer = pu
 <tr><th style="text-align:left">顺序保证</th><th style="text-align:left">说明</th><th style="text-align:left">路由策略与消息Key</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left">每个 key 分区</td><td style="text-align:left">所有具有相同 key 的消息将按顺序排列并放置在相同的分区（Partition）中。</td><td style="text-align:left">使用 <code>SinglePartition</code> 或 <code>RoundRobinPartition</code> 模式，每条消息都需要有key。</td></tr>
-<tr><td style="text-align:left">同一个生产者</td><td style="text-align:left">来自同一生产者的所有消息都是有序的</td><td style="text-align:left">路由策略为<code>SinglePartition</code>, 且每条消息都没有key。</td></tr>
+<tr><td style="text-align:left">按键分区</td><td style="text-align:left">所有具有相同 key 的消息将按顺序排列并放置在相同的分区（Partition）中。</td><td style="text-align:left">使用 <code>SinglePartition</code> 或 <code>RoundRobinPartition</code> 模式，每条消息都需要有key。</td></tr>
+<tr><td style="text-align:left">生产者排序</td><td style="text-align:left">来自同一生产者的所有消息都是有序的</td><td style="text-align:left">路由策略为<code>SinglePartition</code>, 且每条消息都没有key。</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="散列scheme"></a><a href="#散列scheme" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>散列scheme</h3>
