@@ -47,6 +47,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
@@ -177,12 +178,28 @@ public class PersistentSubscription implements Subscription {
         return replicatedSubscriptionSnapshotCache != null;
     }
 
-    void setReplicated(boolean replicated) {
-        this.replicatedSubscriptionSnapshotCache = replicated
-                ? new ReplicatedSubscriptionSnapshotCache(subName,
-                        topic.getBrokerService().pulsar().getConfiguration()
-                                .getReplicatedSubscriptionsSnapshotMaxCachedPerSubscription())
-                : null;
+    public void setReplicated(boolean replicated) {
+        ServiceConfiguration config = topic.getBrokerService().pulsar().getConfiguration();
+
+        if (!config.isEnableReplicatedSubscriptions() || !replicated) {
+            this.replicatedSubscriptionSnapshotCache = null;
+        } else if (this.replicatedSubscriptionSnapshotCache == null) {
+            this.replicatedSubscriptionSnapshotCache = new ReplicatedSubscriptionSnapshotCache(subName,
+                    config.getReplicatedSubscriptionsSnapshotMaxCachedPerSubscription());
+        }
+
+        if (this.cursor != null) {
+            Map<String, Long> properties = this.cursor.getProperties();
+            try {
+                if (replicated) {
+                    properties.put(REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
+                } else {
+                    properties.remove(REPLICATED_SUBSCRIPTION_PROPERTY);
+                }
+            } catch (UnsupportedOperationException e) {
+                // ManagedCursorImpl#lastMarkDeleteEntry has not been initialized yet
+            }
+        }
     }
 
     @Override

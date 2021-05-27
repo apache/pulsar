@@ -3301,4 +3301,24 @@ public interface Topics {
      * @return a future that can be used to track when the topic is truncated
      */
     CompletableFuture<Void> truncateAsync(String topic);
+
+    /**
+     * Enable or disable a replicated subscription on a topic.
+     *
+     * @param topic
+     * @param subName
+     * @param enabled
+     * @throws PulsarAdminException
+     */
+    void setReplicatedSubscriptionStatus(String topic, String subName, boolean enabled) throws PulsarAdminException;
+
+    /**
+     * Enable or disable a replicated subscription on a topic asynchronously.
+     *
+     * @param topic
+     * @param subName
+     * @param enabled
+     * @return
+     */
+    CompletableFuture<Void> setReplicatedSubscriptionStatusAsync(String topic, String subName, boolean enabled);
 }

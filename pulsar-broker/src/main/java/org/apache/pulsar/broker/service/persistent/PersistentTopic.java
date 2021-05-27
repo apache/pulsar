@@ -2702,7 +2702,7 @@ public class PersistentTopic extends AbstractTopic
             });
     }
 
-    private synchronized void checkReplicatedSubscriptionControllerState() {
+    public synchronized void checkReplicatedSubscriptionControllerState() {
         AtomicBoolean shouldBeEnabled = new AtomicBoolean(false);
         subscriptions.forEach((name, subscription) -> {
             if (subscription.isReplicated()) {

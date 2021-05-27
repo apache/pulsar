@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -40,6 +41,8 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
@@ -228,6 +231,94 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
 
         assertNotEquals(t2.getLastPosition(), p2);
         assertNotEquals(rsc2.getLastCompletedSnapshotId().get(), snapshot2);
+    }
+
+    @Test(timeOut = 30000)
+    public void testReplicatedSubscriptionRestApi1() throws Exception {
+        final String namespace = BrokerTestUtil.newUniqueName("pulsar/replicatedsubscription");
+        final String topicName = "persistent://" + namespace + "/topic-rest-api1";
+        final String subName = "sub";
+
+        admin1.namespaces().createNamespace(namespace);
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+
+        @Cleanup
+        final PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString())
+                .statsInterval(0, TimeUnit.SECONDS).build();
+
+        // Create subscription in r1
+        createReplicatedSubscription(client1, topicName, subName, true);
+
+        @Cleanup
+        final PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString())
+                .statsInterval(0, TimeUnit.SECONDS).build();
+
+        // Create subscription in r2
+        createReplicatedSubscription(client2, topicName, subName, true);
+
+        TopicStats stats = admin1.topics().getStats(topicName);
+        assertTrue(stats.subscriptions.get(subName).isReplicated);
+
+        // Disable replicated subscription in r1
+        admin1.topics().setReplicatedSubscriptionStatus(topicName, subName, false);
+        stats = admin1.topics().getStats(topicName);
+        assertFalse(stats.subscriptions.get(subName).isReplicated);
+        stats = admin2.topics().getStats(topicName);
+        assertTrue(stats.subscriptions.get(subName).isReplicated);
+
+        // Disable replicated subscription in r2
+        admin2.topics().setReplicatedSubscriptionStatus(topicName, subName, false);
+        stats = admin2.topics().getStats(topicName);
+        assertFalse(stats.subscriptions.get(subName).isReplicated);
+
+        // Unload topic in r1
+        admin1.topics().unload(topicName);
+        stats = admin1.topics().getStats(topicName);
+        assertFalse(stats.subscriptions.get(subName).isReplicated);
+
+        // Enable replicated subscription in r1
+        admin1.topics().setReplicatedSubscriptionStatus(topicName, subName, true);
+        stats = admin1.topics().getStats(topicName);
+        assertTrue(stats.subscriptions.get(subName).isReplicated);
+        stats = admin2.topics().getStats(topicName);
+        assertFalse(stats.subscriptions.get(subName).isReplicated);
+    }
+
+    @Test(timeOut = 30000)
+    public void testReplicatedSubscriptionRestApi2() throws Exception {
+        final String namespace = BrokerTestUtil.newUniqueName("pulsar/replicatedsubscription");
+        final String topicName = "persistent://" + namespace + "/topic-rest-api2";
+        final String subName = "sub";
+
+        admin1.namespaces().createNamespace(namespace);
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1"));
+        admin1.topics().createPartitionedTopic(topicName, 2);
+
+        @Cleanup
+        final PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString())
+                .statsInterval(0, TimeUnit.SECONDS).build();
+
+        // Create subscription in r1
+        createReplicatedSubscription(client1, topicName, subName, true);
+
+        PartitionedTopicStats partitionedStats = admin1.topics().getPartitionedStats(topicName, true);
+        for (TopicStats stats : partitionedStats.partitions.values()) {
+            assertTrue(stats.subscriptions.get(subName).isReplicated);
+        }
+
+        // Disable replicated subscription in r1
+        admin1.topics().setReplicatedSubscriptionStatus(topicName, subName, false);
+        partitionedStats = admin1.topics().getPartitionedStats(topicName, true);
+        for (TopicStats stats : partitionedStats.partitions.values()) {
+            assertFalse(stats.subscriptions.get(subName).isReplicated);
+        }
+
+        // Enable replicated subscription in r1
+        admin1.topics().setReplicatedSubscriptionStatus(topicName, subName, true);
+        partitionedStats = admin1.topics().getPartitionedStats(topicName, true);
+        for (TopicStats stats : partitionedStats.partitions.values()) {
+            assertTrue(stats.subscriptions.get(subName).isReplicated);
+        }
     }
 
     void readMessages(Consumer<byte[]> consumer, Set<String> messages, int maxMessages, boolean allowDuplicates)
