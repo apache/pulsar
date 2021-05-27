@@ -1826,7 +1826,7 @@ public class PersistentTopic extends AbstractTopic
         stats.pendingAddEntriesCount = ml.getPendingAddEntriesCount();
 
         stats.lastConfirmedEntry = ml.getLastConfirmedEntry().toString();
-        stats.state = ml.getState();
+        stats.state = ml.getState().toString();
 
         stats.ledgers = Lists.newArrayList();
         List<CompletableFuture<String>> futures = includeLedgerMetadata ? Lists.newArrayList() : null;
