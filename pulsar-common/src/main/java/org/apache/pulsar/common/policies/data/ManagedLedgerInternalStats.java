@@ -32,39 +32,39 @@ public class ManagedLedgerInternalStats {
     /** The total number of entries being tracked. */
     public long numberOfEntries;
 
-    /**The total storage size of all messages (in bytes). */
+    /** The total storage size of all messages (in bytes). */
     public long totalSize;
 
-    /**The count of messages written to the ledger that is currently open for writing. */
+    /** The count of messages written to the ledger that is currently open for writing. */
     public long currentLedgerEntries;
 
-    /**The size of messages written to the ledger that is currently open for writing (in bytes). */
+    /** The size of messages written to the ledger that is currently open for writing (in bytes). */
     public long currentLedgerSize;
 
-    /**The time when the last ledger is created. */
+    /** The time when the last ledger is created. */
     public String lastLedgerCreatedTimestamp;
 
-    /**The time when the last ledger failed. */
+    /** The time when the last ledger failed. */
     public String lastLedgerCreationFailureTimestamp;
 
-    /**The number of cursors that are "caught up" and waiting for a new message to be published. */
+    /** The number of cursors that are "caught up" and waiting for a new message to be published. */
     public int waitingCursorsCount;
 
-    /**The number of messages that complete (asynchronous) write requests. */
+    /** The number of messages that complete (asynchronous) write requests. */
     public int pendingAddEntriesCount;
 
-    /**The ledgerid: entryid of the last message that is written successfully.
+    /** The ledgerid: entryid of the last message that is written successfully.
      * If the entryid is -1, then the ledger is open, yet no entries are written. */
     public String lastConfirmedEntry;
 
-    /**The state of this ledger for writing.
+    /** The state of this ledger for writing.
      * The state LedgerOpened means that a ledger is open for saving published messages. */
     public String state;
 
-    /**The ordered list of all ledgers for this topic holding messages. */
+    /** The ordered list of all ledgers for this topic holding messages. */
     public List<LedgerInfo> ledgers;
 
-    /**The list of all cursors on this topic. Each subscription in the topic stats has a cursor. */
+    /** The list of all cursors on this topic. Each subscription in the topic stats has a cursor. */
     public Map<String, CursorStats> cursors;
 
     /**

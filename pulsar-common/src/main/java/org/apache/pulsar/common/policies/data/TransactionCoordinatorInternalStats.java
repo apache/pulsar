@@ -21,8 +21,8 @@ package org.apache.pulsar.common.policies.data;
 /**
  * Transaction coordinator internal stats.
  */
-public class CoordinatorInternalStats {
+public class TransactionCoordinatorInternalStats {
 
-    /** The manage ledger internal stats*/
-    public ManagedLedgerInternalStats managedLedgerInternalStats;
+    /** The transaction log stats*/
+    public TransactionLogStats transactionLogStats;
 }

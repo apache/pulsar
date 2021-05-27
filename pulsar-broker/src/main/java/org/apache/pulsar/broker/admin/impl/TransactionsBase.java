@@ -35,6 +35,7 @@ import java.util.concurrent.TimeUnit;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.Topic;
@@ -43,10 +44,11 @@ import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.CoordinatorInternalStats;
+import org.apache.pulsar.common.policies.data.TransactionCoordinatorInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
+import org.apache.pulsar.common.policies.data.TransactionLogStats;
 import org.apache.pulsar.common.policies.data.TransactionMetadata;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
@@ -481,10 +483,15 @@ public abstract class TransactionsBase extends AdminResource {
                     return;
                 }
                 if (metadataStore instanceof MLTransactionMetadataStore) {
-                    CoordinatorInternalStats coordinatorInternalStats = new CoordinatorInternalStats();
-                    coordinatorInternalStats.managedLedgerInternalStats = ((MLTransactionMetadataStore) metadataStore)
-                            .getManagedLedger().getManagedLedgerInternalStats(metadata).get();
-                    asyncResponse.resume(coordinatorInternalStats);
+                    ManagedLedger managedLedger = ((MLTransactionMetadataStore) metadataStore).getManagedLedger();
+                    TransactionCoordinatorInternalStats transactionCoordinatorInternalStats =
+                            new TransactionCoordinatorInternalStats();
+                    TransactionLogStats transactionLogStats = new TransactionLogStats();
+                    transactionLogStats.managedLedgerName = managedLedger.getName();
+                    transactionLogStats.managedLedgerInternalStats =
+                            managedLedger.getManagedLedgerInternalStats(metadata).get();
+                    transactionCoordinatorInternalStats.transactionLogStats = transactionLogStats;
+                    asyncResponse.resume(transactionCoordinatorInternalStats);
                 } else {
                     asyncResponse.resume(new RestException(METHOD_NOT_ALLOWED,
                             "Broker don't use MLTransactionMetadataStore!"));

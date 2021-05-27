@@ -32,17 +32,21 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
+import org.apache.pulsar.common.policies.data.TransactionCoordinatorInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionMetadata;
 import org.apache.pulsar.packages.management.core.MockedPackagesStorageProvider;
+import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -322,16 +326,23 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         Transaction transaction = pulsarClient.newTransaction()
                 .withTransactionTimeout(60, TimeUnit.SECONDS).build().get();
 
-        ManagedLedgerInternalStats managedLedgerInternalStats = admin.transactions()
-                .getCoordinatorInternalStatsAsync(0, true).get().managedLedgerInternalStats;
-        verifyManagedLegerInternalStats(managedLedgerInternalStats, 26);
+        TransactionCoordinatorInternalStats stats = admin.transactions()
+                .getCoordinatorInternalStatsAsync(0, true).get();
+        verifyManagedLegerInternalStats(stats.transactionLogStats.managedLedgerInternalStats, 26);
+        assertEquals(TopicName.get(TopicDomain.persistent.toString(), NamespaceName.SYSTEM_NAMESPACE,
+                MLTransactionLogImpl.TRANSACTION_LOG_PREFIX + "0").getPersistenceNamingEncoding(),
+                stats.transactionLogStats.managedLedgerName);
 
         transaction.commit().get();
 
-        managedLedgerInternalStats = admin.transactions()
-                .getCoordinatorInternalStatsAsync(0, false).get().managedLedgerInternalStats;
-        assertNull(managedLedgerInternalStats.ledgers.get(0).metadata);
+        stats = admin.transactions()
+                .getCoordinatorInternalStatsAsync(0, false).get();
+        assertNull(stats.transactionLogStats.managedLedgerInternalStats.ledgers.get(0).metadata);
+        assertEquals(TopicName.get(TopicDomain.persistent.toString(), NamespaceName.SYSTEM_NAMESPACE,
+                MLTransactionLogImpl.TRANSACTION_LOG_PREFIX + "0").getPersistenceNamingEncoding(),
+                stats.transactionLogStats.managedLedgerName);
     }
+
     private static void verifyCoordinatorStats(String state,
                                                long sequenceId, long lowWaterMark) {
         assertEquals(state, "Ready");

@@ -611,7 +611,7 @@ public interface ManagedLedger {
     /**
      * Get managed ledger internal stats
      *
-     * @param includeLedgerMetadata the flag to control it include ledger metadata
+     * @param includeLedgerMetadata the flag to control managed ledger internal stats include ledger metadata
      * @return the future of managed ledger internal stats
      */
     CompletableFuture<ManagedLedgerInternalStats> getManagedLedgerInternalStats(boolean includeLedgerMetadata);
