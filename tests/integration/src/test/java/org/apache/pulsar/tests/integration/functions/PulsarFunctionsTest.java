@@ -41,6 +41,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.BatcherBuilder;
@@ -844,7 +845,10 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 commands);
         assertTrue(result.getStdout().contains("\"Created successfully\""));
 
-        ensureSubscriptionCreated(inputTopicName, String.format("public/default/%s", functionName), inputTopicSchema);
+        if (StringUtils.isNotEmpty(inputTopicName)) {
+            ensureSubscriptionCreated(
+                    inputTopicName, String.format("public/default/%s", functionName), inputTopicSchema);
+        }
     }
 
     private void updateFunctionParallelism(String functionName, int parallelism) throws Exception {
