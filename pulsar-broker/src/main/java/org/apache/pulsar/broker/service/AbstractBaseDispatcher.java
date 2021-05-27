@@ -236,8 +236,4 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
     protected byte[] peekStickyKey(ByteBuf metadataAndPayload) {
         return Commands.peekStickyKey(metadataAndPayload, subscription.getTopicName(), subscription.getName());
     }
-
-    protected void addMessageToReplay(long ledgerId, long entryId) {
-        // No-op
-    }
 }
