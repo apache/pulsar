@@ -555,7 +555,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                         PUBLISH_JAVA_CLASS,
                         schema,
                         Collections.singletonMap("publish-topic", outputTopicName),
-                        null, null);
+                        null, null, null);
                 break;
             case PYTHON:
                 submitFunction(
@@ -567,7 +567,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                         PUBLISH_PYTHON_CLASS,
                         schema,
                         Collections.singletonMap("publish-topic", outputTopicName),
-                        null, null);
+                        null, null, null);
                 break;
             case GO:
                 submitFunction(
@@ -579,7 +579,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                         null,
                         schema,
                         Collections.singletonMap("publish-topic", outputTopicName),
-                        null, null);
+                        null, null, null);
         }
 
         // get function info
@@ -789,7 +789,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                            String functionClass,
                                            Schema<T> inputTopicSchema) throws Exception {
         submitFunction(runtime, inputTopicName, outputTopicName, functionName, functionFile, functionClass,
-                inputTopicSchema, null, null, null);
+                inputTopicSchema, null, null, null, null);
     }
 
     private <T> void submitFunction(Runtime runtime,
@@ -801,7 +801,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                     Schema<T> inputTopicSchema,
                                     Map<String, String> userConfigs,
                                     String customSchemaInputs,
-                                    String outputSchemaType) throws Exception {
+                                    String outputSchemaType,
+                                    SubscriptionInitialPosition subscriptionInitialPosition) throws Exception {
 
         CommandGenerator generator;
         log.info("------- INPUT TOPIC: '{}', customSchemaInputs: {}", inputTopicName, customSchemaInputs);
@@ -822,6 +823,9 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
         if (outputSchemaType != null) {
             generator.setSchemaType(outputSchemaType);
+        }
+        if (subscriptionInitialPosition != null) {
+            generator.setSubscriptionInitialPosition(subscriptionInitialPosition);
         }
         String command = "";
 
@@ -1592,7 +1596,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 null,
                 null,
                 inputSpecNode.toString(),
-                SchemaType.AUTO_PUBLISH.name().toUpperCase());
+                SchemaType.AUTO_PUBLISH.name().toUpperCase(),
+                SubscriptionInitialPosition.Earliest);
 
         getFunctionInfoSuccess(functionName);
 

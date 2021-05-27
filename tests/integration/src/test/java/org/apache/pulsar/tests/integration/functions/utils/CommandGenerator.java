@@ -25,6 +25,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 
 @Getter
@@ -60,6 +61,7 @@ public class CommandGenerator {
     private Long slidingIntervalDurationMs;
     private String customSchemaInputs;
     private String schemaType;
+    private SubscriptionInitialPosition subscriptionInitialPosition;
 
     private Map<String, String> userConfig = new HashMap<>();
     public static final String JAVAJAR = "/pulsar/examples/java-test-functions.jar";
@@ -111,6 +113,9 @@ public class CommandGenerator {
         }
         if (schemaType != null) {
             commandBuilder.append(" --schema-type " + schemaType);
+        }
+        if (subscriptionInitialPosition != null) {
+            commandBuilder.append(" --subs-position " + subscriptionInitialPosition.name());
         }
         switch (runtime){
             case JAVA:
@@ -204,6 +209,9 @@ public class CommandGenerator {
         }
         if (schemaType != null) {
             commandBuilder.append(" --schema-type " + schemaType);
+        }
+        if (subscriptionInitialPosition != null) {
+            commandBuilder.append(" --subs-position " + subscriptionInitialPosition.name());
         }
 
         switch (runtime){
@@ -299,6 +307,9 @@ public class CommandGenerator {
         }
         if (schemaType != null) {
             commandBuilder.append(" --schema-type " + schemaType);
+        }
+        if (subscriptionInitialPosition != null) {
+            commandBuilder.append(" --subs-position " + subscriptionInitialPosition.name());
         }
 
         if (codeFile != null) {
