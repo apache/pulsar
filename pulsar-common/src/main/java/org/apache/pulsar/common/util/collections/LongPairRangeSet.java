@@ -174,14 +174,6 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
             return this.value;
         }
 
-        public void setKey(long key) {
-            this.key = key;
-        }
-
-        public void setValue(long value) {
-            this.value = value;
-        }
-
         @Override
         public int compareTo(LongPair o) {
             return ComparisonChain.start().compare(key, o.getKey()).compare(value, o.getValue()).result();
