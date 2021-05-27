@@ -218,7 +218,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     protected static final int DEFAULT_LEDGER_DELETE_RETRIES = 3;
     protected static final int DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC = 60;
 
-    enum State {
+    public enum State {
         None, // Uninitialized
         LedgerOpened, // A ledger is ready to write into
         ClosingLedger, // Closing current ledger
@@ -3504,8 +3504,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return lastConfirmedEntry;
     }
 
-    public String getState() {
-        return STATE_UPDATER.get(this).toString();
+    public State getState() {
+        return STATE_UPDATER.get(this);
     }
 
     public ManagedLedgerMBeanImpl getMBean() {
@@ -3865,7 +3865,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         stats.pendingAddEntriesCount = this.getPendingAddEntriesCount();
 
         stats.lastConfirmedEntry = this.getLastConfirmedEntry().toString();
-        stats.state = this.getState();
+        stats.state = this.getState().toString();
 
         stats.ledgers = Lists.newArrayList();
         this.getLedgersInfo().forEach((id, li) -> {
