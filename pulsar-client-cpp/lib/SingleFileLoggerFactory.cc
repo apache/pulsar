@@ -16,18 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#include <pulsar/Client.h>
+#include <pulsar/SingleFileLoggerFactory.h>
+#include "lib/SimpleLogger.h"
 
-using namespace pulsar;
+namespace pulsar {
 
-int main(int argc, char* argv[]) {
-    ClientConfiguration clientConf;
-    // The logs whose level is >= INFO will be written to pulsar-cpp-client.log
-    clientConf.setLogger(new SingleFileLoggerFactory(Logger::Level::LEVEL_INFO, "pulsar-cpp-client.log"));
-
-    Client client("pulsar://localhost:6650", clientConf);
-    Producer producer;
-    client.createProducer("my-topic", producer);  // just to create some logs
-    client.close();
-    return 0;
+pulsar::Logger* SingleFileLoggerFactory::getLogger(const std::string& filename) {
+    return new SimpleLogger(os_, filename, level_);
 }
+
+}  // namespace pulsar

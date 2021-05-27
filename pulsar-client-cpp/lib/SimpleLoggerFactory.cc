@@ -18,69 +18,12 @@
  */
 
 #include <pulsar/SimpleLoggerFactory.h>
-
-#include <iostream>
-#include <sstream>
-#include <thread>
-#include <boost/date_time/posix_time/posix_time.hpp>
-#include <boost/format.hpp>
+#include "lib/SimpleLogger.h"
 
 namespace pulsar {
 
-inline std::ostream &operator<<(std::ostream &s, Logger::Level level) {
-    switch (level) {
-        case Logger::LEVEL_DEBUG:
-            s << "DEBUG";
-            break;
-        case Logger::LEVEL_INFO:
-            s << "INFO ";
-            break;
-        case Logger::LEVEL_WARN:
-            s << "WARN ";
-            break;
-        case Logger::LEVEL_ERROR:
-            s << "ERROR";
-            break;
-    }
-
-    return s;
+Logger *SimpleLoggerFactory::getLogger(const std::string &file) {
+    return new SimpleLogger(std::cout, file, level_);
 }
-
-class SimpleLogger : public Logger {
-   public:
-    SimpleLogger(const std::string &filename, Level level) : filename_(filename), level_(level) {}
-
-    bool isEnabled(Level level) { return level >= level_; }
-
-    void log(Level level, int line, const std::string &message) {
-        std::stringstream ss;
-
-        printTimestamp(ss);
-        ss << " " << level << " [" << std::this_thread::get_id() << "] " << filename_ << ":" << line << " | "
-           << message << "\n";
-
-        std::cout << ss.str();
-        std::cout.flush();
-    }
-
-   private:
-    const std::string filename_;
-    const Level level_;
-
-    static std::ostream &printTimestamp(std::ostream &s) {
-        boost::posix_time::ptime now = boost::posix_time::microsec_clock::local_time();
-
-        const boost::format f =
-            boost::format("%04d-%02d-%02d %02d:%02d:%02d.%03d") % now.date().year_month_day().year %
-            now.date().year_month_day().month.as_number() % now.date().year_month_day().day.as_number() %
-            now.time_of_day().hours() % now.time_of_day().minutes() % now.time_of_day().seconds() %
-            (now.time_of_day().fractional_seconds() / 1000);
-
-        s << f.str();
-        return s;
-    }
-};
-
-Logger *SimpleLoggerFactory::getLogger(const std::string &file) { return new SimpleLogger(file, level_); }
 
 }  // namespace pulsar
