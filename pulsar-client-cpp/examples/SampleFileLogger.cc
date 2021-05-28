@@ -23,7 +23,7 @@ using namespace pulsar;
 int main(int argc, char* argv[]) {
     ClientConfiguration clientConf;
     // The logs whose level is >= INFO will be written to pulsar-cpp-client.log
-    clientConf.setLogger(new SingleFileLoggerFactory(Logger::Level::LEVEL_INFO, "pulsar-cpp-client.log"));
+    clientConf.setLogger(new FileLoggerFactory(Logger::Level::LEVEL_INFO, "pulsar-cpp-client.log"));
 
     Client client("pulsar://localhost:6650", clientConf);
     Producer producer;

@@ -28,8 +28,8 @@
 #include <pulsar/MessageBuilder.h>
 #include <pulsar/ClientConfiguration.h>
 #include <pulsar/Schema.h>
-#include <pulsar/SimpleLoggerFactory.h>
-#include <pulsar/SingleFileLoggerFactory.h>
+#include <pulsar/ConsoleLoggerFactory.h>
+#include <pulsar/FileLoggerFactory.h>
 #include <string>
 
 namespace pulsar {

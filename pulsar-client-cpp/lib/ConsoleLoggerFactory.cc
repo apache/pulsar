@@ -17,12 +17,12 @@
  * under the License.
  */
 
-#include <pulsar/SimpleLoggerFactory.h>
+#include <pulsar/ConsoleLoggerFactory.h>
 #include "lib/SimpleLogger.h"
 
 namespace pulsar {
 
-Logger *SimpleLoggerFactory::getLogger(const std::string &file) {
+Logger *ConsoleLoggerFactory::getLogger(const std::string &file) {
     return new SimpleLogger(std::cout, file, level_);
 }
 

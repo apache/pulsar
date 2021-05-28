@@ -19,13 +19,15 @@
 
 #pragma once
 
+#include <fstream>
+#include <ios>
+#include <string>
 #include <pulsar/Logger.h>
 
 namespace pulsar {
 
 /**
- * The default LoggerFactory of Client if `USE_LOG4CXX` macro was not defined during compilation.
- *
+ * A logger factory that is appending logs to a single file.
  *
  * The log format is "yyyy-mm-dd hh:MM:ss.xxx <level> <thread-id> <file>:<line> | <msg>", like
  *
@@ -33,26 +35,34 @@ namespace pulsar {
  * 2021-03-24 17:35:46.571 INFO  [0x10a951e00] ConnectionPool:85 | Created connection for ...
  * ```
  *
- * It uses `std::cout` to prints logs to standard output. You can use this factory class to change your log
- * level simply.
+ * Example:
  *
  * ```c++
- * #include <pulsar/SimpleLoggerFactory.h>
+ * #include <pulsar/FileLoggerFactory.h>
  *
  * ClientConfiguration conf;
- * conf.setLogger(new SimpleLoggerFactory(Logger::LEVEL_DEBUG));
+ * conf.setLogger(new FileLoggerFactory(Logger::LEVEL_DEBUG, "pulsar-client-cpp.log"));
  * Client client("pulsar://localhost:6650", conf);
  * ```
  */
-class PULSAR_PUBLIC SimpleLoggerFactory : public LoggerFactory {
+class PULSAR_PUBLIC FileLoggerFactory : public pulsar::LoggerFactory {
    public:
-    explicit SimpleLoggerFactory() = default;
-    explicit SimpleLoggerFactory(Logger::Level level) : level_(level) {}
+    /**
+     * Create a FileLoggerFactory instance.
+     *
+     * @param level the log level
+     * @param logFilePath the log file's path
+     */
+    FileLoggerFactory(Logger::Level level, const std::string& logFilePath)
+        : level_(level), os_(logFilePath, std::ios_base::out | std::ios_base::app) {}
 
-    Logger* getLogger(const std::string& fileName) override;
+    ~FileLoggerFactory() { os_.close(); }
+
+    pulsar::Logger* getLogger(const std::string& filename) override;
 
    private:
-    Logger::Level level_{Logger::LEVEL_INFO};
+    const pulsar::Logger::Level level_;
+    std::ofstream os_;
 };
 
 }  // namespace pulsar

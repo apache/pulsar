@@ -16,12 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#include <pulsar/SingleFileLoggerFactory.h>
+#include <pulsar/FileLoggerFactory.h>
 #include "lib/SimpleLogger.h"
 
 namespace pulsar {
 
-pulsar::Logger* SingleFileLoggerFactory::getLogger(const std::string& filename) {
+pulsar::Logger* FileLoggerFactory::getLogger(const std::string& filename) {
     return new SimpleLogger(os_, filename, level_);
 }
 
