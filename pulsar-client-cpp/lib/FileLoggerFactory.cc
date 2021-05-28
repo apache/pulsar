@@ -17,12 +17,15 @@
  * under the License.
  */
 #include <pulsar/FileLoggerFactory.h>
-#include "lib/SimpleLogger.h"
+#include "lib/FileLoggerFactoryImpl.h"
 
 namespace pulsar {
 
-pulsar::Logger* FileLoggerFactory::getLogger(const std::string& filename) {
-    return new SimpleLogger(os_, filename, level_);
-}
+FileLoggerFactory::FileLoggerFactory(Logger::Level level, const std::string& logFilePath)
+    : impl_(new FileLoggerFactoryImpl(level, logFilePath)) {}
+
+FileLoggerFactory::~FileLoggerFactory() {}
+
+Logger* FileLoggerFactory::getLogger(const std::string& filename) { return impl_->getLogger(filename); }
 
 }  // namespace pulsar

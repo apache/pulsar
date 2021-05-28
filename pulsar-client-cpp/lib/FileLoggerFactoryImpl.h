@@ -16,17 +16,29 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+#pragma once
 
-#include <pulsar/ConsoleLoggerFactory.h>
-#include "lib/ConsoleLoggerFactoryImpl.h"
+#include <fstream>
+#include <ios>
+#include <string>
+#include <pulsar/Logger.h>
+
+#include "lib/SimpleLogger.h"
 
 namespace pulsar {
 
-ConsoleLoggerFactory::ConsoleLoggerFactory(Logger::Level level)
-    : impl_(new ConsoleLoggerFactoryImpl(level)) {}
+class FileLoggerFactoryImpl {
+   public:
+    FileLoggerFactoryImpl(Logger::Level level, const std::string& logFilePath)
+        : level_(level), os_(logFilePath, std::ios_base::out | std::ios_base::app) {}
 
-ConsoleLoggerFactory::~ConsoleLoggerFactory() {}
+    ~FileLoggerFactoryImpl() { os_.close(); }
 
-Logger* ConsoleLoggerFactory::getLogger(const std::string& fileName) { return impl_->getLogger(fileName); }
+    Logger* getLogger(const std::string& filename) { return new SimpleLogger(os_, filename, level_); }
+
+   private:
+    const Logger::Level level_;
+    std::ofstream os_;
+};
 
 }  // namespace pulsar

@@ -19,12 +19,11 @@
 
 #pragma once
 
-#include <fstream>
-#include <ios>
-#include <string>
 #include <pulsar/Logger.h>
 
 namespace pulsar {
+
+class FileLoggerFactoryImpl;
 
 /**
  * A logger factory that is appending logs to a single file.
@@ -53,16 +52,14 @@ class PULSAR_PUBLIC FileLoggerFactory : public pulsar::LoggerFactory {
      * @param level the log level
      * @param logFilePath the log file's path
      */
-    FileLoggerFactory(Logger::Level level, const std::string& logFilePath)
-        : level_(level), os_(logFilePath, std::ios_base::out | std::ios_base::app) {}
+    FileLoggerFactory(Logger::Level level, const std::string& logFilePath);
 
-    ~FileLoggerFactory() { os_.close(); }
+    ~FileLoggerFactory();
 
     pulsar::Logger* getLogger(const std::string& filename) override;
 
    private:
-    const pulsar::Logger::Level level_;
-    std::ofstream os_;
+    std::unique_ptr<FileLoggerFactoryImpl> impl_;
 };
 
 }  // namespace pulsar

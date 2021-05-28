@@ -23,6 +23,8 @@
 
 namespace pulsar {
 
+class ConsoleLoggerFactoryImpl;
+
 /**
  * The default LoggerFactory of Client if `USE_LOG4CXX` macro was not defined during compilation.
  *
@@ -46,13 +48,14 @@ namespace pulsar {
  */
 class PULSAR_PUBLIC ConsoleLoggerFactory : public LoggerFactory {
    public:
-    explicit ConsoleLoggerFactory() = default;
-    explicit ConsoleLoggerFactory(Logger::Level level) : level_(level) {}
+    explicit ConsoleLoggerFactory(Logger::Level level = Logger::LEVEL_INFO);
+
+    ~ConsoleLoggerFactory();
 
     Logger* getLogger(const std::string& fileName) override;
 
    private:
-    Logger::Level level_{Logger::LEVEL_INFO};
+    std::unique_ptr<ConsoleLoggerFactoryImpl> impl_;
 };
 
 }  // namespace pulsar

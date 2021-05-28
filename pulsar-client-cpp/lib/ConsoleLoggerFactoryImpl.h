@@ -17,16 +17,21 @@
  * under the License.
  */
 
-#include <pulsar/ConsoleLoggerFactory.h>
-#include "lib/ConsoleLoggerFactoryImpl.h"
+#pragma once
+
+#include <pulsar/Logger.h>
+#include "lib/SimpleLogger.h"
 
 namespace pulsar {
 
-ConsoleLoggerFactory::ConsoleLoggerFactory(Logger::Level level)
-    : impl_(new ConsoleLoggerFactoryImpl(level)) {}
+class ConsoleLoggerFactoryImpl {
+   public:
+    ConsoleLoggerFactoryImpl(Logger::Level level) : level_(level) {}
 
-ConsoleLoggerFactory::~ConsoleLoggerFactory() {}
+    Logger* getLogger(const std::string& fileName) { return new SimpleLogger(std::cout, fileName, level_); }
 
-Logger* ConsoleLoggerFactory::getLogger(const std::string& fileName) { return impl_->getLogger(fileName); }
+   private:
+    Logger::Level level_;
+};
 
 }  // namespace pulsar
