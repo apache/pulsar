@@ -1562,8 +1562,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     protected void testMergeFunction() throws Exception {
         log.info("start merge function test ...");
 
-        String randomSuffix = randomName(8);
-        String ns = "public/ns-merge-" + randomSuffix;
+        String ns = "public/ns-merge-" + randomName(8);
         @Cleanup
         PulsarAdmin pulsarAdmin = getPulsarAdmin();
         pulsarAdmin.namespaces().createNamespace(ns);
@@ -1576,9 +1575,9 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         ObjectNode inputSpecNode = objectMapper.createObjectNode();
         Map<String, AtomicInteger> topicMsgCntMap = new ConcurrentHashMap<>();
         int messagePerTopic = 10;
-        prepareDataForMergeFunction(ns, randomSuffix, pulsarClient, inputSpecNode, messagePerTopic, topicMsgCntMap);
+        prepareDataForMergeFunction(ns, pulsarClient, inputSpecNode, messagePerTopic, topicMsgCntMap);
 
-        final String outputTopic = ns + "/test-merge-output-" + randomSuffix;
+        final String outputTopic = ns + "/test-merge-output";
         @Cleanup
         Consumer<GenericRecord> consumer = pulsarClient
                 .newConsumer(Schema.AUTO_CONSUME())
@@ -1634,31 +1633,28 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     }
 
     private void prepareDataForMergeFunction(String ns,
-                                             String randomSuffix,
                                              PulsarClient pulsarClient,
                                              ObjectNode inputSpecNode,
                                              int messagePerTopic,
                                              Map<String, AtomicInteger> topicMsgCntMap) throws PulsarClientException {
-        generateDataByDifferentSchema(ns, "merge-schema-bytes", randomSuffix, pulsarClient,
+        generateDataByDifferentSchema(ns, "merge-schema-bytes", pulsarClient,
                 Schema.BYTES, "bytes schema test".getBytes(), messagePerTopic, inputSpecNode, topicMsgCntMap);
-        generateDataByDifferentSchema(ns, "merge-schema-string", randomSuffix, pulsarClient,
+        generateDataByDifferentSchema(ns, "merge-schema-string", pulsarClient,
                 Schema.STRING, "string schema test", messagePerTopic, inputSpecNode, topicMsgCntMap);
-        generateDataByDifferentSchema(ns, "merge-schema-json-userv1", randomSuffix, pulsarClient,
+        generateDataByDifferentSchema(ns, "merge-schema-json-userv1", pulsarClient,
                 Schema.JSON(Users.UserV1.class), new Users.UserV1("ran", 33),
                 messagePerTopic, inputSpecNode, topicMsgCntMap);
-        generateDataByDifferentSchema(ns, "merge-schema-json-userv2", randomSuffix, pulsarClient,
+        generateDataByDifferentSchema(ns, "merge-schema-json-userv2", pulsarClient,
                 Schema.JSON(Users.UserV2.class), new Users.UserV2("tang", 18, "123123123"),
                 messagePerTopic, inputSpecNode, topicMsgCntMap);
-        generateDataByDifferentSchema(ns, "merge-schema-avro-userv2", randomSuffix, pulsarClient,
+        generateDataByDifferentSchema(ns, "merge-schema-avro-userv2", pulsarClient,
                 Schema.AVRO(Users.UserV2.class), new Users.UserV2("tang", 20, "456456456"),
                 messagePerTopic, inputSpecNode, topicMsgCntMap);
-        generateDataByDifferentSchema(ns, "merge-schema-k-int-v-json-userv1-separate",
-                randomSuffix, pulsarClient,
+        generateDataByDifferentSchema(ns, "merge-schema-k-int-v-json-userv1-separate", pulsarClient,
                 Schema.KeyValue(Schema.INT32, Schema.JSON(Users.UserV1.class), KeyValueEncodingType.SEPARATED),
                 new KeyValue<>(100, new Users.UserV1("ran", 40)),
                 messagePerTopic, inputSpecNode, topicMsgCntMap);
-        generateDataByDifferentSchema(ns, "merge-schema-k-json-userv2-v-json-userv1-inline",
-                randomSuffix, pulsarClient,
+        generateDataByDifferentSchema(ns, "merge-schema-k-json-userv2-v-json-userv1-inline", pulsarClient,
                 Schema.KeyValue(Schema.JSON(Users.UserV2.class), Schema.JSON(Users.UserV1.class),
                         KeyValueEncodingType.INLINE),
                 new KeyValue<>(new Users.UserV2("tang", 20, "789789789"),
@@ -1668,14 +1664,13 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
     private void generateDataByDifferentSchema(String ns,
                                                String baseTopic,
-                                               String topicRandomSuffix,
                                                PulsarClient pulsarClient,
                                                Schema schema,
                                                Object data,
                                                int messageCnt,
                                                ObjectNode inputSpecNode,
                                                Map<String, AtomicInteger> topicMsgCntMap) throws PulsarClientException {
-        String topic = ns + "/" + baseTopic + "-" + topicRandomSuffix;
+        String topic = ns + "/" + baseTopic;
         Producer producer = pulsarClient.newProducer(schema)
                 .topic(topic)
                 .create();
