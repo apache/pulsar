@@ -38,6 +38,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ConcurrentFindCursorPositionException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.InvalidCursorPositionException;
@@ -1153,6 +1154,14 @@ public class PersistentSubscription implements Subscription {
 
     public TransactionInPendingAckStats getTransactionInPendingAckStats(TxnID txnID) {
         return this.pendingAckHandle.getTransactionInPendingAckStats(txnID);
+    }
+
+    public CompletableFuture<ManagedLedger> getPendingAckManageLedger() {
+        if (this.pendingAckHandle instanceof PendingAckHandleImpl) {
+            return ((PendingAckHandleImpl) this.pendingAckHandle).getStoreManageLedger();
+        } else {
+            return FutureUtil.failedFuture(new NotAllowedException("Pending ack handle don't use managedLedger!"));
+        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentSubscription.class);

@@ -157,9 +157,26 @@ public class CmdTransactions extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get pending ack internal stats")
+    private class GetPendingAckInternalStats extends CliCommand {
+        @Parameter(names = {"-t", "--topic"}, description = "the topic name", required = true)
+        private String topic;
+
+        @Parameter(names = {"-s", "--sub-name"}, description = "the subscription name", required = true)
+        private String subName;
+
+        @Parameter(names = { "-m", "--metadata" }, description = "Flag to include ledger metadata")
+        private boolean metadata = false;
+        @Override
+        void run() throws Exception {
+            print(getAdmin().transactions().getPendingAckInternalStats(topic, subName, metadata));
+        }
+    }
+
     public CmdTransactions(Supplier<PulsarAdmin> admin) {
         super("transactions", admin);
         jcommander.addCommand("coordinator-internal-stats", new GetCoordinatorInternalStats());
+        jcommander.addCommand("pending-ack-internal-stats", new GetPendingAckInternalStats());
         jcommander.addCommand("coordinator-stats", new GetCoordinatorStats());
         jcommander.addCommand("transaction-buffer-stats", new GetTransactionBufferStats());
         jcommander.addCommand("pending-ack-stats", new GetPendingAckStats());

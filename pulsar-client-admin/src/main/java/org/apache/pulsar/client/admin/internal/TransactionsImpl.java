@@ -29,12 +29,14 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionMetadata;
+import org.apache.pulsar.common.policies.data.TransactionPendingAckInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
 
 public class TransactionsImpl extends BaseResource implements Transactions {
@@ -283,6 +285,48 @@ public class TransactionsImpl extends BaseResource implements Transactions {
             throws PulsarAdminException {
         try {
             return getCoordinatorInternalStatsAsync(coordinatorId, metadata)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<TransactionPendingAckInternalStats> getPendingAckInternalStatsAsync(String topic,
+                                                                                                 String subName,
+                                                                                                 boolean metadata) {
+        TopicName tn = TopicName.get(topic);
+        WebTarget path = adminV3Transactions.path("pendingAckInternalStats");
+        path = path.path(tn.getRestPath(false));
+        path = path.path(subName);
+        path = path.queryParam("metadata", metadata);
+        final CompletableFuture<TransactionPendingAckInternalStats> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<TransactionPendingAckInternalStats>() {
+                    @Override
+                    public void completed(TransactionPendingAckInternalStats stats) {
+                        future.complete(stats);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
+    public TransactionPendingAckInternalStats getPendingAckInternalStats(String topic,
+                                                                         String subName,
+                                                                         boolean metadata) throws PulsarAdminException {
+        try {
+            return getPendingAckInternalStatsAsync(topic, subName, metadata)
                     .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
