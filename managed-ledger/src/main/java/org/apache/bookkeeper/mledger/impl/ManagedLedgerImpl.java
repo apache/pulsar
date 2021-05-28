@@ -1319,6 +1319,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         factory.close(this);
         STATE_UPDATER.set(this, State.Closed);
 
+        if (this.timeoutTask != null) {
+            this.timeoutTask.cancel(false);
+        }
+
+        if (this.checkLedgerRollTask != null) {
+            this.checkLedgerRollTask.cancel(false);
+        }
+
         LedgerHandle lh = currentLedger;
 
         if (lh == null) {
@@ -1349,13 +1357,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             closeAllCursors(callback, ctx);
         }, null);
 
-        if (this.timeoutTask != null) {
-            this.timeoutTask.cancel(false);
-        }
-
-        if (this.checkLedgerRollTask != null) {
-            this.checkLedgerRollTask.cancel(false);
-        }
 
     }
 
