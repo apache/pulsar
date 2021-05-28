@@ -38,6 +38,7 @@ public class MergeTopicFunction implements Function<GenericRecord, byte[]> {
             Message<?> msg =  context.getCurrentRecord().getMessage().get();
             if (!msg.getReaderSchema().isPresent()) {
                 log.warn("The reader schema is null.");
+                return null;
             }
             log.info("process message with reader schema {}", msg.getReaderSchema().get());
             TypedMessageBuilder<byte[]> messageBuilder =
@@ -59,17 +60,12 @@ public class MergeTopicFunction implements Function<GenericRecord, byte[]> {
                 messageBuilder.eventTime(msg.getEventTime());
             }
 
-            if (msg.getProperties() != null && msg.getProperties().size() > 0) {
-                msg.getProperties().forEach(messageBuilder::property);
+            if (!msg.getProperties().isEmpty()) {
+                messageBuilder.properties(msg.getProperties());
             }
 
-            messageBuilder.sendAsync().whenComplete((v, ex) -> {
-                if (ex == null) {
-                    log.info("send message successfully");
-                } else {
-                    log.error("send message error", ex);
-                }
-            });
+            messageBuilder.send();
+            log.info("send message successfully");
         } else {
             log.warn("context current record message is not present.");
         }

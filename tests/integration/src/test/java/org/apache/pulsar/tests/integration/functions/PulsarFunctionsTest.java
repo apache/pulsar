@@ -1562,7 +1562,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     protected void testMergeFunction() throws Exception {
         log.info("start merge function test ...");
 
-        String ns = "public/ns-merge-" + randomName(8);
+        String randomSuffix = randomName(8);
+        String ns = "public/ns-merge-" + randomSuffix;
         @Cleanup
         PulsarAdmin pulsarAdmin = getPulsarAdmin();
         pulsarAdmin.namespaces().createNamespace(ns);
@@ -1574,9 +1575,10 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         ObjectNode inputSpecNode = objectMapper.createObjectNode();
         Map<String, AtomicInteger> topicMsgCntMap = new ConcurrentHashMap<>();
-        prepareDataForMergeFunction(ns, pulsarClient, inputSpecNode, topicMsgCntMap);
+        int messagePerTopic = 10;
+        prepareDataForMergeFunction(ns, randomSuffix, pulsarClient, inputSpecNode, messagePerTopic, topicMsgCntMap);
 
-        final String outputTopic = ns + "/test-merge-output-" + randomName(8);
+        final String outputTopic = ns + "/test-merge-output-" + randomSuffix;
         @Cleanup
         Consumer<GenericRecord> consumer = pulsarClient
                 .newConsumer(Schema.AUTO_CONSUME())
@@ -1585,7 +1587,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 .topic(outputTopic)
                 .subscribe();
 
-        final String functionName = "test-merge-fn-" + randomName(8);
+        final String functionName = "test-merge-fn-" + randomSuffix;
         submitFunction(
                 Runtime.JAVA,
                 "",
@@ -1600,6 +1602,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 SubscriptionInitialPosition.Earliest);
 
         getFunctionInfoSuccess(functionName);
+
+        getFunctionStatus(functionName, topicMsgCntMap.keySet().size() * messagePerTopic, true);
 
         Message<GenericRecord> message;
         do {
@@ -1630,30 +1634,31 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     }
 
     private void prepareDataForMergeFunction(String ns,
+                                             String randomSuffix,
                                              PulsarClient pulsarClient,
                                              ObjectNode inputSpecNode,
+                                             int messagePerTopic,
                                              Map<String, AtomicInteger> topicMsgCntMap) throws PulsarClientException {
-        int messagePerTopic = 10;
-        generateDataByDifferentSchema(ns, "merge-schema-bytes", randomName(8), pulsarClient,
+        generateDataByDifferentSchema(ns, "merge-schema-bytes", randomSuffix, pulsarClient,
                 Schema.BYTES, "bytes schema test".getBytes(), messagePerTopic, inputSpecNode, topicMsgCntMap);
-        generateDataByDifferentSchema(ns, "merge-schema-string", randomName(8), pulsarClient,
+        generateDataByDifferentSchema(ns, "merge-schema-string", randomSuffix, pulsarClient,
                 Schema.STRING, "string schema test", messagePerTopic, inputSpecNode, topicMsgCntMap);
-        generateDataByDifferentSchema(ns, "merge-schema-json-userv1", randomName(8), pulsarClient,
+        generateDataByDifferentSchema(ns, "merge-schema-json-userv1", randomSuffix, pulsarClient,
                 Schema.JSON(Users.UserV1.class), new Users.UserV1("ran", 33),
                 messagePerTopic, inputSpecNode, topicMsgCntMap);
-        generateDataByDifferentSchema(ns, "merge-schema-json-userv2", randomName(8), pulsarClient,
+        generateDataByDifferentSchema(ns, "merge-schema-json-userv2", randomSuffix, pulsarClient,
                 Schema.JSON(Users.UserV2.class), new Users.UserV2("tang", 18, "123123123"),
                 messagePerTopic, inputSpecNode, topicMsgCntMap);
-        generateDataByDifferentSchema(ns, "merge-schema-avro-userv2", randomName(8), pulsarClient,
+        generateDataByDifferentSchema(ns, "merge-schema-avro-userv2", randomSuffix, pulsarClient,
                 Schema.AVRO(Users.UserV2.class), new Users.UserV2("tang", 20, "456456456"),
                 messagePerTopic, inputSpecNode, topicMsgCntMap);
         generateDataByDifferentSchema(ns, "merge-schema-k-int-v-json-userv1-separate",
-                randomName(8), pulsarClient,
+                randomSuffix, pulsarClient,
                 Schema.KeyValue(Schema.INT32, Schema.JSON(Users.UserV1.class), KeyValueEncodingType.SEPARATED),
                 new KeyValue<>(100, new Users.UserV1("ran", 40)),
                 messagePerTopic, inputSpecNode, topicMsgCntMap);
         generateDataByDifferentSchema(ns, "merge-schema-k-json-userv2-v-json-userv1-inline",
-                randomName(8), pulsarClient,
+                randomSuffix, pulsarClient,
                 Schema.KeyValue(Schema.JSON(Users.UserV2.class), Schema.JSON(Users.UserV1.class),
                         KeyValueEncodingType.INLINE),
                 new KeyValue<>(new Users.UserV2("tang", 20, "789789789"),
@@ -1682,7 +1687,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         inputSpecNode.put(topic, confNode.toString());
         topicMsgCntMap.put(baseTopic, new AtomicInteger(messageCnt));
         producer.close();
-        log.info("[merge-fn] generate data for schema {}", schema.getSchemaInfo());
+        log.info("[merge-fn] generate {} messages for schema {}", messageCnt, schema.getSchemaInfo());
     }
 
     private void checkSchemaForAutoSchema(Message<GenericRecord> message, String baseTopic) {
