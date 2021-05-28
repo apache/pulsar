@@ -963,16 +963,28 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             allTopicPartitionsNumber.incrementAndGet();
 
             CompletableFuture<Consumer<T>> subFuture = new CompletableFuture<>();
-            ConsumerImpl<T> newConsumer = ConsumerImpl.newConsumerImpl(client, topicName, internalConfig,
-                        client.externalExecutorProvider(), -1,
-                        true, subFuture, null, schema, interceptors,
-                        createIfDoesNotExist);
-            synchronized (pauseMutex) {
-                if (paused) {
-                    newConsumer.pause();
+
+            consumers.compute(topicName, (key, existingValue) -> {
+                if (existingValue != null) {
+                    String errorMessage = String.format("[%s] Failed to subscribe for topic [%s] in topics consumer. "
+                            + "Topic is already being subscribed for in other thread.", topic, topicName);
+                    log.warn(errorMessage);
+                    subscribeResult.completeExceptionally(new PulsarClientException(errorMessage));
+                    return existingValue;
+                } else {
+                    ConsumerImpl<T> newConsumer = ConsumerImpl.newConsumerImpl(client, topicName, internalConfig,
+                            client.externalExecutorProvider(), -1,
+                            true, subFuture, null, schema, interceptors,
+                            createIfDoesNotExist);
+
+                    synchronized (pauseMutex) {
+                        if (paused) {
+                            newConsumer.pause();
+                        }
+                    }
+                    return newConsumer;
                 }
-                consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
-            }
+            });
 
             futureList = Collections.singletonList(subFuture);
         }
