@@ -230,7 +230,7 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
      */
     private boolean checkAndCompleteOp(Object ctx) {
         long addOpCount = (ctx instanceof Long) ? (long) ctx : -1;
-        if (addOpCount != -1 && ADD_OP_COUNT_UPDATER.compareAndSet(this, this.addOpCount, -1)) {
+        if (addOpCount != -1 && ADD_OP_COUNT_UPDATER.compareAndSet(this, addOpCount, -1)) {
             return true;
         }
         log.info("Add-entry already completed for {}-{}", ledger != null ? ledger.getId() : -1, entryId);
