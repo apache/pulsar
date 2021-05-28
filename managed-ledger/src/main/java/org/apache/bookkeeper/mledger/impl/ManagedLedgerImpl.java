@@ -127,7 +127,10 @@ import org.apache.bookkeeper.net.BookieId;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.OffloadPolicies.OffloadedReadPriority;
+import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.metadata.api.Stat;
@@ -3841,7 +3844,71 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         });
         return future;
     }
-  
+
+    @Override
+    public CompletableFuture<ManagedLedgerInternalStats> getManagedLedgerInternalStats(boolean includeLedgerMetadata) {
+        CompletableFuture<ManagedLedgerInternalStats> statFuture = new CompletableFuture<>();
+        ManagedLedgerInternalStats stats = new ManagedLedgerInternalStats();
+
+        stats.entriesAddedCounter = this.getEntriesAddedCounter();
+        stats.numberOfEntries = this.getNumberOfEntries();
+        stats.totalSize = this.getTotalSize();
+        stats.currentLedgerEntries = this.getCurrentLedgerEntries();
+        stats.currentLedgerSize = this.getCurrentLedgerSize();
+        stats.lastLedgerCreatedTimestamp = DateFormatter.format(this.getLastLedgerCreatedTimestamp());
+        if (this.getLastLedgerCreationFailureTimestamp() != 0) {
+            stats.lastLedgerCreationFailureTimestamp =
+                    DateFormatter.format(this.getLastLedgerCreationFailureTimestamp());
+        }
+
+        stats.waitingCursorsCount = this.getWaitingCursorsCount();
+        stats.pendingAddEntriesCount = this.getPendingAddEntriesCount();
+
+        stats.lastConfirmedEntry = this.getLastConfirmedEntry().toString();
+        stats.state = this.getState().toString();
+
+        stats.ledgers = Lists.newArrayList();
+        this.getLedgersInfo().forEach((id, li) -> {
+            ManagedLedgerInternalStats.LedgerInfo info = new ManagedLedgerInternalStats.LedgerInfo();
+            info.ledgerId = li.getLedgerId();
+            info.entries = li.getEntries();
+            info.size = li.getSize();
+            info.offloaded = li.hasOffloadContext() && li.getOffloadContext().getComplete();
+            stats.ledgers.add(info);
+            if (includeLedgerMetadata) {
+                this.getLedgerMetadata(li.getLedgerId()).handle((lMetadata, ex) -> {
+                    if (ex == null) {
+                        info.metadata = lMetadata;
+                    }
+                    return null;
+                });
+            }
+
+            stats.cursors = Maps.newTreeMap();
+            this.getCursors().forEach(c -> {
+                ManagedCursorImpl cursor = (ManagedCursorImpl) c;
+                PersistentTopicInternalStats.CursorStats cs = new PersistentTopicInternalStats.CursorStats();
+                cs.markDeletePosition = cursor.getMarkDeletedPosition().toString();
+                cs.readPosition = cursor.getReadPosition().toString();
+                cs.waitingReadOp = cursor.hasPendingReadRequest();
+                cs.pendingReadOps = cursor.getPendingReadOpsCount();
+                cs.messagesConsumedCounter = cursor.getMessagesConsumedCounter();
+                cs.cursorLedger = cursor.getCursorLedger();
+                cs.cursorLedgerLastEntry = cursor.getCursorLedgerLastEntry();
+                cs.individuallyDeletedMessages = cursor.getIndividuallyDeletedMessages();
+                cs.lastLedgerSwitchTimestamp = DateFormatter.format(cursor.getLastLedgerSwitchTimestamp());
+                cs.state = cursor.getState();
+                cs.numberOfEntriesSinceFirstNotAckedMessage =
+                        cursor.getNumberOfEntriesSinceFirstNotAckedMessage();
+                cs.totalNonContiguousDeletedMessagesRange = cursor.getTotalNonContiguousDeletedMessagesRange();
+                cs.properties = cursor.getProperties();
+                stats.cursors.put(cursor.getName(), cs);
+            });
+        });
+        statFuture.complete(stats);
+        return statFuture;
+    }
+
     public CompletableFuture<Set<BookieId>> getEnsemblesAsync(long ledgerId) {
         LedgerInfo ledgerInfo = ledgers.get(ledgerId);
         if (ledgerInfo != null && ledgerInfo.hasOffloadContext()) {

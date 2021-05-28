@@ -18,15 +18,11 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import java.util.List;
-
 /**
- * Persistent topic internal statistics.
+ * Transaction coordinator internal stats.
  */
-public class PersistentTopicInternalStats extends ManagedLedgerInternalStats{
+public class TransactionCoordinatorInternalStats {
 
-    public List<LedgerInfo> schemaLedgers;
-
-    // LedgerInfo for compacted topic if exist.
-    public LedgerInfo compactedLedger;
+    /** The transaction log stats*/
+    public TransactionLogStats transactionLogStats;
 }

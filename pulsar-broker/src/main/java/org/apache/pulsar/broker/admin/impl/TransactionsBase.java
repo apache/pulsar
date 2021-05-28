@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.admin.impl;
 
 import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
+import static javax.ws.rs.core.Response.Status.METHOD_NOT_ALLOWED;
 import static javax.ws.rs.core.Response.Status.NOT_FOUND;
 import static javax.ws.rs.core.Response.Status.SERVICE_UNAVAILABLE;
 import static javax.ws.rs.core.Response.Status.TEMPORARY_REDIRECT;
@@ -34,6 +35,7 @@ import java.util.concurrent.TimeUnit;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.Topic;
@@ -42,9 +44,11 @@ import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.TransactionCoordinatorInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
+import org.apache.pulsar.common.policies.data.TransactionLogStats;
 import org.apache.pulsar.common.policies.data.TransactionMetadata;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
@@ -52,6 +56,7 @@ import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.CoordinatorNotFoundException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.TransactionNotFoundException;
+import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
 
 @Slf4j
 public abstract class TransactionsBase extends AdminResource {
@@ -461,6 +466,42 @@ public abstract class TransactionsBase extends AdminResource {
             }
         } catch (Exception e) {
             asyncResponse.resume(new RestException(e));
+        }
+    }
+
+    protected void internalGetCoordinatorInternalStats(AsyncResponse asyncResponse, boolean authoritative,
+                                                       boolean metadata, int coordinatorId) {
+        try {
+            if (pulsar().getConfig().isTransactionCoordinatorEnabled()) {
+                TopicName topicName = TopicName.TRANSACTION_COORDINATOR_ASSIGN.getPartition(coordinatorId);
+                validateTopicOwnership(topicName, authoritative);
+                TransactionMetadataStore metadataStore = pulsar().getTransactionMetadataStoreService()
+                        .getStores().get(TransactionCoordinatorID.get(coordinatorId));
+                if (metadataStore == null) {
+                    asyncResponse.resume(new RestException(NOT_FOUND,
+                            "Transaction coordinator not found! coordinator id : " + coordinatorId));
+                    return;
+                }
+                if (metadataStore instanceof MLTransactionMetadataStore) {
+                    ManagedLedger managedLedger = ((MLTransactionMetadataStore) metadataStore).getManagedLedger();
+                    TransactionCoordinatorInternalStats transactionCoordinatorInternalStats =
+                            new TransactionCoordinatorInternalStats();
+                    TransactionLogStats transactionLogStats = new TransactionLogStats();
+                    transactionLogStats.managedLedgerName = managedLedger.getName();
+                    transactionLogStats.managedLedgerInternalStats =
+                            managedLedger.getManagedLedgerInternalStats(metadata).get();
+                    transactionCoordinatorInternalStats.transactionLogStats = transactionLogStats;
+                    asyncResponse.resume(transactionCoordinatorInternalStats);
+                } else {
+                    asyncResponse.resume(new RestException(METHOD_NOT_ALLOWED,
+                            "Broker don't use MLTransactionMetadataStore!"));
+                }
+            } else {
+                asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE,
+                        "This Broker is not configured with transactionCoordinatorEnabled=true."));
+            }
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e.getCause()));
         }
     }
 }
