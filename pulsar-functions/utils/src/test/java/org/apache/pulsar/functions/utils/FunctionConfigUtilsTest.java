@@ -269,6 +269,13 @@ public class FunctionConfigUtilsTest {
                 mergedConfig.getUserConfig(),
                 myConfig
         );
+        FunctionConfig newFunctionConfig2 = createUpdatedFunctionConfig("parallelism", 2);
+        FunctionConfig mergedConfig2 = FunctionConfigUtils.validateUpdate(mergedConfig, newFunctionConfig2);
+        assertEquals(
+                mergedConfig2.getUserConfig(),
+                myConfig
+        );
+        mergedConfig.setParallelism(functionConfig.getParallelism());
         mergedConfig.setUserConfig(functionConfig.getUserConfig());
         assertEquals(
                 new Gson().toJson(functionConfig),

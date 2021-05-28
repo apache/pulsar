@@ -902,7 +902,7 @@ public class FunctionConfigUtils {
         if (!StringUtils.isEmpty(newConfig.getOutput())) {
             mergedConfig.setOutput(newConfig.getOutput());
         }
-        if (newConfig.getUserConfig() != null) {
+        if (newConfig.getUserConfig() != null && !newConfig.getUserConfig().isEmpty()) {
             mergedConfig.setUserConfig(newConfig.getUserConfig());
         }
         if (newConfig.getSecrets() != null) {
