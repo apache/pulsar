@@ -23,6 +23,6 @@ package org.apache.pulsar.common.policies.data;
  */
 public class TransactionPendingAckInternalStats {
 
-    /** The transaction log stats*/
+    /** The transaction pending ack log stats */
     public TransactionLogStats pendingAckLogStats;
 }
