@@ -1567,7 +1567,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         PulsarAdmin pulsarAdmin = getPulsarAdmin();
         pulsarAdmin.namespaces().createNamespace(ns);
         pulsarAdmin.namespaces().setSchemaCompatibilityStrategy(ns, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
-        pulsarAdmin.namespaces().setRetention(ns, new RetentionPolicies(60, 10));
+        SchemaCompatibilityStrategy strategy = pulsarAdmin.namespaces().getSchemaCompatibilityStrategy(ns);
+        log.info("namespace {} SchemaCompatibilityStrategy is {}", ns, strategy);
 
         @Cleanup
         PulsarClient pulsarClient = getPulsarClient();
@@ -1586,7 +1587,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 .topic(outputTopic)
                 .subscribe();
 
-        final String functionName = "test-merge-fn-" + randomSuffix;
+        final String functionName = "test-merge-fn-" + randomName(8);
         submitFunction(
                 Runtime.JAVA,
                 "",
