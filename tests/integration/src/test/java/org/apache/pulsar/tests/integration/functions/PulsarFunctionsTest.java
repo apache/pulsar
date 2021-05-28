@@ -1576,7 +1576,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         Map<String, AtomicInteger> topicMsgCntMap = new ConcurrentHashMap<>();
         prepareDataForMergeFunction(ns, pulsarClient, inputSpecNode, topicMsgCntMap);
 
-        final String outputTopic = ns + "test-merge-output-" + randomName(8);
+        final String outputTopic = ns + "/test-merge-output-" + randomName(8);
         @Cleanup
         Consumer<GenericRecord> consumer = pulsarClient
                 .newConsumer(Schema.AUTO_CONSUME())
