@@ -19,10 +19,10 @@
 package org.apache.pulsar.common.policies.data;
 
 /**
- * Transaction coordinator internal stats.
+ * Transaction pending ack internal stats.
  */
-public class TransactionCoordinatorInternalStats {
+public class TransactionPendingAckInternalStats {
 
-    /** The transaction coordinator log stats */
-    public TransactionLogStats transactionLogStats;
+    /** The transaction pending ack log stats */
+    public TransactionLogStats pendingAckLogStats;
 }
