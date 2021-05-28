@@ -23,6 +23,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
+import org.apache.pulsar.common.policies.data.TransactionCoordinatorInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
@@ -113,7 +114,7 @@ public interface Transactions {
      */
     Map<String, TransactionMetadata> getSlowTransactionsByCoordinatorId(Integer coordinatorId,
                                                                         long timeout,
-                                                                        TimeUnit timeUnit) throws Exception;
+                                                                        TimeUnit timeUnit) throws PulsarAdminException;
 
     /**
      * Get slow transactions.
@@ -135,9 +136,28 @@ public interface Transactions {
      *
      * @return the metadata of slow transactions.
      */
-    CompletableFuture<Map<String, TransactionMetadata>> getSlowTransactions(long timeout,
-                                                                            TimeUnit timeUnit) throws Exception;
+    Map<String, TransactionMetadata> getSlowTransactions(long timeout, TimeUnit timeUnit) throws PulsarAdminException;
 
+    /**
+     * Get transaction coordinator internal stats.
+     *
+     * @param coordinatorId the coordinator ID
+     * @param metadata is get ledger metadata
+     *
+     * @return the future internal stats of this coordinator
+     */
+    CompletableFuture<TransactionCoordinatorInternalStats> getCoordinatorInternalStatsAsync(int coordinatorId,
+                                                                                            boolean metadata);
 
+    /**
+     * Get transaction coordinator internal stats.
+     *
+     * @param coordinatorId the coordinator ID
+     * @param metadata whether to obtain ledger metadata
+     *
+     * @return the internal stats of this coordinator
+     */
+    TransactionCoordinatorInternalStats getCoordinatorInternalStats(int coordinatorId,
+                                                                    boolean metadata) throws PulsarAdminException;
 
 }

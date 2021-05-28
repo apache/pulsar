@@ -20,13 +20,17 @@ package org.apache.pulsar.client.admin.internal;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
+import org.apache.pulsar.common.policies.data.TransactionCoordinatorInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
@@ -215,8 +219,19 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     @Override
     public Map<String, TransactionMetadata> getSlowTransactionsByCoordinatorId(Integer coordinatorId,
                                                                                long timeout,
-                                                                               TimeUnit timeUnit) throws Exception {
-        return getSlowTransactionsByCoordinatorIdAsync(coordinatorId, timeout, timeUnit).get();
+                                                                               TimeUnit timeUnit)
+            throws PulsarAdminException {
+        try {
+            return getSlowTransactionsByCoordinatorIdAsync(coordinatorId, timeout, timeUnit)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
     }
 
     @Override
@@ -226,9 +241,57 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     }
 
     @Override
-    public CompletableFuture<Map<String, TransactionMetadata>> getSlowTransactions(long timeout,
-                                                                                   TimeUnit timeUnit) throws Exception {
-        return getSlowTransactions(timeout, timeUnit);
+    public Map<String, TransactionMetadata> getSlowTransactions(long timeout,
+                                                                TimeUnit timeUnit) throws PulsarAdminException {
+        try {
+            return getSlowTransactionsAsync(timeout, timeUnit).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<TransactionCoordinatorInternalStats> getCoordinatorInternalStatsAsync(int coordinatorId,
+                                                                                                   boolean metadata) {
+        WebTarget path = adminV3Transactions.path("coordinatorInternalStats");
+        path = path.path(coordinatorId + "");
+        path = path.queryParam("metadata", metadata);
+        final CompletableFuture<TransactionCoordinatorInternalStats> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<TransactionCoordinatorInternalStats>() {
+                    @Override
+                    public void completed(TransactionCoordinatorInternalStats stats) {
+                        future.complete(stats);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
+    public TransactionCoordinatorInternalStats getCoordinatorInternalStats(int coordinatorId,
+                                                                           boolean metadata)
+            throws PulsarAdminException {
+        try {
+            return getCoordinatorInternalStatsAsync(coordinatorId, metadata)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
     }
 
 }

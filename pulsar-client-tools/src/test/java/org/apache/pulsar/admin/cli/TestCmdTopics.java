@@ -21,8 +21,7 @@ package org.apache.pulsar.admin.cli;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats.LedgerInfo;
-
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.LedgerInfo;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 

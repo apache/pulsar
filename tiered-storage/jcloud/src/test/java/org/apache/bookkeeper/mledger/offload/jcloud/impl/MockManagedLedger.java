@@ -34,6 +34,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 
 @Slf4j
 public class MockManagedLedger implements ManagedLedger {
@@ -329,5 +330,10 @@ public class MockManagedLedger implements ManagedLedger {
     @Override
     public CompletableFuture<Void> asyncTruncate() {
         return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public CompletableFuture<ManagedLedgerInternalStats> getManagedLedgerInternalStats(boolean includeLedgerMetadata) {
+        return null;
     }
 }

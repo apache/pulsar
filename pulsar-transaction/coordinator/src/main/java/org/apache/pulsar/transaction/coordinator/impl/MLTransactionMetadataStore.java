@@ -26,6 +26,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -453,5 +454,9 @@ public class MLTransactionMetadataStore
                     .add(transactionSubscriptionBuilder.build());
         }
         return transactionSubscriptions;
+    }
+
+    public ManagedLedger getManagedLedger() {
+        return this.transactionLog.getManagedLedger();
     }
 }
