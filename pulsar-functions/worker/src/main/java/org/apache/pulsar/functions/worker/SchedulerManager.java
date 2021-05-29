@@ -176,9 +176,8 @@ public class SchedulerManager implements AutoCloseable {
 
         try {
             return executorService.submit(() -> {
+                schedulerLock.lock();
                 try {
-                    schedulerLock.lock();
-
                     boolean isLeader = leaderService.isLeader();
                     if (isLeader) {
                         try {
@@ -501,10 +500,9 @@ public class SchedulerManager implements AutoCloseable {
     @Override
     public synchronized void close() {
         log.info("Closing scheduler manager");
+        // make sure we are not closing while a scheduling is being calculated
+        schedulerLock.lock();
         try {
-            // make sure we are not closing while a scheduling is being calculated
-            schedulerLock.lock();
-
             isRunning = false;
 
             if (scheduledExecutorService != null) {
