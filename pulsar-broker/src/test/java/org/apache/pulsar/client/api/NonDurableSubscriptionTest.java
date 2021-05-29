@@ -78,7 +78,7 @@ public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
         }
         // 3 receive the first 5 messages
         for (int i = 0; i < 5; i++) {
-            Message<String> message = consumer.receive(1, TimeUnit.SECONDS);
+            Message<String> message = consumer.receive();
             assertNotNull(message);
             Assert.assertEquals(message.getValue(), "message" + i);
             consumer.acknowledge(message);
@@ -87,7 +87,7 @@ public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
         ((ConsumerImpl)consumer).getClientCnx().close();
         // 5 for non-durable we are going to restart from the next entry
         for (int i = 5; i < messageNum; i++) {
-            Message<String> message = consumer.receive(3, TimeUnit.SECONDS);
+            Message<String> message = consumer.receive();
             assertNotNull(message);
             Assert.assertEquals(message.getValue(), "message" + i);
         }
@@ -162,7 +162,7 @@ public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
         }
         // 3 receive the first 5 messages
         for (int i = 0; i < 5; i++) {
-            Message<String> message = consumer.receive(1, TimeUnit.SECONDS);
+            Message<String> message = consumer.receive();
             assertNotNull(message);
             Assert.assertEquals(message.getValue(), "message" + i);
             consumer.acknowledge(message);
@@ -172,7 +172,7 @@ public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
 
         // 5 for non-durable we are going to restart from the next entry
         for (int i = 5; i < 10; i++) {
-            Message<String> message = consumer.receive(3, TimeUnit.SECONDS);
+            Message<String> message = consumer.receive();
             assertNotNull(message);
             Assert.assertEquals(message.getValue(), "message" + i);
         }
@@ -182,7 +182,7 @@ public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
 
         // 7 for non-durable we are going to restart from the next entry
         for (int i = 10; i < messageNum; i++) {
-            Message<String> message = consumer.receive(3, TimeUnit.SECONDS);
+            Message<String> message = consumer.receive();
             assertNotNull(message);
             Assert.assertEquals(message.getValue(), "message" + i);
         }
