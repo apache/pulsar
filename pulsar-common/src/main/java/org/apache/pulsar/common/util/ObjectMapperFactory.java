@@ -21,18 +21,31 @@ package org.apache.pulsar.common.util;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.module.SimpleAbstractTypeResolver;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import io.netty.util.concurrent.FastThreadLocal;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
 import org.apache.pulsar.common.functions.JsonIgnorePropertiesMixIn;
+import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
+import org.apache.pulsar.common.policies.data.AutoFailoverPolicyDataInterface;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuotaMixIn;
+import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
+import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataInterface;
+import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataInterface;
+import org.apache.pulsar.common.policies.data.FailureDomain;
+import org.apache.pulsar.common.policies.data.FailureDomainInterface;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.FunctionStatsMixIn;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationDataInterface;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.policies.data.ResourceQuotaMixIn;
+import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoInterface;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.stats.MetricsMixIn;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
@@ -87,6 +100,13 @@ public class ObjectMapperFactory {
 
         // we use customized deserializer to replace jackson annotations in some POJOs
         module.addDeserializer(LoadManagerReport.class, new LoadReportDeserializer());
+        SimpleAbstractTypeResolver resolver = new SimpleAbstractTypeResolver();
+        resolver.addMapping(AutoFailoverPolicyDataInterface.class, AutoFailoverPolicyData.class);
+        resolver.addMapping(BrokerNamespaceIsolationDataInterface.class, BrokerNamespaceIsolationData.class);
+        resolver.addMapping(ClusterDataInterface.class, ClusterData.class);
+        resolver.addMapping(FailureDomainInterface.class, FailureDomain.class);
+        resolver.addMapping(NamespaceIsolationDataInterface.class, NamespaceIsolationData.class);
+        resolver.addMapping(TenantInfoInterface.class, TenantInfo.class);
 
         // we use MixIn class to add jackson annotations
         mapper.addMixIn(BacklogQuota.class, BacklogQuotaMixIn.class);
@@ -101,6 +121,8 @@ public class ObjectMapperFactory {
         mapper.addMixIn(FunctionStats.FunctionInstanceStats.FunctionInstanceStatsDataBase.class,
                 FunctionStatsMixIn.FunctionInstanceStatsMixIn.FunctionInstanceStatsDataBaseMixIn.class);
         mapper.addMixIn(Metrics.class, MetricsMixIn.class);
+
+        module.setAbstractTypes(resolver);
 
         mapper.registerModule(module);
     }
