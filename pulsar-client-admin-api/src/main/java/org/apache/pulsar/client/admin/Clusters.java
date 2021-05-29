@@ -27,9 +27,9 @@ import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
-import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
+import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataInterface;
 import org.apache.pulsar.common.policies.data.ClusterDataInterface;
-import org.apache.pulsar.common.policies.data.FailureDomain;
+import org.apache.pulsar.common.policies.data.FailureDomainInterface;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationDataInterface;
 
 /**
@@ -368,7 +368,7 @@ public interface Clusters {
      * @return
      * @throws PulsarAdminException
      */
-    List<BrokerNamespaceIsolationData> getBrokersWithNamespaceIsolationPolicy(String cluster)
+    List<BrokerNamespaceIsolationDataInterface> getBrokersWithNamespaceIsolationPolicy(String cluster)
             throws PulsarAdminException;
 
     /**
@@ -377,7 +377,8 @@ public interface Clusters {
      * @param cluster
      * @return
      */
-    CompletableFuture<List<BrokerNamespaceIsolationData>> getBrokersWithNamespaceIsolationPolicyAsync(String cluster);
+    CompletableFuture<List<BrokerNamespaceIsolationDataInterface>> getBrokersWithNamespaceIsolationPolicyAsync(
+            String cluster);
 
     /**
      * Returns active broker with namespace-isolation policies attached to it.
@@ -387,7 +388,7 @@ public interface Clusters {
      * @return
      * @throws PulsarAdminException
      */
-    BrokerNamespaceIsolationData getBrokerWithNamespaceIsolationPolicy(String cluster, String broker)
+    BrokerNamespaceIsolationDataInterface getBrokerWithNamespaceIsolationPolicy(String cluster, String broker)
             throws PulsarAdminException;
 
     /**
@@ -397,7 +398,7 @@ public interface Clusters {
      * @param broker
      * @return
      */
-    CompletableFuture<BrokerNamespaceIsolationData> getBrokerWithNamespaceIsolationPolicyAsync(
+    CompletableFuture<BrokerNamespaceIsolationDataInterface> getBrokerWithNamespaceIsolationPolicyAsync(
             String cluster, String broker);
 
     /**
@@ -558,7 +559,7 @@ public interface Clusters {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void createFailureDomain(String cluster, String domainName, FailureDomain domain)
+    void createFailureDomain(String cluster, String domainName, FailureDomainInterface domain)
             throws PulsarAdminException;
 
     /**
@@ -577,7 +578,7 @@ public interface Clusters {
      * @return
      *
      */
-    CompletableFuture<Void> createFailureDomainAsync(String cluster, String domainName, FailureDomain domain);
+    CompletableFuture<Void> createFailureDomainAsync(String cluster, String domainName, FailureDomainInterface domain);
 
     /**
      * Update a domain into cluster.
@@ -608,7 +609,7 @@ public interface Clusters {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void updateFailureDomain(String cluster, String domainName, FailureDomain domain)
+    void updateFailureDomain(String cluster, String domainName, FailureDomainInterface domain)
             throws PulsarAdminException;
 
     /**
@@ -627,7 +628,7 @@ public interface Clusters {
      * @return
      *
      */
-    CompletableFuture<Void> updateFailureDomainAsync(String cluster, String domainName, FailureDomain domain);
+    CompletableFuture<Void> updateFailureDomainAsync(String cluster, String domainName, FailureDomainInterface domain);
 
     /**
      * Delete a domain in cluster.
@@ -685,7 +686,7 @@ public interface Clusters {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    Map<String, FailureDomain> getFailureDomains(String cluster) throws PulsarAdminException;
+    Map<String, FailureDomainInterface> getFailureDomains(String cluster) throws PulsarAdminException;
 
     /**
      * Get all registered domains in cluster asynchronously.
@@ -696,7 +697,7 @@ public interface Clusters {
      * @return
      *
      */
-    CompletableFuture<Map<String, FailureDomain>> getFailureDomainsAsync(String cluster);
+    CompletableFuture<Map<String, FailureDomainInterface>> getFailureDomainsAsync(String cluster);
 
     /**
      * Get the domain registered into a cluster.
@@ -717,7 +718,7 @@ public interface Clusters {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    FailureDomain getFailureDomain(String cluster, String domainName) throws PulsarAdminException;
+    FailureDomainInterface getFailureDomain(String cluster, String domainName) throws PulsarAdminException;
 
     /**
      * Get the domain registered into a cluster asynchronously.
@@ -728,6 +729,6 @@ public interface Clusters {
      * @return
      *
      */
-    CompletableFuture<FailureDomain> getFailureDomainAsync(String cluster, String domainName);
+    CompletableFuture<FailureDomainInterface> getFailureDomainAsync(String cluster, String domainName);
 
 }

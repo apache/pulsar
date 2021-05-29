@@ -23,6 +23,6 @@ package org.apache.pulsar.common.policies.data;
  */
 public class TransactionCoordinatorInternalStats {
 
-    /** The transaction coordinator log stats */
+    /** The transaction coordinator log stats. */
     public TransactionLogStats transactionLogStats;
 }

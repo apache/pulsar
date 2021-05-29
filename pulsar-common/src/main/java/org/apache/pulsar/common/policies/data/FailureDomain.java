@@ -23,6 +23,8 @@ import io.swagger.annotations.ApiModelProperty;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
+
+import lombok.Data;
 import lombok.ToString;
 
 /**
@@ -33,7 +35,8 @@ import lombok.ToString;
     description = "The data of a failure domain configuration in a cluster"
 )
 @ToString
-public class FailureDomain {
+@Data
+public class FailureDomain implements FailureDomainInterface {
 
     @ApiModelProperty(
         name = "brokers",
@@ -42,10 +45,12 @@ public class FailureDomain {
     )
     public Set<String> brokers = new HashSet<String>();
 
+    @Override
     public Set<String> getBrokers() {
         return brokers;
     }
 
+    @Override
     public void setBrokers(Set<String> brokers) {
         this.brokers = brokers;
     }

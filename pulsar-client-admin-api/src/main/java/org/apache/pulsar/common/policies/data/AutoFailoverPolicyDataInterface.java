@@ -18,14 +18,14 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-/**
- * Transaction log stats.
- */
-public class TransactionLogStats {
+import java.util.Map;
 
-    /** The managed ledger name. */
-    public String managedLedgerName;
+public interface AutoFailoverPolicyDataInterface {
+    AutoFailoverPolicyType getPolicy_type();
 
-    /** The manage ledger internal stats. */
-    public ManagedLedgerInternalStats managedLedgerInternalStats;
+    Map<String, String> getParameters();
+
+    void setPolicy_type(AutoFailoverPolicyType policyType);
+
+    void setParameters(Map<String, String> parameters);
 }

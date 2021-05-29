@@ -18,14 +18,14 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-/**
- * Transaction log stats.
- */
-public class TransactionLogStats {
+import java.util.Set;
 
-    /** The managed ledger name. */
-    public String managedLedgerName;
+public interface TenantInfoInterface {
+    Set<String> getAdminRoles();
 
-    /** The manage ledger internal stats. */
-    public ManagedLedgerInternalStats managedLedgerInternalStats;
+    void setAdminRoles(Set<String> adminRoles);
+
+    Set<String> getAllowedClusters();
+
+    void setAllowedClusters(Set<String> allowedClusters);
 }

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -35,9 +36,11 @@ import org.apache.pulsar.client.admin.Clusters;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
+import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataInterface;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataInterface;
 import org.apache.pulsar.common.policies.data.FailureDomain;
+import org.apache.pulsar.common.policies.data.FailureDomainInterface;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationDataInterface;
 
@@ -268,7 +271,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     @Override
-    public List<BrokerNamespaceIsolationData> getBrokersWithNamespaceIsolationPolicy(String cluster)
+    public List<BrokerNamespaceIsolationDataInterface> getBrokersWithNamespaceIsolationPolicy(String cluster)
             throws PulsarAdminException {
         try {
             return getBrokersWithNamespaceIsolationPolicyAsync(cluster).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
@@ -283,15 +286,17 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     @Override
-    public CompletableFuture<List<BrokerNamespaceIsolationData>> getBrokersWithNamespaceIsolationPolicyAsync(
+    public CompletableFuture<List<BrokerNamespaceIsolationDataInterface>> getBrokersWithNamespaceIsolationPolicyAsync(
             String cluster) {
         WebTarget path = adminClusters.path(cluster).path("namespaceIsolationPolicies").path("brokers");
-        final CompletableFuture<List<BrokerNamespaceIsolationData>> future = new CompletableFuture<>();
+        final CompletableFuture<List<BrokerNamespaceIsolationDataInterface>> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<List<BrokerNamespaceIsolationData>>() {
                     @Override
                     public void completed(List<BrokerNamespaceIsolationData> brokerNamespaceIsolationData) {
-                        future.complete(brokerNamespaceIsolationData);
+                        List<BrokerNamespaceIsolationDataInterface> data =
+                                new ArrayList<>(brokerNamespaceIsolationData);
+                        future.complete(data);
                     }
 
                     @Override
@@ -303,7 +308,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     @Override
-    public BrokerNamespaceIsolationData getBrokerWithNamespaceIsolationPolicy(String cluster, String broker)
+    public BrokerNamespaceIsolationDataInterface getBrokerWithNamespaceIsolationPolicy(String cluster, String broker)
             throws PulsarAdminException {
         try {
             return getBrokerWithNamespaceIsolationPolicyAsync(cluster, broker)
@@ -319,10 +324,10 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     @Override
-    public CompletableFuture<BrokerNamespaceIsolationData> getBrokerWithNamespaceIsolationPolicyAsync(
+    public CompletableFuture<BrokerNamespaceIsolationDataInterface> getBrokerWithNamespaceIsolationPolicyAsync(
             String cluster, String broker) {
         WebTarget path = adminClusters.path(cluster).path("namespaceIsolationPolicies").path("brokers").path(broker);
-        final CompletableFuture<BrokerNamespaceIsolationData> future = new CompletableFuture<>();
+        final CompletableFuture<BrokerNamespaceIsolationDataInterface> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<BrokerNamespaceIsolationData>() {
                     @Override
@@ -440,24 +445,26 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     @Override
-    public void createFailureDomain(String cluster, String domainName, FailureDomain domain)
+    public void createFailureDomain(String cluster, String domainName, FailureDomainInterface domain)
             throws PulsarAdminException {
         setDomain(cluster, domainName, domain);
     }
 
     @Override
-    public CompletableFuture<Void> createFailureDomainAsync(String cluster, String domainName, FailureDomain domain) {
+    public CompletableFuture<Void> createFailureDomainAsync(String cluster, String domainName,
+                                                            FailureDomainInterface domain) {
         return setDomainAsync(cluster, domainName, domain);
     }
 
     @Override
-    public void updateFailureDomain(String cluster, String domainName, FailureDomain domain)
+    public void updateFailureDomain(String cluster, String domainName, FailureDomainInterface domain)
             throws PulsarAdminException {
         setDomain(cluster, domainName, domain);
     }
 
     @Override
-    public CompletableFuture<Void> updateFailureDomainAsync(String cluster, String domainName, FailureDomain domain) {
+    public CompletableFuture<Void> updateFailureDomainAsync(String cluster, String domainName,
+                                                            FailureDomainInterface domain) {
         return setDomainAsync(cluster, domainName, domain);
     }
 
@@ -482,7 +489,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     @Override
-    public Map<String, FailureDomain> getFailureDomains(String cluster) throws PulsarAdminException {
+    public Map<String, FailureDomainInterface> getFailureDomains(String cluster) throws PulsarAdminException {
         try {
             return getFailureDomainsAsync(cluster).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
@@ -496,14 +503,15 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     @Override
-    public CompletableFuture<Map<String, FailureDomain>> getFailureDomainsAsync(String cluster) {
+    public CompletableFuture<Map<String, FailureDomainInterface>> getFailureDomainsAsync(String cluster) {
         WebTarget path = adminClusters.path(cluster).path("failureDomains");
-        final CompletableFuture<Map<String, FailureDomain>> future = new CompletableFuture<>();
+        final CompletableFuture<Map<String, FailureDomainInterface>> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<Map<String, FailureDomain>>() {
                     @Override
                     public void completed(Map<String, FailureDomain> failureDomains) {
-                        future.complete(failureDomains);
+                        Map<String, FailureDomainInterface> result = new HashMap<>(failureDomains);
+                        future.complete(result);
                     }
 
                     @Override
@@ -515,7 +523,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     @Override
-    public FailureDomain getFailureDomain(String cluster, String domainName) throws PulsarAdminException {
+    public FailureDomainInterface getFailureDomain(String cluster, String domainName) throws PulsarAdminException {
         try {
             return getFailureDomainAsync(cluster, domainName).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
@@ -529,9 +537,9 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     @Override
-    public CompletableFuture<FailureDomain> getFailureDomainAsync(String cluster, String domainName) {
+    public CompletableFuture<FailureDomainInterface> getFailureDomainAsync(String cluster, String domainName) {
         WebTarget path = adminClusters.path(cluster).path("failureDomains").path(domainName);
-        final CompletableFuture<FailureDomain> future = new CompletableFuture<>();
+        final CompletableFuture<FailureDomainInterface> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<FailureDomain>() {
                     @Override
@@ -548,7 +556,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     private void setDomain(String cluster, String domainName,
-            FailureDomain domain) throws PulsarAdminException {
+                           FailureDomainInterface domain) throws PulsarAdminException {
         try {
             setDomainAsync(cluster, domainName, domain).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
@@ -562,8 +570,8 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     private CompletableFuture<Void> setDomainAsync(String cluster, String domainName,
-                           FailureDomain domain) {
+                                                   FailureDomainInterface domain) {
         WebTarget path = adminClusters.path(cluster).path("failureDomains").path(domainName);
-        return asyncPostRequest(path, Entity.entity(domain, MediaType.APPLICATION_JSON));
+        return asyncPostRequest(path, Entity.entity((FailureDomain) domain, MediaType.APPLICATION_JSON));
     }
 }

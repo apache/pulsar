@@ -18,9 +18,9 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import com.google.common.collect.Sets;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
-import java.util.HashSet;
 import java.util.Set;
 import lombok.Data;
 
@@ -29,13 +29,13 @@ import lombok.Data;
  */
 @Data
 @ApiModel(value = "TenantInfo", description = "Information of adminRoles and allowedClusters for tenant")
-public class TenantInfo {
+public class TenantInfo implements TenantInfoInterface {
     /**
      * List of role enabled as admin for this tenant.
      */
     @ApiModelProperty(
-        value = "Comma separated list of auth principal allowed to administrate the tenant.",
-        name = "adminRoles"
+            value = "Comma separated list of auth principal allowed to administrate the tenant.",
+            name = "adminRoles"
     )
     private Set<String> adminRoles;
 
@@ -43,14 +43,14 @@ public class TenantInfo {
      * List of clusters this tenant is restricted on.
      */
     @ApiModelProperty(
-        value = "Comma separated allowed clusters.",
-        name = "allowedClusters"
+            value = "Comma separated allowed clusters.",
+            name = "allowedClusters"
     )
     private Set<String> allowedClusters;
 
     public TenantInfo() {
-        adminRoles = new HashSet<>();
-        allowedClusters = new HashSet<>();
+        adminRoles = Sets.newHashSet();
+        allowedClusters = Sets.newHashSet();
     }
 
     public TenantInfo(Set<String> adminRoles, Set<String> allowedClusters) {
@@ -58,18 +58,22 @@ public class TenantInfo {
         this.allowedClusters = allowedClusters;
     }
 
+    @Override
     public Set<String> getAdminRoles() {
         return adminRoles;
     }
 
+    @Override
     public void setAdminRoles(Set<String> adminRoles) {
         this.adminRoles = adminRoles;
     }
 
+    @Override
     public Set<String> getAllowedClusters() {
         return allowedClusters;
     }
 
+    @Override
     public void setAllowedClusters(Set<String> allowedClusters) {
         this.allowedClusters = allowedClusters;
     }

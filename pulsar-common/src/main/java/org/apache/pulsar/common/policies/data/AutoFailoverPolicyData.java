@@ -18,63 +18,64 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import com.google.common.base.Objects;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import java.util.Map;
-import java.util.Objects;
+import lombok.Data;
 import org.apache.pulsar.common.policies.impl.AutoFailoverPolicyFactory;
 
 /**
  * The auto failover policy configuration data.
  */
 @ApiModel(
-    value = "AutoFailoverPolicyData",
-    description = "The auto failover policy configuration data"
+        value = "AutoFailoverPolicyData",
+        description = "The auto failover policy configuration data"
 )
-public class AutoFailoverPolicyData {
+@Data
+public class AutoFailoverPolicyData implements AutoFailoverPolicyDataInterface {
     @ApiModelProperty(
-        name = "policy_type",
-        value = "The auto failover policy type",
-        allowableValues = "min_available"
+            name = "policy_type",
+            value = "The auto failover policy type",
+            allowableValues = "min_available"
     )
     @SuppressWarnings("checkstyle:MemberName")
     public AutoFailoverPolicyType policy_type;
     @ApiModelProperty(
-        name = "parameters",
-        value =
-              "The parameters applied to the auto failover policy specified by `policy_type`.\n"
-            + "The parameters for 'min_available' are :\n"
-            + "  - 'min_limit': the limit of minimal number of available brokers in primary"
-                 + " group before auto failover\n"
-            + "  - 'usage_threshold': the resource usage threshold. If the usage of a broker"
-                 + " is beyond this value, it would be marked as unavailable\n",
-        example =
-              "{\n"
-            + "  \"min_limit\": 3,\n"
-            + "  \"usage_threshold\": 80\n"
-            + "}\n"
+            name = "parameters",
+            value =
+                    "The parameters applied to the auto failover policy specified by `policy_type`.\n"
+                            + "The parameters for 'min_available' are :\n"
+                            + "  - 'min_limit': the limit of minimal number of available brokers in primary"
+                            + " group before auto failover\n"
+                            + "  - 'usage_threshold': the resource usage threshold. If the usage of a broker"
+                            + " is beyond this value, it would be marked as unavailable\n",
+            example =
+                    "{\n"
+                            + "  \"min_limit\": 3,\n"
+                            + "  \"usage_threshold\": 80\n"
+                            + "}\n"
     )
     public Map<String, String> parameters;
 
     @Override
     public int hashCode() {
-        return Objects.hash(policy_type, parameters);
+        return Objects.hashCode(policy_type, parameters);
     }
 
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof AutoFailoverPolicyData) {
             AutoFailoverPolicyData other = (AutoFailoverPolicyData) obj;
-            return Objects.equals(policy_type, other.policy_type) && Objects.equals(parameters, other.parameters);
+            return Objects.equal(policy_type, other.policy_type) && Objects.equal(parameters, other.parameters);
         }
 
         return false;
     }
 
     public void validate() {
-        if (!(policy_type != null && parameters != null)){
-            throw new IllegalArgumentException();
-        }
+        checkArgument(policy_type != null && parameters != null);
         AutoFailoverPolicyFactory.create(this);
     }
 

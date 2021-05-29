@@ -18,14 +18,22 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-/**
- * Transaction log stats.
- */
-public class TransactionLogStats {
+import java.util.List;
 
-    /** The managed ledger name. */
-    public String managedLedgerName;
+public interface BrokerNamespaceIsolationDataInterface {
+    String getBrokerName();
 
-    /** The manage ledger internal stats. */
-    public ManagedLedgerInternalStats managedLedgerInternalStats;
+    String getPolicyName();
+
+    boolean isPrimary();
+
+    List<String> getNamespaceRegex();
+
+    void setBrokerName(String brokerName);
+
+    void setPolicyName(String policyName);
+
+    void setPrimary(boolean isPrimary);
+
+    void setNamespaceRegex(List<String> namespaceRegex);
 }

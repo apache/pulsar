@@ -19,7 +19,7 @@
 package org.apache.pulsar.common.policies.impl;
 
 import org.apache.pulsar.common.policies.AutoFailoverPolicy;
-import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
+import org.apache.pulsar.common.policies.data.AutoFailoverPolicyDataInterface;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 
 /**
@@ -27,11 +27,11 @@ import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
  */
 public class AutoFailoverPolicyFactory {
 
-    public static AutoFailoverPolicy create(AutoFailoverPolicyData policyData) {
+    public static AutoFailoverPolicy create(AutoFailoverPolicyDataInterface policyData) {
         // TODO: Add more policy types when needed
-        if (!AutoFailoverPolicyType.min_available.equals(policyData.policy_type)) {
+        if (!AutoFailoverPolicyType.min_available.equals(policyData.getPolicy_type())) {
             // right now, only support one type of policy: MinAvailablePolicy
-            throw new IllegalArgumentException("Unrecognized auto_failover_policy: " + policyData.policy_type);
+            throw new IllegalArgumentException("Unrecognized auto_failover_policy: " + policyData.getPolicy_type());
         }
 
         return new MinAvailablePolicy(policyData);

@@ -21,7 +21,7 @@ package org.apache.pulsar.common.policies.impl;
 import java.util.Objects;
 import java.util.SortedSet;
 import org.apache.pulsar.common.policies.AutoFailoverPolicy;
-import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
+import org.apache.pulsar.common.policies.data.AutoFailoverPolicyDataInterface;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.BrokerStatus;
 
@@ -43,18 +43,18 @@ public class MinAvailablePolicy extends AutoFailoverPolicy {
         this.usage_threshold = usageThreshold;
     }
 
-    public MinAvailablePolicy(AutoFailoverPolicyData policyData) {
-        if (!policyData.policy_type.equals(AutoFailoverPolicyType.min_available)) {
+    public MinAvailablePolicy(AutoFailoverPolicyDataInterface policyData) {
+        if (!policyData.getPolicy_type().equals(AutoFailoverPolicyType.min_available)) {
             throw new IllegalArgumentException();
         }
-        if (!policyData.parameters.containsKey(MIN_LIMIT_KEY)) {
+        if (!policyData.getParameters().containsKey(MIN_LIMIT_KEY)) {
             throw new IllegalArgumentException();
         }
-        if (!policyData.parameters.containsKey(USAGE_THRESHOLD_KEY)) {
+        if (!policyData.getParameters().containsKey(USAGE_THRESHOLD_KEY)) {
             throw new IllegalArgumentException();
         }
-        this.min_limit = Integer.parseInt(policyData.parameters.get(MIN_LIMIT_KEY));
-        this.usage_threshold = Integer.parseInt(policyData.parameters.get(USAGE_THRESHOLD_KEY));
+        this.min_limit = Integer.parseInt(policyData.getParameters().get(MIN_LIMIT_KEY));
+        this.usage_threshold = Integer.parseInt(policyData.getParameters().get(USAGE_THRESHOLD_KEY));
     }
 
     @Override

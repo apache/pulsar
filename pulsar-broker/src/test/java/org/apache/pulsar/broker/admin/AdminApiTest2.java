@@ -82,9 +82,11 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
+import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataInterface;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.FailureDomain;
+import org.apache.pulsar.common.policies.data.FailureDomainInterface;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -765,7 +767,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
         assertEquals(admin.clusters().getFailureDomain(cluster, "domain-1"), domain);
 
-        Map<String, FailureDomain> domains = admin.clusters().getFailureDomains(cluster);
+        Map<String, FailureDomainInterface> domains = admin.clusters().getFailureDomains(cluster);
         assertEquals(domains.size(), 1);
         assertTrue(domains.containsKey("domain-1"));
 
@@ -982,20 +984,21 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         nsPolicyData1.auto_failover_policy.parameters.put("usage_threshold", "100");
         admin.clusters().createNamespaceIsolationPolicy(cluster, policyName1, nsPolicyData1);
 
-        List<BrokerNamespaceIsolationData> brokerIsolationDataList = admin.clusters()
+        List<BrokerNamespaceIsolationDataInterface> brokerIsolationDataList = admin.clusters()
                 .getBrokersWithNamespaceIsolationPolicy(cluster);
         assertEquals(brokerIsolationDataList.size(), 1);
-        assertEquals(brokerIsolationDataList.get(0).brokerName, brokerAddress);
-        assertEquals(brokerIsolationDataList.get(0).namespaceRegex.size(), 1);
-        assertEquals(brokerIsolationDataList.get(0).namespaceRegex.get(0), namespaceRegex);
+        assertEquals(brokerIsolationDataList.get(0).getBrokerName(), brokerAddress);
+        assertEquals(brokerIsolationDataList.get(0).getNamespaceRegex().size(), 1);
+        assertEquals(brokerIsolationDataList.get(0).getNamespaceRegex().get(0), namespaceRegex);
 
-        BrokerNamespaceIsolationData brokerIsolationData = admin.clusters()
+        BrokerNamespaceIsolationData brokerIsolationData = (BrokerNamespaceIsolationData) admin.clusters()
                 .getBrokerWithNamespaceIsolationPolicy(cluster, brokerAddress);
         assertEquals(brokerIsolationData.brokerName, brokerAddress);
         assertEquals(brokerIsolationData.namespaceRegex.size(), 1);
         assertEquals(brokerIsolationData.namespaceRegex.get(0), namespaceRegex);
 
-        BrokerNamespaceIsolationData isolationData = admin.clusters().getBrokerWithNamespaceIsolationPolicy(cluster, "invalid-broker");
+        BrokerNamespaceIsolationData isolationData = (BrokerNamespaceIsolationData) admin.clusters()
+                .getBrokerWithNamespaceIsolationPolicy(cluster, "invalid-broker");
         assertFalse(isolationData.isPrimary);
     }
 

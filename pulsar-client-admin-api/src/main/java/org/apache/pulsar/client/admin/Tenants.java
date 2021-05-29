@@ -24,7 +24,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoInterface;
 
 /**
  * Admin interface for tenants management.
@@ -76,7 +76,7 @@ public interface Tenants {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    TenantInfo getTenantInfo(String tenant) throws PulsarAdminException;
+    TenantInfoInterface getTenantInfo(String tenant) throws PulsarAdminException;
 
     /**
      * Get the config of the tenant asynchronously.
@@ -87,7 +87,7 @@ public interface Tenants {
      *            Tenant name
      * @return the tenant configuration
      */
-    CompletableFuture<TenantInfo> getTenantInfoAsync(String tenant);
+    CompletableFuture<TenantInfoInterface> getTenantInfoAsync(String tenant);
 
     /**
      * Create a new tenant.
@@ -108,7 +108,7 @@ public interface Tenants {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void createTenant(String tenant, TenantInfo config) throws PulsarAdminException;
+    void createTenant(String tenant, TenantInfoInterface config) throws PulsarAdminException;
 
     /**
      * Create a new tenant asynchronously.
@@ -120,7 +120,7 @@ public interface Tenants {
      * @param config
      *            Config data
      */
-    CompletableFuture<Void> createTenantAsync(String tenant, TenantInfo config);
+    CompletableFuture<Void> createTenantAsync(String tenant, TenantInfoInterface config);
 
     /**
      * Update the admins for a tenant.
@@ -139,7 +139,7 @@ public interface Tenants {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void updateTenant(String tenant, TenantInfo config) throws PulsarAdminException;
+    void updateTenant(String tenant, TenantInfoInterface config) throws PulsarAdminException;
 
     /**
      * Update the admins for a tenant asynchronously.
@@ -151,7 +151,7 @@ public interface Tenants {
      * @param config
      *            Config data
      */
-    CompletableFuture<Void> updateTenantAsync(String tenant, TenantInfo config);
+    CompletableFuture<Void> updateTenantAsync(String tenant, TenantInfoInterface config);
 
     /**
      * Delete an existing tenant.

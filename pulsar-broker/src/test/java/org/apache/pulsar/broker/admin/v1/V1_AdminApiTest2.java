@@ -62,6 +62,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.FailureDomain;
+import org.apache.pulsar.common.policies.data.FailureDomainInterface;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -657,7 +658,7 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
         assertEquals(admin.clusters().getFailureDomain(cluster, "domain-1"), domain);
 
-        Map<String, FailureDomain> domains = admin.clusters().getFailureDomains(cluster);
+        Map<String, FailureDomainInterface> domains = admin.clusters().getFailureDomains(cluster);
         assertEquals(domains.size(), 1);
         assertTrue(domains.containsKey("domain-1"));
 

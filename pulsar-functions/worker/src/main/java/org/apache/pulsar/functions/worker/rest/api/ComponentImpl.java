@@ -1448,7 +1448,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
 
             if (clientRole != null) {
                 try {
-                    TenantInfo tenantInfo = worker().getBrokerAdmin().tenants().getTenantInfo(tenant);
+                    TenantInfo tenantInfo = (TenantInfo) worker().getBrokerAdmin().tenants().getTenantInfo(tenant);
                     if (tenantInfo != null && worker().getAuthorizationService().isTenantAdmin(tenant, clientRole, tenantInfo, authenticationData).get()) {
                         return true;
                     }

@@ -32,6 +32,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoInterface;
 
 @SuppressWarnings("deprecation")
 public class TenantsImpl extends BaseResource implements Tenants, Properties {
@@ -75,7 +76,7 @@ public class TenantsImpl extends BaseResource implements Tenants, Properties {
     }
 
     @Override
-    public TenantInfo getTenantInfo(String tenant) throws PulsarAdminException {
+    public TenantInfoInterface getTenantInfo(String tenant) throws PulsarAdminException {
         try {
             return getTenantInfoAsync(tenant).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
@@ -89,9 +90,9 @@ public class TenantsImpl extends BaseResource implements Tenants, Properties {
     }
 
     @Override
-    public CompletableFuture<TenantInfo> getTenantInfoAsync(String tenant) {
+    public CompletableFuture<TenantInfoInterface> getTenantInfoAsync(String tenant) {
         WebTarget path = adminTenants.path(tenant);
-        final CompletableFuture<TenantInfo> future = new CompletableFuture<>();
+        final CompletableFuture<TenantInfoInterface> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<TenantInfo>() {
                     @Override
@@ -108,7 +109,7 @@ public class TenantsImpl extends BaseResource implements Tenants, Properties {
     }
 
     @Override
-    public void createTenant(String tenant, TenantInfo config) throws PulsarAdminException {
+    public void createTenant(String tenant, TenantInfoInterface config) throws PulsarAdminException {
         try {
             createTenantAsync(tenant, config)
                     .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
@@ -123,13 +124,13 @@ public class TenantsImpl extends BaseResource implements Tenants, Properties {
     }
 
     @Override
-    public CompletableFuture<Void> createTenantAsync(String tenant, TenantInfo config) {
+    public CompletableFuture<Void> createTenantAsync(String tenant, TenantInfoInterface config) {
         WebTarget path = adminTenants.path(tenant);
-        return asyncPutRequest(path, Entity.entity(config, MediaType.APPLICATION_JSON));
+        return asyncPutRequest(path, Entity.entity((TenantInfo) config, MediaType.APPLICATION_JSON));
     }
 
     @Override
-    public void updateTenant(String tenant, TenantInfo config) throws PulsarAdminException {
+    public void updateTenant(String tenant, TenantInfoInterface config) throws PulsarAdminException {
         try {
             updateTenantAsync(tenant, config).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
@@ -143,9 +144,9 @@ public class TenantsImpl extends BaseResource implements Tenants, Properties {
     }
 
     @Override
-    public CompletableFuture<Void> updateTenantAsync(String tenant, TenantInfo config) {
+    public CompletableFuture<Void> updateTenantAsync(String tenant, TenantInfoInterface config) {
         WebTarget path = adminTenants.path(tenant);
-        return asyncPostRequest(path, Entity.entity(config, MediaType.APPLICATION_JSON));
+        return asyncPostRequest(path, Entity.entity((TenantInfo) config, MediaType.APPLICATION_JSON));
     }
 
     @Override
@@ -191,12 +192,12 @@ public class TenantsImpl extends BaseResource implements Tenants, Properties {
     // Compat method names
 
     @Override
-    public void createProperty(String tenant, TenantInfo config) throws PulsarAdminException {
+    public void createProperty(String tenant, TenantInfoInterface config) throws PulsarAdminException {
         createTenant(tenant, config);
     }
 
     @Override
-    public void updateProperty(String tenant, TenantInfo config) throws PulsarAdminException {
+    public void updateProperty(String tenant, TenantInfoInterface config) throws PulsarAdminException {
         updateTenant(tenant, config);
     }
 
@@ -211,7 +212,7 @@ public class TenantsImpl extends BaseResource implements Tenants, Properties {
     }
 
     @Override
-    public TenantInfo getPropertyAdmin(String tenant) throws PulsarAdminException {
+    public TenantInfoInterface getPropertyAdmin(String tenant) throws PulsarAdminException {
         return getTenantInfo(tenant);
     }
 

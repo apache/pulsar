@@ -113,4 +113,9 @@ public class NamespaceIsolationData implements NamespaceIsolationDataInterface {
         return String.format("namespaces=%s primary=%s secondary=%s auto_failover_policy=%s", namespaces, primary,
                 secondary, auto_failover_policy);
     }
+
+    @Override
+    public void setAuto_failover_policy(AutoFailoverPolicyDataInterface autoFailoverPolicyData) {
+        this.auto_failover_policy = (AutoFailoverPolicyData) autoFailoverPolicyData;
+    }
 }

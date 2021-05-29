@@ -28,7 +28,7 @@ public interface NamespaceIsolationDataInterface {
 
     List<String> getSecondary();
 
-    AutoFailoverPolicyData getAuto_failover_policy();
+    AutoFailoverPolicyDataInterface getAuto_failover_policy();
 
     void setNamespaces(List<String> namespaces);
 
@@ -36,6 +36,6 @@ public interface NamespaceIsolationDataInterface {
 
     void setSecondary(List<String> secondary);
 
-    void setAuto_failover_policy(AutoFailoverPolicyData autoFailoverPolicyData);
+    void setAuto_failover_policy(AutoFailoverPolicyDataInterface autoFailoverPolicyData);
 
 }

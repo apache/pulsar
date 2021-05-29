@@ -29,6 +29,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
+import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataInterface;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 
 import com.beust.jcommander.Parameter;
@@ -94,10 +95,11 @@ public class CmdNamespaceIsolationPolicy extends CmdBase {
         void run() throws PulsarAdminException {
             String clusterName = getOneArgument(params);
 
-            List<BrokerNamespaceIsolationData> brokers = getAdmin().clusters()
+            List<BrokerNamespaceIsolationDataInterface> brokers = getAdmin().clusters()
                     .getBrokersWithNamespaceIsolationPolicy(clusterName);
-
-            print(brokers);
+            List<BrokerNamespaceIsolationData> data = new ArrayList<>();
+            brokers.forEach(v -> data.add((BrokerNamespaceIsolationData) v));
+            print(data);
         }
     }
 
@@ -112,7 +114,7 @@ public class CmdNamespaceIsolationPolicy extends CmdBase {
         void run() throws PulsarAdminException {
             String clusterName = getOneArgument(params);
 
-            BrokerNamespaceIsolationData brokerData = getAdmin().clusters()
+            BrokerNamespaceIsolationData brokerData = (BrokerNamespaceIsolationData) getAdmin().clusters()
                     .getBrokerWithNamespaceIsolationPolicy(clusterName, broker);
 
             print(brokerData);
