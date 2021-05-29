@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TreeMap;
 
 /**
@@ -124,9 +125,7 @@ public class TopicStats {
     // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current
     // stats.
     public TopicStats add(TopicStats stats) {
-        if (stats == null) {
-            throw new NullPointerException();
-        }
+        Objects.requireNonNull(stats);
         this.count++;
         this.msgRateIn += stats.msgRateIn;
         this.msgThroughputIn += stats.msgThroughputIn;

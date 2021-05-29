@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import java.util.Objects;
+
 /**
  * Non-persistent publisher statistics.
  */
@@ -29,9 +31,7 @@ public class NonPersistentPublisherStats extends PublisherStats {
     public double msgDropRate;
 
     public NonPersistentPublisherStats add(NonPersistentPublisherStats stats) {
-        if (stats == null) {
-            throw new NullPointerException();
-        }
+        Objects.requireNonNull(stats);
         super.add(stats);
         this.msgDropRate += stats.msgDropRate;
         return this;

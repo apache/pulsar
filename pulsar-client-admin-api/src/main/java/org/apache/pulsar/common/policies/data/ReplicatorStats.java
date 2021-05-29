@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import java.util.Objects;
+
 /**
  * Statistics about a replicator.
  */
@@ -60,9 +62,7 @@ public class ReplicatorStats {
     public String outboundConnectedSince;
 
     public ReplicatorStats add(ReplicatorStats stats) {
-        if (stats == null) {
-            throw new NullPointerException();
-        }
+        Objects.requireNonNull(stats);
         this.msgRateIn += stats.msgRateIn;
         this.msgThroughputIn += stats.msgThroughputIn;
         this.msgRateOut += stats.msgRateOut;

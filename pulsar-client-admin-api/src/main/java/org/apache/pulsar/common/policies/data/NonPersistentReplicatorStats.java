@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import java.util.Objects;
+
 /**
  * Statistics for a non-persistent replicator.
  */
@@ -29,9 +31,7 @@ public class NonPersistentReplicatorStats extends ReplicatorStats {
     public double msgDropRate;
 
     public NonPersistentReplicatorStats add(NonPersistentReplicatorStats stats) {
-        if (stats == null) {
-            throw new NullPointerException();
-        }
+        Objects.requireNonNull(stats);
         super.add(stats);
         this.msgDropRate += stats.msgDropRate;
         return this;

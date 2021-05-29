@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Statistics about subscription.
@@ -143,9 +144,7 @@ public class SubscriptionStats {
     // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current
     // stats
     public SubscriptionStats add(SubscriptionStats stats) {
-        if (stats == null) {
-            throw new NullPointerException();
-        }
+        Objects.requireNonNull(stats);
         this.msgRateOut += stats.msgRateOut;
         this.msgThroughputOut += stats.msgThroughputOut;
         this.bytesOutCounter += stats.bytesOutCounter;

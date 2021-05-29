@@ -20,6 +20,7 @@ package org.apache.pulsar.common.policies.data;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Consumer statistics.
@@ -96,9 +97,7 @@ public class ConsumerStats {
     private StringBuilder stringBuffer = new StringBuilder();
 
     public ConsumerStats add(ConsumerStats stats) {
-        if (stats == null) {
-            throw new NullPointerException();
-        }
+        Objects.requireNonNull(stats);
         this.msgRateOut += stats.msgRateOut;
         this.msgThroughputOut += stats.msgThroughputOut;
         this.bytesOutCounter += stats.bytesOutCounter;
