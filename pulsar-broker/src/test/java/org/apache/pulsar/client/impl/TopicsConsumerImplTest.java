@@ -148,7 +148,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         assertTrue(consumer instanceof MultiTopicsConsumerImpl);
         assertTrue(consumer.getTopic().startsWith(MultiTopicsConsumerImpl.DUMMY_TOPIC_NAME_PREFIX));
 
-        List<String> topics = ((MultiTopicsConsumerImpl<byte[]>) consumer).getPartitionedTopics();
+        List<String> topics = ((MultiTopicsConsumerImpl<byte[]>) consumer).getPartitions();
         List<ConsumerImpl<byte[]>> consumers = ((MultiTopicsConsumerImpl) consumer).getConsumers();
 
         topics.forEach(topic -> log.info("topic: {}", topic));
@@ -157,7 +157,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         IntStream.range(0, 6).forEach(index ->
             assertEquals(consumers.get(index).getTopic(), topics.get(index)));
 
-        assertEquals(((MultiTopicsConsumerImpl<byte[]>) consumer).getTopics().size(), 3);
+        assertEquals(((MultiTopicsConsumerImpl<byte[]>) consumer).getPartitionedTopics().size(), 2);
 
         consumer.unsubscribe();
         consumer.close();
@@ -563,12 +563,12 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         assertEquals(messageSet, totalMessages * 2 / 3);
 
         // 7. use getter to verify internal topics number after un-subscribe topic3
-        List<String> topics = ((MultiTopicsConsumerImpl<byte[]>) consumer).getPartitionedTopics();
+        List<String> topics = ((MultiTopicsConsumerImpl<byte[]>) consumer).getPartitions();
         List<ConsumerImpl<byte[]>> consumers = ((MultiTopicsConsumerImpl) consumer).getConsumers();
 
         assertEquals(topics.size(), 3);
         assertEquals(consumers.size(), 3);
-        assertEquals(((MultiTopicsConsumerImpl<byte[]>) consumer).getTopics().size(), 2);
+        assertEquals(((MultiTopicsConsumerImpl<byte[]>) consumer).getPartitionedTopics().size(), 1);
 
         // 8. re-subscribe topic3
         CompletableFuture<Void> subFuture = ((MultiTopicsConsumerImpl<byte[]>)consumer).subscribeAsync(topicName3, true);
@@ -594,12 +594,12 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         assertEquals(messageSet, totalMessages);
 
         // 11. use getter to verify internal topics number after subscribe topic3
-        topics = ((MultiTopicsConsumerImpl<byte[]>) consumer).getPartitionedTopics();
+        topics = ((MultiTopicsConsumerImpl<byte[]>) consumer).getPartitions();
         consumers = ((MultiTopicsConsumerImpl) consumer).getConsumers();
 
         assertEquals(topics.size(), 6);
         assertEquals(consumers.size(), 6);
-        assertEquals(((MultiTopicsConsumerImpl<byte[]>) consumer).getTopics().size(), 3);
+        assertEquals(((MultiTopicsConsumerImpl<byte[]>) consumer).getPartitionedTopics().size(), 2);
 
         consumer.unsubscribe();
         consumer.close();
@@ -1181,20 +1181,20 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
                 .subscribe();
 
         Assert.assertEquals(consumer.getPartitionsOfTheTopicMap(), 3);
-        Assert.assertEquals(consumer.allTopicPartitionsNumber.intValue(), 3);
+        Assert.assertEquals(consumer.getConsumers().size(), 3);
 
         admin.topics().deletePartitionedTopic(topicName, true);
         consumer.getPartitionsAutoUpdateTimeout().task().run(consumer.getPartitionsAutoUpdateTimeout());
         Awaitility.await().untilAsserted(() -> {
             Assert.assertEquals(consumer.getPartitionsOfTheTopicMap(), 0);
-            Assert.assertEquals(consumer.allTopicPartitionsNumber.intValue(), 0);
+            Assert.assertEquals(consumer.getConsumers().size(), 0);
         });
 
         admin.topics().createPartitionedTopic(topicName, 7);
         consumer.getPartitionsAutoUpdateTimeout().task().run(consumer.getPartitionsAutoUpdateTimeout());
         Awaitility.await().untilAsserted(() -> {
             Assert.assertEquals(consumer.getPartitionsOfTheTopicMap(), 7);
-            Assert.assertEquals(consumer.allTopicPartitionsNumber.intValue(), 7);
+            Assert.assertEquals(consumer.getConsumers().size(), 7);
         });
     }
 

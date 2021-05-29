@@ -92,7 +92,14 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
             }
 
             List<String> newTopics = PulsarClientImpl.topicsPatternFilter(topics, topicsPattern);
-            List<String> oldTopics = PatternMultiTopicsConsumerImpl.this.getTopics();
+            List<String> oldTopics = Lists.newArrayList();
+            oldTopics.addAll(getPartitionedTopics());
+            getPartitions().forEach(p -> {
+                TopicName t = TopicName.get(p);
+                if (!t.isPartitioned() || !oldTopics.contains(t.getPartitionedTopicName())) {
+                    oldTopics.add(p);
+                }
+            });
 
             futures.add(topicsChangeListener.onTopicsAdded(topicsListsMinus(newTopics, oldTopics)));
             futures.add(topicsChangeListener.onTopicsRemoved(topicsListsMinus(oldTopics, newTopics)));
@@ -131,7 +138,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
                 return removeFuture;
             }
 
-            List<CompletableFuture<Void>> futures = Lists.newArrayListWithExpectedSize(topics.size());
+            List<CompletableFuture<Void>> futures = Lists.newArrayListWithExpectedSize(partitionedTopics.size());
             removedTopics.stream().forEach(topic -> futures.add(removeConsumerAsync(topic)));
             FutureUtil.waitForAll(futures)
                 .thenAccept(finalFuture -> removeFuture.complete(null))
@@ -152,7 +159,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
                 return addFuture;
             }
 
-            List<CompletableFuture<Void>> futures = Lists.newArrayListWithExpectedSize(topics.size());
+            List<CompletableFuture<Void>> futures = Lists.newArrayListWithExpectedSize(partitionedTopics.size());
             addedTopics.stream().forEach(topic -> futures.add(subscribeAsync(topic, false /* createTopicIfDoesNotExist */)));
             FutureUtil.waitForAll(futures)
                 .thenAccept(finalFuture -> addFuture.complete(null))
