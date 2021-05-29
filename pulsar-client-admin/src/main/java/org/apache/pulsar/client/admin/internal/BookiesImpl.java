@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
-import java.util.Map;
-import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;

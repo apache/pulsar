@@ -34,7 +34,6 @@ import java.util.stream.Collectors;
 import lombok.Data;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
@@ -237,7 +236,7 @@ public class OffloadPolicies implements Serializable {
     }
 
     public static String getSupportedDriverNames() {
-        return StringUtils.join(DRIVER_NAMES, ",");
+        return String.join(",", DRIVER_NAMES);
     }
 
     public boolean isS3Driver() {
@@ -266,13 +265,13 @@ public class OffloadPolicies implements Serializable {
         if (managedLedgerOffloadDriver == null) {
             return false;
         }
-        if (StringUtils.isNotEmpty(managedLedgerOffloadBucket)) {
+        if (managedLedgerOffloadBucket != null && !managedLedgerOffloadBucket.isEmpty()) {
             return true;
         }
         if (isS3Driver()) {
-            return StringUtils.isNotEmpty(s3ManagedLedgerOffloadBucket);
+            return s3ManagedLedgerOffloadBucket != null && !s3ManagedLedgerOffloadBucket.isEmpty();
         } else if (isGcsDriver()) {
-            return StringUtils.isNotEmpty(gcsManagedLedgerOffloadBucket);
+            return gcsManagedLedgerOffloadBucket != null && !gcsManagedLedgerOffloadBucket.isEmpty();
         } else if (isFileSystemDriver()) {
             return true;
         }

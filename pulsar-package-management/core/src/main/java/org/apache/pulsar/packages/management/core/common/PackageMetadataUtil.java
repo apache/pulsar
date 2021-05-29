@@ -16,31 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.packages.management.core.common;
 
-import java.io.Serializable;
-import java.util.Map;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import org.apache.commons.lang3.SerializationUtils;
+import org.apache.pulsar.packages.management.core.exceptions.PackagesManagementException;
 
-/**
- * Package metadata.
- */
-@Data
-@Builder(toBuilder = true)
-@AllArgsConstructor
-@NoArgsConstructor
-@Setter
-@Getter
-public class PackageMetadata implements Serializable {
-    String description;
-    String contact;
-    long createTime;
-    long modificationTime;
-    Map<String, String> properties;
+public class PackageMetadataUtil {
+    public static PackageMetadata fromBytes(byte[] bytes) throws PackagesManagementException.MetadataFormatException {
+        try {
+            Object o = SerializationUtils.deserialize(bytes);
+            if (!(o instanceof PackageMetadata)) {
+                throw new PackagesManagementException.MetadataFormatException("Unexpected metadata format");
+            }
+            return (PackageMetadata) o;
+        } catch (Exception e) {
+            throw new PackagesManagementException.MetadataFormatException("Unexpected error", e);
+        }
+    }
+
+    public static byte[] toBytes(PackageMetadata packageMetadata) {
+        return SerializationUtils.serialize(packageMetadata);
+    }
 }
