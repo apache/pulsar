@@ -57,6 +57,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
@@ -877,21 +878,15 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         }
         message.getValue();
 
-        Schema<?> readerSchema = message.getReaderSchema().get();
-        if (readerSchema instanceof KeyValueSchema
-                && ((KeyValueSchema<?, ?>) readerSchema)
-                .getKeyValueEncodingType().equals(KeyValueEncodingType.SEPARATED)) {
-            autoProducer.newMessage(
-                    Schema.AUTO_PRODUCE_BYTES(message.getReaderSchema().get())).keyBytes(message.getKeyBytes())
-                    .value(message.getData())
-                    .properties(message.getProperties())
-                    .send();
-        } else {
-            autoProducer.newMessage(Schema.AUTO_PRODUCE_BYTES(message.getReaderSchema().get()))
-                    .properties(message.getProperties())
-                    .value(message.getData())
-                    .send();
+        TypedMessageBuilder messageBuilder = autoProducer
+                .newMessage(Schema.AUTO_PRODUCE_BYTES(message.getReaderSchema().get()))
+                .value(message.getData())
+                .properties(message.getProperties());
+        if (message.getKeyBytes() != null) {
+            messageBuilder.keyBytes(message.getKeyBytes());
         }
+        messageBuilder.send();
+
         producer.close();
         consumer.close();
     }

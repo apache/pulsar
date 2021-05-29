@@ -16,27 +16,32 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.partition;
+package org.apache.pulsar.functions.api.examples.pojo;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
- * Metadata of a partitioned topic.
+ * Pojo for test multi-version schema.
  */
-public class PartitionedTopicMetadata {
+public class Users {
 
-    /* Number of partitions for the topic */
-    public int partitions;
-
-    public PartitionedTopicMetadata() {
-        this.partitions = 0;
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Data
+    public static class UserV1 {
+        private String name;
+        private Integer age;
     }
 
-    public PartitionedTopicMetadata(int partitions) {
-        this.partitions = partitions;
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Data
+    public static class UserV2 {
+        private String name;
+        private Integer age;
+        private String phone;
     }
-
-    /**
-     * A topic with '0' partitions is treated like non-partitioned topic.
-     */
-    public static final int NON_PARTITIONED = 0;
 
 }

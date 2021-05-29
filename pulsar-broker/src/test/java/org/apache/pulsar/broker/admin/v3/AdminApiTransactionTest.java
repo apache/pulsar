@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.admin.v3;
 import com.google.common.collect.Sets;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -41,6 +42,7 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStats;
+import org.apache.pulsar.common.policies.data.TransactionPendingAckInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
@@ -341,6 +343,46 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         assertEquals(TopicName.get(TopicDomain.persistent.toString(), NamespaceName.SYSTEM_NAMESPACE,
                 MLTransactionLogImpl.TRANSACTION_LOG_PREFIX + "0").getPersistenceNamingEncoding(),
                 stats.transactionLogStats.managedLedgerName);
+    }
+
+    @Test(timeOut = 20000)
+    public void testGetPendingAckInternalStats() throws Exception {
+        initTransaction(1);
+        TransactionImpl transaction = (TransactionImpl) getTransaction();
+        final String topic = "persistent://public/default/testGetPendingAckInternalStats";
+        final String subName = "test";
+        admin.topics().createNonPartitionedTopic(topic);
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES).topic(topic).create();
+        Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES).topic(topic)
+                .subscriptionName(subName).subscribe();
+        MessageId messageId = producer.send("Hello pulsar!".getBytes());
+        consumer.acknowledgeAsync(messageId, transaction).get();
+
+        TransactionPendingAckInternalStats stats = admin.transactions()
+                .getPendingAckInternalStatsAsync(topic, subName, true).get();
+        ManagedLedgerInternalStats managedLedgerInternalStats = stats.pendingAckLogStats.managedLedgerInternalStats;
+        assertEquals(TopicName.get(TopicDomain.persistent.toString(), "public", "default",
+                "testGetPendingAckInternalStats" + "-"
+                        + subName + MLPendingAckStore.PENDING_ACK_STORE_SUFFIX).getPersistenceNamingEncoding(),
+                stats.pendingAckLogStats.managedLedgerName);
+
+        verifyManagedLegerInternalStats(managedLedgerInternalStats, 16);
+
+        ManagedLedgerInternalStats finalManagedLedgerInternalStats = managedLedgerInternalStats;
+        managedLedgerInternalStats.cursors.forEach((s, cursorStats) -> {
+            assertEquals(s, MLPendingAckStore.PENDING_ACK_STORE_CURSOR_NAME);
+            assertEquals(cursorStats.readPosition, finalManagedLedgerInternalStats.lastConfirmedEntry);
+        });
+
+        stats = admin.transactions()
+                .getPendingAckInternalStatsAsync(topic, subName, false).get();
+        managedLedgerInternalStats = stats.pendingAckLogStats.managedLedgerInternalStats;
+
+        assertEquals(TopicName.get(TopicDomain.persistent.toString(), "public", "default",
+                "testGetPendingAckInternalStats" + "-"
+                        + subName + MLPendingAckStore.PENDING_ACK_STORE_SUFFIX).getPersistenceNamingEncoding(),
+                stats.pendingAckLogStats.managedLedgerName);
+        assertNull(managedLedgerInternalStats.ledgers.get(0).metadata);
     }
 
     private static void verifyCoordinatorStats(String state,

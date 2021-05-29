@@ -16,27 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.partition;
+package org.apache.pulsar.common.policies.data;
 
 /**
- * Metadata of a partitioned topic.
+ * Transaction pending ack internal stats.
  */
-public class PartitionedTopicMetadata {
+public class TransactionPendingAckInternalStats {
 
-    /* Number of partitions for the topic */
-    public int partitions;
-
-    public PartitionedTopicMetadata() {
-        this.partitions = 0;
-    }
-
-    public PartitionedTopicMetadata(int partitions) {
-        this.partitions = partitions;
-    }
-
-    /**
-     * A topic with '0' partitions is treated like non-partitioned topic.
-     */
-    public static final int NON_PARTITIONED = 0;
-
+    /** The transaction pending ack log stats */
+    public TransactionLogStats pendingAckLogStats;
 }
