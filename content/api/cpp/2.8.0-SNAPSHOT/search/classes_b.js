@@ -1,5 +1,5 @@
 var searchData=
 [
-  ['schemainfo',['SchemaInfo',['../classpulsar_1_1_schema_info.html',1,'pulsar']]],
-  ['simpleloggerfactory',['SimpleLoggerFactory',['../classpulsar_1_1_simple_logger_factory.html',1,'pulsar']]]
+  ['reader',['Reader',['../classpulsar_1_1_reader.html',1,'pulsar']]],
+  ['readerconfiguration',['ReaderConfiguration',['../classpulsar_1_1_reader_configuration.html',1,'pulsar']]]
 ];
