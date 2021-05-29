@@ -102,7 +102,8 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
         podSpec.getContainers().forEach(container -> container.setVolumeMounts(Collections.singletonList(
                 new V1VolumeMount()
                         .name(SECRET_NAME)
-                        .mountPath(DEFAULT_SECRET_MOUNT_DIR))));
+                        .mountPath(DEFAULT_SECRET_MOUNT_DIR)
+                        .readOnly(true))));
 
     }
 
