@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.TreeMap;
 
@@ -53,9 +53,9 @@ public class BookiesRackConfiguration extends TreeMap<String, Map<String, Bookie
     }
 
     public synchronized void updateBookie(String group, String address, BookieInfo bookieInfo) {
-        checkNotNull(group);
-        checkNotNull(address);
-        checkNotNull(bookieInfo);
+        Objects.requireNonNull(group);
+        Objects.requireNonNull(address);
+        Objects.requireNonNull(bookieInfo);
 
         // Remove from any group first
         removeBookie(address);

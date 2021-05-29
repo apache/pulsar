@@ -23,6 +23,7 @@ import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.policies.data.BookiesClusterInfo;
+import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 
 /**
  * Admin interface for bookies rack placement management.
@@ -32,12 +33,12 @@ public interface Bookies {
     /**
      * Gets the rack placement information for all the bookies in the cluster.
      */
-    TreeMap<String, Map<String, BookieInfo>> getBookiesRackInfo() throws PulsarAdminException;
+    BookiesRackConfiguration getBookiesRackInfo() throws PulsarAdminException;
 
     /**
      * Gets the rack placement information for all the bookies in the cluster asynchronously.
      */
-    CompletableFuture<TreeMap<String, Map<String, BookieInfo>>> getBookiesRackInfoAsync();
+    CompletableFuture<BookiesRackConfiguration> getBookiesRackInfoAsync();
 
     /**
      * Gets discovery information for all the bookies in the cluster.

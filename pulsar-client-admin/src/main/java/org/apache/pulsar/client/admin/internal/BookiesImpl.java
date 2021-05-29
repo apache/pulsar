@@ -33,6 +33,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.policies.data.BookiesClusterInfo;
+import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 
 public class BookiesImpl extends BaseResource implements Bookies {
     private final WebTarget adminBookies;
@@ -43,7 +44,7 @@ public class BookiesImpl extends BaseResource implements Bookies {
     }
 
     @Override
-    public TreeMap<String, Map<String, BookieInfo>> getBookiesRackInfo() throws PulsarAdminException {
+    public BookiesRackConfiguration getBookiesRackInfo() throws PulsarAdminException {
         try {
             return getBookiesRackInfoAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
@@ -90,13 +91,13 @@ public class BookiesImpl extends BaseResource implements Bookies {
     }
 
     @Override
-    public CompletableFuture<TreeMap<String, Map<String, BookieInfo>>> getBookiesRackInfoAsync() {
+    public CompletableFuture<BookiesRackConfiguration> getBookiesRackInfoAsync() {
         WebTarget path = adminBookies.path("racks-info");
-        final CompletableFuture<TreeMap<String, Map<String, BookieInfo>>> future = new CompletableFuture<>();
+        final CompletableFuture<BookiesRackConfiguration> future = new CompletableFuture<>();
         asyncGetRequest(path,
-                new InvocationCallback<TreeMap<String, Map<String, BookieInfo>>>() {
+                new InvocationCallback<BookiesRackConfiguration>() {
                     @Override
-                    public void completed(TreeMap<String, Map<String, BookieInfo>> bookiesRackConfiguration) {
+                    public void completed(BookiesRackConfiguration bookiesRackConfiguration) {
                         future.complete(bookiesRackConfiguration);
                     }
 
