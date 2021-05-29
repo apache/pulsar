@@ -47,6 +47,7 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
 import org.apache.pulsar.common.functions.UpdateOptions;
+import org.apache.pulsar.common.functions.UpdateOptionsInterface;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.FunctionStats;
@@ -431,7 +432,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     }
 
     @Override
-    public void updateFunction(FunctionConfig functionConfig, String fileName, UpdateOptions updateOptions)
+    public void updateFunction(FunctionConfig functionConfig, String fileName, UpdateOptionsInterface updateOptions)
             throws PulsarAdminException {
         try {
             updateFunctionAsync(functionConfig, fileName, updateOptions)
@@ -449,7 +450,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
 
     @Override
     public CompletableFuture<Void> updateFunctionAsync(
-            FunctionConfig functionConfig, String fileName, UpdateOptions updateOptions) {
+            FunctionConfig functionConfig, String fileName, UpdateOptionsInterface updateOptions) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         try {
             RequestBuilder builder =
@@ -459,9 +460,10 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                     .addBodyPart(new StringPart("functionConfig", ObjectMapperFactory.getThreadLocal()
                             .writeValueAsString(functionConfig), MediaType.APPLICATION_JSON));
 
-            if (updateOptions != null) {
+            UpdateOptions options = (UpdateOptions) updateOptions;
+            if (options != null) {
                 builder.addBodyPart(new StringPart("updateOptions", ObjectMapperFactory.getThreadLocal()
-                        .writeValueAsString(updateOptions), MediaType.APPLICATION_JSON));
+                        .writeValueAsString(options), MediaType.APPLICATION_JSON));
             }
 
             if (fileName != null && !fileName.startsWith("builtin://")) {
@@ -493,7 +495,8 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     }
 
     @Override
-    public void updateFunctionWithUrl(FunctionConfig functionConfig, String pkgUrl, UpdateOptions updateOptions)
+    public void updateFunctionWithUrl(FunctionConfig functionConfig, String pkgUrl,
+                                      UpdateOptionsInterface updateOptions)
             throws PulsarAdminException {
         try {
             updateFunctionWithUrlAsync(functionConfig, pkgUrl, updateOptions)
@@ -511,7 +514,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
 
     @Override
     public CompletableFuture<Void> updateFunctionWithUrlAsync(
-            FunctionConfig functionConfig, String pkgUrl, UpdateOptions updateOptions) {
+            FunctionConfig functionConfig, String pkgUrl, UpdateOptionsInterface updateOptions) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         try {
             final FormDataMultiPart mp = new FormDataMultiPart();
@@ -520,10 +523,11 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                     "functionConfig",
                     ObjectMapperFactory.getThreadLocal().writeValueAsString(functionConfig),
                     MediaType.APPLICATION_JSON_TYPE));
-            if (updateOptions != null) {
+            UpdateOptions options = (UpdateOptions) updateOptions;
+            if (options != null) {
                 mp.bodyPart(new FormDataBodyPart(
                         "updateOptions",
-                        ObjectMapperFactory.getThreadLocal().writeValueAsString(updateOptions),
+                        ObjectMapperFactory.getThreadLocal().writeValueAsString(options),
                         MediaType.APPLICATION_JSON_TYPE));
             }
             WebTarget path = functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace())

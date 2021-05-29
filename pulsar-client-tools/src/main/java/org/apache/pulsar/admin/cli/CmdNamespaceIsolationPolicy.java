@@ -35,6 +35,7 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.CommaParameterSplitter;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationDataInterface;
 
 @Parameters(commandDescription = "Operations about namespace isolation policy")
 public class CmdNamespaceIsolationPolicy extends CmdBase {
@@ -78,7 +79,8 @@ public class CmdNamespaceIsolationPolicy extends CmdBase {
         void run() throws PulsarAdminException {
             String clusterName = getOneArgument(params);
 
-            Map<String, NamespaceIsolationData> policyMap = getAdmin().clusters().getNamespaceIsolationPolicies(clusterName);
+            Map<String, ? extends NamespaceIsolationDataInterface> policyMap =
+                    getAdmin().clusters().getNamespaceIsolationPolicies(clusterName);
 
             print(policyMap);
         }
@@ -126,7 +128,7 @@ public class CmdNamespaceIsolationPolicy extends CmdBase {
             String clusterName = getOneArgument(params, 0, 2);
             String policyName = getOneArgument(params, 1, 2);
 
-            NamespaceIsolationData nsIsolationData = getAdmin().clusters().getNamespaceIsolationPolicy(clusterName,
+            NamespaceIsolationData nsIsolationData = (NamespaceIsolationData) getAdmin().clusters().getNamespaceIsolationPolicy(clusterName,
                     policyName);
 
             print(nsIsolationData);

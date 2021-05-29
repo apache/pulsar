@@ -18,56 +18,60 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import com.google.common.base.Objects;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
+
+import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
 
 /**
  * The data of namespace isolation configuration.
  */
 @ApiModel(
-    value = "NamespaceIsolationData",
-    description = "The data of namespace isolation configuration"
+        value = "NamespaceIsolationData",
+        description = "The data of namespace isolation configuration"
 )
-public class NamespaceIsolationData {
+@Data
+public class NamespaceIsolationData implements NamespaceIsolationDataInterface {
 
     @ApiModelProperty(
-        name = "namespaces",
-        value = "The list of namespaces to apply this namespace isolation data"
+            name = "namespaces",
+            value = "The list of namespaces to apply this namespace isolation data"
     )
     public List<String> namespaces = new ArrayList<String>();
     @ApiModelProperty(
-        name = "primary",
-        value = "The list of primary brokers for serving the list of namespaces in this isolation policy"
+            name = "primary",
+            value = "The list of primary brokers for serving the list of namespaces in this isolation policy"
     )
     public List<String> primary = new ArrayList<String>();
     @ApiModelProperty(
-        name = "primary",
-        value = "The list of secondary brokers for serving the list of namespaces in this isolation policy"
+            name = "primary",
+            value = "The list of secondary brokers for serving the list of namespaces in this isolation policy"
     )
     public List<String> secondary = new ArrayList<String>();
     @ApiModelProperty(
-        name = "auto_failover_policy",
-        value = "The data of auto-failover policy configuration",
-        example =
-              "{"
-            + "  \"policy_type\": \"min_available\""
-            + "  \"parameters\": {"
-            + "    \"\": \"\""
-            + "  }"
-            + "}"
+            name = "auto_failover_policy",
+            value = "The data of auto-failover policy configuration",
+            example =
+                    "{"
+                            + "  \"policy_type\": \"min_available\""
+                            + "  \"parameters\": {"
+                            + "    \"\": \"\""
+                            + "  }"
+                            + "}"
     )
     @SuppressWarnings("checkstyle:MemberName")
     public AutoFailoverPolicyData auto_failover_policy;
 
     @Override
     public int hashCode() {
-        return Objects.hash(namespaces, primary, secondary,
+        return Objects.hashCode(namespaces, primary, secondary,
                 auto_failover_policy);
     }
 
@@ -75,20 +79,17 @@ public class NamespaceIsolationData {
     public boolean equals(Object obj) {
         if (obj instanceof NamespaceIsolationData) {
             NamespaceIsolationData other = (NamespaceIsolationData) obj;
-            return Objects.equals(namespaces, other.namespaces) && Objects.equals(primary, other.primary)
-                    && Objects.equals(secondary, other.secondary)
-                    && Objects.equals(auto_failover_policy, other.auto_failover_policy);
+            return Objects.equal(namespaces, other.namespaces) && Objects.equal(primary, other.primary)
+                    && Objects.equal(secondary, other.secondary)
+                    && Objects.equal(auto_failover_policy, other.auto_failover_policy);
         }
 
         return false;
     }
 
     public void validate() {
-        if (!(namespaces != null && !namespaces.isEmpty() && primary != null && !primary.isEmpty()
-                && validateRegex(primary) && secondary != null && validateRegex(secondary)
-                && auto_failover_policy != null)) {
-            throw new IllegalArgumentException();
-        }
+        checkArgument(namespaces != null && !namespaces.isEmpty() && primary != null && !primary.isEmpty()
+                && validateRegex(primary) && secondary != null && validateRegex(secondary) && auto_failover_policy != null);
         auto_failover_policy.validate();
     }
 

@@ -28,9 +28,9 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedExceptio
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
-import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataInterface;
 import org.apache.pulsar.common.policies.data.FailureDomain;
-import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationDataInterface;
 
 /**
  * Admin interface for clusters management.
@@ -89,7 +89,7 @@ public interface Clusters {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    ClusterData getCluster(String cluster) throws PulsarAdminException;
+    ClusterDataInterface getCluster(String cluster) throws PulsarAdminException;
 
     /**
      * Get the configuration data for the specified cluster asynchronously.
@@ -106,7 +106,7 @@ public interface Clusters {
      * @return the cluster configuration
      *
      */
-    CompletableFuture<ClusterData> getClusterAsync(String cluster);
+    CompletableFuture<ClusterDataInterface> getClusterAsync(String cluster);
 
     /**
      * Create a new cluster.
@@ -127,7 +127,7 @@ public interface Clusters {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void createCluster(String cluster, ClusterData clusterData) throws PulsarAdminException;
+    void createCluster(String cluster, ClusterDataInterface clusterData) throws PulsarAdminException;
 
     /**
      * Create a new cluster asynchronously.
@@ -142,7 +142,7 @@ public interface Clusters {
      *            the cluster configuration object
      *
      */
-    CompletableFuture<Void> createClusterAsync(String cluster, ClusterData clusterData);
+    CompletableFuture<Void> createClusterAsync(String cluster, ClusterDataInterface clusterData);
 
     /**
      * Update the configuration for a cluster.
@@ -161,7 +161,7 @@ public interface Clusters {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void updateCluster(String cluster, ClusterData clusterData) throws PulsarAdminException;
+    void updateCluster(String cluster, ClusterDataInterface clusterData) throws PulsarAdminException;
 
     /**
      * Update the configuration for a cluster asynchronously.
@@ -174,7 +174,7 @@ public interface Clusters {
      *            the cluster configuration object
      *
      */
-    CompletableFuture<Void> updateClusterAsync(String cluster, ClusterData clusterData);
+    CompletableFuture<Void> updateClusterAsync(String cluster, ClusterDataInterface clusterData);
 
     /**
      * Update peer cluster names.
@@ -289,7 +289,8 @@ public interface Clusters {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    Map<String, NamespaceIsolationData> getNamespaceIsolationPolicies(String cluster) throws PulsarAdminException;
+    Map<String, NamespaceIsolationDataInterface> getNamespaceIsolationPolicies(String cluster)
+            throws PulsarAdminException;
 
     /**
      * Get the namespace isolation policies of a cluster asynchronously.
@@ -310,7 +311,7 @@ public interface Clusters {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    CompletableFuture<Map<String, NamespaceIsolationData>> getNamespaceIsolationPoliciesAsync(String cluster);
+    CompletableFuture<Map<String, NamespaceIsolationDataInterface>> getNamespaceIsolationPoliciesAsync(String cluster);
 
     /**
      * Create a namespace isolation policy for a cluster.
@@ -339,7 +340,7 @@ public interface Clusters {
      *             Unexpected error
      */
     void createNamespaceIsolationPolicy(
-            String cluster, String policyName, NamespaceIsolationData namespaceIsolationData)
+            String cluster, String policyName, NamespaceIsolationDataInterface namespaceIsolationData)
             throws PulsarAdminException;
 
     /**
@@ -358,7 +359,7 @@ public interface Clusters {
      * @return
      */
     CompletableFuture<Void> createNamespaceIsolationPolicyAsync(
-            String cluster, String policyName, NamespaceIsolationData namespaceIsolationData);
+            String cluster, String policyName, NamespaceIsolationDataInterface namespaceIsolationData);
 
     /**
      * Returns list of active brokers with namespace-isolation policies attached to it.
@@ -426,7 +427,7 @@ public interface Clusters {
      *             Unexpected error
      */
     void updateNamespaceIsolationPolicy(
-            String cluster, String policyName, NamespaceIsolationData namespaceIsolationData)
+            String cluster, String policyName, NamespaceIsolationDataInterface namespaceIsolationData)
             throws PulsarAdminException;
 
     /**
@@ -446,7 +447,7 @@ public interface Clusters {
      *
      */
     CompletableFuture<Void> updateNamespaceIsolationPolicyAsync(
-            String cluster, String policyName, NamespaceIsolationData namespaceIsolationData);
+            String cluster, String policyName, NamespaceIsolationDataInterface namespaceIsolationData);
 
     /**
      * Delete a namespace isolation policy for a cluster.
@@ -511,7 +512,8 @@ public interface Clusters {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    NamespaceIsolationData getNamespaceIsolationPolicy(String cluster, String policyName) throws PulsarAdminException;
+    NamespaceIsolationDataInterface getNamespaceIsolationPolicy(String cluster, String policyName)
+            throws PulsarAdminException;
 
     /**
      * Get a single namespace isolation policy for a cluster asynchronously.
@@ -524,7 +526,8 @@ public interface Clusters {
      *          Policy name
      *
      */
-    CompletableFuture<NamespaceIsolationData> getNamespaceIsolationPolicyAsync(String cluster, String policyName);
+    CompletableFuture<NamespaceIsolationDataInterface> getNamespaceIsolationPolicyAsync(String cluster,
+                                                                                        String policyName);
 
     /**
      * Create a domain into cluster.

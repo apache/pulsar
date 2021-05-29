@@ -18,50 +18,50 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+import com.google.common.base.MoreObjects;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import java.util.LinkedHashSet;
 import java.util.Objects;
-import lombok.ToString;
 import org.apache.pulsar.client.api.ProxyProtocol;
 
 /**
  * The configuration data for a cluster.
  */
 @ApiModel(
-    value = "ClusterData",
-    description = "The configuration data for a cluster"
+        value = "ClusterData",
+        description = "The configuration data for a cluster"
 )
-@ToString
-public class ClusterData {
+public class ClusterData implements ClusterDataInterface{
     @ApiModelProperty(
-        name = "serviceUrl",
-        value = "The HTTP rest service URL (for admin operations)",
-        example = "http://pulsar.example.com:8080"
+            name = "serviceUrl",
+            value = "The HTTP rest service URL (for admin operations)",
+            example = "http://pulsar.example.com:8080"
     )
     private String serviceUrl;
     @ApiModelProperty(
-        name = "serviceUrlTls",
-        value = "The HTTPS rest service URL (for admin operations)",
-        example = "https://pulsar.example.com:8443"
+            name = "serviceUrlTls",
+            value = "The HTTPS rest service URL (for admin operations)",
+            example = "https://pulsar.example.com:8443"
     )
     private String serviceUrlTls;
     @ApiModelProperty(
-        name = "brokerServiceUrl",
-        value = "The broker service url (for produce and consume operations)",
-        example = "pulsar://pulsar.example.com:6650"
+            name = "brokerServiceUrl",
+            value = "The broker service url (for produce and consume operations)",
+            example = "pulsar://pulsar.example.com:6650"
     )
     private String brokerServiceUrl;
     @ApiModelProperty(
-        name = "brokerServiceUrlTls",
-        value = "The secured broker service url (for produce and consume operations)",
-        example = "pulsar+ssl://pulsar.example.com:6651"
+            name = "brokerServiceUrlTls",
+            value = "The secured broker service url (for produce and consume operations)",
+            example = "pulsar+ssl://pulsar.example.com:6651"
     )
     private String brokerServiceUrlTls;
     @ApiModelProperty(
-        name = "proxyServiceUrl",
-        value = "Proxy-service url when client would like to connect to broker via proxy.",
-        example = "pulsar+ssl://ats-proxy.example.com:4443 or "
+            name = "proxyServiceUrl",
+            value = "Proxy-service url when client would like to connect to broker via proxy.",
+            example = "pulsar+ssl://ats-proxy.example.com:4443 or "
                     + "pulsar://ats-proxy.example.com:4080"
     )
     private String proxyServiceUrl;
@@ -77,17 +77,17 @@ public class ClusterData {
     )
     private String authenticationParameters;
     @ApiModelProperty(
-        name = "proxyProtocol",
-        value = "protocol to decide type of proxy routing eg: SNI-routing",
-        example = "SNI"
+            name = "proxyProtocol",
+            value = "protocol to decide type of proxy routing eg: SNI-routing",
+            example = "SNI"
     )
     private ProxyProtocol proxyProtocol;
 
     // For given Cluster1(us-west1, us-east1) and Cluster2(us-west2, us-east2)
     // Peer: [us-west1 -> us-west2] and [us-east1 -> us-east2]
     @ApiModelProperty(
-        name = "peerClusterNames",
-        value = "A set of peer cluster names"
+            name = "peerClusterNames",
+            value = "A set of peer cluster names"
     )
     private LinkedHashSet<String> peerClusterNames;
 
@@ -135,9 +135,7 @@ public class ClusterData {
 
 
     public void update(ClusterData other) {
-        if (other == null) {
-            throw new NullPointerException();
-        }
+        checkNotNull(other);
         this.serviceUrl = other.serviceUrl;
         this.serviceUrlTls = other.serviceUrlTls;
         this.brokerServiceUrl = other.brokerServiceUrl;
@@ -239,7 +237,20 @@ public class ClusterData {
 
     @Override
     public int hashCode() {
-       return Objects.hash(this.toString());
+        return Objects.hash(this.toString());
+    }
+
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(this)
+                .add("serviceUrl", serviceUrl)
+                .add("serviceUrlTls", serviceUrlTls)
+                .add("brokerServiceUrl", brokerServiceUrl)
+                .add("brokerServiceUrlTls", brokerServiceUrlTls)
+                .add("proxyServiceUrl", proxyServiceUrl)
+                .add("proxyProtocol", proxyProtocol)
+                .add("peerClusterNames", peerClusterNames).add("authenticationPlugin", authenticationPlugin)
+                .add("authenticationParameters", authenticationParameters).toString();
     }
 
 }

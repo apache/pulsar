@@ -16,22 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.functions;
+package org.apache.pulsar.common.policies.data;
 
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import java.util.List;
 
-/**
- * Options while updating the sink.
- */
-@Data
-@NoArgsConstructor
-@ApiModel(value = "UpdateOptions", description = "Options while updating the sink")
-public class UpdateOptions {
-    @ApiModelProperty(
-        value = "Whether or not to update the auth data",
-        name = "update-auth-data")
-    private boolean updateAuthData = false;
+public interface NamespaceIsolationDataInterface {
+
+    List<String> getNamespaces();
+
+    List<String> getPrimary();
+
+    List<String> getSecondary();
+
+    AutoFailoverPolicyData getAuto_failover_policy();
+
+    void setNamespaces(List<String> namespaces);
+
+    void setPrimary(List<String> primary);
+
+    void setSecondary(List<String> secondary);
+
+    void setAuto_failover_policy(AutoFailoverPolicyData autoFailoverPolicyData);
+
 }

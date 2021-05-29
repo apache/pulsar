@@ -40,6 +40,7 @@ import org.apache.pulsar.client.admin.Sink;
 import org.apache.pulsar.client.admin.Sinks;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.functions.UpdateOptions;
+import org.apache.pulsar.common.functions.UpdateOptionsInterface;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.policies.data.SinkStatus;
@@ -336,7 +337,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
     }
 
     @Override
-    public void updateSink(SinkConfig sinkConfig, String fileName, UpdateOptions updateOptions)
+    public void updateSink(SinkConfig sinkConfig, String fileName, UpdateOptionsInterface updateOptions)
             throws PulsarAdminException {
         try {
             updateSinkAsync(sinkConfig, fileName, updateOptions).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
@@ -352,7 +353,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
 
     @Override
     public CompletableFuture<Void> updateSinkAsync(
-            SinkConfig sinkConfig, String fileName, UpdateOptions updateOptions) {
+            SinkConfig sinkConfig, String fileName, UpdateOptionsInterface updateOptions) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         if (!validateSinkName(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName(), future)) {
             return future;
@@ -364,10 +365,11 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
                     .addBodyPart(new StringPart("sinkConfig", ObjectMapperFactory.getThreadLocal()
                             .writeValueAsString(sinkConfig), MediaType.APPLICATION_JSON));
 
-            if (updateOptions != null) {
+            UpdateOptions options = (UpdateOptions) updateOptions;
+            if (options != null) {
                 builder.addBodyPart(new StringPart("updateOptions",
                         ObjectMapperFactory.getThreadLocal()
-                                .writeValueAsString(updateOptions), MediaType.APPLICATION_JSON));
+                                .writeValueAsString(options), MediaType.APPLICATION_JSON));
             }
 
             if (fileName != null && !fileName.startsWith("builtin://")) {
@@ -407,7 +409,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
     }
 
     @Override
-    public void updateSinkWithUrl(SinkConfig sinkConfig, String pkgUrl, UpdateOptions updateOptions)
+    public void updateSinkWithUrl(SinkConfig sinkConfig, String pkgUrl, UpdateOptionsInterface updateOptions)
             throws PulsarAdminException {
         try {
             updateSinkWithUrlAsync(sinkConfig, pkgUrl, updateOptions).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
@@ -423,7 +425,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
 
     @Override
     public CompletableFuture<Void> updateSinkWithUrlAsync(
-            SinkConfig sinkConfig, String pkgUrl, UpdateOptions updateOptions) {
+            SinkConfig sinkConfig, String pkgUrl, UpdateOptionsInterface updateOptions) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         if (!validateSinkName(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName(), future)) {
             return future;
@@ -435,10 +437,11 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
                     "sinkConfig",
                     new Gson().toJson(sinkConfig),
                     MediaType.APPLICATION_JSON_TYPE));
-            if (updateOptions != null) {
+            UpdateOptions options = (UpdateOptions) updateOptions;
+            if (options != null) {
                 mp.bodyPart(new FormDataBodyPart(
                         "updateOptions",
-                        ObjectMapperFactory.getThreadLocal().writeValueAsString(updateOptions),
+                        ObjectMapperFactory.getThreadLocal().writeValueAsString(options),
                         MediaType.APPLICATION_JSON_TYPE));
             }
             WebTarget path = sink.path(sinkConfig.getTenant()).path(sinkConfig.getNamespace())
