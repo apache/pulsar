@@ -733,4 +733,14 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     public CompletableFuture<Void> close() {
         return this.pendingAckStoreFuture.thenAccept(PendingAckStore::closeAsync);
     }
+
+    @Override
+    public boolean isTransactionAckExisted() {
+        if ((this.cumulativeAckOfTransaction == null
+                && (this.individualAckOfTransaction == null || this.individualAckOfTransaction.isEmpty()))) {
+            return false;
+        } else {
+            return true;
+        }
+    }
 }

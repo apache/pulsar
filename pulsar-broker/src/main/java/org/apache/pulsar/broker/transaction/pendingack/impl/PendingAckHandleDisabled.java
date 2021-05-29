@@ -96,4 +96,9 @@ public class PendingAckHandleDisabled implements PendingAckHandle {
         return CompletableFuture.completedFuture(null);
     }
 
+    @Override
+    public boolean isTransactionAckExisted() {
+        return false;
+    }
+
 }

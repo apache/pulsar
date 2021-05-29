@@ -394,7 +394,8 @@ public class PersistentSubscription implements Subscription {
             }
         }
 
-        if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()) {
+        if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
+                && this.pendingAckHandle.isTransactionAckExisted()) {
             Position currentMarkDeletePosition = cursor.getMarkDeletedPosition();
             if ((lastMarkDeleteForTransactionMarker == null
                     || ((PositionImpl) lastMarkDeleteForTransactionMarker)
