@@ -30,6 +30,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import java.io.BufferedReader;
@@ -366,7 +367,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         }
         consumer.close();
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
-        JsonArray metrics = brokerStatsClient.getMetrics();
+        String json = brokerStatsClient.getMetrics();
+        JsonArray metrics = new Gson().fromJson(json, JsonArray.class);
 
         // these metrics seem to be arriving in different order at different times...
         // is the order really relevant here?
@@ -414,7 +416,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         }
 
         rolloverPerIntervalStats();
-        JsonObject topicStats = brokerStatsClient.getTopics();
+        String json = brokerStatsClient.getTopics();
+        JsonObject topicStats = new Gson().fromJson(json, JsonObject.class);
         assertEquals(topicStats.size(), 2, topicStats.toString());
 
         for (String ns : nsList) {
