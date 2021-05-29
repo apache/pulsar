@@ -23,6 +23,8 @@
 
 namespace pulsar {
 
+class ConsoleLoggerFactoryImpl;
+
 /**
  * The default LoggerFactory of Client if `USE_LOG4CXX` macro was not defined during compilation.
  *
@@ -37,22 +39,23 @@ namespace pulsar {
  * level simply.
  *
  * ```c++
- * #include <pulsar/SimpleLoggerFactory.h>
+ * #include <pulsar/ConsoleLoggerFactory.h>
  *
  * ClientConfiguration conf;
- * conf.setLogger(new SimpleLoggerFactory(Logger::LEVEL_DEBUG));
+ * conf.setLogger(new ConsoleLoggerFactory(Logger::LEVEL_DEBUG));
  * Client client("pulsar://localhost:6650", conf);
  * ```
  */
-class SimpleLoggerFactory : public LoggerFactory {
+class PULSAR_PUBLIC ConsoleLoggerFactory : public LoggerFactory {
    public:
-    explicit SimpleLoggerFactory() = default;
-    explicit SimpleLoggerFactory(Logger::Level level) : level_(level) {}
+    explicit ConsoleLoggerFactory(Logger::Level level = Logger::LEVEL_INFO);
+
+    ~ConsoleLoggerFactory();
 
     Logger* getLogger(const std::string& fileName) override;
 
    private:
-    Logger::Level level_{Logger::LEVEL_INFO};
+    std::unique_ptr<ConsoleLoggerFactoryImpl> impl_;
 };
 
 }  // namespace pulsar

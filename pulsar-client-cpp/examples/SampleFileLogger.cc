@@ -16,34 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#include <iostream>
-
 #include <pulsar/Client.h>
-
-#include <lib/LogUtils.h>
-
-DECLARE_LOG_OBJECT()
 
 using namespace pulsar;
 
-int main() {
-    Client client("pulsar://localhost:6650");
+int main(int argc, char* argv[]) {
+    ClientConfiguration clientConf;
+    // The logs whose level is >= INFO will be written to pulsar-cpp-client.log
+    clientConf.setLogger(new FileLoggerFactory(Logger::Level::LEVEL_INFO, "pulsar-cpp-client.log"));
 
-    Consumer consumer;
-    Result result = client.subscribe("persistent://public/default/my-topic", "consumer-1", consumer);
-    if (result != ResultOk) {
-        LOG_ERROR("Failed to subscribe: " << result);
-        return -1;
-    }
-
-    Message msg;
-
-    while (true) {
-        consumer.receive(msg);
-        LOG_INFO("Received: " << msg << "  with payload '" << msg.getDataAsString() << "'");
-
-        consumer.acknowledge(msg);
-    }
-
+    Client client("pulsar://localhost:6650", clientConf);
+    Producer producer;
+    client.createProducer("my-topic", producer);  // just to create some logs
     client.close();
+    return 0;
 }
