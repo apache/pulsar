@@ -83,6 +83,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedExcepti
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
+import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionNotFoundException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicClosedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicFencedException;
@@ -122,9 +123,9 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.CursorStats;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.LedgerInfo;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
-import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats.CursorStats;
-import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats.LedgerInfo;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
@@ -132,8 +133,10 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
+import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
@@ -1824,7 +1827,7 @@ public class PersistentTopic extends AbstractTopic
         stats.pendingAddEntriesCount = ml.getPendingAddEntriesCount();
 
         stats.lastConfirmedEntry = ml.getLastConfirmedEntry().toString();
-        stats.state = ml.getState();
+        stats.state = ml.getState().toString();
 
         stats.ledgers = Lists.newArrayList();
         List<CompletableFuture<String>> futures = includeLedgerMetadata ? Lists.newArrayList() : null;
@@ -3022,15 +3025,19 @@ public class PersistentTopic extends AbstractTopic
     public boolean checkSubscriptionTypesEnable(SubType subType) throws Exception {
         TopicName topicName = TopicName.get(topic);
         if (brokerService.pulsar().getConfiguration().isTopicLevelPoliciesEnabled()) {
-            TopicPolicies topicPolicies =
-                    brokerService.pulsar().getTopicPoliciesService().getTopicPolicies(TopicName.get(topic));
-            if (topicPolicies == null) {
-                return checkNsAndBrokerSubscriptionTypesEnable(topicName, subType);
-            } else {
-                if (topicPolicies.getSubscriptionTypesEnabled().isEmpty()) {
+            try {
+                TopicPolicies topicPolicies =
+                        brokerService.pulsar().getTopicPoliciesService().getTopicPolicies(TopicName.get(topic));
+                if (topicPolicies == null) {
                     return checkNsAndBrokerSubscriptionTypesEnable(topicName, subType);
+                } else {
+                    if (topicPolicies.getSubscriptionTypesEnabled().isEmpty()) {
+                        return checkNsAndBrokerSubscriptionTypesEnable(topicName, subType);
+                    }
+                    return topicPolicies.getSubscriptionTypesEnabled().contains(subType);
                 }
-                return topicPolicies.getSubscriptionTypesEnabled().contains(subType);
+            } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
+                return checkNsAndBrokerSubscriptionTypesEnable(topicName, subType);
             }
         } else {
             return checkNsAndBrokerSubscriptionTypesEnable(topicName, subType);
@@ -3053,6 +3060,14 @@ public class PersistentTopic extends AbstractTopic
         }
     }
 
+    public TransactionBufferStats getTransactionBufferStats() {
+        return this.transactionBuffer.getStats();
+    }
+
+    public TransactionPendingAckStats getTransactionPendingAckStats(String subName) {
+        return this.subscriptions.get(subName).getTransactionPendingAckStats();
+    }
+
     public PositionImpl getMaxReadPosition() {
         return this.transactionBuffer.getMaxReadPosition();
     }
@@ -3072,5 +3087,14 @@ public class PersistentTopic extends AbstractTopic
 
     public TransactionInPendingAckStats getTransactionInPendingAckStats(TxnID txnID, String subName) {
         return this.subscriptions.get(subName).getTransactionInPendingAckStats(txnID);
+    }
+
+    public CompletableFuture<ManagedLedger> getPendingAckManagedLedger(String subName) {
+        PersistentSubscription subscription = subscriptions.get(subName);
+        if (subscription == null) {
+            return FutureUtil.failedFuture(new SubscriptionNotFoundException((topic
+                    + " not found subscription : " + subName)));
+        }
+        return subscription.getPendingAckManageLedger();
     }
 }

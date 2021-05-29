@@ -157,4 +157,9 @@ public class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
        testWindowFunction("sliding", EXPECTED_RESULTS);
    }
 
+    @Test(groups = {"java_function", "function"})
+    public void testMergeFunctionTest() throws Exception {
+	    testMergeFunction();
+   }
+
 }

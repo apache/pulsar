@@ -79,11 +79,11 @@ import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.LedgerInfo;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesUtil;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
-import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats.*;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
@@ -1420,12 +1420,16 @@ public class PulsarAdminToolTest {
 
         CmdTransactions cmdTransactions = new CmdTransactions(() -> admin);
 
-        cmdTransactions.run(split("coordinator-status -c 1"));
-        verify(transactions).getCoordinatorStatusById(1);
+        cmdTransactions.run(split("coordinator-stats -c 1"));
+        verify(transactions).getCoordinatorStatsById(1);
 
         cmdTransactions = new CmdTransactions(() -> admin);
-        cmdTransactions.run(split("coordinator-status"));
-        verify(transactions).getCoordinatorStatus();
+        cmdTransactions.run(split("coordinator-stats"));
+        verify(transactions).getCoordinatorStats();
+
+        cmdTransactions = new CmdTransactions(() -> admin);
+        cmdTransactions.run(split("coordinator-internal-stats -c 1 -m"));
+        verify(transactions).getCoordinatorInternalStats(1, true);
 
         cmdTransactions = new CmdTransactions(() -> admin);
         cmdTransactions.run(split("transaction-in-buffer-stats -m 1 -t test -l 2"));
@@ -1440,6 +1444,26 @@ public class PulsarAdminToolTest {
         cmdTransactions.run(split("transaction-metadata -m 1 -l 2"));
         verify(transactions).getTransactionMetadata(new TxnID(1, 2));
 
+        cmdTransactions = new CmdTransactions(() -> admin);
+        cmdTransactions.run(split("slow-transactions -c 1 -t 1h"));
+        verify(transactions).getSlowTransactionsByCoordinatorId(
+                1, 3600000, TimeUnit.MILLISECONDS);
+
+        cmdTransactions = new CmdTransactions(() -> admin);
+        cmdTransactions.run(split("slow-transactions -t 1h"));
+        verify(transactions).getSlowTransactions(3600000, TimeUnit.MILLISECONDS);
+
+        cmdTransactions = new CmdTransactions(() -> admin);
+        cmdTransactions.run(split("transaction-buffer-stats -t test"));
+        verify(transactions).getTransactionBufferStats("test");
+
+        cmdTransactions = new CmdTransactions(() -> admin);
+        cmdTransactions.run(split("pending-ack-stats -t test -s test"));
+        verify(transactions).getPendingAckStats("test", "test");
+
+        cmdTransactions = new CmdTransactions(() -> admin);
+        cmdTransactions.run(split("pending-ack-internal-stats -t test -s test"));
+        verify(transactions).getPendingAckInternalStats("test", "test", false);
     }
 
     String[] split(String s) {

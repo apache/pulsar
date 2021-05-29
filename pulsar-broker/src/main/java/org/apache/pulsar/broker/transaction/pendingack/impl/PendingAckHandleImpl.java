@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -46,6 +47,7 @@ import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStor
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
+import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
@@ -696,6 +698,13 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         return pendingAckHandleCompletableFuture;
     }
 
+    @Override
+    public TransactionPendingAckStats getStats() {
+        TransactionPendingAckStats transactionPendingAckStats = new TransactionPendingAckStats();
+        transactionPendingAckStats.state = this.getState().name();
+        return transactionPendingAckStats;
+    }
+
     public void completeHandleFuture() {
         this.pendingAckHandleCompletableFuture.complete(PendingAckHandleImpl.this);
     }
@@ -724,5 +733,20 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     @Override
     public CompletableFuture<Void> close() {
         return this.pendingAckStoreFuture.thenAccept(PendingAckStore::closeAsync);
+    }
+
+    public CompletableFuture<ManagedLedger> getStoreManageLedger() {
+        if (this.pendingAckStoreFuture.isDone()) {
+            return this.pendingAckStoreFuture.thenCompose(pendingAckStore -> {
+                if (pendingAckStore instanceof MLPendingAckStore) {
+                    return ((MLPendingAckStore) pendingAckStore).getManagedLedger();
+                } else {
+                    return FutureUtil.failedFuture(
+                            new NotAllowedException("Pending ack handle don't use managedLedger!"));
+                }
+            });
+        } else {
+            return FutureUtil.failedFuture(new ServiceUnitNotReadyException("Pending ack have not init success!"));
+        }
     }
 }

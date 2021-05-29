@@ -78,7 +78,7 @@ class ConsumerImpl : public ConsumerImplBase,
     uint64_t getConsumerId();
     void messageReceived(const ClientConnectionPtr& cnx, const proto::CommandMessage& msg,
                          bool& isChecksumValid, proto::MessageMetadata& msgMetadata, SharedBuffer& payload);
-    void messageProcessed(Message& msg);
+    void messageProcessed(Message& msg, bool track = true);
     inline proto::CommandSubscribe_SubType getSubType();
     inline proto::CommandSubscribe_InitialPosition getInitialPosition();
     void handleUnsubscribe(Result result, ResultCallback callback);

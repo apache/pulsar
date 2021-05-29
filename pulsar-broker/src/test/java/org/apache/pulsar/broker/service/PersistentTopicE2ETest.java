@@ -1700,6 +1700,9 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         replayMap.set(dispatcher, messagesToReplay);
         // (a) redelivery with all acked-message should clear messageReply bucket
         dispatcher.redeliverUnacknowledgedMessages(dispatcher.getConsumers().get(0));
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> {
+            return messagesToReplay.isEmpty();
+        });
         assertEquals(messagesToReplay.size(), 0);
 
         // (b) fill messageReplyBucket with already acked entry again: and try to publish new msg and read it
