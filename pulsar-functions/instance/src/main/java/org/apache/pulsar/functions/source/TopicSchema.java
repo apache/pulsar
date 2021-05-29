@@ -169,6 +169,9 @@ public class TopicSchema {
         case PROTOBUF:
             return ProtobufSchema.ofGenericClass(clazz, new HashMap<>());
 
+        case AUTO_PUBLISH:
+            return (Schema<T>) Schema.AUTO_PRODUCE_BYTES();
+
         default:
             throw new RuntimeException("Unsupported schema type" + type);
         }
