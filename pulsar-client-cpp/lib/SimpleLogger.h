@@ -17,7 +17,7 @@
  * under the License.
  */
 
-#include <pulsar/SimpleLoggerFactory.h>
+#pragma once
 
 #include <iostream>
 #include <sstream>
@@ -48,7 +48,8 @@ inline std::ostream &operator<<(std::ostream &s, Logger::Level level) {
 
 class SimpleLogger : public Logger {
    public:
-    SimpleLogger(const std::string &filename, Level level) : filename_(filename), level_(level) {}
+    SimpleLogger(std::ostream &os, const std::string &filename, Level level)
+        : os_(os), filename_(filename), level_(level) {}
 
     bool isEnabled(Level level) { return level >= level_; }
 
@@ -59,11 +60,12 @@ class SimpleLogger : public Logger {
         ss << " " << level << " [" << std::this_thread::get_id() << "] " << filename_ << ":" << line << " | "
            << message << "\n";
 
-        std::cout << ss.str();
-        std::cout.flush();
+        os_ << ss.str();
+        os_.flush();
     }
 
    private:
+    std::ostream &os_;
     const std::string filename_;
     const Level level_;
 
@@ -80,7 +82,5 @@ class SimpleLogger : public Logger {
         return s;
     }
 };
-
-Logger *SimpleLoggerFactory::getLogger(const std::string &file) { return new SimpleLogger(file, level_); }
 
 }  // namespace pulsar

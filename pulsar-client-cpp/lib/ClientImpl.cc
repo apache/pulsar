@@ -26,7 +26,7 @@
 #include "PartitionedConsumerImpl.h"
 #include "MultiTopicsConsumerImpl.h"
 #include "PatternMultiTopicsConsumerImpl.h"
-#include <pulsar/SimpleLoggerFactory.h>
+#include <pulsar/ConsoleLoggerFactory.h>
 #include <boost/algorithm/string/predicate.hpp>
 #include <sstream>
 #include <lib/HTTPLookupService.h>
@@ -101,11 +101,11 @@ ClientImpl::ClientImpl(const std::string& serviceUrl, const ClientConfiguration&
             loggerFactory = Log4CxxLoggerFactory::create(clientConfiguration_.getLogConfFilePath());
         } else {
             // Use default simple console logger
-            loggerFactory.reset(new SimpleLoggerFactory);
+            loggerFactory.reset(new ConsoleLoggerFactory);
         }
 #else
         // Use default simple console logger
-        loggerFactory.reset(new SimpleLoggerFactory);
+        loggerFactory.reset(new ConsoleLoggerFactory);
 #endif
     }
     LogUtils::setLoggerFactory(std::move(loggerFactory));
