@@ -1162,15 +1162,14 @@ public class PersistentTopicsBase extends AdminResource {
                                                     clientAppId(), topicNamePartition, throwable);
                                             asyncResponse.resume(new RestException(throwable));
                                         }
-                                        Gson gson = new GsonBuilder().setPrettyPrinting().create();
                                         try {
                                             partitionedManagedLedgerInfo.partitions.put(topicNamePartition.toString(),
-                                                    jsonMapper().readValue(gson.toJson(response),
+                                                    jsonMapper().readValue(response,
                                                             ManagedLedgerInfo.class));
                                         } catch (JsonProcessingException ex) {
                                             log.error("[{}] Failed to parse ManagedLedgerInfo for {} from [{}]",
                                                     clientAppId(),
-                                                    topicNamePartition, gson.toJson(response), ex);
+                                                    topicNamePartition, response, ex);
                                         }
                                     }));
                         } catch (Exception e) {
