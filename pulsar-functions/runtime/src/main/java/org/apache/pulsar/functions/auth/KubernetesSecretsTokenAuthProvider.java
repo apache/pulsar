@@ -97,8 +97,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                         .name(SECRET_NAME)
                         .secret(
                                 new V1SecretVolumeSource()
-                                        .secretName(getSecretName(new String(functionAuthData.get().getData())))
-                                        .defaultMode(256))));
+                                        .secretName(getSecretName(new String(functionAuthData.get().getData()))))));
 
         podSpec.getContainers().forEach(container -> container.setVolumeMounts(Collections.singletonList(
                 new V1VolumeMount()
