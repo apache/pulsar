@@ -25,6 +25,8 @@ import com.fasterxml.jackson.databind.module.SimpleAbstractTypeResolver;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import io.netty.util.concurrent.FastThreadLocal;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.ClassUtils;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
 import org.apache.pulsar.common.functions.JsonIgnorePropertiesMixIn;
@@ -60,6 +62,7 @@ import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReportDeserializer;
 
 @SuppressWarnings("checkstyle:JavadocType")
+@Slf4j
 public class ObjectMapperFactory {
     public static ObjectMapper create() {
         ObjectMapper mapper = new ObjectMapper();
@@ -107,7 +110,6 @@ public class ObjectMapperFactory {
         SimpleModule module = new SimpleModule("AnnotationsModule");
 
         // we use customized deserializer to replace jackson annotations in some POJOs
-        module.addDeserializer(LoadManagerReport.class, new LoadReportDeserializer());
         SimpleAbstractTypeResolver resolver = new SimpleAbstractTypeResolver();
         resolver.addMapping(AutoFailoverPolicyDataInterface.class, AutoFailoverPolicyData.class);
         resolver.addMapping(BrokerNamespaceIsolationDataInterface.class, BrokerNamespaceIsolationData.class);
@@ -127,6 +129,16 @@ public class ObjectMapperFactory {
         mapper.addMixIn(FunctionConfig.class, JsonIgnorePropertiesMixIn.class);
         mapper.addMixIn(FunctionState.class, JsonIgnorePropertiesMixIn.class);
         mapper.addMixIn(Metrics.class, MetricsMixIn.class);
+
+        try {
+            // We look for LoadManagerReport first, then add deserializer to the module
+            // With shaded client, org.apache.pulsar.policies is relocated to
+            // org.apache.pulsar.shade.org.apache.pulsar.policies
+            ClassUtils.getClass("org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport");
+            module.addDeserializer(LoadManagerReport.class, new LoadReportDeserializer());
+        } catch (ClassNotFoundException e) {
+            log.debug("Add LoadManagerReport deserializer failed because LoadManagerReport.class has been shaded", e);
+        }
 
         module.setAbstractTypes(resolver);
 
