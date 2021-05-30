@@ -18,18 +18,26 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 /**
  * Statistics for Pulsar Function.
  */
 @Data
-public class FunctionStats {
+@JsonInclude(JsonInclude.Include.ALWAYS)
+@JsonPropertyOrder({"receivedTotal", "processedSuccessfullyTotal", "systemExceptionsTotal", "userExceptionsTotal",
+        "avgProcessLatency", "1min", "lastInvocation", "instances"})
+public class FunctionStats implements FunctionStatsInterface {
 
     /**
      * Overall total number of records function received from source.
@@ -56,90 +64,30 @@ public class FunctionStats {
      **/
     public Double avgProcessLatency;
 
-    public FunctionInstanceStats.FunctionInstanceStatsDataBase oneMin =
-        new FunctionInstanceStats.FunctionInstanceStatsDataBase();
+    @JsonProperty("1min")
+    public FunctionInstanceStatsDataBaseInterface oneMin =
+            new FunctionInstanceStatsDataBase();
 
     /**
      * Timestamp of when the function was last invoked by any instance.
      **/
     public Long lastInvocation;
 
-    /**
-     * Function instance statistics.
-     */
-    @Data
-    public static class FunctionInstanceStats {
+    public List<FunctionInstanceStatsInterface> instances = new LinkedList<>();
 
-        /** Instance Id of function instance. **/
-        public int instanceId;
-
-      /**
-       * Function instance statistics data base.
-       */
-      @Data
-        public static class FunctionInstanceStatsDataBase {
-            /**
-             * Total number of records function received from source for instance.
-             **/
-            public long receivedTotal;
-
-            /**
-             * Total number of records successfully processed by user function for instance.
-             **/
-            public long processedSuccessfullyTotal;
-
-            /**
-             * Total number of system exceptions thrown for instance.
-             **/
-            public long systemExceptionsTotal;
-
-            /**
-             * Total number of user exceptions thrown for instance.
-             **/
-            public long userExceptionsTotal;
-
-            /**
-             * Average process latency for function for instance.
-             **/
-            public Double avgProcessLatency;
-        }
-
-        /**
-         * Function instance statistics data.
-         */
-        @EqualsAndHashCode(callSuper = true)
-        @Data
-        public static class FunctionInstanceStatsData extends FunctionInstanceStatsDataBase {
-
-            public FunctionInstanceStatsDataBase oneMin = new FunctionInstanceStatsDataBase();
-
-            /**
-             * Timestamp of when the function was last invoked for instance.
-             **/
-            public Long lastInvocation;
-
-            /**
-             * Map of user defined metrics.
-             **/
-            public Map<String, Double> userMetrics = new HashMap<>();
-        }
-
-        public FunctionInstanceStatsData metrics = new FunctionInstanceStatsData();
-    }
-
-    public List<FunctionInstanceStats> instances = new LinkedList<>();
-
-    public void addInstance(FunctionInstanceStats functionInstanceStats) {
+    @Override
+    public void addInstance(FunctionInstanceStatsInterface functionInstanceStats) {
         instances.add(functionInstanceStats);
     }
 
+    @Override
     public FunctionStats calculateOverall() {
 
         int nonNullInstances = 0;
         int nonNullInstancesOneMin = 0;
-        for (FunctionInstanceStats functionInstanceStats : instances) {
-            FunctionInstanceStats.FunctionInstanceStatsData functionInstanceStatsData =
-                functionInstanceStats.getMetrics();
+        for (FunctionInstanceStatsInterface functionInstanceStats : instances) {
+            FunctionInstanceStatsData functionInstanceStatsData =
+                    (FunctionInstanceStatsData) functionInstanceStats.getMetrics();
             receivedTotal += functionInstanceStatsData.receivedTotal;
             processedSuccessfullyTotal += functionInstanceStatsData.processedSuccessfullyTotal;
             systemExceptionsTotal += functionInstanceStatsData.systemExceptionsTotal;
@@ -152,15 +100,19 @@ public class FunctionStats {
                 nonNullInstances++;
             }
 
-            oneMin.receivedTotal += functionInstanceStatsData.oneMin.receivedTotal;
-            oneMin.processedSuccessfullyTotal += functionInstanceStatsData.oneMin.processedSuccessfullyTotal;
-            oneMin.systemExceptionsTotal += functionInstanceStatsData.oneMin.systemExceptionsTotal;
-            oneMin.userExceptionsTotal += functionInstanceStatsData.oneMin.userExceptionsTotal;
-            if (functionInstanceStatsData.oneMin.avgProcessLatency != null) {
-                if (oneMin.avgProcessLatency == null) {
-                    oneMin.avgProcessLatency = 0.0;
+            oneMin.setReceivedTotal(oneMin.getReceivedTotal() + functionInstanceStatsData.oneMin.getReceivedTotal());
+            oneMin.setProcessedSuccessfullyTotal(oneMin.getProcessedSuccessfullyTotal() +
+                    functionInstanceStatsData.oneMin.getProcessedSuccessfullyTotal());
+            oneMin.setSystemExceptionsTotal(oneMin.getSystemExceptionsTotal() +
+                    functionInstanceStatsData.oneMin.getSystemExceptionsTotal());
+            oneMin.setUserExceptionsTotal(oneMin.getUserExceptionsTotal() +
+                    functionInstanceStatsData.oneMin.getUserExceptionsTotal());
+            if (functionInstanceStatsData.oneMin.getAvgProcessLatency() != null) {
+                if (oneMin.getAvgProcessLatency() == null) {
+                    oneMin.setAvgProcessLatency(0.0);
                 }
-                oneMin.avgProcessLatency += functionInstanceStatsData.oneMin.avgProcessLatency;
+                oneMin.setAvgProcessLatency(oneMin.getAvgProcessLatency() +
+                        functionInstanceStatsData.oneMin.getAvgProcessLatency());
                 nonNullInstancesOneMin++;
             }
 
@@ -180,12 +132,15 @@ public class FunctionStats {
 
         // calculate 1min average from sum
         if (nonNullInstancesOneMin > 0) {
-            oneMin.avgProcessLatency = oneMin.avgProcessLatency / nonNullInstancesOneMin;
+            oneMin.setAvgProcessLatency(oneMin.getAvgProcessLatency() / nonNullInstancesOneMin);
         } else {
-            oneMin.avgProcessLatency = null;
+            oneMin.setAvgProcessLatency(null);
         }
 
         return this;
     }
 
+    public static FunctionStats decode (String json) throws IOException {
+        return ObjectMapperFactory.getThreadLocal().readValue(json, FunctionStats.class);
+    }
 }

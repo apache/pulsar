@@ -59,7 +59,6 @@ import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecord;
 import org.apache.pulsar.common.policies.data.FunctionStats;
-import org.apache.pulsar.common.policies.data.FunctionStatsUtil;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.common.policies.data.FunctionStatusUtil;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
@@ -492,7 +491,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         log.info("FUNCTION STATS: {}", result.getStdout());
 
-        FunctionStats functionStats = FunctionStatsUtil.decode(result.getStdout());
+        FunctionStats functionStats = FunctionStats.decode(result.getStdout());
         assertEquals(functionStats.getReceivedTotal(), numMessages + 2);
         assertEquals(functionStats.getProcessedSuccessfullyTotal(), numMessages);
         assertEquals(functionStats.getSystemExceptionsTotal(), 0);
@@ -506,7 +505,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         assertEquals(functionStats.instances.get(0).getMetrics().getProcessedSuccessfullyTotal(), numMessages);
         assertEquals(functionStats.instances.get(0).getMetrics().getSystemExceptionsTotal(), 0);
         assertEquals(functionStats.instances.get(0).getMetrics().getUserExceptionsTotal(), 2);
-        assertTrue(functionStats.instances.get(0).getMetrics().avgProcessLatency > 0);
+        assertTrue(functionStats.instances.get(0).getMetrics().getAvgProcessLatency() > 0);
 
         // delete function
         deleteFunction(functionName);
@@ -959,7 +958,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         );
 
         log.info("FUNCTION STATS: {}", result.getStdout());
-        FunctionStats functionStats = FunctionStatsUtil.decode(result.getStdout());
+        FunctionStats functionStats = FunctionStats.decode(result.getStdout());
 
         assertEquals(functionStats.getReceivedTotal(), 0);
         assertEquals(functionStats.getProcessedSuccessfullyTotal(), 0);
@@ -980,12 +979,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         assertEquals(functionStats.instances.get(0).getMetrics().getProcessedSuccessfullyTotal(), 0);
         assertEquals(functionStats.instances.get(0).getMetrics().getSystemExceptionsTotal(), 0);
         assertEquals(functionStats.instances.get(0).getMetrics().getUserExceptionsTotal(), 0);
-        assertEquals(functionStats.instances.get(0).getMetrics().avgProcessLatency, null);
-        assertEquals(functionStats.instances.get(0).getMetrics().oneMin.getReceivedTotal(), 0);
-        assertEquals(functionStats.instances.get(0).getMetrics().oneMin.getProcessedSuccessfullyTotal(), 0);
-        assertEquals(functionStats.instances.get(0).getMetrics().oneMin.getSystemExceptionsTotal(), 0);
-        assertEquals(functionStats.instances.get(0).getMetrics().oneMin.getUserExceptionsTotal(), 0);
-        assertEquals(functionStats.instances.get(0).getMetrics().oneMin.getAvgProcessLatency(), null);
+        assertEquals(functionStats.instances.get(0).getMetrics().getAvgProcessLatency(), null);
+        assertEquals(functionStats.instances.get(0).getMetrics().getOneMin().getReceivedTotal(), 0);
+        assertEquals(functionStats.instances.get(0).getMetrics().getOneMin().getProcessedSuccessfullyTotal(), 0);
+        assertEquals(functionStats.instances.get(0).getMetrics().getOneMin().getSystemExceptionsTotal(), 0);
+        assertEquals(functionStats.instances.get(0).getMetrics().getOneMin().getUserExceptionsTotal(), 0);
+        assertEquals(functionStats.instances.get(0).getMetrics().getOneMin().getAvgProcessLatency(), null);
     }
 
     private void getFunctionStats(String functionName, int numMessages) throws Exception {
@@ -1000,7 +999,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         log.info("FUNCTION STATS: {}", result.getStdout());
 
-        FunctionStats functionStats = FunctionStatsUtil.decode(result.getStdout());
+        FunctionStats functionStats = FunctionStats.decode(result.getStdout());
         assertEquals(functionStats.getReceivedTotal(), numMessages);
         assertEquals(functionStats.getProcessedSuccessfullyTotal(), numMessages);
         assertEquals(functionStats.getSystemExceptionsTotal(), 0);
@@ -1020,12 +1019,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         assertEquals(functionStats.instances.get(0).getMetrics().getProcessedSuccessfullyTotal(), numMessages);
         assertEquals(functionStats.instances.get(0).getMetrics().getSystemExceptionsTotal(), 0);
         assertEquals(functionStats.instances.get(0).getMetrics().getUserExceptionsTotal(), 0);
-        assertTrue(functionStats.instances.get(0).getMetrics().avgProcessLatency > 0);
-        assertEquals(functionStats.instances.get(0).getMetrics().oneMin.getReceivedTotal(), numMessages);
-        assertEquals(functionStats.instances.get(0).getMetrics().oneMin.getProcessedSuccessfullyTotal(), numMessages);
-        assertEquals(functionStats.instances.get(0).getMetrics().oneMin.getSystemExceptionsTotal(), 0);
-        assertEquals(functionStats.instances.get(0).getMetrics().oneMin.getUserExceptionsTotal(), 0);
-        assertTrue(functionStats.instances.get(0).getMetrics().oneMin.getAvgProcessLatency() > 0);
+        assertTrue(functionStats.instances.get(0).getMetrics().getAvgProcessLatency() > 0);
+        assertEquals(functionStats.instances.get(0).getMetrics().getOneMin().getReceivedTotal(), numMessages);
+        assertEquals(functionStats.instances.get(0).getMetrics().getOneMin().getProcessedSuccessfullyTotal(), numMessages);
+        assertEquals(functionStats.instances.get(0).getMetrics().getOneMin().getSystemExceptionsTotal(), 0);
+        assertEquals(functionStats.instances.get(0).getMetrics().getOneMin().getUserExceptionsTotal(), 0);
+        assertTrue(functionStats.instances.get(0).getMetrics().getOneMin().getAvgProcessLatency() > 0);
     }
 
     private void getFunctionInfoNotFound(String functionName) throws Exception {

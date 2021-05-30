@@ -18,16 +18,16 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import lombok.Data;
+public interface FunctionInstanceStatsDataInterface extends FunctionInstanceStatsDataBaseInterface {
+    FunctionInstanceStatsDataBaseInterface getOneMin();
 
-/**
- * Data class holding statistics about a function.
- */
-@Data
-public class WorkerFunctionInstanceStats {
-    /**
-     * Fully qualified function instance name.
-     */
-    public String name;
-    public FunctionInstanceStatsDataInterface metrics;
+    Long getLastInvocation();
+
+    java.util.Map<String, Double> getUserMetrics();
+
+    void setOneMin(FunctionInstanceStatsDataBaseInterface oneMin);
+
+    void setLastInvocation(Long lastInvocation);
+
+    void setUserMetrics(java.util.Map<String, Double> userMetrics);
 }

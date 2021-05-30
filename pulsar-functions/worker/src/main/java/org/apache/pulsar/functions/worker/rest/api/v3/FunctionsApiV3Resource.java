@@ -27,6 +27,7 @@ import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
 import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.ConnectorDefinition;
+import org.apache.pulsar.common.policies.data.FunctionInstanceStatsData;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.functions.worker.WorkerService;
@@ -182,7 +183,7 @@ public class FunctionsApiV3Resource extends FunctionApiResource {
     @GET
     @ApiOperation(
             value = "Displays the stats of a Pulsar Function instance",
-            response = FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.class
+            response = FunctionInstanceStatsData.class
     )
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this function"),
@@ -192,7 +193,7 @@ public class FunctionsApiV3Resource extends FunctionApiResource {
     })
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/{tenant}/{namespace}/{functionName}/{instanceId}/stats")
-    public FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData getFunctionInstanceStats(
+    public FunctionInstanceStatsData getFunctionInstanceStats(
             final @PathParam("tenant") String tenant,
             final @PathParam("namespace") String namespace,
             final @PathParam("functionName") String functionName,

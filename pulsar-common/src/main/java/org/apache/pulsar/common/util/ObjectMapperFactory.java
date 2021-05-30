@@ -38,8 +38,14 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataInterface;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.FailureDomainInterface;
+import org.apache.pulsar.common.policies.data.FunctionInstanceStats;
+import org.apache.pulsar.common.policies.data.FunctionInstanceStatsData;
+import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataBase;
+import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataBaseInterface;
+import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataInterface;
+import org.apache.pulsar.common.policies.data.FunctionInstanceStatsInterface;
 import org.apache.pulsar.common.policies.data.FunctionStats;
-import org.apache.pulsar.common.policies.data.FunctionStatsMixIn;
+import org.apache.pulsar.common.policies.data.FunctionStatsInterface;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationDataInterface;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
@@ -110,19 +116,16 @@ public class ObjectMapperFactory {
         resolver.addMapping(NamespaceIsolationDataInterface.class, NamespaceIsolationData.class);
         resolver.addMapping(TenantInfoInterface.class, TenantInfo.class);
         resolver.addMapping(OffloadPoliciesInterface.class, OffloadPolicies.class);
+        resolver.addMapping(FunctionStatsInterface.class, FunctionStats.class);
+        resolver.addMapping(FunctionInstanceStatsInterface.class, FunctionInstanceStats.class);
+        resolver.addMapping(FunctionInstanceStatsDataInterface.class, FunctionInstanceStatsData.class);
+        resolver.addMapping(FunctionInstanceStatsDataBaseInterface.class, FunctionInstanceStatsDataBase.class);
 
         // we use MixIn class to add jackson annotations
         mapper.addMixIn(BacklogQuota.class, BacklogQuotaMixIn.class);
         mapper.addMixIn(ResourceQuota.class, ResourceQuotaMixIn.class);
         mapper.addMixIn(FunctionConfig.class, JsonIgnorePropertiesMixIn.class);
         mapper.addMixIn(FunctionState.class, JsonIgnorePropertiesMixIn.class);
-        mapper.addMixIn(FunctionStats.class, FunctionStatsMixIn.class);
-        mapper.addMixIn(FunctionStats.FunctionInstanceStats.class,
-                FunctionStatsMixIn.FunctionInstanceStatsMixIn.class);
-        mapper.addMixIn(FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.class,
-                FunctionStatsMixIn.FunctionInstanceStatsMixIn.FunctionInstanceStatsDataMixIn.class);
-        mapper.addMixIn(FunctionStats.FunctionInstanceStats.FunctionInstanceStatsDataBase.class,
-                FunctionStatsMixIn.FunctionInstanceStatsMixIn.FunctionInstanceStatsDataBaseMixIn.class);
         mapper.addMixIn(Metrics.class, MetricsMixIn.class);
 
         module.setAbstractTypes(resolver);

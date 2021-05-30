@@ -333,7 +333,8 @@ public class PulsarFunctionPublishTest {
 
         retryStrategically((test) -> {
             try {
-                FunctionStats functionStat = admin.functions().getFunctionStats(tenant, namespacePortion, functionName);
+                FunctionStats functionStat = (FunctionStats)
+                        admin.functions().getFunctionStats(tenant, namespacePortion, functionName);
                 return functionStat.getProcessedSuccessfullyTotal() == 5;
             } catch (PulsarAdminException e) {
                 return false;
@@ -470,7 +471,8 @@ public class PulsarFunctionPublishTest {
 
         retryStrategically((test) -> {
             try {
-                FunctionStats functionStat = admin.functions().getFunctionStats(tenant, namespacePortion, functionName);
+                FunctionStats functionStat = (FunctionStats)
+                        admin.functions().getFunctionStats(tenant, namespacePortion, functionName);
                 return functionStat.getProcessedSuccessfullyTotal() == 5;
             } catch (PulsarAdminException e) {
                 return false;

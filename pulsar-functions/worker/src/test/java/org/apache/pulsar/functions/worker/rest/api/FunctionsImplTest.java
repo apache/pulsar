@@ -27,6 +27,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.policies.data.FunctionInstanceStats;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.functions.api.Context;
@@ -233,9 +234,9 @@ public class FunctionsImplTest {
         FunctionRuntimeInfo functionRuntimeInfo = mock(FunctionRuntimeInfo.class);
         doReturn(runtimeSpawner).when(functionRuntimeInfo).getRuntimeSpawner();
 
-        FunctionStats.FunctionInstanceStats instanceStats1 = WorkerUtils
+        FunctionInstanceStats instanceStats1 = WorkerUtils
                 .getFunctionInstanceStats("public/default/test", functionRuntimeInfo, 0);
-        FunctionStats.FunctionInstanceStats instanceStats2 = WorkerUtils
+        FunctionInstanceStats instanceStats2 = WorkerUtils
                 .getFunctionInstanceStats("public/default/test", functionRuntimeInfo, 1);
 
         FunctionStats functionStats = new FunctionStats();

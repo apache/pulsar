@@ -53,6 +53,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.io.SinkConfig;
+import org.apache.pulsar.common.policies.data.FunctionInstanceStatsData;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
@@ -293,8 +294,8 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         FunctionRuntimeManager functionRuntimeManager = functionsWorkerService.getFunctionRuntimeManager();
         FunctionStats functionStats = functionRuntimeManager.getFunctionStats(tenant, namespacePortion,
                 functionName, null);
-        FunctionStats functionStatsFromAdmin = admin.functions().getFunctionStats(tenant, namespacePortion,
-                functionName);
+        FunctionStats functionStatsFromAdmin = (FunctionStats) admin.functions().getFunctionStats(tenant,
+                namespacePortion, functionName);
 
         assertEquals(functionStats, functionStatsFromAdmin);
 
@@ -317,15 +318,17 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         assertEquals(functionStats.instances.get(0).getMetrics().getProcessedSuccessfullyTotal(), 0);
         assertEquals(functionStats.instances.get(0).getMetrics().getSystemExceptionsTotal(), 0);
         assertEquals(functionStats.instances.get(0).getMetrics().getUserExceptionsTotal(), 0);
-        assertNull(functionStats.instances.get(0).getMetrics().avgProcessLatency);
-        assertEquals(functionStats.instances.get(0).getMetrics().oneMin.getReceivedTotal(), 0);
-        assertEquals(functionStats.instances.get(0).getMetrics().oneMin.getProcessedSuccessfullyTotal(), 0);
-        assertEquals(functionStats.instances.get(0).getMetrics().oneMin.getSystemExceptionsTotal(), 0);
-        assertEquals(functionStats.instances.get(0).getMetrics().oneMin.getUserExceptionsTotal(), 0);
-        assertNull(functionStats.instances.get(0).getMetrics().oneMin.getAvgProcessLatency());
+        assertNull(functionStats.instances.get(0).getMetrics().getAvgProcessLatency());
+        assertEquals(functionStats.instances.get(0).getMetrics().getOneMin().getReceivedTotal(), 0);
+        assertEquals(functionStats.instances.get(0).getMetrics().getOneMin().getProcessedSuccessfullyTotal(), 0);
+        assertEquals(functionStats.instances.get(0).getMetrics().getOneMin().getSystemExceptionsTotal(), 0);
+        assertEquals(functionStats.instances.get(0).getMetrics().getOneMin().getUserExceptionsTotal(), 0);
+        assertNull(functionStats.instances.get(0).getMetrics().getOneMin().getAvgProcessLatency());
 
-        assertEquals(functionStats.instances.get(0).getMetrics().getAvgProcessLatency(), functionStats.instances.get(0).getMetrics().oneMin.getAvgProcessLatency());
-        assertEquals(functionStats.instances.get(0).getMetrics().getAvgProcessLatency(), functionStats.getAvgProcessLatency());
+        assertEquals(functionStats.instances.get(0).getMetrics().getAvgProcessLatency(),
+                functionStats.instances.get(0).getMetrics().getOneMin().getAvgProcessLatency());
+        assertEquals(functionStats.instances.get(0).getMetrics().getAvgProcessLatency(),
+                functionStats.getAvgProcessLatency());
 
         // validate prometheus metrics empty
         String prometheusMetrics = PulsarFunctionTestUtils.getPrometheusMetrics(pulsar.getListenPortHTTP().get());
@@ -412,11 +415,11 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
 
 
         // validate function instance stats empty
-        FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData functionInstanceStats = functionRuntimeManager.getFunctionInstanceStats(tenant, namespacePortion,
-                functionName, 0,  null);
+        FunctionInstanceStatsData functionInstanceStats = functionRuntimeManager.getFunctionInstanceStats(tenant,
+                namespacePortion, functionName, 0,  null);
 
-        FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData functionInstanceStatsAdmin = admin.functions().getFunctionStats(tenant, namespacePortion,
-                functionName, 0);
+        FunctionInstanceStatsData functionInstanceStatsAdmin = (FunctionInstanceStatsData) admin.functions().
+                getFunctionStats(tenant, namespacePortion, functionName, 0);
 
         assertEquals(functionInstanceStats, functionInstanceStatsAdmin);
         assertEquals(functionInstanceStats, functionStats.instances.get(0).getMetrics());
@@ -441,7 +444,7 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         functionStats = functionRuntimeManager.getFunctionStats(tenant, namespacePortion,
                 functionName, null);
 
-        functionStatsFromAdmin = admin.functions().getFunctionStats(tenant, namespacePortion,
+        functionStatsFromAdmin = (FunctionStats) admin.functions().getFunctionStats(tenant, namespacePortion,
                 functionName);
 
         assertEquals(functionStats, functionStatsFromAdmin);
@@ -465,22 +468,24 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         assertEquals(functionStats.instances.get(0).getMetrics().getProcessedSuccessfullyTotal(), totalMsgs);
         assertEquals(functionStats.instances.get(0).getMetrics().getSystemExceptionsTotal(), 0);
         assertEquals(functionStats.instances.get(0).getMetrics().getUserExceptionsTotal(), 0);
-        assertTrue(functionStats.instances.get(0).getMetrics().avgProcessLatency > 0);
-        assertEquals(functionStats.instances.get(0).getMetrics().oneMin.getReceivedTotal(), totalMsgs);
-        assertEquals(functionStats.instances.get(0).getMetrics().oneMin.getProcessedSuccessfullyTotal(), totalMsgs);
-        assertEquals(functionStats.instances.get(0).getMetrics().oneMin.getSystemExceptionsTotal(), 0);
-        assertEquals(functionStats.instances.get(0).getMetrics().oneMin.getUserExceptionsTotal(), 0);
-        assertTrue(functionStats.instances.get(0).getMetrics().oneMin.getAvgProcessLatency() > 0);
+        assertTrue(functionStats.instances.get(0).getMetrics().getAvgProcessLatency() > 0);
+        assertEquals(functionStats.instances.get(0).getMetrics().getOneMin().getReceivedTotal(), totalMsgs);
+        assertEquals(functionStats.instances.get(0).getMetrics().getOneMin().getProcessedSuccessfullyTotal(), totalMsgs);
+        assertEquals(functionStats.instances.get(0).getMetrics().getOneMin().getSystemExceptionsTotal(), 0);
+        assertEquals(functionStats.instances.get(0).getMetrics().getOneMin().getUserExceptionsTotal(), 0);
+        assertTrue(functionStats.instances.get(0).getMetrics().getOneMin().getAvgProcessLatency() > 0);
 
-        assertEquals(functionStats.instances.get(0).getMetrics().getAvgProcessLatency(), functionStats.instances.get(0).getMetrics().oneMin.getAvgProcessLatency());
-        assertEquals(functionStats.instances.get(0).getMetrics().getAvgProcessLatency(), functionStats.getAvgProcessLatency());
+        assertEquals(functionStats.instances.get(0).getMetrics().getAvgProcessLatency(),
+                functionStats.instances.get(0).getMetrics().getOneMin().getAvgProcessLatency());
+        assertEquals(functionStats.instances.get(0).getMetrics().getAvgProcessLatency(),
+                functionStats.getAvgProcessLatency());
 
         // validate function instance stats
         functionInstanceStats = functionRuntimeManager.getFunctionInstanceStats(tenant, namespacePortion,
                 functionName, 0,  null);
 
-        functionInstanceStatsAdmin = admin.functions().getFunctionStats(tenant, namespacePortion,
-                functionName, 0);
+        functionInstanceStatsAdmin = (FunctionInstanceStatsData) admin.functions().getFunctionStats(tenant,
+                namespacePortion, functionName, 0);
 
         assertEquals(functionInstanceStats, functionInstanceStatsAdmin);
         assertEquals(functionInstanceStats, functionStats.instances.get(0).getMetrics());

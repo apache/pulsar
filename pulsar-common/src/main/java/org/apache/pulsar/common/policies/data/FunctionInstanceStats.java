@@ -18,13 +18,19 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import java.io.IOException;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+import lombok.Data;
 
-public class FunctionStatsUtil {
+/**
+ * Function instance statistics.
+ */
+@Data
+@JsonInclude(JsonInclude.Include.ALWAYS)
+@JsonPropertyOrder({ "instanceId", "metrics" })
+public class FunctionInstanceStats implements FunctionInstanceStatsInterface {
+    /** Instance Id of function instance. **/
+    public int instanceId;
 
-    public static FunctionStats decode (String json) throws IOException {
-        return ObjectMapperFactory.getThreadLocal().readValue(json, FunctionStats.class);
-    }
-
+    public FunctionInstanceStatsDataInterface metrics = new FunctionInstanceStatsData();
 }

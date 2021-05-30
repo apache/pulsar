@@ -18,16 +18,24 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import lombok.Data;
+public interface FunctionInstanceStatsDataBaseInterface {
+    long getReceivedTotal();
 
-/**
- * Data class holding statistics about a function.
- */
-@Data
-public class WorkerFunctionInstanceStats {
-    /**
-     * Fully qualified function instance name.
-     */
-    public String name;
-    public FunctionInstanceStatsDataInterface metrics;
+    long getProcessedSuccessfullyTotal();
+
+    long getSystemExceptionsTotal();
+
+    long getUserExceptionsTotal();
+
+    Double getAvgProcessLatency();
+
+    void setReceivedTotal(long receivedTotal);
+
+    void setProcessedSuccessfullyTotal(long processedSuccessfullyTotal);
+
+    void setSystemExceptionsTotal(long systemExceptionsTotal);
+
+    void setUserExceptionsTotal(long userExceptionsTotal);
+
+    void setAvgProcessLatency(Double avgProcessLatency);
 }

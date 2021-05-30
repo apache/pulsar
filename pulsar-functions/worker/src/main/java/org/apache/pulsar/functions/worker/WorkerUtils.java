@@ -41,6 +41,8 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
+import org.apache.pulsar.common.policies.data.FunctionInstanceStats;
+import org.apache.pulsar.common.policies.data.FunctionInstanceStatsData;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.runtime.Runtime;
@@ -261,12 +263,12 @@ public final class WorkerUtils {
         }
     }
 
-    public static FunctionStats.FunctionInstanceStats getFunctionInstanceStats(String fullyQualifiedInstanceName,
+    public static FunctionInstanceStats getFunctionInstanceStats(String fullyQualifiedInstanceName,
                                                                                FunctionRuntimeInfo functionRuntimeInfo,
                                                                                int instanceId) {
         RuntimeSpawner functionRuntimeSpawner = functionRuntimeInfo.getRuntimeSpawner();
 
-        FunctionStats.FunctionInstanceStats functionInstanceStats = new FunctionStats.FunctionInstanceStats();
+        FunctionInstanceStats functionInstanceStats = new FunctionInstanceStats();
         if (functionRuntimeSpawner != null) {
             Runtime functionRuntime = functionRuntimeSpawner.getRuntime();
             if (functionRuntime != null) {
@@ -275,8 +277,7 @@ public final class WorkerUtils {
                     InstanceCommunication.MetricsData metricsData = functionRuntime.getMetrics(instanceId).get();
                     functionInstanceStats.setInstanceId(instanceId);
 
-                    FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData functionInstanceStatsData
-                            = new FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData();
+                    FunctionInstanceStatsData functionInstanceStatsData = new FunctionInstanceStatsData();
 
                     functionInstanceStatsData.setReceivedTotal(metricsData.getReceivedTotal());
                     functionInstanceStatsData.setProcessedSuccessfullyTotal(metricsData.getProcessedSuccessfullyTotal());

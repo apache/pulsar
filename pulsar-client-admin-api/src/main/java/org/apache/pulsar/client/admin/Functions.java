@@ -28,7 +28,8 @@ import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
 import org.apache.pulsar.common.functions.UpdateOptionsInterface;
 import org.apache.pulsar.common.io.ConnectorDefinition;
-import org.apache.pulsar.common.policies.data.FunctionStats;
+import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataInterface;
+import org.apache.pulsar.common.policies.data.FunctionStatsInterface;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 
 /**
@@ -410,7 +411,7 @@ public interface Functions {
      * @return
      * @throws PulsarAdminException
      */
-    FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData getFunctionStats(
+    FunctionInstanceStatsDataInterface getFunctionStats(
             String tenant, String namespace, String function, int id)
             throws PulsarAdminException;
 
@@ -427,7 +428,7 @@ public interface Functions {
      *            Function instance-id
      * @return
      */
-    CompletableFuture<FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData> getFunctionStatsAsync(
+    CompletableFuture<FunctionInstanceStatsDataInterface> getFunctionStatsAsync(
             String tenant, String namespace, String function, int id);
 
     /**
@@ -443,7 +444,7 @@ public interface Functions {
      * @throws PulsarAdminException
      */
 
-    FunctionStats getFunctionStats(String tenant, String namespace, String function)
+    FunctionStatsInterface getFunctionStats(String tenant, String namespace, String function)
             throws PulsarAdminException;
 
     /**
@@ -458,7 +459,7 @@ public interface Functions {
      * @return
      */
 
-    CompletableFuture<FunctionStats> getFunctionStatsAsync(String tenant, String namespace, String function);
+    CompletableFuture<FunctionStatsInterface> getFunctionStatsAsync(String tenant, String namespace, String function);
 
     /**
      * Restart function instance.

@@ -50,7 +50,10 @@ import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.functions.UpdateOptionsInterface;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.io.ConnectorDefinition;
+import org.apache.pulsar.common.policies.data.FunctionInstanceStatsData;
+import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataInterface;
 import org.apache.pulsar.common.policies.data.FunctionStats;
+import org.apache.pulsar.common.policies.data.FunctionStatsInterface;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.asynchttpclient.AsyncHandler;
@@ -238,7 +241,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     }
 
     @Override
-    public FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData getFunctionStats(
+    public FunctionInstanceStatsDataInterface getFunctionStats(
             String tenant, String namespace, String function, int id) throws PulsarAdminException {
         try {
             return getFunctionStatsAsync(tenant, namespace, function, id)
@@ -255,10 +258,10 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     }
 
     @Override
-    public CompletableFuture<FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData> getFunctionStatsAsync(
+    public CompletableFuture<FunctionInstanceStatsDataInterface> getFunctionStatsAsync(
             String tenant, String namespace, String function, int id) {
         WebTarget path = functions.path(tenant).path(namespace).path(function).path(Integer.toString(id)).path("stats");
-        final CompletableFuture<FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData> future =
+        final CompletableFuture<FunctionInstanceStatsDataInterface> future =
                 new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<Response>() {
@@ -267,8 +270,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                         if (!response.getStatusInfo().equals(Response.Status.OK)) {
                             future.completeExceptionally(getApiException(response));
                         } else {
-                            future.complete(response.readEntity(
-                                    FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.class));
+                            future.complete(response.readEntity(FunctionInstanceStatsData.class));
                         }
                     }
 
@@ -281,7 +283,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     }
 
     @Override
-    public FunctionStats getFunctionStats(String tenant, String namespace, String function)
+    public FunctionStatsInterface getFunctionStats(String tenant, String namespace, String function)
             throws PulsarAdminException {
         try {
             return getFunctionStatsAsync(tenant, namespace, function).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
@@ -297,9 +299,10 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     }
 
     @Override
-    public CompletableFuture<FunctionStats> getFunctionStatsAsync(String tenant, String namespace, String function) {
+    public CompletableFuture<FunctionStatsInterface> getFunctionStatsAsync(String tenant,
+                                                                           String namespace, String function) {
         WebTarget path = functions.path(tenant).path(namespace).path(function).path("stats");
-        final CompletableFuture<FunctionStats> future = new CompletableFuture<>();
+        final CompletableFuture<FunctionStatsInterface> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<Response>() {
                     @Override

@@ -18,16 +18,12 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import lombok.Data;
+public interface FunctionInstanceStatsInterface {
+    int getInstanceId();
 
-/**
- * Data class holding statistics about a function.
- */
-@Data
-public class WorkerFunctionInstanceStats {
-    /**
-     * Fully qualified function instance name.
-     */
-    public String name;
-    public FunctionInstanceStatsDataInterface metrics;
+    FunctionInstanceStatsDataInterface getMetrics();
+
+    void setInstanceId(int instanceId);
+
+    void setMetrics(FunctionInstanceStatsDataInterface metrics);
 }
