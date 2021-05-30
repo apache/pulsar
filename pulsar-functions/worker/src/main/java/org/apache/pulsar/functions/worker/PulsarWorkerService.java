@@ -530,8 +530,8 @@ public class PulsarWorkerService implements WorkerService {
                     () -> {
                         // computing a new schedule and checking for failures cannot happen concurrently
                         // both paths of code modify internally cached assignments map in function runtime manager
+                        schedulerManager.getSchedulerLock().lock();
                         try {
-                            schedulerManager.getSchedulerLock().lock();
                             membershipManager.checkFailures(
                                     functionMetaDataManager, functionRuntimeManager, schedulerManager);
                         } finally {

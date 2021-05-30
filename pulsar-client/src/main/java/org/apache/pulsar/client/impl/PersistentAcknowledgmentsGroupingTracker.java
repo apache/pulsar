@@ -141,11 +141,11 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             }
         } else {
             if (isAckReceiptEnabled(consumer.getClientCnx())) {
+                // when flush the ack, we should bind the this ack in the currentFuture, during this time we can't
+                // change currentFuture. but we can lock by the read lock, because the currentFuture is not change
+                // any ack operation is allowed.
+                this.lock.readLock().lock();
                 try {
-                    // when flush the ack, we should bind the this ack in the currentFuture, during this time we can't
-                    // change currentFuture. but we can lock by the read lock, because the currentFuture is not change
-                    // any ack operation is allowed.
-                    this.lock.readLock().lock();
                     if (messageIds.size() != 0) {
                         addListAcknowledgment(messageIds);
                         return this.currentIndividualAckFuture;

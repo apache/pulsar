@@ -456,8 +456,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     public String getStatsAsString() throws IOException {
         if (isInitialized) {
+            statsLock.readLock().lock();
             try {
-                statsLock.readLock().lock();
                 return stats.getStatsAsString();
             } finally {
                 statsLock.readLock().unlock();
@@ -468,8 +468,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     public InstanceCommunication.MetricsData getAndResetMetrics() {
         if (isInitialized) {
+            statsLock.writeLock().lock();
             try {
-                statsLock.writeLock().lock();
                 InstanceCommunication.MetricsData metricsData = internalGetMetrics();
                 internalResetMetrics();
                 return metricsData;
@@ -482,8 +482,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     public InstanceCommunication.MetricsData getMetrics() {
         if (isInitialized) {
+            statsLock.readLock().lock();
             try {
-                statsLock.readLock().lock();
                 return internalGetMetrics();
             } finally {
                 statsLock.readLock().unlock();
@@ -494,8 +494,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     public void resetMetrics() {
         if (isInitialized) {
+            statsLock.writeLock().lock();
             try {
-                statsLock.writeLock().lock();
                 internalResetMetrics();
             } finally {
                 statsLock.writeLock().unlock();
@@ -540,9 +540,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     public InstanceCommunication.FunctionStatus.Builder getFunctionStatus() {
         InstanceCommunication.FunctionStatus.Builder functionStatusBuilder = InstanceCommunication.FunctionStatus.newBuilder();
         if (isInitialized) {
+            statsLock.readLock().lock();
             try {
-                statsLock.readLock().lock();
-
                 functionStatusBuilder.setNumReceived((long) stats.getTotalRecordsReceived());
                 functionStatusBuilder.setNumSuccessfullyProcessed((long) stats.getTotalProcessedSuccessfully());
                 functionStatusBuilder.setNumUserExceptions((long) stats.getTotalUserExceptions());

@@ -54,8 +54,8 @@ public class NoStrictCacheSizeAllocator implements CacheSizeAllocator {
      * @param size allocate size
      */
     public void allocate(long size) {
+        lock.lock();
         try {
-            lock.lock();
             availableCacheSize.add(-size);
         } finally {
             lock.unlock();
@@ -69,8 +69,8 @@ public class NoStrictCacheSizeAllocator implements CacheSizeAllocator {
      * @param size release size
      */
     public void release(long size) {
+        lock.lock();
         try {
-            lock.lock();
             availableCacheSize.add(size);
             if (availableCacheSize.longValue() > maxCacheSize) {
                 availableCacheSize.reset();

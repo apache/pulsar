@@ -780,8 +780,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             return;
         }
 
+        reentrantLock.lock();
         try {
-            reentrantLock.lock();
             notifyPendingBatchReceivedCallBack(opBatchReceive);
         } finally {
             reentrantLock.unlock();
