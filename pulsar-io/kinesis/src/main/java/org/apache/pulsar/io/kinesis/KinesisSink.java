@@ -37,8 +37,6 @@ import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 
 import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.concurrent.Executors;
@@ -49,7 +47,6 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
-import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.aws.AbstractAwsConnector;
 import org.apache.pulsar.io.aws.AwsCredentialProviderPlugin;
@@ -57,6 +54,7 @@ import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
+import org.apache.pulsar.io.core.utils.Backoff;
 import org.apache.pulsar.io.kinesis.KinesisSinkConfig.MessageFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -114,8 +112,6 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<byte[]> {
     public static final String METRICS_TOTAL_INCOMING_BYTES = "_kinesis_total_incoming_bytes_";
     public static final String METRICS_TOTAL_SUCCESS = "_kinesis_total_success_";
     public static final String METRICS_TOTAL_FAILURE = "_kinesis_total_failure_";
-
-    private static Constructor<Backoff> backoffConstructor = null;
 
     private void sendUserRecord(ProducerSendCallback producerSendCallback) {
         ListenableFuture<UserRecordResult> addRecordResult = kinesisProducer.addUserRecord(this.streamName,
@@ -183,9 +179,6 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<byte[]> {
         this.kinesisProducer = new KinesisProducer(kinesisConfig);
         IS_PUBLISH_FAILED.set(this, FALSE);
 
-        backoffConstructor = getBackoffConstructor(sinkContext.getClass().getClassLoader());
-        Backoff backoff = createBackoff(100, TimeUnit.MILLISECONDS, 1, TimeUnit.SECONDS, 5, TimeUnit.SECONDS);
-        LOG.info("open create backoff " + backoff);
         LOG.info("Kinesis sink started. {}", (ReflectionToStringBuilder.toString(kinesisConfig, ToStringStyle.SHORT_PREFIX_STYLE)));
     }
 
@@ -203,9 +196,7 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<byte[]> {
             this.recyclerHandle = recyclerHandle;
         }
 
-        static ProducerSendCallback create(KinesisSink kinesisSink, Record<byte[]> resultContext, long startTime,
-                                           String partitionedKey, ByteBuffer data)
-                throws InvocationTargetException, InstantiationException, IllegalAccessException {
+        static ProducerSendCallback create(KinesisSink kinesisSink, Record<byte[]> resultContext, long startTime, String partitionedKey, ByteBuffer data) {
             ProducerSendCallback sendCallback = RECYCLER.get();
             sendCallback.resultContext = resultContext;
             sendCallback.kinesisSink = kinesisSink;
@@ -213,13 +204,8 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<byte[]> {
             sendCallback.partitionedKey = partitionedKey;
             sendCallback.data = data;
             if (kinesisSink.kinesisSinkConfig.isRetainOrdering() && sendCallback.backoff == null) {
-                sendCallback.backoff = createBackoff(
-                        kinesisSink.kinesisSinkConfig.getRetryInitialDelayInMillis(),
-                        TimeUnit.MILLISECONDS,
-                        kinesisSink.kinesisSinkConfig.getRetryMaxDelayInMillis(),
-                        TimeUnit.MILLISECONDS,
-                        0,
-                        TimeUnit.SECONDS);
+                sendCallback.backoff = new Backoff(kinesisSink.kinesisSinkConfig.getRetryInitialDelayInMillis(), TimeUnit.MILLISECONDS,
+                        kinesisSink.kinesisSinkConfig.getRetryMaxDelayInMillis(), TimeUnit.MILLISECONDS, 0, TimeUnit.SECONDS);
             }
             return sendCallback;
         }
@@ -299,24 +285,6 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<byte[]> {
             // send raw-message
             return ByteBuffer.wrap(record.getValue());
         }
-    }
-
-    private Constructor getBackoffConstructor(ClassLoader classLoader)
-            throws ClassNotFoundException, NoSuchMethodException, NoSuchFieldException {
-        Class<Backoff> backoffClass = (Class<Backoff>) Class.forName(
-                "org.apache.pulsar.client.impl.Backoff", true, classLoader);
-        Class longClass = backoffClass.getDeclaredField("initial").getType();
-        return backoffClass.getDeclaredConstructor(
-                        longClass, TimeUnit.class, longClass, TimeUnit.class, longClass, TimeUnit.class);
-    }
-
-    private static Backoff createBackoff(long initial, TimeUnit unitInitial, long max, TimeUnit unitMax,
-                                         long mandatoryStop, TimeUnit unitMandatoryStop)
-            throws InvocationTargetException, InstantiationException, IllegalAccessException {
-        if (backoffConstructor == null) {
-            return new Backoff(initial, unitInitial, max, unitMax, mandatoryStop, unitMandatoryStop);
-        }
-        return backoffConstructor.newInstance(initial, unitInitial, max, unitMax, mandatoryStop, unitMandatoryStop);
     }
 
 }
