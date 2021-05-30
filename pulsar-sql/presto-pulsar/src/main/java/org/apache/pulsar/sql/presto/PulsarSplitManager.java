@@ -125,7 +125,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
 
         Collection<PulsarSplit> splits;
         try {
-            OffloadPolicies offloadPolicies = this.pulsarAdmin.namespaces()
+            OffloadPolicies offloadPolicies = (OffloadPolicies) this.pulsarAdmin.namespaces()
                                                 .getOffloadPolicies(topicName.getNamespace());
             if (offloadPolicies != null) {
                 offloadPolicies.setOffloadersDirectory(pulsarConnectorConfig.getOffloadersDirectory());

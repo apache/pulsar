@@ -2538,7 +2538,7 @@ public abstract class NamespacesBase extends AdminResource {
         validateNamespacePolicyOperation(namespaceName, PolicyName.OFFLOAD, PolicyOperation.READ);
 
         Policies policies = getNamespacePolicies(namespaceName);
-        return policies.offload_policies;
+        return (OffloadPolicies) policies.offload_policies;
     }
 
     protected int internalGetMaxTopicsPerNamespace() {

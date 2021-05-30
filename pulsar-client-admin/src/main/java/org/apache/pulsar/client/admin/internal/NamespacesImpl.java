@@ -48,6 +48,7 @@ import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesInterface;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
@@ -3209,7 +3210,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public void setOffloadPolicies(String namespace, OffloadPolicies offloadPolicies) throws PulsarAdminException {
+    public void setOffloadPolicies(String namespace, OffloadPoliciesInterface offloadPolicies)
+            throws PulsarAdminException {
         try {
             setOffloadPoliciesAsync(namespace, offloadPolicies)
                     .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
@@ -3239,7 +3241,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public CompletableFuture<Void> setOffloadPoliciesAsync(String namespace, OffloadPolicies offloadPolicies) {
+    public CompletableFuture<Void> setOffloadPoliciesAsync(String namespace, OffloadPoliciesInterface offloadPolicies) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "offloadPolicies");
         return asyncPostRequest(path, Entity.entity(offloadPolicies, MediaType.APPLICATION_JSON));
@@ -3253,7 +3255,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public OffloadPolicies getOffloadPolicies(String namespace) throws PulsarAdminException {
+    public OffloadPoliciesInterface getOffloadPolicies(String namespace) throws PulsarAdminException {
         try {
             return getOffloadPoliciesAsync(namespace).
                     get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
@@ -3268,10 +3270,10 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public CompletableFuture<OffloadPolicies> getOffloadPoliciesAsync(String namespace) {
+    public CompletableFuture<OffloadPoliciesInterface> getOffloadPoliciesAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "offloadPolicies");
-        final CompletableFuture<OffloadPolicies> future = new CompletableFuture<>();
+        final CompletableFuture<OffloadPoliciesInterface> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<OffloadPolicies>() {
                     @Override

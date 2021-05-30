@@ -112,7 +112,7 @@ public class Policies {
     public boolean schema_validation_enforced = false;
 
     @SuppressWarnings("checkstyle:MemberName")
-    public OffloadPolicies offload_policies = null;
+    public OffloadPoliciesInterface offload_policies = null;
 
     public Integer deduplicationSnapshotIntervalSeconds = null;
 

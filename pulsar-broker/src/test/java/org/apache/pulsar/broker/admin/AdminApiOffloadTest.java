@@ -48,7 +48,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
-import org.apache.pulsar.common.policies.data.OffloadPoliciesUtil;
+import org.apache.pulsar.common.policies.data.OffloadedReadPriority;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -171,17 +171,17 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         String endpoint = "test-endpoint";
         long offloadThresholdInBytes = 0;
         long offloadDeletionLagInMillis = 100L;
-        OffloadPolicies.OffloadedReadPriority priority = OffloadPolicies.OffloadedReadPriority.TIERED_STORAGE_FIRST;
+        OffloadedReadPriority priority = OffloadedReadPriority.TIERED_STORAGE_FIRST;
 
-        OffloadPolicies offload1 = OffloadPoliciesUtil.create(
+        OffloadPolicies offload1 = OffloadPolicies.create(
                 driver, region, bucket, endpoint, null, null, null, null,
                 100, 100, offloadThresholdInBytes, offloadDeletionLagInMillis, priority);
         admin.namespaces().setOffloadPolicies(namespaceName, offload1);
-        OffloadPolicies offload2 = admin.namespaces().getOffloadPolicies(namespaceName);
+        OffloadPolicies offload2 = (OffloadPolicies) admin.namespaces().getOffloadPolicies(namespaceName);
         assertEquals(offload1, offload2);
 
         admin.namespaces().removeOffloadPolicies(namespaceName);
-        OffloadPolicies offload3 = admin.namespaces().getOffloadPolicies(namespaceName);
+        OffloadPolicies offload3 = (OffloadPolicies) admin.namespaces().getOffloadPolicies(namespaceName);
         assertNull(offload3);
     }
 
@@ -192,7 +192,7 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         pulsarClient.newProducer().topic(topicName).create().close();
         Awaitility.await()
                 .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topicName)));
-        OffloadPolicies offloadPolicies = admin.topics().getOffloadPolicies(topicName);
+        OffloadPolicies offloadPolicies = (OffloadPolicies) admin.topics().getOffloadPolicies(topicName);
         assertNull(offloadPolicies);
         OffloadPolicies offload = new OffloadPolicies();
         String path = "fileSystemPath";
@@ -215,8 +215,8 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         pulsarClient.newProducer().topic(topicName).create().close();
         Awaitility.await()
                 .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topicName)));
-        OffloadPolicies offloadPolicies = admin.topics().getOffloadPolicies(topicName, true);
-        OffloadPolicies brokerPolicies = OffloadPoliciesUtil
+        OffloadPolicies offloadPolicies = (OffloadPolicies) admin.topics().getOffloadPolicies(topicName, true);
+        OffloadPolicies brokerPolicies = OffloadPolicies
                 .mergeConfiguration(null,null, pulsar.getConfiguration().getProperties());
 
         assertEquals(offloadPolicies, brokerPolicies);

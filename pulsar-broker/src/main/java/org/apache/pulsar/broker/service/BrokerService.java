@@ -145,7 +145,6 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
-import org.apache.pulsar.common.policies.data.OffloadPoliciesUtil;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -1363,10 +1362,11 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             managedLedgerConfig.setAutoSkipNonRecoverableData(serviceConfig.isAutoSkipNonRecoverableData());
             managedLedgerConfig.setLazyCursorRecovery(serviceConfig.isLazyCursorRecovery());
 
-            OffloadPolicies nsLevelOffloadPolicies = policies.map(p -> p.offload_policies).orElse(null);
-            OffloadPolicies offloadPolicies = OffloadPoliciesUtil.mergeConfiguration(
+            OffloadPolicies nsLevelOffloadPolicies =
+                    (OffloadPolicies) policies.map(p -> p.offload_policies).orElse(null);
+            OffloadPolicies offloadPolicies = OffloadPolicies.mergeConfiguration(
                     topicLevelOffloadPolicies,
-                    OffloadPoliciesUtil.oldPoliciesCompatible(nsLevelOffloadPolicies, policies.orElse(null)),
+                    OffloadPolicies.oldPoliciesCompatible(nsLevelOffloadPolicies, policies.orElse(null)),
                     getPulsar().getConfig().getProperties());
             if (topicLevelOffloadPolicies != null) {
                 try {

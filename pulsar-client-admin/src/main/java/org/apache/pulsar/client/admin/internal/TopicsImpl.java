@@ -73,6 +73,7 @@ import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesInterface;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -2037,17 +2038,17 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public OffloadPolicies getOffloadPolicies(String topic) throws PulsarAdminException {
+    public OffloadPoliciesInterface getOffloadPolicies(String topic) throws PulsarAdminException {
         return getOffloadPolicies(topic, false);
     }
 
     @Override
-    public CompletableFuture<OffloadPolicies> getOffloadPoliciesAsync(String topic) {
+    public CompletableFuture<OffloadPoliciesInterface> getOffloadPoliciesAsync(String topic) {
         return getOffloadPoliciesAsync(topic, false);
     }
 
     @Override
-    public OffloadPolicies getOffloadPolicies(String topic, boolean applied) throws PulsarAdminException {
+    public OffloadPoliciesInterface getOffloadPolicies(String topic, boolean applied) throws PulsarAdminException {
         try {
             return getOffloadPoliciesAsync(topic, applied).
                     get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
@@ -2062,11 +2063,11 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public CompletableFuture<OffloadPolicies> getOffloadPoliciesAsync(String topic, boolean applied) {
+    public CompletableFuture<OffloadPoliciesInterface> getOffloadPoliciesAsync(String topic, boolean applied) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "offloadPolicies");
         path = path.queryParam("applied", applied);
-        final CompletableFuture<OffloadPolicies> future = new CompletableFuture<>();
+        final CompletableFuture<OffloadPoliciesInterface> future = new CompletableFuture<>();
         asyncGetRequest(path, new InvocationCallback<OffloadPolicies>() {
             @Override
             public void completed(OffloadPolicies offloadPolicies) {
@@ -2082,7 +2083,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public void setOffloadPolicies(String topic, OffloadPolicies offloadPolicies) throws PulsarAdminException {
+    public void setOffloadPolicies(String topic, OffloadPoliciesInterface offloadPolicies) throws PulsarAdminException {
         try {
             setOffloadPoliciesAsync(topic, offloadPolicies).
                     get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
@@ -2097,10 +2098,10 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public CompletableFuture<Void> setOffloadPoliciesAsync(String topic, OffloadPolicies offloadPolicies) {
+    public CompletableFuture<Void> setOffloadPoliciesAsync(String topic, OffloadPoliciesInterface offloadPolicies) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "offloadPolicies");
-        return asyncPostRequest(path, Entity.entity(offloadPolicies, MediaType.APPLICATION_JSON));
+        return asyncPostRequest(path, Entity.entity((OffloadPolicies) offloadPolicies, MediaType.APPLICATION_JSON));
     }
 
     @Override

@@ -26,8 +26,6 @@ import com.github.zafarkhaja.semver.Version;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -108,7 +106,6 @@ import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
-import org.apache.pulsar.common.policies.data.OffloadPoliciesUtil;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -776,8 +773,8 @@ public class PersistentTopicsBase extends AdminResource {
         OffloadPolicies offloadPolicies =
                 getTopicPolicies(topicName).map(TopicPolicies::getOffloadPolicies).orElse(null);
         if (applied) {
-            OffloadPolicies namespacePolicy = getNamespacePolicies(namespaceName).offload_policies;
-            offloadPolicies = OffloadPoliciesUtil.mergeConfiguration(offloadPolicies
+            OffloadPolicies namespacePolicy = (OffloadPolicies) getNamespacePolicies(namespaceName).offload_policies;
+            offloadPolicies = OffloadPolicies.mergeConfiguration(offloadPolicies
                     , namespacePolicy, pulsar().getConfiguration().getProperties());
         }
         return CompletableFuture.completedFuture(offloadPolicies);

@@ -37,7 +37,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesInterface;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -2043,14 +2043,14 @@ public interface Topics {
      * @return
      * @throws PulsarAdminException
      */
-    OffloadPolicies getOffloadPolicies(String topic) throws PulsarAdminException;
+    OffloadPoliciesInterface getOffloadPolicies(String topic) throws PulsarAdminException;
 
     /**
      * get offload policies of a topic asynchronously.
      * @param topic
      * @return
      */
-    CompletableFuture<OffloadPolicies> getOffloadPoliciesAsync(String topic);
+    CompletableFuture<OffloadPoliciesInterface> getOffloadPoliciesAsync(String topic);
 
     /**
      * get applied offload policies of a topic.
@@ -2058,14 +2058,14 @@ public interface Topics {
      * @return
      * @throws PulsarAdminException
      */
-    OffloadPolicies getOffloadPolicies(String topic, boolean applied) throws PulsarAdminException;
+    OffloadPoliciesInterface getOffloadPolicies(String topic, boolean applied) throws PulsarAdminException;
 
     /**
      * get applied offload policies of a topic asynchronously.
      * @param topic
      * @return
      */
-    CompletableFuture<OffloadPolicies> getOffloadPoliciesAsync(String topic, boolean applied);
+    CompletableFuture<OffloadPoliciesInterface> getOffloadPoliciesAsync(String topic, boolean applied);
 
     /**
      * set offload policies of a topic.
@@ -2073,7 +2073,7 @@ public interface Topics {
      * @param offloadPolicies
      * @throws PulsarAdminException
      */
-    void setOffloadPolicies(String topic, OffloadPolicies offloadPolicies) throws PulsarAdminException;
+    void setOffloadPolicies(String topic, OffloadPoliciesInterface offloadPolicies) throws PulsarAdminException;
 
     /**
      * set offload policies of a topic asynchronously.
@@ -2081,7 +2081,7 @@ public interface Topics {
      * @param offloadPolicies
      * @return
      */
-    CompletableFuture<Void> setOffloadPoliciesAsync(String topic, OffloadPolicies offloadPolicies);
+    CompletableFuture<Void> setOffloadPoliciesAsync(String topic, OffloadPoliciesInterface offloadPolicies);
 
     /**
      * remove offload policies of a topic.

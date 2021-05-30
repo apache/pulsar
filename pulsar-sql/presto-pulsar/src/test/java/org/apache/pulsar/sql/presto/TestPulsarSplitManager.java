@@ -34,7 +34,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
-import org.apache.pulsar.common.policies.data.OffloadPoliciesUtil;
+import org.apache.pulsar.common.policies.data.OffloadedReadPriority;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.mockito.invocation.InvocationOnMock;
@@ -414,7 +414,7 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
 
     @Test
     public void pulsarSplitJsonCodecTest() throws JsonProcessingException, UnsupportedEncodingException {
-        OffloadPolicies offloadPolicies = OffloadPoliciesUtil.create(
+        OffloadPolicies offloadPolicies = OffloadPolicies.create(
                 "aws-s3",
                 "test-region",
                 "test-bucket",
@@ -427,7 +427,7 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
                 2000,
                 1000L,
                 5000L,
-                OffloadPolicies.OffloadedReadPriority.BOOKKEEPER_FIRST
+                OffloadedReadPriority.BOOKKEEPER_FIRST
         );
 
         SchemaInfo schemaInfo = JSONSchema.of(Foo.class).getSchemaInfo();
