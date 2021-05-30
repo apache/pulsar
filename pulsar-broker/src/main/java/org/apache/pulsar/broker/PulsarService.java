@@ -560,8 +560,6 @@ public class PulsarService implements AutoCloseable {
      * Start the pulsar service instance.
      */
     public void start() throws PulsarServerException {
-        mutex.lock();
-
         LOG.info("Starting Pulsar Broker service; version: '{}'",
                 (brokerVersion != null ? brokerVersion : "unknown"));
         LOG.info("Git Revision {}", PulsarVersion.getGitSha());
@@ -570,6 +568,7 @@ public class PulsarService implements AutoCloseable {
                 PulsarVersion.getBuildHost(),
                 PulsarVersion.getBuildTime());
 
+        mutex.lock();
         try {
             if (state != State.Init) {
                 throw new PulsarServerException("Cannot start the service once it was stopped");
