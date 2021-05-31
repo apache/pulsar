@@ -179,7 +179,10 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
     public void safeRun() {
         // Remove this entry from the head of the pending queue
         OpAddEntry firstInQueue = ml.pendingAddEntries.poll();
-        checkArgument(this == firstInQueue);
+        if (this != firstInQueue) {
+            ReferenceCountUtil.release(data);
+            throw new IllegalStateException("This OpAddEntry wasn't first in queue.");
+        }
 
         ManagedLedgerImpl.NUMBER_OF_ENTRIES_UPDATER.incrementAndGet(ml);
         ManagedLedgerImpl.TOTAL_SIZE_UPDATER.addAndGet(ml, dataLength);
