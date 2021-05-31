@@ -50,8 +50,8 @@ import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.io.ConnectorDefinition;
+import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataImpl;
 import org.apache.pulsar.common.policies.data.FunctionInstanceStatsData;
-import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataInterface;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.FunctionStatsInterface;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
@@ -241,7 +241,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     }
 
     @Override
-    public FunctionInstanceStatsDataInterface getFunctionStats(
+    public FunctionInstanceStatsData getFunctionStats(
             String tenant, String namespace, String function, int id) throws PulsarAdminException {
         try {
             return getFunctionStatsAsync(tenant, namespace, function, id)
@@ -258,10 +258,10 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     }
 
     @Override
-    public CompletableFuture<FunctionInstanceStatsDataInterface> getFunctionStatsAsync(
+    public CompletableFuture<FunctionInstanceStatsData> getFunctionStatsAsync(
             String tenant, String namespace, String function, int id) {
         WebTarget path = functions.path(tenant).path(namespace).path(function).path(Integer.toString(id)).path("stats");
-        final CompletableFuture<FunctionInstanceStatsDataInterface> future =
+        final CompletableFuture<FunctionInstanceStatsData> future =
                 new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<Response>() {
@@ -270,7 +270,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                         if (!response.getStatusInfo().equals(Response.Status.OK)) {
                             future.completeExceptionally(getApiException(response));
                         } else {
-                            future.complete(response.readEntity(FunctionInstanceStatsData.class));
+                            future.complete(response.readEntity(FunctionInstanceStatsDataImpl.class));
                         }
                     }
 

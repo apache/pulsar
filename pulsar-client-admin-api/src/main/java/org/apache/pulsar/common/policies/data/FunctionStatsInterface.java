@@ -21,7 +21,7 @@ package org.apache.pulsar.common.policies.data;
 import java.util.List;
 
 public interface FunctionStatsInterface {
-    void addInstance(FunctionInstanceStatsInterface functionInstanceStats);
+    void addInstance(FunctionInstanceStats functionInstanceStats);
 
     FunctionStatsInterface calculateOverall();
 
@@ -35,11 +35,11 @@ public interface FunctionStatsInterface {
 
     Double getAvgProcessLatency();
 
-    FunctionInstanceStatsDataBaseInterface getOneMin();
+    FunctionInstanceStatsDataBase getOneMin();
 
     Long getLastInvocation();
 
-    List<FunctionInstanceStatsInterface> getInstances();
+    List<FunctionInstanceStats> getInstances();
 
     void setReceivedTotal(long receivedTotal);
 
@@ -51,9 +51,9 @@ public interface FunctionStatsInterface {
 
     void setAvgProcessLatency(Double avgProcessLatency);
 
-    void setOneMin(FunctionInstanceStatsDataBaseInterface oneMin);
+    void setOneMin(FunctionInstanceStatsDataBase oneMin);
 
     void setLastInvocation(Long lastInvocation);
 
-    void setInstances(List<FunctionInstanceStatsInterface> instances);
+    void setInstances(List<FunctionInstanceStats> instances);
 }

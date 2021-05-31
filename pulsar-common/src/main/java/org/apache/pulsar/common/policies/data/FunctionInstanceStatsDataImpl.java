@@ -19,39 +19,32 @@
 package org.apache.pulsar.common.policies.data;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+import java.util.HashMap;
+import java.util.Map;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
- * Function instance statistics data base.
+ * Function instance statistics data.
  */
+@EqualsAndHashCode(callSuper = true)
 @Data
 @JsonInclude(JsonInclude.Include.ALWAYS)
 @JsonPropertyOrder({ "receivedTotal", "processedSuccessfullyTotal", "systemExceptionsTotal",
-        "userExceptionsTotal", "avgProcessLatency" })
-public class FunctionInstanceStatsDataBase implements FunctionInstanceStatsDataBaseInterface {
-    /**
-     * Total number of records function received from source for instance.
-     **/
-    public long receivedTotal;
+        "userExceptionsTotal", "avgProcessLatency", "1min", "lastInvocation", "userMetrics" })
+public class FunctionInstanceStatsDataImpl extends FunctionInstanceStatsDataBaseImpl implements FunctionInstanceStatsData {
+    @JsonProperty("1min")
+    public FunctionInstanceStatsDataBase oneMin = new FunctionInstanceStatsDataBaseImpl();
 
     /**
-     * Total number of records successfully processed by user function for instance.
+     * Timestamp of when the function was last invoked for instance.
      **/
-    public long processedSuccessfullyTotal;
+    public Long lastInvocation;
 
     /**
-     * Total number of system exceptions thrown for instance.
+     * Map of user defined metrics.
      **/
-    public long systemExceptionsTotal;
-
-    /**
-     * Total number of user exceptions thrown for instance.
-     **/
-    public long userExceptionsTotal;
-
-    /**
-     * Average process latency for function for instance.
-     **/
-    public Double avgProcessLatency;
+    public Map<String, Double> userMetrics = new HashMap<>();
 }

@@ -18,14 +18,14 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-public interface FunctionInstanceStatsDataInterface extends FunctionInstanceStatsDataBaseInterface {
-    FunctionInstanceStatsDataBaseInterface getOneMin();
+public interface FunctionInstanceStatsData extends FunctionInstanceStatsDataBase {
+    FunctionInstanceStatsDataBase getOneMin();
 
     Long getLastInvocation();
 
     java.util.Map<String, Double> getUserMetrics();
 
-    void setOneMin(FunctionInstanceStatsDataBaseInterface oneMin);
+    void setOneMin(FunctionInstanceStatsDataBase oneMin);
 
     void setLastInvocation(Long lastInvocation);
 

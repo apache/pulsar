@@ -22,12 +22,10 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
+
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 /**
@@ -65,18 +63,18 @@ public class FunctionStats implements FunctionStatsInterface {
     public Double avgProcessLatency;
 
     @JsonProperty("1min")
-    public FunctionInstanceStatsDataBaseInterface oneMin =
-            new FunctionInstanceStatsDataBase();
+    public FunctionInstanceStatsDataBase oneMin =
+            new FunctionInstanceStatsDataBaseImpl();
 
     /**
      * Timestamp of when the function was last invoked by any instance.
      **/
     public Long lastInvocation;
 
-    public List<FunctionInstanceStatsInterface> instances = new LinkedList<>();
+    public List<FunctionInstanceStats> instances = new LinkedList<>();
 
     @Override
-    public void addInstance(FunctionInstanceStatsInterface functionInstanceStats) {
+    public void addInstance(FunctionInstanceStats functionInstanceStats) {
         instances.add(functionInstanceStats);
     }
 
@@ -85,9 +83,9 @@ public class FunctionStats implements FunctionStatsInterface {
 
         int nonNullInstances = 0;
         int nonNullInstancesOneMin = 0;
-        for (FunctionInstanceStatsInterface functionInstanceStats : instances) {
-            FunctionInstanceStatsData functionInstanceStatsData =
-                    (FunctionInstanceStatsData) functionInstanceStats.getMetrics();
+        for (FunctionInstanceStats functionInstanceStats : instances) {
+            FunctionInstanceStatsDataImpl functionInstanceStatsData =
+                    (FunctionInstanceStatsDataImpl) functionInstanceStats.getMetrics();
             receivedTotal += functionInstanceStatsData.receivedTotal;
             processedSuccessfullyTotal += functionInstanceStatsData.processedSuccessfullyTotal;
             systemExceptionsTotal += functionInstanceStatsData.systemExceptionsTotal;

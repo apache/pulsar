@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-public interface FunctionInstanceStatsDataBaseInterface {
+public interface FunctionInstanceStatsDataBase {
     long getReceivedTotal();
 
     long getProcessedSuccessfullyTotal();

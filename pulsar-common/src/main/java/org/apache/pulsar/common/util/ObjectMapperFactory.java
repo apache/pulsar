@@ -40,12 +40,12 @@ import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.FailureDomainImpl;
 import org.apache.pulsar.common.policies.data.FailureDomain;
-import org.apache.pulsar.common.policies.data.FunctionInstanceStats;
-import org.apache.pulsar.common.policies.data.FunctionInstanceStatsData;
+import org.apache.pulsar.common.policies.data.FunctionInstanceStatsImpl;
+import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataImpl;
+import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataBaseImpl;
 import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataBase;
-import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataBaseInterface;
-import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataInterface;
-import org.apache.pulsar.common.policies.data.FunctionInstanceStatsInterface;
+import org.apache.pulsar.common.policies.data.FunctionInstanceStatsData;
+import org.apache.pulsar.common.policies.data.FunctionInstanceStats;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.FunctionStatsInterface;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
@@ -119,9 +119,9 @@ public class ObjectMapperFactory {
         resolver.addMapping(TenantInfoInterface.class, TenantInfo.class);
         resolver.addMapping(OffloadPoliciesInterface.class, OffloadPolicies.class);
         resolver.addMapping(FunctionStatsInterface.class, FunctionStats.class);
-        resolver.addMapping(FunctionInstanceStatsInterface.class, FunctionInstanceStats.class);
-        resolver.addMapping(FunctionInstanceStatsDataInterface.class, FunctionInstanceStatsData.class);
-        resolver.addMapping(FunctionInstanceStatsDataBaseInterface.class, FunctionInstanceStatsDataBase.class);
+        resolver.addMapping(FunctionInstanceStats.class, FunctionInstanceStatsImpl.class);
+        resolver.addMapping(FunctionInstanceStatsData.class, FunctionInstanceStatsDataImpl.class);
+        resolver.addMapping(FunctionInstanceStatsDataBase.class, FunctionInstanceStatsDataBaseImpl.class);
 
         // we use MixIn class to add jackson annotations
         mapper.addMixIn(BacklogQuota.class, BacklogQuotaMixIn.class);

@@ -52,8 +52,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.common.io.SinkConfig;
-import org.apache.pulsar.common.policies.data.FunctionInstanceStatsData;
+import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataImpl;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
@@ -415,10 +414,10 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
 
 
         // validate function instance stats empty
-        FunctionInstanceStatsData functionInstanceStats = functionRuntimeManager.getFunctionInstanceStats(tenant,
+        FunctionInstanceStatsDataImpl functionInstanceStats = functionRuntimeManager.getFunctionInstanceStats(tenant,
                 namespacePortion, functionName, 0,  null);
 
-        FunctionInstanceStatsData functionInstanceStatsAdmin = (FunctionInstanceStatsData) admin.functions().
+        FunctionInstanceStatsDataImpl functionInstanceStatsAdmin = (FunctionInstanceStatsDataImpl) admin.functions().
                 getFunctionStats(tenant, namespacePortion, functionName, 0);
 
         assertEquals(functionInstanceStats, functionInstanceStatsAdmin);
@@ -484,7 +483,7 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         functionInstanceStats = functionRuntimeManager.getFunctionInstanceStats(tenant, namespacePortion,
                 functionName, 0,  null);
 
-        functionInstanceStatsAdmin = (FunctionInstanceStatsData) admin.functions().getFunctionStats(tenant,
+        functionInstanceStatsAdmin = (FunctionInstanceStatsDataImpl) admin.functions().getFunctionStats(tenant,
                 namespacePortion, functionName, 0);
 
         assertEquals(functionInstanceStats, functionInstanceStatsAdmin);

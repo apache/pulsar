@@ -18,12 +18,19 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-public interface FunctionInstanceStatsInterface {
-    int getInstanceId();
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+import lombok.Data;
 
-    FunctionInstanceStatsDataInterface getMetrics();
+/**
+ * Function instance statistics.
+ */
+@Data
+@JsonInclude(JsonInclude.Include.ALWAYS)
+@JsonPropertyOrder({ "instanceId", "metrics" })
+public class FunctionInstanceStatsImpl implements FunctionInstanceStats {
+    /** Instance Id of function instance. **/
+    public int instanceId;
 
-    void setInstanceId(int instanceId);
-
-    void setMetrics(FunctionInstanceStatsDataInterface metrics);
+    public FunctionInstanceStatsData metrics = new FunctionInstanceStatsDataImpl();
 }

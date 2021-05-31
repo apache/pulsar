@@ -44,7 +44,7 @@ import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
 import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.io.ConnectorDefinition;
-import org.apache.pulsar.common.policies.data.FunctionInstanceStatsData;
+import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataImpl;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.functions.worker.WorkerService;
@@ -428,7 +428,7 @@ public class FunctionsBase extends AdminResource {
     @GET
     @ApiOperation(
             value = "Displays the stats of a Pulsar Function instance",
-            response = FunctionInstanceStatsData.class
+            response = FunctionInstanceStatsDataImpl.class
     )
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this function"),
@@ -438,7 +438,7 @@ public class FunctionsBase extends AdminResource {
     })
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/{tenant}/{namespace}/{functionName}/{instanceId}/stats")
-    public FunctionInstanceStatsData getFunctionInstanceStats(
+    public FunctionInstanceStatsDataImpl getFunctionInstanceStats(
             @ApiParam(value = "The tenant of a Pulsar Function") final @PathParam("tenant") String tenant,
             @ApiParam(value = "The namespace of a Pulsar Function") final @PathParam("namespace") String namespace,
             @ApiParam(value = "The name of a Pulsar Function") final @PathParam("functionName") String functionName,
