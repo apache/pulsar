@@ -27,7 +27,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
-import org.apache.pulsar.common.policies.data.FailureDomain;
+import org.apache.pulsar.common.policies.data.FailureDomainImpl;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
@@ -200,7 +200,7 @@ public class CmdClusters extends CmdBase {
         
         void run() throws PulsarAdminException {
             String cluster = getOneArgument(params);
-            FailureDomain domain = new FailureDomain();
+            FailureDomainImpl domain = new FailureDomainImpl();
             domain.setBrokers((isNotBlank(brokerList) ? Sets.newHashSet(brokerList.split(",")): null));
             getAdmin().clusters().createFailureDomain(cluster, domainName, domain);
         }
@@ -219,7 +219,7 @@ public class CmdClusters extends CmdBase {
 
         void run() throws PulsarAdminException {
             String cluster = getOneArgument(params);
-            FailureDomain domain = new FailureDomain();
+            FailureDomainImpl domain = new FailureDomainImpl();
             domain.setBrokers((isNotBlank(brokerList) ? Sets.newHashSet(brokerList.split(",")) : null));
             getAdmin().clusters().updateFailureDomain(cluster, domainName, domain);
         }

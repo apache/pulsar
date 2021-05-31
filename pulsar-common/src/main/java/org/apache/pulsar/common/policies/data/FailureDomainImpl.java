@@ -36,7 +36,7 @@ import lombok.ToString;
 )
 @ToString
 @Data
-public class FailureDomain implements FailureDomainInterface {
+public class FailureDomainImpl implements FailureDomain {
 
     @ApiModelProperty(
         name = "brokers",
@@ -62,8 +62,8 @@ public class FailureDomain implements FailureDomainInterface {
 
     @Override
     public boolean equals(Object obj) {
-        if (obj instanceof FailureDomain) {
-            FailureDomain other = (FailureDomain) obj;
+        if (obj instanceof FailureDomainImpl) {
+            FailureDomainImpl other = (FailureDomainImpl) obj;
             return Objects.equals(brokers, other.brokers);
         }
 

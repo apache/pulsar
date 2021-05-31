@@ -58,7 +58,7 @@ import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
-import org.apache.pulsar.common.policies.data.FailureDomain;
+import org.apache.pulsar.common.policies.data.FailureDomainImpl;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicyImpl;
@@ -886,7 +886,7 @@ public class ClustersBase extends PulsarWebResource {
             value = "The configuration data of a failure domain",
             required = true
         )
-        FailureDomain domain
+                FailureDomainImpl domain
     ) throws Exception {
         validateSuperUserAccess();
         validateClusterExists(cluster);
@@ -911,7 +911,7 @@ public class ClustersBase extends PulsarWebResource {
     @Path("/{cluster}/failureDomains")
     @ApiOperation(
         value = "Get the cluster failure domains.",
-        response = FailureDomain.class,
+        response = FailureDomainImpl.class,
         responseContainer = "Map",
         notes = "This operation requires Pulsar superuser privileges."
     )
@@ -919,7 +919,7 @@ public class ClustersBase extends PulsarWebResource {
         @ApiResponse(code = 403, message = "Don't have admin permission"),
         @ApiResponse(code = 500, message = "Internal server error")
     })
-    public Map<String, FailureDomain> getFailureDomains(
+    public Map<String, FailureDomainImpl> getFailureDomains(
         @ApiParam(
             value = "The cluster name",
             required = true
@@ -928,13 +928,13 @@ public class ClustersBase extends PulsarWebResource {
     ) throws Exception {
         validateSuperUserAccess();
 
-        Map<String, FailureDomain> domains = Maps.newHashMap();
+        Map<String, FailureDomainImpl> domains = Maps.newHashMap();
         try {
             final String failureDomainRootPath = pulsar().getConfigurationCache().CLUSTER_FAILURE_DOMAIN_ROOT;
             FailureDomainResources failureDomainListCache = clusterResources().getFailureDomainResources();
             for (String domainName : failureDomainListCache.getChildren(failureDomainRootPath)) {
                 try {
-                    Optional<FailureDomain> domain = failureDomainListCache
+                    Optional<FailureDomainImpl> domain = failureDomainListCache
                             .get(joinPath(failureDomainRootPath, domainName));
                     domain.ifPresent(failureDomain -> domains.put(domainName, failureDomain));
                 } catch (Exception e) {
@@ -955,7 +955,7 @@ public class ClustersBase extends PulsarWebResource {
     @Path("/{cluster}/failureDomains/{domainName}")
     @ApiOperation(
         value = "Get a domain in a cluster",
-        response = FailureDomain.class,
+        response = FailureDomainImpl.class,
         notes = "This operation requires Pulsar superuser privileges."
     )
     @ApiResponses(value = {
@@ -964,7 +964,7 @@ public class ClustersBase extends PulsarWebResource {
         @ApiResponse(code = 412, message = "Cluster doesn't exist"),
         @ApiResponse(code = 500, message = "Internal server error")
     })
-    public FailureDomain getDomain(
+    public FailureDomainImpl getDomain(
         @ApiParam(
             value = "The cluster name",
             required = true
@@ -1034,7 +1034,7 @@ public class ClustersBase extends PulsarWebResource {
     }
 
     private void validateBrokerExistsInOtherDomain(final String cluster, final String inputDomainName,
-            final FailureDomain inputDomain) {
+            final FailureDomainImpl inputDomain) {
         if (inputDomain != null && inputDomain.brokers != null) {
             try {
                 final String failureDomainRootPath = pulsar().getConfigurationCache().CLUSTER_FAILURE_DOMAIN_ROOT;
@@ -1044,7 +1044,7 @@ public class ClustersBase extends PulsarWebResource {
                         continue;
                     }
                     try {
-                        Optional<FailureDomain> domain =
+                        Optional<FailureDomainImpl> domain =
                                 clusterResources().getFailureDomainResources()
                                         .get(joinPath(failureDomainRootPath, domainName));
                         if (domain.isPresent() && domain.get().brokers != null) {

@@ -56,7 +56,7 @@ import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
-import org.apache.pulsar.common.policies.data.FailureDomain;
+import org.apache.pulsar.common.policies.data.FailureDomainImpl;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
@@ -402,11 +402,11 @@ public class AntiAffinityNamespaceGroupTest {
         final String namespace2 = tenant + "/" + cluster + "/ns2";
         final String namespaceAntiAffinityGroup = "group";
 
-        FailureDomain domain1 = new FailureDomain();
+        FailureDomainImpl domain1 = new FailureDomainImpl();
         domain1.brokers = Sets.newHashSet(broker1);
         admin1.clusters().createFailureDomain(cluster, "domain1", domain1);
 
-        FailureDomain domain2 = new FailureDomain();
+        FailureDomainImpl domain2 = new FailureDomainImpl();
         domain2.brokers = Sets.newHashSet(broker2);
         admin1.clusters().createFailureDomain(cluster, "domain2", domain2);
 

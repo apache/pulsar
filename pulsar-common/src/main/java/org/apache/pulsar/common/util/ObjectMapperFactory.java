@@ -38,8 +38,8 @@ import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.FailureDomainImpl;
 import org.apache.pulsar.common.policies.data.FailureDomain;
-import org.apache.pulsar.common.policies.data.FailureDomainInterface;
 import org.apache.pulsar.common.policies.data.FunctionInstanceStats;
 import org.apache.pulsar.common.policies.data.FunctionInstanceStatsData;
 import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataBase;
@@ -114,7 +114,7 @@ public class ObjectMapperFactory {
         resolver.addMapping(AutoFailoverPolicyData.class, AutoFailoverPolicyDataImpl.class);
         resolver.addMapping(BrokerNamespaceIsolationData.class, BrokerNamespaceIsolationDataImpl.class);
         resolver.addMapping(ClusterData.class, ClusterDataImpl.class);
-        resolver.addMapping(FailureDomainInterface.class, FailureDomain.class);
+        resolver.addMapping(FailureDomain.class, FailureDomainImpl.class);
         resolver.addMapping(NamespaceIsolationDataInterface.class, NamespaceIsolationData.class);
         resolver.addMapping(TenantInfoInterface.class, TenantInfo.class);
         resolver.addMapping(OffloadPoliciesInterface.class, OffloadPolicies.class);

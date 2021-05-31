@@ -25,7 +25,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
-import org.apache.pulsar.common.policies.data.FailureDomain;
+import org.apache.pulsar.common.policies.data.FailureDomainImpl;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -60,7 +60,7 @@ public class ConfigurationCacheService {
     private ZooKeeperChildrenCache clustersListCache;
     private ZooKeeperChildrenCache failureDomainListCache;
     private ZooKeeperDataCache<NamespaceIsolationPolicies> namespaceIsolationPoliciesCache;
-    private ZooKeeperDataCache<FailureDomain> failureDomainCache;
+    private ZooKeeperDataCache<FailureDomainImpl> failureDomainCache;
     @Getter
     private PulsarResources pulsarResources;
 
@@ -126,10 +126,10 @@ public class ConfigurationCacheService {
             }
         };
 
-        this.failureDomainCache = new ZooKeeperDataCache<FailureDomain>(cache) {
+        this.failureDomainCache = new ZooKeeperDataCache<FailureDomainImpl>(cache) {
             @Override
-            public FailureDomain deserialize(String path, byte[] content) throws Exception {
-                return ObjectMapperFactory.getThreadLocal().readValue(content, FailureDomain.class);
+            public FailureDomainImpl deserialize(String path, byte[] content) throws Exception {
+                return ObjectMapperFactory.getThreadLocal().readValue(content, FailureDomainImpl.class);
             }
         };
     }
@@ -210,7 +210,7 @@ public class ConfigurationCacheService {
         return this.namespaceIsolationPoliciesCache;
     }
 
-    public ZooKeeperDataCache<FailureDomain> failureDomainCache() {
+    public ZooKeeperDataCache<FailureDomainImpl> failureDomainCache() {
         return this.failureDomainCache;
     }
 }

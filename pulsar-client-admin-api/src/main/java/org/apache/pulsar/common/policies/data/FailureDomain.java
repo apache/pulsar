@@ -20,7 +20,7 @@ package org.apache.pulsar.common.policies.data;
 
 import java.util.Set;
 
-public interface FailureDomainInterface {
+public interface FailureDomain {
     Set<String> getBrokers();
 
     void setBrokers(Set<String> brokers);

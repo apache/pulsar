@@ -76,7 +76,7 @@ import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
-import org.apache.pulsar.common.policies.data.FailureDomain;
+import org.apache.pulsar.common.policies.data.FailureDomainImpl;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.LedgerInfo;
@@ -204,7 +204,7 @@ public class PulsarAdminToolTest {
         verify(mockClusters).getFailureDomain("use", "domain");
 
         clusters.run(split("create-failure-domain use --domain-name domain --broker-list b1"));
-        FailureDomain domain = new FailureDomain();
+        FailureDomainImpl domain = new FailureDomainImpl();
         domain.setBrokers(Sets.newHashSet("b1"));
         verify(mockClusters).createFailureDomain("use", "domain", domain);
 

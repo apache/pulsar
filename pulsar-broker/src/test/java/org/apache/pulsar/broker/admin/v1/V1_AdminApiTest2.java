@@ -61,8 +61,8 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
+import org.apache.pulsar.common.policies.data.FailureDomainImpl;
 import org.apache.pulsar.common.policies.data.FailureDomain;
-import org.apache.pulsar.common.policies.data.FailureDomainInterface;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -651,14 +651,14 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
         admin.clusters().createCluster(cluster,
                 new ClusterDataImpl(pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls()));
         // create
-        FailureDomain domain = new FailureDomain();
+        FailureDomainImpl domain = new FailureDomainImpl();
         domain.setBrokers(Sets.newHashSet("b1", "b2", "b3"));
         admin.clusters().createFailureDomain(cluster, "domain-1", domain);
         admin.clusters().updateFailureDomain(cluster, "domain-1", domain);
 
         assertEquals(admin.clusters().getFailureDomain(cluster, "domain-1"), domain);
 
-        Map<String, FailureDomainInterface> domains = admin.clusters().getFailureDomains(cluster);
+        Map<String, FailureDomain> domains = admin.clusters().getFailureDomains(cluster);
         assertEquals(domains.size(), 1);
         assertTrue(domains.containsKey("domain-1"));
 
