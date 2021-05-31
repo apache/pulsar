@@ -61,7 +61,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
@@ -306,7 +306,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                                     @PathParam("namespace") String namespace,
                                                     @PathParam("topic") @Encoded String encodedTopic,
                                                     @ApiParam(value = "Offload policies for the specified topic")
-                                                            OffloadPolicies offloadPolicies) {
+                                           OffloadPoliciesImpl offloadPolicies) {
         validateTopicName(tenant, namespace, encodedTopic);
         validateAdminAccessForTenant(tenant);
         internalSetOffloadPolicies(offloadPolicies).whenComplete((res, ex)

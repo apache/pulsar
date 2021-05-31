@@ -124,7 +124,7 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
@@ -642,7 +642,7 @@ public class PulsarService implements AutoCloseable {
                     schemaStorage, config.getSchemaRegistryCompatibilityCheckers());
 
             this.defaultOffloader = createManagedLedgerOffloader(
-                    OffloadPolicies.create(this.getConfiguration().getProperties()));
+                    OffloadPoliciesImpl.create(this.getConfiguration().getProperties()));
             this.brokerInterceptor = BrokerInterceptors.load(config);
             brokerService.setInterceptor(getBrokerInterceptor());
             this.brokerInterceptor.initialize(this);
@@ -1117,7 +1117,7 @@ public class PulsarService implements AutoCloseable {
      * @param offloadPolicies the OffloadPolicies
      * @return LedgerOffloader
      */
-    public LedgerOffloader getManagedLedgerOffloader(NamespaceName namespaceName, OffloadPolicies offloadPolicies) {
+    public LedgerOffloader getManagedLedgerOffloader(NamespaceName namespaceName, OffloadPoliciesImpl offloadPolicies) {
         if (offloadPolicies == null) {
             return getDefaultOffloader();
         }
@@ -1138,7 +1138,7 @@ public class PulsarService implements AutoCloseable {
         });
     }
 
-    public synchronized LedgerOffloader createManagedLedgerOffloader(OffloadPolicies offloadPolicies)
+    public synchronized LedgerOffloader createManagedLedgerOffloader(OffloadPoliciesImpl offloadPolicies)
             throws PulsarServerException {
         try {
             if (StringUtils.isNotBlank(offloadPolicies.getManagedLedgerOffloadDriver())) {
@@ -1245,7 +1245,7 @@ public class PulsarService implements AutoCloseable {
         return this.compactor;
     }
 
-    protected synchronized OrderedScheduler getOffloaderScheduler(OffloadPolicies offloadPolicies) {
+    protected synchronized OrderedScheduler getOffloaderScheduler(OffloadPoliciesImpl offloadPolicies) {
         if (this.offloaderScheduler == null) {
             this.offloaderScheduler = OrderedScheduler.newSchedulerBuilder()
                 .numThreads(offloadPolicies.getManagedLedgerOffloadMaxThreads())

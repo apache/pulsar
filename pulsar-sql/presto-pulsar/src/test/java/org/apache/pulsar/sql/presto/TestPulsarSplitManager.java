@@ -33,7 +33,7 @@ import io.prestosql.spi.predicate.ValueSet;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.OffloadedReadPriority;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -414,7 +414,7 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
 
     @Test
     public void pulsarSplitJsonCodecTest() throws JsonProcessingException, UnsupportedEncodingException {
-        OffloadPolicies offloadPolicies = OffloadPolicies.create(
+        OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create(
                 "aws-s3",
                 "test-region",
                 "test-bucket",

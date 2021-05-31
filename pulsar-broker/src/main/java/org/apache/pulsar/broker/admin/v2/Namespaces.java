@@ -57,7 +57,7 @@ import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PolicyName;
@@ -1649,7 +1649,7 @@ public class Namespaces extends NamespacesBase {
                     message = "OffloadPolicies is empty or driver is not supported or bucket is not valid")})
     public void setOffloadPolicies(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
                                    @ApiParam(value = "Offload policies for the specified namespace", required = true)
-                                           OffloadPolicies offload,
+                                           OffloadPoliciesImpl offload,
                                    @Suspended final AsyncResponse asyncResponse) {
         try {
             validateNamespaceName(tenant, namespace);
@@ -1688,8 +1688,8 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist")})
-    public OffloadPolicies getOffloadPolicies(@PathParam("tenant") String tenant,
-                                              @PathParam("namespace") String namespace) {
+    public OffloadPoliciesImpl getOffloadPolicies(@PathParam("tenant") String tenant,
+                                                  @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
         return internalGetOffloadPolicies();
     }

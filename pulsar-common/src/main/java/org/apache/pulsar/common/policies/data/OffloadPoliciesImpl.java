@@ -35,19 +35,17 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
-import java.util.stream.Collectors;
+
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.common.classification.InterfaceAudience;
-import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Definition of the offload policies.
  */
 @Slf4j
 @Data
-public class OffloadPolicies implements Serializable, OffloadPoliciesInterface {
+public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
 
     private final static long serialVersionUID = 0L;
 
@@ -55,7 +53,7 @@ public class OffloadPolicies implements Serializable, OffloadPoliciesInterface {
 
     static {
         List<Field> temp = new ArrayList<>();
-        Class<OffloadPolicies> clazz = OffloadPolicies.class;
+        Class<OffloadPoliciesImpl> clazz = OffloadPoliciesImpl.class;
         Field[] fields = clazz.getDeclaredFields();
         for (Field field : fields) {
             if (field.isAnnotationPresent(Configuration.class)) {
@@ -177,13 +175,13 @@ public class OffloadPolicies implements Serializable, OffloadPoliciesInterface {
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private Integer managedLedgerOffloadReadBufferSizeInBytes;
 
-    public static OffloadPolicies create(String driver, String region, String bucket, String endpoint,
-                                         String role, String roleSessionName,
-                                         String credentialId, String credentialSecret,
-                                         Integer maxBlockSizeInBytes, Integer readBufferSizeInBytes,
-                                         Long offloadThresholdInBytes, Long offloadDeletionLagInMillis,
-                                         OffloadedReadPriority readPriority) {
-        OffloadPolicies offloadPolicies = new OffloadPolicies();
+    public static OffloadPoliciesImpl create(String driver, String region, String bucket, String endpoint,
+                                             String role, String roleSessionName,
+                                             String credentialId, String credentialSecret,
+                                             Integer maxBlockSizeInBytes, Integer readBufferSizeInBytes,
+                                             Long offloadThresholdInBytes, Long offloadDeletionLagInMillis,
+                                             OffloadedReadPriority readPriority) {
+        OffloadPoliciesImpl offloadPolicies = new OffloadPoliciesImpl();
         offloadPolicies.setManagedLedgerOffloadDriver(driver);
         offloadPolicies.setManagedLedgerOffloadThresholdInBytes(offloadThresholdInBytes);
         offloadPolicies.setManagedLedgerOffloadDeletionLagInMillis(offloadDeletionLagInMillis);
@@ -222,9 +220,9 @@ public class OffloadPolicies implements Serializable, OffloadPoliciesInterface {
         return offloadPolicies;
     }
 
-    public static OffloadPolicies create(Properties properties) {
-        OffloadPolicies data = new OffloadPolicies();
-        Field[] fields = OffloadPolicies.class.getDeclaredFields();
+    public static OffloadPoliciesImpl create(Properties properties) {
+        OffloadPoliciesImpl data = new OffloadPoliciesImpl();
+        Field[] fields = OffloadPoliciesImpl.class.getDeclaredFields();
         Arrays.stream(fields).forEach(f -> {
             if (properties.containsKey(f.getName())) {
                 try {
@@ -340,7 +338,7 @@ public class OffloadPolicies implements Serializable, OffloadPoliciesInterface {
         if (obj == null || getClass() != obj.getClass()) {
             return false;
         }
-        OffloadPolicies other = (OffloadPolicies) obj;
+        OffloadPoliciesImpl other = (OffloadPoliciesImpl) obj;
         return Objects.equals(managedLedgerOffloadedReadPriority, other.getManagedLedgerOffloadedReadPriority())
                 && Objects.equals(managedLedgerOffloadDriver, other.getManagedLedgerOffloadDriver())
                 && Objects.equals(managedLedgerOffloadMaxThreads, other.getManagedLedgerOffloadMaxThreads())
@@ -494,12 +492,12 @@ public class OffloadPolicies implements Serializable, OffloadPoliciesInterface {
      * @param policies namespace policies
      * @return offload policies
      */
-    public static OffloadPolicies oldPoliciesCompatible(OffloadPolicies nsLevelPolicies, Policies policies) {
+    public static OffloadPoliciesImpl oldPoliciesCompatible(OffloadPoliciesImpl nsLevelPolicies, Policies policies) {
         if (policies == null || (policies.offload_threshold == -1 && policies.offload_deletion_lag_ms == null)) {
             return nsLevelPolicies;
         }
         if (nsLevelPolicies == null) {
-            nsLevelPolicies = new OffloadPolicies();
+            nsLevelPolicies = new OffloadPoliciesImpl();
         }
         if (nsLevelPolicies.getManagedLedgerOffloadThresholdInBytes() == null
                 && policies.offload_threshold != -1) {
@@ -522,12 +520,12 @@ public class OffloadPolicies implements Serializable, OffloadPoliciesInterface {
      * @param brokerProperties broker level offload configuration
      * @return offload policies
      */
-    public static OffloadPolicies mergeConfiguration(OffloadPolicies topicLevelPolicies,
-                                                     OffloadPolicies nsLevelPolicies,
-                                                     Properties brokerProperties) {
+    public static OffloadPoliciesImpl mergeConfiguration(OffloadPoliciesImpl topicLevelPolicies,
+                                                         OffloadPoliciesImpl nsLevelPolicies,
+                                                         Properties brokerProperties) {
         try {
             boolean allConfigValuesAreNull = true;
-            OffloadPolicies offloadPolicies = new OffloadPolicies();
+            OffloadPoliciesImpl offloadPolicies = new OffloadPoliciesImpl();
             for (Field field : CONFIGURATION_FIELDS) {
                 Object object;
                 if (topicLevelPolicies != null && field.get(topicLevelPolicies) != null) {
@@ -558,8 +556,8 @@ public class OffloadPolicies implements Serializable, OffloadPoliciesInterface {
     /**
      * Make configurations of the OffloadPolicies compatible with the config file.
      *
-     * <p>The names of the fields {@link OffloadPolicies#managedLedgerOffloadDeletionLagInMillis}
-     * and {@link OffloadPolicies#managedLedgerOffloadThresholdInBytes} are not matched with
+     * <p>The names of the fields {@link OffloadPoliciesImpl#managedLedgerOffloadDeletionLagInMillis}
+     * and {@link OffloadPoliciesImpl#managedLedgerOffloadThresholdInBytes} are not matched with
      * config file (broker.conf or standalone.conf).
      *
      * @param properties broker configuration properties

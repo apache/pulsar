@@ -85,7 +85,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PolicyName;
@@ -1246,9 +1246,9 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             return deletes.keySet();
         }
 
-        OffloadPolicies offloadPolicies;
+        OffloadPoliciesImpl offloadPolicies;
 
-        public MockLedgerOffloader(OffloadPolicies offloadPolicies) {
+        public MockLedgerOffloader(OffloadPoliciesImpl offloadPolicies) {
             this.offloadPolicies = offloadPolicies;
         }
 
@@ -1292,7 +1292,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         };
 
         @Override
-        public OffloadPolicies getOffloadPolicies() {
+        public OffloadPoliciesImpl getOffloadPolicies() {
             return offloadPolicies;
         }
 
@@ -1317,14 +1317,14 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertEquals(-1, admin.namespaces().getOffloadThreshold(namespace));
         // the ledger config should have the expected value
         ManagedLedgerConfig ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
-        MockLedgerOffloader offloader = new MockLedgerOffloader(OffloadPolicies.create("S3", "", "", "",
+        MockLedgerOffloader offloader = new MockLedgerOffloader(OffloadPoliciesImpl.create("S3", "", "", "",
                 null, null,
                 null, null,
-                OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
-                OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
+                OffloadPoliciesImpl.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
+                OffloadPoliciesImpl.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
                 admin.namespaces().getOffloadThreshold(namespace),
                 pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs(),
-                OffloadPolicies.DEFAULT_OFFLOADED_READ_PRIORITY));
+                OffloadPoliciesImpl.DEFAULT_OFFLOADED_READ_PRIORITY));
         ledgerConf.setLedgerOffloader(offloader);
         assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes(),
                 new Long(-1));
@@ -1334,14 +1334,14 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertEquals(100, admin.namespaces().getOffloadThreshold(namespace));
         ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
         admin.namespaces().getOffloadPolicies(namespace);
-        offloader = new MockLedgerOffloader(OffloadPolicies.create("S3", "", "", "",
+        offloader = new MockLedgerOffloader(OffloadPoliciesImpl.create("S3", "", "", "",
                 null, null,
                 null, null,
-                OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
-                OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
+                OffloadPoliciesImpl.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
+                OffloadPoliciesImpl.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
                 admin.namespaces().getOffloadThreshold(namespace),
                 pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs(),
-                OffloadPolicies.DEFAULT_OFFLOADED_READ_PRIORITY));
+                OffloadPoliciesImpl.DEFAULT_OFFLOADED_READ_PRIORITY));
         ledgerConf.setLedgerOffloader(offloader);
         assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes(),
                 new Long(100));
@@ -1350,14 +1350,14 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().setOffloadThreshold(namespace, -2);
         assertEquals(-2, admin.namespaces().getOffloadThreshold(namespace));
         ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
-        offloader = new MockLedgerOffloader(OffloadPolicies.create("S3", "", "", "",
+        offloader = new MockLedgerOffloader(OffloadPoliciesImpl.create("S3", "", "", "",
                 null, null,
                 null, null,
-                OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
-                OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
+                OffloadPoliciesImpl.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
+                OffloadPoliciesImpl.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
                 admin.namespaces().getOffloadThreshold(namespace),
                 pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs(),
-                OffloadPolicies.DEFAULT_OFFLOADED_READ_PRIORITY));
+                OffloadPoliciesImpl.DEFAULT_OFFLOADED_READ_PRIORITY));
         ledgerConf.setLedgerOffloader(offloader);
         assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes(),
                 new Long(-2));
@@ -1366,14 +1366,14 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().setOffloadThreshold(namespace, -1);
         assertEquals(-1, admin.namespaces().getOffloadThreshold(namespace));
         ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
-        offloader = new MockLedgerOffloader(OffloadPolicies.create("S3", "", "", "",
+        offloader = new MockLedgerOffloader(OffloadPoliciesImpl.create("S3", "", "", "",
                 null, null,
                 null, null,
-                OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
-                OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
+                OffloadPoliciesImpl.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
+                OffloadPoliciesImpl.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
                 admin.namespaces().getOffloadThreshold(namespace),
                 pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs(),
-                OffloadPolicies.DEFAULT_OFFLOADED_READ_PRIORITY));
+                OffloadPoliciesImpl.DEFAULT_OFFLOADED_READ_PRIORITY));
         ledgerConf.setLedgerOffloader(offloader);
         assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes(),
                 new Long(-1));

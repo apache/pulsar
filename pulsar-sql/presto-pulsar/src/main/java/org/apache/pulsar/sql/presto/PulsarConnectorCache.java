@@ -41,7 +41,7 @@ import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
@@ -119,7 +119,7 @@ public class PulsarConnectorCache {
         return new ManagedLedgerFactoryImpl(metadataStore, bkClientConfiguration, managedLedgerFactoryConfig);
     }
 
-    public ManagedLedgerConfig getManagedLedgerConfig(NamespaceName namespaceName, OffloadPolicies offloadPolicies,
+    public ManagedLedgerConfig getManagedLedgerConfig(NamespaceName namespaceName, OffloadPoliciesImpl offloadPolicies,
                                                       PulsarConnectorConfig pulsarConnectorConfig) {
         ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
         if (offloadPolicies == null) {
@@ -141,7 +141,7 @@ public class PulsarConnectorCache {
         return managedLedgerConfig;
     }
 
-    private synchronized OrderedScheduler getOffloaderScheduler(OffloadPolicies offloadPolicies) {
+    private synchronized OrderedScheduler getOffloaderScheduler(OffloadPoliciesImpl offloadPolicies) {
         if (this.offloaderScheduler == null) {
             this.offloaderScheduler = OrderedScheduler.newSchedulerBuilder()
                     .numThreads(offloadPolicies.getManagedLedgerOffloadMaxThreads())
@@ -150,7 +150,7 @@ public class PulsarConnectorCache {
         return this.offloaderScheduler;
     }
 
-    private LedgerOffloader initManagedLedgerOffloader(OffloadPolicies offloadPolicies,
+    private LedgerOffloader initManagedLedgerOffloader(OffloadPoliciesImpl offloadPolicies,
                                                        PulsarConnectorConfig pulsarConnectorConfig) {
 
         try {

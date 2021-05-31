@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-public interface OffloadPoliciesInterface {
+public interface OffloadPolicies {
     String getOffloadersDirectory();
 
     String getManagedLedgerOffloadDriver();

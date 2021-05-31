@@ -87,7 +87,7 @@ import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PolicyName;
@@ -2260,7 +2260,7 @@ public abstract class NamespacesBase extends AdminResource {
             final String path = path(POLICIES, namespaceName.toString());
             updatePolicies(path, (policies) -> {
                 if (policies.offload_policies == null) {
-                    policies.offload_policies = new OffloadPolicies();
+                    policies.offload_policies = new OffloadPoliciesImpl();
                 }
                 policies.offload_policies.setManagedLedgerOffloadThresholdInBytes(newThreshold);
                 policies.offload_threshold = newThreshold;
@@ -2295,7 +2295,7 @@ public abstract class NamespacesBase extends AdminResource {
             final String path = path(POLICIES, namespaceName.toString());
             updatePolicies(path, (policies) -> {
                 if (policies.offload_policies == null) {
-                    policies.offload_policies = new OffloadPolicies();
+                    policies.offload_policies = new OffloadPoliciesImpl();
                 }
                 policies.offload_policies.setManagedLedgerOffloadDeletionLagInMillis(newDeletionLagMs);
                 policies.offload_deletion_lag_ms = newDeletionLagMs;
@@ -2445,7 +2445,7 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected void internalSetOffloadPolicies(AsyncResponse asyncResponse, OffloadPolicies offloadPolicies) {
+    protected void internalSetOffloadPolicies(AsyncResponse asyncResponse, OffloadPoliciesImpl offloadPolicies) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.OFFLOAD, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
         validateOffloadPolicies(offloadPolicies);
@@ -2454,13 +2454,13 @@ public abstract class NamespacesBase extends AdminResource {
             final String path = path(POLICIES, namespaceName.toString());
             namespaceResources().setAsync(path, (policies) -> {
                 if (Objects.equals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(),
-                        OffloadPolicies.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS)) {
+                        OffloadPoliciesImpl.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS)) {
                     offloadPolicies.setManagedLedgerOffloadDeletionLagInMillis(policies.offload_deletion_lag_ms);
                 } else {
                     policies.offload_deletion_lag_ms = offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis();
                 }
                 if (Objects.equals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(),
-                        OffloadPolicies.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES)) {
+                        OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES)) {
                     offloadPolicies.setManagedLedgerOffloadThresholdInBytes(policies.offload_threshold);
                 } else {
                     policies.offload_threshold = offloadPolicies.getManagedLedgerOffloadThresholdInBytes();
@@ -2512,7 +2512,7 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    private void validateOffloadPolicies(OffloadPolicies offloadPolicies) {
+    private void validateOffloadPolicies(OffloadPoliciesImpl offloadPolicies) {
         if (offloadPolicies == null) {
             log.warn("[{}] Failed to update offload configuration for namespace {}: offloadPolicies is null",
                     clientAppId(), namespaceName);
@@ -2522,9 +2522,9 @@ public abstract class NamespacesBase extends AdminResource {
         if (!offloadPolicies.driverSupported()) {
             log.warn("[{}] Failed to update offload configuration for namespace {}: "
                             + "driver is not supported, support value: {}",
-                    clientAppId(), namespaceName, OffloadPolicies.getSupportedDriverNames());
+                    clientAppId(), namespaceName, OffloadPoliciesImpl.getSupportedDriverNames());
             throw new RestException(Status.PRECONDITION_FAILED,
-                    "The driver is not supported, support value: " + OffloadPolicies.getSupportedDriverNames());
+                    "The driver is not supported, support value: " + OffloadPoliciesImpl.getSupportedDriverNames());
         }
         if (!offloadPolicies.bucketValid()) {
             log.warn("[{}] Failed to update offload configuration for namespace {}: bucket must be specified",
@@ -2534,11 +2534,11 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected OffloadPolicies internalGetOffloadPolicies() {
+    protected OffloadPoliciesImpl internalGetOffloadPolicies() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.OFFLOAD, PolicyOperation.READ);
 
         Policies policies = getNamespacePolicies(namespaceName);
-        return (OffloadPolicies) policies.offload_policies;
+        return (OffloadPoliciesImpl) policies.offload_policies;
     }
 
     protected int internalGetMaxTopicsPerNamespace() {

@@ -37,7 +37,7 @@ import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
-import org.apache.pulsar.common.policies.data.OffloadPoliciesInterface;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
@@ -3681,7 +3681,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void setOffloadPolicies(String namespace, OffloadPoliciesInterface offloadPolicies) throws PulsarAdminException;
+    void setOffloadPolicies(String namespace, OffloadPolicies offloadPolicies) throws PulsarAdminException;
 
     /**
      * Remove the offload configuration for a namespace.
@@ -3722,7 +3722,7 @@ public interface Namespaces {
      * @param offloadPolicies
      *            Offload configuration
      */
-    CompletableFuture<Void> setOffloadPoliciesAsync(String namespace, OffloadPoliciesInterface offloadPolicies);
+    CompletableFuture<Void> setOffloadPoliciesAsync(String namespace, OffloadPolicies offloadPolicies);
 
     /**
      * Remove the offload configuration for a namespace asynchronously.
@@ -3769,7 +3769,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    OffloadPoliciesInterface getOffloadPolicies(String namespace) throws PulsarAdminException;
+    OffloadPolicies getOffloadPolicies(String namespace) throws PulsarAdminException;
 
     /**
      * Get the offload configuration for a namespace asynchronously.
@@ -3794,7 +3794,7 @@ public interface Namespaces {
      * @param namespace
      *            Namespace name
      */
-    CompletableFuture<OffloadPoliciesInterface> getOffloadPoliciesAsync(String namespace);
+    CompletableFuture<OffloadPolicies> getOffloadPoliciesAsync(String namespace);
 
     /**
      * Get maxTopicsPerNamespace for a namespace.

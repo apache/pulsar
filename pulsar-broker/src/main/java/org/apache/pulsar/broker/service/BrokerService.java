@@ -144,7 +144,7 @@ import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -1269,7 +1269,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
             PersistencePolicies persistencePolicies = null;
             RetentionPolicies retentionPolicies = null;
-            OffloadPolicies topicLevelOffloadPolicies = null;
+            OffloadPoliciesImpl topicLevelOffloadPolicies = null;
 
             if (pulsar.getConfig().isTopicLevelPoliciesEnabled()) {
                 TopicName cloneTopicName = topicName;
@@ -1362,11 +1362,11 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             managedLedgerConfig.setAutoSkipNonRecoverableData(serviceConfig.isAutoSkipNonRecoverableData());
             managedLedgerConfig.setLazyCursorRecovery(serviceConfig.isLazyCursorRecovery());
 
-            OffloadPolicies nsLevelOffloadPolicies =
-                    (OffloadPolicies) policies.map(p -> p.offload_policies).orElse(null);
-            OffloadPolicies offloadPolicies = OffloadPolicies.mergeConfiguration(
+            OffloadPoliciesImpl nsLevelOffloadPolicies =
+                    (OffloadPoliciesImpl) policies.map(p -> p.offload_policies).orElse(null);
+            OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.mergeConfiguration(
                     topicLevelOffloadPolicies,
-                    OffloadPolicies.oldPoliciesCompatible(nsLevelOffloadPolicies, policies.orElse(null)),
+                    OffloadPoliciesImpl.oldPoliciesCompatible(nsLevelOffloadPolicies, policies.orElse(null)),
                     getPulsar().getConfig().getProperties());
             if (topicLevelOffloadPolicies != null) {
                 try {
