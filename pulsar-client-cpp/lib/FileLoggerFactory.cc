@@ -16,34 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#include <iostream>
+#include <pulsar/FileLoggerFactory.h>
+#include "lib/FileLoggerFactoryImpl.h"
 
-#include <pulsar/Client.h>
+namespace pulsar {
 
-#include <lib/LogUtils.h>
+FileLoggerFactory::FileLoggerFactory(Logger::Level level, const std::string& logFilePath)
+    : impl_(new FileLoggerFactoryImpl(level, logFilePath)) {}
 
-DECLARE_LOG_OBJECT()
+FileLoggerFactory::~FileLoggerFactory() {}
 
-using namespace pulsar;
+Logger* FileLoggerFactory::getLogger(const std::string& filename) { return impl_->getLogger(filename); }
 
-int main() {
-    Client client("pulsar://localhost:6650");
-
-    Consumer consumer;
-    Result result = client.subscribe("persistent://public/default/my-topic", "consumer-1", consumer);
-    if (result != ResultOk) {
-        LOG_ERROR("Failed to subscribe: " << result);
-        return -1;
-    }
-
-    Message msg;
-
-    while (true) {
-        consumer.receive(msg);
-        LOG_INFO("Received: " << msg << "  with payload '" << msg.getDataAsString() << "'");
-
-        consumer.acknowledge(msg);
-    }
-
-    client.close();
-}
+}  // namespace pulsar
