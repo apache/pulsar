@@ -56,7 +56,7 @@ import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamedEntity;
-import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
+import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
@@ -520,7 +520,7 @@ public class ClustersBase extends PulsarWebResource {
     @Path("/{cluster}/namespaceIsolationPolicies/brokers")
     @ApiOperation(
         value = "Get list of brokers with namespace-isolation policies attached to them.",
-        response = BrokerNamespaceIsolationData.class,
+        response = BrokerNamespaceIsolationDataImpl.class,
         responseContainer = "set",
         notes = "This operation requires Pulsar superuser privileges."
     )
@@ -530,7 +530,7 @@ public class ClustersBase extends PulsarWebResource {
         @ApiResponse(code = 412, message = "Cluster doesn't exist."),
         @ApiResponse(code = 500, message = "Internal server error.")
     })
-    public List<BrokerNamespaceIsolationData> getBrokersWithNamespaceIsolationPolicy(
+    public List<BrokerNamespaceIsolationDataImpl> getBrokersWithNamespaceIsolationPolicy(
             @ApiParam(
                 value = "The cluster name",
                 required = true
@@ -560,7 +560,7 @@ public class ClustersBase extends PulsarWebResource {
             throw new RestException(e);
         }
         return availableBrokers.stream().map(broker -> {
-            BrokerNamespaceIsolationData brokerIsolationData = new BrokerNamespaceIsolationData();
+            BrokerNamespaceIsolationDataImpl brokerIsolationData = new BrokerNamespaceIsolationDataImpl();
             brokerIsolationData.brokerName = broker;
             if (nsPolicies != null) {
                 nsPolicies.forEach((name, policyData) -> {
@@ -584,7 +584,7 @@ public class ClustersBase extends PulsarWebResource {
     @Path("/{cluster}/namespaceIsolationPolicies/brokers/{broker}")
     @ApiOperation(
         value = "Get a broker with namespace-isolation policies attached to it.",
-        response = BrokerNamespaceIsolationData.class,
+        response = BrokerNamespaceIsolationDataImpl.class,
         notes = "This operation requires Pulsar superuser privileges."
     )
     @ApiResponses(value = {
@@ -593,7 +593,7 @@ public class ClustersBase extends PulsarWebResource {
         @ApiResponse(code = 412, message = "Cluster doesn't exist."),
         @ApiResponse(code = 500, message = "Internal server error.")
     })
-    public BrokerNamespaceIsolationData getBrokerWithNamespaceIsolationPolicy(
+    public BrokerNamespaceIsolationDataImpl getBrokerWithNamespaceIsolationPolicy(
         @ApiParam(
             value = "The cluster name",
             required = true
@@ -621,7 +621,7 @@ public class ClustersBase extends PulsarWebResource {
             log.error("[{}] Failed to get namespace isolation-policies {}", clientAppId(), cluster, e);
             throw new RestException(e);
         }
-        BrokerNamespaceIsolationData brokerIsolationData = new BrokerNamespaceIsolationData();
+        BrokerNamespaceIsolationDataImpl brokerIsolationData = new BrokerNamespaceIsolationDataImpl();
         brokerIsolationData.brokerName = broker;
         if (nsPolicies != null) {
             nsPolicies.forEach((name, policyData) -> {

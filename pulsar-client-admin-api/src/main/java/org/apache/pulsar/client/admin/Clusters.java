@@ -27,7 +27,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
-import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataInterface;
+import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.ClusterDataInterface;
 import org.apache.pulsar.common.policies.data.FailureDomainInterface;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationDataInterface;
@@ -368,7 +368,7 @@ public interface Clusters {
      * @return
      * @throws PulsarAdminException
      */
-    List<BrokerNamespaceIsolationDataInterface> getBrokersWithNamespaceIsolationPolicy(String cluster)
+    List<BrokerNamespaceIsolationData> getBrokersWithNamespaceIsolationPolicy(String cluster)
             throws PulsarAdminException;
 
     /**
@@ -377,7 +377,7 @@ public interface Clusters {
      * @param cluster
      * @return
      */
-    CompletableFuture<List<BrokerNamespaceIsolationDataInterface>> getBrokersWithNamespaceIsolationPolicyAsync(
+    CompletableFuture<List<BrokerNamespaceIsolationData>> getBrokersWithNamespaceIsolationPolicyAsync(
             String cluster);
 
     /**
@@ -388,7 +388,7 @@ public interface Clusters {
      * @return
      * @throws PulsarAdminException
      */
-    BrokerNamespaceIsolationDataInterface getBrokerWithNamespaceIsolationPolicy(String cluster, String broker)
+    BrokerNamespaceIsolationData getBrokerWithNamespaceIsolationPolicy(String cluster, String broker)
             throws PulsarAdminException;
 
     /**
@@ -398,7 +398,7 @@ public interface Clusters {
      * @param broker
      * @return
      */
-    CompletableFuture<BrokerNamespaceIsolationDataInterface> getBrokerWithNamespaceIsolationPolicyAsync(
+    CompletableFuture<BrokerNamespaceIsolationData> getBrokerWithNamespaceIsolationPolicyAsync(
             String cluster, String broker);
 
     /**

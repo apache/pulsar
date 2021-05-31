@@ -35,8 +35,8 @@ import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.client.admin.Clusters;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
-import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataInterface;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataInterface;
 import org.apache.pulsar.common.policies.data.FailureDomain;
@@ -271,7 +271,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     @Override
-    public List<BrokerNamespaceIsolationDataInterface> getBrokersWithNamespaceIsolationPolicy(String cluster)
+    public List<BrokerNamespaceIsolationData> getBrokersWithNamespaceIsolationPolicy(String cluster)
             throws PulsarAdminException {
         try {
             return getBrokersWithNamespaceIsolationPolicyAsync(cluster).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
@@ -286,15 +286,15 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     @Override
-    public CompletableFuture<List<BrokerNamespaceIsolationDataInterface>> getBrokersWithNamespaceIsolationPolicyAsync(
+    public CompletableFuture<List<BrokerNamespaceIsolationData>> getBrokersWithNamespaceIsolationPolicyAsync(
             String cluster) {
         WebTarget path = adminClusters.path(cluster).path("namespaceIsolationPolicies").path("brokers");
-        final CompletableFuture<List<BrokerNamespaceIsolationDataInterface>> future = new CompletableFuture<>();
+        final CompletableFuture<List<BrokerNamespaceIsolationData>> future = new CompletableFuture<>();
         asyncGetRequest(path,
-                new InvocationCallback<List<BrokerNamespaceIsolationData>>() {
+                new InvocationCallback<List<BrokerNamespaceIsolationDataImpl>>() {
                     @Override
-                    public void completed(List<BrokerNamespaceIsolationData> brokerNamespaceIsolationData) {
-                        List<BrokerNamespaceIsolationDataInterface> data =
+                    public void completed(List<BrokerNamespaceIsolationDataImpl> brokerNamespaceIsolationData) {
+                        List<BrokerNamespaceIsolationData> data =
                                 new ArrayList<>(brokerNamespaceIsolationData);
                         future.complete(data);
                     }
@@ -308,7 +308,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     @Override
-    public BrokerNamespaceIsolationDataInterface getBrokerWithNamespaceIsolationPolicy(String cluster, String broker)
+    public BrokerNamespaceIsolationData getBrokerWithNamespaceIsolationPolicy(String cluster, String broker)
             throws PulsarAdminException {
         try {
             return getBrokerWithNamespaceIsolationPolicyAsync(cluster, broker)
@@ -324,14 +324,14 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     @Override
-    public CompletableFuture<BrokerNamespaceIsolationDataInterface> getBrokerWithNamespaceIsolationPolicyAsync(
+    public CompletableFuture<BrokerNamespaceIsolationData> getBrokerWithNamespaceIsolationPolicyAsync(
             String cluster, String broker) {
         WebTarget path = adminClusters.path(cluster).path("namespaceIsolationPolicies").path("brokers").path(broker);
-        final CompletableFuture<BrokerNamespaceIsolationDataInterface> future = new CompletableFuture<>();
+        final CompletableFuture<BrokerNamespaceIsolationData> future = new CompletableFuture<>();
         asyncGetRequest(path,
-                new InvocationCallback<BrokerNamespaceIsolationData>() {
+                new InvocationCallback<BrokerNamespaceIsolationDataImpl>() {
                     @Override
-                    public void completed(BrokerNamespaceIsolationData brokerNamespaceIsolationData) {
+                    public void completed(BrokerNamespaceIsolationDataImpl brokerNamespaceIsolationData) {
                         future.complete(brokerNamespaceIsolationData);
                     }
 

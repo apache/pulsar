@@ -80,8 +80,8 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyDataImpl;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
+import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
-import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataInterface;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.FailureDomain;
@@ -983,20 +983,20 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         nsPolicyData1.auto_failover_policy.parameters.put("usage_threshold", "100");
         admin.clusters().createNamespaceIsolationPolicy(cluster, policyName1, nsPolicyData1);
 
-        List<BrokerNamespaceIsolationDataInterface> brokerIsolationDataList = admin.clusters()
+        List<BrokerNamespaceIsolationData> brokerIsolationDataList = admin.clusters()
                 .getBrokersWithNamespaceIsolationPolicy(cluster);
         assertEquals(brokerIsolationDataList.size(), 1);
         assertEquals(brokerIsolationDataList.get(0).getBrokerName(), brokerAddress);
         assertEquals(brokerIsolationDataList.get(0).getNamespaceRegex().size(), 1);
         assertEquals(brokerIsolationDataList.get(0).getNamespaceRegex().get(0), namespaceRegex);
 
-        BrokerNamespaceIsolationData brokerIsolationData = (BrokerNamespaceIsolationData) admin.clusters()
+        BrokerNamespaceIsolationDataImpl brokerIsolationData = (BrokerNamespaceIsolationDataImpl) admin.clusters()
                 .getBrokerWithNamespaceIsolationPolicy(cluster, brokerAddress);
         assertEquals(brokerIsolationData.brokerName, brokerAddress);
         assertEquals(brokerIsolationData.namespaceRegex.size(), 1);
         assertEquals(brokerIsolationData.namespaceRegex.get(0), namespaceRegex);
 
-        BrokerNamespaceIsolationData isolationData = (BrokerNamespaceIsolationData) admin.clusters()
+        BrokerNamespaceIsolationDataImpl isolationData = (BrokerNamespaceIsolationDataImpl) admin.clusters()
                 .getBrokerWithNamespaceIsolationPolicy(cluster, "invalid-broker");
         assertFalse(isolationData.isPrimary);
     }

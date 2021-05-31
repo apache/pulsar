@@ -32,7 +32,7 @@ import java.util.List;
         description = "The namespace isolation data for a given broker"
 )
 @Data
-public class BrokerNamespaceIsolationData implements BrokerNamespaceIsolationDataInterface {
+public class BrokerNamespaceIsolationDataImpl implements BrokerNamespaceIsolationData {
 
     @ApiModelProperty(
             name = "brokerName",
@@ -65,8 +65,8 @@ public class BrokerNamespaceIsolationData implements BrokerNamespaceIsolationDat
 
     @Override
     public boolean equals(Object obj) {
-        if (obj instanceof BrokerNamespaceIsolationData) {
-            BrokerNamespaceIsolationData other = (BrokerNamespaceIsolationData) obj;
+        if (obj instanceof BrokerNamespaceIsolationDataImpl) {
+            BrokerNamespaceIsolationDataImpl other = (BrokerNamespaceIsolationDataImpl) obj;
             return Objects.equal(brokerName, other.brokerName) && Objects.equal(namespaceRegex, other.namespaceRegex);
         }
         return false;

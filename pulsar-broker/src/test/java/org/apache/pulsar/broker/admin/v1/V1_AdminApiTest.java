@@ -86,7 +86,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
 import org.apache.pulsar.common.policies.data.BrokerAssignment;
-import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataInterface;
+import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationDataInterface;
@@ -283,7 +283,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
             assertEquals(policiesMap.get(policyName2), nsPolicyData2);
 
             // verify local broker get matched.
-            List<BrokerNamespaceIsolationDataInterface> isoList = admin.clusters().getBrokersWithNamespaceIsolationPolicy("use");
+            List<BrokerNamespaceIsolationData> isoList = admin.clusters().getBrokersWithNamespaceIsolationPolicy("use");
             assertEquals(isoList.size(), 1);
             assertTrue(isoList.get(0).isPrimary());
 

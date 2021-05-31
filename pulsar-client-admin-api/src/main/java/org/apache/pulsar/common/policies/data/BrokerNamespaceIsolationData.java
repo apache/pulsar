@@ -20,7 +20,7 @@ package org.apache.pulsar.common.policies.data;
 
 import java.util.List;
 
-public interface BrokerNamespaceIsolationDataInterface {
+public interface BrokerNamespaceIsolationData {
     String getBrokerName();
 
     String getPolicyName();
