@@ -189,6 +189,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private FeatureFlags features;
 
     private PulsarCommandSender commandSender;
+    final private ConnectionsLimiter connectionsLimiter;
 
     private static final KeySharedMeta emptyKeySharedMeta = new KeySharedMeta()
             .setKeySharedMode(KeySharedMode.AUTO_SPLIT);
@@ -243,6 +244,23 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         this.maxPendingBytesPerThread = conf.getMaxMessagePublishBufferSizeInMB() * 1024L * 1024L
                 / conf.getNumIOThreads();
         this.resumeThresholdPendingBytesPerThread = this.maxPendingBytesPerThread / 2;
+        this.connectionsLimiter = new ConnectionsLimiter(conf);
+    }
+
+    @Override
+    public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
+        if (!connectionsLimiter.increaseConnection(ctx.channel().remoteAddress())) {
+            ctx.channel().close();
+            log.info("Reached the maximum number of connections {}", remoteAddress);
+            return;
+        }
+        ctx.fireChannelRegistered();
+    }
+
+    @Override
+    public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
+        connectionsLimiter.decreaseConnection(ctx.channel().remoteAddress());
+        ctx.fireChannelRegistered();
     }
 
     @Override
