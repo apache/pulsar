@@ -65,7 +65,7 @@ public class MLPendingAckStore implements PendingAckStore {
 
     public static final String PENDING_ACK_STORE_SUFFIX = "__transaction_pending_ack";
 
-    private static final String PENDING_ACK_STORE_CURSOR_NAME = "__pending_ack_state";
+    public static final String PENDING_ACK_STORE_CURSOR_NAME = "__pending_ack_state";
 
     private final SpscArrayQueue<Entry> entryQueue;
 
@@ -384,6 +384,10 @@ public class MLPendingAckStore implements PendingAckStore {
             outstandingReadsRequests.decrementAndGet();
         }
 
+    }
+
+    public CompletableFuture<ManagedLedger> getManagedLedger() {
+        return CompletableFuture.completedFuture(this.managedLedger);
     }
 
     public static String getTransactionPendingAckStoreSuffix(String originTopicName, String subName) {

@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.atomic.LongAdder;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -67,6 +68,9 @@ public class NonPersistentSubscription implements Subscription {
 
     // Timestamp of when this subscription was last seen active
     private volatile long lastActive;
+
+    private final LongAdder bytesOutFromRemovedConsumers = new LongAdder();
+    private final LongAdder msgOutFromRemovedConsumer = new LongAdder();
 
     public NonPersistentSubscription(NonPersistentTopic topic, String subscriptionName) {
         this.topic = topic;
@@ -192,6 +196,10 @@ public class NonPersistentSubscription implements Subscription {
         if (dispatcher != null) {
             dispatcher.removeConsumer(consumer);
         }
+        // preserve accumulative stats form removed consumer
+        ConsumerStats stats = consumer.getStats();
+        bytesOutFromRemovedConsumers.add(stats.bytesOutCounter);
+        msgOutFromRemovedConsumer.add(stats.msgOutCounter);
 
         // invalid consumer remove will throw an exception
         // decrement usage is triggered only for valid consumer close
@@ -446,6 +454,8 @@ public class NonPersistentSubscription implements Subscription {
 
     public NonPersistentSubscriptionStats getStats() {
         NonPersistentSubscriptionStats subStats = new NonPersistentSubscriptionStats();
+        subStats.bytesOutCounter = bytesOutFromRemovedConsumers.longValue();
+        subStats.msgOutCounter = msgOutFromRemovedConsumer.longValue();
 
         NonPersistentDispatcher dispatcher = this.dispatcher;
         if (dispatcher != null) {

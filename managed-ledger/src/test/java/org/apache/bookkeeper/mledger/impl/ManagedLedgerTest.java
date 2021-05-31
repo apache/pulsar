@@ -46,6 +46,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -98,19 +99,16 @@ import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
+import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
+import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Stat;
-import org.apache.pulsar.metadata.impl.ZKMetadataStore;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.KeeperException.Code;
-import org.apache.zookeeper.MockZooKeeper;
-import org.apache.zookeeper.ZooDefs;
-import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -216,7 +214,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         log.info("Closing ledger and reopening");
 
         // / Reopen the same managed-ledger
-        ManagedLedgerFactoryImpl factory2 = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ledger = factory2.open("my_test_ledger");
 
         cursor = ledger.openCursor("c1");
@@ -229,7 +228,6 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         entries.forEach(e -> e.release());
 
         ledger.close();
-        factory2.shutdown();
     }
 
     @Test(timeOut = 20000)
@@ -518,7 +516,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         final CountDownLatch counter = new CountDownLatch(1);
         stopBookKeeper();
-        stopZooKeeper();
+        stopMetadataStore();
 
         // Delete and reopen
         factory.open("my_test_ledger", new ManagedLedgerConfig()).asyncDelete(new DeleteLedgerCallback() {
@@ -626,7 +624,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         final CountDownLatch counter = new CountDownLatch(1);
         stopBookKeeper();
-        stopZooKeeper();
+        stopMetadataStore();
 
         ledger.asyncAddEntry("dummy-entry-1".getBytes(Encoding), new AddEntryCallback() {
             @Override
@@ -701,7 +699,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         final CountDownLatch counter = new CountDownLatch(1);
 
         stopBookKeeper();
-        stopZooKeeper();
+        stopMetadataStore();
 
         ledger.asyncOpenCursor("test-cursor", new OpenCursorCallback() {
             @Override
@@ -776,9 +774,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     public void testEmptyManagedLedgerContent() throws Exception {
-        ZooKeeper zk = bkc.getZkHandle();
-        zk.create("/managed-ledger", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-        zk.create("/managed-ledger/my_test_ledger", " ".getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        metadataStore.put("/managed-ledger/my_test_ledger", " ".getBytes(), Optional.empty()).join();
 
         ManagedLedger ledger = factory.open("my_test_ledger");
         ledger.openCursor("test");
@@ -924,9 +920,10 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ledger.close();
 
         // Create a new factory and re-open the same managed ledger
-        factory = new ManagedLedgerFactoryImpl(bkc, zkc);
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
 
-        ledger = factory.open("my_test_ledger");
+        ledger = factory2.open("my_test_ledger");
 
         assertEquals(ledger.getNumberOfEntries(), 1);
         assertEquals(ledger.getTotalSize(), "dummy-entry-1".getBytes(Encoding).length);
@@ -949,12 +946,14 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
     @Test(enabled = false)
     public void fenceManagedLedger() throws Exception {
-        ManagedLedgerFactory factory1 = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory1 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ManagedLedger ledger1 = factory1.open("my_test_ledger");
         ManagedCursor cursor1 = ledger1.openCursor("c1");
         ledger1.addEntry("entry-1".getBytes(Encoding));
 
-        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ManagedLedger ledger2 = factory2.open("my_test_ledger");
         ManagedCursor cursor2 = ledger2.openCursor("c1");
 
@@ -986,8 +985,6 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ledger2.addEntry("entry-2".getBytes(Encoding));
 
         assertEquals(cursor2.getNumberOfEntries(), 2);
-        factory1.shutdown();
-        factory2.shutdown();
     }
 
     @Test
@@ -1025,7 +1022,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ManagedLedger ledger = factory.open("my_test_ledger");
         ledger.addEntry("entry-1".getBytes(Encoding));
 
-        stopZooKeeper();
+        stopMetadataStore();
         stopBookKeeper();
 
         try {
@@ -1054,7 +1051,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ManagedLedger ledger = factory.open("my_test_ledger");
         ledger.addEntry("dummy-entry-1".getBytes(Encoding));
 
-        stopZooKeeper();
+        stopMetadataStore();
 
         try {
             ledger.delete();
@@ -1073,7 +1070,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ledger.addEntry("dummy-entry-1".getBytes(Encoding));
         ledger.addEntry("dummy-entry-2".getBytes(Encoding));
 
-        stopZooKeeper();
+        stopMetadataStore();
         stopBookKeeper();
 
         try {
@@ -1374,7 +1371,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         factory.shutdown();
 
-        factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ledger = factory.open("my_test_ledger");
         ledger.openCursor("c1");
         Thread.sleep(100);
@@ -1559,10 +1556,10 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(ledger.getLedgersInfoAsList().size(), 1);
 
         bkc.failNow(BKException.Code.NoBookieAvailableException);
-        zkc.failConditional(Code.CONNECTIONLOSS, (op, path) -> {
-                return path.equals("/managed-ledgers/my_test_ledger")
-                    && op == MockZooKeeper.Op.SET;
-            });
+        metadataStore.failConditional(new MetadataStoreException("error"), (op, path) ->
+                path.equals("/managed-ledgers/my_test_ledger")
+                        && op == FaultInjectionMetadataStore.OperationType.PUT
+        );
 
         try {
             ledger.addEntry("entry".getBytes());
@@ -1779,7 +1776,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testRetention() throws Exception {
-        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setRetentionSizeInMB(10);
         config.setMaxEntriesPerLedger(1);
@@ -1803,7 +1801,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
     @Test(enabled = true)
     public void testNoRetention() throws Exception {
-        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setRetentionSizeInMB(0);
         config.setMaxEntriesPerLedger(1);
@@ -1830,7 +1829,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testDeletionAfterRetention() throws Exception {
-        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setRetentionSizeInMB(0);
         config.setMaxEntriesPerLedger(1);
@@ -1858,7 +1858,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testDeletionAfterLedgerClosedAndRetention() throws Exception {
-        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setRetentionSizeInMB(0);
         config.setMaxEntriesPerLedger(1);
@@ -1890,7 +1891,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
      */
     @Test
     public void testRetention0WithEmptyLedger() throws Exception {
-        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setRetentionTime(0, TimeUnit.MINUTES);
         config.setMaxEntriesPerLedger(1);
@@ -1919,7 +1921,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
      */
     @Test
     public void testRetention0WithEmptyLedgerWithoutCursors() throws Exception {
-        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setRetentionTime(0, TimeUnit.MINUTES);
         config.setMaxEntriesPerLedger(1);
@@ -1940,7 +1943,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testInfiniteRetention() throws Exception {
-        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setRetentionSizeInMB(-1);
         config.setRetentionTime(-1, TimeUnit.HOURS);
@@ -1964,7 +1968,6 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testTimestampOnWorkingLedger() throws Exception {
-        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
         ManagedLedgerConfig conf = new ManagedLedgerConfig();
         conf.setMaxEntriesPerLedger(1);
         conf.setRetentionSizeInMB(10);
@@ -2010,7 +2013,6 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         final ManagedLedgerInfo[] storedMLInfo = new ManagedLedgerInfo[3];
         final Stat[] versions = new Stat[1];
 
-        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
         ManagedLedgerConfig conf = new ManagedLedgerConfig();
         conf.setMaxEntriesPerLedger(1);
         conf.setRetentionSizeInMB(10);
@@ -2022,7 +2024,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ml.addEntry("msg2".getBytes());
         ml.close();
 
-        MetaStore store = new MetaStoreImpl(new ZKMetadataStore(zkc), executor);
+        MetaStore store = new MetaStoreImpl(metadataStore, executor);
         CountDownLatch l1 = new CountDownLatch(1);
 
         // obtain the ledger info
@@ -2137,7 +2139,9 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     public void testActiveDeactiveCursorWithDiscardEntriesFromCache() throws Exception {
         ManagedLedgerFactoryConfig conf = new ManagedLedgerFactoryConfig();
         conf.setCacheEvictionFrequency(0.1);
-        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, zkc, conf);
+
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, conf);
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("cache_eviction_ledger");
 
         // Open Cursor also adds cursor into activeCursor-container
@@ -2290,7 +2294,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         cursor.markDelete(p1);
 
         // Re-open from a different factory trigger recovery.
-        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(bkc, zkc);
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
 
         // Simulating time consuming cursor recovery.
         CompletableFuture<Void> future = bkc.promiseAfter(2);
@@ -2311,7 +2316,6 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         // Check cursor recovered successfully.
         cursor = ledger.openCursor("testCursor");
         assertEquals(cursor.getMarkDeletedPosition(), p1);
-        factory2.shutdown();
     }
 
     @Test
@@ -2662,7 +2666,9 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     public void avoidUseSameOpAddEntryBetweenDifferentLedger() throws Exception {
         ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
         config.setMaxCacheSize(0);
-        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(bkc, zkc, config);
+
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger");
 
         List<OpAddEntry> oldOps = new ArrayList<>();
@@ -2704,8 +2710,11 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     public void recoverMLWithBadVersion(boolean checkOwnershipFlag) throws Exception {
 
         ManagedLedgerFactoryConfig conf = new ManagedLedgerFactoryConfig();
-        ManagedLedgerFactoryImpl factory1 = new ManagedLedgerFactoryImpl(bkc, zkc, conf);
-        ManagedLedgerFactoryImpl factory2 = new ManagedLedgerFactoryImpl(bkc, zkc, conf);
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory1 = new ManagedLedgerFactoryImpl(metadataStore, bkc, conf);
+
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc, conf);
 
         final MutableObject<ManagedLedger> ledger1 = new MutableObject<>(), ledger2 = new MutableObject<>();
         final MutableObject<ManagedCursorImpl> cursor1 = new MutableObject<>(), cursor2 = new MutableObject<>();
@@ -2763,11 +2772,9 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testPropertiesForMeta() throws Exception {
-        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
-
         final String mLName = "properties_test";
         factory.open(mLName);
-        MetaStore store = new MetaStoreImpl(new ZKMetadataStore(zkc), executor);
+        MetaStore store = new MetaStoreImpl(metadataStore, executor);
 
         ManagedLedgerInfo.Builder builder = ManagedLedgerInfo.newBuilder();
         builder.addProperties(MLDataFormats.KeyValue.newBuilder().setKey("key1").setValue("value1").build());
@@ -2795,7 +2802,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(properties.get("key2"), "value2");
 
         factory.shutdown();
-        factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
 
         // reopen managedLedger
         ManagedLedger ml = factory.open(mLName);
@@ -2915,10 +2922,50 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         Assert.assertEquals(ledger.getTotalSize(), 0);
     }
 
+    @Test
+    public void testExpiredLedgerDeletionAfterManagedLedgerRestart() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setRetentionTime(1, TimeUnit.SECONDS);
+        config.setMaxEntriesPerLedger(2);
+        config.setMinimumRolloverTime(1, TimeUnit.MILLISECONDS);
+        config.setMaximumRolloverTime(500, TimeUnit.MILLISECONDS);
+
+        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) factory.open("ml_restart_ledger", config);
+        ManagedCursor cursor = managedLedger.openCursor("c1");
+
+        for (int i = 0; i < 3; i++) {
+            managedLedger.addEntry(new byte[1024 * 1024]);
+        }
+
+        // we have 2 ledgers at the beginning [{entries=2}, {entries=1}]
+        Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 2);
+        List<Entry> entries = cursor.readEntries(3);
+
+        for (Entry entry : entries) {
+            cursor.markDelete(entry.getPosition());
+        }
+        entries.forEach(e -> e.release());
+
+        // managed-ledger restart
+        managedLedger.close();
+        managedLedger = (ManagedLedgerImpl) factory.open("ml_restart_ledger", config);
+
+        // then we have one more empty ledger after managed-ledger initialization
+        // and now ledgers are [{entries=2}, {entries=1}, {entries=0}]
+        Assert.assertTrue(managedLedger.getLedgersInfoAsList().size() >= 2);
+
+        // Now we update the cursors that are still subscribing to ledgers that has been consumed completely
+        managedLedger.maybeUpdateCursorBeforeTrimmingConsumedLedger();
+        managedLedger.internalTrimConsumedLedgers(Futures.NULL_PROMISE);
+        Thread.sleep(100);
+
+        // We only have one empty ledger at last [{entries=0}]
+        Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 1);
+        Assert.assertEquals(managedLedger.getTotalSize(), 0);
+    }
+  
     @Test(timeOut = 20000)
     public void testAsyncTruncateLedgerRetention() throws Exception {
-
-        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setRetentionSizeInMB(50);
         config.setRetentionTime(1, TimeUnit.DAYS);
@@ -2944,8 +2991,6 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     public void testAsyncTruncateLedgerSlowestCursor() throws Exception {
-
-        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
         ManagedLedgerConfig config = new ManagedLedgerConfig();
 
         ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("truncate_ledger", config);

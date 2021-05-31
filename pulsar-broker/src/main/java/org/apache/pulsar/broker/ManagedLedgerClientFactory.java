@@ -38,6 +38,7 @@ import org.apache.commons.configuration.Configuration;
 import org.apache.pulsar.broker.stats.prometheus.metrics.PrometheusMetricsProvider;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
+import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,13 +53,13 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
             bkEnsemblePolicyToBkClientMap = Maps.newConcurrentMap();
     private StatsProvider statsProvider = new NullStatsProvider();
 
-    public void initialize(ServiceConfiguration conf, ZooKeeper zkClient,
+    public void initialize(ServiceConfiguration conf, MetadataStore metadataStore,
+                           ZooKeeper zkClient,
                            BookKeeperClientFactory bookkeeperProvider,
                            EventLoopGroup eventLoopGroup) throws Exception {
         ManagedLedgerFactoryConfig managedLedgerFactoryConfig = new ManagedLedgerFactoryConfig();
         managedLedgerFactoryConfig.setMaxCacheSize(conf.getManagedLedgerCacheSizeMB() * 1024L * 1024L);
         managedLedgerFactoryConfig.setCacheEvictionWatermark(conf.getManagedLedgerCacheEvictionWatermark());
-        managedLedgerFactoryConfig.setNumManagedLedgerWorkerThreads(conf.getManagedLedgerNumWorkerThreads());
         managedLedgerFactoryConfig.setNumManagedLedgerSchedulerThreads(conf.getManagedLedgerNumSchedulerThreads());
         managedLedgerFactoryConfig.setCacheEvictionFrequency(conf.getManagedLedgerCacheEvictionFrequency());
         managedLedgerFactoryConfig.setCacheEvictionTimeThresholdMillis(
@@ -104,7 +105,7 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
         };
 
         this.managedLedgerFactory =
-                new ManagedLedgerFactoryImpl(bkFactory, zkClient, managedLedgerFactoryConfig, statsLogger);
+                new ManagedLedgerFactoryImpl(metadataStore, bkFactory, managedLedgerFactoryConfig, statsLogger);
     }
 
     public ManagedLedgerFactory getManagedLedgerFactory() {

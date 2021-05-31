@@ -112,7 +112,7 @@ flexible messaging model and an intuitive client API.</description>
     <netty-tc-native.version>2.0.38.Final</netty-tc-native.version>
     <jetty.version>9.4.39.v20210325</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
-    <jersey.version>2.31</jersey.version>
+    <jersey.version>2.34</jersey.version>
     <athenz.version>1.10.9</athenz.version>
     <prometheus.version>0.5.0</prometheus.version>
     <vertx.version>3.5.4</vertx.version>
@@ -389,6 +389,12 @@ flexible messaging model and an intuitive client API.</description>
             <artifactId>netty-*</artifactId>
           </exclusion>
         </exclusions>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.bookkeeper</groupId>
+        <artifactId>cpu-affinity</artifactId>
+        <version>${bookkeeper.version}</version>
       </dependency>
 
       <dependency>
@@ -679,6 +685,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.glassfish.jersey.media</groupId>
         <artifactId>jersey-media-json-jackson</artifactId>
         <version>${jersey.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>jakarta.activation</groupId>
+            <artifactId>jakarta.activation-api</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
 
       <dependency>
@@ -1016,6 +1028,12 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>com.sun.activation</groupId>
         <artifactId>jakarta.activation</artifactId>
+        <version>${jakarta.activation.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>jakarta.activation</groupId>
+        <artifactId>jakarta.activation-api</artifactId>
         <version>${jakarta.activation.version}</version>
       </dependency>
 

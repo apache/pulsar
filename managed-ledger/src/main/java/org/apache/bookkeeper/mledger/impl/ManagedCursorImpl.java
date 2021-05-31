@@ -1655,13 +1655,28 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
 
         if (((PositionImpl) ledger.getLastConfirmedEntry()).compareTo(newPosition) < 0) {
-            if (log.isDebugEnabled()) {
-                log.debug(
-                        "[{}] Failed mark delete due to invalid markDelete {} is ahead of last-confirmed-entry {} for cursor [{}]",
-                        ledger.getName(), position, ledger.getLastConfirmedEntry(), name);
+            boolean shouldCursorMoveForward = false;
+            try {
+                long ledgerEntries = ledger.getLedgerInfo(markDeletePosition.getLedgerId()).get().getEntries();
+                Long nextValidLedger = ledger.getNextValidLedger(ledger.getLastConfirmedEntry().getLedgerId());
+                shouldCursorMoveForward = (markDeletePosition.getEntryId() + 1 >= ledgerEntries)
+                        && (newPosition.getLedgerId() == nextValidLedger);
+            } catch (Exception e) {
+                log.warn("Failed to get ledger entries while setting mark-delete-position", e);
             }
-            callback.markDeleteFailed(new ManagedLedgerException("Invalid mark deleted position"), ctx);
-            return;
+
+            if (shouldCursorMoveForward) {
+                log.info("[{}] move mark-delete-position from {} to {} since all the entries have been consumed",
+                        ledger.getName(), markDeletePosition, newPosition);
+            } else {
+                if (log.isDebugEnabled()) {
+                    log.debug(
+                            "[{}] Failed mark delete due to invalid markDelete {} is ahead of last-confirmed-entry {} for cursor [{}]",
+                            ledger.getName(), position, ledger.getLastConfirmedEntry(), name);
+                }
+                callback.markDeleteFailed(new ManagedLedgerException("Invalid mark deleted position"), ctx);
+                return;
+            }
         }
 
         lock.writeLock().lock();
@@ -2028,8 +2043,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                 log.debug("[{}] [{}] Filtering entries {} - alreadyDeleted: {}", ledger.getName(), name, entriesRange,
                         individualDeletedMessages);
             }
-
-            if (individualDeletedMessages.isEmpty() || !entriesRange.isConnected(individualDeletedMessages.span())) {
+            if (individualDeletedMessages.isEmpty() || individualDeletedMessages.span() == null ||
+                    !entriesRange.isConnected(individualDeletedMessages.span())) {
                 // There are no individually deleted messages in this entry list, no need to perform filtering
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] [{}] No filtering needed for entries {}", ledger.getName(), name, entriesRange);

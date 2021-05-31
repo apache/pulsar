@@ -27,6 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
@@ -75,7 +76,7 @@ public class OwnerShipForCurrentServerTestBase {
     protected PulsarClient pulsarClient;
 
     private MockZooKeeper mockZooKeeper;
-    private ExecutorService bkExecutor;
+    private OrderedExecutor bkExecutor;
     private NonClosableMockBookKeeper mockBookKeeper;
 
     public void internalSetup() throws Exception {
@@ -89,11 +90,11 @@ public class OwnerShipForCurrentServerTestBase {
     private void init() throws Exception {
         mockZooKeeper = createMockZooKeeper();
 
-        bkExecutor = Executors.newSingleThreadExecutor(
-                new ThreadFactoryBuilder().setNameFormat("mock-pulsar-bk")
-                        .setUncaughtExceptionHandler((thread, ex) -> log.info("Uncaught exception", ex))
-                        .build());
-        mockBookKeeper = createMockBookKeeper(mockZooKeeper, bkExecutor);
+        bkExecutor = OrderedExecutor.newBuilder()
+                .numThreads(1)
+                .name("mock-pulsar-bk")
+                .build();
+        mockBookKeeper = createMockBookKeeper(bkExecutor);
         startBroker();
     }
 
@@ -157,16 +158,15 @@ public class OwnerShipForCurrentServerTestBase {
         return zk;
     }
 
-    public static NonClosableMockBookKeeper createMockBookKeeper(ZooKeeper zookeeper,
-                                                                                             ExecutorService executor) throws Exception {
-        return spy(new NonClosableMockBookKeeper(zookeeper, executor));
+    public static NonClosableMockBookKeeper createMockBookKeeper(OrderedExecutor executor) throws Exception {
+        return spy(new NonClosableMockBookKeeper(executor));
     }
 
     // Prevent the MockBookKeeper instance from being closed when the broker is restarted within a test
     public static class NonClosableMockBookKeeper extends PulsarMockBookKeeper {
 
-        public NonClosableMockBookKeeper(ZooKeeper zk, ExecutorService executor) throws Exception {
-            super(zk, executor);
+        public NonClosableMockBookKeeper(OrderedExecutor executor) throws Exception {
+            super(executor);
         }
 
         @Override

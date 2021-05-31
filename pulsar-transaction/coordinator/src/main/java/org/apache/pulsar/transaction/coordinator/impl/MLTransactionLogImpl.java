@@ -28,9 +28,11 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.State;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
@@ -131,6 +133,11 @@ public class MLTransactionLogImpl implements TransactionLog {
             @Override
             public void addFailed(ManagedLedgerException exception, Object ctx) {
                 log.error("Transaction log write transaction operation error", exception);
+                if (exception instanceof ManagedLedgerAlreadyClosedException
+                        && managedLedger instanceof ManagedLedgerImpl
+                        && State.WriteFailed == ((ManagedLedgerImpl) managedLedger).getState()) {
+                    managedLedger.readyToCreateNewLedger();
+                }
                 buf.release();
                 completableFuture.completeExceptionally(exception);
             }
@@ -159,6 +166,10 @@ public class MLTransactionLogImpl implements TransactionLog {
             }
         }, null);
         return completableFuture;
+    }
+
+    public ManagedLedger getManagedLedger() {
+        return this.managedLedger;
     }
 
     class TransactionLogReplayer {

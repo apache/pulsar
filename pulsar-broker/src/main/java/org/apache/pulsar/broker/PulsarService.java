@@ -304,7 +304,7 @@ public class PulsarService implements AutoCloseable {
             this.transactionReplayExecutor = null;
         }
 
-        this.ioEventLoopGroup = EventLoopUtil.newEventLoopGroup(config.getNumIOThreads(),
+        this.ioEventLoopGroup = EventLoopUtil.newEventLoopGroup(config.getNumIOThreads(), config.isEnableBusyWait(),
                 new DefaultThreadFactory("pulsar-io"));
     }
 
@@ -560,8 +560,6 @@ public class PulsarService implements AutoCloseable {
      * Start the pulsar service instance.
      */
     public void start() throws PulsarServerException {
-        mutex.lock();
-
         LOG.info("Starting Pulsar Broker service; version: '{}'",
                 (brokerVersion != null ? brokerVersion : "unknown"));
         LOG.info("Git Revision {}", PulsarVersion.getGitSha());
@@ -570,6 +568,7 @@ public class PulsarService implements AutoCloseable {
                 PulsarVersion.getBuildHost(),
                 PulsarVersion.getBuildTime());
 
+        mutex.lock();
         try {
             if (state != State.Init) {
                 throw new PulsarServerException("Cannot start the service once it was stopped");
@@ -627,7 +626,7 @@ public class PulsarService implements AutoCloseable {
             this.bkClientFactory = newBookKeeperClientFactory();
 
             managedLedgerClientFactory = ManagedLedgerStorage.create(
-                config, getZkClient(), bkClientFactory, ioEventLoopGroup
+                config, localMetadataStore, getZkClient(), bkClientFactory, ioEventLoopGroup
             );
 
             this.brokerService = new BrokerService(this, ioEventLoopGroup);
@@ -814,7 +813,7 @@ public class PulsarService implements AutoCloseable {
 
             state = State.Started;
         } catch (Exception e) {
-            LOG.error(e.getMessage(), e);
+            LOG.error("Failed to start Pulsar service: {}", e.getMessage(), e);
             throw new PulsarServerException(e);
         } finally {
             mutex.unlock();

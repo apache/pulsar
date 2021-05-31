@@ -18,23 +18,11 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import lombok.Data;
-
 /**
- * Transaction coordinator status.
+ * Transaction coordinator internal stats.
  */
-@Data
-public class TransactionCoordinatorStatus {
+public class TransactionCoordinatorInternalStats {
 
-    /** The transaction coordinatorId. */
-    public long coordinatorId;
-
-    /** The state of this transaction metadataStore. */
-    public String state;
-
-    /** The sequenceId of transaction metadataStore. */
-    public long sequenceId;
-
-    /** The low water mark of transaction metadataStore. */
-    public long lowWaterMark;
+    /** The transaction coordinator log stats */
+    public TransactionLogStats transactionLogStats;
 }

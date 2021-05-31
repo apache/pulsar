@@ -195,7 +195,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 // so we discard for now and mark them for later redelivery
                 for (int i = messagesForC; i < entriesWithSameKeyCount; i++) {
                     Entry entry = entriesWithSameKey.get(i);
-                    messagesToRedeliver.add(entry.getLedgerId(), entry.getEntryId());
+                    addMessageToReplay(entry.getLedgerId(), entry.getEntryId());
                     entry.release();
                     entriesWithSameKey.set(i, null);
                 }

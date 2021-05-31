@@ -456,7 +456,13 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     @Override
     public <O> TypedMessageBuilder<O> newOutputMessage(String pulsarName, String topicName, Schema<O> schema) throws PulsarClientException {
         MessageBuilderImpl<O> messageBuilder = new MessageBuilderImpl<>();
-        TypedMessageBuilder<O> typedMessageBuilder = getProducer(pulsarName, topicName, schema).newMessage();
+        TypedMessageBuilder<O> typedMessageBuilder;
+        Producer<O> producer = getProducer(pulsarName, topicName, schema);
+        if (schema != null) {
+            typedMessageBuilder = producer.newMessage(schema);
+        } else {
+            typedMessageBuilder = producer.newMessage();
+        }
         messageBuilder.setUnderlyingBuilder(typedMessageBuilder);
         return messageBuilder;
     }

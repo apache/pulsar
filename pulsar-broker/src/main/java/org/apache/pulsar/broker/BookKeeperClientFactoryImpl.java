@@ -111,6 +111,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
             bkConf.setTLSTrustStorePasswordPath(conf.getBookkeeperTLSTrustStorePasswordPath());
         }
 
+        bkConf.setBusyWaitEnabled(conf.isEnableBusyWait());
         bkConf.setNumWorkerThreads(conf.getBookkeeperClientNumWorkerThreads());
         bkConf.setThrottleValue(conf.getBookkeeperClientThrottleValue());
         bkConf.setAddEntryTimeout((int) conf.getBookkeeperClientTimeoutInSeconds());
@@ -122,6 +123,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         bkConf.setStickyReadsEnabled(conf.isBookkeeperEnableStickyReads());
         bkConf.setNettyMaxFrameSizeBytes(conf.getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING);
         bkConf.setDiskWeightBasedPlacementEnabled(conf.isBookkeeperDiskWeightBasedPlacementEnabled());
+        bkConf.setNumWorkerThreads(1);
 
         if (StringUtils.isNotBlank(conf.getBookkeeperMetadataServiceUri())) {
             bkConf.setMetadataServiceUri(conf.getBookkeeperMetadataServiceUri());

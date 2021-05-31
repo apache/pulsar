@@ -86,10 +86,10 @@ import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
+import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.common.api.proto.IntRange;
-import org.apache.zookeeper.KeeperException.Code;
-import org.apache.zookeeper.MockZooKeeper;
 import org.awaitility.Awaitility;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -162,8 +162,10 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     void readWithCacheDisabled() throws Exception {
         ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
         config.setMaxCacheSize(0);
-        factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle(), config);
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(1));
+
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
+        ManagedLedger ledger = factory2.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(1));
 
         ManagedCursor c1 = ledger.openCursor("c1");
         ManagedCursor c2 = ledger.openCursor("c2");
@@ -342,7 +344,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ledger.addEntry("dummy-entry-2".getBytes(Encoding));
         ManagedCursor c3 = ledger.openCursor("c3");
 
-        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ledger = factory2.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(1));
 
         c1 = ledger.openCursor("c1");
@@ -357,8 +360,6 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         assertEquals(c3.getNumberOfEntries(), 0);
         assertFalse(c3.hasMoreEntries());
-
-        factory2.shutdown();
     }
 
     @Test(timeOut = 20000)
@@ -528,7 +529,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(entries.size(), 1);
 
         stopBookKeeper();
-        stopZooKeeper();
+        metadataStore.setAlwaysFail(new MetadataStoreException("error"));
 
         try {
             cursor.markDelete(entries.get(0).getPosition());
@@ -973,14 +974,14 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         // Reopen
 
-        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ledger = factory2.open("my_test_ledger");
         c1 = ledger.openCursor("c1");
         c2 = ledger.openCursor("c2");
 
         assertEquals(c1.getMarkDeletedPosition(), p1);
         assertEquals(c2.getMarkDeletedPosition(), p2);
-        factory2.shutdown();
     }
 
     @Test(timeOut = 20000)
@@ -1009,8 +1010,9 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         // Reopen
 
-        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
-        ledger = factory.open("my_test_ledger");
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ledger = factory2.open("my_test_ledger");
         c1 = ledger.openCursor("c1");
         c2 = ledger.openCursor("c2");
         c3 = ledger.openCursor("c3");
@@ -1020,10 +1022,9 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(c2.getMarkDeletedPosition(), p1);
         assertEquals(c3.getMarkDeletedPosition(), p0);
         assertEquals(c4.getMarkDeletedPosition(), p1);
-        factory2.shutdown();
     }
 
-    @Test(timeOut = 20000)
+    @Test
     public void asyncMarkDeleteBlocking() throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(10);
@@ -1062,12 +1063,12 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(c1.getNumberOfEntries(), 0);
 
         // Reopen
-        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ledger = factory2.open("my_test_ledger");
         ManagedCursor c2 = ledger.openCursor("c1");
 
         assertEquals(c2.getMarkDeletedPosition(), lastPosition.get());
-        factory2.shutdown();
     }
 
     @Test(timeOut = 20000)
@@ -1104,12 +1105,12 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         latch.await();
 
         // Reopen
-        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ledger = factory2.open("my_test_ledger");
         ManagedCursor c2 = ledger.openCursor("c1");
 
         assertEquals(c2.getMarkDeletedPosition(), lastPosition);
-        factory2.shutdown();
     }
 
     @Test(timeOut = 20000)
@@ -1215,10 +1216,10 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ManagedLedger ledger = factory.open("my_test_ledger");
 
         bkc.failAfter(1, BKException.Code.NotEnoughBookiesException);
-        zkc.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
-                return path.equals("/managed-ledgers/my_test_ledger/c1")
-                    && op == MockZooKeeper.Op.CREATE;
-            });
+        metadataStore.failConditional(new MetadataStoreException("error"), (op, path) ->
+                path.equals("/managed-ledgers/my_test_ledger/c1")
+                        && op == FaultInjectionMetadataStore.OperationType.PUT
+        );
 
         try {
             ledger.openCursor("c1");
@@ -1249,14 +1250,14 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         // Force-reopen so the recovery will be forced to read from ledger
         bkc.returnEmptyLedgerAfter(1);
         ManagedLedgerFactoryConfig conf = new ManagedLedgerFactoryConfig();
-        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(bkc, zkc, conf);
+
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc, conf);
         ledger = factory2.open("my_test_ledger");
         cursor = ledger.openCursor("cursor");
 
         // Cursor was rolled back to p2 because of the ledger recovery failure
         assertEquals(cursor.getMarkDeletedPosition(), p2);
-
-        factory2.shutdown();
     }
 
     @Test(timeOut = 20000)
@@ -1269,7 +1270,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         assertEquals(c1.getReadPosition(), p3);
 
-        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
 
         bkc.failAfter(3, BKException.Code.LedgerRecoveryException);
 
@@ -1278,7 +1280,6 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         // Verify the ManagedCursor was rewind back to the snapshotted position
         assertEquals(c1.getReadPosition(), p3);
-        factory2.shutdown();
     }
 
     @Test(timeOut = 20000)
@@ -1286,7 +1287,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ManagedLedger ledger = factory.open("my_test_ledger");
         ledger.openCursor("c1");
 
-        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
 
         bkc.failAfter(4, BKException.Code.MetadataVersionException);
 
@@ -1296,8 +1298,6 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         } catch (ManagedLedgerException e) {
             // ok
         }
-
-        factory2.shutdown();
     }
 
     @Test(timeOut = 20000)
@@ -1310,7 +1310,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         assertEquals(c1.getReadPosition(), p3);
 
-        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
 
         bkc.failAfter(4, BKException.Code.ReadException);
 
@@ -1319,7 +1320,6 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         // Verify the ManagedCursor was rewind back to the snapshotted position
         assertEquals(c1.getReadPosition(), p3);
-        factory2.shutdown();
     }
 
     @Test(timeOut = 20000)
@@ -1574,7 +1574,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(c3.getNumberOfEntries(), 0);
         assertFalse(c3.hasMoreEntries());
 
-        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ledger = factory2.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(1));
 
         c1 = ledger.openCursor("c1");
@@ -1592,7 +1593,6 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(c3.getNumberOfEntriesInBacklog(false), 0);
         assertEquals(c3.getNumberOfEntries(), 0);
         assertFalse(c3.hasMoreEntries());
-        factory2.shutdown();
     }
 
     @Test(timeOut = 20000, dataProvider = "useOpenRangeSet")
@@ -1614,14 +1614,14 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(c1.getNumberOfEntriesInBacklog(false), 0);
 
         // Re-open to recover from storage
-        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ledger = factory2.open("my_test_ledger", new ManagedLedgerConfig());
 
         c1 = ledger.openCursor("c1");
 
         // Only the 1st mark-delete was persisted
         assertEquals(c1.getNumberOfEntriesInBacklog(false), 2);
-        factory2.shutdown();
     }
 
     @Test(timeOut = 20000, dataProvider = "useOpenRangeSet")
@@ -2667,7 +2667,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         factory.shutdown();
 
         // Re-Open
-        factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ledger = factory.open("my_test_ledger", new ManagedLedgerConfig());
         c1 = ledger.openCursor("c1");
         assertEquals(c1.getNumberOfEntriesInBacklog(false), 20 - 5);
@@ -2709,7 +2709,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(c1.getNumberOfEntriesInBacklog(false), 20 - 5);
 
         // Re-Open
-        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ledger = factory2.open("my_test_ledger", new ManagedLedgerConfig());
         c1 = ledger.openCursor("c1");
         assertEquals(c1.getNumberOfEntriesInBacklog(false), 20 - 5);
@@ -2728,7 +2729,6 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(entriesStr.get(4), "dummy-entry-6");
 
         assertFalse(c1.hasMoreEntries());
-        factory2.shutdown();
     }
 
     /**
@@ -2759,13 +2759,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         });
 
         // update cursor-info with data which makes bad-version for existing managed-cursor
-        CountDownLatch latch1 = new CountDownLatch(1);
         String path = "/managed-ledgers/my_test_ledger/c1";
-        zkc.setData(path, "".getBytes(), -1, (rc, path1, ctx, stat) -> {
-            // updated path
-            latch1.countDown();
-        }, null);
-        latch1.await();
+        metadataStore.put(path, "".getBytes(), Optional.empty()).join();
 
         // try to create ledger again which will fail because managedCursorInfo znode is already updated with different
         // version so, this call will fail with BadVersionException
@@ -2873,8 +2868,9 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(individualDeletedMessagesCount.get(), totalAddEntries / 2 - 1);
 
         // Re-Open
-        factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
-        ledger = (ManagedLedgerImpl) factory.open(ledgerName, managedLedgerConfig);
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ledger = (ManagedLedgerImpl) factory2.open(ledgerName, managedLedgerConfig);
         c1 = (ManagedCursorImpl) ledger.openCursor("c1");
         // verify cursor has been recovered
         assertEquals(c1.getNumberOfEntriesInBacklog(false), totalAddEntries / 2);
@@ -2933,8 +2929,9 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(individualDeletedMessagesCount.get(), totalAddEntries / 2 - 1);
 
         // Re-Open
-        factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
-        ledger = (ManagedLedgerImpl) factory.open(ledgerName, managedLedgerConfig);
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ledger = (ManagedLedgerImpl) factory2.open(ledgerName, managedLedgerConfig);
         c1 = (ManagedCursorImpl) ledger.openCursor(cursorName);
         // verify cursor has been recovered
         assertEquals(c1.getNumberOfEntriesInBacklog(false), totalAddEntries / 2);
@@ -3365,7 +3362,9 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         ManagedLedgerFactoryConfig factoryConfig = new ManagedLedgerFactoryConfig();
         factoryConfig.setCursorPositionFlushSeconds(1);
-        ManagedLedgerFactory factory1 = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle(), factoryConfig);
+
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory1 = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConfig);
         ManagedLedger ledger1 = factory1.open("testFlushCursorAfterInactivity", config);
         ManagedCursor c1 = ledger1.openCursor("c");
         List<Position> positions = new ArrayList<Position>();
@@ -3398,19 +3397,13 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 .pollDelay(Duration.ofMillis(2000))
                 .untilAsserted(() -> {
                     // Abruptly re-open the managed ledger without graceful close
-                    ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
-                    try {
-                        ManagedLedger ledger2 = factory2.open("testFlushCursorAfterInactivity", config);
-                        ManagedCursor c2 = ledger2.openCursor("c");
+                    @Cleanup("shutdown")
+                    ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+                    ManagedLedger ledger2 = factory2.open("testFlushCursorAfterInactivity", config);
+                    ManagedCursor c2 = ledger2.openCursor("c");
 
-                        assertEquals(c2.getMarkDeletedPosition(), positions.get(positions.size() - 1));
-
-                    } finally {
-                        factory2.shutdown();
-                    }
+                    assertEquals(c2.getMarkDeletedPosition(), positions.get(positions.size() - 1));
                 });
-
-        factory1.shutdown();
     }
 
     @Test
@@ -3420,7 +3413,9 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         ManagedLedgerFactoryConfig factoryConfig = new ManagedLedgerFactoryConfig();
         factoryConfig.setCursorPositionFlushSeconds(1);
-        ManagedLedgerFactory factory1 = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle(), factoryConfig);
+
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory1 = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConfig);
         ManagedLedger ledger1 = factory1.open("testFlushCursorAfterIndDelInactivity", config);
         ManagedCursor c1 = ledger1.openCursor("c");
         List<Position> positions = new ArrayList<Position>();
@@ -3448,7 +3443,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(c1.getMarkDeletedPosition(), positions.get(positions.size() - 1));
 
         // reopen the cursor and we should see entries not be flushed
-        ManagedLedgerFactory dirtyFactory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        @Cleanup("shutdown")
+        ManagedLedgerFactory dirtyFactory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ManagedLedger ledgerDirty = dirtyFactory.open("testFlushCursorAfterIndDelInactivity", config);
         ManagedCursor dirtyCursor = ledgerDirty.openCursor("c");
 
@@ -3460,16 +3456,12 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 .pollDelay(Duration.ofMillis(2000))
                 .untilAsserted(() -> {
                     // Abruptly re-open the managed ledger without graceful close
-                    ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
-                    try {
-                        ManagedLedger ledger2 = factory2.open("testFlushCursorAfterIndDelInactivity", config);
-                        ManagedCursor c2 = ledger2.openCursor("c");
+                    @Cleanup("shutdown")
+                    ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+                    ManagedLedger ledger2 = factory2.open("testFlushCursorAfterIndDelInactivity", config);
+                    ManagedCursor c2 = ledger2.openCursor("c");
 
-                        assertEquals(c2.getMarkDeletedPosition(), positions.get(positions.size() - 1));
-
-                    } finally {
-                        factory2.shutdown();
-                    }
+                    assertEquals(c2.getMarkDeletedPosition(), positions.get(positions.size() - 1));
                 });
 
         factory1.shutdown();
