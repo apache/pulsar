@@ -455,7 +455,8 @@ public abstract class TestPulsarConnector {
                 String tenant = (String) args[0];
                 List<String> ns = getNamespace(tenant);
                 if (ns.isEmpty()) {
-                    throw new PulsarAdminException(new ClientErrorException(Response.status(404).build()));
+                    ClientErrorException cee = new ClientErrorException(Response.status(404).build());
+                    throw new PulsarAdminException(cee, cee.getMessage(), cee.getResponse().getStatus());
                 }
                 return ns;
             }
