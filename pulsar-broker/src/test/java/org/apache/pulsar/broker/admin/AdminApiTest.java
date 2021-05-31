@@ -36,9 +36,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonObject;
+
 import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.ArrayList;
@@ -105,7 +103,7 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
-import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
+import org.apache.pulsar.common.policies.data.AutoFailoverPolicyDataImpl;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
@@ -287,7 +285,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             nsPolicyData1.primary.add("prod1-broker[4-6].messaging.use.example.com");
             nsPolicyData1.secondary = new ArrayList<String>();
             nsPolicyData1.secondary.add("prod1-broker.*.messaging.use.example.com");
-            nsPolicyData1.auto_failover_policy = new AutoFailoverPolicyData();
+            nsPolicyData1.auto_failover_policy = new AutoFailoverPolicyDataImpl();
             nsPolicyData1.auto_failover_policy.policy_type = AutoFailoverPolicyType.min_available;
             nsPolicyData1.auto_failover_policy.parameters = new HashMap<String, String>();
             nsPolicyData1.auto_failover_policy.parameters.put("min_limit", "1");
@@ -302,7 +300,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             nsPolicyData2.primary.add("prod1-broker[4-6].messaging.use.example.com");
             nsPolicyData2.secondary = new ArrayList<String>();
             nsPolicyData2.secondary.add("prod1-broker.*.messaging.use.example.com");
-            nsPolicyData2.auto_failover_policy = new AutoFailoverPolicyData();
+            nsPolicyData2.auto_failover_policy = new AutoFailoverPolicyDataImpl();
             nsPolicyData2.auto_failover_policy.policy_type = AutoFailoverPolicyType.min_available;
             nsPolicyData2.auto_failover_policy.parameters = new HashMap<String, String>();
             nsPolicyData2.auto_failover_policy.parameters.put("min_limit", "1");
@@ -426,7 +424,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         nsRegexPolicy.namespaces.add("other/use/other.*");
         nsRegexPolicy.primary = new ArrayList<String>();
         nsRegexPolicy.primary.add("prod1-broker[45-46].messaging.use.example.com");
-        nsRegexPolicy.auto_failover_policy = new AutoFailoverPolicyData();
+        nsRegexPolicy.auto_failover_policy = new AutoFailoverPolicyDataImpl();
         nsRegexPolicy.auto_failover_policy.policy_type = AutoFailoverPolicyType.min_available;
         nsRegexPolicy.auto_failover_policy.parameters = new HashMap<String, String>();
         nsRegexPolicy.auto_failover_policy.parameters.put("min_limit", "1");

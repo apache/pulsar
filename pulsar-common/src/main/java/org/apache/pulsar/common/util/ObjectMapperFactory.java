@@ -30,8 +30,8 @@ import org.apache.commons.lang3.ClassUtils;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
 import org.apache.pulsar.common.functions.JsonIgnorePropertiesMixIn;
+import org.apache.pulsar.common.policies.data.AutoFailoverPolicyDataImpl;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
-import org.apache.pulsar.common.policies.data.AutoFailoverPolicyDataInterface;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuotaMixIn;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
@@ -111,7 +111,7 @@ public class ObjectMapperFactory {
 
         // we use customized deserializer to replace jackson annotations in some POJOs
         SimpleAbstractTypeResolver resolver = new SimpleAbstractTypeResolver();
-        resolver.addMapping(AutoFailoverPolicyDataInterface.class, AutoFailoverPolicyData.class);
+        resolver.addMapping(AutoFailoverPolicyData.class, AutoFailoverPolicyDataImpl.class);
         resolver.addMapping(BrokerNamespaceIsolationDataInterface.class, BrokerNamespaceIsolationData.class);
         resolver.addMapping(ClusterDataInterface.class, ClusterData.class);
         resolver.addMapping(FailureDomainInterface.class, FailureDomain.class);

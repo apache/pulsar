@@ -67,7 +67,7 @@ public class NamespaceIsolationData implements NamespaceIsolationDataInterface {
                             + "}"
     )
     @SuppressWarnings("checkstyle:MemberName")
-    public AutoFailoverPolicyData auto_failover_policy;
+    public AutoFailoverPolicyDataImpl auto_failover_policy;
 
     @Override
     public int hashCode() {
@@ -115,7 +115,7 @@ public class NamespaceIsolationData implements NamespaceIsolationDataInterface {
     }
 
     @Override
-    public void setAuto_failover_policy(AutoFailoverPolicyDataInterface autoFailoverPolicyData) {
-        this.auto_failover_policy = (AutoFailoverPolicyData) autoFailoverPolicyData;
+    public void setAuto_failover_policy(AutoFailoverPolicyData autoFailoverPolicyData) {
+        this.auto_failover_policy = (AutoFailoverPolicyDataImpl) autoFailoverPolicyData;
     }
 }

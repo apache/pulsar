@@ -21,7 +21,7 @@ package org.apache.pulsar.common.policies.impl;
 import java.util.Objects;
 import java.util.SortedSet;
 import org.apache.pulsar.common.policies.AutoFailoverPolicy;
-import org.apache.pulsar.common.policies.data.AutoFailoverPolicyDataInterface;
+import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.BrokerStatus;
 
@@ -43,7 +43,7 @@ public class MinAvailablePolicy extends AutoFailoverPolicy {
         this.usage_threshold = usageThreshold;
     }
 
-    public MinAvailablePolicy(AutoFailoverPolicyDataInterface policyData) {
+    public MinAvailablePolicy(AutoFailoverPolicyData policyData) {
         if (!policyData.getPolicy_type().equals(AutoFailoverPolicyType.min_available)) {
             throw new IllegalArgumentException();
         }

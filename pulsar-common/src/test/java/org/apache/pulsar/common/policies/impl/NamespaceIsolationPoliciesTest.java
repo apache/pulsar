@@ -37,7 +37,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.NamespaceIsolationPolicy;
-import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
+import org.apache.pulsar.common.policies.data.AutoFailoverPolicyDataImpl;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.BrokerStatus;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
@@ -74,7 +74,7 @@ public class NamespaceIsolationPoliciesTest {
         nsPolicyData.primary.add("prod1-broker[4-6].messaging.use.example.com");
         nsPolicyData.secondary = new ArrayList<>();
         nsPolicyData.secondary.add("prod1-broker.*.messaging.use.example.com");
-        nsPolicyData.auto_failover_policy = new AutoFailoverPolicyData();
+        nsPolicyData.auto_failover_policy = new AutoFailoverPolicyDataImpl();
         nsPolicyData.auto_failover_policy.policy_type = AutoFailoverPolicyType.min_available;
         nsPolicyData.auto_failover_policy.parameters = new HashMap<>();
         nsPolicyData.auto_failover_policy.parameters.put("min_limit", "1");

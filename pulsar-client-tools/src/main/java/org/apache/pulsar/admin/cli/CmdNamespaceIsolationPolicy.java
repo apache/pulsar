@@ -26,7 +26,7 @@ import java.util.function.Supplier;
 import org.apache.pulsar.admin.cli.utils.NameValueParameterSplitter;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
+import org.apache.pulsar.common.policies.data.AutoFailoverPolicyDataImpl;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataInterface;
@@ -195,7 +195,7 @@ public class CmdNamespaceIsolationPolicy extends CmdBase {
             nsIsolationData.secondary = secondary;
         }
 
-        nsIsolationData.auto_failover_policy = new AutoFailoverPolicyData();
+        nsIsolationData.auto_failover_policy = new AutoFailoverPolicyDataImpl();
         nsIsolationData.auto_failover_policy.policy_type = AutoFailoverPolicyType
                 .fromString(autoFailoverPolicyTypeName);
         nsIsolationData.auto_failover_policy.parameters = autoFailoverPolicyParams;

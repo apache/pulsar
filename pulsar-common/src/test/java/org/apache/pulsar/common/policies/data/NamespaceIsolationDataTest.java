@@ -59,8 +59,8 @@ public class NamespaceIsolationDataTest {
             // pass
         }
 
-        AutoFailoverPolicyData policy0 = new AutoFailoverPolicyData();
-        AutoFailoverPolicyData policy1 = new AutoFailoverPolicyData();
+        AutoFailoverPolicyDataImpl policy0 = new AutoFailoverPolicyDataImpl();
+        AutoFailoverPolicyDataImpl policy1 = new AutoFailoverPolicyDataImpl();
         policy0.policy_type = AutoFailoverPolicyType.min_available;
         policy0.parameters = new HashMap<>();
         policy0.parameters.put("min_limit", "3");

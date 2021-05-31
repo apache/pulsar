@@ -77,7 +77,7 @@ import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
-import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
+import org.apache.pulsar.common.policies.data.AutoFailoverPolicyDataImpl;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.BrokerInfo;
@@ -261,7 +261,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         policyData.primary = new ArrayList<String>();
         policyData.primary.add("localhost" + ":" + pulsar.getListenPortHTTP());
         policyData.secondary = new ArrayList<String>();
-        policyData.auto_failover_policy = new AutoFailoverPolicyData();
+        policyData.auto_failover_policy = new AutoFailoverPolicyDataImpl();
         policyData.auto_failover_policy.policy_type = AutoFailoverPolicyType.min_available;
         policyData.auto_failover_policy.parameters = new HashMap<String, String>();
         policyData.auto_failover_policy.parameters.put("min_limit", "1");

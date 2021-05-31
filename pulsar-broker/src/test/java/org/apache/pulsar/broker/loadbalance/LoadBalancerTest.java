@@ -51,7 +51,7 @@ import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.internal.NamespacesImpl;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
+import org.apache.pulsar.common.policies.data.AutoFailoverPolicyDataImpl;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
@@ -716,7 +716,7 @@ public class LoadBalancerTest {
             policyData.primary.add(pulsarServices[i].getAdvertisedAddress());
         }
         policyData.secondary = new ArrayList<String>();
-        policyData.auto_failover_policy = new AutoFailoverPolicyData();
+        policyData.auto_failover_policy = new AutoFailoverPolicyDataImpl();
         policyData.auto_failover_policy.policy_type = AutoFailoverPolicyType.min_available;
         policyData.auto_failover_policy.parameters = new HashMap<>();
         policyData.auto_failover_policy.parameters.put("min_limit", "1");
@@ -733,7 +733,7 @@ public class LoadBalancerTest {
         for (int i = 1; i < BROKER_COUNT; i++) {
             policyData.secondary.add(pulsarServices[i].getAdvertisedAddress());
         }
-        policyData.auto_failover_policy = new AutoFailoverPolicyData();
+        policyData.auto_failover_policy = new AutoFailoverPolicyDataImpl();
         policyData.auto_failover_policy.policy_type = AutoFailoverPolicyType.min_available;
         policyData.auto_failover_policy.parameters = new HashMap<String, String>();
         policyData.auto_failover_policy.parameters.put("min_limit", "1");
@@ -750,7 +750,7 @@ public class LoadBalancerTest {
         for (int i = 1; i < BROKER_COUNT; i++) {
             policyData.secondary.add(pulsarServices[i].getAdvertisedAddress());
         }
-        policyData.auto_failover_policy = new AutoFailoverPolicyData();
+        policyData.auto_failover_policy = new AutoFailoverPolicyDataImpl();
         policyData.auto_failover_policy.policy_type = AutoFailoverPolicyType.min_available;
         policyData.auto_failover_policy.parameters = new HashMap<String, String>();
         policyData.auto_failover_policy.parameters.put("min_limit", "1");

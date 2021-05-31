@@ -34,7 +34,7 @@ import java.util.TreeSet;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
+import org.apache.pulsar.common.policies.data.AutoFailoverPolicyDataImpl;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.BrokerStatus;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
@@ -61,7 +61,7 @@ public class NamespaceIsolationPolicyImplTest {
         policyData.primary.add("prod1-broker[1-3].messaging.use.example.com");
         policyData.secondary = new ArrayList<>();
         policyData.secondary.add("prod1-broker.*.use.example.com");
-        policyData.auto_failover_policy = new AutoFailoverPolicyData();
+        policyData.auto_failover_policy = new AutoFailoverPolicyDataImpl();
         policyData.auto_failover_policy.policy_type = AutoFailoverPolicyType.min_available;
         policyData.auto_failover_policy.parameters = new HashMap<>();
         policyData.auto_failover_policy.parameters.put("min_limit", "3");

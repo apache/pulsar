@@ -20,7 +20,7 @@ package org.apache.pulsar.common.policies.data;
 
 import java.util.Map;
 
-public interface AutoFailoverPolicyDataInterface {
+public interface AutoFailoverPolicyData {
     AutoFailoverPolicyType getPolicy_type();
 
     Map<String, String> getParameters();

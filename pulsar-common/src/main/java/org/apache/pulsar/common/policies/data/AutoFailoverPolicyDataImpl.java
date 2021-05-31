@@ -34,7 +34,7 @@ import org.apache.pulsar.common.policies.impl.AutoFailoverPolicyFactory;
         description = "The auto failover policy configuration data"
 )
 @Data
-public class AutoFailoverPolicyData implements AutoFailoverPolicyDataInterface {
+public class AutoFailoverPolicyDataImpl implements AutoFailoverPolicyData {
     @ApiModelProperty(
             name = "policy_type",
             value = "The auto failover policy type",
@@ -66,8 +66,8 @@ public class AutoFailoverPolicyData implements AutoFailoverPolicyDataInterface {
 
     @Override
     public boolean equals(Object obj) {
-        if (obj instanceof AutoFailoverPolicyData) {
-            AutoFailoverPolicyData other = (AutoFailoverPolicyData) obj;
+        if (obj instanceof AutoFailoverPolicyDataImpl) {
+            AutoFailoverPolicyDataImpl other = (AutoFailoverPolicyDataImpl) obj;
             return Objects.equal(policy_type, other.policy_type) && Objects.equal(parameters, other.parameters);
         }
 
