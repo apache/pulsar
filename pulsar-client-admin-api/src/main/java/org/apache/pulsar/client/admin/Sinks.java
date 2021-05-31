@@ -23,7 +23,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
-import org.apache.pulsar.common.functions.UpdateOptionsInterface;
+import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.policies.data.SinkStatus;
@@ -200,7 +200,7 @@ public interface Sinks {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void updateSink(SinkConfig sinkConfig, String fileName, UpdateOptionsInterface updateOptions)
+    void updateSink(SinkConfig sinkConfig, String fileName, UpdateOptions updateOptions)
             throws PulsarAdminException;
 
     /**
@@ -213,7 +213,7 @@ public interface Sinks {
      *            options for the update operations
      */
     CompletableFuture<Void> updateSinkAsync(SinkConfig sinkConfig, String fileName,
-                                            UpdateOptionsInterface updateOptions);
+                                            UpdateOptions updateOptions);
 
     /**
      * Update the configuration for a sink.
@@ -272,7 +272,7 @@ public interface Sinks {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void updateSinkWithUrl(SinkConfig sinkConfig, String pkgUrl, UpdateOptionsInterface updateOptions)
+    void updateSinkWithUrl(SinkConfig sinkConfig, String pkgUrl, UpdateOptions updateOptions)
             throws PulsarAdminException;
 
     /**
@@ -291,7 +291,7 @@ public interface Sinks {
      *            options for the update operations
      */
     CompletableFuture<Void> updateSinkWithUrlAsync(SinkConfig sinkConfig, String pkgUrl,
-                                                   UpdateOptionsInterface updateOptions);
+                                                   UpdateOptions updateOptions);
 
     /**
      * Delete an existing sink.

@@ -18,8 +18,20 @@
  */
 package org.apache.pulsar.common.functions;
 
-public interface UpdateOptionsInterface {
-    boolean isUpdateAuthData();
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-    void setUpdateAuthData(boolean updateAuthData);
+/**
+ * Options while updating the sink.
+ */
+@Data
+@NoArgsConstructor
+@ApiModel(value = "UpdateOptions", description = "Options while updating the sink")
+public class UpdateOptionsImpl implements UpdateOptions {
+    @ApiModelProperty(
+            value = "Whether or not to update the auth data",
+            name = "update-auth-data")
+    private boolean updateAuthData = false;
 }

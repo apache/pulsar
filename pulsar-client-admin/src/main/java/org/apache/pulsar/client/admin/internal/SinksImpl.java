@@ -39,8 +39,8 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Sink;
 import org.apache.pulsar.client.admin.Sinks;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.functions.UpdateOptions;
-import org.apache.pulsar.common.functions.UpdateOptionsInterface;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.policies.data.SinkStatus;
@@ -337,7 +337,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
     }
 
     @Override
-    public void updateSink(SinkConfig sinkConfig, String fileName, UpdateOptionsInterface updateOptions)
+    public void updateSink(SinkConfig sinkConfig, String fileName, UpdateOptions updateOptions)
             throws PulsarAdminException {
         try {
             updateSinkAsync(sinkConfig, fileName, updateOptions).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
@@ -353,7 +353,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
 
     @Override
     public CompletableFuture<Void> updateSinkAsync(
-            SinkConfig sinkConfig, String fileName, UpdateOptionsInterface updateOptions) {
+            SinkConfig sinkConfig, String fileName, UpdateOptions updateOptions) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         if (!validateSinkName(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName(), future)) {
             return future;
@@ -365,7 +365,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
                     .addBodyPart(new StringPart("sinkConfig", ObjectMapperFactory.getThreadLocal()
                             .writeValueAsString(sinkConfig), MediaType.APPLICATION_JSON));
 
-            UpdateOptions options = (UpdateOptions) updateOptions;
+            UpdateOptionsImpl options = (UpdateOptionsImpl) updateOptions;
             if (options != null) {
                 builder.addBodyPart(new StringPart("updateOptions",
                         ObjectMapperFactory.getThreadLocal()
@@ -409,7 +409,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
     }
 
     @Override
-    public void updateSinkWithUrl(SinkConfig sinkConfig, String pkgUrl, UpdateOptionsInterface updateOptions)
+    public void updateSinkWithUrl(SinkConfig sinkConfig, String pkgUrl, UpdateOptions updateOptions)
             throws PulsarAdminException {
         try {
             updateSinkWithUrlAsync(sinkConfig, pkgUrl, updateOptions).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
@@ -425,7 +425,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
 
     @Override
     public CompletableFuture<Void> updateSinkWithUrlAsync(
-            SinkConfig sinkConfig, String pkgUrl, UpdateOptionsInterface updateOptions) {
+            SinkConfig sinkConfig, String pkgUrl, UpdateOptions updateOptions) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         if (!validateSinkName(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName(), future)) {
             return future;
@@ -437,7 +437,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
                     "sinkConfig",
                     new Gson().toJson(sinkConfig),
                     MediaType.APPLICATION_JSON_TYPE));
-            UpdateOptions options = (UpdateOptions) updateOptions;
+            UpdateOptionsImpl options = (UpdateOptionsImpl) updateOptions;
             if (options != null) {
                 mp.bodyPart(new FormDataBodyPart(
                         "updateOptions",

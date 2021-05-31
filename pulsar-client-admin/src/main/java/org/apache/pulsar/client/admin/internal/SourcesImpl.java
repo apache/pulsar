@@ -38,8 +38,8 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Source;
 import org.apache.pulsar.client.admin.Sources;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.functions.UpdateOptions;
-import org.apache.pulsar.common.functions.UpdateOptionsInterface;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.policies.data.SourceStatus;
@@ -314,7 +314,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
     }
 
     @Override
-    public void updateSource(SourceConfig sourceConfig, String fileName, UpdateOptionsInterface updateOptions)
+    public void updateSource(SourceConfig sourceConfig, String fileName, UpdateOptions updateOptions)
             throws PulsarAdminException {
         try {
             updateSourceAsync(sourceConfig, fileName, updateOptions).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
@@ -330,7 +330,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
 
     @Override
     public CompletableFuture<Void> updateSourceAsync(
-            SourceConfig sourceConfig, String fileName, UpdateOptionsInterface updateOptions) {
+            SourceConfig sourceConfig, String fileName, UpdateOptions updateOptions) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         try {
             RequestBuilder builder =
@@ -339,7 +339,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
                     .addBodyPart(new StringPart("sourceConfig", ObjectMapperFactory.getThreadLocal()
                             .writeValueAsString(sourceConfig), MediaType.APPLICATION_JSON));
 
-            UpdateOptions options = (UpdateOptions) updateOptions;
+            UpdateOptionsImpl options = (UpdateOptionsImpl) updateOptions;
             if (options != null) {
                 builder.addBodyPart(new StringPart("updateOptions",
                         ObjectMapperFactory.getThreadLocal().writeValueAsString(options),
@@ -383,7 +383,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
     }
 
     @Override
-    public void updateSourceWithUrl(SourceConfig sourceConfig, String pkgUrl, UpdateOptionsInterface updateOptions)
+    public void updateSourceWithUrl(SourceConfig sourceConfig, String pkgUrl, UpdateOptions updateOptions)
             throws PulsarAdminException {
         try {
             updateSourceWithUrlAsync(sourceConfig, pkgUrl, updateOptions)
@@ -400,7 +400,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
 
     @Override
     public CompletableFuture<Void> updateSourceWithUrlAsync(
-            SourceConfig sourceConfig, String pkgUrl, UpdateOptionsInterface updateOptions) {
+            SourceConfig sourceConfig, String pkgUrl, UpdateOptions updateOptions) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         try {
             final FormDataMultiPart mp = new FormDataMultiPart();
@@ -409,7 +409,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
                     "sourceConfig",
                     new Gson().toJson(sourceConfig),
                     MediaType.APPLICATION_JSON_TYPE));
-            UpdateOptions options = (UpdateOptions) updateOptions;
+            UpdateOptionsImpl options = (UpdateOptionsImpl) updateOptions;
             if (options != null) {
                 mp.bodyPart(new FormDataBodyPart(
                         "updateOptions",

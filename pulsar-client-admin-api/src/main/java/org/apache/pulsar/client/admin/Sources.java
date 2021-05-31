@@ -23,7 +23,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
-import org.apache.pulsar.common.functions.UpdateOptionsInterface;
+import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.policies.data.SourceStatus;
@@ -200,7 +200,7 @@ public interface Sources {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void updateSource(SourceConfig sourceConfig, String fileName, UpdateOptionsInterface updateOptions)
+    void updateSource(SourceConfig sourceConfig, String fileName, UpdateOptions updateOptions)
             throws PulsarAdminException;
 
     /**
@@ -213,7 +213,7 @@ public interface Sources {
      *            options for the update operations
      */
     CompletableFuture<Void> updateSourceAsync(SourceConfig sourceConfig, String fileName,
-                                              UpdateOptionsInterface updateOptions);
+                                              UpdateOptions updateOptions);
 
     /**
      * Update the configuration for a source.
@@ -272,7 +272,7 @@ public interface Sources {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void updateSourceWithUrl(SourceConfig sourceConfig, String pkgUrl, UpdateOptionsInterface updateOptions)
+    void updateSourceWithUrl(SourceConfig sourceConfig, String pkgUrl, UpdateOptions updateOptions)
             throws PulsarAdminException;
 
     /**
@@ -291,7 +291,7 @@ public interface Sources {
      *            options for the update operations
      */
     CompletableFuture<Void> updateSourceWithUrlAsync(
-            SourceConfig sourceConfig, String pkgUrl, UpdateOptionsInterface updateOptions);
+            SourceConfig sourceConfig, String pkgUrl, UpdateOptions updateOptions);
 
     /**
      * Delete an existing source.

@@ -26,7 +26,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
-import org.apache.pulsar.common.functions.UpdateOptionsInterface;
+import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataInterface;
 import org.apache.pulsar.common.policies.data.FunctionStatsInterface;
@@ -206,7 +206,7 @@ public interface Functions {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void updateFunction(FunctionConfig functionConfig, String fileName, UpdateOptionsInterface updateOptions)
+    void updateFunction(FunctionConfig functionConfig, String fileName, UpdateOptions updateOptions)
             throws PulsarAdminException;
 
     /**
@@ -219,7 +219,7 @@ public interface Functions {
      *            options for the update operations
      */
     CompletableFuture<Void> updateFunctionAsync(
-            FunctionConfig functionConfig, String fileName, UpdateOptionsInterface updateOptions);
+            FunctionConfig functionConfig, String fileName, UpdateOptions updateOptions);
 
     /**
      * Update the configuration for a function.
@@ -278,7 +278,7 @@ public interface Functions {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void updateFunctionWithUrl(FunctionConfig functionConfig, String pkgUrl, UpdateOptionsInterface updateOptions)
+    void updateFunctionWithUrl(FunctionConfig functionConfig, String pkgUrl, UpdateOptions updateOptions)
             throws PulsarAdminException;
 
     /**
@@ -297,7 +297,7 @@ public interface Functions {
      *            options for the update operations
      */
     CompletableFuture<Void> updateFunctionWithUrlAsync(
-            FunctionConfig functionConfig, String pkgUrl, UpdateOptionsInterface updateOptions);
+            FunctionConfig functionConfig, String pkgUrl, UpdateOptions updateOptions);
 
     /**
      * Delete an existing function.
