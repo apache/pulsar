@@ -152,7 +152,8 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     }
 
     @Override
-    public CompletableFuture<TransactionInPendingAckStats> getTransactionInPendingAckStatsAsync(TxnID txnID, String topic,
+    public CompletableFuture<TransactionInPendingAckStats> getTransactionInPendingAckStatsAsync(TxnID txnID,
+                                                                                                String topic,
                                                                                                 String subName) {
         WebTarget path = adminV3Transactions.path("transactionInPendingAckStats");
         path = path.queryParam("mostSigBits", txnID.getMostSigBits());
