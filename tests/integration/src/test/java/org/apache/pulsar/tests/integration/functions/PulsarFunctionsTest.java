@@ -58,10 +58,9 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecord;
-import org.apache.pulsar.common.policies.data.FunctionStats;
+import org.apache.pulsar.common.policies.data.FunctionStatsImpl;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.common.policies.data.FunctionStatusUtil;
-import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.schema.KeyValue;
@@ -491,7 +490,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         log.info("FUNCTION STATS: {}", result.getStdout());
 
-        FunctionStats functionStats = FunctionStats.decode(result.getStdout());
+        FunctionStatsImpl functionStats = FunctionStatsImpl.decode(result.getStdout());
         assertEquals(functionStats.getReceivedTotal(), numMessages + 2);
         assertEquals(functionStats.getProcessedSuccessfullyTotal(), numMessages);
         assertEquals(functionStats.getSystemExceptionsTotal(), 0);
@@ -958,7 +957,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         );
 
         log.info("FUNCTION STATS: {}", result.getStdout());
-        FunctionStats functionStats = FunctionStats.decode(result.getStdout());
+        FunctionStatsImpl functionStats = FunctionStatsImpl.decode(result.getStdout());
 
         assertEquals(functionStats.getReceivedTotal(), 0);
         assertEquals(functionStats.getProcessedSuccessfullyTotal(), 0);
@@ -999,7 +998,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         log.info("FUNCTION STATS: {}", result.getStdout());
 
-        FunctionStats functionStats = FunctionStats.decode(result.getStdout());
+        FunctionStatsImpl functionStats = FunctionStatsImpl.decode(result.getStdout());
         assertEquals(functionStats.getReceivedTotal(), numMessages);
         assertEquals(functionStats.getProcessedSuccessfullyTotal(), numMessages);
         assertEquals(functionStats.getSystemExceptionsTotal(), 0);

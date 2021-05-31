@@ -27,7 +27,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.policies.data.FunctionInstanceStatsImpl;
-import org.apache.pulsar.common.policies.data.FunctionStats;
+import org.apache.pulsar.common.policies.data.FunctionStatsImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.instance.InstanceConfig;
@@ -237,7 +237,7 @@ public class FunctionsImplTest {
         FunctionInstanceStatsImpl instanceStats2 = WorkerUtils
                 .getFunctionInstanceStats("public/default/test", functionRuntimeInfo, 1);
 
-        FunctionStats functionStats = new FunctionStats();
+        FunctionStatsImpl functionStats = new FunctionStatsImpl();
         functionStats.addInstance(instanceStats1);
         functionStats.addInstance(instanceStats2);
 

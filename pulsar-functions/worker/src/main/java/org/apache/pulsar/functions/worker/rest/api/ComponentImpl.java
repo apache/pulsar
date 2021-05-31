@@ -61,7 +61,7 @@ import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataImpl;
-import org.apache.pulsar.common.policies.data.FunctionStats;
+import org.apache.pulsar.common.policies.data.FunctionStatsImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.RestException;
@@ -723,12 +723,12 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         }
     }
 
-    public FunctionStats getFunctionStats(final String tenant,
-                                          final String namespace,
-                                          final String componentName,
-                                          final URI uri,
-                                          final String clientRole,
-                                          final AuthenticationDataSource clientAuthenticationDataHttps) {
+    public FunctionStatsImpl getFunctionStats(final String tenant,
+                                              final String namespace,
+                                              final String componentName,
+                                              final URI uri,
+                                              final String clientRole,
+                                              final AuthenticationDataSource clientAuthenticationDataHttps) {
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
@@ -765,7 +765,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         }
 
         FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
-        FunctionStats functionStats;
+        FunctionStatsImpl functionStats;
         try {
             functionStats = functionRuntimeManager.getFunctionStats(tenant, namespace, componentName, uri);
         } catch (WebApplicationException we) {

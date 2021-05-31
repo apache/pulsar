@@ -64,7 +64,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
-import org.apache.pulsar.common.policies.data.FunctionStats;
+import org.apache.pulsar.common.policies.data.FunctionStatsImpl;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -333,7 +333,7 @@ public class PulsarFunctionPublishTest {
 
         retryStrategically((test) -> {
             try {
-                FunctionStats functionStat = (FunctionStats)
+                FunctionStatsImpl functionStat = (FunctionStatsImpl)
                         admin.functions().getFunctionStats(tenant, namespacePortion, functionName);
                 return functionStat.getProcessedSuccessfullyTotal() == 5;
             } catch (PulsarAdminException e) {
@@ -471,7 +471,7 @@ public class PulsarFunctionPublishTest {
 
         retryStrategically((test) -> {
             try {
-                FunctionStats functionStat = (FunctionStats)
+                FunctionStatsImpl functionStat = (FunctionStatsImpl)
                         admin.functions().getFunctionStats(tenant, namespacePortion, functionName);
                 return functionStat.getProcessedSuccessfullyTotal() == 5;
             } catch (PulsarAdminException e) {

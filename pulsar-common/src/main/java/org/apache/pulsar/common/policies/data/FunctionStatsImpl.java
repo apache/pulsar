@@ -35,7 +35,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 @JsonInclude(JsonInclude.Include.ALWAYS)
 @JsonPropertyOrder({"receivedTotal", "processedSuccessfullyTotal", "systemExceptionsTotal", "userExceptionsTotal",
         "avgProcessLatency", "1min", "lastInvocation", "instances"})
-public class FunctionStats implements FunctionStatsInterface {
+public class FunctionStatsImpl implements FunctionStats {
 
     /**
      * Overall total number of records function received from source.
@@ -79,7 +79,7 @@ public class FunctionStats implements FunctionStatsInterface {
     }
 
     @Override
-    public FunctionStats calculateOverall() {
+    public FunctionStatsImpl calculateOverall() {
 
         int nonNullInstances = 0;
         int nonNullInstancesOneMin = 0;
@@ -138,7 +138,7 @@ public class FunctionStats implements FunctionStatsInterface {
         return this;
     }
 
-    public static FunctionStats decode (String json) throws IOException {
-        return ObjectMapperFactory.getThreadLocal().readValue(json, FunctionStats.class);
+    public static FunctionStatsImpl decode (String json) throws IOException {
+        return ObjectMapperFactory.getThreadLocal().readValue(json, FunctionStatsImpl.class);
     }
 }

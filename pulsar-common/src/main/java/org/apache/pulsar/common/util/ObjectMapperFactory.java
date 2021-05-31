@@ -46,8 +46,8 @@ import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataBaseImpl;
 import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataBase;
 import org.apache.pulsar.common.policies.data.FunctionInstanceStatsData;
 import org.apache.pulsar.common.policies.data.FunctionInstanceStats;
+import org.apache.pulsar.common.policies.data.FunctionStatsImpl;
 import org.apache.pulsar.common.policies.data.FunctionStats;
-import org.apache.pulsar.common.policies.data.FunctionStatsInterface;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
@@ -118,7 +118,7 @@ public class ObjectMapperFactory {
         resolver.addMapping(NamespaceIsolationData.class, NamespaceIsolationDataImpl.class);
         resolver.addMapping(TenantInfo.class, TenantInfoImpl.class);
         resolver.addMapping(OffloadPolicies.class, OffloadPoliciesImpl.class);
-        resolver.addMapping(FunctionStatsInterface.class, FunctionStats.class);
+        resolver.addMapping(FunctionStats.class, FunctionStatsImpl.class);
         resolver.addMapping(FunctionInstanceStats.class, FunctionInstanceStatsImpl.class);
         resolver.addMapping(FunctionInstanceStatsData.class, FunctionInstanceStatsDataImpl.class);
         resolver.addMapping(FunctionInstanceStatsDataBase.class, FunctionInstanceStatsDataBaseImpl.class);

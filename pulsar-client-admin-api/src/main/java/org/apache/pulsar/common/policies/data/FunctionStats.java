@@ -20,10 +20,10 @@ package org.apache.pulsar.common.policies.data;
 
 import java.util.List;
 
-public interface FunctionStatsInterface {
+public interface FunctionStats {
     void addInstance(FunctionInstanceStats functionInstanceStats);
 
-    FunctionStatsInterface calculateOverall();
+    FunctionStats calculateOverall();
 
     long getReceivedTotal();
 

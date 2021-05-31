@@ -28,7 +28,7 @@ import org.apache.pulsar.common.functions.FunctionState;
 import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataImpl;
-import org.apache.pulsar.common.policies.data.FunctionStats;
+import org.apache.pulsar.common.policies.data.FunctionStatsImpl;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.FunctionApiResource;
@@ -164,7 +164,7 @@ public class FunctionsApiV3Resource extends FunctionApiResource {
     @GET
     @ApiOperation(
             value = "Displays the stats of a Pulsar Function",
-            response = FunctionStats.class
+            response = FunctionStatsImpl.class
     )
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this function"),
@@ -174,9 +174,9 @@ public class FunctionsApiV3Resource extends FunctionApiResource {
     })
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/{tenant}/{namespace}/{functionName}/stats")
-    public FunctionStats getFunctionStats(final @PathParam("tenant") String tenant,
-                                          final @PathParam("namespace") String namespace,
-                                          final @PathParam("functionName") String functionName) throws IOException {
+    public FunctionStatsImpl getFunctionStats(final @PathParam("tenant") String tenant,
+                                              final @PathParam("namespace") String namespace,
+                                              final @PathParam("functionName") String functionName) throws IOException {
         return functions().getFunctionStats(tenant, namespace, functionName, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
