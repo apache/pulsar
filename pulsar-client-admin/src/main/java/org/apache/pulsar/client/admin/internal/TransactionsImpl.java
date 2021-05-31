@@ -117,10 +117,11 @@ public class TransactionsImpl extends BaseResource implements Transactions {
 
     @Override
     public CompletableFuture<TransactionInBufferStats> getTransactionInBufferStatsAsync(TxnID txnID, String topic) {
+        TopicName topicName = TopicName.get(topic);
         WebTarget path = adminV3Transactions.path("transactionInBufferStats");
-        path = path.queryParam("mostSigBits", txnID.getMostSigBits());
-        path = path.queryParam("leastSigBits", txnID.getLeastSigBits());
-        path = path.queryParam("topic", topic);
+        path = path.path(topicName.getRestPath(false));
+        path = path.path(txnID.getMostSigBits() + "");
+        path = path.path(txnID.getLeastSigBits() + "");
         final CompletableFuture<TransactionInBufferStats> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<TransactionInBufferStats>() {
@@ -156,10 +157,10 @@ public class TransactionsImpl extends BaseResource implements Transactions {
                                                                                                 String topic,
                                                                                                 String subName) {
         WebTarget path = adminV3Transactions.path("transactionInPendingAckStats");
-        path = path.queryParam("mostSigBits", txnID.getMostSigBits());
-        path = path.queryParam("leastSigBits", txnID.getLeastSigBits());
-        path = path.queryParam("topic", topic);
-        path = path.queryParam("subName", subName);
+        path = path.path(TopicName.get(topic).getRestPath(false));
+        path = path.path(subName);
+        path = path.path(txnID.getMostSigBits() + "");
+        path = path.path(txnID.getLeastSigBits() + "");
         final CompletableFuture<TransactionInPendingAckStats> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<TransactionInPendingAckStats>() {
@@ -195,8 +196,8 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     @Override
     public CompletableFuture<TransactionMetadata> getTransactionMetadataAsync(TxnID txnID) {
         WebTarget path = adminV3Transactions.path("transactionMetadata");
-        path = path.queryParam("mostSigBits", txnID.getMostSigBits());
-        path = path.queryParam("leastSigBits", txnID.getLeastSigBits());
+        path = path.path(txnID.getMostSigBits() + "");
+        path = path.path(txnID.getLeastSigBits() + "");
         final CompletableFuture<TransactionMetadata> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<TransactionMetadata>() {
@@ -231,7 +232,7 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     @Override
     public CompletableFuture<TransactionBufferStats> getTransactionBufferStatsAsync(String topic) {
         WebTarget path = adminV3Transactions.path("transactionBufferStats");
-        path = path.queryParam("topic", topic);
+        path = path.path(TopicName.get(topic).getRestPath(false));
         final CompletableFuture<TransactionBufferStats> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<TransactionBufferStats>() {
@@ -265,8 +266,8 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     @Override
     public CompletableFuture<TransactionPendingAckStats> getPendingAckStatsAsync(String topic, String subName) {
         WebTarget path = adminV3Transactions.path("pendingAckStats");
-        path = path.queryParam("topic", topic);
-        path = path.queryParam("subName", subName);
+        path = path.path(TopicName.get(topic).getRestPath(false));
+        path = path.path(subName);
         final CompletableFuture<TransactionPendingAckStats> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<TransactionPendingAckStats>() {

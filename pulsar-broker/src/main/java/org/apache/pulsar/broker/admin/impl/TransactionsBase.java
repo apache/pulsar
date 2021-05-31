@@ -46,6 +46,8 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStats;
@@ -54,6 +56,7 @@ import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionLogStats;
 import org.apache.pulsar.common.policies.data.TransactionMetadata;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckInternalStats;
+import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
@@ -130,12 +133,11 @@ public abstract class TransactionsBase extends AdminResource {
     }
 
     protected void internalGetTransactionInPendingAckStats(AsyncResponse asyncResponse, boolean authoritative,
-                                                           long mostSigBits, long leastSigBits, String topic,
-                                                           String subName) {
+                                                           long mostSigBits, long leastSigBits, String subName) {
         if (pulsar().getConfig().isTransactionCoordinatorEnabled()) {
-            validateTopicOwnership(TopicName.get(topic), authoritative);
+            validateTopicOwnership(topicName, authoritative);
             CompletableFuture<Optional<Topic>> topicFuture = pulsar().getBrokerService()
-                    .getTopics().get(TopicName.get(topic).toString());
+                    .getTopics().get(topicName.toString());
             if (topicFuture != null) {
                 topicFuture.whenComplete((optionalTopic, e) -> {
                     if (e != null) {
@@ -165,12 +167,11 @@ public abstract class TransactionsBase extends AdminResource {
     }
 
     protected void internalGetTransactionInBufferStats(AsyncResponse asyncResponse, boolean authoritative,
-                                                       long mostSigBits, long leastSigBits,
-                                                       String topic) {
+                                                       long mostSigBits, long leastSigBits) {
         if (pulsar().getConfig().isTransactionCoordinatorEnabled()) {
-            validateTopicOwnership(TopicName.get(topic), authoritative);
+            validateTopicOwnership(topicName, authoritative);
             CompletableFuture<Optional<Topic>> topicFuture = pulsar().getBrokerService()
-                    .getTopics().get(TopicName.get(topic).toString());
+                    .getTopics().get(topicName.toString());
             if (topicFuture != null) {
                 topicFuture.whenComplete((optionalTopic, e) -> {
                     if (e != null) {
@@ -200,12 +201,11 @@ public abstract class TransactionsBase extends AdminResource {
         }
     }
 
-    protected void internalGetTransactionBufferStats(AsyncResponse asyncResponse,
-                                                     boolean authoritative, String topic) {
+    protected void internalGetTransactionBufferStats(AsyncResponse asyncResponse, boolean authoritative) {
         if (pulsar().getConfig().isTransactionCoordinatorEnabled()) {
-            validateTopicOwnership(TopicName.get(topic), authoritative);
+            validateTopicOwnership(topicName, authoritative);
             CompletableFuture<Optional<Topic>> topicFuture = pulsar().getBrokerService()
-                    .getTopics().get(TopicName.get(topic).toString());
+                    .getTopics().get(topicName.toString());
             if (topicFuture != null) {
                 topicFuture.whenComplete((optionalTopic, e) -> {
                     if (e != null) {
@@ -233,12 +233,11 @@ public abstract class TransactionsBase extends AdminResource {
         }
     }
 
-    protected void internalGetPendingAckStats(AsyncResponse asyncResponse, boolean authoritative,
-                                              String topic, String subName) {
+    protected void internalGetPendingAckStats(AsyncResponse asyncResponse, boolean authoritative, String subName) {
         if (pulsar().getConfig().isTransactionCoordinatorEnabled()) {
-            validateTopicOwnership(TopicName.get(topic), authoritative);
+            validateTopicOwnership(topicName, authoritative);
             CompletableFuture<Optional<Topic>> topicFuture = pulsar().getBrokerService()
-                    .getTopics().get(TopicName.get(topic).toString());
+                    .getTopics().get(topicName.toString());
             if (topicFuture != null) {
                 topicFuture.whenComplete((optionalTopic, e) -> {
                     if (e != null) {
@@ -571,6 +570,18 @@ public abstract class TransactionsBase extends AdminResource {
             }
         } catch (Exception e) {
             asyncResponse.resume(new RestException(e.getCause()));
+        }
+    }
+
+    protected void validateTopicName(String property, String namespace, String encodedTopic) {
+        String topic = Codec.decode(encodedTopic);
+        try {
+            this.namespaceName = NamespaceName.get(property, namespace);
+            this.topicName = TopicName.get(TopicDomain.persistent.toString(), namespaceName, topic);
+        } catch (IllegalArgumentException e) {
+            log.warn("[{}] Failed to validate topic name {}://{}/{}/{}", clientAppId(), domain(), property, namespace,
+                    topic, e);
+            throw new RestException(Response.Status.PRECONDITION_FAILED, "Topic name is not valid");
         }
     }
 }
