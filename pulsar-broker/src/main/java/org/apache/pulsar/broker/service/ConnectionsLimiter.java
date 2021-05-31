@@ -18,15 +18,15 @@
  */
 package org.apache.pulsar.broker.service;
 
-import lombok.extern.slf4j.Slf4j;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import org.apache.commons.lang3.mutable.MutableInt;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Pattern;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.mutable.MutableInt;
+import org.apache.pulsar.broker.ServiceConfiguration;
 
 @Slf4j
 public class ConnectionsLimiter {
