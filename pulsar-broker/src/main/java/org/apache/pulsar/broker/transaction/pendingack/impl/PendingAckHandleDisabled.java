@@ -97,7 +97,7 @@ public class PendingAckHandleDisabled implements PendingAckHandle {
     }
 
     @Override
-    public boolean isTransactionAckExisted() {
+    public boolean isTransactionAckPresent() {
         return false;
     }
 

@@ -736,7 +736,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     }
 
     @Override
-    public boolean isTransactionAckExisted() {
+    public boolean isTransactionAckPresent() {
         if ((this.cumulativeAckOfTransaction == null
                 && (this.individualAckOfTransaction == null || this.individualAckOfTransaction.isEmpty()))) {
             return false;
