@@ -1053,6 +1053,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                     log.info("Configuring proxy-url {} with protocol {}", data.getProxyServiceUrl(),
                             data.getProxyProtocol());
                 }
+                if (data.getListenerName() != null && StringUtils.isNotBlank(data.getListenerName())) {
+                    clientBuilder.listenerName(data.getListenerName());
+                    log.info("Configuring listenerName {}", data.getListenerName());
+                }
                 // Share all the IO threads across broker and client connections
                 ClientConfigurationData conf = ((ClientBuilderImpl) clientBuilder).getClientConfigurationData();
                 return new PulsarClientImpl(conf, workerGroup);

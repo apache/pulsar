@@ -144,6 +144,12 @@ public class ClusterData {
         value = "Path for the trusted TLS certificate file for outgoing connection to a server (broker)"
     )
     private String brokerClientTrustCertsFilePath;
+    @ApiModelProperty(
+            name = "listenerName",
+            value = "listenerName when client would like to connect to cluster",
+            example = ""
+    )
+    private String listenerName;
 
     public ClusterData(String serviceUrl) {
         this(serviceUrl, "");
@@ -169,6 +175,17 @@ public class ClusterData {
         this.brokerServiceUrlTls = brokerServiceUrlTls;
         this.authenticationPlugin = authenticationPlugin;
         this.authenticationParameters = authenticationParameters;
+    }
+
+    public ClusterData(String serviceUrl, String serviceUrlTls, String brokerServiceUrl, String brokerServiceUrlTls,
+                       String authenticationPlugin, String authenticationParameters, String listenerName) {
+        this.serviceUrl = serviceUrl;
+        this.serviceUrlTls = serviceUrlTls;
+        this.brokerServiceUrl = brokerServiceUrl;
+        this.brokerServiceUrlTls = brokerServiceUrlTls;
+        this.authenticationPlugin = authenticationPlugin;
+        this.authenticationParameters = authenticationParameters;
+        this.listenerName = listenerName;
     }
 
     public ClusterData(String serviceUrl, String serviceUrlTls, String brokerServiceUrl, String brokerServiceUrlTls,
@@ -202,6 +219,7 @@ public class ClusterData {
         this.brokerClientTlsTrustStore = other.brokerClientTlsTrustStore;
         this.brokerClientTlsTrustStorePassword = other.brokerClientTlsTrustStorePassword;
         this.brokerClientTrustCertsFilePath = other.brokerClientTrustCertsFilePath;
+        this.listenerName = other.listenerName;
     }
 
     @Override
@@ -221,7 +239,8 @@ public class ClusterData {
                     && Objects.equals(brokerClientTlsTrustStoreType, other.brokerClientTlsTrustStoreType)
                     && Objects.equals(brokerClientTlsTrustStore, other.brokerClientTlsTrustStore)
                     && Objects.equals(brokerClientTlsTrustStorePassword, other.brokerClientTlsTrustStorePassword)
-                    && Objects.equals(brokerClientTrustCertsFilePath, other.brokerClientTrustCertsFilePath);
+                    && Objects.equals(brokerClientTrustCertsFilePath, other.brokerClientTrustCertsFilePath)
+                    && Objects.equals(listenerName, other.listenerName);
         }
 
         return false;
