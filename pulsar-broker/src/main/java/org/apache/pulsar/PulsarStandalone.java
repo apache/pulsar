@@ -333,7 +333,8 @@ public class PulsarStandalone implements AutoCloseable {
             }
 
             admin = builder.build();
-            ClusterDataImpl clusterData = new ClusterDataImpl(null, webServiceUrlTls.toString(), null, brokerServiceUrlTls);
+            ClusterDataImpl clusterData = new ClusterDataImpl(null, webServiceUrlTls.toString(),
+                    null, brokerServiceUrlTls);
             createSampleNameSpace(clusterData, cluster);
         }
 

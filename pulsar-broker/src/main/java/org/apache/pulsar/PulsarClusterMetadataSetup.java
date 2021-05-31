@@ -236,8 +236,9 @@ public class PulsarClusterMetadataSetup {
 
         createMetadataNode(configStore, "/admin/clusters", new byte[0]);
 
-        ClusterDataImpl clusterData = new ClusterDataImpl(arguments.clusterWebServiceUrl, arguments.clusterWebServiceUrlTls,
-                arguments.clusterBrokerServiceUrl, arguments.clusterBrokerServiceUrlTls);
+        ClusterDataImpl clusterData = new ClusterDataImpl(arguments.clusterWebServiceUrl,
+                arguments.clusterWebServiceUrlTls, arguments.clusterBrokerServiceUrl,
+                arguments.clusterBrokerServiceUrlTls);
         byte[] clusterDataJson = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(clusterData);
 
         createMetadataNode(configStore, "/admin/clusters/" + arguments.cluster, clusterDataJson);

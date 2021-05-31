@@ -352,7 +352,8 @@ public abstract class PulsarWebResource {
      */
     protected void validateClusterOwnership(String cluster) throws WebApplicationException {
         try {
-            ClusterDataImpl differentClusterData = getClusterDataIfDifferentCluster(pulsar(), cluster, clientAppId()).get();
+            ClusterDataImpl differentClusterData =
+                    getClusterDataIfDifferentCluster(pulsar(), cluster, clientAppId()).get();
             if (differentClusterData != null) {
                 URI redirect = getRedirectionUrl(differentClusterData);
                 // redirect to the cluster requested
@@ -390,7 +391,8 @@ public abstract class PulsarWebResource {
     }
 
     protected static CompletableFuture<ClusterDataImpl> getClusterDataIfDifferentCluster(PulsarService pulsar,
-                                                                                         String cluster, String clientAppId) {
+                                                                                         String cluster,
+                                                                                         String clientAppId) {
 
         CompletableFuture<ClusterDataImpl> clusterDataFuture = new CompletableFuture<>();
 

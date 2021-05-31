@@ -31,8 +31,8 @@ import org.apache.pulsar.client.admin.Properties;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 
 @SuppressWarnings("deprecation")
 public class TenantsImpl extends BaseResource implements Tenants, Properties {
