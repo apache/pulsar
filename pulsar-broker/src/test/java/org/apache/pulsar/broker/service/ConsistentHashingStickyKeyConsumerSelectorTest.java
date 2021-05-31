@@ -163,5 +163,19 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         Assert.assertEquals(expectedResult.size(), 0);
     }
 
+    @Test
+    public void testRemoveConsumer() throws ConsumerAssignException {
+        ConsistentHashingStickyKeyConsumerSelector selector = new ConsistentHashingStickyKeyConsumerSelector(3);
+        List<String> consumerName = Arrays.asList("consumer", "consumer", "consumer");
+        Consumer consumerRemove = null;
+        for (String s : consumerName) {
+            Consumer consumer = mock(Consumer.class);
+            when(consumer.consumerName()).thenReturn(s);
+            selector.addConsumer(consumer);
+            consumerRemove = consumer;
+        }
+        selector.removeConsumer(consumerRemove);
+        Assert.assertNotNull(selector.select("test".getBytes()));
+    }
 
 }

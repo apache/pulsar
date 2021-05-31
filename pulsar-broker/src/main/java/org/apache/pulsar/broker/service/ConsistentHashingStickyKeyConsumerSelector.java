@@ -90,7 +90,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
                     if (v == null) {
                         return null;
                     } else {
-                        v.removeIf(c -> c.consumerName().equals(consumer.consumerName()));
+                        v.remove(consumer);
                         if (v.isEmpty()) {
                             v = null;
                         }
