@@ -543,13 +543,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = "Max number of topics allowed to be created in the namespace. "
+        doc = "The maximum number of connections in Broker, if it exceeds, new connections will be rejected."
     )
     private int brokerMaxConnections = 0;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = "Max number of topics allowed to be created in the namespace. "
+        doc = "The maximum number of connections per IP, if it exceeds, new connections will be rejected."
     )
     private int brokerMaxConnectionsPerIp = 0;
 
