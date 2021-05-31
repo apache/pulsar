@@ -2688,7 +2688,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             } else {
                 Assert.assertEquals(oldOp.getState(), OpAddEntry.State.INITIATED);
             }
-            OpAddEntry newOp = ledger.pendingAddEntries.poll();
+            OpAddEntry newOp = ledger.pollPendingAddEntry();
             Assert.assertEquals(newOp.getState(), OpAddEntry.State.INITIATED);
             if (i > 4) {
                 Assert.assertNotSame(oldOp, newOp);
@@ -2962,7 +2962,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 1);
         Assert.assertEquals(managedLedger.getTotalSize(), 0);
     }
-  
+
     @Test(timeOut = 20000)
     public void testAsyncTruncateLedgerRetention() throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig();

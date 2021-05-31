@@ -1536,6 +1536,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
+    synchronized OpAddEntry pollPendingAddEntry() {
+        return pendingAddEntries.poll();
+    }
+
+
     // //////////////////////////////////////////////////////////////////////
     // Private helpers
 
@@ -1664,7 +1669,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return managedLedgerInterceptor;
     }
 
-    void clearPendingAddEntries(ManagedLedgerException e) {
+    synchronized void clearPendingAddEntries(ManagedLedgerException e) {
         while (!pendingAddEntries.isEmpty()) {
             OpAddEntry op = pendingAddEntries.poll();
             op.failed(e);
