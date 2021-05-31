@@ -260,7 +260,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     @Override
     public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
         connectionsLimiter.decreaseConnection(ctx.channel().remoteAddress());
-        ctx.fireChannelRegistered();
+        ctx.fireChannelUnregistered();
     }
 
     @Override
