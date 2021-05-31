@@ -57,7 +57,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.FailureDomainImpl;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
@@ -211,7 +211,7 @@ public class AntiAffinityNamespaceGroupTest {
 
         pulsar1.getConfiguration().setFailureDomainsEnabled(true);
         admin1.tenants().createTenant("my-tenant",
-                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
 
         for (int i = 0; i < totalNamespaces; i++) {
             final String ns = namespace + i;
@@ -307,7 +307,7 @@ public class AntiAffinityNamespaceGroupTest {
         final String bundle = "/0x00000000_0xffffffff";
 
         admin1.tenants().createTenant("my-tenant",
-                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
 
         for (int i = 0; i < totalNamespaces; i++) {
             final String ns = namespace + i;
@@ -410,7 +410,7 @@ public class AntiAffinityNamespaceGroupTest {
         domain2.brokers = Sets.newHashSet(broker2);
         admin1.clusters().createFailureDomain(cluster, "domain2", domain2);
 
-        admin1.tenants().createTenant(tenant, new TenantInfo(null, Sets.newHashSet(cluster)));
+        admin1.tenants().createTenant(tenant, new TenantInfoImpl(null, Sets.newHashSet(cluster)));
         admin1.namespaces().createNamespace(namespace1);
         admin1.namespaces().createNamespace(namespace2);
 
@@ -460,7 +460,7 @@ public class AntiAffinityNamespaceGroupTest {
         final String bundle = "/0x00000000_0xffffffff";
 
         admin1.tenants().createTenant("my-tenant",
-                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
 
         for (int i = 0; i < totalNamespaces; i++) {
             final String ns = namespace + i;
@@ -513,7 +513,7 @@ public class AntiAffinityNamespaceGroupTest {
         final String bundle = "0x00000000_0xffffffff";
 
         admin1.tenants().createTenant("my-tenant",
-                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
 
         for (int i = 0; i < totalNamespaces; i++) {
             final String ns = namespace + i;

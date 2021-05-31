@@ -23,7 +23,7 @@ import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.FailureDomainImpl;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperChildrenCache;
@@ -44,7 +44,7 @@ public class ConfigurationMetadataCacheService extends ConfigurationCacheService
         throw new UnsupportedOperationException();
     }
 
-    public ZooKeeperDataCache<TenantInfo> propertiesCache() {
+    public ZooKeeperDataCache<TenantInfoImpl> propertiesCache() {
         throw new UnsupportedOperationException();
     }
 

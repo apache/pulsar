@@ -29,7 +29,7 @@ import lombok.Data;
  */
 @Data
 @ApiModel(value = "TenantInfo", description = "Information of adminRoles and allowedClusters for tenant")
-public class TenantInfo implements TenantInfoInterface {
+public class TenantInfoImpl implements TenantInfo {
     /**
      * List of role enabled as admin for this tenant.
      */
@@ -48,12 +48,12 @@ public class TenantInfo implements TenantInfoInterface {
     )
     private Set<String> allowedClusters;
 
-    public TenantInfo() {
+    public TenantInfoImpl() {
         adminRoles = Sets.newHashSet();
         allowedClusters = Sets.newHashSet();
     }
 
-    public TenantInfo(Set<String> adminRoles, Set<String> allowedClusters) {
+    public TenantInfoImpl(Set<String> adminRoles, Set<String> allowedClusters) {
         this.adminRoles = adminRoles;
         this.allowedClusters = allowedClusters;
     }

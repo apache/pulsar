@@ -55,7 +55,7 @@ import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
@@ -310,14 +310,14 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         }
     }
 
-    protected TenantInfo createDefaultTenantInfo() throws PulsarAdminException {
+    protected TenantInfoImpl createDefaultTenantInfo() throws PulsarAdminException {
         // create local cluster if not exist
         if (!admin.clusters().getClusters().contains(configClusterName)) {
             admin.clusters().createCluster(configClusterName, new ClusterDataImpl());
         }
         Set<String> allowedClusters = Sets.newHashSet();
         allowedClusters.add(configClusterName);
-        return new TenantInfo(Sets.newHashSet(), allowedClusters);
+        return new TenantInfoImpl(Sets.newHashSet(), allowedClusters);
     }
 
     public static MockZooKeeper createMockZooKeeper() throws Exception {

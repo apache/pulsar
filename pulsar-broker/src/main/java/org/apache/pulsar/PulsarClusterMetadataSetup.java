@@ -38,7 +38,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.metadata.api.GetResult;
@@ -278,14 +278,14 @@ public class PulsarClusterMetadataSetup {
 
         Optional<GetResult> getResult = configStore.get(tenantPath).get();
         if (!getResult.isPresent()) {
-            TenantInfo publicTenant = new TenantInfo(Collections.emptySet(), Collections.singleton(cluster));
+            TenantInfoImpl publicTenant = new TenantInfoImpl(Collections.emptySet(), Collections.singleton(cluster));
 
             createMetadataNode(configStore, tenantPath,
                     ObjectMapperFactory.getThreadLocal().writeValueAsBytes(publicTenant));
         } else {
             // Update existing public tenant with new cluster
             byte[] content = getResult.get().getValue();
-            TenantInfo publicTenant = ObjectMapperFactory.getThreadLocal().readValue(content, TenantInfo.class);
+            TenantInfoImpl publicTenant = ObjectMapperFactory.getThreadLocal().readValue(content, TenantInfoImpl.class);
 
             // Only update z-node if the list of clusters should be modified
             if (!publicTenant.getAllowedClusters().contains(cluster)) {

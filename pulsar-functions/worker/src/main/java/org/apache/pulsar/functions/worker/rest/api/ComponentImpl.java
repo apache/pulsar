@@ -62,7 +62,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataImpl;
 import org.apache.pulsar.common.policies.data.FunctionStats;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.functions.instance.InstanceUtils;
@@ -1447,7 +1447,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
 
             if (clientRole != null) {
                 try {
-                    TenantInfo tenantInfo = (TenantInfo) worker().getBrokerAdmin().tenants().getTenantInfo(tenant);
+                    TenantInfoImpl tenantInfo = (TenantInfoImpl) worker().getBrokerAdmin().tenants().getTenantInfo(tenant);
                     if (tenantInfo != null && worker().getAuthorizationService().isTenantAdmin(tenant, clientRole, tenantInfo, authenticationData).get()) {
                         return true;
                     }

@@ -92,7 +92,7 @@ import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
 import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
@@ -170,9 +170,9 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         admin.clusters().createCluster("usw", new ClusterDataImpl("http://broker-usw.com:8080"));
         admin.clusters().createCluster("usc", new ClusterDataImpl("http://broker-usc.com:8080"));
         admin.tenants().createTenant(this.testTenant,
-                new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use", "usc", "usw")));
+                new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use", "usc", "usw")));
         admin.tenants().createTenant(this.testOtherTenant,
-                new TenantInfo(Sets.newHashSet("role3", "role4"), Sets.newHashSet("use", "usc", "usw")));
+                new TenantInfoImpl(Sets.newHashSet("role3", "role4"), Sets.newHashSet("use", "usc", "usw")));
 
         createTestNamespaces(this.testLocalNamespaces, new BundlesData());
         createGlobalTestNamespaces(this.testTenant, this.testGlobalNamespaces.get(0).getLocalName(),
@@ -288,7 +288,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                     && path.equals("/admin/policies/my-tenant");
             });
         // clear caches to load data from metadata-store again
-        MetadataCacheImpl<TenantInfo> tenantCache = (MetadataCacheImpl<TenantInfo>) pulsar.getPulsarResources()
+        MetadataCacheImpl<TenantInfoImpl> tenantCache = (MetadataCacheImpl<TenantInfoImpl>) pulsar.getPulsarResources()
                 .getTenantResources().getCache();
         AbstractMetadataStore store = (AbstractMetadataStore) tenantCache.getStore();
         tenantCache.invalidateAll();
@@ -513,7 +513,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         }
 
         admin.tenants().updateTenant(testTenant,
-                new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use", "usc")));
+                new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use", "usc")));
 
         try {
             namespaces.setNamespaceReplicationClusters(this.testTenant, "global",
@@ -986,7 +986,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             pulsar.getConfiguration().setAuthorizationEnabled(true);
             final String path = PulsarWebResource.path(POLICIES, property);
             final String data = ObjectMapperFactory.getThreadLocal().writeValueAsString(
-                    new TenantInfo(Sets.newHashSet(namespaces.clientAppId()), Sets.newHashSet("use")));
+                    new TenantInfoImpl(Sets.newHashSet(namespaces.clientAppId()), Sets.newHashSet("use")));
             ZkUtils.createFullPathOptimistic(pulsar.getConfigurationCache().getZooKeeper(), path, data.getBytes(),
                     ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
 
@@ -1197,7 +1197,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         SubscribeRate subscribeRate = new SubscribeRate(1, 5);
         String namespace = "my-tenants/my-namespace";
         admin.tenants().createTenant("my-tenants",
-                new TenantInfo(Sets.newHashSet(), Sets.newHashSet(testLocalCluster)));
+                new TenantInfoImpl(Sets.newHashSet(), Sets.newHashSet(testLocalCluster)));
         admin.namespaces().createNamespace(namespace, Sets.newHashSet(testLocalCluster));
         admin.namespaces().setSubscribeRate(namespace, subscribeRate);
         assertEquals(subscribeRate, admin.namespaces().getSubscribeRate(namespace));
@@ -1478,7 +1478,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         String namespace = "testTenant/ns1";
         admin.clusters().createCluster("use", new ClusterDataImpl(brokerUrl.toString()));
-        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"),
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"),
                 Sets.newHashSet("use"));
         admin.tenants().createTenant("testTenant", tenantInfo);
         admin.namespaces().createNamespace(namespace, Sets.newHashSet("use"));

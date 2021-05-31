@@ -56,7 +56,7 @@ import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataImpl;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.compaction.TwoPhaseCompactor;
 import org.apache.pulsar.functions.instance.InstanceUtils;
@@ -682,7 +682,7 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
 
         String roleName = validRoleName ? "superUser" : "invalid";
-        TenantInfo propAdmin = new TenantInfo();
+        TenantInfoImpl propAdmin = new TenantInfoImpl();
         propAdmin.getAdminRoles().add(roleName);
         propAdmin.setAllowedClusters(Sets.newHashSet(Lists.newArrayList("use")));
         admin.tenants().updateTenant(tenant, propAdmin);

@@ -123,7 +123,7 @@ import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PoliciesUtil;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -186,7 +186,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // Setup namespaces
         admin.clusters().createCluster("test", new ClusterDataImpl(pulsar.getWebServiceAddress()));
-        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant("prop-xyz", tenantInfo);
         admin.namespaces().createNamespace("prop-xyz/ns1", Sets.newHashSet("test"));
     }
@@ -656,14 +656,14 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         }
 
         Set<String> allowedClusters = Sets.newHashSet("test");
-        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), allowedClusters);
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), allowedClusters);
         admin.tenants().updateTenant("prop-xyz", tenantInfo);
 
         assertEquals(admin.tenants().getTenants(), Lists.newArrayList("prop-xyz"));
 
         assertEquals(admin.tenants().getTenantInfo("prop-xyz"), tenantInfo);
 
-        TenantInfo newTenantAdmin = new TenantInfo(Sets.newHashSet("role3", "role4"), allowedClusters);
+        TenantInfoImpl newTenantAdmin = new TenantInfoImpl(Sets.newHashSet("role3", "role4"), allowedClusters);
         admin.tenants().updateTenant("prop-xyz", newTenantAdmin);
 
         assertEquals(admin.tenants().getTenantInfo("prop-xyz"), newTenantAdmin);
@@ -684,7 +684,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     @Test
     public void namespaces() throws Exception {
         admin.clusters().createCluster("usw", new ClusterDataImpl());
-        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"),
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"),
                 Sets.newHashSet("test", "usw"));
         admin.tenants().updateTenant("prop-xyz", tenantInfo);
 
@@ -1181,7 +1181,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // create tenant
         admin.tenants().createTenant(tenant,
-                new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test")));
+                new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test")));
 
         assertTrue(admin.tenants().getTenants().contains(tenant));
 
@@ -1212,7 +1212,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertFalse(admin.tenants().getTenants().contains(tenant));
 
         admin.tenants().createTenant(tenant,
-                new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test")));
+                new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test")));
         assertTrue(admin.tenants().getTenants().contains(tenant));
         assertTrue(admin.namespaces().getNamespaces(tenant).isEmpty());
 
@@ -1230,7 +1230,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // create tenant
         admin.tenants().createTenant(tenant,
-                new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test")));
+                new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test")));
 
         assertTrue(admin.tenants().getTenants().contains(tenant));
 
@@ -2203,12 +2203,12 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testObjectWithUnknownProperties() {
 
-        class CustomTenantAdmin extends TenantInfo {
+        class CustomTenantAdmin extends TenantInfoImpl {
             @SuppressWarnings("unused")
             public int newTenant;
         }
 
-        TenantInfo pa = new TenantInfo(Sets.newHashSet("test_appid1", "test_appid2"), Sets.newHashSet("test"));
+        TenantInfoImpl pa = new TenantInfoImpl(Sets.newHashSet("test_appid1", "test_appid2"), Sets.newHashSet("test"));
         CustomTenantAdmin cpa = new CustomTenantAdmin();
         cpa.setAdminRoles(pa.getAdminRoles());
         cpa.setAllowedClusters(pa.getAllowedClusters());
@@ -2596,7 +2596,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testTopicBundleRangeLookup() throws PulsarAdminException, PulsarServerException, Exception {
         admin.clusters().createCluster("usw", new ClusterDataImpl());
-        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"),
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"),
                 Sets.newHashSet("test", "usw"));
         admin.tenants().updateTenant("prop-xyz", tenantInfo);
         admin.namespaces().createNamespace("prop-xyz/getBundleNs", 100);
@@ -2780,7 +2780,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testCreateAndDeleteNamespaceWithBundles() throws Exception {
         admin.clusters().createCluster("usw", new ClusterDataImpl());
-        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"),
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"),
                 Sets.newHashSet("test", "usw"));
         admin.tenants().updateTenant("prop-xyz", tenantInfo);
 

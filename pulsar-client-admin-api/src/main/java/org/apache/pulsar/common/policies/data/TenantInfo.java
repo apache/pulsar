@@ -20,7 +20,7 @@ package org.apache.pulsar.common.policies.data;
 
 import java.util.Set;
 
-public interface TenantInfoInterface {
+public interface TenantInfo {
     Set<String> getAdminRoles();
 
     void setAdminRoles(Set<String> adminRoles);

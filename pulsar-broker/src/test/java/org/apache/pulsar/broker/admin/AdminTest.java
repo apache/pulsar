@@ -84,7 +84,7 @@ import org.apache.pulsar.common.policies.data.BrokerInfo;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.stats.AllocatorStats;
 import org.apache.pulsar.common.stats.Metrics;
@@ -429,7 +429,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         Set<String> allowedClusters = Sets.newHashSet();
         allowedClusters.add(configClusterName);
-        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), allowedClusters);
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), allowedClusters);
         response = asynRequests(ctx -> properties.createTenant(ctx, "test-property", tenantInfo));
         verify(properties, times(2)).validateSuperUserAccess();
 
@@ -441,7 +441,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         assertEquals(response, tenantInfo);
         verify(properties, times(4)).validateSuperUserAccess();
 
-        final TenantInfo newPropertyAdmin = new TenantInfo(Sets.newHashSet("role1", "other-role"), allowedClusters);
+        final TenantInfoImpl newPropertyAdmin = new TenantInfoImpl(Sets.newHashSet("role1", "other-role"), allowedClusters);
         response = asynRequests(ctx -> properties.updateTenant(ctx, "test-property", newPropertyAdmin));
         verify(properties, times(5)).validateSuperUserAccess();
 
@@ -486,7 +486,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         }
 
         // clear caches to load data from metadata-store again
-        MetadataCacheImpl<TenantInfo> cache = (MetadataCacheImpl<TenantInfo>) pulsar.getPulsarResources()
+        MetadataCacheImpl<TenantInfoImpl> cache = (MetadataCacheImpl<TenantInfoImpl>) pulsar.getPulsarResources()
                 .getTenantResources().getCache();
         AbstractMetadataStore store = (AbstractMetadataStore) cache.getStore();
         cache.invalidateAll();
@@ -563,7 +563,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         assertEquals(response, Lists.newArrayList());
 
         // Create a namespace to test deleting a non-empty property
-        TenantInfo newPropertyAdmin2 = new TenantInfo(Sets.newHashSet("role1", "other-role"), Sets.newHashSet("use"));
+        TenantInfoImpl newPropertyAdmin2 = new TenantInfoImpl(Sets.newHashSet("role1", "other-role"), Sets.newHashSet("use"));
         response = asynRequests(ctx -> properties.createTenant(ctx, "my-tenant", newPropertyAdmin2));
 
         namespaces.createNamespace("my-tenant", "use", "my-namespace", new BundlesData());
@@ -594,7 +594,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         // Check tenantInfo with empty cluster
         String blankCluster = "";
         Set<String> blankClusters = Sets.newHashSet(blankCluster);
-        TenantInfo tenantWithEmptyCluster = new TenantInfo(Sets.newHashSet("role1", "role2"), blankClusters);
+        TenantInfoImpl tenantWithEmptyCluster = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), blankClusters);
         try {
             response = asynRequests(ctx -> properties.createTenant(ctx, "tenant-config-is-empty", tenantWithEmptyCluster));
             fail("should have failed");
@@ -605,7 +605,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         // Check tenantInfo contains empty cluster
         Set<String> containBlankClusters = Sets.newHashSet(blankCluster);
         containBlankClusters.add(configClusterName);
-        TenantInfo tenantContainEmptyCluster = new TenantInfo(Sets.newHashSet(), containBlankClusters);
+        TenantInfoImpl tenantContainEmptyCluster = new TenantInfoImpl(Sets.newHashSet(), containBlankClusters);
         try {
             response = asynRequests(ctx -> properties.createTenant(ctx, "tenant-config-contain-empty", tenantContainEmptyCluster));
             fail("should have failed");
@@ -680,7 +680,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         }
 
         // create policies
-        TenantInfo admin = new TenantInfo();
+        TenantInfoImpl admin = new TenantInfoImpl();
         admin.getAllowedClusters().add(cluster);
         ClusterDataImpl clusterData = new ClusterDataImpl(cluster);
         clusters.createCluster(cluster, clusterData );
@@ -739,7 +739,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         doReturn(policies).when(resourceQuotas).getNamespacePolicies(NamespaceName.get(property, cluster, namespace));
         doReturn("client-id").when(resourceQuotas).clientAppId();
         // create policies
-        TenantInfo admin = new TenantInfo();
+        TenantInfoImpl admin = new TenantInfoImpl();
         admin.getAllowedClusters().add(cluster);
         ZkUtils.createFullPathOptimistic(mockZooKeeperGlobal, PulsarWebResource.path(POLICIES, property, cluster, namespace),
                 ObjectMapperFactory.getThreadLocal().writeValueAsBytes(new Policies()), ZooDefs.Ids.OPEN_ACL_UNSAFE,

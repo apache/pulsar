@@ -33,7 +33,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -251,7 +251,7 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
         final String clusterName = "test";
         admin.clusters().createCluster(clusterName, new ClusterDataImpl(pulsar.getBrokerServiceUrl()));
             admin.tenants().createTenant(TenantName,
-                    new TenantInfo(Sets.newHashSet("fakeAdminRole"), Sets.newHashSet(clusterName)));
+                    new TenantInfoImpl(Sets.newHashSet("fakeAdminRole"), Sets.newHashSet(clusterName)));
         admin.namespaces().createNamespace(TenantAndNsName);
         admin.namespaces().setNamespaceReplicationClusters(TenantAndNsName, Sets.newHashSet(clusterName));
     }

@@ -23,7 +23,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
-import org.apache.pulsar.common.policies.data.TenantInfoInterface;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 
 /**
  * Admin interface for properties management.
@@ -67,7 +67,7 @@ public interface Properties {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    TenantInfoInterface getPropertyAdmin(String property) throws PulsarAdminException;
+    TenantInfo getPropertyAdmin(String property) throws PulsarAdminException;
 
     /**
      * Create a new property.
@@ -88,7 +88,7 @@ public interface Properties {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void createProperty(String property, TenantInfoInterface config) throws PulsarAdminException;
+    void createProperty(String property, TenantInfo config) throws PulsarAdminException;
 
     /**
      * Update the admins for a property.
@@ -107,7 +107,7 @@ public interface Properties {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void updateProperty(String property, TenantInfoInterface config) throws PulsarAdminException;
+    void updateProperty(String property, TenantInfo config) throws PulsarAdminException;
 
     /**
      * Delete an existing property.

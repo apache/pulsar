@@ -38,7 +38,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -144,7 +144,7 @@ public class KeyStoreTlsProducerConsumerTestWithoutAuthTest extends ProducerCons
         admin.clusters().createCluster(clusterName, new ClusterDataImpl(brokerUrl.toString(), brokerUrlTls.toString(),
                 pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls()));
         admin.tenants().createTenant("my-property",
-                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
         admin.namespaces().createNamespace("my-property/my-ns");
     }
 

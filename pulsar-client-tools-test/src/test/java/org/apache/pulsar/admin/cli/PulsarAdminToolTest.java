@@ -89,7 +89,7 @@ import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.mockito.ArgumentMatcher;
@@ -263,12 +263,12 @@ public class PulsarAdminToolTest {
         tenants.run(split("list"));
         verify(mockTenants).getTenants();
 
-        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use"));
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use"));
 
         tenants.run(split("create my-tenant --admin-roles role1,role2 --allowed-clusters use"));
         verify(mockTenants).createTenant("my-tenant", tenantInfo);
 
-        tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("usw"));
+        tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("usw"));
 
         tenants.run(split("update my-tenant --admin-roles role1,role2 --allowed-clusters usw"));
         verify(mockTenants).updateTenant("my-tenant", tenantInfo);

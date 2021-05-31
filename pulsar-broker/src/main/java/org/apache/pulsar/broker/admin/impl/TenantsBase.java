@@ -47,7 +47,7 @@ import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamedEntity;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -115,7 +115,7 @@ public class TenantsBase extends PulsarWebResource {
             @ApiResponse(code = 412, message = "Clusters do not exist") })
     public void createTenant(@Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "The tenant name") @PathParam("tenant") String tenant,
-            @ApiParam(value = "TenantInfo") TenantInfo tenantInfo) {
+            @ApiParam(value = "TenantInfo") TenantInfoImpl tenantInfo) {
 
         final String clientAppId = clientAppId();
         try {
@@ -181,7 +181,7 @@ public class TenantsBase extends PulsarWebResource {
             @ApiResponse(code = 412, message = "Clusters do not exist") })
     public void updateTenant(@Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "The tenant name") @PathParam("tenant") String tenant,
-            @ApiParam(value = "TenantInfo") TenantInfo newTenantAdmin) {
+            @ApiParam(value = "TenantInfo") TenantInfoImpl newTenantAdmin) {
         try {
             validateSuperUserAccess();
             validatePoliciesReadOnlyAccess();
@@ -197,7 +197,7 @@ public class TenantsBase extends PulsarWebResource {
                 asyncResponse.resume(new RestException(Status.NOT_FOUND, "Tenant " + tenant + " not found"));
                 return;
             }
-            TenantInfo oldTenantAdmin = tenantAdmin.get();
+            TenantInfoImpl oldTenantAdmin = tenantAdmin.get();
             Set<String> newClusters = new HashSet<>(newTenantAdmin.getAllowedClusters());
             canUpdateCluster(tenant, oldTenantAdmin.getAllowedClusters(), newClusters).thenApply(r -> {
                 tenantResources().setAsync(path(POLICIES, tenant), old -> {
@@ -334,7 +334,7 @@ public class TenantsBase extends PulsarWebResource {
         });
     }
 
-    private void validateClusters(TenantInfo info) {
+    private void validateClusters(TenantInfoImpl info) {
         // empty cluster shouldn't be allowed
         if (info == null || info.getAllowedClusters().stream().filter(c -> !StringUtils.isBlank(c))
                 .collect(Collectors.toSet()).isEmpty()

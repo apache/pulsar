@@ -62,7 +62,7 @@ import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -186,7 +186,7 @@ public class PulsarFunctionE2ESecurityTest {
         }
         pulsarClient = clientBuilder.build();
 
-        TenantInfo propAdmin = new TenantInfo();
+        TenantInfoImpl propAdmin = new TenantInfoImpl();
         propAdmin.getAdminRoles().add(ADMIN_SUBJECT);
         propAdmin.setAllowedClusters(Sets.newHashSet(Lists.newArrayList("use")));
         superUserAdmin.tenants().updateTenant(TENANT, propAdmin);
@@ -198,7 +198,7 @@ public class PulsarFunctionE2ESecurityTest {
         superUserAdmin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
 
         // create another test tenant and namespace
-        propAdmin = new TenantInfo();
+        propAdmin = new TenantInfoImpl();
         propAdmin.setAllowedClusters(Sets.newHashSet(Lists.newArrayList("use")));
         superUserAdmin.tenants().createTenant(TENANT2, propAdmin);
         superUserAdmin.namespaces().createNamespace( TENANT2 + "/" + NAMESPACE);
