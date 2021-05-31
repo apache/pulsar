@@ -27,19 +27,24 @@ import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import java.util.Collections;
+import java.util.concurrent.TimeUnit;
+
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.MarkersMessageIdData;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Markers;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -50,6 +55,7 @@ public class TransactionMarkerDeleteTest extends BrokerTestBase{
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
+        conf.setTransactionCoordinatorEnabled(true);
         super.baseSetup();
     }
 
@@ -63,33 +69,36 @@ public class TransactionMarkerDeleteTest extends BrokerTestBase{
     public void testTransactionMarkerDelete() throws Exception {
         ManagedLedger managedLedger = pulsar.getManagedLedgerFactory().open("test");
         PersistentTopic topic = mock(PersistentTopic.class);
-        BrokerService brokerService = mock(BrokerService.class);
-        PulsarService pulsarService = mock(PulsarService.class);
-        ServiceConfiguration configuration = mock(ServiceConfiguration.class);
-        doReturn(brokerService).when(topic).getBrokerService();
-        doReturn(pulsarService).when(brokerService).getPulsar();
-        doReturn(configuration).when(pulsarService).getConfig();
-        doReturn(true).when(configuration).isTransactionCoordinatorEnabled();
+        doReturn(pulsar.getBrokerService()).when(topic).getBrokerService();
         doReturn(managedLedger).when(topic).getManagedLedger();
-        doReturn(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getLocalName()).when(topic).getName();
+        doReturn("test").when(topic).getName();
         ManagedCursor cursor = managedLedger.openCursor("test");
         PersistentSubscription persistentSubscription = new PersistentSubscription(topic, "test",
                 managedLedger.openCursor("test"), false);
-        MarkersMessageIdData messageIdData = new MarkersMessageIdData()
-                .setLedgerId(1)
-                .setEntryId(1);
+
         Position position1 = managedLedger.addEntry("test".getBytes());
         managedLedger.addEntry(Markers
                 .newTxnCommitMarker(1, 1, 1).array());
-        Position position3 = managedLedger.addEntry(Markers
-                .newTxnCommitMarker(1, 1, 1).array());
+
+        Position position3 = managedLedger.addEntry("test".getBytes());
+
         assertEquals(cursor.getNumberOfEntriesInBacklog(true), 3);
         assertTrue(((PositionImpl) cursor.getMarkDeletedPosition()).compareTo((PositionImpl) position1) < 0);
+
         persistentSubscription.acknowledgeMessage(Collections.singletonList(position1),
                 AckType.Individual, Collections.emptyMap());
-        Thread.sleep(1000L);
-        assertEquals(((PositionImpl) persistentSubscription.getCursor()
-                .getMarkDeletedPosition()).compareTo((PositionImpl) position3), 0);
+
+        Awaitility.await().during(1, TimeUnit.SECONDS).until(() ->
+                ((PositionImpl) persistentSubscription.getCursor().getMarkDeletedPosition())
+                        .compareTo((PositionImpl) position1) == 0);
+        persistentSubscription.transactionIndividualAcknowledge(new TxnID(0, 0),
+                Collections.singletonList(MutablePair.of((PositionImpl) position3, 0))).get();
+
+        persistentSubscription.endTxn(0, 0, 0, 0).get();
+
+        Awaitility.await().until(() ->
+                ((PositionImpl) persistentSubscription.getCursor().getMarkDeletedPosition())
+                        .compareTo((PositionImpl) position3) == 0);
     }
 
     @Test
