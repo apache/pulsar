@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.core.utils;
+package org.apache.pulsar.io.kinesis;
 
 import com.google.common.annotations.VisibleForTesting;
 import java.time.Clock;

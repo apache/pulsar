@@ -54,7 +54,6 @@ import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
-import org.apache.pulsar.io.core.utils.Backoff;
 import org.apache.pulsar.io.kinesis.KinesisSinkConfig.MessageFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
