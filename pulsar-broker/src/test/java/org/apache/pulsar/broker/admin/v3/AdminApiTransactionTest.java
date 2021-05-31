@@ -92,14 +92,14 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         getTransaction().commit().get();
         getTransaction().abort().get();
         TransactionCoordinatorStats transactionCoordinatorstats =
-                admin.transactions().getCoordinatorStatsById(1).get();
+                admin.transactions().getCoordinatorStatsByIdAsync(1).get();
         verifyCoordinatorStats(transactionCoordinatorstats.state,
                 transactionCoordinatorstats.leastSigBits, transactionCoordinatorstats.lowWaterMark);
 
-        transactionCoordinatorstats = admin.transactions().getCoordinatorStatsById(0).get();
+        transactionCoordinatorstats = admin.transactions().getCoordinatorStatsByIdAsync(0).get();
         verifyCoordinatorStats(transactionCoordinatorstats.state,
                 transactionCoordinatorstats.leastSigBits, transactionCoordinatorstats.lowWaterMark);
-        Map<Integer, TransactionCoordinatorStats> stats = admin.transactions().getCoordinatorStats().get();
+        Map<Integer, TransactionCoordinatorStats> stats = admin.transactions().getCoordinatorStatsAsync().get();
 
         assertEquals(stats.size(), 2);
 
@@ -121,7 +121,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES).topic(topic).sendTimeout(0, TimeUnit.SECONDS).create();
         MessageId messageId = producer.newMessage(transaction).value("Hello pulsar!".getBytes()).send();
         TransactionInBufferStats transactionInBufferStats = admin.transactions()
-                .getTransactionInBufferStats(new TxnID(transaction.getTxnIdMostBits(),
+                .getTransactionInBufferStatsAsync(new TxnID(transaction.getTxnIdMostBits(),
                         transaction.getTxnIdLeastBits()), topic).get();
         PositionImpl position =
                 PositionImpl.get(((MessageIdImpl) messageId).getLedgerId(), ((MessageIdImpl) messageId).getEntryId());
@@ -131,7 +131,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         transaction.abort().get();
 
         transactionInBufferStats = admin.transactions()
-                .getTransactionInBufferStats(new TxnID(transaction.getTxnIdMostBits(),
+                .getTransactionInBufferStatsAsync(new TxnID(transaction.getTxnIdMostBits(),
                         transaction.getTxnIdLeastBits()), topic).get();
         assertNull(transactionInBufferStats.startPosition);
         assertTrue(transactionInBufferStats.aborted);
@@ -152,7 +152,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         producer.sendAsync("Hello pulsar!".getBytes());
         TransactionImpl transaction = (TransactionImpl) getTransaction();
         TransactionInPendingAckStats transactionInPendingAckStats = admin.transactions()
-                .getTransactionInPendingAckStats(new TxnID(transaction.getTxnIdMostBits(),
+                .getTransactionInPendingAckStatsAsync(new TxnID(transaction.getTxnIdMostBits(),
                         transaction.getTxnIdLeastBits()), topic, subName).get();
         assertNull(transactionInPendingAckStats.cumulativeAckPosition);
 
@@ -163,7 +163,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         consumer.acknowledgeCumulativeAsync(batchMessageId, transaction).get();
 
         transactionInPendingAckStats = admin.transactions()
-                .getTransactionInPendingAckStats(new TxnID(transaction.getTxnIdMostBits(),
+                .getTransactionInPendingAckStatsAsync(new TxnID(transaction.getTxnIdMostBits(),
                         transaction.getTxnIdLeastBits()), topic, subName).get();
 
         assertEquals(transactionInPendingAckStats.cumulativeAckPosition,
@@ -212,7 +212,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         consumer3.acknowledgeCumulativeAsync(messageId2, transaction).get();
         TxnID txnID = new TxnID(transaction.getTxnIdMostBits(), transaction.getTxnIdLeastBits());
         TransactionMetadata transactionMetadata = admin.transactions()
-                .getTransactionMetadata(new TxnID(transaction.getTxnIdMostBits(),
+                .getTransactionMetadataAsync(new TxnID(transaction.getTxnIdMostBits(),
                         transaction.getTxnIdLeastBits())).get();
 
         assertEquals(transactionMetadata.txnId, txnID.toString());
@@ -266,7 +266,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         consumer2.acknowledgeAsync(messageId, transaction).get();
 
         TransactionBufferStats transactionBufferStats = admin.transactions().
-                getTransactionBufferStats(topic).get();
+                getTransactionBufferStatsAsync(topic).get();
 
         assertEquals(transactionBufferStats.state, "Ready");
         assertEquals(transactionBufferStats.maxReadPosition,
@@ -286,7 +286,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
                 .subscriptionName(subName).subscribe();
 
         TransactionPendingAckStats transactionPendingAckStats = admin.transactions().
-                getPendingAckStats(topic, subName).get();
+                getPendingAckStatsAsync(topic, subName).get();
 
         assertEquals(transactionPendingAckStats.state, "Ready");
     }
