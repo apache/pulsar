@@ -93,7 +93,7 @@ public abstract class TransactionsBase extends AdminResource {
                     for (int i = 0; i < partitionMetadata.partitions; i++) {
                         try {
                             transactionMetadataStoreInfoFutures
-                                    .add(pulsar().getAdminClient().transactions().getCoordinatorStatsById(i));
+                                    .add(pulsar().getAdminClient().transactions().getCoordinatorStatsByIdAsync(i));
                         } catch (PulsarServerException e) {
                             asyncResponse.resume(new RestException(e));
                             return;
@@ -312,7 +312,7 @@ public abstract class TransactionsBase extends AdminResource {
             String topic = transactionSubscription.getTopic();
             String subName = transactionSubscription.getSubscription();
             CompletableFuture<TransactionInPendingAckStats> future =
-                    transactions.getTransactionInPendingAckStats(txnID, topic, subName);
+                    transactions.getTransactionInPendingAckStatsAsync(txnID, topic, subName);
             ackedPartitionsFutures.add(future);
             if (ackFutures.containsKey(topic)) {
                 ackFutures.get(topic)
@@ -329,7 +329,7 @@ public abstract class TransactionsBase extends AdminResource {
         Map<String, CompletableFuture<TransactionInBufferStats>> produceFutures = new HashMap<>();
         txnMeta.producedPartitions().forEach(topic -> {
             CompletableFuture<TransactionInBufferStats> future =
-                    transactions.getTransactionInBufferStats(txnID, topic);
+                    transactions.getTransactionInBufferStatsAsync(txnID, topic);
             producedPartitionsFutures.add(future);
             produceFutures.put(topic, future);
 
