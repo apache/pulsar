@@ -208,7 +208,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private long lastLedgerCreationInitiationTimestamp = 0;
 
     private static final Random random = new Random(System.currentTimeMillis());
-    private final long maximumRolloverTimeMs;
+    private long maximumRolloverTimeMs;
     protected final Supplier<Boolean> mlOwnershipChecker;
 
     volatile PositionImpl lastConfirmedEntry;
@@ -306,7 +306,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.clock = config.getClock();
 
         // Get the next rollover time. Add a random value upto 5% to avoid rollover multiple ledgers at the same time
-        this.maximumRolloverTimeMs = (long) (config.getMaximumRolloverTimeMs() * (1 + random.nextDouble() * 5 / 100.0));
+        this.maximumRolloverTimeMs = getMaximumRolloverTimeMs(config);
         this.mlOwnershipChecker = mlOwnershipChecker;
         this.propertiesMap = Maps.newHashMap();
         if (config.getManagedLedgerInterceptor() != null) {
@@ -3462,7 +3462,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     @Override
     public void setConfig(ManagedLedgerConfig config) {
         this.config = config;
+        this.maximumRolloverTimeMs = getMaximumRolloverTimeMs(config);
         this.cursors.forEach(c -> c.setThrottleMarkDelete(config.getThrottleMarkDelete()));
+    }
+
+    private static long getMaximumRolloverTimeMs(ManagedLedgerConfig config) {
+        return (long) (config.getMaximumRolloverTimeMs() * (1 + random.nextDouble() * 5 / 100.0));
     }
 
     interface ManagedLedgerInitializeLedgerCallback {
