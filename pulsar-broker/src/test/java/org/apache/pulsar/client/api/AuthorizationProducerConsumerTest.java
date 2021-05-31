@@ -48,12 +48,11 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
-import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
-import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.RestException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -130,7 +129,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
                 .operationTimeout(1000, TimeUnit.MILLISECONDS)
                 .authentication(authenticationInvalidRole).build();
 
-        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        admin.clusters().createCluster("test", new ClusterDataImpl(brokerUrl.toString()));
 
         admin.tenants().createTenant("my-property",
                 new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
@@ -195,7 +194,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
 
         Authentication authentication = new ClientAuthentication(subscriptionRole);
 
-        superAdmin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        superAdmin.clusters().createCluster("test", new ClusterDataImpl(brokerUrl.toString()));
 
         superAdmin.tenants().createTenant("my-property",
                 new TenantInfo(Sets.newHashSet(tenantRole), Sets.newHashSet("test")));
@@ -292,7 +291,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
                 .authentication(authentication));
 
 
-        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        admin.clusters().createCluster("test", new ClusterDataImpl(brokerUrl.toString()));
 
         admin.tenants().createTenant("prop-prefix",
                 new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));

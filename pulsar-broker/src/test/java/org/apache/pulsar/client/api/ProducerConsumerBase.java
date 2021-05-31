@@ -25,7 +25,7 @@ import java.util.Random;
 import java.util.Set;
 
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
@@ -39,7 +39,7 @@ public abstract class ProducerConsumerBase extends MockedPulsarServiceBaseTest {
     }
 
     protected void producerBaseSetup() throws Exception {
-        admin.clusters().createCluster("test", new ClusterData(pulsar.getWebServiceAddress()));
+        admin.clusters().createCluster("test", new ClusterDataImpl(pulsar.getWebServiceAddress()));
         admin.tenants().createTenant("my-property",
                 new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns");

@@ -26,7 +26,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ProxyProtocol;
-import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 
 import com.beust.jcommander.Parameter;
@@ -86,7 +86,7 @@ public class CmdClusters extends CmdBase {
         void run() throws PulsarAdminException {
             String cluster = getOneArgument(params);
             getAdmin().clusters().createCluster(cluster,
-                    new ClusterData(serviceUrl, serviceUrlTls, brokerServiceUrl, brokerServiceUrlTls, proxyServiceUrl,
+                    new ClusterDataImpl(serviceUrl, serviceUrlTls, brokerServiceUrl, brokerServiceUrlTls, proxyServiceUrl,
                             authenticationPlugin, authenticationParameters, proxyProtocol));
         }
     }
@@ -122,7 +122,7 @@ public class CmdClusters extends CmdBase {
 
         void run() throws PulsarAdminException {
             String cluster = getOneArgument(params);
-            getAdmin().clusters().updateCluster(cluster, new ClusterData(serviceUrl, serviceUrlTls, brokerServiceUrl,
+            getAdmin().clusters().updateCluster(cluster, new ClusterDataImpl(serviceUrl, serviceUrlTls, brokerServiceUrl,
                     brokerServiceUrlTls, proxyServiceUrl, authenticationPlugin, authenticationParameters, proxyProtocol));
         }
     }

@@ -84,7 +84,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BundlesData;
-import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -166,9 +166,9 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         doReturn(null).when(namespaces).clientAuthData();
         doReturn(Sets.newTreeSet(Lists.newArrayList("use", "usw", "usc", "global"))).when(namespaces).clusters();
 
-        admin.clusters().createCluster("use", new ClusterData("http://broker-use.com:8080"));
-        admin.clusters().createCluster("usw", new ClusterData("http://broker-usw.com:8080"));
-        admin.clusters().createCluster("usc", new ClusterData("http://broker-usc.com:8080"));
+        admin.clusters().createCluster("use", new ClusterDataImpl("http://broker-use.com:8080"));
+        admin.clusters().createCluster("usw", new ClusterDataImpl("http://broker-usw.com:8080"));
+        admin.clusters().createCluster("usc", new ClusterDataImpl("http://broker-usc.com:8080"));
         admin.tenants().createTenant(this.testTenant,
                 new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use", "usc", "usw")));
         admin.tenants().createTenant(this.testOtherTenant,
@@ -1477,7 +1477,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         super.internalSetup();
 
         String namespace = "testTenant/ns1";
-        admin.clusters().createCluster("use", new ClusterData(brokerUrl.toString()));
+        admin.clusters().createCluster("use", new ClusterDataImpl(brokerUrl.toString()));
         TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"),
                 Sets.newHashSet("use"));
         admin.tenants().createTenant("testTenant", tenantInfo);
@@ -1527,7 +1527,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         conf.setAllowAutoTopicCreationType("partitioned");
         super.internalSetup();
 
-        admin.clusters().createCluster("use", new ClusterData(brokerUrl.toString()));
+        admin.clusters().createCluster("use", new ClusterDataImpl(brokerUrl.toString()));
         admin.tenants().createTenant("testTenant", tenantInfo);
         admin.namespaces().createNamespace(namespace, Sets.newHashSet("use"));
         admin.namespaces().setMaxTopicsPerNamespace(namespace, 10);
@@ -1557,7 +1557,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         conf.setAllowAutoTopicCreationType("non-partitioned");
         super.internalSetup();
 
-        admin.clusters().createCluster("use", new ClusterData(brokerUrl.toString()));
+        admin.clusters().createCluster("use", new ClusterDataImpl(brokerUrl.toString()));
         admin.tenants().createTenant("testTenant", tenantInfo);
         admin.namespaces().createNamespace(namespace, Sets.newHashSet("use"));
         admin.namespaces().setMaxTopicsPerNamespace(namespace, 3);

@@ -82,7 +82,7 @@ import org.apache.pulsar.common.policies.data.AutoFailoverPolicyDataImpl;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
-import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.FailureDomainInterface;
@@ -120,7 +120,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         mockPulsarSetup.setup();
 
         // Setup namespaces
-        admin.clusters().createCluster("test", new ClusterData(pulsar.getWebServiceAddress()));
+        admin.clusters().createCluster("test", new ClusterDataImpl(pulsar.getWebServiceAddress()));
         TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant("prop-xyz", tenantInfo);
         admin.namespaces().createNamespace("prop-xyz/ns1", Sets.newHashSet("test"));
@@ -259,7 +259,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         conf.setTopicLevelPoliciesEnabled(true);
         super.internalSetup();
         admin.clusters().createCluster("test"
-                , new ClusterData(pulsar.getWebServiceAddress() + ",localhost:1026," + "localhost:2050"));
+                , new ClusterDataImpl(pulsar.getWebServiceAddress() + ",localhost:1026," + "localhost:2050"));
         TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant("prop-xyz", tenantInfo);
         admin.namespaces().createNamespace("prop-xyz/ns1", Sets.newHashSet("test"));
@@ -655,13 +655,13 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
     @Test
     public void testPeerCluster() throws Exception {
         admin.clusters().createCluster("us-west1",
-                new ClusterData("http://broker.messaging.west1.example.com:8080"));
+                new ClusterDataImpl("http://broker.messaging.west1.example.com:8080"));
         admin.clusters().createCluster("us-west2",
-                new ClusterData("http://broker.messaging.west2.example.com:8080"));
+                new ClusterDataImpl("http://broker.messaging.west2.example.com:8080"));
         admin.clusters().createCluster("us-east1",
-                new ClusterData("http://broker.messaging.east1.example.com:8080"));
+                new ClusterDataImpl("http://broker.messaging.east1.example.com:8080"));
         admin.clusters().createCluster("us-east2",
-                new ClusterData("http://broker.messaging.east2.example.com:8080"));
+                new ClusterDataImpl("http://broker.messaging.east2.example.com:8080"));
 
         admin.clusters().updatePeerClusterNames("us-west1", Sets.newLinkedHashSet(Lists.newArrayList("us-west2")));
         assertEquals(admin.clusters().getCluster("us-west1").getPeerClusterNames(), Lists.newArrayList("us-west2"));
@@ -700,18 +700,18 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
     @Test
     public void testReplicationPeerCluster() throws Exception {
         admin.clusters().createCluster("us-west1",
-                new ClusterData("http://broker.messaging.west1.example.com:8080"));
+                new ClusterDataImpl("http://broker.messaging.west1.example.com:8080"));
         admin.clusters().createCluster("us-west2",
-                new ClusterData("http://broker.messaging.west2.example.com:8080"));
+                new ClusterDataImpl("http://broker.messaging.west2.example.com:8080"));
         admin.clusters().createCluster("us-west3",
-                new ClusterData("http://broker.messaging.west2.example.com:8080"));
+                new ClusterDataImpl("http://broker.messaging.west2.example.com:8080"));
         admin.clusters().createCluster("us-west4",
-                new ClusterData("http://broker.messaging.west2.example.com:8080"));
+                new ClusterDataImpl("http://broker.messaging.west2.example.com:8080"));
         admin.clusters().createCluster("us-east1",
-                new ClusterData("http://broker.messaging.east1.example.com:8080"));
+                new ClusterDataImpl("http://broker.messaging.east1.example.com:8080"));
         admin.clusters().createCluster("us-east2",
-                new ClusterData("http://broker.messaging.east2.example.com:8080"));
-        admin.clusters().createCluster("global", new ClusterData());
+                new ClusterDataImpl("http://broker.messaging.east2.example.com:8080"));
+        admin.clusters().createCluster("global", new ClusterDataImpl());
 
         List<String> allClusters = admin.clusters().getClusters();
         Collections.sort(allClusters);
@@ -1059,7 +1059,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
     @Test
     public void clustersList() throws PulsarAdminException {
         final String cluster = pulsar.getConfiguration().getClusterName();
-        admin.clusters().createCluster("global", new ClusterData("http://localhost:6650"));
+        admin.clusters().createCluster("global", new ClusterDataImpl("http://localhost:6650"));
 
         // Global cluster, if there, should be omitted from the results
         assertEquals(admin.clusters().getClusters(), Lists.newArrayList(cluster));
@@ -1467,7 +1467,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testUpdateClusterWithProxyUrl() throws Exception {
-        ClusterData cluster = new ClusterData(pulsar.getWebServiceAddress());
+        ClusterDataImpl cluster = new ClusterDataImpl(pulsar.getWebServiceAddress());
         String clusterName = "test2";
         admin.clusters().createCluster(clusterName, cluster);
         Assert.assertEquals(admin.clusters().getCluster(clusterName), cluster);
@@ -1484,7 +1484,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
         conf.setMaxNamespacesPerTenant(2);
         super.internalSetup();
-        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        admin.clusters().createCluster("test", new ClusterDataImpl(brokerUrl.toString()));
         TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant("testTenant", tenantInfo);
         admin.namespaces().createNamespace("testTenant/ns1", Sets.newHashSet("test"));
@@ -1500,7 +1500,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
         conf.setMaxNamespacesPerTenant(0);
         super.internalSetup();
-        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        admin.clusters().createCluster("test", new ClusterDataImpl(brokerUrl.toString()));
         admin.tenants().createTenant("testTenant", tenantInfo);
         for (int i = 0; i < 10; i++) {
             admin.namespaces().createNamespace("testTenant/ns-" + i, Sets.newHashSet("test"));
@@ -1512,7 +1512,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
         conf.setMaxTopicsPerNamespace(10);
         super.internalSetup();
-        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        admin.clusters().createCluster("test", new ClusterDataImpl(brokerUrl.toString()));
         TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant("testTenant", tenantInfo);
         admin.namespaces().createNamespace("testTenant/ns1", Sets.newHashSet("test"));
@@ -1535,7 +1535,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
         conf.setMaxTopicsPerNamespace(0);
         super.internalSetup();
-        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        admin.clusters().createCluster("test", new ClusterDataImpl(brokerUrl.toString()));
         admin.tenants().createTenant("testTenant", tenantInfo);
         admin.namespaces().createNamespace("testTenant/ns1", Sets.newHashSet("test"));
         for (int i = 0; i < 10; ++i) {
@@ -1549,7 +1549,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         conf.setDefaultNumPartitions(3);
         conf.setAllowAutoTopicCreationType("partitioned");
         super.internalSetup();
-        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        admin.clusters().createCluster("test", new ClusterDataImpl(brokerUrl.toString()));
         admin.tenants().createTenant("testTenant", tenantInfo);
         admin.namespaces().createNamespace("testTenant/ns1", Sets.newHashSet("test"));
 
@@ -1568,7 +1568,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         conf.setMaxTopicsPerNamespace(3);
         conf.setAllowAutoTopicCreationType("non-partitioned");
         super.internalSetup();
-        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        admin.clusters().createCluster("test", new ClusterDataImpl(brokerUrl.toString()));
         admin.tenants().createTenant("testTenant", tenantInfo);
         admin.namespaces().createNamespace("testTenant/ns1", Sets.newHashSet("test"));
 
@@ -1603,7 +1603,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         conf.setMaxSubscriptionsPerTopic(2);
         super.internalSetup();
 
-        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        admin.clusters().createCluster("test", new ClusterDataImpl(brokerUrl.toString()));
         TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant("testTenant", tenantInfo);
         admin.namespaces().createNamespace("testTenant/ns1", Sets.newHashSet("test"));
@@ -1628,7 +1628,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         conf.setMaxSubscriptionsPerTopic(0);
         super.internalSetup();
 
-        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        admin.clusters().createCluster("test", new ClusterDataImpl(brokerUrl.toString()));
         admin.tenants().createTenant("testTenant", tenantInfo);
         admin.namespaces().createNamespace("testTenant/ns1", Sets.newHashSet("test"));
 
@@ -1644,7 +1644,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         conf.setMaxSubscriptionsPerTopic(2);
         super.internalSetup();
 
-        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        admin.clusters().createCluster("test", new ClusterDataImpl(brokerUrl.toString()));
         admin.tenants().createTenant("testTenant", tenantInfo);
         admin.namespaces().createNamespace("testTenant/ns1", Sets.newHashSet("test"));
 
@@ -1753,7 +1753,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         conf.setMaxSubscriptionsPerTopic(brokerLevelMaxSub);
         super.internalSetup();
 
-        admin.clusters().createCluster("test", new ClusterData(pulsar.getWebServiceAddress()));
+        admin.clusters().createCluster("test", new ClusterDataImpl(pulsar.getWebServiceAddress()));
         TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant("prop-xyz", tenantInfo);
         final String myNamespace = "prop-xyz/ns" + UUID.randomUUID();
@@ -1810,7 +1810,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         conf.setMaxProducersPerTopic(maxProducersPerTopic);
         super.internalSetup();
         //init namespace
-        admin.clusters().createCluster("test", new ClusterData(pulsar.getWebServiceAddress()));
+        admin.clusters().createCluster("test", new ClusterDataImpl(pulsar.getWebServiceAddress()));
         TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant("prop-xyz", tenantInfo);
         final String myNamespace = "prop-xyz/ns" + UUID.randomUUID();
@@ -1863,7 +1863,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         conf.setMaxConsumersPerTopic(maxConsumersPerTopic);
         super.internalSetup();
         //init namespace
-        admin.clusters().createCluster("test", new ClusterData(pulsar.getWebServiceAddress()));
+        admin.clusters().createCluster("test", new ClusterDataImpl(pulsar.getWebServiceAddress()));
         TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant("prop-xyz", tenantInfo);
         final String myNamespace = "prop-xyz/ns" + UUID.randomUUID();

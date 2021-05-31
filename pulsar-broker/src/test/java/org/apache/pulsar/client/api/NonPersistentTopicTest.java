@@ -59,7 +59,7 @@ import org.apache.pulsar.client.impl.PartitionedProducerImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
 import org.apache.pulsar.common.policies.data.NonPersistentSubscriptionStats;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
@@ -1004,14 +1004,14 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             admin3 = PulsarAdmin.builder().serviceHttpUrl(url3.toString()).build();
 
             // Provision the global namespace
-            admin1.clusters().createCluster("r1", new ClusterData(url1.toString(), null, pulsar1.getSafeBrokerServiceUrl(),
+            admin1.clusters().createCluster("r1", new ClusterDataImpl(url1.toString(), null, pulsar1.getSafeBrokerServiceUrl(),
                     pulsar1.getBrokerServiceUrlTls()));
-            admin1.clusters().createCluster("r2", new ClusterData(url2.toString(), null, pulsar2.getSafeBrokerServiceUrl(),
+            admin1.clusters().createCluster("r2", new ClusterDataImpl(url2.toString(), null, pulsar2.getSafeBrokerServiceUrl(),
                     pulsar1.getBrokerServiceUrlTls()));
-            admin1.clusters().createCluster("r3", new ClusterData(url3.toString(), null, pulsar3.getSafeBrokerServiceUrl(),
+            admin1.clusters().createCluster("r3", new ClusterDataImpl(url3.toString(), null, pulsar3.getSafeBrokerServiceUrl(),
                     pulsar1.getBrokerServiceUrlTls()));
 
-            admin1.clusters().createCluster("global", new ClusterData("http://global:8080"));
+            admin1.clusters().createCluster("global", new ClusterDataImpl("http://global:8080"));
             admin1.tenants().createTenant("pulsar", new TenantInfo(
                     Sets.newHashSet("appid1", "appid2", "appid3"), Sets.newHashSet("r1", "r2", "r3")));
             admin1.namespaces().createNamespace("pulsar/global/ns");

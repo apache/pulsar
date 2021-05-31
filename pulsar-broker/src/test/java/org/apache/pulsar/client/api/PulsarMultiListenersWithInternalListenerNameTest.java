@@ -44,7 +44,7 @@ import org.apache.pulsar.client.impl.LookupService;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -109,7 +109,7 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
     }
     @Test
     public void testFindBrokerWithListenerName() throws Exception {
-        admin.clusters().createCluster("localhost", new ClusterData(pulsar.getWebServiceAddress()));
+        admin.clusters().createCluster("localhost", new ClusterDataImpl(pulsar.getWebServiceAddress()));
         TenantInfo tenantInfo = new TenantInfo();
         tenantInfo.setAllowedClusters(Sets.newHashSet("localhost"));
         this.admin.tenants().createTenant("public", tenantInfo);
@@ -149,7 +149,7 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
 
     @Test
     public void testHttpLookupRedirect() throws Exception {
-        admin.clusters().createCluster("localhost", new ClusterData(pulsar.getWebServiceAddress()));
+        admin.clusters().createCluster("localhost", new ClusterDataImpl(pulsar.getWebServiceAddress()));
         TenantInfo tenantInfo = new TenantInfo();
         tenantInfo.setAllowedClusters(Sets.newHashSet("localhost"));
         this.admin.tenants().createTenant("public", tenantInfo);

@@ -24,7 +24,7 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.broker.admin.v2.ResourceGroups;
-import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.ResourceGroup;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.annotations.AfterClass;
@@ -173,7 +173,7 @@ public class ResourceGroupsTest extends MockedPulsarServiceBaseTest  {
     }
 
     private void prepareData() throws PulsarAdminException {
-        admin.clusters().createCluster(testCluster, new ClusterData(pulsar.getBrokerServiceUrl()));
+        admin.clusters().createCluster(testCluster, new ClusterDataImpl(pulsar.getBrokerServiceUrl()));
         admin.tenants().createTenant(testTenant,
                 new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet(testCluster)));
     }

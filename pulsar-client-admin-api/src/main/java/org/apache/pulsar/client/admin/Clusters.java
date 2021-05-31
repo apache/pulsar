@@ -28,7 +28,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedExceptio
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
-import org.apache.pulsar.common.policies.data.ClusterDataInterface;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.FailureDomainInterface;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationDataInterface;
 
@@ -89,7 +89,7 @@ public interface Clusters {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    ClusterDataInterface getCluster(String cluster) throws PulsarAdminException;
+    ClusterData getCluster(String cluster) throws PulsarAdminException;
 
     /**
      * Get the configuration data for the specified cluster asynchronously.
@@ -106,7 +106,7 @@ public interface Clusters {
      * @return the cluster configuration
      *
      */
-    CompletableFuture<ClusterDataInterface> getClusterAsync(String cluster);
+    CompletableFuture<ClusterData> getClusterAsync(String cluster);
 
     /**
      * Create a new cluster.
@@ -127,7 +127,7 @@ public interface Clusters {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void createCluster(String cluster, ClusterDataInterface clusterData) throws PulsarAdminException;
+    void createCluster(String cluster, ClusterData clusterData) throws PulsarAdminException;
 
     /**
      * Create a new cluster asynchronously.
@@ -142,7 +142,7 @@ public interface Clusters {
      *            the cluster configuration object
      *
      */
-    CompletableFuture<Void> createClusterAsync(String cluster, ClusterDataInterface clusterData);
+    CompletableFuture<Void> createClusterAsync(String cluster, ClusterData clusterData);
 
     /**
      * Update the configuration for a cluster.
@@ -161,7 +161,7 @@ public interface Clusters {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void updateCluster(String cluster, ClusterDataInterface clusterData) throws PulsarAdminException;
+    void updateCluster(String cluster, ClusterData clusterData) throws PulsarAdminException;
 
     /**
      * Update the configuration for a cluster asynchronously.
@@ -174,7 +174,7 @@ public interface Clusters {
      *            the cluster configuration object
      *
      */
-    CompletableFuture<Void> updateClusterAsync(String cluster, ClusterDataInterface clusterData);
+    CompletableFuture<Void> updateClusterAsync(String cluster, ClusterData clusterData);
 
     /**
      * Update peer cluster names.

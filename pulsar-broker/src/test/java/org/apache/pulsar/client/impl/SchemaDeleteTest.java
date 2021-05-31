@@ -26,7 +26,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 
-import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 
@@ -45,7 +45,7 @@ public class SchemaDeleteTest extends MockedPulsarServiceBaseTest {
         this.conf.setBrokerDeleteInactiveTopicsFrequencySeconds(5);
 
         admin.clusters().createCluster("test",
-                new ClusterData(pulsar.getWebServiceAddress()));
+                new ClusterDataImpl(pulsar.getWebServiceAddress()));
         admin.tenants().createTenant("my-property",
                 new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));

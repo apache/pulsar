@@ -29,7 +29,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -60,7 +60,7 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
         super.internalSetup();
 
         // Setup namespaces
-        admin.clusters().createCluster(CLUSTER_NAME, new ClusterData(pulsar.getBrokerServiceUrl()));
+        admin.clusters().createCluster(CLUSTER_NAME, new ClusterDataImpl(pulsar.getBrokerServiceUrl()));
 
         TenantInfo tenantInfo = new TenantInfo();
         tenantInfo.setAllowedClusters(Collections.singleton(CLUSTER_NAME));

@@ -44,7 +44,7 @@ import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.proto.Function.Assignment;
@@ -108,7 +108,7 @@ public class PulsarWorkerAssignmentTest {
         primaryHost = pulsar.getWebServiceAddress();
 
         // update cluster metadata
-        final ClusterData clusterData = new ClusterData(pulsar.getBrokerServiceUrl());
+        final ClusterDataImpl clusterData = new ClusterDataImpl(pulsar.getBrokerServiceUrl());
         admin.clusters().updateCluster(config.getClusterName(), clusterData);
 
         final ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(this.workerConfig.getPulsarServiceUrl());

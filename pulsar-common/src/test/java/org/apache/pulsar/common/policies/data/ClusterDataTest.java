@@ -31,33 +31,33 @@ public class ClusterDataTest {
         String s2 = "http://broker.messaging.c2.example.com:8080";
         String s3 = "https://broker.messaging.c1.example.com:4443";
         String s4 = "https://broker.messaging.c2.example.com:4443";
-        ClusterData c = new ClusterData(s1);
+        ClusterDataImpl c = new ClusterDataImpl(s1);
         c.setServiceUrl(null);
         c.setServiceUrlTls(null);
 
-        assertEquals(new ClusterData(s1), new ClusterData(s1));
-        assertEquals(new ClusterData(s1).getServiceUrl(), s1);
+        assertEquals(new ClusterDataImpl(s1), new ClusterDataImpl(s1));
+        assertEquals(new ClusterDataImpl(s1).getServiceUrl(), s1);
 
-        assertNotEquals(new ClusterData(), new ClusterData(s1));
-        assertNotEquals(new ClusterData(s2), new ClusterData(s1));
-        assertNotEquals(s1, new ClusterData(s1));
+        assertNotEquals(new ClusterDataImpl(), new ClusterDataImpl(s1));
+        assertNotEquals(new ClusterDataImpl(s2), new ClusterDataImpl(s1));
+        assertNotEquals(s1, new ClusterDataImpl(s1));
 
-        assertEquals(new ClusterData(s1).hashCode(), new ClusterData(s1).hashCode());
+        assertEquals(new ClusterDataImpl(s1).hashCode(), new ClusterDataImpl(s1).hashCode());
 
-        assertNotEquals(new ClusterData(s2).hashCode(), new ClusterData(s1).hashCode());
+        assertNotEquals(new ClusterDataImpl(s2).hashCode(), new ClusterDataImpl(s1).hashCode());
 
-        assertNotEquals(c.hashCode(), new ClusterData(s1).hashCode());
+        assertNotEquals(c.hashCode(), new ClusterDataImpl(s1).hashCode());
 
-        assertEquals(new ClusterData(s1, s3), new ClusterData(s1, s3));
-        assertEquals(new ClusterData(s1, s3).getServiceUrl(), s1);
-        assertEquals(new ClusterData(s1, s3).getServiceUrlTls(), s3);
+        assertEquals(new ClusterDataImpl(s1, s3), new ClusterDataImpl(s1, s3));
+        assertEquals(new ClusterDataImpl(s1, s3).getServiceUrl(), s1);
+        assertEquals(new ClusterDataImpl(s1, s3).getServiceUrlTls(), s3);
 
-        assertNotEquals(new ClusterData(), new ClusterData(s1, s3));
-        assertNotEquals(new ClusterData(s2, s4), new ClusterData(s1, s3));
+        assertNotEquals(new ClusterDataImpl(), new ClusterDataImpl(s1, s3));
+        assertNotEquals(new ClusterDataImpl(s2, s4), new ClusterDataImpl(s1, s3));
 
-        assertEquals(new ClusterData(s1, s3).hashCode(), new ClusterData(s1, s3).hashCode());
-        assertNotEquals(new ClusterData(s2, s4).hashCode(), new ClusterData(s1, s3).hashCode());
-        assertNotEquals(new ClusterData(s1, s4).hashCode(), new ClusterData(s1, s3).hashCode());
+        assertEquals(new ClusterDataImpl(s1, s3).hashCode(), new ClusterDataImpl(s1, s3).hashCode());
+        assertNotEquals(new ClusterDataImpl(s2, s4).hashCode(), new ClusterDataImpl(s1, s3).hashCode());
+        assertNotEquals(new ClusterDataImpl(s1, s4).hashCode(), new ClusterDataImpl(s1, s3).hashCode());
 
     }
 }

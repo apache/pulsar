@@ -37,8 +37,8 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataInterface;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.FailureDomainInterface;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
@@ -86,7 +86,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     @Override
-    public ClusterDataInterface getCluster(String cluster) throws PulsarAdminException {
+    public ClusterData getCluster(String cluster) throws PulsarAdminException {
         try {
             return getClusterAsync(cluster).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
@@ -100,13 +100,13 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     @Override
-    public CompletableFuture<ClusterDataInterface> getClusterAsync(String cluster) {
+    public CompletableFuture<ClusterData> getClusterAsync(String cluster) {
         WebTarget path = adminClusters.path(cluster);
-        final CompletableFuture<ClusterDataInterface> future = new CompletableFuture<>();
+        final CompletableFuture<ClusterData> future = new CompletableFuture<>();
         asyncGetRequest(path,
-                new InvocationCallback<ClusterData>() {
+                new InvocationCallback<ClusterDataImpl>() {
                     @Override
-                    public void completed(ClusterData clusterData) {
+                    public void completed(ClusterDataImpl clusterData) {
                         future.complete(clusterData);
                     }
 
@@ -119,7 +119,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     @Override
-    public void createCluster(String cluster, ClusterDataInterface clusterData) throws PulsarAdminException {
+    public void createCluster(String cluster, ClusterData clusterData) throws PulsarAdminException {
         try {
             createClusterAsync(cluster, clusterData).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
@@ -133,13 +133,13 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     @Override
-    public CompletableFuture<Void> createClusterAsync(String cluster, ClusterDataInterface clusterData) {
+    public CompletableFuture<Void> createClusterAsync(String cluster, ClusterData clusterData) {
         WebTarget path = adminClusters.path(cluster);
-        return asyncPutRequest(path, Entity.entity((ClusterData) clusterData, MediaType.APPLICATION_JSON));
+        return asyncPutRequest(path, Entity.entity((ClusterDataImpl) clusterData, MediaType.APPLICATION_JSON));
     }
 
     @Override
-    public void updateCluster(String cluster, ClusterDataInterface clusterData) throws PulsarAdminException {
+    public void updateCluster(String cluster, ClusterData clusterData) throws PulsarAdminException {
         try {
             updateClusterAsync(cluster, clusterData).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
@@ -153,9 +153,9 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     @Override
-    public CompletableFuture<Void> updateClusterAsync(String cluster, ClusterDataInterface clusterData) {
+    public CompletableFuture<Void> updateClusterAsync(String cluster, ClusterData clusterData) {
         WebTarget path = adminClusters.path(cluster);
-        return asyncPostRequest(path, Entity.entity((ClusterData) clusterData, MediaType.APPLICATION_JSON_TYPE));
+        return asyncPostRequest(path, Entity.entity((ClusterDataImpl) clusterData, MediaType.APPLICATION_JSON_TYPE));
     }
 
     @Override

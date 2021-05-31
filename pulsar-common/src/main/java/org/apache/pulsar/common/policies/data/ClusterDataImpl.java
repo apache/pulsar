@@ -33,7 +33,7 @@ import org.apache.pulsar.client.api.ProxyProtocol;
         value = "ClusterData",
         description = "The configuration data for a cluster"
 )
-public class ClusterData implements ClusterDataInterface{
+public class ClusterDataImpl implements ClusterData {
     @ApiModelProperty(
             name = "serviceUrl",
             value = "The HTTP rest service URL (for admin operations)",
@@ -91,27 +91,27 @@ public class ClusterData implements ClusterDataInterface{
     )
     private LinkedHashSet<String> peerClusterNames;
 
-    public ClusterData() {
+    public ClusterDataImpl() {
     }
 
-    public ClusterData(String serviceUrl) {
+    public ClusterDataImpl(String serviceUrl) {
         this(serviceUrl, "");
     }
 
-    public ClusterData(String serviceUrl, String serviceUrlTls) {
+    public ClusterDataImpl(String serviceUrl, String serviceUrlTls) {
         this.serviceUrl = serviceUrl;
         this.serviceUrlTls = serviceUrlTls;
     }
 
-    public ClusterData(String serviceUrl, String serviceUrlTls, String brokerServiceUrl, String brokerServiceUrlTls) {
+    public ClusterDataImpl(String serviceUrl, String serviceUrlTls, String brokerServiceUrl, String brokerServiceUrlTls) {
         this.serviceUrl = serviceUrl;
         this.serviceUrlTls = serviceUrlTls;
         this.brokerServiceUrl = brokerServiceUrl;
         this.brokerServiceUrlTls = brokerServiceUrlTls;
     }
 
-    public ClusterData(String serviceUrl, String serviceUrlTls, String brokerServiceUrl, String brokerServiceUrlTls,
-                       String authenticationPlugin, String authenticationParameters) {
+    public ClusterDataImpl(String serviceUrl, String serviceUrlTls, String brokerServiceUrl, String brokerServiceUrlTls,
+                           String authenticationPlugin, String authenticationParameters) {
         this.serviceUrl = serviceUrl;
         this.serviceUrlTls = serviceUrlTls;
         this.brokerServiceUrl = brokerServiceUrl;
@@ -120,9 +120,9 @@ public class ClusterData implements ClusterDataInterface{
         this.authenticationParameters = authenticationParameters;
     }
 
-    public ClusterData(String serviceUrl, String serviceUrlTls, String brokerServiceUrl, String brokerServiceUrlTls,
-                       String proxyServiceUrl, String authenticationPlugin, String authenticationParameters,
-                       ProxyProtocol proxyProtocol) {
+    public ClusterDataImpl(String serviceUrl, String serviceUrlTls, String brokerServiceUrl, String brokerServiceUrlTls,
+                           String proxyServiceUrl, String authenticationPlugin, String authenticationParameters,
+                           ProxyProtocol proxyProtocol) {
         this.serviceUrl = serviceUrl;
         this.serviceUrlTls = serviceUrlTls;
         this.brokerServiceUrl = brokerServiceUrl;
@@ -134,7 +134,7 @@ public class ClusterData implements ClusterDataInterface{
     }
 
 
-    public void update(ClusterData other) {
+    public void update(ClusterDataImpl other) {
         checkNotNull(other);
         this.serviceUrl = other.serviceUrl;
         this.serviceUrlTls = other.serviceUrlTls;
@@ -220,8 +220,8 @@ public class ClusterData implements ClusterDataInterface{
 
     @Override
     public boolean equals(Object obj) {
-        if (obj instanceof ClusterData) {
-            ClusterData other = (ClusterData) obj;
+        if (obj instanceof ClusterDataImpl) {
+            ClusterDataImpl other = (ClusterDataImpl) obj;
             return Objects.equals(serviceUrl, other.serviceUrl) && Objects.equals(serviceUrlTls, other.serviceUrlTls)
                     && Objects.equals(brokerServiceUrl, other.brokerServiceUrl)
                     && Objects.equals(brokerServiceUrlTls, other.brokerServiceUrlTls)

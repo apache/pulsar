@@ -24,11 +24,10 @@ import org.apache.bookkeeper.util.ZkUtils;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.resources.PulsarResources;
-import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.ResourceGroup;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -57,7 +56,7 @@ public class ConfigurationCacheService {
     private final ZooKeeperCache cache;
     private ZooKeeperDataCache<TenantInfo> propertiesCache;
     private ZooKeeperDataCache<Policies> policiesCache;
-    private ZooKeeperDataCache<ClusterData> clustersCache;
+    private ZooKeeperDataCache<ClusterDataImpl> clustersCache;
     private ZooKeeperChildrenCache clustersListCache;
     private ZooKeeperChildrenCache failureDomainListCache;
     private ZooKeeperDataCache<NamespaceIsolationPolicies> namespaceIsolationPoliciesCache;
@@ -103,10 +102,10 @@ public class ConfigurationCacheService {
             }
         };
 
-        this.clustersCache = new ZooKeeperDataCache<ClusterData>(cache) {
+        this.clustersCache = new ZooKeeperDataCache<ClusterDataImpl>(cache) {
             @Override
-            public ClusterData deserialize(String path, byte[] content) throws Exception {
-                return ObjectMapperFactory.getThreadLocal().readValue(content, ClusterData.class);
+            public ClusterDataImpl deserialize(String path, byte[] content) throws Exception {
+                return ObjectMapperFactory.getThreadLocal().readValue(content, ClusterDataImpl.class);
             }
         };
 
@@ -191,7 +190,7 @@ public class ConfigurationCacheService {
         return this.policiesCache;
     }
 
-    public ZooKeeperDataCache<ClusterData> clustersCache() {
+    public ZooKeeperDataCache<ClusterDataImpl> clustersCache() {
         return this.clustersCache;
     }
 

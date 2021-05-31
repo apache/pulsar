@@ -57,7 +57,7 @@ import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataImpl;
-import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
@@ -95,16 +95,16 @@ public class ClustersBase extends PulsarWebResource {
     @Path("/{cluster}")
     @ApiOperation(
         value = "Get the configuration for the specified cluster.",
-        response = ClusterData.class,
+        response = ClusterDataImpl.class,
         notes = "This operation requires Pulsar superuser privileges."
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 200, message = "Return the cluster data.", response = ClusterData.class),
+            @ApiResponse(code = 200, message = "Return the cluster data.", response = ClusterDataImpl.class),
             @ApiResponse(code = 403, message = "Don't have admin permission."),
             @ApiResponse(code = 404, message = "Cluster doesn't exist."),
             @ApiResponse(code = 500, message = "Internal server error.")
     })
-    public ClusterData getCluster(
+    public ClusterDataImpl getCluster(
         @ApiParam(
             value = "The cluster name",
             required = true
@@ -159,7 +159,7 @@ public class ClustersBase extends PulsarWebResource {
                 )
             )
         )
-        ClusterData clusterData
+                ClusterDataImpl clusterData
     ) {
         validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
@@ -212,7 +212,7 @@ public class ClustersBase extends PulsarWebResource {
                 )
             )
         )
-        ClusterData clusterData
+                ClusterDataImpl clusterData
     ) {
         validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
@@ -329,7 +329,7 @@ public class ClustersBase extends PulsarWebResource {
     ) {
         validateSuperUserAccess();
         try {
-            ClusterData clusterData = clusterResources().get(path("clusters", cluster))
+            ClusterDataImpl clusterData = clusterResources().get(path("clusters", cluster))
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Cluster does not exist"));
             return clusterData.getPeerClusterNames();
         } catch (Exception e) {

@@ -123,7 +123,7 @@ import org.apache.pulsar.common.configuration.VipStatus;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -729,8 +729,8 @@ public class PulsarService implements AutoCloseable {
             this.brokerServiceUrlTls = brokerUrlTls(config);
 
             if (null != this.webSocketService) {
-                ClusterData clusterData =
-                    new ClusterData(webServiceAddress, webServiceAddressTls, brokerServiceUrl, brokerServiceUrlTls);
+                ClusterDataImpl clusterData =
+                    new ClusterDataImpl(webServiceAddress, webServiceAddressTls, brokerServiceUrl, brokerServiceUrlTls);
                 this.webSocketService.setLocalCluster(clusterData);
             }
 

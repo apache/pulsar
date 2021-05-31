@@ -21,7 +21,7 @@ package org.apache.pulsar.common.policies.data;
 import java.util.LinkedHashSet;
 import org.apache.pulsar.client.api.ProxyProtocol;
 
-public interface ClusterDataInterface {
+public interface ClusterData {
     String getServiceUrl();
 
     String getServiceUrlTls();

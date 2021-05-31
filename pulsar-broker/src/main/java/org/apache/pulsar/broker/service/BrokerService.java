@@ -142,7 +142,7 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
-import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -1017,7 +1017,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return replicationClients.computeIfAbsent(cluster, key -> {
             try {
                 String path = PulsarWebResource.path("clusters", cluster);
-                ClusterData data = this.pulsar.getConfigurationCache().clustersCache().get(path)
+                ClusterDataImpl data = this.pulsar.getConfigurationCache().clustersCache().get(path)
                         .orElseThrow(() -> new KeeperException.NoNodeException(path));
                 ClientBuilder clientBuilder = PulsarClient.builder()
                         .enableTcpNoDelay(false)
@@ -1071,7 +1071,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return clusterAdmins.computeIfAbsent(cluster, key -> {
             try {
                 String path = PulsarWebResource.path("clusters", cluster);
-                ClusterData data = this.pulsar.getConfigurationCache().clustersCache().get(path)
+                ClusterDataImpl data = this.pulsar.getConfigurationCache().clustersCache().get(path)
                         .orElseThrow(() -> new KeeperException.NoNodeException(path));
 
                 ServiceConfiguration conf = pulsar.getConfig();

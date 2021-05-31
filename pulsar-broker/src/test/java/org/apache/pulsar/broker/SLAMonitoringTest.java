@@ -36,7 +36,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
@@ -108,7 +108,7 @@ public class SLAMonitoringTest {
 
     private void createTenant(PulsarAdmin pulsarAdmin)
             throws PulsarAdminException {
-        ClusterData clusterData = new ClusterData();
+        ClusterDataImpl clusterData = new ClusterDataImpl();
         clusterData.setServiceUrl(pulsarAdmin.getServiceUrl());
         pulsarAdmins[0].clusters().createCluster("my-cluster", clusterData);
         Set<String> allowedClusters = new HashSet<>();

@@ -83,7 +83,7 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
-import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
@@ -271,7 +271,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         String broker2ServiceUrl = "pulsar://localhost:" + conf2.getBrokerServicePort().get();
 
         admin.clusters().createCluster(newCluster,
-                new ClusterData(pulsar.getWebServiceAddress(), null, broker2ServiceUrl, null));
+                new ClusterDataImpl(pulsar.getWebServiceAddress(), null, broker2ServiceUrl, null));
         admin.tenants().createTenant(property,
                 new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(newCluster)));
         admin.namespaces().createNamespace(property + "/" + newCluster + "/my-ns");
@@ -1085,7 +1085,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         final int totalPartitions = 10;
         final TopicName dest = TopicName.get("persistent", property, cluster, namespace, topicName);
         admin.clusters().createCluster(cluster,
-                new ClusterData(pulsar.getWebServiceAddress(), null, null, null));
+                new ClusterDataImpl(pulsar.getWebServiceAddress(), null, null, null));
         admin.tenants().createTenant(property,
                 new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(cluster)));
         admin.namespaces().createNamespace(property + "/" + cluster + "/" + namespace);

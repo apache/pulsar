@@ -73,7 +73,7 @@ import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.policies.data.BookiesClusterInfo;
 import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 import org.apache.pulsar.common.policies.data.BundlesData;
-import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.FailureDomain;
@@ -189,10 +189,10 @@ public class PulsarAdminToolTest {
         verify(mockClusters).getCluster("use");
 
         clusters.run(split("create use --url http://my-service.url:8080"));
-        verify(mockClusters).createCluster("use", new ClusterData("http://my-service.url:8080", null));
+        verify(mockClusters).createCluster("use", new ClusterDataImpl("http://my-service.url:8080", null));
 
         clusters.run(split("update use --url http://my-service.url:8080"));
-        verify(mockClusters).updateCluster("use", new ClusterData("http://my-service.url:8080", null));
+        verify(mockClusters).updateCluster("use", new ClusterDataImpl("http://my-service.url:8080", null));
 
         clusters.run(split("delete use"));
         verify(mockClusters).deleteCluster("use");
@@ -222,12 +222,12 @@ public class PulsarAdminToolTest {
         clusters.run(
                 split("create my-cluster --url http://my-service.url:8080 --url-secure https://my-service.url:4443"));
         verify(mockClusters).createCluster("my-cluster",
-                new ClusterData("http://my-service.url:8080", "https://my-service.url:4443"));
+                new ClusterDataImpl("http://my-service.url:8080", "https://my-service.url:4443"));
 
         clusters.run(
                 split("update my-cluster --url http://my-service.url:8080 --url-secure https://my-service.url:4443"));
         verify(mockClusters).updateCluster("my-cluster",
-                new ClusterData("http://my-service.url:8080", "https://my-service.url:4443"));
+                new ClusterDataImpl("http://my-service.url:8080", "https://my-service.url:4443"));
 
         clusters.run(split("delete my-cluster"));
         verify(mockClusters).deleteCluster("my-cluster");
@@ -243,10 +243,10 @@ public class PulsarAdminToolTest {
         clusters = new CmdClusters(() -> admin);
 
         clusters.run(split("create my-secure-cluster --url-secure https://my-service.url:4443"));
-        verify(mockClusters).createCluster("my-secure-cluster", new ClusterData(null, "https://my-service.url:4443"));
+        verify(mockClusters).createCluster("my-secure-cluster", new ClusterDataImpl(null, "https://my-service.url:4443"));
 
         clusters.run(split("update my-secure-cluster --url-secure https://my-service.url:4443"));
-        verify(mockClusters).updateCluster("my-secure-cluster", new ClusterData(null, "https://my-service.url:4443"));
+        verify(mockClusters).updateCluster("my-secure-cluster", new ClusterDataImpl(null, "https://my-service.url:4443"));
 
         clusters.run(split("delete my-secure-cluster"));
         verify(mockClusters).deleteCluster("my-secure-cluster");

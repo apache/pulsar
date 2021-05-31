@@ -47,7 +47,7 @@ import org.apache.pulsar.client.admin.internal.JacksonConfigurator;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls;
 import org.apache.pulsar.common.tls.NoopHostnameVerifier;
-import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
 import org.glassfish.jersey.client.ClientConfig;
@@ -177,7 +177,7 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
     @Test
     public void testSuperUserCanListTenants() throws Exception {
         try (PulsarAdmin admin = buildAdminClient()) {
-            admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+            admin.clusters().createCluster("test", new ClusterDataImpl(brokerUrl.toString()));
             admin.tenants().createTenant("tenant1",
                                          new TenantInfo(ImmutableSet.of("foobar"),
                                                         ImmutableSet.of("test")));
@@ -188,7 +188,7 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
     @Test
     public void testSuperUserCantListNamespaces() throws Exception {
         try (PulsarAdmin admin = buildAdminClient()) {
-            admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+            admin.clusters().createCluster("test", new ClusterDataImpl(brokerUrl.toString()));
             admin.tenants().createTenant("tenant1",
                                          new TenantInfo(ImmutableSet.of("proxy"),
                                                         ImmutableSet.of("test")));
@@ -200,7 +200,7 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
     @Test
     public void testAuthorizedUserAsOriginalPrincipal() throws Exception {
         try (PulsarAdmin admin = buildAdminClient()) {
-            admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+            admin.clusters().createCluster("test", new ClusterDataImpl(brokerUrl.toString()));
             admin.tenants().createTenant("tenant1",
                                          new TenantInfo(ImmutableSet.of("proxy", "user1"),
                                                         ImmutableSet.of("test")));
@@ -219,7 +219,7 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         try (PulsarAdmin admin = buildAdminClient()) {
-            admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+            admin.clusters().createCluster("test", new ClusterDataImpl(brokerUrl.toString()));
             admin.tenants().createTenant("tenant1",
                     new TenantInfo(ImmutableSet.of("foobar"),
                             ImmutableSet.of("test")));

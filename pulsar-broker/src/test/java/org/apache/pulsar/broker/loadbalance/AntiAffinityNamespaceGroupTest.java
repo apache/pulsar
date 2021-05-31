@@ -55,7 +55,7 @@ import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
-import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -168,7 +168,7 @@ public class AntiAffinityNamespaceGroupTest {
     private void createCluster(ZooKeeper zk, ServiceConfiguration config) throws Exception {
         ZkUtils.createFullPathOptimistic(zk, "/admin/clusters/" + config.getClusterName(),
                 ObjectMapperFactory.getThreadLocal().writeValueAsBytes(
-                        new ClusterData("http://" + config.getAdvertisedAddress() + ":" + config.getWebServicePort().get())),
+                        new ClusterDataImpl("http://" + config.getAdvertisedAddress() + ":" + config.getWebServicePort().get())),
                 Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
     }
 
