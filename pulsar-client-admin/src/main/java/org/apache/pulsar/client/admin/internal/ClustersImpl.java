@@ -41,8 +41,8 @@ import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.FailureDomainImpl;
 import org.apache.pulsar.common.policies.data.FailureDomain;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
-import org.apache.pulsar.common.policies.data.NamespaceIsolationDataInterface;
 
 public class ClustersImpl extends BaseResource implements Clusters {
 
@@ -234,7 +234,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     @Override
-    public Map<String, NamespaceIsolationDataInterface> getNamespaceIsolationPolicies(String cluster)
+    public Map<String, NamespaceIsolationData> getNamespaceIsolationPolicies(String cluster)
             throws PulsarAdminException {
         try {
             return getNamespaceIsolationPoliciesAsync(cluster).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
@@ -249,15 +249,15 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     @Override
-    public CompletableFuture<Map<String, NamespaceIsolationDataInterface>> getNamespaceIsolationPoliciesAsync(
+    public CompletableFuture<Map<String, NamespaceIsolationData>> getNamespaceIsolationPoliciesAsync(
             String cluster) {
         WebTarget path = adminClusters.path(cluster).path("namespaceIsolationPolicies");
-        final CompletableFuture<Map<String, NamespaceIsolationDataInterface>> future = new CompletableFuture<>();
+        final CompletableFuture<Map<String, NamespaceIsolationData>> future = new CompletableFuture<>();
         asyncGetRequest(path,
-                new InvocationCallback<Map<String, NamespaceIsolationData>>() {
+                new InvocationCallback<Map<String, NamespaceIsolationDataImpl>>() {
                     @Override
-                    public void completed(Map<String, NamespaceIsolationData> stringNamespaceIsolationDataMap) {
-                        Map<String, NamespaceIsolationDataInterface> result = new HashMap<>();
+                    public void completed(Map<String, NamespaceIsolationDataImpl> stringNamespaceIsolationDataMap) {
+                        Map<String, NamespaceIsolationData> result = new HashMap<>();
                         stringNamespaceIsolationDataMap.forEach(result::put);
                         future.complete(result);
                     }
@@ -345,25 +345,25 @@ public class ClustersImpl extends BaseResource implements Clusters {
 
     @Override
     public void createNamespaceIsolationPolicy(String cluster, String policyName,
-            NamespaceIsolationDataInterface namespaceIsolationData) throws PulsarAdminException {
+            NamespaceIsolationData namespaceIsolationData) throws PulsarAdminException {
         setNamespaceIsolationPolicy(cluster, policyName, namespaceIsolationData);
     }
 
     @Override
     public CompletableFuture<Void> createNamespaceIsolationPolicyAsync(
-            String cluster, String policyName, NamespaceIsolationDataInterface namespaceIsolationData) {
+            String cluster, String policyName, NamespaceIsolationData namespaceIsolationData) {
         return setNamespaceIsolationPolicyAsync(cluster, policyName, namespaceIsolationData);
     }
 
     @Override
     public void updateNamespaceIsolationPolicy(String cluster, String policyName,
-           NamespaceIsolationDataInterface namespaceIsolationData) throws PulsarAdminException {
+           NamespaceIsolationData namespaceIsolationData) throws PulsarAdminException {
         setNamespaceIsolationPolicy(cluster, policyName, namespaceIsolationData);
     }
 
     @Override
     public CompletableFuture<Void> updateNamespaceIsolationPolicyAsync(
-            String cluster, String policyName, NamespaceIsolationDataInterface namespaceIsolationData) {
+            String cluster, String policyName, NamespaceIsolationData namespaceIsolationData) {
         return setNamespaceIsolationPolicyAsync(cluster, policyName, namespaceIsolationData);
     }
 
@@ -388,7 +388,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     private void setNamespaceIsolationPolicy(String cluster, String policyName,
-             NamespaceIsolationDataInterface namespaceIsolationData) throws PulsarAdminException {
+             NamespaceIsolationData namespaceIsolationData) throws PulsarAdminException {
         try {
             setNamespaceIsolationPolicyAsync(cluster, policyName, namespaceIsolationData)
                     .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
@@ -403,13 +403,13 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     private CompletableFuture<Void> setNamespaceIsolationPolicyAsync(String cluster, String policyName,
-             NamespaceIsolationDataInterface namespaceIsolationData) {
+             NamespaceIsolationData namespaceIsolationData) {
         WebTarget path = adminClusters.path(cluster).path("namespaceIsolationPolicies").path(policyName);
         return asyncPostRequest(path, Entity.entity(namespaceIsolationData, MediaType.APPLICATION_JSON));
     }
 
     @Override
-    public NamespaceIsolationDataInterface getNamespaceIsolationPolicy(String cluster, String policyName)
+    public NamespaceIsolationData getNamespaceIsolationPolicy(String cluster, String policyName)
             throws PulsarAdminException {
         try {
             return getNamespaceIsolationPolicyAsync(cluster, policyName)
@@ -425,14 +425,14 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     @Override
-    public CompletableFuture<NamespaceIsolationDataInterface> getNamespaceIsolationPolicyAsync(
+    public CompletableFuture<NamespaceIsolationData> getNamespaceIsolationPolicyAsync(
             String cluster, String policyName) {
         WebTarget path = adminClusters.path(cluster).path("namespaceIsolationPolicies").path(policyName);
-        final CompletableFuture<NamespaceIsolationDataInterface> future = new CompletableFuture<>();
+        final CompletableFuture<NamespaceIsolationData> future = new CompletableFuture<>();
         asyncGetRequest(path,
-                new InvocationCallback<NamespaceIsolationData>() {
+                new InvocationCallback<NamespaceIsolationDataImpl>() {
                     @Override
-                    public void completed(NamespaceIsolationData namespaceIsolationData) {
+                    public void completed(NamespaceIsolationDataImpl namespaceIsolationData) {
                         future.complete(namespaceIsolationData);
                     }
 

@@ -112,8 +112,8 @@ import org.apache.pulsar.common.policies.data.BrokerAssignment;
 import org.apache.pulsar.common.policies.data.BrokerInfo;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
-import org.apache.pulsar.common.policies.data.NamespaceIsolationDataInterface;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
@@ -278,7 +278,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         try {
             // create
             String policyName1 = "policy-1";
-            NamespaceIsolationData nsPolicyData1 = new NamespaceIsolationData();
+            NamespaceIsolationDataImpl nsPolicyData1 = new NamespaceIsolationDataImpl();
             nsPolicyData1.namespaces = new ArrayList<String>();
             nsPolicyData1.namespaces.add("other/use/other.*");
             nsPolicyData1.primary = new ArrayList<String>();
@@ -293,7 +293,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             admin.clusters().createNamespaceIsolationPolicy("test", policyName1, nsPolicyData1);
 
             String policyName2 = "policy-2";
-            NamespaceIsolationData nsPolicyData2 = new NamespaceIsolationData();
+            NamespaceIsolationDataImpl nsPolicyData2 = new NamespaceIsolationDataImpl();
             nsPolicyData2.namespaces = new ArrayList<String>();
             nsPolicyData2.namespaces.add("other/use/other.*");
             nsPolicyData2.primary = new ArrayList<String>();
@@ -308,7 +308,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             admin.clusters().createNamespaceIsolationPolicy("test", policyName2, nsPolicyData2);
 
             // verify create indirectly with get
-            Map<String, ? extends NamespaceIsolationDataInterface> policiesMap = admin.clusters().getNamespaceIsolationPolicies("test");
+            Map<String, ? extends NamespaceIsolationData> policiesMap = admin.clusters().getNamespaceIsolationPolicies("test");
             assertEquals(policiesMap.get(policyName1), nsPolicyData1);
             assertEquals(policiesMap.get(policyName2), nsPolicyData2);
 
@@ -347,7 +347,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             assertEquals(policiesMap.get(policyName1), nsPolicyData1);
 
             // verify single get
-            NamespaceIsolationData policy1Data = (NamespaceIsolationData) admin.clusters().getNamespaceIsolationPolicy("test", policyName1);
+            NamespaceIsolationDataImpl policy1Data = (NamespaceIsolationDataImpl) admin.clusters().getNamespaceIsolationPolicy("test", policyName1);
             assertEquals(policy1Data, nsPolicyData1);
 
             // verify creation of more than one policy
@@ -419,7 +419,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         }
 
         // validate regex: invlid regex for primary and seconday
-        NamespaceIsolationData nsRegexPolicy = new NamespaceIsolationData();
+        NamespaceIsolationDataImpl nsRegexPolicy = new NamespaceIsolationDataImpl();
         nsRegexPolicy.namespaces = new ArrayList<String>();
         nsRegexPolicy.namespaces.add("other/use/other.*");
         nsRegexPolicy.primary = new ArrayList<String>();

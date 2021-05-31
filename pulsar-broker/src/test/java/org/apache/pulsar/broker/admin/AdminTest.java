@@ -82,7 +82,7 @@ import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.BrokerInfo;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
-import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
@@ -255,7 +255,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), 404);
         }
-        NamespaceIsolationData policyData = new NamespaceIsolationData();
+        NamespaceIsolationDataImpl policyData = new NamespaceIsolationDataImpl();
         policyData.namespaces = new ArrayList<String>();
         policyData.namespaces.add("dummy/colo/ns");
         policyData.primary = new ArrayList<String>();

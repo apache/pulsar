@@ -54,7 +54,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyDataImpl;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.BundlesData;
-import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
@@ -708,7 +708,7 @@ public class LoadBalancerTest {
         NamespaceIsolationPolicies policies = new NamespaceIsolationPolicies();
 
         // set up policy that use this broker as primary
-        NamespaceIsolationData policyData = new NamespaceIsolationData();
+        NamespaceIsolationDataImpl policyData = new NamespaceIsolationDataImpl();
         policyData.namespaces = new ArrayList<String>();
         policyData.namespaces.add("pulsar/use/primary-ns.*");
         policyData.primary = new ArrayList<String>();
@@ -724,7 +724,7 @@ public class LoadBalancerTest {
         policies.setPolicy("primaryBrokerPolicy", policyData);
 
         // set up policy that use this broker as secondary
-        policyData = new NamespaceIsolationData();
+        policyData = new NamespaceIsolationDataImpl();
         policyData.namespaces = new ArrayList<String>();
         policyData.namespaces.add("pulsar/use/secondary-ns.*");
         policyData.primary = new ArrayList<String>();
@@ -741,7 +741,7 @@ public class LoadBalancerTest {
         policies.setPolicy("secondaryBrokerPolicy", policyData);
 
         // set up policy that do not use this broker (neither primary nor secondary)
-        policyData = new NamespaceIsolationData();
+        policyData = new NamespaceIsolationDataImpl();
         policyData.namespaces = new ArrayList<String>();
         policyData.namespaces.add("pulsar/use/shared-ns.*");
         policyData.primary = new ArrayList<String>();

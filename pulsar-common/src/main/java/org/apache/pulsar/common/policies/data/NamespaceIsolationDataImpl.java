@@ -38,7 +38,7 @@ import org.apache.commons.lang3.StringUtils;
         description = "The data of namespace isolation configuration"
 )
 @Data
-public class NamespaceIsolationData implements NamespaceIsolationDataInterface {
+public class NamespaceIsolationDataImpl implements NamespaceIsolationData {
 
     @ApiModelProperty(
             name = "namespaces",
@@ -77,8 +77,8 @@ public class NamespaceIsolationData implements NamespaceIsolationDataInterface {
 
     @Override
     public boolean equals(Object obj) {
-        if (obj instanceof NamespaceIsolationData) {
-            NamespaceIsolationData other = (NamespaceIsolationData) obj;
+        if (obj instanceof NamespaceIsolationDataImpl) {
+            NamespaceIsolationDataImpl other = (NamespaceIsolationDataImpl) obj;
             return Objects.equal(namespaces, other.namespaces) && Objects.equal(primary, other.primary)
                     && Objects.equal(secondary, other.secondary)
                     && Objects.equal(auto_failover_policy, other.auto_failover_policy);

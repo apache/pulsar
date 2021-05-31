@@ -31,8 +31,8 @@ public class NamespaceIsolationDataTest {
 
     @Test
     public void testNamespaceIsolationData() {
-        NamespaceIsolationData n0 = new NamespaceIsolationData();
-        NamespaceIsolationData n1 = new NamespaceIsolationData();
+        NamespaceIsolationDataImpl n0 = new NamespaceIsolationDataImpl();
+        NamespaceIsolationDataImpl n1 = new NamespaceIsolationDataImpl();
         assertNotEquals(new OldPolicies(), n0);
         n0.namespaces = new ArrayList<>();
         n0.primary = new ArrayList<>();
@@ -44,7 +44,7 @@ public class NamespaceIsolationDataTest {
             n0.secondary.add(String.format("s%d", i));
         }
 
-        assertNotEquals(new NamespaceIsolationData(), n0);
+        assertNotEquals(new NamespaceIsolationDataImpl(), n0);
 
         n1.namespaces = n0.namespaces;
         n1.primary = n0.primary;

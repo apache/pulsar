@@ -30,7 +30,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedExc
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.FailureDomain;
-import org.apache.pulsar.common.policies.data.NamespaceIsolationDataInterface;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 
 /**
  * Admin interface for clusters management.
@@ -289,7 +289,7 @@ public interface Clusters {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    Map<String, NamespaceIsolationDataInterface> getNamespaceIsolationPolicies(String cluster)
+    Map<String, NamespaceIsolationData> getNamespaceIsolationPolicies(String cluster)
             throws PulsarAdminException;
 
     /**
@@ -311,7 +311,7 @@ public interface Clusters {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    CompletableFuture<Map<String, NamespaceIsolationDataInterface>> getNamespaceIsolationPoliciesAsync(String cluster);
+    CompletableFuture<Map<String, NamespaceIsolationData>> getNamespaceIsolationPoliciesAsync(String cluster);
 
     /**
      * Create a namespace isolation policy for a cluster.
@@ -340,7 +340,7 @@ public interface Clusters {
      *             Unexpected error
      */
     void createNamespaceIsolationPolicy(
-            String cluster, String policyName, NamespaceIsolationDataInterface namespaceIsolationData)
+            String cluster, String policyName, NamespaceIsolationData namespaceIsolationData)
             throws PulsarAdminException;
 
     /**
@@ -359,7 +359,7 @@ public interface Clusters {
      * @return
      */
     CompletableFuture<Void> createNamespaceIsolationPolicyAsync(
-            String cluster, String policyName, NamespaceIsolationDataInterface namespaceIsolationData);
+            String cluster, String policyName, NamespaceIsolationData namespaceIsolationData);
 
     /**
      * Returns list of active brokers with namespace-isolation policies attached to it.
@@ -428,7 +428,7 @@ public interface Clusters {
      *             Unexpected error
      */
     void updateNamespaceIsolationPolicy(
-            String cluster, String policyName, NamespaceIsolationDataInterface namespaceIsolationData)
+            String cluster, String policyName, NamespaceIsolationData namespaceIsolationData)
             throws PulsarAdminException;
 
     /**
@@ -448,7 +448,7 @@ public interface Clusters {
      *
      */
     CompletableFuture<Void> updateNamespaceIsolationPolicyAsync(
-            String cluster, String policyName, NamespaceIsolationDataInterface namespaceIsolationData);
+            String cluster, String policyName, NamespaceIsolationData namespaceIsolationData);
 
     /**
      * Delete a namespace isolation policy for a cluster.
@@ -513,7 +513,7 @@ public interface Clusters {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    NamespaceIsolationDataInterface getNamespaceIsolationPolicy(String cluster, String policyName)
+    NamespaceIsolationData getNamespaceIsolationPolicy(String cluster, String policyName)
             throws PulsarAdminException;
 
     /**
@@ -527,8 +527,8 @@ public interface Clusters {
      *          Policy name
      *
      */
-    CompletableFuture<NamespaceIsolationDataInterface> getNamespaceIsolationPolicyAsync(String cluster,
-                                                                                        String policyName);
+    CompletableFuture<NamespaceIsolationData> getNamespaceIsolationPolicyAsync(String cluster,
+                                                                               String policyName);
 
     /**
      * Create a domain into cluster.

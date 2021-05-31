@@ -26,7 +26,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.FailureDomainImpl;
-import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
@@ -121,7 +121,7 @@ public class ConfigurationCacheService {
             @SuppressWarnings("unchecked")
             public NamespaceIsolationPolicies deserialize(String path, byte[] content) throws Exception {
                 return new NamespaceIsolationPolicies(ObjectMapperFactory
-                        .getThreadLocal().readValue(content, new TypeReference<Map<String, NamespaceIsolationData>>() {
+                        .getThreadLocal().readValue(content, new TypeReference<Map<String, NamespaceIsolationDataImpl>>() {
                         }));
             }
         };

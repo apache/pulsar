@@ -59,7 +59,7 @@ import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.FailureDomainImpl;
-import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicyImpl;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -433,7 +433,7 @@ public class ClustersBase extends PulsarWebResource {
     @Path("/{cluster}/namespaceIsolationPolicies")
     @ApiOperation(
         value = "Get the namespace isolation policies assigned to the cluster.",
-        response = NamespaceIsolationData.class,
+        response = NamespaceIsolationDataImpl.class,
         responseContainer = "Map",
         notes = "This operation requires Pulsar superuser privileges."
     )
@@ -442,7 +442,7 @@ public class ClustersBase extends PulsarWebResource {
             @ApiResponse(code = 404, message = "Cluster doesn't exist."),
             @ApiResponse(code = 500, message = "Internal server error.")
     })
-    public Map<String, NamespaceIsolationData> getNamespaceIsolationPolicies(
+    public Map<String, NamespaceIsolationDataImpl> getNamespaceIsolationPolicies(
         @ApiParam(
             value = "The cluster name",
             required = true
@@ -471,7 +471,7 @@ public class ClustersBase extends PulsarWebResource {
     @Path("/{cluster}/namespaceIsolationPolicies/{policyName}")
     @ApiOperation(
             value = "Get the single namespace isolation policy assigned to the cluster.",
-            response = NamespaceIsolationData.class,
+            response = NamespaceIsolationDataImpl.class,
             notes = "This operation requires Pulsar superuser privileges."
     )
     @ApiResponses(value = {
@@ -480,7 +480,7 @@ public class ClustersBase extends PulsarWebResource {
             @ApiResponse(code = 412, message = "Cluster doesn't exist."),
             @ApiResponse(code = 500, message = "Internal server error.")
     })
-    public NamespaceIsolationData getNamespaceIsolationPolicy(
+    public NamespaceIsolationDataImpl getNamespaceIsolationPolicy(
         @ApiParam(
             value = "The cluster name",
             required = true
@@ -541,7 +541,7 @@ public class ClustersBase extends PulsarWebResource {
 
         Set<String> availableBrokers;
         final String nsIsolationPoliciesPath = AdminResource.path("clusters", cluster, NAMESPACE_ISOLATION_POLICIES);
-        Map<String, NamespaceIsolationData> nsPolicies;
+        Map<String, NamespaceIsolationDataImpl> nsPolicies;
         try {
             availableBrokers = pulsar().getLoadManager().get().getAvailableBrokers();
         } catch (Exception e) {
@@ -609,7 +609,7 @@ public class ClustersBase extends PulsarWebResource {
         validateClusterExists(cluster);
 
         final String nsIsolationPoliciesPath = AdminResource.path("clusters", cluster, NAMESPACE_ISOLATION_POLICIES);
-        Map<String, NamespaceIsolationData> nsPolicies;
+        Map<String, NamespaceIsolationDataImpl> nsPolicies;
         try {
             Optional<NamespaceIsolationPolicies> nsPoliciesResult = namespaceIsolationPolicies()
                     .getPolicies(nsIsolationPoliciesPath);
@@ -669,7 +669,7 @@ public class ClustersBase extends PulsarWebResource {
             value = "The namespace isolation policy data",
             required = true
         )
-        NamespaceIsolationData policyData
+                NamespaceIsolationDataImpl policyData
     ) {
         validateSuperUserAccess();
         validateClusterExists(cluster);
@@ -722,7 +722,7 @@ public class ClustersBase extends PulsarWebResource {
 
     // get matched namespaces; call unload for each namespaces;
     private void filterAndUnloadMatchedNameSpaces(AsyncResponse asyncResponse,
-                                                  NamespaceIsolationData policyData) throws Exception {
+                                                  NamespaceIsolationDataImpl policyData) throws Exception {
         Namespaces namespaces = pulsar().getAdminClient().namespaces();
 
         List<String> nssToUnload = Lists.newArrayList();

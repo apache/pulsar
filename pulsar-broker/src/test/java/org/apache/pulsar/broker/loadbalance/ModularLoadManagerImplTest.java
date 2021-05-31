@@ -69,7 +69,7 @@ import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
-import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.Notification;
@@ -505,8 +505,8 @@ public class ModularLoadManagerImplTest {
                 broker2Address, 1);
         String newPolicyName = "my-ns-isolation-policies";
         ObjectMapper jsonMapper = ObjectMapperFactory.create();
-        NamespaceIsolationData nsPolicyData = jsonMapper.readValue(newPolicyJson.getBytes(),
-                NamespaceIsolationData.class);
+        NamespaceIsolationDataImpl nsPolicyData = jsonMapper.readValue(newPolicyJson.getBytes(),
+                NamespaceIsolationDataImpl.class);
         admin1.clusters().createNamespaceIsolationPolicy("use", newPolicyName, nsPolicyData);
 
         SimpleResourceAllocationPolicies simpleResourceAllocationPolicies = new SimpleResourceAllocationPolicies(
@@ -553,7 +553,7 @@ public class ModularLoadManagerImplTest {
 
         newPolicyJson = String.format(newPolicyJsonTemplate, tenant, cluster, namespace, broker1Address,
                 broker2Address, 2);
-        nsPolicyData = jsonMapper.readValue(newPolicyJson.getBytes(), NamespaceIsolationData.class);
+        nsPolicyData = jsonMapper.readValue(newPolicyJson.getBytes(), NamespaceIsolationDataImpl.class);
         admin1.clusters().createNamespaceIsolationPolicy("use", newPolicyName, nsPolicyData);
 
         // test1: shared=1, primary=1, secondary=1 => It should return primary + secondary

@@ -20,7 +20,7 @@ package org.apache.pulsar.common.policies.data;
 
 import java.util.List;
 
-public interface NamespaceIsolationDataInterface {
+public interface NamespaceIsolationData {
 
     List<String> getNamespaces();
 

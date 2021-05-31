@@ -69,7 +69,7 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyDataImpl;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
-import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -174,7 +174,7 @@ public class SimpleLoadManagerImplTest {
     private void createNamespacePolicies(PulsarService pulsar) throws Exception {
         NamespaceIsolationPolicies policies = new NamespaceIsolationPolicies();
         // set up policy that use this broker as primary
-        NamespaceIsolationData policyData = new NamespaceIsolationData();
+        NamespaceIsolationDataImpl policyData = new NamespaceIsolationDataImpl();
         policyData.namespaces = new ArrayList<>();
         policyData.namespaces.add("pulsar/use/primary-ns.*");
         policyData.primary = new ArrayList<>();

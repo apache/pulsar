@@ -86,7 +86,7 @@ import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.FailureDomainImpl;
 import org.apache.pulsar.common.policies.data.FailureDomain;
-import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
@@ -969,7 +969,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         String namespaceRegex = "other/" + cluster + "/other.*";
         String brokerName = pulsar.getAdvertisedAddress();
         String brokerAddress = brokerName + ":" + pulsar.getConfiguration().getWebServicePort().get();
-        NamespaceIsolationData nsPolicyData1 = new NamespaceIsolationData();
+        NamespaceIsolationDataImpl nsPolicyData1 = new NamespaceIsolationDataImpl();
         nsPolicyData1.namespaces = new ArrayList<>();
         nsPolicyData1.namespaces.add(namespaceRegex);
         nsPolicyData1.primary = new ArrayList<>();
@@ -1019,7 +1019,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         // create
         String policyName1 = "policy-1";
         String cluster = pulsar.getConfiguration().getClusterName();
-        NamespaceIsolationData nsPolicyData1 = new NamespaceIsolationData();
+        NamespaceIsolationDataImpl nsPolicyData1 = new NamespaceIsolationDataImpl();
         nsPolicyData1.namespaces = new ArrayList<>();
         nsPolicyData1.namespaces.add(ns1Name);
         nsPolicyData1.primary = new ArrayList<>();
