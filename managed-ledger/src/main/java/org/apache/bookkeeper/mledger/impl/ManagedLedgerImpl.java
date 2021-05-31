@@ -711,24 +711,26 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private synchronized void internalAsyncAddEntry(OpAddEntry addOperation) {
-        pendingAddEntries.add(addOperation);
         final State state = STATE_UPDATER.get(this);
         if (state == State.Fenced) {
             addOperation.failed(new ManagedLedgerFencedException());
+            pendingAddEntries.add(addOperation);
             return;
         } else if (state == State.Terminated) {
             addOperation.failed(new ManagedLedgerTerminatedException("Managed ledger was already terminated"));
+            pendingAddEntries.add(addOperation);
             return;
         } else if (state == State.Closed) {
             addOperation.failed(new ManagedLedgerAlreadyClosedException("Managed ledger was already closed"));
+            pendingAddEntries.add(addOperation);
             return;
         } else if (state == State.WriteFailed) {
-            pendingAddEntries.remove(addOperation);
             addOperation.failed(new ManagedLedgerAlreadyClosedException("Waiting to recover from failure"));
             return;
         }
 
         if (state == State.ClosingLedger || state == State.CreatingLedger) {
+            pendingAddEntries.add(addOperation);
             // We don't have a ready ledger to write into
             // We are waiting for a new ledger to be created
             if (log.isDebugEnabled()) {
@@ -744,6 +746,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 }
             }
         } else if (state == State.ClosedLedger) {
+            pendingAddEntries.add(addOperation);
             // No ledger and no pending operations. Create a new ledger
             log.info("[{}] Creating a new ledger", name);
             if (STATE_UPDATER.compareAndSet(this, State.ClosedLedger, State.CreatingLedger)) {
@@ -773,6 +776,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 addOperation.setCloseWhenDone(true);
                 STATE_UPDATER.set(this, State.ClosingLedger);
             }
+            pendingAddEntries.add(addOperation);
             // interceptor entry before add to bookie
             if (beforeAddEntry(addOperation)) {
                 addOperation.initiate();
@@ -3661,7 +3665,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    private void checkAddTimeout() {
+    private synchronized void checkAddTimeout() {
         long timeoutSec = config.getAddEntryTimeoutSeconds();
         if (timeoutSec < 1) {
             return;
