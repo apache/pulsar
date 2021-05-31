@@ -73,6 +73,10 @@ public interface AuthenticationProvider extends Closeable {
         throw new AuthenticationException(MULTI_ROLE_NOT_SUPPORTED);
     }
 
+    default boolean isSupportMultiRoles() {
+        return false;
+    }
+
     /**
      * Create an authentication data State use passed in AuthenticationDataSource.
      */

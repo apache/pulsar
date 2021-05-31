@@ -146,7 +146,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     @Override
     public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
         List<String> principals = authenticate(authData, false);
-        if (principals == null) {
+        if (principals.isEmpty()) {
             return null;
         }
         return principals.get(0);
@@ -163,15 +163,19 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
             if (multiRoles) {
                 return principals;
-            } else if (principals == null) { // Empty list check has been done in getPrincipals.
-                return null;
-            } else {
+            } else if (!principals.isEmpty()) {
                 return Collections.singletonList(principals.get(0));
+            } else {
+                return principals;
             }
         } catch (AuthenticationException exception) {
             AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(), exception.getMessage());
             throw exception;
         }
+    }
+
+    public boolean isSupportMultiRoles() {
+        return true;
     }
 
     @Override
@@ -251,13 +255,17 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
     private List<String> getPrincipals(Jwt<?, Claims> jwt){
         try {
-            return Collections.singletonList(jwt.getBody().get(roleClaim, String.class));
+            String principal = jwt.getBody().get(roleClaim, String.class);
+            if (principal == null) {
+                return Collections.emptyList();
+            }
+            return Collections.singletonList(principal);
         } catch (RequiredTypeException requiredTypeException) {
             List list = jwt.getBody().get(roleClaim, List.class);
             if (list != null && !list.isEmpty() && list.get(0) instanceof String) {
                 return list;
             }
-            return null;
+            return Collections.emptyList();
         }
     }
 

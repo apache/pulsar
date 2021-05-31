@@ -46,13 +46,14 @@ public class OneStageAuthenticationState implements AuthenticationState {
                                        AuthenticationProvider provider) throws AuthenticationException {
         this.authenticationDataSource = new AuthenticationDataCommand(
             new String(authData.getBytes(), UTF_8), remoteAddress, sslSession);
-        try {
+        if (provider.isSupportMultiRoles()) {
             this.authRoles = provider.authenticate(authenticationDataSource, true);
-        } catch (AuthenticationException e) {
-            if (e.getMessage().equals(MULTI_ROLE_NOT_SUPPORTED)) {
-                this.authRoles = Collections.singletonList(provider.authenticate(authenticationDataSource));
+        } else {
+            String role = provider.authenticate(authenticationDataSource);
+            if (role == null) {
+                this.authRoles = Collections.emptyList();
             } else {
-                throw e;
+                this.authRoles = Collections.singletonList(role);
             }
         }
     }
