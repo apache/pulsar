@@ -154,7 +154,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         }
         checkArgument(ledger.getId() == lh.getId(), "ledgerId %s doesn't match with acked ledgerId %s", ledger.getId(),
                 lh.getId());
-        
+
         if (!checkAndCompleteOp(ctx)) {
             // means callback might have been completed by different thread (timeout task thread).. so do nothing
             return;
@@ -201,15 +201,17 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
             // `data` will be released in `closeComplete`
             ledger.asyncClose(this, ctx);
         } else {
-            updateLatency();
-            AddEntryCallback cb = callbackUpdater.getAndSet(this, null);
-            if (cb != null) {
-                cb.addComplete(lastEntry, data.asReadOnly(), ctx);
-                ml.notifyCursors();
-                ml.notifyWaitingEntryCallBacks();
-                ReferenceCountUtil.release(data);
-                this.recycle();
-            } else {
+            ByteBuf data = this.data;
+            try {
+                updateLatency();
+                AddEntryCallback cb = callbackUpdater.getAndSet(this, null);
+                if (cb != null) {
+                    cb.addComplete(lastEntry, data.asReadOnly(), ctx);
+                    ml.notifyCursors();
+                    ml.notifyWaitingEntryCallBacks();
+                    this.recycle();
+                }
+            } finally {
                 ReferenceCountUtil.release(data);
             }
         }
@@ -217,26 +219,29 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
 
     @Override
     public void closeComplete(int rc, LedgerHandle lh, Object ctx) {
-        checkArgument(ledger.getId() == lh.getId(), "ledgerId %s doesn't match with acked ledgerId %s", ledger.getId(),
-                lh.getId());
+        ByteBuf data = this.data;
+        try {
+            checkArgument(ledger.getId() == lh.getId(), "ledgerId %s doesn't match with acked ledgerId %s",
+                    ledger.getId(),
+                    lh.getId());
 
-        if (rc == BKException.Code.OK) {
-            log.debug("Successfully closed ledger {}", lh.getId());
-        } else {
-            log.warn("Error when closing ledger {}. Status={}", lh.getId(), BKException.getMessage(rc));
-        }
+            if (rc == BKException.Code.OK) {
+                log.debug("Successfully closed ledger {}", lh.getId());
+            } else {
+                log.warn("Error when closing ledger {}. Status={}", lh.getId(), BKException.getMessage(rc));
+            }
 
-        ml.ledgerClosed(lh);
-        updateLatency();
+            ml.ledgerClosed(lh);
+            updateLatency();
 
-        AddEntryCallback cb = callbackUpdater.getAndSet(this, null);
-        if (cb != null) {
-            cb.addComplete(PositionImpl.get(lh.getId(), entryId), data.asReadOnly(), ctx);
-            ml.notifyCursors();
-            ml.notifyWaitingEntryCallBacks();
-            ReferenceCountUtil.release(data);
-            this.recycle();
-        } else {
+            AddEntryCallback cb = callbackUpdater.getAndSet(this, null);
+            if (cb != null) {
+                cb.addComplete(PositionImpl.get(lh.getId(), entryId), data.asReadOnly(), ctx);
+                ml.notifyCursors();
+                ml.notifyWaitingEntryCallBacks();
+                this.recycle();
+            }
+        } finally {
             ReferenceCountUtil.release(data);
         }
     }
@@ -248,7 +253,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
 
     /**
      * Checks if add-operation is completed
-     * 
+     *
      * @return true if task is not already completed else returns false.
      */
     private boolean checkAndCompleteOp(Object ctx) {
@@ -269,7 +274,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
 
     /**
      * It handles add failure on the given ledger. it can be triggered when add-entry fails or times out.
-     * 
+     *
      * @param ledger
      */
     void handleAddFailure(final LedgerHandle ledger) {
