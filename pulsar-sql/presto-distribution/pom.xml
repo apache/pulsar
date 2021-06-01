@@ -50,6 +50,7 @@
     <guava.version>30.1-jre</guava.version>
     <asynchttpclient.version>2.12.1</asynchttpclient.version>
     <errorprone.version>2.5.1</errorprone.version>
+    <javax.servlet-api>4.0.1</javax.servlet-api>
   </properties>
 
   <dependencies>
@@ -298,6 +299,11 @@
         <groupId>org.eclipse.jetty.http2</groupId>
         <artifactId>http2-server</artifactId>
         <version>${jetty.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>javax.servlet</groupId>
+        <artifactId>javax.servlet-api</artifactId>
+        <version>${javax.servlet-api}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
