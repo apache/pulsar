@@ -564,8 +564,8 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |bookkeeperClientHealthCheckIntervalSeconds|  The time interval, in seconds, at which health checks are performed. New ledgers are not created during health checks.  |60|
 |bookkeeperClientHealthCheckErrorThresholdPerInterval|  Error threshold for health checks.  |5|
 |bookkeeperClientHealthCheckQuarantineTimeInSeconds|  If bookies have more than the allowed number of failures within the time interval specified by bookkeeperClientHealthCheckIntervalSeconds |1800|
-|bookkeeperGetBookieInfoIntervalSeconds|Specify options for the GetBookieInfo check. This setting helps ensure the list of bookies that are up to date on the brokers.|86400|
-|bookkeeperGetBookieInfoRetryIntervalSeconds|Specify options for the GetBookieInfo check. This setting helps ensure the list of bookies that are up to date on the brokers.|60|
+|bookkeeperClientGetBookieInfoIntervalSeconds|Specify options for the GetBookieInfo check. This setting helps ensure the list of bookies that are up to date on the brokers.|86400|
+|bookkeeperClientGetBookieInfoRetryIntervalSeconds|Specify options for the GetBookieInfo check. This setting helps ensure the list of bookies that are up to date on the brokers.|60|
 |bookkeeperClientRackawarePolicyEnabled|    |true|
 |bookkeeperClientRegionawarePolicyEnabled|    |false|
 |bookkeeperClientMinNumRacksPerWriteQuorum|    |2|

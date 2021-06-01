@@ -575,8 +575,8 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |bookkeeperClientHealthCheckIntervalSeconds|  The time interval, in seconds, at which health checks are performed. New ledgers are not created during health checks.  |60|
 |bookkeeperClientHealthCheckErrorThresholdPerInterval|  Error threshold for health checks.  |5|
 |bookkeeperClientHealthCheckQuarantineTimeInSeconds|  If bookies have more than the allowed number of failures within the time interval specified by bookkeeperClientHealthCheckIntervalSeconds |1800|
-|bookkeeperGetBookieInfoIntervalSeconds|Specify options for the GetBookieInfo check. This setting helps ensure the list of bookies that are up to date on the brokers.|86400|
-|bookkeeperGetBookieInfoRetryIntervalSeconds|Specify options for the GetBookieInfo check. This setting helps ensure the list of bookies that are up to date on the brokers.|60|
+|bookkeeperClientGetBookieInfoIntervalSeconds|Specify options for the GetBookieInfo check. This setting helps ensure the list of bookies that are up to date on the brokers.|86400|
+|bookkeeperClientGetBookieInfoRetryIntervalSeconds|Specify options for the GetBookieInfo check. This setting helps ensure the list of bookies that are up to date on the brokers.|60|
 |bookkeeperClientRackawarePolicyEnabled|    |true|
 |bookkeeperClientRegionawarePolicyEnabled|    |false|
 |bookkeeperClientMinNumRacksPerWriteQuorum|    |2|
