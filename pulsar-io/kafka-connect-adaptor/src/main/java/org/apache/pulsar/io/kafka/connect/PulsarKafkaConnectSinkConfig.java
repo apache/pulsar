@@ -69,6 +69,10 @@ public class PulsarKafkaConnectSinkConfig implements Serializable {
             help = "Pulsar topic to store offsets at.")
     private String offsetStorageTopic;
 
+    /*
+    This is used to configure PulsarOffsetBackingStore.
+    It will become unnecessary after the PulsarClient is exposed to the context.
+    */
     @FieldDoc(
             required = true,
             defaultValue = "",

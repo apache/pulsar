@@ -52,6 +52,7 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.apache.pulsar.io.kafka.connect.PulsarKafkaWorkerConfig.OFFSET_STORAGE_TOPIC_CONFIG;
@@ -105,6 +106,7 @@ public class KafkaConnectSink implements Sink<GenericObject> {
                     .setNameFormat("pulsar-io-kafka-adaptor-sink-flush-%d")
                     .build());
     private final ConcurrentLinkedDeque<Record<GenericObject>> pendingFlushQueue = new ConcurrentLinkedDeque<>();
+    private final AtomicBoolean isFlushRunning = new AtomicBoolean(false);
     private volatile boolean isRunning = false;
 
     private final Properties props = new Properties();
@@ -194,15 +196,18 @@ public class KafkaConnectSink implements Sink<GenericObject> {
 
         maxBatchSize = kafkaSinkConfig.getBatchSize();
         lingerMs = kafkaSinkConfig.getLingerTimeMs();
-        scheduledExecutor.scheduleAtFixedRate(() ->
-                this.flushIfNeeded(true), lingerMs, lingerMs, TimeUnit.MILLISECONDS);
-
 
         isRunning = true;
+        scheduledExecutor.scheduleWithFixedDelay(() ->
+                this.flushIfNeeded(true), lingerMs, lingerMs, TimeUnit.MILLISECONDS);
+
         log.info("Kafka sink started : {}.", props);
     }
 
     private void flushIfNeeded(boolean force) {
+        if (isFlushRunning.get()) {
+            return;
+        }
         if (force || currentBatchSize.get() >= maxBatchSize) {
             scheduledExecutor.submit(this::flush);
         }
@@ -219,16 +224,21 @@ public class KafkaConnectSink implements Sink<GenericObject> {
             return;
         }
 
-        final Record<GenericObject> lastNotFlushed = pendingFlushQueue.getLast();
-        Map<TopicPartition, OffsetAndMetadata> currentOffsets = taskContext.currentOffsets();
+        if (!isFlushRunning.compareAndSet(false, true)) {
+            return;
+        }
 
+        final Record<GenericObject> lastNotFlushed = pendingFlushQueue.getLast();
         try {
+            Map<TopicPartition, OffsetAndMetadata> currentOffsets = taskContext.currentOffsets();
             task.flush(currentOffsets);
             taskContext.flushOffsets(currentOffsets);
             ackUntil(lastNotFlushed, Record::ack);
         } catch (Throwable t) {
             log.error("error flushing pending records", t);
             ackUntil(lastNotFlushed, Record::fail);
+        } finally {
+            isFlushRunning.compareAndSet(true, false);
         }
     }
 
