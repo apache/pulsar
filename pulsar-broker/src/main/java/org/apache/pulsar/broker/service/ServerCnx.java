@@ -248,25 +248,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     @Override
-    public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
-        if (!connectionsLimiter.increaseConnection(ctx.channel().remoteAddress())) {
+    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        super.channelActive(ctx);
+        if (!connectionsLimiter.increaseConnection(remoteAddress)) {
             ctx.channel().writeAndFlush(Commands.newError(-1, ServerError.NotAllowedError
                     , "Reached the maximum number of connections"));
             ctx.channel().close();
             return;
         }
-        ctx.fireChannelRegistered();
-    }
-
-    @Override
-    public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
-        connectionsLimiter.decreaseConnection(ctx.channel().remoteAddress());
-        ctx.fireChannelUnregistered();
-    }
-
-    @Override
-    public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        super.channelActive(ctx);
         log.info("New connection from {}", remoteAddress);
         this.ctx = ctx;
         this.commandSender = new PulsarCommandSenderImpl(getBrokerService().getInterceptor(), this);
@@ -277,6 +266,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         super.channelInactive(ctx);
+        connectionsLimiter.decreaseConnection(ctx.channel().remoteAddress());
         isActive = false;
         log.info("Closed connection from {}", remoteAddress);
         BrokerInterceptor brokerInterceptor = getBrokerService().getInterceptor();
