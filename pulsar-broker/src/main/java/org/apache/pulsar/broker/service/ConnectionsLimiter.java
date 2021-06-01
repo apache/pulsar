@@ -62,8 +62,8 @@ public class ConnectionsLimiter {
             CURRENT_CONNECTION_NUM.increment();
             if (CURRENT_CONNECTION_NUM.getValue() > maxConnections
                     || CONNECTIONS.get(ip).getValue() > maxConnectionPerIp) {
-                log.info("Reject connect request from {}, because reached the maximum number of connections, broker " +
-                                "connections:{}, IP connections: {}", remoteAddress, CURRENT_CONNECTION_NUM.getValue(),
+                log.info("Reject connect request from {}, because reached the maximum number of connections, broker "
+                                + "connections:{}, IP connections: {}", remoteAddress, CURRENT_CONNECTION_NUM.getValue(),
                         CONNECTIONS.get(ip).getValue());
                 return false;
             }
