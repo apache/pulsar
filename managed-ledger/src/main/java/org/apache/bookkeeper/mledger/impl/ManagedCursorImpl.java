@@ -2519,30 +2519,35 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     private List<MLDataFormats.BatchedEntryDeletionIndexInfo> buildBatchEntryDeletionIndexInfoList() {
-        if (!config.isDeletionAtBatchIndexLevelEnabled() || batchDeletedIndexes == null || batchDeletedIndexes.isEmpty()) {
-            return Collections.emptyList();
-        }
-        MLDataFormats.NestedPositionInfo.Builder nestedPositionBuilder = MLDataFormats.NestedPositionInfo
-            .newBuilder();
-        MLDataFormats.BatchedEntryDeletionIndexInfo.Builder batchDeletedIndexInfoBuilder = MLDataFormats.BatchedEntryDeletionIndexInfo
-            .newBuilder();
-        List<MLDataFormats.BatchedEntryDeletionIndexInfo> result = Lists.newArrayList();
-        Iterator<Map.Entry<PositionImpl, BitSetRecyclable>> iterator = batchDeletedIndexes.entrySet().iterator();
-        while (iterator.hasNext() && result.size() < config.getMaxBatchDeletedIndexToPersist()) {
-            Map.Entry<PositionImpl, BitSetRecyclable> entry = iterator.next();
-            nestedPositionBuilder.setLedgerId(entry.getKey().getLedgerId());
-            nestedPositionBuilder.setEntryId(entry.getKey().getEntryId());
-            batchDeletedIndexInfoBuilder.setPosition(nestedPositionBuilder.build());
-            long[] array = entry.getValue().toLongArray();
-            List<Long> deleteSet = new ArrayList<>(array.length);
-            for (long l : array) {
-                deleteSet.add(l);
+        lock.readLock().lock();
+        try {
+            if (!config.isDeletionAtBatchIndexLevelEnabled() || batchDeletedIndexes == null || batchDeletedIndexes.isEmpty()) {
+                return Collections.emptyList();
             }
-            batchDeletedIndexInfoBuilder.clearDeleteSet();
-            batchDeletedIndexInfoBuilder.addAllDeleteSet(deleteSet);
-            result.add(batchDeletedIndexInfoBuilder.build());
+            MLDataFormats.NestedPositionInfo.Builder nestedPositionBuilder = MLDataFormats.NestedPositionInfo
+                    .newBuilder();
+            MLDataFormats.BatchedEntryDeletionIndexInfo.Builder batchDeletedIndexInfoBuilder = MLDataFormats.BatchedEntryDeletionIndexInfo
+                    .newBuilder();
+            List<MLDataFormats.BatchedEntryDeletionIndexInfo> result = Lists.newArrayList();
+            Iterator<Map.Entry<PositionImpl, BitSetRecyclable>> iterator = batchDeletedIndexes.entrySet().iterator();
+            while (iterator.hasNext() && result.size() < config.getMaxBatchDeletedIndexToPersist()) {
+                Map.Entry<PositionImpl, BitSetRecyclable> entry = iterator.next();
+                nestedPositionBuilder.setLedgerId(entry.getKey().getLedgerId());
+                nestedPositionBuilder.setEntryId(entry.getKey().getEntryId());
+                batchDeletedIndexInfoBuilder.setPosition(nestedPositionBuilder.build());
+                long[] array = entry.getValue().toLongArray();
+                List<Long> deleteSet = new ArrayList<>(array.length);
+                for (long l : array) {
+                    deleteSet.add(l);
+                }
+                batchDeletedIndexInfoBuilder.clearDeleteSet();
+                batchDeletedIndexInfoBuilder.addAllDeleteSet(deleteSet);
+                result.add(batchDeletedIndexInfoBuilder.build());
+            }
+            return result;
+        } finally {
+            lock.readLock().unlock();
         }
-        return result;
     }
 
     void persistPositionToLedger(final LedgerHandle lh, MarkDeleteEntry mdEntry, final VoidCallback callback) {

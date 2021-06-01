@@ -48,7 +48,7 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     }
 
     @Override
-    public CompletableFuture<TransactionCoordinatorStats> getCoordinatorStatsById(int coordinatorId) {
+    public CompletableFuture<TransactionCoordinatorStats> getCoordinatorStatsByIdAsync(int coordinatorId) {
         WebTarget path = adminV3Transactions.path("coordinatorStats");
         path = path.queryParam("coordinatorId", coordinatorId);
         final CompletableFuture<TransactionCoordinatorStats> future = new CompletableFuture<>();
@@ -68,7 +68,22 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     }
 
     @Override
-    public CompletableFuture<Map<Integer, TransactionCoordinatorStats>> getCoordinatorStats() {
+    public TransactionCoordinatorStats getCoordinatorStatsById(int coordinatorId) throws PulsarAdminException {
+        try {
+            return getCoordinatorStatsByIdAsync(coordinatorId)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Map<Integer, TransactionCoordinatorStats>> getCoordinatorStatsAsync() {
         WebTarget path = adminV3Transactions.path("coordinatorStats");
         final CompletableFuture<Map<Integer, TransactionCoordinatorStats>> future = new CompletableFuture<>();
         asyncGetRequest(path,
@@ -87,11 +102,26 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     }
 
     @Override
-    public CompletableFuture<TransactionInBufferStats> getTransactionInBufferStats(TxnID txnID, String topic) {
+    public Map<Integer, TransactionCoordinatorStats> getCoordinatorStats() throws PulsarAdminException {
+        try {
+            return getCoordinatorStatsAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<TransactionInBufferStats> getTransactionInBufferStatsAsync(TxnID txnID, String topic) {
+        TopicName topicName = TopicName.get(topic);
         WebTarget path = adminV3Transactions.path("transactionInBufferStats");
-        path = path.queryParam("mostSigBits", txnID.getMostSigBits());
-        path = path.queryParam("leastSigBits", txnID.getLeastSigBits());
-        path = path.queryParam("topic", topic);
+        path = path.path(topicName.getRestPath(false));
+        path = path.path(txnID.getMostSigBits() + "");
+        path = path.path(txnID.getLeastSigBits() + "");
         final CompletableFuture<TransactionInBufferStats> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<TransactionInBufferStats>() {
@@ -109,13 +139,28 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     }
 
     @Override
-    public CompletableFuture<TransactionInPendingAckStats> getTransactionInPendingAckStats(TxnID txnID, String topic,
-                                                                                           String subName) {
+    public TransactionInBufferStats getTransactionInBufferStats(TxnID txnID, String topic) throws PulsarAdminException {
+        try {
+            return getTransactionInBufferStatsAsync(txnID, topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<TransactionInPendingAckStats> getTransactionInPendingAckStatsAsync(TxnID txnID,
+                                                                                                String topic,
+                                                                                                String subName) {
         WebTarget path = adminV3Transactions.path("transactionInPendingAckStats");
-        path = path.queryParam("mostSigBits", txnID.getMostSigBits());
-        path = path.queryParam("leastSigBits", txnID.getLeastSigBits());
-        path = path.queryParam("topic", topic);
-        path = path.queryParam("subName", subName);
+        path = path.path(TopicName.get(topic).getRestPath(false));
+        path = path.path(subName);
+        path = path.path(txnID.getMostSigBits() + "");
+        path = path.path(txnID.getLeastSigBits() + "");
         final CompletableFuture<TransactionInPendingAckStats> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<TransactionInPendingAckStats>() {
@@ -133,10 +178,26 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     }
 
     @Override
-    public CompletableFuture<TransactionMetadata> getTransactionMetadata(TxnID txnID) {
+    public TransactionInPendingAckStats getTransactionInPendingAckStats(TxnID txnID, String topic,
+                                                                        String subName) throws PulsarAdminException {
+        try {
+            return getTransactionInPendingAckStatsAsync(txnID, topic, subName)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<TransactionMetadata> getTransactionMetadataAsync(TxnID txnID) {
         WebTarget path = adminV3Transactions.path("transactionMetadata");
-        path = path.queryParam("mostSigBits", txnID.getMostSigBits());
-        path = path.queryParam("leastSigBits", txnID.getLeastSigBits());
+        path = path.path(txnID.getMostSigBits() + "");
+        path = path.path(txnID.getLeastSigBits() + "");
         final CompletableFuture<TransactionMetadata> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<TransactionMetadata>() {
@@ -154,9 +215,24 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     }
 
     @Override
-    public CompletableFuture<TransactionBufferStats> getTransactionBufferStats(String topic) {
+    public TransactionMetadata getTransactionMetadata(TxnID txnID) throws PulsarAdminException {
+        try {
+            return getTransactionMetadataAsync(txnID)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<TransactionBufferStats> getTransactionBufferStatsAsync(String topic) {
         WebTarget path = adminV3Transactions.path("transactionBufferStats");
-        path = path.queryParam("topic", topic);
+        path = path.path(TopicName.get(topic).getRestPath(false));
         final CompletableFuture<TransactionBufferStats> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<TransactionBufferStats>() {
@@ -174,10 +250,24 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     }
 
     @Override
-    public CompletableFuture<TransactionPendingAckStats> getPendingAckStats(String topic, String subName) {
+    public TransactionBufferStats getTransactionBufferStats(String topic) throws PulsarAdminException {
+        try {
+            return getTransactionBufferStatsAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<TransactionPendingAckStats> getPendingAckStatsAsync(String topic, String subName) {
         WebTarget path = adminV3Transactions.path("pendingAckStats");
-        path = path.queryParam("topic", topic);
-        path = path.queryParam("subName", subName);
+        path = path.path(TopicName.get(topic).getRestPath(false));
+        path = path.path(subName);
         final CompletableFuture<TransactionPendingAckStats> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<TransactionPendingAckStats>() {
@@ -192,6 +282,20 @@ public class TransactionsImpl extends BaseResource implements Transactions {
                     }
                 });
         return future;
+    }
+
+    @Override
+    public TransactionPendingAckStats getPendingAckStats(String topic, String subName) throws PulsarAdminException {
+        try {
+            return getPendingAckStatsAsync(topic, subName).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
     }
 
     @Override

@@ -57,4 +57,25 @@ public interface ClusterData {
     void setAuthenticationParameters(String authenticationParameters);
 
     void setPeerClusterNames(LinkedHashSet<String> peerClusterNames);
+
+    void setBrokerClientTlsEnabled(boolean enabled);
+    boolean isBrokerClientTlsEnabled();
+
+    void setTlsAllowInsecureConnection(boolean enabled);
+    boolean isTlsAllowInsecureConnection();
+
+    void setBrokerClientTlsEnabledWithKeyStore(boolean enabled);
+    boolean isBrokerClientTlsEnabledWithKeyStore();
+
+    void setBrokerClientTlsTrustStoreType(String trustStoreType);
+    String getBrokerClientTlsTrustStoreType();
+
+    void setBrokerClientTlsTrustStore(String tlsTrustStore);
+    String getBrokerClientTlsTrustStore();
+
+    void setBrokerClientTlsTrustStorePassword(String trustStorePassword);
+    String getBrokerClientTlsTrustStorePassword();
+
+    void setBrokerClientTrustCertsFilePath(String trustCertsFilePath);
+    String getBrokerClientTrustCertsFilePath();
 }
