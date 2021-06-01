@@ -51,7 +51,7 @@ public interface ConnectionController {
         private final int maxConnectionPerIp;
 
         private final static Map<String, MutableInt> CONNECTIONS = new HashMap<>();
-        private static int CURRENT_CONNECTION_NUM = 0;
+        private static int totalConnectionNum = 0;
         private final static Pattern IPV4_PATTERN = Pattern
                 .compile("^" + "(25[0-5]|2[0-4]\\d|[0-1]?\\d?\\d)" + "(\\.(25[0-5]|2[0-4]\\d|[0-1]?\\d?\\d)){3}" + "$");
 
@@ -75,13 +75,14 @@ public interface ConnectionController {
             try {
                 String ip = ((InetSocketAddress) remoteAddress).getHostString();
                 CONNECTIONS.putIfAbsent(ip, new MutableInt(0));
-                if (maxConnections > 0 && ++CURRENT_CONNECTION_NUM > maxConnections) {
+                if (maxConnections > 0 && ++totalConnectionNum > maxConnections) {
                     log.info("Reject connect request from {}, because reached the maximum number of connections {}",
-                            remoteAddress, CURRENT_CONNECTION_NUM);
+                            remoteAddress, totalConnectionNum);
                     return false;
                 }
                 if (maxConnectionPerIp > 0 && CONNECTIONS.get(ip).incrementAndGet() > maxConnectionPerIp) {
-                    log.info("Reject connect request from {}, because reached the maximum number of connections per Ip {}",
+                    log.info("Reject connect request from {}, because reached the maximum number "
+                                    + "of connections per Ip {}",
                             remoteAddress, CONNECTIONS.get(ip).getValue());
                     return false;
                 }
@@ -114,7 +115,7 @@ public interface ConnectionController {
                     CONNECTIONS.remove(ip);
                 }
                 if (maxConnections > 0) {
-                    CURRENT_CONNECTION_NUM--;
+                    totalConnectionNum--;
                 }
             } finally {
                 lock.unlock();
