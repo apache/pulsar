@@ -245,9 +245,10 @@ public class BrokerServiceTest extends BrokerTestBase {
         setup();
         final String topicName = "persistent://prop/ns-abc/connection" + UUID.randomUUID();
         ClientBuilder clientBuilder =
-                PulsarClient.builder().operationTimeout(2, TimeUnit.SECONDS)
-                        .connectionTimeout(2, TimeUnit.SECONDS)
+                PulsarClient.builder().operationTimeout(1, TimeUnit.DAYS)
+                        .connectionTimeout(1, TimeUnit.DAYS)
                         .serviceUrl(brokerUrl.toString());
+        long startTime = System.currentTimeMillis();
         @Cleanup
         PulsarClient client1 = clientBuilder.build();
         client1.newProducer().topic(topicName).create().close();
@@ -260,12 +261,14 @@ public class BrokerServiceTest extends BrokerTestBase {
             client3.newProducer().topic(topicName).create().close();
             fail("should fail");
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("Connection already closed"));
+            assertTrue(e.getMessage().contains("Reached the maximum number of connections"));
         }
+        assertTrue(System.currentTimeMillis() - startTime < 20 * 1000);
         cleanup();
         conf.setBrokerMaxConnections(2);
         conf.setBrokerMaxConnectionsPerIp(3);
         setup();
+        startTime = System.currentTimeMillis();
         clientBuilder.serviceUrl(brokerUrl.toString());
         @Cleanup
         PulsarClient client4 = clientBuilder.build();
@@ -279,8 +282,9 @@ public class BrokerServiceTest extends BrokerTestBase {
             client6.newProducer().topic(topicName).create().close();
             fail("should fail");
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("Connection already closed"));
+            assertTrue(e.getMessage().contains("Reached the maximum number of connections"));
         }
+        assertTrue(System.currentTimeMillis() - startTime < 20 * 1000);
     }
 
     @Test

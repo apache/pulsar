@@ -250,8 +250,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     @Override
     public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
         if (!connectionsLimiter.increaseConnection(ctx.channel().remoteAddress())) {
+            ctx.channel().writeAndFlush(Commands.newError(-1, ServerError.NotAllowedError
+                    , "Reached the maximum number of connections"));
             ctx.channel().close();
-            log.info("Reached the maximum number of connections {}", remoteAddress);
             return;
         }
         ctx.fireChannelRegistered();
