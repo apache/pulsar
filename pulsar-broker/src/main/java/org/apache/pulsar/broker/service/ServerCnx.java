@@ -189,7 +189,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private FeatureFlags features;
 
     private PulsarCommandSender commandSender;
-    final private ConnectionsLimiter connectionsLimiter;
+    final private ConnectionController connectionController;
 
     private static final KeySharedMeta emptyKeySharedMeta = new KeySharedMeta()
             .setKeySharedMode(KeySharedMode.AUTO_SPLIT);
@@ -244,13 +244,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         this.maxPendingBytesPerThread = conf.getMaxMessagePublishBufferSizeInMB() * 1024L * 1024L
                 / conf.getNumIOThreads();
         this.resumeThresholdPendingBytesPerThread = this.maxPendingBytesPerThread / 2;
-        this.connectionsLimiter = new ConnectionsLimiter(conf);
+        this.connectionController = new ConnectionController.DefaultConnectionController(conf);
     }
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         super.channelActive(ctx);
-        if (!connectionsLimiter.increaseConnection(remoteAddress)) {
+        if (!connectionController.increaseConnection(remoteAddress)) {
             ctx.channel().writeAndFlush(Commands.newError(-1, ServerError.NotAllowedError
                     , "Reached the maximum number of connections"));
             ctx.channel().close();
@@ -266,7 +266,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         super.channelInactive(ctx);
-        connectionsLimiter.decreaseConnection(ctx.channel().remoteAddress());
+        connectionController.decreaseConnection(ctx.channel().remoteAddress());
         isActive = false;
         log.info("Closed connection from {}", remoteAddress);
         BrokerInterceptor brokerInterceptor = getBrokerService().getInterceptor();
