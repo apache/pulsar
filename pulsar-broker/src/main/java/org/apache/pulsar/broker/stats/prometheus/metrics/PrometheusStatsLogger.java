@@ -24,7 +24,6 @@ import org.apache.bookkeeper.stats.Counter;
 import org.apache.bookkeeper.stats.Gauge;
 import org.apache.bookkeeper.stats.OpStatsLogger;
 import org.apache.bookkeeper.stats.StatsLogger;
-import org.apache.bookkeeper.stats.prometheus.LongAdderCounter;
 
 /**
  * A {@code Prometheus} based {@link StatsLogger} implementation.
@@ -34,7 +33,7 @@ public class PrometheusStatsLogger implements StatsLogger {
     private final PrometheusMetricsProvider provider;
     private final String scope;
 
-    PrometheusStatsLogger(PrometheusMetricsProvider provider, String scope) {
+    public PrometheusStatsLogger(PrometheusMetricsProvider provider, String scope) {
         this.provider = provider;
         this.scope = scope;
     }

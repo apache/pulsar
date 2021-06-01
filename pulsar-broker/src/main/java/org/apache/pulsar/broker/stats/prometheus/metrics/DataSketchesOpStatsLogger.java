@@ -55,7 +55,7 @@ public class DataSketchesOpStatsLogger implements OpStatsLogger {
     private final LongAdder successSumAdder = new LongAdder();
     private final LongAdder failSumAdder = new LongAdder();
 
-    DataSketchesOpStatsLogger() {
+    public DataSketchesOpStatsLogger() {
         this.current = new ThreadLocalAccessor();
         this.replacement = new ThreadLocalAccessor();
     }

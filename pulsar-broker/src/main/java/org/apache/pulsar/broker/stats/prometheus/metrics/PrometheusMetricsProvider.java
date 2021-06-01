@@ -24,7 +24,6 @@ import io.prometheus.client.Collector;
 import org.apache.bookkeeper.stats.CachingStatsProvider;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.stats.StatsProvider;
-import org.apache.bookkeeper.stats.prometheus.LongAdderCounter;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.lang.StringUtils;
 
@@ -53,9 +52,9 @@ public class PrometheusMetricsProvider implements StatsProvider {
     /**
      * These acts a registry of the metrics defined in this provider
      */
-    final ConcurrentMap<String, LongAdderCounter> counters = new ConcurrentSkipListMap<>();
-    final ConcurrentMap<String, SimpleGauge<? extends Number>> gauges = new ConcurrentSkipListMap<>();
-    final ConcurrentMap<String, DataSketchesOpStatsLogger> opStats = new ConcurrentSkipListMap<>();
+    public final ConcurrentMap<String, LongAdderCounter> counters = new ConcurrentSkipListMap<>();
+    public final ConcurrentMap<String, SimpleGauge<? extends Number>> gauges = new ConcurrentSkipListMap<>();
+    public final ConcurrentMap<String, DataSketchesOpStatsLogger> opStats = new ConcurrentSkipListMap<>();
 
     public PrometheusMetricsProvider() {
         this.cachingStatsProvider = new CachingStatsProvider(new StatsProvider() {
