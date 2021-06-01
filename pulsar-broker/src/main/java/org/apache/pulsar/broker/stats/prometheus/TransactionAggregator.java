@@ -109,7 +109,7 @@ public class TransactionAggregator {
         });
     }
 
-    private static void generateManageLedgerStats(ManagedLedger managedLedger,SimpleTextOutputStream stream,
+    private static void generateManageLedgerStats(ManagedLedger managedLedger, SimpleTextOutputStream stream,
                                                   String cluster, String namespace, String topic, String subscription) {
         ManagedLedgerStats managedLedgerStats = localManageLedgerStats.get();
         ManagedLedgerMBeanImpl mlStats = (ManagedLedgerMBeanImpl) managedLedger.getStats();
@@ -195,9 +195,9 @@ public class TransactionAggregator {
                 "pulsar_storage_write_latency_le_1000", latencyBuckets[8]);
         metric(stream, cluster, namespace, topic, subscription,
                 "pulsar_storage_write_latency_overflow", latencyBuckets[9]);
-        metric(stream, cluster, namespace, topic, subscription,"pulsar_storage_write_latency_count",
+        metric(stream, cluster, namespace, topic, subscription, "pulsar_storage_write_latency_count",
                 stats.storageWriteLatencyBuckets.getCount());
-        metric(stream, cluster, namespace, topic, subscription,"pulsar_storage_write_latency_sum",
+        metric(stream, cluster, namespace, topic, subscription, "pulsar_storage_write_latency_sum",
                 stats.storageWriteLatencyBuckets.getSum());
 
         stats.storageLedgerWriteLatencyBuckets.refresh();
@@ -220,24 +220,24 @@ public class TransactionAggregator {
                 "pulsar_storage_ledger_write_latency_le_200", ledgerWritelatencyBuckets[7]);
         metric(stream, cluster, namespace, topic, subscription,
                 "pulsar_storage_ledger_write_latency_le_1000", ledgerWritelatencyBuckets[8]);
-        metric(stream, cluster, namespace, topic, subscription,"pulsar_storage_ledger_write_latency_overflow",
+        metric(stream, cluster, namespace, topic, subscription, "pulsar_storage_ledger_write_latency_overflow",
                 ledgerWritelatencyBuckets[9]);
-        metric(stream, cluster, namespace, topic, subscription,"pulsar_storage_ledger_write_latency_count",
+        metric(stream, cluster, namespace, topic, subscription, "pulsar_storage_ledger_write_latency_count",
                 stats.storageLedgerWriteLatencyBuckets.getCount());
-        metric(stream, cluster, namespace, topic, subscription,"pulsar_storage_ledger_write_latency_sum",
+        metric(stream, cluster, namespace, topic, subscription, "pulsar_storage_ledger_write_latency_sum",
                 stats.storageLedgerWriteLatencyBuckets.getSum());
 
         stats.entrySizeBuckets.refresh();
         long[] entrySizeBuckets = stats.entrySizeBuckets.getBuckets();
-        metric(stream, cluster, namespace, topic, subscription,"pulsar_entry_size_le_128", entrySizeBuckets[0]);
-        metric(stream, cluster, namespace, topic, subscription,"pulsar_entry_size_le_512", entrySizeBuckets[1]);
-        metric(stream, cluster, namespace, topic, subscription,"pulsar_entry_size_le_1_kb", entrySizeBuckets[2]);
-        metric(stream, cluster, namespace, topic, subscription,"pulsar_entry_size_le_2_kb", entrySizeBuckets[3]);
-        metric(stream, cluster, namespace, topic, subscription,"pulsar_entry_size_le_4_kb", entrySizeBuckets[4]);
-        metric(stream, cluster, namespace, topic, subscription,"pulsar_entry_size_le_16_kb", entrySizeBuckets[5]);
+        metric(stream, cluster, namespace, topic, subscription, "pulsar_entry_size_le_128", entrySizeBuckets[0]);
+        metric(stream, cluster, namespace, topic, subscription, "pulsar_entry_size_le_512", entrySizeBuckets[1]);
+        metric(stream, cluster, namespace, topic, subscription, "pulsar_entry_size_le_1_kb", entrySizeBuckets[2]);
+        metric(stream, cluster, namespace, topic, subscription, "pulsar_entry_size_le_2_kb", entrySizeBuckets[3]);
+        metric(stream, cluster, namespace, topic, subscription, "pulsar_entry_size_le_4_kb", entrySizeBuckets[4]);
+        metric(stream, cluster, namespace, topic, subscription, "pulsar_entry_size_le_16_kb", entrySizeBuckets[5]);
         metric(stream, cluster, namespace, topic, subscription,
                 "pulsar_entry_size_le_100_kb", entrySizeBuckets[6]);
-        metric(stream, cluster, namespace, topic, subscription,"pulsar_entry_size_le_1_mb", entrySizeBuckets[7]);
+        metric(stream, cluster, namespace, topic, subscription, "pulsar_entry_size_le_1_mb", entrySizeBuckets[7]);
         metric(stream, cluster, namespace, topic, subscription,
                 "pulsar_entry_size_le_overflow", entrySizeBuckets[8]);
         metric(stream, cluster, namespace, topic, subscription,
