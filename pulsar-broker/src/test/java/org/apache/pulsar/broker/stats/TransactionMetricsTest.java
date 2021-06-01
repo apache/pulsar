@@ -19,15 +19,25 @@
 package org.apache.pulsar.broker.stats;
 
 import com.google.common.collect.Multimap;
+import com.google.common.collect.Sets;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.TxnAction;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
+import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -41,6 +51,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.apache.pulsar.broker.stats.PrometheusMetricsTest.parseMetrics;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 public class TransactionMetricsTest extends BrokerTestBase {
 
@@ -176,5 +187,65 @@ public class TransactionMetricsTest extends BrokerTestBase {
         assertEquals(metric.size(), 1);
         metric.forEach(item -> assertEquals(item.value, 1));
 
+    }
+
+    @Test
+    public void testManagedLedgerMetrics() throws Exception{
+        String ns1 = "prop/ns-abc1";
+        admin.namespaces().createNamespace(ns1);
+        String topic = "persistent://" + ns1 + "/test_managed_ledger_metrics";
+        String subName = "test_managed_ledger_metrics";
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
+                new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
+        admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
+        admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), 1);
+        TransactionCoordinatorID transactionCoordinatorIDOne = TransactionCoordinatorID.get(0);
+        pulsar.getTransactionMetadataStoreService().addTransactionMetadataStore(transactionCoordinatorIDOne);
+        admin.topics().createSubscription(topic, subName, MessageId.earliest);
+        Awaitility.await().atMost(2000,  TimeUnit.MILLISECONDS).until(() ->
+                pulsar.getTransactionMetadataStoreService().getStores().size() == 1);
+
+        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).enableTransaction(true).build();
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .receiverQueueSize(10)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .create();
+
+        Transaction transaction =
+                pulsarClient.newTransaction().withTransactionTimeout(10, TimeUnit.SECONDS).build().get();
+        producer.send("hello pulsar".getBytes());
+        consumer.acknowledgeAsync(consumer.receive().getMessageId(), transaction).get();
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, false, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+
+        Multimap<String, PrometheusMetricsTest.Metric> metrics = parseMetrics(metricsStr);
+
+        Collection<PrometheusMetricsTest.Metric> metric = metrics.get("pulsar_storage_size");
+        checkManagedLedgerMetrics(subName, 32, metric);
+        checkManagedLedgerMetrics(MLTransactionLogImpl.TRANSACTION_SUBSCRIPTION_NAME, 252, metric);
+
+        metric = metrics.get("pulsar_storage_backlog_size");
+        checkManagedLedgerMetrics(subName, 16, metric);
+        checkManagedLedgerMetrics(MLTransactionLogImpl.TRANSACTION_SUBSCRIPTION_NAME, 126, metric);
+    }
+
+    private void checkManagedLedgerMetrics(String tag, double value, Collection<PrometheusMetricsTest.Metric> metrics) {
+        boolean exist = false;
+        for (PrometheusMetricsTest.Metric metric1 : metrics) {
+            if (metric1.tags.containsValue(tag)) {
+                assertEquals(metric1.value, value);
+                exist = true;
+            }
+        }
+
+        assertTrue(exist);
     }
 }
