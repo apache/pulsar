@@ -51,7 +51,7 @@ public interface ConnectionController {
         private final int maxConnectionPerIp;
 
         private final static Map<String, MutableInt> CONNECTIONS = new HashMap<>();
-        private final static MutableInt CURRENT_CONNECTION_NUM = new MutableInt(0);
+        private static int CURRENT_CONNECTION_NUM = 0;
         private final static Pattern IPV4_PATTERN = Pattern
                 .compile("^" + "(25[0-5]|2[0-4]\\d|[0-1]?\\d?\\d)" + "(\\.(25[0-5]|2[0-4]\\d|[0-1]?\\d?\\d)){3}" + "$");
 
@@ -75,9 +75,9 @@ public interface ConnectionController {
             try {
                 String ip = ((InetSocketAddress) remoteAddress).getHostString();
                 CONNECTIONS.putIfAbsent(ip, new MutableInt(0));
-                if (maxConnections > 0 && CURRENT_CONNECTION_NUM.incrementAndGet() > maxConnections) {
+                if (maxConnections > 0 && ++CURRENT_CONNECTION_NUM > maxConnections) {
                     log.info("Reject connect request from {}, because reached the maximum number of connections {}",
-                            remoteAddress, CURRENT_CONNECTION_NUM.getValue());
+                            remoteAddress, CURRENT_CONNECTION_NUM);
                     return false;
                 }
                 if (maxConnectionPerIp > 0 && CONNECTIONS.get(ip).incrementAndGet() > maxConnectionPerIp) {
@@ -114,7 +114,7 @@ public interface ConnectionController {
                     CONNECTIONS.remove(ip);
                 }
                 if (maxConnections > 0) {
-                    CURRENT_CONNECTION_NUM.decrement();
+                    CURRENT_CONNECTION_NUM--;
                 }
             } finally {
                 lock.unlock();
