@@ -73,6 +73,7 @@ import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.policies.data.BookiesClusterInfo;
 import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 import org.apache.pulsar.common.policies.data.BundlesData;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
@@ -256,7 +257,7 @@ public class PulsarAdminToolTest {
         clusters.run(split("create my-tls-cluster --url-secure https://my-service.url:4443 --tls-enable "
                 + "--tls-enable-keystore --tls-trust-store-type JKS --tls-trust-store /var/private/tls/client.truststore.jks "
                 + "--tls-trust-store-pwd clientpw"));
-        ClusterData data = new ClusterData(null, "https://my-service.url:4443");
+        ClusterData data = new ClusterDataImpl(null, "https://my-service.url:4443");
         data.setBrokerClientTlsEnabled(true)
                 .setBrokerClientTlsEnabledWithKeyStore(true)
                 .setBrokerClientTlsTrustStoreType("JKS")

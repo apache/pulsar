@@ -26,56 +26,56 @@ public interface ClusterData {
 
     String getServiceUrlTls();
 
-    void setServiceUrl(String serviceUrl);
+    ClusterData setServiceUrl(String serviceUrl);
 
-    void setServiceUrlTls(String serviceUrlTls);
+    ClusterData setServiceUrlTls(String serviceUrlTls);
 
     String getBrokerServiceUrl();
 
-    void setBrokerServiceUrl(String brokerServiceUrl);
+    ClusterData setBrokerServiceUrl(String brokerServiceUrl);
 
     String getBrokerServiceUrlTls();
 
-    void setBrokerServiceUrlTls(String brokerServiceUrlTls);
+    ClusterData setBrokerServiceUrlTls(String brokerServiceUrlTls);
 
     String getProxyServiceUrl();
 
-    void setProxyServiceUrl(String proxyServiceUrl);
+    ClusterData setProxyServiceUrl(String proxyServiceUrl);
 
     ProxyProtocol getProxyProtocol();
 
-    void setProxyProtocol(ProxyProtocol proxyProtocol);
+    ClusterData setProxyProtocol(ProxyProtocol proxyProtocol);
 
     LinkedHashSet<String> getPeerClusterNames();
 
     String getAuthenticationPlugin();
 
-    void setAuthenticationPlugin(String authenticationPlugin);
+    ClusterData setAuthenticationPlugin(String authenticationPlugin);
 
     String getAuthenticationParameters();
 
-    void setAuthenticationParameters(String authenticationParameters);
+    ClusterData setAuthenticationParameters(String authenticationParameters);
 
-    void setPeerClusterNames(LinkedHashSet<String> peerClusterNames);
+    ClusterData setPeerClusterNames(LinkedHashSet<String> peerClusterNames);
 
-    void setBrokerClientTlsEnabled(boolean enabled);
+    ClusterData setBrokerClientTlsEnabled(boolean enabled);
     boolean isBrokerClientTlsEnabled();
 
-    void setTlsAllowInsecureConnection(boolean enabled);
+    ClusterData setTlsAllowInsecureConnection(boolean enabled);
     boolean isTlsAllowInsecureConnection();
 
-    void setBrokerClientTlsEnabledWithKeyStore(boolean enabled);
+    ClusterData setBrokerClientTlsEnabledWithKeyStore(boolean enabled);
     boolean isBrokerClientTlsEnabledWithKeyStore();
 
-    void setBrokerClientTlsTrustStoreType(String trustStoreType);
+    ClusterData setBrokerClientTlsTrustStoreType(String trustStoreType);
     String getBrokerClientTlsTrustStoreType();
 
-    void setBrokerClientTlsTrustStore(String tlsTrustStore);
+    ClusterData setBrokerClientTlsTrustStore(String tlsTrustStore);
     String getBrokerClientTlsTrustStore();
 
-    void setBrokerClientTlsTrustStorePassword(String trustStorePassword);
+    ClusterData setBrokerClientTlsTrustStorePassword(String trustStorePassword);
     String getBrokerClientTlsTrustStorePassword();
 
-    void setBrokerClientTrustCertsFilePath(String trustCertsFilePath);
+    ClusterData setBrokerClientTrustCertsFilePath(String trustCertsFilePath);
     String getBrokerClientTrustCertsFilePath();
 }
