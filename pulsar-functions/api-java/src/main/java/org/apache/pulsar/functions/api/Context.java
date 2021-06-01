@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.api;
 
+import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -39,6 +40,20 @@ import org.apache.pulsar.common.classification.InterfaceStability;
 @InterfaceAudience.Public
 @InterfaceStability.Stable
 public interface Context extends BaseContext {
+    /**
+     * Get a list of all input topics.
+     *
+     * @return a list of all input topics
+     */
+    Collection<String> getInputTopics();
+
+    /**
+     * Get the output topic of the source.
+     *
+     * @return output topic name
+     */
+    String getOutputTopic();
+
     /**
      * Access the record associated with the current input value.
      *
