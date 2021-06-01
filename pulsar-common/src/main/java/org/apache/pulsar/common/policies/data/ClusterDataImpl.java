@@ -24,6 +24,7 @@ import io.swagger.annotations.ApiModelProperty;
 import java.util.LinkedHashSet;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Data;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -37,8 +38,7 @@ import org.apache.pulsar.client.api.ProxyProtocol;
         value = "ClusterData",
         description = "The configuration data for a cluster"
 )
-@Getter
-@Setter
+@Data
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
