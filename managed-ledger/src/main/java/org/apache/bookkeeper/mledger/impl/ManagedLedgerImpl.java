@@ -36,6 +36,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
+import io.netty.util.ReferenceCountUtil;
 import java.time.Clock;
 import java.util.Collections;
 import java.util.HashMap;
@@ -1399,6 +1400,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 if (existsOp.ledger != null) {
                     existsOp.close();
                     existsOp = OpAddEntry.create(existsOp.ml, existsOp.data, existsOp.callback, existsOp.ctx);
+                    // release the extra retain
+                    ReferenceCountUtil.release(existsOp.data);
                 }
                 existsOp.setLedger(currentLedger);
                 pendingAddEntries.add(existsOp);
