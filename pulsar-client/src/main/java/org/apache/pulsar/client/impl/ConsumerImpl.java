@@ -332,7 +332,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             } else {
                 this.deadLetterPolicy = DeadLetterPolicy.builder()
                         .maxRedeliverCount(conf.getDeadLetterPolicy().getMaxRedeliverCount())
-                        .deadLetterTopic(String.format("%s-%s" + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX, topic, subscription))
+                        .deadLetterTopic(String.format("%s-%s" + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX, topic,
+                                StringUtils.replace(subscription, "/", "-")))
                         .build();
             }
 
@@ -340,7 +341,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 this.deadLetterPolicy.setRetryLetterTopic(conf.getDeadLetterPolicy().getRetryLetterTopic());
             } else {
                 this.deadLetterPolicy.setRetryLetterTopic(String.format("%s-%s" + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX,
-                        topic, subscription));
+                        topic, StringUtils.replace(subscription, "/", "-")));
             }
 
         } else {
