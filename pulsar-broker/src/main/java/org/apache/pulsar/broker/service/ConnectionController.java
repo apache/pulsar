@@ -47,15 +47,14 @@ public interface ConnectionController {
 
     class DefaultConnectionController implements ConnectionController {
         private static final Logger log = LoggerFactory.getLogger(DefaultConnectionController.class);
+        private static final Map<String, MutableInt> CONNECTIONS = new HashMap<>();
+        private static final Pattern IPV4_PATTERN = Pattern
+                .compile("^" + "(25[0-5]|2[0-4]\\d|[0-1]?\\d?\\d)" + "(\\.(25[0-5]|2[0-4]\\d|[0-1]?\\d?\\d)){3}" + "$");
+        private static final ReentrantLock lock = new ReentrantLock();
+        private static int totalConnectionNum = 0;
+
         private final int maxConnections;
         private final int maxConnectionPerIp;
-
-        private final static Map<String, MutableInt> CONNECTIONS = new HashMap<>();
-        private static int totalConnectionNum = 0;
-        private final static Pattern IPV4_PATTERN = Pattern
-                .compile("^" + "(25[0-5]|2[0-4]\\d|[0-1]?\\d?\\d)" + "(\\.(25[0-5]|2[0-4]\\d|[0-1]?\\d?\\d)){3}" + "$");
-
-        private final static ReentrantLock lock = new ReentrantLock();
 
         public DefaultConnectionController(ServiceConfiguration configuration) {
             this.maxConnections = configuration.getBrokerMaxConnections();
@@ -74,13 +73,18 @@ public interface ConnectionController {
             lock.lock();
             try {
                 String ip = ((InetSocketAddress) remoteAddress).getHostString();
-                CONNECTIONS.putIfAbsent(ip, new MutableInt(0));
-                if (maxConnections > 0 && ++totalConnectionNum > maxConnections) {
+                if (maxConnectionPerIp > 0) {
+                    CONNECTIONS.computeIfAbsent(ip, (x) -> new MutableInt(0)).increment();
+                }
+                if (maxConnections > 0) {
+                    totalConnectionNum++;
+                }
+                if (maxConnections > 0 && totalConnectionNum > maxConnections) {
                     log.info("Reject connect request from {}, because reached the maximum number of connections {}",
                             remoteAddress, totalConnectionNum);
                     return false;
                 }
-                if (maxConnectionPerIp > 0 && CONNECTIONS.get(ip).incrementAndGet() > maxConnectionPerIp) {
+                if (maxConnectionPerIp > 0 && CONNECTIONS.get(ip).getValue() > maxConnectionPerIp) {
                     log.info("Reject connect request from {}, because reached the maximum number "
                                     + "of connections per Ip {}",
                             remoteAddress, CONNECTIONS.get(ip).getValue());
@@ -107,11 +111,7 @@ public interface ConnectionController {
             try {
                 String ip = ((InetSocketAddress) remoteAddress).getHostString();
                 MutableInt mutableInt = CONNECTIONS.get(ip);
-                if (mutableInt == null) {
-                    CONNECTIONS.remove(ip);
-                    return;
-                }
-                if (maxConnectionPerIp > 0 && mutableInt.decrementAndGet() <= 0) {
+                if (maxConnectionPerIp > 0 && mutableInt != null && mutableInt.decrementAndGet() <= 0) {
                     CONNECTIONS.remove(ip);
                 }
                 if (maxConnections > 0) {

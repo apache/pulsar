@@ -189,7 +189,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private FeatureFlags features;
 
     private PulsarCommandSender commandSender;
-    final private ConnectionController connectionController;
+    private final ConnectionController connectionController;
 
     private static final KeySharedMeta emptyKeySharedMeta = new KeySharedMeta()
             .setKeySharedMode(KeySharedMode.AUTO_SPLIT);
