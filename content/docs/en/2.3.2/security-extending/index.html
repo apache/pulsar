@@ -107,7 +107,7 @@ type of connection or by passing a certificate chain to use for TLS.</p>
 passed by the client. Broker can support multiple authentication providers
 at the same time.</p>
 <p>In <code>conf/broker.conf</code> it's possible to specify a list of valid providers:</p>
-<pre><code class="hljs css language-properties"><span class="hljs-comment"># Autentication provider name list, which is comma separated list of class names</span>
+<pre><code class="hljs css language-properties"><span class="hljs-comment"># Authentication provider name list, which is comma separated list of class names</span>
 <span class="hljs-attr">authenticationProviders</span>=<span class="hljs-string"></span>
 </code></pre>
 <p>There is one single interface to implement <code>org.apache.pulsar.broker.authentication.AuthenticationProvider</code>:</p>
