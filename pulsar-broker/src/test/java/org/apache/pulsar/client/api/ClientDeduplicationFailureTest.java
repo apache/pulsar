@@ -46,9 +46,9 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.testng.annotations.AfterMethod;
@@ -106,7 +106,7 @@ public class ClientDeduplicationFailureTest {
         primaryHost = pulsar.getWebServiceAddress();
 
         // update cluster metadata
-        ClusterData clusterData = new ClusterData(url.toString());
+        ClusterDataImpl clusterData = new ClusterDataImpl(url.toString());
         admin.clusters().createCluster(config.getClusterName(), clusterData);
 
         if (pulsarClient != null) {
@@ -115,7 +115,7 @@ public class ClientDeduplicationFailureTest {
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).maxBackoffInterval(1, TimeUnit.SECONDS);
         pulsarClient = clientBuilder.build();
 
-        TenantInfo tenantInfo = new TenantInfo();
+        TenantInfoImpl tenantInfo = new TenantInfoImpl();
         tenantInfo.setAllowedClusters(Sets.newHashSet(Lists.newArrayList("use")));
         admin.tenants().createTenant(tenant, tenantInfo);
     }

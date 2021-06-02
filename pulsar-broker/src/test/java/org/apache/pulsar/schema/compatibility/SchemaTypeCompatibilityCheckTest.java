@@ -29,9 +29,9 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.schema.Schemas;
 import org.testng.annotations.AfterClass;
@@ -60,9 +60,9 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
         super.internalSetup();
 
         // Setup namespaces
-        admin.clusters().createCluster(CLUSTER_NAME, new ClusterData(pulsar.getBrokerServiceUrl()));
+        admin.clusters().createCluster(CLUSTER_NAME, new ClusterDataImpl(pulsar.getBrokerServiceUrl()));
 
-        TenantInfo tenantInfo = new TenantInfo();
+        TenantInfoImpl tenantInfo = new TenantInfoImpl();
         tenantInfo.setAllowedClusters(Collections.singleton(CLUSTER_NAME));
         admin.tenants().createTenant(PUBLIC_TENANT, tenantInfo);
         admin.namespaces().createNamespace(namespaceName, Sets.newHashSet(CLUSTER_NAME));

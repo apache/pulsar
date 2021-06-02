@@ -212,7 +212,8 @@ public interface Sources {
      * @param updateOptions
      *            options for the update operations
      */
-    CompletableFuture<Void> updateSourceAsync(SourceConfig sourceConfig, String fileName, UpdateOptions updateOptions);
+    CompletableFuture<Void> updateSourceAsync(SourceConfig sourceConfig, String fileName,
+                                              UpdateOptions updateOptions);
 
     /**
      * Update the configuration for a source.

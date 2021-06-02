@@ -36,7 +36,7 @@ import org.apache.pulsar.broker.resources.MetadataStoreCacheLoader;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
@@ -132,7 +132,7 @@ public class BrokerDiscoveryProvider implements Closeable {
         if (!service.getAuthorizationService().canLookup(topicName, role, authenticationData)) {
             LOG.warn("[{}] Role {} is not allowed to lookup topic", topicName, role);
             // check namespace authorization
-            TenantInfo tenantInfo;
+            TenantInfoImpl tenantInfo;
             try {
                 tenantInfo = service.getConfigurationCacheService().propertiesCache()
                         .get(path(POLICIES, topicName.getTenant()))

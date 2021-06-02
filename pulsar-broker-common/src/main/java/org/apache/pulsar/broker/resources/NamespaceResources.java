@@ -24,7 +24,7 @@ import java.util.Optional;
 import lombok.Getter;
 
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
-import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -43,14 +43,14 @@ public class NamespaceResources extends BaseResources<Policies> {
         partitionedTopicResources = new PartitionedTopicResources(configurationStore, operationTimeoutSec);
     }
 
-    public static class IsolationPolicyResources extends BaseResources<Map<String, NamespaceIsolationData>> {
+    public static class IsolationPolicyResources extends BaseResources<Map<String, NamespaceIsolationDataImpl>> {
         public IsolationPolicyResources(MetadataStoreExtended store, int operationTimeoutSec) {
-            super(store, new TypeReference<Map<String, NamespaceIsolationData>>() {
+            super(store, new TypeReference<Map<String, NamespaceIsolationDataImpl>>() {
             }, operationTimeoutSec);
         }
 
         public Optional<NamespaceIsolationPolicies> getPolicies(String path) throws MetadataStoreException {
-            Optional<Map<String, NamespaceIsolationData>> data = super.get(path);
+            Optional<Map<String, NamespaceIsolationDataImpl>> data = super.get(path);
             return data.isPresent() ? Optional.of(new NamespaceIsolationPolicies(data.get())) : Optional.empty();
         }
     }

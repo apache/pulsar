@@ -52,7 +52,7 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
@@ -126,7 +126,7 @@ public class PulsarFunctionTlsTest {
         Tenants tenants = mock(Tenants.class);
         when(admin.tenants()).thenReturn(tenants);
         Set<String> admins = Sets.newHashSet("superUser", "admin");
-        TenantInfo tenantInfo = new TenantInfo(admins, null);
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(admins, null);
         when(tenants.getTenantInfo(any())).thenReturn(tenantInfo);
         Namespaces namespaces = mock(Namespaces.class);
         when(admin.namespaces()).thenReturn(namespaces);

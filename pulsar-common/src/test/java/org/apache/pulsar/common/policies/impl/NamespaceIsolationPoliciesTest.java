@@ -37,10 +37,10 @@ import com.fasterxml.jackson.core.type.TypeReference;
 
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.NamespaceIsolationPolicy;
-import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
+import org.apache.pulsar.common.policies.data.AutoFailoverPolicyDataImpl;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.BrokerStatus;
-import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.annotations.Test;
 
@@ -67,14 +67,14 @@ public class NamespaceIsolationPoliciesTest {
         byte[] outJson = jsonMapperForWriter.writeValueAsBytes(policies.getPolicies());
         assertEquals(new String(outJson), this.defaultJson);
 
-        NamespaceIsolationData nsPolicyData = new NamespaceIsolationData();
+        NamespaceIsolationDataImpl nsPolicyData = new NamespaceIsolationDataImpl();
         nsPolicyData.namespaces = new ArrayList<>();
         nsPolicyData.namespaces.add("other/use/other.*");
         nsPolicyData.primary = new ArrayList<>();
         nsPolicyData.primary.add("prod1-broker[4-6].messaging.use.example.com");
         nsPolicyData.secondary = new ArrayList<>();
         nsPolicyData.secondary.add("prod1-broker.*.messaging.use.example.com");
-        nsPolicyData.auto_failover_policy = new AutoFailoverPolicyData();
+        nsPolicyData.auto_failover_policy = new AutoFailoverPolicyDataImpl();
         nsPolicyData.auto_failover_policy.policy_type = AutoFailoverPolicyType.min_available;
         nsPolicyData.auto_failover_policy.parameters = new HashMap<>();
         nsPolicyData.auto_failover_policy.parameters.put("min_limit", "1");
@@ -82,8 +82,8 @@ public class NamespaceIsolationPoliciesTest {
         policies.setPolicy("otherPolicy", nsPolicyData);
         byte[] morePolicyJson = jsonMapperForWriter.writeValueAsBytes(policies.getPolicies());
         ObjectMapper jsonParser = ObjectMapperFactory.create();
-        Map<String, NamespaceIsolationData> policiesMap = jsonParser.readValue(morePolicyJson,
-                new TypeReference<Map<String, NamespaceIsolationData>>() {
+        Map<String, NamespaceIsolationDataImpl> policiesMap = jsonParser.readValue(morePolicyJson,
+                new TypeReference<Map<String, NamespaceIsolationDataImpl>>() {
                 });
         assertEquals(policiesMap.size(), 2);
     }
@@ -134,8 +134,8 @@ public class NamespaceIsolationPoliciesTest {
         String newPolicyJson = "{\"namespaces\":[\"pulsar/use/TESTNS.*\"],\"primary\":[\"prod1-broker[45].messaging.use.example.com\"],\"secondary\":[\"prod1-broker.*.use.example.com\"],\"auto_failover_policy\":{\"policy_type\":\"min_available\",\"parameters\":{\"min_limit\":2,\"usage_threshold\":80}}}";
         String newPolicyName = "policy2";
         ObjectMapper jsonMapper = ObjectMapperFactory.create();
-        NamespaceIsolationData nsPolicyData = jsonMapper.readValue(newPolicyJson.getBytes(),
-                NamespaceIsolationData.class);
+        NamespaceIsolationDataImpl nsPolicyData = jsonMapper.readValue(newPolicyJson.getBytes(),
+                NamespaceIsolationDataImpl.class);
         policies.setPolicy(newPolicyName, nsPolicyData);
 
         assertEquals(policies.getPolicies().size(), 2);
@@ -149,7 +149,7 @@ public class NamespaceIsolationPoliciesTest {
     private NamespaceIsolationPolicies getDefaultTestPolicies() throws Exception {
         ObjectMapper jsonMapper = ObjectMapperFactory.create();
         return new NamespaceIsolationPolicies(jsonMapper
-                .readValue(this.defaultJson.getBytes(), new TypeReference<Map<String, NamespaceIsolationData>>() {
+                .readValue(this.defaultJson.getBytes(), new TypeReference<Map<String, NamespaceIsolationDataImpl>>() {
                 }));
     }
 

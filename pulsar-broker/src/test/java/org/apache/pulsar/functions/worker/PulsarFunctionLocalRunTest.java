@@ -73,11 +73,11 @@ import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.nar.NarClassLoader;
-import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -250,7 +250,7 @@ public class PulsarFunctionLocalRunTest {
         primaryHost = pulsar.getWebServiceAddress();
 
         // create cluster metadata
-        ClusterData clusterData = new ClusterData(urlTls.toString());
+        ClusterDataImpl clusterData = new ClusterDataImpl(urlTls.toString());
         admin.clusters().createCluster(config.getClusterName(), clusterData);
 
         ClientBuilder clientBuilder = PulsarClient.builder()
@@ -268,7 +268,7 @@ public class PulsarFunctionLocalRunTest {
         }
         pulsarClient = clientBuilder.build();
 
-        TenantInfo propAdmin = new TenantInfo();
+        TenantInfoImpl propAdmin = new TenantInfoImpl();
         propAdmin.getAdminRoles().add("superUser");
         propAdmin.setAllowedClusters(Sets.newHashSet(Lists.newArrayList(CLUSTER)));
         admin.tenants().createTenant(tenant, propAdmin);

@@ -59,7 +59,7 @@ import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.nar.NarClassLoader;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
@@ -122,7 +122,7 @@ public class SourceApiV3ResourceTest {
     private Tenants mockedTenants;
     private Namespaces mockedNamespaces;
     private Functions mockedFunctions;
-    private TenantInfo mockedTenantInfo;
+    private TenantInfoImpl mockedTenantInfo;
     private List<String> namespaceList = new LinkedList<>();
     private FunctionMetaDataManager mockedManager;
     private FunctionRuntimeManager mockedFunctionRunTimeManager;
@@ -160,7 +160,7 @@ public class SourceApiV3ResourceTest {
         this.mockedNamespace = mock(Namespace.class);
         this.mockedFormData = mock(FormDataContentDisposition.class);
         when(mockedFormData.getFileName()).thenReturn("test");
-        this.mockedTenantInfo = mock(TenantInfo.class);
+        this.mockedTenantInfo = mock(TenantInfoImpl.class);
         this.mockedPulsarAdmin = mock(PulsarAdmin.class);
         this.mockedTenants = mock(Tenants.class);
         this.mockedNamespaces = mock(Namespaces.class);

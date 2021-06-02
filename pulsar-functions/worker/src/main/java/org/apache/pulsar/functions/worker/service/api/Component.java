@@ -27,8 +27,8 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
 import org.apache.pulsar.common.io.ConnectorDefinition;
-import org.apache.pulsar.common.policies.data.FunctionStats;
-import org.apache.pulsar.common.policies.data.FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData;
+import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataImpl;
+import org.apache.pulsar.common.policies.data.FunctionStatsImpl;
 import org.apache.pulsar.functions.worker.WorkerService;
 
 /**
@@ -93,20 +93,20 @@ public interface Component<W extends WorkerService> {
                                   final String clientRole,
                                   final AuthenticationDataSource clientAuthenticationDataHttps);
 
-    FunctionStats getFunctionStats(final String tenant,
-                                   final String namespace,
-                                   final String componentName,
-                                   final URI uri,
-                                   final String clientRole,
-                                   final AuthenticationDataSource clientAuthenticationDataHttps);
+    FunctionStatsImpl getFunctionStats(final String tenant,
+                                       final String namespace,
+                                       final String componentName,
+                                       final URI uri,
+                                       final String clientRole,
+                                       final AuthenticationDataSource clientAuthenticationDataHttps);
 
-    FunctionInstanceStatsData getFunctionsInstanceStats(final String tenant,
-                                                        final String namespace,
-                                                        final String componentName,
-                                                        final String instanceId,
-                                                        final URI uri,
-                                                        final String clientRole,
-                                                        final AuthenticationDataSource clientAuthenticationDataHttps);
+    FunctionInstanceStatsDataImpl getFunctionsInstanceStats(final String tenant,
+                                                            final String namespace,
+                                                            final String componentName,
+                                                            final String instanceId,
+                                                            final URI uri,
+                                                            final String clientRole,
+                                                            final AuthenticationDataSource clientAuthenticationDataHttps);
 
     String triggerFunction(final String tenant,
                            final String namespace,

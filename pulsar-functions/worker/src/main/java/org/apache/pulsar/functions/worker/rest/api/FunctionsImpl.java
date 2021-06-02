@@ -47,7 +47,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.common.functions.UpdateOptions;
+import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.ExceptionInformation;
@@ -255,7 +255,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
                                final FunctionConfig functionConfig,
                                final String clientRole,
                                AuthenticationDataHttps clientAuthenticationDataHttps,
-                               UpdateOptions updateOptions) {
+                               UpdateOptionsImpl updateOptions) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();

@@ -32,7 +32,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -62,7 +62,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
 
         String tenantName = UUID.randomUUID().toString();
 
-        TenantInfo tenantInfo = createDefaultTenantInfo();
+        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant(tenantName, tenantInfo);
 
         String topicName = String.format("persistent://%s/ns/topic-scale-ns-0/topic", tenantName);

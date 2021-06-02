@@ -168,8 +168,9 @@ public class TestPulsarMetadata extends TestPulsarConnector {
     @Test(dataProvider = "rewriteNamespaceDelimiter", singleThreaded = true)
     public void testGetTableMetadataTableNoSchema(String delimiter) throws PulsarAdminException {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
+        ClientErrorException cee = new ClientErrorException(Response.Status.NOT_FOUND);
         when(this.schemas.getSchemaInfo(eq(TOPIC_1.getSchemaName()))).thenThrow(
-                new PulsarAdminException(new ClientErrorException(Response.Status.NOT_FOUND)));
+                new PulsarAdminException(cee, cee.getMessage(), cee.getResponse().getStatus()));
 
         PulsarTableHandle pulsarTableHandle = new PulsarTableHandle(
                 pulsarConnectorId.toString(),

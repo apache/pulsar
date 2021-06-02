@@ -52,7 +52,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Resources;
-import org.apache.pulsar.common.functions.UpdateOptions;
+import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.io.BatchSourceConfig;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.functions.FunctionConfig;
@@ -235,7 +235,7 @@ public class CmdSources extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            UpdateOptions updateOptions = new UpdateOptions();
+            UpdateOptionsImpl updateOptions = new UpdateOptionsImpl();
             updateOptions.setUpdateAuthData(updateAuthData);
             if (Utils.isFunctionPackageUrlSupported(sourceConfig.getArchive())) {
                 getAdmin().sources().updateSourceWithUrl(sourceConfig, sourceConfig.getArchive(), updateOptions);

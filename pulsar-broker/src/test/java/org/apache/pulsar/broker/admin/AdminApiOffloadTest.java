@@ -46,9 +46,10 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
+import org.apache.pulsar.common.policies.data.OffloadedReadPriority;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -74,8 +75,8 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         super.internalSetup();
 
         // Setup namespaces
-        admin.clusters().createCluster("test", new ClusterData(pulsar.getWebServiceAddress()));
-        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        admin.clusters().createCluster("test", new ClusterDataImpl(pulsar.getWebServiceAddress()));
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant(testTenant, tenantInfo);
         admin.namespaces().createNamespace(myNamespace, Sets.newHashSet("test"));
     }
@@ -170,17 +171,17 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         String endpoint = "test-endpoint";
         long offloadThresholdInBytes = 0;
         long offloadDeletionLagInMillis = 100L;
-        OffloadPolicies.OffloadedReadPriority priority = OffloadPolicies.OffloadedReadPriority.TIERED_STORAGE_FIRST;
+        OffloadedReadPriority priority = OffloadedReadPriority.TIERED_STORAGE_FIRST;
 
-        OffloadPolicies offload1 = OffloadPolicies.create(
+        OffloadPoliciesImpl offload1 = OffloadPoliciesImpl.create(
                 driver, region, bucket, endpoint, null, null, null, null,
                 100, 100, offloadThresholdInBytes, offloadDeletionLagInMillis, priority);
         admin.namespaces().setOffloadPolicies(namespaceName, offload1);
-        OffloadPolicies offload2 = admin.namespaces().getOffloadPolicies(namespaceName);
+        OffloadPoliciesImpl offload2 = (OffloadPoliciesImpl) admin.namespaces().getOffloadPolicies(namespaceName);
         assertEquals(offload1, offload2);
 
         admin.namespaces().removeOffloadPolicies(namespaceName);
-        OffloadPolicies offload3 = admin.namespaces().getOffloadPolicies(namespaceName);
+        OffloadPoliciesImpl offload3 = (OffloadPoliciesImpl) admin.namespaces().getOffloadPolicies(namespaceName);
         assertNull(offload3);
     }
 
@@ -191,9 +192,9 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         pulsarClient.newProducer().topic(topicName).create().close();
         Awaitility.await()
                 .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topicName)));
-        OffloadPolicies offloadPolicies = admin.topics().getOffloadPolicies(topicName);
+        OffloadPoliciesImpl offloadPolicies = (OffloadPoliciesImpl) admin.topics().getOffloadPolicies(topicName);
         assertNull(offloadPolicies);
-        OffloadPolicies offload = new OffloadPolicies();
+        OffloadPoliciesImpl offload = new OffloadPoliciesImpl();
         String path = "fileSystemPath";
         offload.setFileSystemProfilePath(path);
         admin.topics().setOffloadPolicies(topicName, offload);
@@ -214,8 +215,8 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         pulsarClient.newProducer().topic(topicName).create().close();
         Awaitility.await()
                 .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topicName)));
-        OffloadPolicies offloadPolicies = admin.topics().getOffloadPolicies(topicName, true);
-        OffloadPolicies brokerPolicies = OffloadPolicies
+        OffloadPoliciesImpl offloadPolicies = (OffloadPoliciesImpl) admin.topics().getOffloadPolicies(topicName, true);
+        OffloadPoliciesImpl brokerPolicies = OffloadPoliciesImpl
                 .mergeConfiguration(null,null, pulsar.getConfiguration().getProperties());
 
         assertEquals(offloadPolicies, brokerPolicies);
@@ -224,7 +225,7 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         when(topicOffloaded.getOffloadDriverName()).thenReturn("mock");
         doReturn(topicOffloaded).when(pulsar).createManagedLedgerOffloader(any());
 
-        OffloadPolicies namespacePolicies = new OffloadPolicies();
+        OffloadPoliciesImpl namespacePolicies = new OffloadPoliciesImpl();
         namespacePolicies.setManagedLedgerOffloadThresholdInBytes(100L);
         namespacePolicies.setManagedLedgerOffloadDeletionLagInMillis(200L);
         namespacePolicies.setManagedLedgerOffloadDriver("s3");
@@ -235,7 +236,7 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         assertEquals(
                 admin.topics().getOffloadPolicies(topicName, true), namespacePolicies);
 
-        OffloadPolicies topicPolicies = new OffloadPolicies();
+        OffloadPoliciesImpl topicPolicies = new OffloadPoliciesImpl();
         topicPolicies.setManagedLedgerOffloadThresholdInBytes(200L);
         topicPolicies.setManagedLedgerOffloadDeletionLagInMillis(400L);
         topicPolicies.setManagedLedgerOffloadDriver("s3");
@@ -293,7 +294,7 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
                     , "NullLedgerOffloader");
         }
         //3 construct a topic level offloadPolicies
-        OffloadPolicies offloadPolicies = new OffloadPolicies();
+        OffloadPoliciesImpl offloadPolicies = new OffloadPoliciesImpl();
         offloadPolicies.setOffloadersDirectory(".");
         offloadPolicies.setManagedLedgerOffloadDriver("mock");
         offloadPolicies.setManagedLedgerOffloadPrefetchRounds(10);

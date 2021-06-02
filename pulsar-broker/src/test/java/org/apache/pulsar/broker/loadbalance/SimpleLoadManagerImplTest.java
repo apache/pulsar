@@ -67,9 +67,9 @@ import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
+import org.apache.pulsar.common.policies.data.AutoFailoverPolicyDataImpl;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
-import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -174,14 +174,14 @@ public class SimpleLoadManagerImplTest {
     private void createNamespacePolicies(PulsarService pulsar) throws Exception {
         NamespaceIsolationPolicies policies = new NamespaceIsolationPolicies();
         // set up policy that use this broker as primary
-        NamespaceIsolationData policyData = new NamespaceIsolationData();
+        NamespaceIsolationDataImpl policyData = new NamespaceIsolationDataImpl();
         policyData.namespaces = new ArrayList<>();
         policyData.namespaces.add("pulsar/use/primary-ns.*");
         policyData.primary = new ArrayList<>();
         policyData.primary.add(pulsar1.getAdvertisedAddress() + "*");
         policyData.secondary = new ArrayList<>();
         policyData.secondary.add("prod2-broker([78]).messaging.usw.example.co.*");
-        policyData.auto_failover_policy = new AutoFailoverPolicyData();
+        policyData.auto_failover_policy = new AutoFailoverPolicyDataImpl();
         policyData.auto_failover_policy.policy_type = AutoFailoverPolicyType.min_available;
         policyData.auto_failover_policy.parameters = new HashMap<>();
         policyData.auto_failover_policy.parameters.put("min_limit", "1");

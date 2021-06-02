@@ -35,6 +35,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.common.policies.data.SourceStatusUtil;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.functions.PulsarFunctionsTestBase;
@@ -296,7 +297,7 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
 
         assertEquals(result.getExitCode(), 0);
 
-        final SourceStatus sourceStatus = SourceStatus.decode(result.getStdout());
+        final SourceStatus sourceStatus = SourceStatusUtil.decode(result.getStdout());
 
         assertEquals(sourceStatus.getNumInstances(), 1);
         assertEquals(sourceStatus.getNumRunning(), 1);
@@ -413,7 +414,7 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
 
         assertEquals(result.getExitCode(), 0);
 
-        SourceStatus sourceStatus = SourceStatus.decode(result.getStdout());
+        SourceStatus sourceStatus = SourceStatusUtil.decode(result.getStdout());
         assertEquals(sourceStatus.getNumInstances(), 1);
         assertEquals(sourceStatus.getNumRunning(), 1);
         assertEquals(sourceStatus.getInstances().size(), 1);

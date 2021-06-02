@@ -32,6 +32,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.SinkStatus;
+import org.apache.pulsar.common.policies.data.SinkStatusUtil;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.io.PulsarIOTestRunner;
@@ -253,7 +254,7 @@ public class PulsarIOSinkRunner extends PulsarIOTestRunner {
 
         assertEquals(result.getExitCode(), 0);
 
-        SinkStatus sinkStatus = SinkStatus.decode(result.getStdout());
+        SinkStatus sinkStatus = SinkStatusUtil.decode(result.getStdout());
 
         assertEquals(sinkStatus.getNumInstances(), 1);
         assertEquals(sinkStatus.getNumRunning(), 1);
@@ -318,7 +319,7 @@ public class PulsarIOSinkRunner extends PulsarIOTestRunner {
 
         assertEquals(result.getExitCode(), 0);
 
-        final SinkStatus sinkStatus = SinkStatus.decode(result.getStdout());
+        final SinkStatus sinkStatus = SinkStatusUtil.decode(result.getStdout());
 
         assertEquals(sinkStatus.getNumInstances(), 1);
         assertEquals(sinkStatus.getNumRunning(), 1);

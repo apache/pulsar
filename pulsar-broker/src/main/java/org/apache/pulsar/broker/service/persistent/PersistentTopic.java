@@ -3052,7 +3052,7 @@ public class PersistentTopic extends AbstractTopic
                 return getBrokerService().getPulsar().getConfiguration()
                         .getSubscriptionTypesEnabled().contains(subType.name());
             } else {
-                return policies.get().subscription_types_enabled.contains(subType);
+                return policies.get().subscription_types_enabled.contains(subType.name());
             }
         } else {
             return getBrokerService().getPulsar().getConfiguration()

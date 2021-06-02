@@ -34,7 +34,7 @@ import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.nar.NarClassLoader;
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.protocol.Commands;
 
 /**
@@ -451,10 +451,10 @@ public class PulsarConnectorConfig implements AutoCloseable {
         return this.pulsarAdmin;
     }
 
-    public OffloadPolicies getOffloadPolices() {
+    public OffloadPoliciesImpl getOffloadPolices() {
         Properties offloadProperties = new Properties();
         offloadProperties.putAll(getOffloaderProperties());
-        OffloadPolicies offloadPolicies = OffloadPolicies.create(offloadProperties);
+        OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create(offloadProperties);
         offloadPolicies.setManagedLedgerOffloadDriver(getManagedLedgerOffloadDriver());
         offloadPolicies.setManagedLedgerOffloadMaxThreads(getManagedLedgerOffloadMaxThreads());
         offloadPolicies.setOffloadersDirectory(getOffloadersDirectory());

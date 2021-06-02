@@ -26,7 +26,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
@@ -58,7 +58,7 @@ public class TestProxy extends PulsarTestSuite {
             .build();
 
         admin.tenants().createTenant(tenant,
-                new TenantInfo(Collections.emptySet(), Collections.singleton(pulsarCluster.getClusterName())));
+                new TenantInfoImpl(Collections.emptySet(), Collections.singleton(pulsarCluster.getClusterName())));
 
         admin.namespaces().createNamespace(namespace, Collections.singleton(pulsarCluster.getClusterName()));
 
@@ -110,7 +110,7 @@ public class TestProxy extends PulsarTestSuite {
                 .build();
 
         admin.tenants().createTenant(tenant,
-                new TenantInfo(Collections.emptySet(), Collections.singleton(pulsarCluster.getClusterName())));
+                new TenantInfoImpl(Collections.emptySet(), Collections.singleton(pulsarCluster.getClusterName())));
 
         admin.namespaces().createNamespace(namespace, Collections.singleton(pulsarCluster.getClusterName()));
 

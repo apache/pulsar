@@ -24,8 +24,8 @@ import java.util.Properties;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.testng.Assert;
@@ -98,9 +98,9 @@ public abstract class BkEnsemblesTestBase extends TestRetrySupport {
 
             admin = PulsarAdmin.builder().serviceHttpUrl(pulsar.getWebServiceAddress()).build();
 
-            admin.clusters().createCluster("usc", new ClusterData(pulsar.getWebServiceAddress()));
+            admin.clusters().createCluster("usc", new ClusterDataImpl(pulsar.getWebServiceAddress()));
             admin.tenants().createTenant("prop",
-                    new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet("usc")));
+                    new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("usc")));
         } catch (Throwable t) {
             log.error("Error setting up broker test", t);
             Assert.fail("Broker test setup failed");

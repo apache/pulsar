@@ -51,7 +51,7 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.TopicDomain;
-import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.zookeeper.ZooKeeperChildrenCache;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
@@ -73,7 +73,7 @@ public class HttpTopicLookupv2Test {
     private ServiceConfiguration config;
     private ConfigurationCacheService mockConfigCache;
     private ZooKeeperChildrenCache clustersListCache;
-    private ZooKeeperDataCache<ClusterData> clustersCache;
+    private ZooKeeperDataCache<ClusterDataImpl> clustersCache;
     private ZooKeeperDataCache<Policies> policiesCache;
     private Set<String> clusters;
 
@@ -93,9 +93,9 @@ public class HttpTopicLookupv2Test {
         clusters.add("use");
         clusters.add("usc");
         clusters.add("usw");
-        ClusterData useData = new ClusterData("http://broker.messaging.use.example.com:8080");
-        ClusterData uscData = new ClusterData("http://broker.messaging.usc.example.com:8080");
-        ClusterData uswData = new ClusterData("http://broker.messaging.usw.example.com:8080");
+        ClusterDataImpl useData = new ClusterDataImpl("http://broker.messaging.use.example.com:8080");
+        ClusterDataImpl uscData = new ClusterDataImpl("http://broker.messaging.usc.example.com:8080");
+        ClusterDataImpl uswData = new ClusterDataImpl("http://broker.messaging.usw.example.com:8080");
         doReturn(config).when(pulsar).getConfiguration();
         doReturn(mockConfigCache).when(pulsar).getConfigurationCache();
         doReturn(clustersListCache).when(mockConfigCache).clustersListCache();

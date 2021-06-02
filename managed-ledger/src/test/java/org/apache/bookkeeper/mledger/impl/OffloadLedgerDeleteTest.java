@@ -33,7 +33,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.util.MockClock;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -210,7 +210,7 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
 
     @Test
     public void isOffloadedNeedsDeleteTest() throws Exception {
-        OffloadPolicies offloadPolicies = new OffloadPolicies();
+        OffloadPoliciesImpl offloadPolicies = new OffloadPoliciesImpl();
         LedgerOffloader ledgerOffloader = Mockito.mock(LedgerOffloader.class);
         Mockito.when(ledgerOffloader.getOffloadPolicies()).thenReturn(offloadPolicies);
 

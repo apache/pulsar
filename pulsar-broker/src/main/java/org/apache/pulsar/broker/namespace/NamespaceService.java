@@ -85,7 +85,7 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.NamespaceIsolationPolicy;
 import org.apache.pulsar.common.policies.data.BrokerAssignment;
-import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
@@ -146,7 +146,7 @@ public class NamespaceService implements AutoCloseable {
 
     public static final String NAMESPACE_ISOLATION_POLICIES = "namespaceIsolationPolicies";
 
-    private final ConcurrentOpenHashMap<ClusterData, PulsarClientImpl> namespaceClients;
+    private final ConcurrentOpenHashMap<ClusterDataImpl, PulsarClientImpl> namespaceClients;
 
     private final List<NamespaceBundleOwnershipListener> bundleOwnershipListeners;
 
@@ -1213,14 +1213,14 @@ public class NamespaceService implements AutoCloseable {
                 });
     }
 
-    private CompletableFuture<List<String>> getNonPersistentTopicsFromPeerCluster(ClusterData peerClusterData,
-                                                               NamespaceName namespace) {
+    private CompletableFuture<List<String>> getNonPersistentTopicsFromPeerCluster(ClusterDataImpl peerClusterData,
+                                                                                  NamespaceName namespace) {
         PulsarClientImpl client = getNamespaceClient(peerClusterData);
         return client.getLookup().getTopicsUnderNamespace(namespace, Mode.NON_PERSISTENT);
     }
 
 
-    public PulsarClientImpl getNamespaceClient(ClusterData cluster) {
+    public PulsarClientImpl getNamespaceClient(ClusterDataImpl cluster) {
         PulsarClientImpl client = namespaceClients.get(cluster);
         if (client != null) {
             return client;

@@ -24,6 +24,7 @@ import java.util.Collections;
 
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
+import org.apache.pulsar.common.policies.data.FunctionStatusUtil;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.functions.PulsarFunctionsTest;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.Runtime;
@@ -89,7 +90,7 @@ public class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
                "--name", functionName
        );
 
-       FunctionStatus functionStatus = FunctionStatus.decode(result.getStdout());
+       FunctionStatus functionStatus = FunctionStatusUtil.decode(result.getStdout());
        assertEquals(functionStatus.getNumInstances(), 1);
        assertEquals(functionStatus.getInstances().get(0).getStatus().isRunning(), true);
    }

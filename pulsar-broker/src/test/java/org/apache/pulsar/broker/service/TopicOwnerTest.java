@@ -46,8 +46,8 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
@@ -117,8 +117,8 @@ public class TopicOwnerTest {
         leaderAdmin = pulsarAdmins[0];
         Thread.sleep(1000);
 
-        pulsarAdmins[0].clusters().createCluster(testCluster, new ClusterData(pulsarServices[0].getWebServiceAddress()));
-        TenantInfo tenantInfo = new TenantInfo();
+        pulsarAdmins[0].clusters().createCluster(testCluster, new ClusterDataImpl(pulsarServices[0].getWebServiceAddress()));
+        TenantInfoImpl tenantInfo = new TenantInfoImpl();
         tenantInfo.setAllowedClusters(Sets.newHashSet(testCluster));
         pulsarAdmins[0].tenants().createTenant(testTenant, tenantInfo);
         pulsarAdmins[0].namespaces().createNamespace(testNamespace, 16);

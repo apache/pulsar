@@ -23,7 +23,7 @@ import java.net.URI;
 import java.util.List;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.common.functions.UpdateOptions;
+import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.io.ConfigFieldDefinition;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
@@ -56,7 +56,7 @@ public interface Sinks<W extends WorkerService> extends Component<W> {
                     final SinkConfig sinkConfig,
                     final String clientRole,
                     AuthenticationDataHttps clientAuthenticationDataHttps,
-                    UpdateOptions updateOptions);
+                    UpdateOptionsImpl updateOptions);
 
     SinkInstanceStatusData getSinkInstanceStatus(final String tenant,
                                                  final String namespace,

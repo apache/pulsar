@@ -51,10 +51,10 @@ import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.internal.NamespacesImpl;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
+import org.apache.pulsar.common.policies.data.AutoFailoverPolicyDataImpl;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.BundlesData;
-import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
@@ -708,7 +708,7 @@ public class LoadBalancerTest {
         NamespaceIsolationPolicies policies = new NamespaceIsolationPolicies();
 
         // set up policy that use this broker as primary
-        NamespaceIsolationData policyData = new NamespaceIsolationData();
+        NamespaceIsolationDataImpl policyData = new NamespaceIsolationDataImpl();
         policyData.namespaces = new ArrayList<String>();
         policyData.namespaces.add("pulsar/use/primary-ns.*");
         policyData.primary = new ArrayList<String>();
@@ -716,7 +716,7 @@ public class LoadBalancerTest {
             policyData.primary.add(pulsarServices[i].getAdvertisedAddress());
         }
         policyData.secondary = new ArrayList<String>();
-        policyData.auto_failover_policy = new AutoFailoverPolicyData();
+        policyData.auto_failover_policy = new AutoFailoverPolicyDataImpl();
         policyData.auto_failover_policy.policy_type = AutoFailoverPolicyType.min_available;
         policyData.auto_failover_policy.parameters = new HashMap<>();
         policyData.auto_failover_policy.parameters.put("min_limit", "1");
@@ -724,7 +724,7 @@ public class LoadBalancerTest {
         policies.setPolicy("primaryBrokerPolicy", policyData);
 
         // set up policy that use this broker as secondary
-        policyData = new NamespaceIsolationData();
+        policyData = new NamespaceIsolationDataImpl();
         policyData.namespaces = new ArrayList<String>();
         policyData.namespaces.add("pulsar/use/secondary-ns.*");
         policyData.primary = new ArrayList<String>();
@@ -733,7 +733,7 @@ public class LoadBalancerTest {
         for (int i = 1; i < BROKER_COUNT; i++) {
             policyData.secondary.add(pulsarServices[i].getAdvertisedAddress());
         }
-        policyData.auto_failover_policy = new AutoFailoverPolicyData();
+        policyData.auto_failover_policy = new AutoFailoverPolicyDataImpl();
         policyData.auto_failover_policy.policy_type = AutoFailoverPolicyType.min_available;
         policyData.auto_failover_policy.parameters = new HashMap<String, String>();
         policyData.auto_failover_policy.parameters.put("min_limit", "1");
@@ -741,7 +741,7 @@ public class LoadBalancerTest {
         policies.setPolicy("secondaryBrokerPolicy", policyData);
 
         // set up policy that do not use this broker (neither primary nor secondary)
-        policyData = new NamespaceIsolationData();
+        policyData = new NamespaceIsolationDataImpl();
         policyData.namespaces = new ArrayList<String>();
         policyData.namespaces.add("pulsar/use/shared-ns.*");
         policyData.primary = new ArrayList<String>();
@@ -750,7 +750,7 @@ public class LoadBalancerTest {
         for (int i = 1; i < BROKER_COUNT; i++) {
             policyData.secondary.add(pulsarServices[i].getAdvertisedAddress());
         }
-        policyData.auto_failover_policy = new AutoFailoverPolicyData();
+        policyData.auto_failover_policy = new AutoFailoverPolicyDataImpl();
         policyData.auto_failover_policy.policy_type = AutoFailoverPolicyType.min_available;
         policyData.auto_failover_policy.parameters = new HashMap<String, String>();
         policyData.auto_failover_policy.parameters.put("min_limit", "1");

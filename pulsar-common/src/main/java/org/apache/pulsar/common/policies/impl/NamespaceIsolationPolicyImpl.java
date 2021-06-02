@@ -28,7 +28,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.AutoFailoverPolicy;
 import org.apache.pulsar.common.policies.NamespaceIsolationPolicy;
 import org.apache.pulsar.common.policies.data.BrokerStatus;
-import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 
 /**
  * Implementation of the namespace isolation policy.
@@ -59,7 +59,7 @@ public class NamespaceIsolationPolicyImpl implements NamespaceIsolationPolicy {
         return matchedBrokers;
     }
 
-    public NamespaceIsolationPolicyImpl(NamespaceIsolationData policyData) {
+    public NamespaceIsolationPolicyImpl(NamespaceIsolationDataImpl policyData) {
         this.namespaces = policyData.namespaces;
         this.primary = policyData.primary;
         this.secondary = policyData.secondary;

@@ -46,9 +46,9 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
-import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.awaitility.Awaitility;
@@ -99,9 +99,9 @@ public class BacklogQuotaManagerTest {
             adminUrl = new URL("http://127.0.0.1" + ":" + pulsar.getListenPortHTTP().get());
             admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl.toString()).build();
 
-            admin.clusters().createCluster("usc", new ClusterData(adminUrl.toString()));
+            admin.clusters().createCluster("usc", new ClusterDataImpl(adminUrl.toString()));
             admin.tenants().createTenant("prop",
-                    new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet("usc")));
+                    new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("usc")));
             admin.namespaces().createNamespace("prop/ns-quota");
             admin.namespaces().setNamespaceReplicationClusters("prop/ns-quota", Sets.newHashSet("usc"));
             admin.namespaces().createNamespace("prop/quotahold");

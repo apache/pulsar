@@ -36,13 +36,14 @@
 
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>pulsar-common</artifactId>
-            <version>${project.parent.version}</version>
+            <artifactId>pulsar-client-api</artifactId>
+            <version>${project.version}</version>
         </dependency>
 
         <dependency>
-            <groupId>com.google.code.gson</groupId>
-            <artifactId>gson</artifactId>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <scope>provided</scope>
         </dependency>
 
     </dependencies>

@@ -20,7 +20,7 @@ package org.apache.pulsar.tests.integration.proxy;
 
 import lombok.Cleanup;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.tests.integration.containers.CSContainer;
 import org.apache.pulsar.tests.integration.containers.ProxyContainer;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
@@ -43,7 +43,6 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 
 import static org.apache.pulsar.tests.integration.containers.PulsarContainer.CS_PORT;
 
@@ -75,7 +74,7 @@ public class TestProxyWithWebSocket extends PulsarTestSuite {
                 .build();
 
         admin.tenants().createTenant(tenant,
-                new TenantInfo(Collections.emptySet(), Collections.singleton(pulsarCluster.getClusterName())));
+                new TenantInfoImpl(Collections.emptySet(), Collections.singleton(pulsarCluster.getClusterName())));
 
         admin.namespaces().createNamespace(namespace, Collections.singleton(pulsarCluster.getClusterName()));
 

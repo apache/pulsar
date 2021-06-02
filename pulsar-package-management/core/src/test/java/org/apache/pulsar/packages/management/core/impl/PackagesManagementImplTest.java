@@ -28,6 +28,7 @@ import org.apache.pulsar.packages.management.core.PackagesManagement;
 import org.apache.pulsar.packages.management.core.PackagesStorage;
 import org.apache.pulsar.packages.management.core.PackagesStorageProvider;
 import org.apache.pulsar.packages.management.core.common.PackageMetadata;
+import org.apache.pulsar.packages.management.core.common.PackageMetadataUtil;
 import org.apache.pulsar.packages.management.core.common.PackageName;
 import org.apache.pulsar.packages.management.core.exceptions.PackagesManagementException;
 import org.testng.Assert;
@@ -119,7 +120,7 @@ public class PackagesManagementImplTest {
             .contact("test@apache.org")
             .description("A mocked test package")
             .createTime(System.currentTimeMillis()).build();
-        try (ByteArrayInputStream inputStream= new ByteArrayInputStream(metadata.toBytes())) {
+        try (ByteArrayInputStream inputStream= new ByteArrayInputStream(PackageMetadataUtil.toBytes(metadata))) {
             packagesManagement.upload(packageName, metadata, inputStream).get();
         } catch (Exception e) {
             Assert.fail("should not throw any exception");
@@ -136,7 +137,7 @@ public class PackagesManagementImplTest {
         // download an existent package should succeed
         try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
             packagesManagement.download(packageName, outputStream).get();
-            PackageMetadata getPackage = PackageMetadata.fromBytes(outputStream.toByteArray());
+            PackageMetadata getPackage = PackageMetadataUtil.fromBytes(outputStream.toByteArray());
             Assert.assertEquals(metadata, getPackage);
         } catch (Exception e) {
             Assert.fail("should not throw any exception");

@@ -60,7 +60,7 @@ import org.apache.pulsar.common.api.raw.MessageParser;
 import org.apache.pulsar.common.api.raw.RawMessage;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -128,7 +128,7 @@ public class PulsarRecordCursor implements RecordCursor {
             throw new RuntimeException(e);
         }
 
-        OffloadPolicies offloadPolicies = pulsarSplit.getOffloadPolicies();
+        OffloadPoliciesImpl offloadPolicies = pulsarSplit.getOffloadPolicies();
         if (offloadPolicies != null) {
             offloadPolicies.setOffloadersDirectory(pulsarConnectorConfig.getOffloadersDirectory());
             offloadPolicies.setManagedLedgerOffloadMaxThreads(

@@ -62,9 +62,9 @@ import org.apache.pulsar.client.api.PulsarClientException.BrokerPersistenceExcep
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
-import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZkBookieRackAffinityMapping;
@@ -167,9 +167,9 @@ public class BrokerBookieIsolationTest {
 
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarService.getWebServiceAddress()).build();
 
-        ClusterData clusterData = new ClusterData(pulsarService.getWebServiceAddress());
+        ClusterDataImpl clusterData = new ClusterDataImpl(pulsarService.getWebServiceAddress());
         admin.clusters().createCluster(cluster, clusterData);
-        TenantInfo tenantInfo = new TenantInfo(null, Sets.newHashSet(cluster));
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(null, Sets.newHashSet(cluster));
         admin.tenants().createTenant(tenant1, tenantInfo);
         admin.namespaces().createNamespace(ns1);
         admin.namespaces().createNamespace(ns2);
@@ -310,9 +310,9 @@ public class BrokerBookieIsolationTest {
 
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarService.getWebServiceAddress()).build();
 
-        ClusterData clusterData = new ClusterData(pulsarService.getWebServiceAddress());
+        ClusterDataImpl clusterData = new ClusterDataImpl(pulsarService.getWebServiceAddress());
         admin.clusters().createCluster(cluster, clusterData);
-        TenantInfo tenantInfo = new TenantInfo(null, Sets.newHashSet(cluster));
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(null, Sets.newHashSet(cluster));
         admin.tenants().createTenant(tenant1, tenantInfo);
         admin.namespaces().createNamespace(ns1);
         admin.namespaces().createNamespace(ns2);
@@ -432,9 +432,9 @@ public class BrokerBookieIsolationTest {
 
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarService.getWebServiceAddress()).build();
 
-        ClusterData clusterData = new ClusterData(pulsarService.getWebServiceAddress());
+        ClusterDataImpl clusterData = new ClusterDataImpl(pulsarService.getWebServiceAddress());
         admin.clusters().createCluster(cluster, clusterData);
-        TenantInfo tenantInfo = new TenantInfo(null, Sets.newHashSet(cluster));
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(null, Sets.newHashSet(cluster));
         admin.tenants().createTenant(tenant1, tenantInfo);
         admin.namespaces().createNamespace(ns2);
         admin.namespaces().createNamespace(ns3);

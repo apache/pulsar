@@ -33,15 +33,13 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.util.HashMap;
-import java.util.Map;
 
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.Sources;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
-import org.apache.pulsar.common.functions.UpdateOptions;
+import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.io.BatchSourceConfig;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.util.ClassLoaderUtils;
@@ -666,7 +664,7 @@ public class TestCmdSources {
                 .namespace(DEFAULT_NAMESPACE)
                 .name(updateSource.name)
                 .archive(updateSource.archive)
-                .build()), eq(updateSource.archive), eq(new UpdateOptions()));
+                .build()), eq(updateSource.archive), eq(new UpdateOptionsImpl()));
 
 
         updateSource.archive = null;
@@ -677,7 +675,7 @@ public class TestCmdSources {
 
         updateSource.updateAuthData = true;
 
-        UpdateOptions updateOptions = new UpdateOptions();
+        UpdateOptionsImpl updateOptions = new UpdateOptionsImpl();
         updateOptions.setUpdateAuthData(true);
 
         updateSource.runCmd();

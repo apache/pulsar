@@ -39,7 +39,7 @@ import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -634,7 +634,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                         return CompletableFuture.completedFuture(true);
                     } else {
                         try {
-                            TenantInfo tenantInfo = pulsarResources.getTenantResources()
+                            TenantInfoImpl tenantInfo = pulsarResources.getTenantResources()
                                     .get(path(POLICIES, tenantName))
                                     .orElseThrow(() -> new RestException(Response.Status.NOT_FOUND, "Tenant does not exist"));
                             return isTenantAdmin(tenantName, role, tenantInfo, authData);

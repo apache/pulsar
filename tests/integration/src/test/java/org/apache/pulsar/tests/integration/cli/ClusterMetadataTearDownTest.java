@@ -39,7 +39,6 @@ import org.apache.bookkeeper.meta.LedgerManager;
 import org.apache.bookkeeper.meta.MetadataBookieDriver;
 import org.apache.bookkeeper.meta.MetadataDrivers;
 import org.apache.bookkeeper.stats.NullStatsLogger;
-import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.PulsarClusterMetadataTeardown;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
@@ -49,7 +48,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
@@ -57,7 +56,6 @@ import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.tests.integration.containers.ChaosContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
-import org.apache.zookeeper.ZooKeeper;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -140,7 +138,7 @@ public class ClusterMetadataTearDownTest extends TestRetrySupport {
         final String namespace = tenant + "/my-ns";
 
         admin.tenants().createTenant(tenant,
-                new TenantInfo(new HashSet<>(), Collections.singleton(pulsarCluster.getClusterName())));
+                new TenantInfoImpl(new HashSet<>(), Collections.singleton(pulsarCluster.getClusterName())));
         admin.namespaces().createNamespace(namespace);
 
         String[] topics = { "topic-1", "topic-2", namespace + "/topic-1" };

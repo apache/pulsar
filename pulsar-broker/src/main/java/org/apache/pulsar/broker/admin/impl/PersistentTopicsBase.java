@@ -26,9 +26,6 @@ import com.github.zafarkhaja.semver.Version;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonObject;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -108,7 +105,7 @@ import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -772,18 +769,19 @@ public class PersistentTopicsBase extends AdminResource {
         return CompletableFuture.completedFuture(delayedDeliveryPolicies);
     }
 
-    protected CompletableFuture<OffloadPolicies> internalGetOffloadPolicies(boolean applied) {
-        OffloadPolicies offloadPolicies =
+    protected CompletableFuture<OffloadPoliciesImpl> internalGetOffloadPolicies(boolean applied) {
+        OffloadPoliciesImpl offloadPolicies =
                 getTopicPolicies(topicName).map(TopicPolicies::getOffloadPolicies).orElse(null);
         if (applied) {
-            OffloadPolicies namespacePolicy = getNamespacePolicies(namespaceName).offload_policies;
-            offloadPolicies = OffloadPolicies.mergeConfiguration(offloadPolicies
+            OffloadPoliciesImpl namespacePolicy =
+                    (OffloadPoliciesImpl) getNamespacePolicies(namespaceName).offload_policies;
+            offloadPolicies = OffloadPoliciesImpl.mergeConfiguration(offloadPolicies
                     , namespacePolicy, pulsar().getConfiguration().getProperties());
         }
         return CompletableFuture.completedFuture(offloadPolicies);
     }
 
-    protected CompletableFuture<Void> internalSetOffloadPolicies(OffloadPolicies offloadPolicies) {
+    protected CompletableFuture<Void> internalSetOffloadPolicies(OffloadPoliciesImpl offloadPolicies) {
         TopicPolicies topicPolicies = null;
         try {
             topicPolicies = pulsar().getTopicPoliciesService().getTopicPolicies(topicName);
@@ -853,7 +851,7 @@ public class PersistentTopicsBase extends AdminResource {
         return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
     }
 
-    private CompletableFuture<Void> internalUpdateOffloadPolicies(OffloadPolicies offloadPolicies,
+    private CompletableFuture<Void> internalUpdateOffloadPolicies(OffloadPoliciesImpl offloadPolicies,
                                                                   TopicName topicName) {
         return pulsar().getBrokerService().getTopicIfExists(topicName.toString())
                 .thenAccept(optionalTopic -> {
@@ -1147,7 +1145,7 @@ public class PersistentTopicsBase extends AdminResource {
             getPartitionedTopicMetadataAsync(topicName,
                     authoritative, false).thenAccept(partitionMetadata -> {
                 if (partitionMetadata.partitions > 0) {
-                    final List<CompletableFuture<JsonObject>> futures = Lists.newArrayList();
+                    final List<CompletableFuture<String>> futures = Lists.newArrayList();
 
                     PartitionedManagedLedgerInfo partitionedManagedLedgerInfo = new PartitionedManagedLedgerInfo();
 
@@ -1156,21 +1154,20 @@ public class PersistentTopicsBase extends AdminResource {
                         try {
                             futures.add(pulsar().getAdminClient().topics()
                                     .getInternalInfoAsync(
-                                            topicNamePartition.toString()).whenComplete((jsonObject, throwable) -> {
+                                            topicNamePartition.toString()).whenComplete((response, throwable) -> {
                                         if (throwable != null) {
                                             log.error("[{}] Failed to get managed info for {}",
                                                     clientAppId(), topicNamePartition, throwable);
                                             asyncResponse.resume(new RestException(throwable));
                                         }
-                                        Gson gson = new GsonBuilder().setPrettyPrinting().create();
                                         try {
                                             partitionedManagedLedgerInfo.partitions.put(topicNamePartition.toString(),
-                                                    jsonMapper().readValue(gson.toJson(jsonObject),
+                                                    jsonMapper().readValue(response,
                                                             ManagedLedgerInfo.class));
                                         } catch (JsonProcessingException ex) {
                                             log.error("[{}] Failed to parse ManagedLedgerInfo for {} from [{}]",
                                                     clientAppId(),
-                                                    topicNamePartition, gson.toJson(jsonObject), ex);
+                                                    topicNamePartition, response, ex);
                                         }
                                     }));
                         } catch (Exception e) {

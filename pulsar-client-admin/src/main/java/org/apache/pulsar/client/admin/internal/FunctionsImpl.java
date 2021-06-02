@@ -47,9 +47,13 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
 import org.apache.pulsar.common.functions.UpdateOptions;
+import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.io.ConnectorDefinition;
+import org.apache.pulsar.common.policies.data.FunctionInstanceStatsData;
+import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataImpl;
 import org.apache.pulsar.common.policies.data.FunctionStats;
+import org.apache.pulsar.common.policies.data.FunctionStatsImpl;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.asynchttpclient.AsyncHandler;
@@ -237,7 +241,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     }
 
     @Override
-    public FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData getFunctionStats(
+    public FunctionInstanceStatsData getFunctionStats(
             String tenant, String namespace, String function, int id) throws PulsarAdminException {
         try {
             return getFunctionStatsAsync(tenant, namespace, function, id)
@@ -254,10 +258,10 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     }
 
     @Override
-    public CompletableFuture<FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData> getFunctionStatsAsync(
+    public CompletableFuture<FunctionInstanceStatsData> getFunctionStatsAsync(
             String tenant, String namespace, String function, int id) {
         WebTarget path = functions.path(tenant).path(namespace).path(function).path(Integer.toString(id)).path("stats");
-        final CompletableFuture<FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData> future =
+        final CompletableFuture<FunctionInstanceStatsData> future =
                 new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<Response>() {
@@ -266,8 +270,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                         if (!response.getStatusInfo().equals(Response.Status.OK)) {
                             future.completeExceptionally(getApiException(response));
                         } else {
-                            future.complete(response.readEntity(
-                                    FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.class));
+                            future.complete(response.readEntity(FunctionInstanceStatsDataImpl.class));
                         }
                     }
 
@@ -296,7 +299,8 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     }
 
     @Override
-    public CompletableFuture<FunctionStats> getFunctionStatsAsync(String tenant, String namespace, String function) {
+    public CompletableFuture<FunctionStats> getFunctionStatsAsync(String tenant,
+                                                                  String namespace, String function) {
         WebTarget path = functions.path(tenant).path(namespace).path(function).path("stats");
         final CompletableFuture<FunctionStats> future = new CompletableFuture<>();
         asyncGetRequest(path,
@@ -306,7 +310,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                         if (!response.getStatusInfo().equals(Response.Status.OK)) {
                             future.completeExceptionally(getApiException(response));
                         } else {
-                            future.complete(response.readEntity(FunctionStats.class));
+                            future.complete(response.readEntity(FunctionStatsImpl.class));
                         }
                     }
 
@@ -459,9 +463,10 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                     .addBodyPart(new StringPart("functionConfig", ObjectMapperFactory.getThreadLocal()
                             .writeValueAsString(functionConfig), MediaType.APPLICATION_JSON));
 
-            if (updateOptions != null) {
+            UpdateOptionsImpl options = (UpdateOptionsImpl) updateOptions;
+            if (options != null) {
                 builder.addBodyPart(new StringPart("updateOptions", ObjectMapperFactory.getThreadLocal()
-                        .writeValueAsString(updateOptions), MediaType.APPLICATION_JSON));
+                        .writeValueAsString(options), MediaType.APPLICATION_JSON));
             }
 
             if (fileName != null && !fileName.startsWith("builtin://")) {
@@ -493,7 +498,8 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     }
 
     @Override
-    public void updateFunctionWithUrl(FunctionConfig functionConfig, String pkgUrl, UpdateOptions updateOptions)
+    public void updateFunctionWithUrl(FunctionConfig functionConfig, String pkgUrl,
+                                      UpdateOptions updateOptions)
             throws PulsarAdminException {
         try {
             updateFunctionWithUrlAsync(functionConfig, pkgUrl, updateOptions)
@@ -520,10 +526,11 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                     "functionConfig",
                     ObjectMapperFactory.getThreadLocal().writeValueAsString(functionConfig),
                     MediaType.APPLICATION_JSON_TYPE));
-            if (updateOptions != null) {
+            UpdateOptionsImpl options = (UpdateOptionsImpl) updateOptions;
+            if (options != null) {
                 mp.bodyPart(new FormDataBodyPart(
                         "updateOptions",
-                        ObjectMapperFactory.getThreadLocal().writeValueAsString(updateOptions),
+                        ObjectMapperFactory.getThreadLocal().writeValueAsString(options),
                         MediaType.APPLICATION_JSON_TYPE));
             }
             WebTarget path = functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace())

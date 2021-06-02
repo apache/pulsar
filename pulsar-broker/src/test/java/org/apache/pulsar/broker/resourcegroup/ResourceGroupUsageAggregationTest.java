@@ -32,11 +32,9 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -251,9 +249,9 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
         this.conf.setAllowAutoTopicCreation(true);
 
         final String clusterName = "test";
-        admin.clusters().createCluster(clusterName, new ClusterData(pulsar.getBrokerServiceUrl()));
+        admin.clusters().createCluster(clusterName, new ClusterDataImpl(pulsar.getBrokerServiceUrl()));
             admin.tenants().createTenant(TenantName,
-                    new TenantInfo(Sets.newHashSet("fakeAdminRole"), Sets.newHashSet(clusterName)));
+                    new TenantInfoImpl(Sets.newHashSet("fakeAdminRole"), Sets.newHashSet(clusterName)));
         admin.namespaces().createNamespace(TenantAndNsName);
         admin.namespaces().setNamespaceReplicationClusters(TenantAndNsName, Sets.newHashSet(clusterName));
     }

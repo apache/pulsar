@@ -48,6 +48,7 @@ import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
@@ -3209,7 +3210,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public void setOffloadPolicies(String namespace, OffloadPolicies offloadPolicies) throws PulsarAdminException {
+    public void setOffloadPolicies(String namespace, OffloadPolicies offloadPolicies)
+            throws PulsarAdminException {
         try {
             setOffloadPoliciesAsync(namespace, offloadPolicies)
                     .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
@@ -3273,9 +3275,9 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         WebTarget path = namespacePath(ns, "offloadPolicies");
         final CompletableFuture<OffloadPolicies> future = new CompletableFuture<>();
         asyncGetRequest(path,
-                new InvocationCallback<OffloadPolicies>() {
+                new InvocationCallback<OffloadPoliciesImpl>() {
                     @Override
-                    public void completed(OffloadPolicies offloadPolicies) {
+                    public void completed(OffloadPoliciesImpl offloadPolicies) {
                         future.complete(offloadPolicies);
                     }
 

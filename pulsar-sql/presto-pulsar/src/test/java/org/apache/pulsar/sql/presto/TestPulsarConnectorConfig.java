@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -91,7 +91,7 @@ public class TestPulsarConnectorConfig {
         connectorConfig.setManagedLedgerOffloadMaxThreads(managedLedgerOffloadMaxThreads);
         connectorConfig.setOffloaderProperties(offloadProperties);
 
-        OffloadPolicies offloadPolicies = connectorConfig.getOffloadPolices();
+        OffloadPoliciesImpl offloadPolicies = connectorConfig.getOffloadPolices();
         Assert.assertNotNull(offloadPolicies);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDriver(), managedLedgerOffloadDriver);
         Assert.assertEquals(offloadPolicies.getOffloadersDirectory(), offloaderDirectory);
