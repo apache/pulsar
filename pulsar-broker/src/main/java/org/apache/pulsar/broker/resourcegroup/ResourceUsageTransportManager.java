@@ -42,7 +42,7 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderListener;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -190,7 +190,7 @@ public class ResourceUsageTransportManager implements AutoCloseable {
         if (!tenantList.contains(tenant)) {
             try {
                 admin.tenants().createTenant(tenant,
-                  new TenantInfo(Sets.newHashSet(config.getSuperUserRoles()), Sets.newHashSet(cluster)));
+                  new TenantInfoImpl(Sets.newHashSet(config.getSuperUserRoles()), Sets.newHashSet(cluster)));
             } catch (PulsarAdminException ex1) {
                 if (!(ex1 instanceof PulsarAdminException.ConflictException)) {
                     LOG.error("Unexpected exception {} when creating tenant {}", ex1, tenant);

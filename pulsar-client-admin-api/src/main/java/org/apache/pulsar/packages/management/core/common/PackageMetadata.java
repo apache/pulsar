@@ -27,8 +27,6 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.apache.commons.lang3.SerializationUtils;
-import org.apache.pulsar.packages.management.core.exceptions.PackagesManagementException.MetadataFormatException;
 
 /**
  * Package metadata.
@@ -45,20 +43,4 @@ public class PackageMetadata implements Serializable {
     long createTime;
     long modificationTime;
     Map<String, String> properties;
-
-    public static PackageMetadata fromBytes(byte[] bytes) throws MetadataFormatException {
-        try {
-            Object o = SerializationUtils.deserialize(bytes);
-            if (!(o instanceof PackageMetadata)) {
-                throw new MetadataFormatException("Unexpected metadata format");
-            }
-            return (PackageMetadata) o;
-        } catch (Exception e) {
-            throw new MetadataFormatException("Unexpected error", e);
-        }
-    }
-
-    public byte[] toBytes() {
-        return SerializationUtils.serialize(this);
-    }
 }

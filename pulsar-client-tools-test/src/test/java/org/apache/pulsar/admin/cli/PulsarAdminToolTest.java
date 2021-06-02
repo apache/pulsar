@@ -74,13 +74,15 @@ import org.apache.pulsar.common.policies.data.BookiesClusterInfo;
 import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
-import org.apache.pulsar.common.policies.data.FailureDomain;
+import org.apache.pulsar.common.policies.data.FailureDomainImpl;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.LedgerInfo;
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
+import org.apache.pulsar.common.policies.data.OffloadedReadPriority;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -88,7 +90,7 @@ import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.mockito.ArgumentMatcher;
@@ -188,10 +190,10 @@ public class PulsarAdminToolTest {
         verify(mockClusters).getCluster("use");
 
         clusters.run(split("create use --url http://my-service.url:8080"));
-        verify(mockClusters).createCluster("use", new ClusterData("http://my-service.url:8080", null));
+        verify(mockClusters).createCluster("use", new ClusterDataImpl("http://my-service.url:8080", null));
 
         clusters.run(split("update use --url http://my-service.url:8080"));
-        verify(mockClusters).updateCluster("use", new ClusterData("http://my-service.url:8080", null));
+        verify(mockClusters).updateCluster("use", new ClusterDataImpl("http://my-service.url:8080", null));
 
         clusters.run(split("delete use"));
         verify(mockClusters).deleteCluster("use");
@@ -203,7 +205,7 @@ public class PulsarAdminToolTest {
         verify(mockClusters).getFailureDomain("use", "domain");
 
         clusters.run(split("create-failure-domain use --domain-name domain --broker-list b1"));
-        FailureDomain domain = new FailureDomain();
+        FailureDomainImpl domain = new FailureDomainImpl();
         domain.setBrokers(Sets.newHashSet("b1"));
         verify(mockClusters).createFailureDomain("use", "domain", domain);
 
@@ -221,12 +223,12 @@ public class PulsarAdminToolTest {
         clusters.run(
                 split("create my-cluster --url http://my-service.url:8080 --url-secure https://my-service.url:4443"));
         verify(mockClusters).createCluster("my-cluster",
-                new ClusterData("http://my-service.url:8080", "https://my-service.url:4443"));
+                new ClusterDataImpl("http://my-service.url:8080", "https://my-service.url:4443"));
 
         clusters.run(
                 split("update my-cluster --url http://my-service.url:8080 --url-secure https://my-service.url:4443"));
         verify(mockClusters).updateCluster("my-cluster",
-                new ClusterData("http://my-service.url:8080", "https://my-service.url:4443"));
+                new ClusterDataImpl("http://my-service.url:8080", "https://my-service.url:4443"));
 
         clusters.run(split("delete my-cluster"));
         verify(mockClusters).deleteCluster("my-cluster");
@@ -242,10 +244,10 @@ public class PulsarAdminToolTest {
         clusters = new CmdClusters(() -> admin);
 
         clusters.run(split("create my-secure-cluster --url-secure https://my-service.url:4443"));
-        verify(mockClusters).createCluster("my-secure-cluster", new ClusterData(null, "https://my-service.url:4443"));
+        verify(mockClusters).createCluster("my-secure-cluster", new ClusterDataImpl(null, "https://my-service.url:4443"));
 
         clusters.run(split("update my-secure-cluster --url-secure https://my-service.url:4443"));
-        verify(mockClusters).updateCluster("my-secure-cluster", new ClusterData(null, "https://my-service.url:4443"));
+        verify(mockClusters).updateCluster("my-secure-cluster", new ClusterDataImpl(null, "https://my-service.url:4443"));
 
         clusters.run(split("delete my-secure-cluster"));
         verify(mockClusters).deleteCluster("my-secure-cluster");
@@ -255,7 +257,7 @@ public class PulsarAdminToolTest {
         clusters.run(split("create my-tls-cluster --url-secure https://my-service.url:4443 --tls-enable "
                 + "--tls-enable-keystore --tls-trust-store-type JKS --tls-trust-store /var/private/tls/client.truststore.jks "
                 + "--tls-trust-store-pwd clientpw"));
-        ClusterData data = new ClusterData(null, "https://my-service.url:4443");
+        ClusterData data = new ClusterDataImpl(null, "https://my-service.url:4443");
         data.setBrokerClientTlsEnabled(true)
                 .setBrokerClientTlsEnabledWithKeyStore(true)
                 .setBrokerClientTlsTrustStoreType("JKS")
@@ -283,12 +285,12 @@ public class PulsarAdminToolTest {
         tenants.run(split("list"));
         verify(mockTenants).getTenants();
 
-        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use"));
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use"));
 
         tenants.run(split("create my-tenant --admin-roles role1,role2 --allowed-clusters use"));
         verify(mockTenants).createTenant("my-tenant", tenantInfo);
 
-        tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("usw"));
+        tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("usw"));
 
         tenants.run(split("update my-tenant --admin-roles role1,role2 --allowed-clusters usw"));
         verify(mockTenants).updateTenant("my-tenant", tenantInfo);
@@ -666,9 +668,9 @@ public class PulsarAdminToolTest {
         namespaces.run(split(
                 "set-offload-policies myprop/clust/ns1 -r test-region -d aws-s3 -b test-bucket -e http://test.endpoint -mbs 32M -rbs 5M -oat 10M -oae 10s -orp tiered-storage-first"));
         verify(mockNamespaces).setOffloadPolicies("myprop/clust/ns1",
-                OffloadPolicies.create("aws-s3", "test-region", "test-bucket",
+                OffloadPoliciesImpl.create("aws-s3", "test-region", "test-bucket",
                         "http://test.endpoint",null, null, null, null, 32 * 1024 * 1024, 5 * 1024 * 1024,
-                        10 * 1024 * 1024L, 10000L, OffloadPolicies.OffloadedReadPriority.TIERED_STORAGE_FIRST));
+                        10 * 1024 * 1024L, 10000L, OffloadedReadPriority.TIERED_STORAGE_FIRST));
 
         namespaces.run(split("remove-offload-policies myprop/clust/ns1"));
         verify(mockNamespaces).removeOffloadPolicies("myprop/clust/ns1");
@@ -983,9 +985,9 @@ public class PulsarAdminToolTest {
         verify(mockTopics).removeDelayedDeliveryPolicy("persistent://myprop/clust/ns1/ds1") ;
 
         cmdTopics.run(split("set-offload-policies persistent://myprop/clust/ns1/ds1 -d s3 -r region -b bucket -e endpoint -m 8 -rb 9 -t 10 -orp tiered-storage-first"));
-        OffloadPolicies offloadPolicies = OffloadPolicies.create("s3", "region", "bucket"
+        OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create("s3", "region", "bucket"
                 , "endpoint", null, null, null, null,
-                8, 9, 10L, null, OffloadPolicies.OffloadedReadPriority.TIERED_STORAGE_FIRST);
+                8, 9, 10L, null, OffloadedReadPriority.TIERED_STORAGE_FIRST);
         verify(mockTopics).setOffloadPolicies("persistent://myprop/clust/ns1/ds1", offloadPolicies);
 
         cmdTopics.run(split("get-max-unacked-messages-on-consumer persistent://myprop/clust/ns1/ds1"));

@@ -56,7 +56,7 @@ import org.apache.pulsar.common.functions.ExternalPulsarConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Resources;
-import org.apache.pulsar.common.functions.UpdateOptions;
+import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.functions.WindowConfig;
 import org.apache.pulsar.common.functions.FunctionState;
@@ -858,7 +858,7 @@ public class CmdFunctions extends CmdBase {
         @Override
         void runCmd() throws Exception {
 
-            UpdateOptions updateOptions = new UpdateOptions();
+            UpdateOptionsImpl updateOptions = new UpdateOptionsImpl();
             updateOptions.setUpdateAuthData(updateAuthData);
             if (Utils.isFunctionPackageUrlSupported(functionConfig.getJar())) {
                 getAdmin().functions().updateFunctionWithUrl(functionConfig, functionConfig.getJar(), updateOptions);

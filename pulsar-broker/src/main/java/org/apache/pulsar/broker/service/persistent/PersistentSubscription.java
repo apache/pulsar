@@ -997,14 +997,15 @@ public class PersistentSubscription implements Subscription {
             });
         }
 
-        subStats.type = getType();
+        SubType subType = getType();
+        subStats.type = getTypeString();
         if (dispatcher instanceof PersistentDispatcherSingleActiveConsumer) {
             Consumer activeConsumer = ((PersistentDispatcherSingleActiveConsumer) dispatcher).getActiveConsumer();
             if (activeConsumer != null) {
                 subStats.activeConsumerName = activeConsumer.consumerName();
             }
         }
-        if (Subscription.isIndividualAckMode(subStats.type)) {
+        if (Subscription.isIndividualAckMode(subType)) {
             if (dispatcher instanceof PersistentDispatcherMultipleConsumers) {
                 PersistentDispatcherMultipleConsumers d = (PersistentDispatcherMultipleConsumers) dispatcher;
                 subStats.unackedMessages = d.getTotalUnackedMessages();

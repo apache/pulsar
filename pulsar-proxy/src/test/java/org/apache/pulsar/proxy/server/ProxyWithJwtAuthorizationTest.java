@@ -35,9 +35,9 @@ import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.AuthAction;
-import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -142,10 +142,10 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
 
         String namespaceName = "my-property/proxy-authorization/my-ns";
 
-        admin.clusters().createCluster("proxy-authorization", new ClusterData(brokerUrl.toString()));
+        admin.clusters().createCluster("proxy-authorization", new ClusterDataImpl(brokerUrl.toString()));
 
         admin.tenants().createTenant("my-property",
-                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("proxy-authorization")));
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("proxy-authorization")));
         admin.namespaces().createNamespace(namespaceName);
 
         Consumer<byte[]> consumer;
@@ -223,10 +223,10 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         String topicName = "persistent://my-property/my-ns/my-topic1";
         String subscriptionName = "my-subscriber-name";
 
-        admin.clusters().createCluster(clusterName, new ClusterData(brokerUrl.toString()));
+        admin.clusters().createCluster(clusterName, new ClusterDataImpl(brokerUrl.toString()));
 
         admin.tenants().createTenant("my-property",
-                new TenantInfo(Sets.newHashSet(), Sets.newHashSet(clusterName)));
+                new TenantInfoImpl(Sets.newHashSet(), Sets.newHashSet(clusterName)));
         admin.namespaces().createNamespace(namespaceName);
         admin.topics().createPartitionedTopic(topicName, 2);
         admin.topics().grantPermission(topicName, CLIENT_ROLE,
@@ -315,10 +315,10 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
 
         String namespaceName = "my-property/proxy-authorization/my-ns";
 
-        admin.clusters().createCluster("proxy-authorization", new ClusterData(brokerUrl.toString()));
+        admin.clusters().createCluster("proxy-authorization", new ClusterDataImpl(brokerUrl.toString()));
 
         admin.tenants().createTenant("my-property",
-                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("proxy-authorization")));
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("proxy-authorization")));
         admin.namespaces().createNamespace(namespaceName);
         admin.namespaces().grantPermissionOnNamespace(namespaceName, CLIENT_ROLE,
                 Sets.newHashSet(AuthAction.produce, AuthAction.consume));

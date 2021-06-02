@@ -38,7 +38,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.slf4j.Logger;
@@ -668,7 +668,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         final int messageRate = 5;
         DispatchRate dispatchRate = new DispatchRate(messageRate, -1, 360);
 
-        admin.clusters().createCluster("global", new ClusterData("http://global:8080"));
+        admin.clusters().createCluster("global", new ClusterDataImpl("http://global:8080"));
         admin.namespaces().createNamespace(namespace);
         admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("test"));
         admin.namespaces().setDispatchRate(namespace, dispatchRate);

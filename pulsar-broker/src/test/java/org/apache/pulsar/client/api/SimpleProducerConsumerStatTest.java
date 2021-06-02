@@ -33,6 +33,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.google.gson.Gson;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.slf4j.Logger;
@@ -394,7 +395,8 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
 
         pulsar.getBrokerService().updateRates();
 
-        JsonArray metrics = admin.brokerStats().getMetrics();
+        String json = admin.brokerStats().getMetrics();
+        JsonArray metrics = new Gson().fromJson(json, JsonArray.class);
 
         boolean latencyCaptured = false;
         for (int i = 0; i < metrics.size(); i++) {

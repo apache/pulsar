@@ -21,7 +21,7 @@ package org.apache.pulsar.functions.worker.rest.api;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.io.ConnectorDefinition;
-import org.apache.pulsar.common.policies.data.FunctionStats;
+import org.apache.pulsar.common.policies.data.FunctionInstanceStatsImpl;
 import org.apache.pulsar.common.policies.data.WorkerFunctionInstanceStats;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.functions.proto.Function;
@@ -176,7 +176,7 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
                 Function.FunctionDetails functionDetails = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionDetails();
                 int parallelism = functionDetails.getParallelism();
                 for (int i = 0; i < parallelism; ++i) {
-                    FunctionStats.FunctionInstanceStats functionInstanceStats =
+                    FunctionInstanceStatsImpl functionInstanceStats =
                             WorkerUtils.getFunctionInstanceStats(fullyQualifiedInstanceName, functionRuntimeInfo, i);
                     WorkerFunctionInstanceStats workerFunctionInstanceStats = new WorkerFunctionInstanceStats();
                     workerFunctionInstanceStats.setName(FunctionCommon.getFullyQualifiedInstanceId(
@@ -186,7 +186,7 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
                     metricsList.add(workerFunctionInstanceStats);
                 }
             } else {
-                FunctionStats.FunctionInstanceStats functionInstanceStats =
+                FunctionInstanceStatsImpl functionInstanceStats =
                         WorkerUtils.getFunctionInstanceStats(fullyQualifiedInstanceName, functionRuntimeInfo,
                                 functionRuntimeInfo.getFunctionInstance().getInstanceId());
                 WorkerFunctionInstanceStats workerFunctionInstanceStats = new WorkerFunctionInstanceStats();

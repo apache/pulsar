@@ -30,8 +30,10 @@ import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ProxyProtocol;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.FailureDomainImpl;
+
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.FailureDomain;
 import lombok.Getter;
 
 @Parameters(commandDescription = "Operations about clusters")
@@ -168,7 +170,7 @@ public class CmdClusters extends CmdBase {
         
         void run() throws PulsarAdminException {
             String cluster = getOneArgument(params);
-            FailureDomain domain = new FailureDomain();
+            FailureDomainImpl domain = new FailureDomainImpl();
             domain.setBrokers((isNotBlank(brokerList) ? Sets.newHashSet(brokerList.split(",")): null));
             getAdmin().clusters().createFailureDomain(cluster, domainName, domain);
         }
@@ -187,7 +189,7 @@ public class CmdClusters extends CmdBase {
 
         void run() throws PulsarAdminException {
             String cluster = getOneArgument(params);
-            FailureDomain domain = new FailureDomain();
+            FailureDomainImpl domain = new FailureDomainImpl();
             domain.setBrokers((isNotBlank(brokerList) ? Sets.newHashSet(brokerList.split(",")) : null));
             getAdmin().clusters().updateFailureDomain(cluster, domainName, domain);
         }
@@ -321,9 +323,9 @@ public class CmdClusters extends CmdBase {
             super.processArguments();
 
             if (null != clusterConfigFile) {
-                this.clusterData = CmdUtils.loadConfig(clusterConfigFile, ClusterData.class);
+                this.clusterData = CmdUtils.loadConfig(clusterConfigFile, ClusterDataImpl.class);
             } else {
-                this.clusterData = new ClusterData();
+                this.clusterData = new ClusterDataImpl();
             }
 
             if (serviceUrl != null) {
