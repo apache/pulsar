@@ -237,6 +237,7 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<byte[]> {
                 kinesisSink.sinkContext.recordMetric(METRICS_TOTAL_SUCCESS, 1);
             }
             kinesisSink.previousPublishFailed = FALSE;
+            this.resultContext.ack();
             recycle();
         }
 
