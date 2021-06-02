@@ -543,13 +543,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = "The maximum number of connections in Broker, if it exceeds, new connections will be rejected."
+        doc = "The maximum number of connections in the broker. If it exceeds, new connections are rejected."
     )
     private int brokerMaxConnections = 0;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = "The maximum number of connections per IP, if it exceeds, new connections will be rejected."
+        doc = "The maximum number of connections per IP. If it exceeds, new connections are rejected."
     )
     private int brokerMaxConnectionsPerIp = 0;
 
