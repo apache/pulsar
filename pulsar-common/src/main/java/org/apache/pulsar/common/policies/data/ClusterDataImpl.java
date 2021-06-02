@@ -143,6 +143,12 @@ public class ClusterDataImpl implements  ClusterData {
         value = "Path for the trusted TLS certificate file for outgoing connection to a server (broker)"
     )
     private String brokerClientTrustCertsFilePath;
+    @ApiModelProperty(
+            name = "listenerName",
+            value = "listenerName when client would like to connect to cluster",
+            example = ""
+    )
+    private String listenerName;
 
     public ClusterDataImpl(String serviceUrl) {
         this(serviceUrl, "");
@@ -168,6 +174,17 @@ public class ClusterDataImpl implements  ClusterData {
         this.brokerServiceUrlTls = brokerServiceUrlTls;
         this.authenticationPlugin = authenticationPlugin;
         this.authenticationParameters = authenticationParameters;
+    }
+
+    public ClusterDataImpl(String serviceUrl, String serviceUrlTls, String brokerServiceUrl, String brokerServiceUrlTls,
+                       String authenticationPlugin, String authenticationParameters, String listenerName) {
+        this.serviceUrl = serviceUrl;
+        this.serviceUrlTls = serviceUrlTls;
+        this.brokerServiceUrl = brokerServiceUrl;
+        this.brokerServiceUrlTls = brokerServiceUrlTls;
+        this.authenticationPlugin = authenticationPlugin;
+        this.authenticationParameters = authenticationParameters;
+        this.listenerName = listenerName;
     }
 
     public ClusterDataImpl(String serviceUrl, String serviceUrlTls, String brokerServiceUrl, String brokerServiceUrlTls,
@@ -201,6 +218,6 @@ public class ClusterDataImpl implements  ClusterData {
         this.brokerClientTlsTrustStore = other.brokerClientTlsTrustStore;
         this.brokerClientTlsTrustStorePassword = other.brokerClientTlsTrustStorePassword;
         this.brokerClientTrustCertsFilePath = other.brokerClientTrustCertsFilePath;
+        this.listenerName = other.listenerName;
     }
-
 }

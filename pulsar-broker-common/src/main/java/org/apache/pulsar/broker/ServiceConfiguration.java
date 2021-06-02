@@ -1050,7 +1050,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean authenticationEnabled = false;
     @FieldContext(
         category = CATEGORY_AUTHENTICATION,
-        doc = "Autentication provider name list, which is a list of class names"
+        doc = "Authentication provider name list, which is a list of class names"
     )
     private Set<String> authenticationProviders = Sets.newTreeSet();
 

@@ -396,14 +396,15 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
             assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
         }
 
-        // Check authentication
+        // Check authentication and listener name
         try {
             clusters.createCluster("auth", new ClusterDataImpl("http://dummy.web.example.com", "",
                     "http://dummy.messaging.example.com", "",
-                    "authenticationPlugin", "authenticationParameters"));
+                    "authenticationPlugin", "authenticationParameters", "listenerName"));
             ClusterDataImpl cluster = clusters.getCluster("auth");
             assertEquals("authenticationPlugin", cluster.getAuthenticationPlugin());
             assertEquals("authenticationParameters", cluster.getAuthenticationParameters());
+            assertEquals("listenerName", cluster.getListenerName());
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
         }

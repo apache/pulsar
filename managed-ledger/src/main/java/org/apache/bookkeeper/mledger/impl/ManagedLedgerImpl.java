@@ -1504,6 +1504,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 if (existsOp.ledger != null) {
                     existsOp.close();
                     existsOp = OpAddEntry.create(existsOp.ml, existsOp.data, existsOp.getNumberOfMessages(), existsOp.callback, existsOp.ctx);
+                    // release the extra retain
+                    ReferenceCountUtil.release(existsOp.data);
                 }
                 existsOp.setLedger(currentLedger);
                 if (beforeAddEntry(existsOp)) {
