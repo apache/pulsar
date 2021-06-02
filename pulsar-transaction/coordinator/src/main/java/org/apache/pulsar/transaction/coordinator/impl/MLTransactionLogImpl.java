@@ -58,7 +58,7 @@ public class MLTransactionLogImpl implements TransactionLog {
 
     private final ManagedCursor cursor;
 
-    private final static String TRANSACTION_SUBSCRIPTION_NAME = "transaction.subscription";
+    public final static String TRANSACTION_SUBSCRIPTION_NAME = "transaction.subscription";
 
     private final SpscArrayQueue<Entry> entryQueue;
 
