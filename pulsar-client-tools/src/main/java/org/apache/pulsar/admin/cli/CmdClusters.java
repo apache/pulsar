@@ -307,7 +307,7 @@ public class CmdClusters extends CmdBase {
         @Parameter(names = "--tls-trust-certs-filepath", description = "path for the trusted TLS certificate file", required = false)
         protected String brokerClientTrustCertsFilePath;
 
-        @Parameter(names = "--listenerName", description = "listenerName", required = false)
+        @Parameter(names = "--listener-name", description = "listenerName when client would like to connect to cluster", required = false)
         private String listenerName;
 
         @Parameter(names = "--cluster-config-file", description = "The path to a YAML config file specifying the "
