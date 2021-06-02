@@ -323,7 +323,7 @@ public class CmdClusters extends CmdBase {
             super.processArguments();
 
             if (null != clusterConfigFile) {
-                this.clusterData = CmdUtils.loadConfig(clusterConfigFile, ClusterData.class);
+                this.clusterData = CmdUtils.loadConfig(clusterConfigFile, ClusterDataImpl.class);
             } else {
                 this.clusterData = new ClusterDataImpl();
             }

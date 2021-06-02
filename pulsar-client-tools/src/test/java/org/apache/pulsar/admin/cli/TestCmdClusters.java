@@ -64,7 +64,7 @@ public class TestCmdClusters {
     public void testCmdClusterConfigFile(ClusterData testClusterData, ClusterData expectedClusterData) throws Exception {
         File file = Files.createTempFile("tmp_cluster", ".yaml").toFile();
         new YAMLMapper().writeValue(file, testClusterData);
-        Assert.assertEquals(testClusterData, CmdUtils.loadConfig(file.getAbsolutePath(), ClusterData.class));
+        Assert.assertEquals(testClusterData, CmdUtils.loadConfig(file.getAbsolutePath(), ClusterDataImpl.class));
 
         // test create cluster
         cmdClusters.run(new String[]{"create", "test_cluster", "--cluster-config-file", file.getAbsolutePath()});
