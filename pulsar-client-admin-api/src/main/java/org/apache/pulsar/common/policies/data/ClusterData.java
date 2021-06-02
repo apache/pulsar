@@ -78,4 +78,7 @@ public interface ClusterData {
 
     ClusterData setBrokerClientTrustCertsFilePath(String trustCertsFilePath);
     String getBrokerClientTrustCertsFilePath();
+
+    ClusterData setListenerName(String listenerName);
+    String getListenerName();
 }
