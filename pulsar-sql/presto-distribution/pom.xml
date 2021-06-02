@@ -39,10 +39,7 @@
     <objenesis.version>2.6</objenesis.version>
     <objectsize.version>0.0.12</objectsize.version>
     <guice.version>4.2.0</guice.version>
-    <!-- Launcher properties -->
-    <main-class>io.prestosql.server.PrestoServer</main-class>
-    <process-name>${project.artifactId}</process-name>
-    <jackson.version>2.12.3</jackson.version>
+    <jackson.version>2.11.1</jackson.version>
     <!--fix Security Vulnerabilities-->
     <!--https://www.cvedetails.com/vulnerability-list/vendor_id-15866/product_id-42991/Fasterxml-Jackson-databind.html-->
     <jackson.databind.version>2.12.3</jackson.databind.version>
@@ -254,13 +251,6 @@
         <version>${errorprone.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.fasterxml.jackson</groupId>
-        <artifactId>jackson-bom</artifactId>
-        <version>${jackson.version}</version>
-        <type>pom</type>
-        <scope>import</scope>
-      </dependency>
-      <dependency>
         <groupId>org.eclipse.jetty</groupId>
         <artifactId>jetty-http</artifactId>
         <version>${jetty.version}</version>
@@ -321,7 +311,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-assembly-plugin</artifactId>
-        <version>3.3.0</version>
+        <version>${maven-assembly-plugin.version}</version>
         <configuration>
           <appendAssemblyId>false</appendAssemblyId>
           <attach>true</attach>
@@ -342,28 +332,6 @@
         </executions>
       </plugin>
 
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>templating-maven-plugin</artifactId>
-        <version>1.0.0</version>
-        <executions>
-          <execution>
-            <id>filter-src</id>
-            <goals>
-              <goal>filter-sources</goal>
-            </goals>
-            <phase>package</phase>
-            <configuration>
-              <sourceDirectory>${project.build.directory}/${project.artifactId}/bin/</sourceDirectory>
-              <outputDirectory>${project.build.directory}/${project.artifactId}/bin/</outputDirectory>
-              <overwrite>true</overwrite>
-              <delimiters>
-                <delimiter>${*}</delimiter>
-              </delimiters>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
       <plugin>
         <groupId>com.mycila</groupId>
         <artifactId>license-maven-plugin</artifactId>
