@@ -21,7 +21,6 @@
 #include "PartitionedProducerImpl.h"
 #include "TopicName.h"
 
-#include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/find.hpp>
 #include <memory>

@@ -85,6 +85,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class NamespaceServiceTest extends BrokerTestBase {
 
     @BeforeMethod
@@ -114,7 +115,10 @@ public class NamespaceServiceTest extends BrokerTestBase {
         NamespaceBundle originalBundle = bundles.findBundle(topicName);
 
         // Split bundle and take ownership of split bundles
-        CompletableFuture<Void> result = namespaceService.splitAndOwnBundle(originalBundle, false, NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_ALGO);
+        CompletableFuture<Void> result = namespaceService.splitAndOwnBundle(
+                originalBundle,
+                false,
+                NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_ALGO);
 
         try {
             result.get();
@@ -152,7 +156,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         // (3) validate ownership of new split bundles by local owner
         bundleList.forEach(b -> {
             try {
-                byte[] data = this.pulsar.getLocalZkCache().getZooKeeper().getData(ServiceUnitZkUtils.path(b), null,
+                byte[] data = this.pulsar.getLocalZkCache().getZooKeeper().getData(ServiceUnitUtils.path(b), null,
                         new Stat());
                 NamespaceEphemeralData node = ObjectMapperFactory.getThreadLocal().readValue(data,
                         NamespaceEphemeralData.class);
@@ -194,7 +198,10 @@ public class NamespaceServiceTest extends BrokerTestBase {
         assertNotNull(list);
 
         // Split bundle and take ownership of split bundles
-        CompletableFuture<Void> result = namespaceService.splitAndOwnBundle(originalBundle, false, NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_ALGO);
+        CompletableFuture<Void> result = namespaceService.splitAndOwnBundle(
+                originalBundle,
+                false,
+                NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_ALGO);
         try {
             result.get();
         } catch (Exception e) {
@@ -276,7 +283,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         topics.put(topicName, topicFuture);
         doAnswer(new Answer<CompletableFuture<Void>>() {
             @Override
-            public CompletableFuture<Void> answer(InvocationOnMock invocation) throws Throwable {
+            public CompletableFuture<Void> answer(InvocationOnMock invocation) {
                 CompletableFuture<Void> result = new CompletableFuture<>();
                 result.completeExceptionally(new RuntimeException("first time failed"));
                 return result;
@@ -287,7 +294,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         pulsar.getNamespaceService().unloadNamespaceBundle(bundle).join();
 
         try {
-            pulsar.getLocalZkCache().getZooKeeper().getData(ServiceUnitZkUtils.path(bundle), null, null);
+            pulsar.getLocalZkCache().getZooKeeper().getData(ServiceUnitUtils.path(bundle), null, null);
             fail("it should fail as node is not present");
         } catch (org.apache.zookeeper.KeeperException.NoNodeException e) {
             // ok
@@ -324,7 +331,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         pulsar.getNamespaceService().unloadNamespaceBundle(bundle, 1, TimeUnit.SECONDS).join();
 
         try {
-            pulsar.getLocalZkCache().getZooKeeper().getData(ServiceUnitZkUtils.path(bundle), null, null);
+            pulsar.getLocalZkCache().getZooKeeper().getData(ServiceUnitUtils.path(bundle), null, null);
             fail("it should fail as node is not present");
         } catch (org.apache.zookeeper.KeeperException.NoNodeException e) {
             // ok
@@ -447,7 +454,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         // (3) validate ownership of new split bundles by local owner
         bundleList.forEach(b -> {
             try {
-                byte[] data = this.pulsar.getLocalZkCache().getZooKeeper().getData(ServiceUnitZkUtils.path(b), null,
+                byte[] data = this.pulsar.getLocalZkCache().getZooKeeper().getData(ServiceUnitUtils.path(b), null,
                         new Stat());
                 NamespaceEphemeralData node = ObjectMapperFactory.getThreadLocal().readValue(data,
                         NamespaceEphemeralData.class);
@@ -509,7 +516,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         bCacheField.setAccessible(true);
         ((AsyncLoadingCache<NamespaceName, NamespaceBundles>) bCacheField.get(utilityFactory)).put(nsname,
                 CompletableFuture.completedFuture(bundles));
-        return utilityFactory.splitBundles(targetBundle, 2, null);
+        return utilityFactory.splitBundles(targetBundle, 2, null).join();
     }
 
     private static final Logger log = LoggerFactory.getLogger(NamespaceServiceTest.class);

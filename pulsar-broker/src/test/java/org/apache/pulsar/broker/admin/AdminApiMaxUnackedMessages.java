@@ -43,6 +43,7 @@ import java.util.concurrent.TimeUnit;
 import static org.testng.Assert.*;
 
 @Slf4j
+@Test(groups = "broker")
 public class AdminApiMaxUnackedMessages extends MockedPulsarServiceBaseTest {
 
     @BeforeMethod
@@ -117,11 +118,11 @@ public class AdminApiMaxUnackedMessages extends MockedPulsarServiceBaseTest {
         String namespace = "max-unacked-messages/default-on-subscription";
         assertNull(admin.namespaces().getMaxUnackedMessagesPerSubscription(namespace));
         admin.namespaces().setMaxUnackedMessagesPerSubscription(namespace, 2*200000);
-        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(()
+        Awaitility.await().untilAsserted(()
                 -> assertEquals(2*200000, admin.namespaces().getMaxUnackedMessagesPerSubscription(namespace).intValue()));
 
         admin.namespaces().removeMaxUnackedMessagesPerSubscription(namespace);
-        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(()
+        Awaitility.await().untilAsserted(()
                 -> assertNull(admin.namespaces().getMaxUnackedMessagesPerSubscription(namespace)));
     }
 

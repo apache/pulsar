@@ -28,13 +28,21 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
+import static org.testng.AssertJUnit.assertEquals;
+import static org.testng.AssertJUnit.assertNotNull;
+import static org.testng.AssertJUnit.assertNull;
 
+@Test(groups = "broker")
 public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServiceBaseTest {
 
     private static final String NAMESPACE1 = "system-topic/namespace-1";
@@ -51,7 +59,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
     private NamespaceEventsSystemTopicFactory systemTopicFactory;
     private SystemTopicBasedTopicPoliciesService systemTopicBasedTopicPoliciesService;
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         conf.setSystemTopicEnabled(true);
@@ -171,6 +179,29 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         // Check get without cache
         policiesGet1 = systemTopicBasedTopicPoliciesService.getTopicPoliciesBypassCacheAsync(TOPIC1).get();
         Assert.assertEquals(policies1, policiesGet1);
+    }
+
+    @Test
+    public void testCacheCleanup() throws Exception {
+        final String topic = "persistent://" + NAMESPACE1 + "/test" + UUID.randomUUID();
+        TopicName topicName = TopicName.get(topic);
+        admin.topics().createPartitionedTopic(topic, 3);
+        pulsarClient.newProducer().topic(topic).create().close();
+        Awaitility.await().untilAsserted(()
+                -> systemTopicBasedTopicPoliciesService.cacheIsInitialized(topicName));
+        admin.topics().setMaxConsumers(topic, 1000);
+        Awaitility.await().untilAsserted(() ->
+                assertNotNull(admin.topics().getMaxConsumers(topic)));
+        Map<TopicName, TopicPolicies> map = systemTopicBasedTopicPoliciesService.getPoliciesCache();
+        Map<TopicName, List<TopicPolicyListener<TopicPolicies>>> listMap =
+                systemTopicBasedTopicPoliciesService.getListeners();
+        assertNotNull(map.get(topicName));
+        assertEquals(map.get(topicName).getMaxConsumerPerTopic().intValue(), 1000);
+        assertNotNull(listMap.get(topicName).get(0));
+
+        admin.topics().deletePartitionedTopic(topic, true);
+        assertNull(map.get(topicName));
+        assertNull(listMap.get(topicName));
     }
 
     private void prepareData() throws PulsarAdminException {

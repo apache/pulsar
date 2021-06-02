@@ -29,7 +29,10 @@ import java.util.List;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.RequiredTypeException;
+import io.jsonwebtoken.JwtParser;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Histogram;
 import org.apache.commons.lang3.StringUtils;
@@ -77,6 +80,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             .name("pulsar_expired_token_count")
             .help("Pulsar expired token")
             .register();
+
     private static final Histogram expiringTokenMinutesMetrics = Histogram.build()
             .name("pulsar_expiring_token_minutes")
             .help("The remaining time of expiring token in minutes")
@@ -88,6 +92,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     private SignatureAlgorithm publicKeyAlg;
     private String audienceClaim;
     private String audience;
+    private JwtParser parser;
 
     // config keys
     private String confTokenSecretKeySettingName;
@@ -100,6 +105,12 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     @Override
     public void close() throws IOException {
         // noop
+    }
+
+    @VisibleForTesting
+    public static void resetMetrics() {
+        expiredTokenMetrics.clear();
+        expiringTokenMinutesMetrics.clear();
     }
 
     @Override
@@ -121,6 +132,8 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         this.roleClaim = getTokenRoleClaim(config);
         this.audienceClaim = getTokenAudienceClaim(config);
         this.audience = getTokenAudience(config);
+
+        this.parser = Jwts.parserBuilder().setSigningKey(this.validationKey).build();
 
         if (audienceClaim != null && audience == null ) {
             throw new IllegalArgumentException("Token Audience Claim [" + audienceClaim
@@ -186,7 +199,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     @SuppressWarnings("unchecked")
     private Jwt<?, Claims> authenticateToken(final String token) throws AuthenticationException {
         try {
-            Jwt<?, Claims> jwt = Jwts.parserBuilder().setSigningKey(validationKey).build().parseClaimsJws(token);
+            Jwt<?, Claims> jwt = parser.parseClaimsJws(token);
 
             if (audienceClaim != null) {
                 Object object = jwt.getBody().get(audienceClaim);
@@ -197,7 +210,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
                 if (object instanceof List) {
                     List<String> audiences = (List<String>) object;
                     // audience not contains this broker, throw exception.
-                    if (!audiences.stream().anyMatch(audienceInToken -> audienceInToken.equals(audience))) {
+                    if (audiences.stream().noneMatch(audienceInToken -> audienceInToken.equals(audience))) {
                         throw new AuthenticationException("Audiences in token: [" + String.join(", ", audiences)
                                                           + "] not contains this broker: " + audience);
                     }
@@ -225,7 +238,15 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     }
 
     private String getPrincipal(Jwt<?, Claims> jwt) {
-        return jwt.getBody().get(roleClaim, String.class);
+        try {
+            return jwt.getBody().get(roleClaim, String.class);
+        } catch (RequiredTypeException requiredTypeException) {
+            List list = jwt.getBody().get(roleClaim, List.class);
+            if (list != null && !list.isEmpty() && list.get(0) instanceof String) {
+                return (String) list.get(0);
+            }
+            return null;
+        }
     }
 
     /**

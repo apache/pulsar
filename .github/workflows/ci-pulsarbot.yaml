@@ -37,9 +37,9 @@ jobs:
     steps:
       - name: checkout
         uses: actions/checkout@v2
-        with:
-          fetch-depth: 100
-          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Tune Runner VM
+        uses: ./.github/actions/tune-runner-vm
 
       - name: Execute pulsarbot command
         id:   pulsarbot

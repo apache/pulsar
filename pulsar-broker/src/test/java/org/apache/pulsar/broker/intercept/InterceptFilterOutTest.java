@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.intercept;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.web.PreInterceptFilter;
+import org.apache.pulsar.broker.web.ProcessHandlerFilter;
 import org.apache.pulsar.broker.web.ResponseHandlerFilter;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -38,10 +39,13 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 /**
  * Tests for the the interceptor filter out.
  */
+@Test(groups = "broker")
 public class InterceptFilterOutTest {
 
     private static final String[] shouldBeFilterOutContentTypes = new String[] {
@@ -77,6 +81,33 @@ public class InterceptFilterOutTest {
             filter.doFilter(request, response, chain);
             Assert.assertEquals(interceptor.getCount(), 1);
         }
+    }
+
+    @Test
+    public void testOnFilter() throws Exception {
+        CounterBrokerInterceptor interceptor = new CounterBrokerInterceptor();
+        PulsarService pulsarService = Mockito.mock(PulsarService.class);
+        Mockito.doReturn("pulsar://127.0.0.1:6650").when(pulsarService).getAdvertisedAddress();
+        Mockito.doReturn(interceptor).when(pulsarService).getBrokerInterceptor();
+        ServiceConfiguration conf = Mockito.mock(ServiceConfiguration.class);
+        Mockito.doReturn(Sets.newHashSet("interceptor")).when(conf).getBrokerInterceptors();
+        Mockito.doReturn(conf).when(pulsarService).getConfig();
+        //init filter
+        ProcessHandlerFilter filter = new ProcessHandlerFilter(pulsarService);
+
+        HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
+        HttpServletResponse response = Mockito.mock(HttpServletResponse.class);
+        FilterChain chain = Mockito.mock(FilterChain.class);
+        Mockito.doNothing().when(chain).doFilter(Mockito.any(), Mockito.any());
+        HttpServletRequestWrapper mockInputStream = new MockRequestWrapper(request);
+        Mockito.doReturn(mockInputStream.getInputStream()).when(request).getInputStream();
+        Mockito.doReturn(new StringBuffer("http://127.0.0.1:8080")).when(request).getRequestURL();
+        // "application/json" should be intercepted
+        Mockito.doReturn("application/json").when(request).getContentType();
+
+        filter.doFilter(request, response, chain);
+        Assert.assertEquals(interceptor.getCount(), 100);
+        verify(chain, times(1)).doFilter(request, response);
     }
 
     @Test
@@ -146,7 +177,7 @@ public class InterceptFilterOutTest {
         private final byte[] body;
 
         @Override
-        public ServletInputStream getInputStream() throws IOException {
+        public ServletInputStream getInputStream() {
             final ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(body);
             return new ServletInputStream() {
                 @Override
@@ -164,7 +195,7 @@ public class InterceptFilterOutTest {
 
                 }
 
-                public int read() throws IOException {
+                public int read() {
                     return byteArrayInputStream.read();
                 }
             };

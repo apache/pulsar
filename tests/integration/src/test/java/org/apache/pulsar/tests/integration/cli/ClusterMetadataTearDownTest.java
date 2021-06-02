@@ -46,9 +46,14 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.metadata.api.MetadataStore;
+import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreFactory;
+import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.tests.integration.containers.ChaosContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
@@ -58,7 +63,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
-public class ClusterMetadataTearDownTest {
+public class ClusterMetadataTearDownTest extends TestRetrySupport {
 
     private final PulsarClusterSpec spec = PulsarClusterSpec.builder()
             .clusterName("ClusterMetadataTearDownTest-" + UUID.randomUUID().toString().substring(0, 8))
@@ -67,10 +72,10 @@ public class ClusterMetadataTearDownTest {
             .enablePrestoWorker(false)
             .build();
 
-    private final PulsarCluster pulsarCluster = PulsarCluster.forSpec(spec);
+    private PulsarCluster pulsarCluster;
 
-    private ZooKeeper localZk;
-    private ZooKeeper configStoreZk;
+    private MetadataStore localMetadataStore;
+    private MetadataStore configStore;
 
     private String metadataServiceUri;
     private MetadataBookieDriver driver;
@@ -79,14 +84,18 @@ public class ClusterMetadataTearDownTest {
     private PulsarClient client;
     private PulsarAdmin admin;
 
-    @BeforeClass
-    public void setupCluster() throws Exception {
+    @Override
+    @BeforeClass(alwaysRun = true)
+    public final void setup() throws Exception {
+        incrementSetupNumber();
+        pulsarCluster = PulsarCluster.forSpec(spec);
         pulsarCluster.start();
         metadataServiceUri = "zk+null://" + pulsarCluster.getZKConnString() + "/ledgers";
 
-        final int sessionTimeoutMs = 30000;
-        localZk = PulsarClusterMetadataTeardown.initZk(pulsarCluster.getZKConnString(), sessionTimeoutMs);
-        configStoreZk = PulsarClusterMetadataTeardown.initZk(pulsarCluster.getCSConnString(), sessionTimeoutMs);
+        localMetadataStore = MetadataStoreFactory.create(pulsarCluster.getZKConnString(),
+                MetadataStoreConfig.builder().build());
+        configStore = MetadataStoreFactory.create(pulsarCluster.getCSConnString(),
+                MetadataStoreConfig.builder().build());
 
         driver = MetadataDrivers.getBookieDriver(URI.create(metadataServiceUri));
         driver.initialize(new ServerConfiguration().setMetadataServiceUri(metadataServiceUri), () -> {}, NullStatsLogger.INSTANCE);
@@ -96,8 +105,17 @@ public class ClusterMetadataTearDownTest {
         admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
     }
 
+    @Override
     @AfterClass(alwaysRun = true)
-    public void tearDownCluster() {
+    public final void cleanup() throws PulsarClientException {
+        markCurrentSetupNumberCleaned();
+        if (client != null) {
+            client.close();
+        }
+        if (admin != null) {
+            admin.close();
+        }
+
         try {
             ledgerManager.close();
         } catch (IOException e) {
@@ -105,12 +123,12 @@ public class ClusterMetadataTearDownTest {
         }
         driver.close();
         try {
-            configStoreZk.close();
-        } catch (InterruptedException ignored) {
+            configStore.close();
+        } catch (Exception ignored) {
         }
         try {
-            localZk.close();
-        } catch (InterruptedException ignored) {
+            localMetadataStore.close();
+        } catch (Exception ignored) {
         }
         pulsarCluster.stop();
     }
@@ -177,11 +195,11 @@ public class ClusterMetadataTearDownTest {
 
         // 2. Check ZooKeeper for relative nodes
         final int zkOpTimeoutMs = 10000;
-        List<String> localZkNodes = ZkUtils.getChildrenInSingleNode(localZk, "/", zkOpTimeoutMs);
+        List<String> localNodes = localMetadataStore.getChildren("/").join();
         for (String node : PulsarClusterMetadataTeardown.localZkNodes) {
-            assertFalse(localZkNodes.contains(node));
+            assertFalse(localNodes.contains(node));
         }
-        List<String> clusterNodes = ZkUtils.getChildrenInSingleNode(configStoreZk, "/admin/clusters", zkOpTimeoutMs);
+        List<String> clusterNodes = configStore.getChildren( "/admin/clusters").join();
         assertFalse(clusterNodes.contains(pulsarCluster.getClusterName()));
     }
 

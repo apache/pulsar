@@ -34,6 +34,7 @@ import org.testng.annotations.Test;
 
 import java.util.Map;
 
+@Test(groups = "broker")
 public class KeyValueSchemaCompatibilityCheckTest {
 
     private final Map<SchemaType, SchemaCompatibilityCheck> checkers = Maps.newHashMap();

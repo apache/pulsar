@@ -71,7 +71,7 @@ public class AdminApiDelayedDelivery extends MockedPulsarServiceBaseTest {
         DelayedDeliveryPolicies delayedDeliveryPolicies = new DelayedDeliveryPolicies(2000, false);
         admin.namespaces().setDelayedDeliveryMessages(namespace, delayedDeliveryPolicies);
         //zk update takes time
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).until(() ->
+        Awaitility.await().until(() ->
                 admin.namespaces().getDelayedDelivery(namespace) != null);
         assertFalse(admin.namespaces().getDelayedDelivery(namespace).isActive());
         assertEquals(2000, admin.namespaces().getDelayedDelivery(namespace).getTickTime());
@@ -125,11 +125,11 @@ public class AdminApiDelayedDelivery extends MockedPulsarServiceBaseTest {
         assertNull(admin.namespaces().getDelayedDelivery(namespace));
         DelayedDeliveryPolicies delayedDeliveryPolicies = new DelayedDeliveryPolicies(3, true);
         admin.namespaces().setDelayedDeliveryMessages(namespace, delayedDeliveryPolicies);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(()
+        Awaitility.await().untilAsserted(()
                 -> assertEquals(admin.namespaces().getDelayedDelivery(namespace), delayedDeliveryPolicies));
 
         admin.namespaces().removeDelayedDeliveryMessages(namespace);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(()
+        Awaitility.await().untilAsserted(()
                 -> assertNull(admin.namespaces().getDelayedDelivery(namespace)));
     }
 
@@ -143,7 +143,7 @@ public class AdminApiDelayedDelivery extends MockedPulsarServiceBaseTest {
         final String topic = "persistent://" + namespace + "/test" + UUID.randomUUID();
         admin.namespaces().createNamespace(namespace);
         pulsarClient.newProducer().topic(topic).create().close();
-        Awaitility.await().atMost(3, TimeUnit.SECONDS)
+        Awaitility.await()
                 .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
         //namespace-level default value is null
         assertNull(admin.namespaces().getDelayedDelivery(namespace));
@@ -158,7 +158,7 @@ public class AdminApiDelayedDelivery extends MockedPulsarServiceBaseTest {
         DelayedDeliveryPolicies namespaceLevelPolicy =
                 new DelayedDeliveryPolicies(100, true);
         admin.namespaces().setDelayedDeliveryMessages(namespace, namespaceLevelPolicy);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(()
+        Awaitility.await().untilAsserted(()
                 -> assertNotNull(admin.namespaces().getDelayedDelivery(namespace)));
         DelayedDeliveryPolicies policyFromBroker = admin.topics().getDelayedDeliveryPolicy(topic, true);
         assertEquals(policyFromBroker.getTickTime(), 100);
@@ -166,18 +166,18 @@ public class AdminApiDelayedDelivery extends MockedPulsarServiceBaseTest {
         // set topic-level policy
         DelayedDeliveryPolicies topicLevelPolicy = new DelayedDeliveryPolicies(200, true);
         admin.topics().setDelayedDeliveryPolicy(topic, topicLevelPolicy);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(()
+        Awaitility.await().untilAsserted(()
                 -> assertNotNull(admin.topics().getDelayedDeliveryPolicy(topic)));
         policyFromBroker = admin.topics().getDelayedDeliveryPolicy(topic, true);
         assertEquals(policyFromBroker.getTickTime(), 200);
         assertTrue(policyFromBroker.isActive());
         //remove topic-level policy
-        admin.topics().removeDelayedDeliveryPolicy(topic); ;
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(()
+        admin.topics().removeDelayedDeliveryPolicy(topic);
+        Awaitility.await().untilAsserted(()
                 -> assertEquals(admin.topics().getDelayedDeliveryPolicy(topic, true), namespaceLevelPolicy));
         //remove namespace-level policy
         admin.namespaces().removeDelayedDeliveryMessages(namespace);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(()
+        Awaitility.await().untilAsserted(()
                 -> assertEquals(admin.topics().getDelayedDeliveryPolicy(topic, true), brokerLevelPolicy));
     }
 }

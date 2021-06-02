@@ -106,6 +106,10 @@ public class PrometheusMetricsGenerator {
                 pulsar.getWorkerService().generateFunctionsStats(stream);
             }
 
+            if (pulsar.getConfiguration().isTransactionCoordinatorEnabled()) {
+                TransactionAggregator.generate(pulsar, stream, includeTopicMetrics);
+            }
+
             generateBrokerBasicMetrics(pulsar, stream);
 
             generateManagedLedgerBookieClientMetrics(pulsar, stream);

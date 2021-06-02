@@ -34,7 +34,6 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.BrokerOperabilityMetrics;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
-import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect.EventType;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
@@ -56,10 +55,12 @@ public class PulsarStats implements Closeable {
     private List<NonPersistentTopic> tempNonPersistentTopics;
     private final BrokerOperabilityMetrics brokerOperabilityMetrics;
     private final boolean exposePublisherStats;
+    private final PulsarService pulsarService;
 
     private final ReentrantReadWriteLock bufferLock = new ReentrantReadWriteLock();
 
     public PulsarStats(PulsarService pulsar) {
+        this.pulsarService = pulsar;
         this.topicStatsBuf = Unpooled.buffer(16 * 1024);
         this.tempTopicStatsBuf = Unpooled.buffer(16 * 1024);
 
@@ -234,18 +235,6 @@ public class PulsarStats implements Closeable {
             brokerOperabilityMetrics.recordTopicLoadTimeValue(topicLoadLatencyMs);
         } catch (Exception ex) {
             log.warn("Exception while recording topic load time for topic {}, {}", topic, ex.getMessage());
-        }
-    }
-
-    public void recordZkLatencyTimeValue(EventType eventType, long latencyMs) {
-        try {
-            if (EventType.write.equals(eventType)) {
-                brokerOperabilityMetrics.recordZkWriteLatencyTimeValue(latencyMs);
-            } else if (EventType.read.equals(eventType)) {
-                brokerOperabilityMetrics.recordZkReadLatencyTimeValue(latencyMs);
-            }
-        } catch (Exception ex) {
-            log.warn("Exception while recording zk-latency {}, {}", eventType, ex.getMessage());
         }
     }
 

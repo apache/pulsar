@@ -14,11 +14,11 @@ You can currently interact with the admin interface via:
    to handle redirections.
 - The `pulsar-admin` CLI tool, which is available in the `bin` folder of your [Pulsar installation](getting-started-standalone.md):
 
-```shell
-$ bin/pulsar-admin
-```
+  ```shell
+  $ bin/pulsar-admin
+  ```
 
-Full documentation for this tool can be found in the [Pulsar command-line tools](reference-pulsar-admin.md) doc.
+  For the complete commands and descriptions of `pulsar-admin`, see [here](http://pulsar.apache.org/tools/pulsar-admin/2.7.0-SNAPSHOT/).
 
 - A Java client interface.
 

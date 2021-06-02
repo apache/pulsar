@@ -42,7 +42,7 @@ public class PulsarRecord<T> implements RecordWithEncryptionContext<T> {
     private final int partition;
 
     private final Message<T> message;
-    private final Schema<?> schema;
+    private final Schema<T> schema;
 
     private final Runnable failFunction;
     private final Runnable ackFunction;
@@ -62,6 +62,11 @@ public class PulsarRecord<T> implements RecordWithEncryptionContext<T> {
     }
 
     @Override
+    public Optional<Integer> getPartitionIndex() {
+        return Optional.of(partition);
+    }
+
+    @Override
     public Optional<String> getPartitionId() {
         return Optional.of(String.format("%s-%s", topicName, partition));
     }
@@ -77,7 +82,7 @@ public class PulsarRecord<T> implements RecordWithEncryptionContext<T> {
     }
 
     @Override
-    public Schema<?> getSchema() {
+    public Schema<T> getSchema() {
         return schema;
     }
 

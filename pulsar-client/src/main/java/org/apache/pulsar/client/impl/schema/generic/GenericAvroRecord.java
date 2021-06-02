@@ -67,7 +67,7 @@ public class GenericAvroRecord extends VersionedGenericRecord {
     }
 
     @Override
-    public Object getNativeRecord() {
+    public Object getNativeObject() {
         return record;
     }
 

@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Data;
 import org.apache.avro.reflect.Nullable;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import lombok.Cleanup;
 import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,7 +49,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
 
     private static final Logger log = LoggerFactory.getLogger(DeadLetterTopicTest.class);
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
@@ -61,7 +62,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test
+    @Test(groups = "quarantine")
     public void testDeadLetterTopic() throws Exception {
         final String topic = "persistent://my-property/my-ns/dead-letter-topic";
 
@@ -79,6 +80,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
 
+        @Cleanup
         PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
         Consumer<byte[]> deadLetterConsumer = newPulsarClient.newConsumer(Schema.BYTES)
                 .topic("persistent://my-property/my-ns/dead-letter-topic-my-subscription-DLQ")
@@ -128,7 +130,6 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         assertNull(checkMessage);
 
         checkConsumer.close();
-        newPulsarClient.close();
     }
 
     @Test(timeOut = 20000)
@@ -147,6 +148,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
 
+        @Cleanup
         PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
         Consumer<byte[]> deadLetterConsumer = newPulsarClient.newConsumer(Schema.BYTES)
                 .topic("persistent://my-property/my-ns/dead-letter-topic-my-subscription-DLQ")
@@ -182,7 +184,6 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         assertEquals(totalInDeadLetter, sendMessages);
         deadLetterConsumer.close();
         consumer.close();
-        newPulsarClient.close();
     }
 
     @Data
@@ -281,6 +282,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         //1 start 3 parallel consumers
         List<Consumer<String>> consumers = new ArrayList<>();
         final AtomicInteger totalReceived = new AtomicInteger(0);
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newFixedThreadPool(consumerCount);
         for (int i = 0; i < consumerCount; i++) {
             executor.execute(() -> {
@@ -335,7 +337,6 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         assertEquals(totalInDeadLetter, messageCount);
 
         //6 clean up
-        executor.shutdownNow();
         producer.close();
         deadLetterConsumer.close();
         for (Consumer<String> consumer : consumers) {
@@ -426,7 +427,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         checkConsumer.close();
     }
 
-    @Test
+    @Test(groups = "quarantine")
     public void testDeadLetterTopicByCustomTopicName() throws Exception {
         final String topic = "persistent://my-property/my-ns/dead-letter-topic";
         final int maxRedeliveryCount = 2;
@@ -445,6 +446,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
                         .build())
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
+        @Cleanup
         PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
         Consumer<byte[]> deadLetterConsumer = newPulsarClient.newConsumer(Schema.BYTES)
                 .topic("persistent://my-property/my-ns/dead-letter-custom-topic-my-subscription-custom-DLQ")
@@ -474,6 +476,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         } while (totalInDeadLetter < sendMessages);
         deadLetterConsumer.close();
         consumer.close();
+        @Cleanup
         PulsarClient newPulsarClient1 = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
         Consumer<byte[]> checkConsumer = newPulsarClient1.newConsumer(Schema.BYTES)
                 .topic(topic)
@@ -486,8 +489,6 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
             log.info("check consumer received message : {} {}", checkMessage.getMessageId(), new String(checkMessage.getData()));
         }
         assertNull(checkMessage);
-        newPulsarClient.close();
-        newPulsarClient1.close();
         checkConsumer.close();
     }
 

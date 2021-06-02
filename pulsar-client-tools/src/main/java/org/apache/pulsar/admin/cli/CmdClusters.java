@@ -18,20 +18,21 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.Parameters;
+import com.google.common.collect.Sets;
 import java.util.Arrays;
 import java.util.function.Supplier;
-
 import org.apache.commons.lang3.StringUtils;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.FailureDomain;
-
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.Parameters;
-import com.google.common.collect.Sets;
+import lombok.Getter;
 
 @Parameters(commandDescription = "Operations about clusters")
 public class CmdClusters extends CmdBase {
@@ -45,7 +46,7 @@ public class CmdClusters extends CmdBase {
 
     @Parameters(commandDescription = "Get the configuration data for the specified cluster")
     private class Get extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
 
         void run() throws PulsarAdminException {
@@ -55,72 +56,51 @@ public class CmdClusters extends CmdBase {
     }
 
     @Parameters(commandDescription = "Provisions a new cluster. This operation requires Pulsar super-user privileges")
-    private class Create extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
-        private java.util.List<String> params;
+    private class Create extends ClusterDetailsCommand {
 
-        @Parameter(names = "--url", description = "service-url", required = false)
-        private String serviceUrl;
-
-        @Parameter(names = "--url-secure", description = "service-url for secure connection", required = false)
-        private String serviceUrlTls;
-        
-        @Parameter(names = "--broker-url", description = "broker-service-url", required = false)
-        private String brokerServiceUrl;
-        
-        @Parameter(names = "--broker-url-secure", description = "broker-service-url for secure connection", required = false)
-        private String brokerServiceUrlTls;
-
-        @Parameter(names = "--proxy-url", description = "Proxy-service url when client would like to connect to broker via proxy.", required = false)
-        private String proxyServiceUrl;
-
-        @Parameter(names = "--proxy-protocol", description = "protocol to decide type of proxy routing eg: SNI", required = false)
-        private ProxyProtocol proxyProtocol;
-
-        void run() throws PulsarAdminException {
+        @Override
+        void runCmd() throws Exception {
             String cluster = getOneArgument(params);
-            getAdmin().clusters().createCluster(cluster,
-                    new ClusterData(serviceUrl, serviceUrlTls, brokerServiceUrl, brokerServiceUrlTls, proxyServiceUrl,
-                            proxyProtocol));
+            getAdmin().clusters().createCluster(cluster, clusterData);
+        }
+
+    }
+
+    protected void validateClusterData(ClusterData clusterData) {
+        if (clusterData.isBrokerClientTlsEnabled()) {
+            if (clusterData.isBrokerClientTlsEnabledWithKeyStore()) {
+                if (StringUtils.isAnyBlank(clusterData.getBrokerClientTlsTrustStoreType(), clusterData.getBrokerClientTlsTrustStore(),
+                        clusterData.getBrokerClientTlsTrustStorePassword())) {
+                    throw new RuntimeException(
+                            "You must specify tls-trust-store-type, tls-trust-store and tls-trust-store-pwd"
+                                    + " when enable tls-enable-keystore");
+                }
+            } else {
+                if (StringUtils.isBlank(clusterData.getBrokerClientTrustCertsFilePath())) {
+                    throw new RuntimeException("You must specify tls-trust-certs-filepath"
+                            + " when tls-enable-keystore is not enable");
+                }
+            }
         }
     }
 
     @Parameters(commandDescription = "Update the configuration for a cluster")
-    private class Update extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
-        private java.util.List<String> params;
+    private class Update extends ClusterDetailsCommand {
 
-        @Parameter(names = "--url", description = "service-url", required = false)
-        private String serviceUrl;
-
-        @Parameter(names = "--url-secure", description = "service-url for secure connection", required = false)
-        private String serviceUrlTls;
-        
-        @Parameter(names = "--broker-url", description = "broker-service-url", required = false)
-        private String brokerServiceUrl;
-        
-        @Parameter(names = "--broker-url-secure", description = "broker-service-url for secure connection", required = false)
-        private String brokerServiceUrlTls;
-
-        @Parameter(names = "--proxy-url", description = "Proxy-service url when client would like to connect to broker via proxy.", required = false)
-        private String proxyServiceUrl;
-
-        @Parameter(names = "--proxy-protocol", description = "protocol to decide type of proxy routing eg: SNI", required = false)
-        private ProxyProtocol proxyProtocol;
-
-        void run() throws PulsarAdminException {
+        @Override
+        void runCmd() throws Exception {
             String cluster = getOneArgument(params);
-            getAdmin().clusters().updateCluster(cluster, new ClusterData(serviceUrl, serviceUrlTls, brokerServiceUrl,
-                    brokerServiceUrlTls, proxyServiceUrl, proxyProtocol));
+            getAdmin().clusters().updateCluster(cluster, clusterData);
         }
+
     }
 
     @Parameters(commandDescription = "Deletes an existing cluster")
     private class Delete extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-a", "--all" }, description = "Delete all data (tenants) of the cluster\n", required = false)
+        @Parameter(names = { "-a", "--all" }, description = "Delete all data (tenants) of the cluster", required = false)
         private boolean deleteAll = false;
 
         void run() throws PulsarAdminException {
@@ -148,7 +128,7 @@ public class CmdClusters extends CmdBase {
 
     @Parameters(commandDescription = "Update peer cluster names")
     private class UpdatePeerClusters extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = "--peer-clusters", description = "Comma separated peer-cluster names [Pass empty string \"\" to delete list]", required = true)
@@ -165,7 +145,7 @@ public class CmdClusters extends CmdBase {
     @Parameters(commandDescription = "Get list of peer-clusters")
     private class GetPeerClusters extends CliCommand {
         
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
         
         void run() throws PulsarAdminException {
@@ -177,7 +157,7 @@ public class CmdClusters extends CmdBase {
     
     @Parameters(commandDescription = "Create a new failure-domain for a cluster. updates it if already created.")
     private class CreateFailureDomain extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = "--domain-name", description = "domain-name", required = true)
@@ -196,7 +176,7 @@ public class CmdClusters extends CmdBase {
 
     @Parameters(commandDescription = "Update failure-domain for a cluster. Creates a new one if not exist.")
     private class UpdateFailureDomain extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = "--domain-name", description = "domain-name", required = true)
@@ -215,7 +195,7 @@ public class CmdClusters extends CmdBase {
     
     @Parameters(commandDescription = "Deletes an existing failure-domain")
     private class DeleteFailureDomain extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = "--domain-name", description = "domain-name", required = true)
@@ -230,7 +210,7 @@ public class CmdClusters extends CmdBase {
     @Parameters(commandDescription = "List the existing failure-domains for a cluster")
     private class ListFailureDomains extends CliCommand {
         
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
         
         void run() throws PulsarAdminException {
@@ -241,7 +221,7 @@ public class CmdClusters extends CmdBase {
 
     @Parameters(commandDescription = "Get the configuration brokers of a failure-domain")
     private class GetFailureDomain extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
         
         @Parameter(names = "--domain-name", description = "domain-name", required = true)
@@ -250,6 +230,151 @@ public class CmdClusters extends CmdBase {
         void run() throws PulsarAdminException {
             String cluster = getOneArgument(params);
             print(getAdmin().clusters().getFailureDomain(cluster, domainName));
+        }
+    }
+
+    /**
+     * Base command
+     */
+    @Getter
+    abstract class BaseCommand extends CliCommand {
+        @Override
+        void run() throws Exception {
+            try {
+                processArguments();
+            } catch (Exception e) {
+                System.err.println(e.getMessage());
+                System.err.println();
+                String chosenCommand = jcommander.getParsedCommand();
+                getUsageFormatter().usage(chosenCommand);
+                return;
+            }
+            runCmd();
+        }
+
+        void processArguments() throws Exception {
+        }
+
+        abstract void runCmd() throws Exception;
+    }
+
+    abstract class ClusterDetailsCommand extends BaseCommand {
+        @Parameter(description = "cluster-name", required = true)
+        protected java.util.List<String> params;
+
+        @Parameter(names = "--url", description = "service-url", required = false)
+        protected String serviceUrl;
+
+        @Parameter(names = "--url-secure", description = "service-url for secure connection", required = false)
+        protected String serviceUrlTls;
+
+        @Parameter(names = "--broker-url", description = "broker-service-url", required = false)
+        protected String brokerServiceUrl;
+
+        @Parameter(names = "--broker-url-secure", description = "broker-service-url for secure connection", required = false)
+        protected String brokerServiceUrlTls;
+
+        @Parameter(names = "--proxy-url", description = "Proxy-service url when client would like to connect to broker via proxy.", required = false)
+        protected String proxyServiceUrl;
+
+        @Parameter(names = "--auth-plugin", description = "authentication plugin", required = false)
+        protected String authenticationPlugin;
+
+        @Parameter(names = "--auth-parameters", description = "authentication parameters", required = false)
+        protected String authenticationParameters;
+
+        @Parameter(names = "--proxy-protocol", description = "protocol to decide type of proxy routing eg: SNI", required = false)
+        protected ProxyProtocol proxyProtocol;
+
+        @Parameter(names = "--tls-enable", description = "Enable tls connection", required = false)
+        protected Boolean brokerClientTlsEnabled;
+
+        @Parameter(names = "--tls-allow-insecure", description = "Allow insecure tls connection", required = false)
+        protected Boolean tlsAllowInsecureConnection;
+
+        @Parameter(names = "--tls-enable-keystore", description = "Whether use KeyStore type to authenticate", required = false)
+        protected Boolean brokerClientTlsEnabledWithKeyStore;
+
+        @Parameter(names = "--tls-trust-store-type", description = "TLS TrustStore type configuration for internal client eg: JKS", required = false)
+        protected String brokerClientTlsTrustStoreType;
+
+        @Parameter(names = "--tls-trust-store", description = "TLS TrustStore path for internal client", required = false)
+        protected String brokerClientTlsTrustStore;
+
+        @Parameter(names = "--tls-trust-store-pwd", description = "TLS TrustStore password for internal client", required = false)
+        protected String brokerClientTlsTrustStorePassword;
+
+        @Parameter(names = "--tls-trust-certs-filepath", description = "path for the trusted TLS certificate file", required = false)
+        protected String brokerClientTrustCertsFilePath;
+
+        @Parameter(names = "--listener-name", description = "listenerName when client would like to connect to cluster", required = false)
+        private String listenerName;
+
+        @Parameter(names = "--cluster-config-file", description = "The path to a YAML config file specifying the "
+                + "cluster's configuration")
+        protected String clusterConfigFile;
+
+        protected ClusterData clusterData;
+
+        @Override
+        void processArguments() throws Exception {
+            super.processArguments();
+
+            if (null != clusterConfigFile) {
+                this.clusterData = CmdUtils.loadConfig(clusterConfigFile, ClusterData.class);
+            } else {
+                this.clusterData = new ClusterData();
+            }
+
+            if (serviceUrl != null) {
+                clusterData.setServiceUrl(serviceUrl);
+            }
+            if (serviceUrlTls != null) {
+                clusterData.setServiceUrlTls(serviceUrlTls);
+            }
+            if (brokerServiceUrl != null) {
+                clusterData.setBrokerServiceUrl(brokerServiceUrl);
+            }
+            if (brokerServiceUrlTls != null) {
+                clusterData.setBrokerServiceUrlTls(brokerServiceUrlTls);
+            }
+            if (proxyServiceUrl != null) {
+                clusterData.setProxyServiceUrl(proxyServiceUrl);
+            }
+            if (authenticationPlugin != null) {
+                clusterData.setAuthenticationPlugin(authenticationPlugin);
+            }
+            if (authenticationParameters != null) {
+                clusterData.setAuthenticationParameters(authenticationParameters);
+            }
+            if (proxyProtocol != null) {
+                clusterData.setProxyProtocol(proxyProtocol);
+            }
+            if (brokerClientTlsEnabled != null) {
+                clusterData.setBrokerClientTlsEnabled(brokerClientTlsEnabled);
+            }
+            if (tlsAllowInsecureConnection != null) {
+                clusterData.setTlsAllowInsecureConnection(tlsAllowInsecureConnection);
+            }
+            if (brokerClientTlsEnabledWithKeyStore != null) {
+                clusterData.setBrokerClientTlsEnabledWithKeyStore(brokerClientTlsEnabledWithKeyStore);
+            }
+            if (brokerClientTlsTrustStoreType != null) {
+                clusterData.setBrokerClientTlsTrustStoreType(brokerClientTlsTrustStoreType);
+            }
+            if (brokerClientTlsTrustStore != null) {
+                clusterData.setBrokerClientTlsTrustStore(brokerClientTlsTrustStore);
+            }
+            if (brokerClientTlsTrustStorePassword != null) {
+                clusterData.setBrokerClientTlsTrustStorePassword(brokerClientTlsTrustStorePassword);
+            }
+            if (brokerClientTrustCertsFilePath != null) {
+                clusterData.setBrokerClientTrustCertsFilePath(brokerClientTrustCertsFilePath);
+            }
+            if (listenerName != null) {
+                clusterData.setListenerName(listenerName);
+            }
+            validateClusterData(clusterData);
         }
     }
     

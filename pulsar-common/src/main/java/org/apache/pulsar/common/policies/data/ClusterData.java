@@ -24,6 +24,12 @@ import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import java.util.LinkedHashSet;
 import java.util.Objects;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.experimental.Accessors;
 import org.apache.pulsar.client.api.ProxyProtocol;
 
 /**
@@ -33,6 +39,12 @@ import org.apache.pulsar.client.api.ProxyProtocol;
     value = "ClusterData",
     description = "The configuration data for a cluster"
 )
+@Getter
+@Setter
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+@Accessors(chain = true)
 public class ClusterData {
     @ApiModelProperty(
         name = "serviceUrl",
@@ -66,6 +78,17 @@ public class ClusterData {
     )
     private String proxyServiceUrl;
     @ApiModelProperty(
+        name = "authenticationPlugin",
+        value = "Authentication plugin when client would like to connect to cluster.",
+        example = "org.apache.pulsar.client.impl.auth.AuthenticationToken"
+    )
+    private String authenticationPlugin;
+    @ApiModelProperty(
+        name = "authenticationParameters",
+        value = "Authentication parameters when client would like to connect to cluster."
+    )
+    private String authenticationParameters;
+    @ApiModelProperty(
         name = "proxyProtocol",
         value = "protocol to decide type of proxy routing eg: SNI-routing",
         example = "SNI"
@@ -79,9 +102,54 @@ public class ClusterData {
         value = "A set of peer cluster names"
     )
     private LinkedHashSet<String> peerClusterNames;
-
-    public ClusterData() {
-    }
+    @ApiModelProperty(
+        name = "brokerClientTlsEnabled",
+        value = "Enable TLS when talking with other brokers in the same cluster (admin operation)"
+                + " or different clusters (replication)"
+    )
+    private boolean brokerClientTlsEnabled = false;
+    @ApiModelProperty(
+        name = "tlsAllowInsecureConnection",
+        value = "Allow TLS connections to servers whose certificate cannot be"
+                + " be verified to have been signed by a trusted certificate"
+                + " authority."
+    )
+    private boolean tlsAllowInsecureConnection = false;
+    @ApiModelProperty(
+        name = "brokerClientTlsEnabledWithKeyStore",
+        value = "Whether internal client use KeyStore type to authenticate with other Pulsar brokers"
+    )
+    private boolean brokerClientTlsEnabledWithKeyStore = false;
+    @ApiModelProperty(
+        name = "brokerClientTlsTrustStoreType",
+        value = "TLS TrustStore type configuration for internal client: JKS, PKCS12"
+                + " used by the internal client to authenticate with Pulsar brokers",
+        example = "JKS"
+    )
+    private String brokerClientTlsTrustStoreType = "JKS";
+    @ApiModelProperty(
+        name = "brokerClientTlsTrustStore",
+        value = "TLS TrustStore path for internal client"
+                + " used by the internal client to authenticate with Pulsar brokers"
+    )
+    private String brokerClientTlsTrustStore;
+    @ApiModelProperty(
+        name = "brokerClientTlsTrustStorePassword",
+        value = "TLS TrustStore password for internal client"
+                + " used by the internal client to authenticate with Pulsar brokers"
+    )
+    private String brokerClientTlsTrustStorePassword;
+    @ApiModelProperty(
+        name = "brokerClientTrustCertsFilePath",
+        value = "Path for the trusted TLS certificate file for outgoing connection to a server (broker)"
+    )
+    private String brokerClientTrustCertsFilePath;
+    @ApiModelProperty(
+            name = "listenerName",
+            value = "listenerName when client would like to connect to cluster",
+            example = ""
+    )
+    private String listenerName;
 
     public ClusterData(String serviceUrl) {
         this(serviceUrl, "");
@@ -100,14 +168,39 @@ public class ClusterData {
     }
 
     public ClusterData(String serviceUrl, String serviceUrlTls, String brokerServiceUrl, String brokerServiceUrlTls,
-            String proxyServiceUrl, ProxyProtocol proxyProtocol) {
+                       String authenticationPlugin, String authenticationParameters) {
         this.serviceUrl = serviceUrl;
         this.serviceUrlTls = serviceUrlTls;
         this.brokerServiceUrl = brokerServiceUrl;
         this.brokerServiceUrlTls = brokerServiceUrlTls;
+        this.authenticationPlugin = authenticationPlugin;
+        this.authenticationParameters = authenticationParameters;
+    }
+
+    public ClusterData(String serviceUrl, String serviceUrlTls, String brokerServiceUrl, String brokerServiceUrlTls,
+                       String authenticationPlugin, String authenticationParameters, String listenerName) {
+        this.serviceUrl = serviceUrl;
+        this.serviceUrlTls = serviceUrlTls;
+        this.brokerServiceUrl = brokerServiceUrl;
+        this.brokerServiceUrlTls = brokerServiceUrlTls;
+        this.authenticationPlugin = authenticationPlugin;
+        this.authenticationParameters = authenticationParameters;
+        this.listenerName = listenerName;
+    }
+
+    public ClusterData(String serviceUrl, String serviceUrlTls, String brokerServiceUrl, String brokerServiceUrlTls,
+                       String proxyServiceUrl, String authenticationPlugin, String authenticationParameters,
+                       ProxyProtocol proxyProtocol) {
+        this.serviceUrl = serviceUrl;
+        this.serviceUrlTls = serviceUrlTls;
+        this.brokerServiceUrl = brokerServiceUrl;
+        this.brokerServiceUrlTls = brokerServiceUrlTls;
+        this.authenticationPlugin = authenticationPlugin;
+        this.authenticationParameters = authenticationParameters;
         this.proxyServiceUrl = proxyServiceUrl;
         this.proxyProtocol = proxyProtocol;
     }
+
 
     public void update(ClusterData other) {
         checkNotNull(other);
@@ -117,62 +210,16 @@ public class ClusterData {
         this.brokerServiceUrlTls = other.brokerServiceUrlTls;
         this.proxyServiceUrl = other.proxyServiceUrl;
         this.proxyProtocol = other.proxyProtocol;
-    }
-
-    public String getServiceUrl() {
-        return serviceUrl;
-    }
-
-    public String getServiceUrlTls() {
-        return serviceUrlTls;
-    }
-
-    public void setServiceUrl(String serviceUrl) {
-        this.serviceUrl = serviceUrl;
-    }
-
-    public void setServiceUrlTls(String serviceUrlTls) {
-        this.serviceUrlTls = serviceUrlTls;
-    }
-
-    public String getBrokerServiceUrl() {
-        return brokerServiceUrl;
-    }
-
-    public void setBrokerServiceUrl(String brokerServiceUrl) {
-        this.brokerServiceUrl = brokerServiceUrl;
-    }
-
-    public String getBrokerServiceUrlTls() {
-        return brokerServiceUrlTls;
-    }
-
-    public void setBrokerServiceUrlTls(String brokerServiceUrlTls) {
-        this.brokerServiceUrlTls = brokerServiceUrlTls;
-    }
-
-    public String getProxyServiceUrl() {
-        return proxyServiceUrl;
-    }
-
-    public void setProxyServiceUrl(String proxyServiceUrl) {
-        this.proxyServiceUrl = proxyServiceUrl;
-    }
-
-    public ProxyProtocol getProxyProtocol() {
-        return proxyProtocol;
-    }
-
-    public void setProxyProtocol(ProxyProtocol proxyProtocol) {
-        this.proxyProtocol = proxyProtocol;
-    }
-
-    public LinkedHashSet<String> getPeerClusterNames() {
-        return peerClusterNames;
-    }
-
-    public void setPeerClusterNames(LinkedHashSet<String> peerClusterNames) {
-        this.peerClusterNames = peerClusterNames;
+        this.authenticationPlugin = other.authenticationPlugin;
+        this.authenticationParameters = other.authenticationParameters;
+        this.brokerClientTlsEnabled = other.brokerClientTlsEnabled;
+        this.tlsAllowInsecureConnection = other.tlsAllowInsecureConnection;
+        this.brokerClientTlsEnabledWithKeyStore = other.brokerClientTlsEnabledWithKeyStore;
+        this.brokerClientTlsTrustStoreType = other.brokerClientTlsTrustStoreType;
+        this.brokerClientTlsTrustStore = other.brokerClientTlsTrustStore;
+        this.brokerClientTlsTrustStorePassword = other.brokerClientTlsTrustStorePassword;
+        this.brokerClientTrustCertsFilePath = other.brokerClientTrustCertsFilePath;
+        this.listenerName = other.listenerName;
     }
 
     @Override
@@ -183,7 +230,17 @@ public class ClusterData {
                     && Objects.equals(brokerServiceUrl, other.brokerServiceUrl)
                     && Objects.equals(brokerServiceUrlTls, other.brokerServiceUrlTls)
                     && Objects.equals(proxyServiceUrl, other.proxyServiceUrl)
-                    && Objects.equals(proxyProtocol, other.proxyProtocol);
+                    && Objects.equals(proxyProtocol, other.proxyProtocol)
+                    && Objects.equals(authenticationPlugin, other.authenticationPlugin)
+                    && Objects.equals(authenticationParameters, other.authenticationParameters)
+                    && Objects.equals(brokerClientTlsEnabled, other.brokerClientTlsEnabled)
+                    && Objects.equals(tlsAllowInsecureConnection, other.tlsAllowInsecureConnection)
+                    && Objects.equals(brokerClientTlsEnabledWithKeyStore, other.brokerClientTlsEnabledWithKeyStore)
+                    && Objects.equals(brokerClientTlsTrustStoreType, other.brokerClientTlsTrustStoreType)
+                    && Objects.equals(brokerClientTlsTrustStore, other.brokerClientTlsTrustStore)
+                    && Objects.equals(brokerClientTlsTrustStorePassword, other.brokerClientTlsTrustStorePassword)
+                    && Objects.equals(brokerClientTrustCertsFilePath, other.brokerClientTrustCertsFilePath)
+                    && Objects.equals(listenerName, other.listenerName);
         }
 
         return false;
@@ -191,7 +248,7 @@ public class ClusterData {
 
     @Override
     public int hashCode() {
-       return Objects.hash(this.toString());
+        return Objects.hash(this.toString());
     }
 
     @Override
@@ -203,7 +260,17 @@ public class ClusterData {
                 .add("brokerServiceUrlTls", brokerServiceUrlTls)
                 .add("proxyServiceUrl", proxyServiceUrl)
                 .add("proxyProtocol", proxyProtocol)
-                .add("peerClusterNames", peerClusterNames).toString();
+                .add("peerClusterNames", peerClusterNames)
+                .add("authenticationPlugin", authenticationPlugin)
+                .add("authenticationParameters", authenticationParameters)
+                .add("brokerClientTlsEnabled", brokerClientTlsEnabled)
+                .add("tlsAllowInsecureConnection", tlsAllowInsecureConnection)
+                .add("brokerClientTlsEnabledWithKeyStore", brokerClientTlsEnabledWithKeyStore)
+                .add("brokerClientTlsTrustStoreType", brokerClientTlsTrustStoreType)
+                .add("brokerClientTlsTrustStore", brokerClientTlsTrustStore)
+                .add("brokerClientTlsTrustStorePassword", brokerClientTlsTrustStorePassword)
+                .add("brokerClientTrustCertsFilePath", brokerClientTrustCertsFilePath)
+                .toString();
     }
 
 }

@@ -19,66 +19,14 @@
 package org.apache.pulsar.common.policies.data;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * Persistent topic internal statistics.
  */
-public class PersistentTopicInternalStats {
+public class PersistentTopicInternalStats extends ManagedLedgerInternalStats{
 
-    public long entriesAddedCounter;
-    public long numberOfEntries;
-    public long totalSize;
-
-    public long currentLedgerEntries;
-    public long currentLedgerSize;
-    public String lastLedgerCreatedTimestamp;
-    public String lastLedgerCreationFailureTimestamp;
-
-    public int waitingCursorsCount;
-    public int pendingAddEntriesCount;
-
-    public String lastConfirmedEntry;
-    public String state;
-
-    public List<LedgerInfo> ledgers;
-    public Map<String, CursorStats> cursors;
     public List<LedgerInfo> schemaLedgers;
 
     // LedgerInfo for compacted topic if exist.
     public LedgerInfo compactedLedger;
-
-    /**
-     * Ledger information.
-     */
-    public static class LedgerInfo {
-        public long ledgerId;
-        public long entries;
-        public long size;
-        public boolean offloaded;
-        public String metadata;
-    }
-
-    /**
-     * Pulsar cursor statistics.
-     */
-    public static class CursorStats {
-        public String markDeletePosition;
-        public String readPosition;
-        public boolean waitingReadOp;
-        public int pendingReadOps;
-
-        public long messagesConsumedCounter;
-        public long cursorLedger;
-        public long cursorLedgerLastEntry;
-        public String individuallyDeletedMessages;
-        public String lastLedgerSwitchTimestamp;
-        public String state;
-        public long numberOfEntriesSinceFirstNotAckedMessage;
-        public int totalNonContiguousDeletedMessagesRange;
-        public boolean subscriptionHavePendingRead;
-        public boolean subscriptionHavePendingReplayRead;
-
-        public Map<String, Long> properties;
-    }
 }

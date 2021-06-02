@@ -33,6 +33,7 @@
     <name>Pulsar Client Admin :: API</name>
 
     <dependencies>
+
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>pulsar-common</artifactId>
@@ -40,16 +41,10 @@
         </dependency>
 
         <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>pulsar-client-original</artifactId>
-            <version>${project.parent.version}</version>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
         </dependency>
 
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>pulsar-package-core</artifactId>
-            <version>${project.version}</version>
-        </dependency>
     </dependencies>
 
     <build>

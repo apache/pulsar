@@ -199,7 +199,7 @@ public class DispatchRateLimiter {
                         break;
                 }
             } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-                log.debug("Topic {} policies cache have not init.", topicName);
+                log.debug("Topic {} policies have not been initialized yet.", topicName);
             } catch (Exception e) {
                 log.debug("[{}] Failed to get topic dispatch rate. ", topicName, e);
             }
@@ -342,7 +342,7 @@ public class DispatchRateLimiter {
         if (msgRate > 0) {
             if (this.dispatchRateLimiterOnMessage == null) {
                 this.dispatchRateLimiterOnMessage = new RateLimiter(brokerService.pulsar().getExecutor(), msgRate,
-                        ratePeriod, TimeUnit.SECONDS, permitUpdaterMsg);
+                        ratePeriod, TimeUnit.SECONDS, permitUpdaterMsg, true);
             } else {
                 this.dispatchRateLimiterOnMessage.setRate(msgRate, dispatchRate.ratePeriodInSecond,
                         TimeUnit.SECONDS, permitUpdaterMsg);
@@ -362,7 +362,7 @@ public class DispatchRateLimiter {
         if (byteRate > 0) {
             if (this.dispatchRateLimiterOnByte == null) {
                 this.dispatchRateLimiterOnByte = new RateLimiter(brokerService.pulsar().getExecutor(), byteRate,
-                        ratePeriod, TimeUnit.SECONDS, permitUpdaterByte);
+                        ratePeriod, TimeUnit.SECONDS, permitUpdaterByte, true);
             } else {
                 this.dispatchRateLimiterOnByte.setRate(byteRate, dispatchRate.ratePeriodInSecond,
                         TimeUnit.SECONDS, permitUpdaterByte);

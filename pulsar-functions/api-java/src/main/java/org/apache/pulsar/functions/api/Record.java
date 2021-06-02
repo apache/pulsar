@@ -48,7 +48,7 @@ public interface Record<T> {
         return Optional.empty();
     }
 
-    default Schema getSchema() {
+    default Schema<T> getSchema() {
         return null;
     }
 
@@ -74,6 +74,15 @@ public interface Record<T> {
      * @return The partition id where the
      */
     default Optional<String> getPartitionId() {
+        return Optional.empty();
+    }
+
+    /**
+     * Retrieves the partition index if any of the record.
+     *
+     * @return The partition index
+     */
+    default Optional<Integer> getPartitionIndex() {
         return Optional.empty();
     }
 

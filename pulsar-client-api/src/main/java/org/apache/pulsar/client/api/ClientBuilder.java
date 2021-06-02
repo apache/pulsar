@@ -358,7 +358,7 @@ public interface ClientBuilder extends Cloneable {
     /**
      * The SSL protocol used to generate the SSLContext.
      * Default setting is TLS, which is fine for most cases.
-     * Allowed values in recent JVMs are TLS, TLSv1.1 and TLSv1.2. SSL, SSLv2.
+     * Allowed values in recent JVMs are TLS, TLSv1.3, TLSv1.2 and TLSv1.1.
      *
      * @param tlsProtocols
      * @return the client builder instance
@@ -471,6 +471,18 @@ public interface ClientBuilder extends Cloneable {
      * @return the client builder instance
      */
     ClientBuilder maxBackoffInterval(long duration, TimeUnit unit);
+
+    /**
+     * Option to enable busy-wait settings. Default is false.
+     *
+     * <b>WARNING</b>: This option will enable spin-waiting on executors and IO threads in order to reduce latency
+     * during context switches. The spinning will consume 100% CPU even when the broker is not doing any work. It
+     * is recommended to reduce the number of IO threads and BK client threads to only have few CPU cores busy.
+     *
+     * @param enableBusyWait whether to enable busy wait
+     * @return the client builder instance
+     */
+    ClientBuilder enableBusyWait(boolean enableBusyWait);
 
     /**
      * The clock used by the pulsar client.

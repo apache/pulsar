@@ -44,7 +44,7 @@ public class DataSketchesSummaryLogger {
     private final LongAdder countAdder = new LongAdder();
     private final LongAdder sumAdder = new LongAdder();
 
-    DataSketchesSummaryLogger() {
+    public DataSketchesSummaryLogger() {
         this.current = new ThreadLocalAccessor();
         this.replacement = new ThreadLocalAccessor();
     }

@@ -30,6 +30,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import javax.naming.AuthenticationException;
 import lombok.Cleanup;
@@ -52,6 +53,8 @@ import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
+import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.RestException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -541,13 +544,27 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         @Override
         public CompletableFuture<Boolean> allowTopicOperationAsync(
             TopicName topic, String role, TopicOperation operation, AuthenticationDataSource authData) {
-            return CompletableFuture.completedFuture(true);
+            CompletableFuture<Boolean> isAuthorizedFuture;
+
+            if (role.equals("plugbleRole")) {
+                isAuthorizedFuture = CompletableFuture.completedFuture(true);
+            } else {
+                isAuthorizedFuture = CompletableFuture.completedFuture(false);
+            }
+
+            return isAuthorizedFuture;
         }
 
         @Override
         public Boolean allowTopicOperation(
             TopicName topicName, String role, TopicOperation operation, AuthenticationDataSource authData) {
-            return true;
+            try {
+                return allowTopicOperationAsync(topicName, role, operation, authData).get();
+            } catch (InterruptedException e) {
+                throw new RestException(e);
+            } catch (ExecutionException e) {
+                throw new RestException(e);
+            }
         }
     }
 

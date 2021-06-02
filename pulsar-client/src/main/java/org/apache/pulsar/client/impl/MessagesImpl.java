@@ -49,7 +49,7 @@ public class MessagesImpl<T> implements Messages<T> {
             return false;
         }
 
-        if (maxSizeOfMessages > 0 && currentSizeOfMessages + message.getData().length > maxSizeOfMessages) {
+        if (maxSizeOfMessages > 0 && currentSizeOfMessages + message.size() > maxSizeOfMessages) {
             return false;
         }
 
@@ -62,7 +62,7 @@ public class MessagesImpl<T> implements Messages<T> {
         }
         Preconditions.checkArgument(canAdd(message), "No more space to add messages.");
         currentNumberOfMessages ++;
-        currentSizeOfMessages += message.getData().length;
+        currentSizeOfMessages += message.size();
         messageList.add(message);
     }
 

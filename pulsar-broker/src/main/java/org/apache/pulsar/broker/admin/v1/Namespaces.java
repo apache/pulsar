@@ -581,13 +581,23 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
             @ApiResponse(code = 403, message = "Don't have admin permission") })
-    public void splitNamespaceBundle(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace, @PathParam("bundle") String bundleRange,
+    public void splitNamespaceBundle(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("property") String property,
+            @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace,
+            @PathParam("bundle") String bundleRange,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("unload") @DefaultValue("false") boolean unload) {
-        validateNamespaceName(property, cluster, namespace);
-        internalSplitNamespaceBundle(bundleRange, authoritative, unload,
-                NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_NAME);
+        try {
+            validateNamespaceName(property, cluster, namespace);
+            internalSplitNamespaceBundle(asyncResponse, bundleRange, authoritative, unload,
+                    NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_NAME);
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
     }
 
     @POST
@@ -1026,7 +1036,7 @@ public class Namespaces extends NamespacesBase {
                           + "A threshold of 0 disabled automatic compaction")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
                             @ApiResponse(code = 404, message = "Namespace doesn't exist") })
-    public long getCompactionThreshold(@PathParam("property") String property,
+    public Long getCompactionThreshold(@PathParam("property") String property,
                                        @PathParam("cluster") String cluster,
                                        @PathParam("namespace") String namespace) {
         validateNamespaceName(property, cluster, namespace);

@@ -73,6 +73,7 @@ public class PulsarTestClient extends PulsarClientImpl {
         // An anonymous subclass of ClientCnx class is used to override the getRemoteEndpointProtocolVersion()
         // method.
         EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(clientConfigurationData.getNumIoThreads(),
+                false,
                 new DefaultThreadFactory("pulsar-client-io", Thread.currentThread().isDaemon()));
 
         AtomicReference<Supplier<ClientCnx>> clientCnxSupplierReference = new AtomicReference<>();
@@ -116,7 +117,7 @@ public class PulsarTestClient extends PulsarClientImpl {
      * @return the ClientCnx to use, passed a future. Will complete with an exception when connections are rejected.
      */
     @Override
-    protected CompletableFuture<ClientCnx> getConnection(String topic) {
+    public CompletableFuture<ClientCnx> getConnection(String topic) {
         if (rejectNewConnections) {
             CompletableFuture<ClientCnx> result = new CompletableFuture<>();
             result.completeExceptionally(new IOException("New connections are rejected."));

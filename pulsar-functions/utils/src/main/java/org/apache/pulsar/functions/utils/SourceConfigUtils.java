@@ -148,11 +148,7 @@ public class SourceConfigUtils {
             sinkSpecBuilder.setProducerSpec(ProducerConfigUtils.convert(sourceConfig.getProducerConfig()));
         }
 
-        if (sourceConfig.getForwardSourceMessageProperty() == Boolean.TRUE) {
-            sinkSpecBuilder.setForwardSourceMessageProperty(sourceConfig.getForwardSourceMessageProperty());
-        } else {
-            sinkSpecBuilder.setForwardSourceMessageProperty(false);
-        }
+        sinkSpecBuilder.setForwardSourceMessageProperty(true);
 
         functionDetailsBuilder.setSink(sinkSpecBuilder);
 
@@ -241,8 +237,6 @@ public class SourceConfigUtils {
         if (!isEmpty(functionDetails.getCustomRuntimeOptions())) {
             sourceConfig.setCustomRuntimeOptions(functionDetails.getCustomRuntimeOptions());
         }
-
-        sourceConfig.setForwardSourceMessageProperty(sinkSpec.getForwardSourceMessageProperty());
 
         return sourceConfig;
     }
@@ -399,9 +393,6 @@ public class SourceConfigUtils {
         if (newConfig.getBatchSourceConfig() != null) {
             validateBatchSourceConfigUpdate(existingConfig.getBatchSourceConfig(), newConfig.getBatchSourceConfig());
             mergedConfig.setBatchSourceConfig(newConfig.getBatchSourceConfig());
-        }
-        if (newConfig.getForwardSourceMessageProperty() != null) {
-            mergedConfig.setForwardSourceMessageProperty(newConfig.getForwardSourceMessageProperty());
         }
         return mergedConfig;
     }

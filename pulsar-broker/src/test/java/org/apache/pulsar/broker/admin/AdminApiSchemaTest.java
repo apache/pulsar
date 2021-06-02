@@ -47,7 +47,6 @@ import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrat
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaInfoWithVersion;
-import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -57,6 +56,7 @@ import org.testng.annotations.Test;
  * Unit tests for schema admin api.
  */
 @Slf4j
+@Test(groups = "broker")
 public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
 
     final String cluster = "test";
@@ -93,7 +93,7 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         String file1;
     }
 
-    private static Map<String, String> PROPS;
+    private static final Map<String, String> PROPS;
 
     static {
         PROPS = new HashMap<>();

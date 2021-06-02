@@ -43,6 +43,17 @@ public interface MetadataCache<T> {
     CompletableFuture<Optional<T>> get(String path);
 
     /**
+     * Tries to fetch one item from the cache or fallback to the store if not present.
+     * <p>
+     * If the key is not found, the {@link Optional} will be empty.
+     *
+     * @param path
+     *            the path of the object in the metadata store
+     * @return a future to track the completion of the operation
+     */
+    CompletableFuture<Optional<CacheGetResult<T>>> getWithStats(String path);
+
+    /**
      * Check if an object is present in cache without triggering a load from the metadata store.
      *
      * @param path
@@ -88,7 +99,7 @@ public interface MetadataCache<T> {
      *            a function that will be passed the current value and returns a modified value to be stored
      * @return a future to track the completion of the operation
      */
-    CompletableFuture<Void> readModifyUpdateOrCreate(String path, Function<Optional<T>, T> modifyFunction);
+    CompletableFuture<T> readModifyUpdateOrCreate(String path, Function<Optional<T>, T> modifyFunction);
 
     /**
      * Perform an atomic read-modify-update of the value.
@@ -101,7 +112,7 @@ public interface MetadataCache<T> {
      *            a function that will be passed the current value and returns a modified value to be stored
      * @return a future to track the completion of the operation
      */
-    CompletableFuture<Void> readModifyUpdate(String path, Function<T, T> modifyFunction);
+    CompletableFuture<T> readModifyUpdate(String path, Function<T, T> modifyFunction);
 
     /**
      * Create a new object in the metadata store.

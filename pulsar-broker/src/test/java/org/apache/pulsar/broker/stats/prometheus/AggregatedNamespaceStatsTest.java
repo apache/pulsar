@@ -23,10 +23,11 @@ import static org.testng.Assert.assertNotNull;
 
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class AggregatedNamespaceStatsTest {
 
     @Test
-    public void testSimpleAggregation() throws Exception {
+    public void testSimpleAggregation() {
         final String namespace = "tenant/cluster/ns";
 
         TopicStats topicStats1 = new TopicStats();
@@ -37,10 +38,10 @@ public class AggregatedNamespaceStatsTest {
         topicStats1.rateOut = 20.0;
         topicStats1.throughputIn = 10240.0;
         topicStats1.throughputOut = 20480.0;
-        topicStats1.storageSize = 5120;
+        topicStats1.managedLedgerStats.storageSize = 5120;
         topicStats1.msgBacklog = 30;
-        topicStats1.storageWriteRate = 12.0;
-        topicStats1.storageReadRate = 6.0;
+        topicStats1.managedLedgerStats.storageWriteRate = 12.0;
+        topicStats1.managedLedgerStats.storageReadRate = 6.0;
 
         AggregatedReplicationStats replStats1 = new AggregatedReplicationStats();
         replStats1.msgRateIn = 1.0;
@@ -65,10 +66,10 @@ public class AggregatedNamespaceStatsTest {
         topicStats2.rateOut = 0.5;
         topicStats2.throughputIn = 512.0;
         topicStats2.throughputOut = 1024.5;
-        topicStats2.storageSize = 1024;
+        topicStats2.managedLedgerStats.storageSize = 1024;
         topicStats2.msgBacklog = 7;
-        topicStats2.storageWriteRate = 5.0;
-        topicStats2.storageReadRate = 2.5;
+        topicStats2.managedLedgerStats.storageWriteRate = 5.0;
+        topicStats2.managedLedgerStats.storageReadRate = 2.5;
 
         AggregatedReplicationStats replStats2 = new AggregatedReplicationStats();
         replStats2.msgRateIn = 3.5;
@@ -97,10 +98,10 @@ public class AggregatedNamespaceStatsTest {
         assertEquals(nsStats.rateOut, 20.5);
         assertEquals(nsStats.throughputIn, 10752.0);
         assertEquals(nsStats.throughputOut, 21504.5);
-        assertEquals(nsStats.storageSize, 6144);
+        assertEquals(nsStats.managedLedgerStats.storageSize, 6144);
         assertEquals(nsStats.msgBacklog, 37);
-        assertEquals(nsStats.storageWriteRate, 17.0);
-        assertEquals(nsStats.storageReadRate, 8.5);
+        assertEquals(nsStats.managedLedgerStats.storageWriteRate, 17.0);
+        assertEquals(nsStats.managedLedgerStats.storageReadRate, 8.5);
 
         AggregatedReplicationStats nsReplStats = nsStats.replicationStats.get(namespace);
         assertNotNull(nsReplStats);

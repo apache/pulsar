@@ -94,21 +94,24 @@ public class NamespaceStatsAggregator {
             ManagedLedger ml = ((PersistentTopic) topic).getManagedLedger();
             ManagedLedgerMBeanImpl mlStats = (ManagedLedgerMBeanImpl) ml.getStats();
 
-            stats.storageSize = mlStats.getStoredMessagesSize();
-            stats.backlogSize = ml.getEstimatedBacklogSize();
-            stats.offloadedStorageUsed = ml.getOffloadedSize();
-            stats.backlogQuotaLimit = topic.getBacklogQuota().getLimit();
+            stats.managedLedgerStats.storageSize = mlStats.getStoredMessagesSize();
+            stats.managedLedgerStats.backlogSize = ml.getEstimatedBacklogSize();
+            stats.managedLedgerStats.offloadedStorageUsed = ml.getOffloadedSize();
+            stats.backlogQuotaLimit = topic.getBacklogQuota().getLimitSize();
+            stats.backlogQuotaLimitTime = topic.getBacklogQuota().getLimitTime();
 
-            stats.storageWriteLatencyBuckets.addAll(mlStats.getInternalAddEntryLatencyBuckets());
-            stats.storageWriteLatencyBuckets.refresh();
-            stats.storageLedgerWriteLatencyBuckets.addAll(mlStats.getInternalLedgerAddEntryLatencyBuckets());
-            stats.storageLedgerWriteLatencyBuckets.refresh();
+            stats.managedLedgerStats.storageWriteLatencyBuckets
+                    .addAll(mlStats.getInternalAddEntryLatencyBuckets());
+            stats.managedLedgerStats.storageWriteLatencyBuckets.refresh();
+            stats.managedLedgerStats.storageLedgerWriteLatencyBuckets
+                    .addAll(mlStats.getInternalLedgerAddEntryLatencyBuckets());
+            stats.managedLedgerStats.storageLedgerWriteLatencyBuckets.refresh();
 
-            stats.entrySizeBuckets.addAll(mlStats.getInternalEntrySizeBuckets());
-            stats.entrySizeBuckets.refresh();
+            stats.managedLedgerStats.entrySizeBuckets.addAll(mlStats.getInternalEntrySizeBuckets());
+            stats.managedLedgerStats.entrySizeBuckets.refresh();
 
-            stats.storageWriteRate = mlStats.getAddEntryMessagesRate();
-            stats.storageReadRate = mlStats.getReadEntriesRate();
+            stats.managedLedgerStats.storageWriteRate = mlStats.getAddEntryMessagesRate();
+            stats.managedLedgerStats.storageReadRate = mlStats.getReadEntriesRate();
         }
 
         org.apache.pulsar.common.policies.data.TopicStats tStatus = topic.getStats(getPreciseBacklog,
@@ -117,6 +120,7 @@ public class NamespaceStatsAggregator {
         stats.bytesInCounter = tStatus.bytesInCounter;
         stats.msgOutCounter = tStatus.msgOutCounter;
         stats.bytesOutCounter = tStatus.bytesOutCounter;
+        stats.averageMsgSize = tStatus.averageMsgSize;
 
         stats.producersCount = 0;
         topic.getProducers().values().forEach(producer -> {
@@ -248,19 +252,20 @@ public class NamespaceStatsAggregator {
         metric(stream, cluster, namespace, "pulsar_out_bytes_total", stats.bytesOutCounter);
         metric(stream, cluster, namespace, "pulsar_out_messages_total", stats.msgOutCounter);
 
-        metric(stream, cluster, namespace, "pulsar_storage_size", stats.storageSize);
-        metric(stream, cluster, namespace, "pulsar_storage_backlog_size", stats.backlogSize);
-        metric(stream, cluster, namespace, "pulsar_storage_offloaded_size", stats.offloadedStorageUsed);
+        metric(stream, cluster, namespace, "pulsar_storage_size", stats.managedLedgerStats.storageSize);
+        metric(stream, cluster, namespace, "pulsar_storage_backlog_size", stats.managedLedgerStats.backlogSize);
+        metric(stream, cluster, namespace, "pulsar_storage_offloaded_size",
+                stats.managedLedgerStats.offloadedStorageUsed);
 
-        metric(stream, cluster, namespace, "pulsar_storage_write_rate", stats.storageWriteRate);
-        metric(stream, cluster, namespace, "pulsar_storage_read_rate", stats.storageReadRate);
+        metric(stream, cluster, namespace, "pulsar_storage_write_rate", stats.managedLedgerStats.storageWriteRate);
+        metric(stream, cluster, namespace, "pulsar_storage_read_rate", stats.managedLedgerStats.storageReadRate);
 
         metric(stream, cluster, namespace, "pulsar_subscription_delayed", stats.msgDelayed);
 
         metricWithRemoteCluster(stream, cluster, namespace, "pulsar_msg_backlog", "local", stats.msgBacklog);
 
-        stats.storageWriteLatencyBuckets.refresh();
-        long[] latencyBuckets = stats.storageWriteLatencyBuckets.getBuckets();
+        stats.managedLedgerStats.storageWriteLatencyBuckets.refresh();
+        long[] latencyBuckets = stats.managedLedgerStats.storageWriteLatencyBuckets.getBuckets();
         metric(stream, cluster, namespace, "pulsar_storage_write_latency_le_0_5", latencyBuckets[0]);
         metric(stream, cluster, namespace, "pulsar_storage_write_latency_le_1", latencyBuckets[1]);
         metric(stream, cluster, namespace, "pulsar_storage_write_latency_le_5", latencyBuckets[2]);
@@ -272,12 +277,12 @@ public class NamespaceStatsAggregator {
         metric(stream, cluster, namespace, "pulsar_storage_write_latency_le_1000", latencyBuckets[8]);
         metric(stream, cluster, namespace, "pulsar_storage_write_latency_overflow", latencyBuckets[9]);
         metric(stream, cluster, namespace, "pulsar_storage_write_latency_count",
-                stats.storageWriteLatencyBuckets.getCount());
+                stats.managedLedgerStats.storageWriteLatencyBuckets.getCount());
         metric(stream, cluster, namespace, "pulsar_storage_write_latency_sum",
-                stats.storageWriteLatencyBuckets.getSum());
+                stats.managedLedgerStats.storageWriteLatencyBuckets.getSum());
 
-        stats.storageLedgerWriteLatencyBuckets.refresh();
-        long[] ledgerWritelatencyBuckets = stats.storageLedgerWriteLatencyBuckets.getBuckets();
+        stats.managedLedgerStats.storageLedgerWriteLatencyBuckets.refresh();
+        long[] ledgerWritelatencyBuckets = stats.managedLedgerStats.storageLedgerWriteLatencyBuckets.getBuckets();
         metric(stream, cluster, namespace, "pulsar_storage_ledger_write_latency_le_0_5", ledgerWritelatencyBuckets[0]);
         metric(stream, cluster, namespace, "pulsar_storage_ledger_write_latency_le_1", ledgerWritelatencyBuckets[1]);
         metric(stream, cluster, namespace, "pulsar_storage_ledger_write_latency_le_5", ledgerWritelatencyBuckets[2]);
@@ -290,12 +295,12 @@ public class NamespaceStatsAggregator {
         metric(stream, cluster, namespace, "pulsar_storage_ledger_write_latency_overflow",
                 ledgerWritelatencyBuckets[9]);
         metric(stream, cluster, namespace, "pulsar_storage_ledger_write_latency_count",
-                stats.storageLedgerWriteLatencyBuckets.getCount());
+                stats.managedLedgerStats.storageLedgerWriteLatencyBuckets.getCount());
         metric(stream, cluster, namespace, "pulsar_storage_ledger_write_latency_sum",
-                stats.storageLedgerWriteLatencyBuckets.getSum());
+                stats.managedLedgerStats.storageLedgerWriteLatencyBuckets.getSum());
 
-        stats.entrySizeBuckets.refresh();
-        long[] entrySizeBuckets = stats.entrySizeBuckets.getBuckets();
+        stats.managedLedgerStats.entrySizeBuckets.refresh();
+        long[] entrySizeBuckets = stats.managedLedgerStats.entrySizeBuckets.getBuckets();
         metric(stream, cluster, namespace, "pulsar_entry_size_le_128", entrySizeBuckets[0]);
         metric(stream, cluster, namespace, "pulsar_entry_size_le_512", entrySizeBuckets[1]);
         metric(stream, cluster, namespace, "pulsar_entry_size_le_1_kb", entrySizeBuckets[2]);
@@ -305,8 +310,10 @@ public class NamespaceStatsAggregator {
         metric(stream, cluster, namespace, "pulsar_entry_size_le_100_kb", entrySizeBuckets[6]);
         metric(stream, cluster, namespace, "pulsar_entry_size_le_1_mb", entrySizeBuckets[7]);
         metric(stream, cluster, namespace, "pulsar_entry_size_le_overflow", entrySizeBuckets[8]);
-        metric(stream, cluster, namespace, "pulsar_entry_size_count", stats.entrySizeBuckets.getCount());
-        metric(stream, cluster, namespace, "pulsar_entry_size_sum", stats.entrySizeBuckets.getSum());
+        metric(stream, cluster, namespace, "pulsar_entry_size_count",
+                stats.managedLedgerStats.entrySizeBuckets.getCount());
+        metric(stream, cluster, namespace, "pulsar_entry_size_sum",
+                stats.managedLedgerStats.entrySizeBuckets.getSum());
 
         if (!stats.replicationStats.isEmpty()) {
             stats.replicationStats.forEach((remoteCluster, replStats) -> {

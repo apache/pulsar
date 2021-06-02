@@ -53,6 +53,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.functions.UpdateOptions;
+import org.apache.pulsar.common.io.BatchSourceConfig;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.io.SourceConfig;
@@ -171,6 +172,8 @@ public class CmdSources extends CmdBase {
         protected String secretsProviderClassName;
         @Parameter(names = "--secrets-provider-config", description = "Config that needs to be passed to secrets provider")
         protected String secretsProviderConfig;
+        @Parameter(names = "--metrics-port-start", description = "The starting port range for metrics server")
+        protected String metricsPortStart;
 
         private void mergeArgs() {
             if (!isBlank(DEPRECATED_brokerServiceUrl)) brokerServiceUrl = DEPRECATED_brokerServiceUrl;
@@ -313,10 +316,10 @@ public class CmdSources extends CmdBase {
         protected String DEPRECATED_sourceConfigString;
         @Parameter(names = "--source-config", description = "Source config key/values")
         protected String sourceConfigString;
+        @Parameter(names = "--batch-source-config", description = "Batch source config key/values")
+        protected String batchSourceConfigString;
         @Parameter(names = "--custom-runtime-options", description = "A string that encodes options to customize the runtime, see docs for configured runtime for details")
         protected String customRuntimeOptions;
-        @Parameter(names = "--forward-source-message-property", description = "Forwarding input message's properties to output topic when processing")
-        protected Boolean forwardSourceMessageProperty = true;
 
         protected SourceConfig sourceConfig;
 
@@ -417,13 +420,13 @@ public class CmdSources extends CmdBase {
             if (null != sourceConfigString) {
                 sourceConfig.setConfigs(parseConfigs(sourceConfigString));
             }
+            
+            if (null != batchSourceConfigString) {
+            	sourceConfig.setBatchSourceConfig(parseBatchSourceConfigs(batchSourceConfigString));
+            }
 
             if (customRuntimeOptions != null) {
                 sourceConfig.setCustomRuntimeOptions(customRuntimeOptions);
-            }
-
-            if (null != forwardSourceMessageProperty) {
-                sourceConfig.setForwardSourceMessageProperty(forwardSourceMessageProperty);
             }
             // check if source configs are valid
             validateSourceConfigs(sourceConfig);
@@ -431,7 +434,11 @@ public class CmdSources extends CmdBase {
 
         protected Map<String, Object> parseConfigs(String str) {
             Type type = new TypeToken<Map<String, Object>>(){}.getType();
-            return new Gson().fromJson(str, type);
+            return new Gson().fromJson(str, type); 
+        }
+        
+        protected BatchSourceConfig parseBatchSourceConfigs(String str) {
+        	return new Gson().fromJson(str, BatchSourceConfig.class);
         }
 
         protected void validateSourceConfigs(SourceConfig sourceConfig) {
@@ -448,6 +455,35 @@ public class CmdSources extends CmdBase {
             if (isBlank(sourceConfig.getName())) {
                 throw new IllegalArgumentException("Source name not specified");
             }
+            
+            if (sourceConfig.getBatchSourceConfig() != null) {
+            	validateBatchSourceConfigs(sourceConfig.getBatchSourceConfig());
+            }
+        }
+        
+        protected void validateBatchSourceConfigs(BatchSourceConfig batchSourceConfig) {
+           if (isBlank(batchSourceConfig.getDiscoveryTriggererClassName())) {
+             throw new IllegalArgumentException("Discovery Triggerer not specified");
+           } 
+           
+           boolean isBatchSourceTriggerer = false;
+           
+           try {
+             Class<?>[] interfaces = Class.forName(batchSourceConfig.getDiscoveryTriggererClassName()).getInterfaces();
+             int idx = 0;
+             
+             while (idx < interfaces.length && !isBatchSourceTriggerer) {
+            	 isBatchSourceTriggerer = interfaces[idx++].getName().equals("org.apache.pulsar.io.core.BatchSourceTriggerer");
+             }
+             
+             if (!isBatchSourceTriggerer) {
+            	 throw new IllegalArgumentException("Invalid Discovery Triggerer specified"); 
+             }
+             
+           } catch (ClassNotFoundException e) {
+             throw new IllegalArgumentException("Invalid Discovery Triggerer specified"); 
+           }
+           
         }
 
         protected String validateSourceType(String sourceType) throws IOException {

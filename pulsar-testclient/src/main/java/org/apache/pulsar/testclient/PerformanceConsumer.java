@@ -21,7 +21,14 @@ package org.apache.pulsar.testclient;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
+import com.beust.jcommander.Parameters;
 import java.io.FileInputStream;
+import java.lang.management.BufferPoolMXBean;
+import java.lang.management.ManagementFactory;
+import java.nio.ByteBuffer;
 import java.text.DecimalFormat;
 import java.util.Collections;
 import java.util.List;
@@ -37,15 +44,14 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.stats.JvmMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.collect.Lists;
@@ -62,7 +68,7 @@ public class PerformanceConsumer {
     private static Recorder recorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
     private static Recorder cumulativeRecorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
 
-
+    @Parameters(commandDescription = "Test pulsar consumer performance.")
     static class Arguments {
 
         @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)
@@ -128,7 +134,7 @@ public class PerformanceConsumer {
         String listenerName = null;
 
         @Parameter(names = { "-mc", "--max_chunked_msg" }, description = "Max pending chunk messages")
-        private int maxPendingChuckedMessage = 0;
+        private int maxPendingChunkedMessage = 0;
 
         @Parameter(names = { "-ac",
                 "--auto_ack_chunk_q_full" }, description = "Auto ack for oldest message on queue is full")
@@ -167,6 +173,12 @@ public class PerformanceConsumer {
     
         @Parameter(names = {"--batch-index-ack" }, description = "Enable or disable the batch index acknowledgment")
         public boolean batchIndexAck = false;
+
+        @Parameter(names = { "-pm", "--pool-messages" }, description = "Use the pooled message")
+        private boolean poolMessages = true;
+
+        @Parameter(names = {"-bw", "--busy-wait"}, description = "Enable Busy-Wait on the Pulsar client")
+        public boolean enableBusyWait = false;
     }
 
     public static void main(String[] args) throws Exception {
@@ -179,12 +191,12 @@ public class PerformanceConsumer {
         } catch (ParameterException e) {
             System.out.println(e.getMessage());
             jc.usage();
-            System.exit(-1);
+            PerfClientUtils.exit(-1);
         }
 
         if (arguments.help) {
             jc.usage();
-            System.exit(-1);
+            PerfClientUtils.exit(-1);
         }
 
         if (arguments.topic != null && arguments.topic.size() != arguments.numTopics) {
@@ -199,14 +211,14 @@ public class PerformanceConsumer {
             } else {
                 System.out.println("The size of topics list should be equal to --num-topics");
                 jc.usage();
-                System.exit(-1);
+                PerfClientUtils.exit(-1);
             }
         }
 
         if (arguments.subscriptionType == SubscriptionType.Exclusive && arguments.numConsumers > 1) {
             System.out.println("Only one consumer is allowed when subscriptionType is Exclusive");
             jc.usage();
-            System.exit(-1);
+            PerfClientUtils.exit(-1);
         }
 
         if (arguments.subscriptionType != SubscriptionType.Exclusive &&
@@ -222,7 +234,7 @@ public class PerformanceConsumer {
             } else {
                 System.out.println("The size of subscriptions list should be equal to --num-consumers when subscriptionType isn't Exclusive");
                 jc.usage();
-                System.exit(-1);
+                PerfClientUtils.exit(-1);
             }
         }
 
@@ -270,19 +282,19 @@ public class PerformanceConsumer {
         final RateLimiter limiter = arguments.rate > 0 ? RateLimiter.create(arguments.rate) : null;
         long startTime = System.nanoTime();
         long testEndTime = startTime + (long) (arguments.testTime * 1e9);
-        MessageListener<byte[]> listener = (consumer, msg) -> {
+        MessageListener<ByteBuffer> listener = (consumer, msg) -> {
             if (arguments.testTime > 0) {
                 if (System.nanoTime() > testEndTime) {
                     log.info("------------------- DONE -----------------------");
                     printAggregatedStats();
-                    System.exit(0);
+                    PerfClientUtils.exit(0);
                 }
             }
             messagesReceived.increment();
-            bytesReceived.add(msg.getData().length);
+            bytesReceived.add(msg.size());
 
             totalMessagesReceived.increment();
-            totalBytesReceived.add(msg.getData().length);
+            totalBytesReceived.add(msg.size());
 
             if (limiter != null) {
                 limiter.acquire();
@@ -295,6 +307,10 @@ public class PerformanceConsumer {
             }
 
             consumer.acknowledgeAsync(msg);
+
+            if(arguments.poolMessages) {
+                msg.release();
+            }
         };
 
         ClientBuilder clientBuilder = PulsarClient.builder() //
@@ -302,6 +318,7 @@ public class PerformanceConsumer {
                 .connectionsPerBroker(arguments.maxConnections) //
                 .statsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS) //
                 .ioThreads(arguments.ioThreads) //
+                .enableBusyWait(arguments.enableBusyWait)
                 .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
         if (isNotBlank(arguments.authPluginClassName)) {
             clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
@@ -317,8 +334,8 @@ public class PerformanceConsumer {
 
         PulsarClient pulsarClient = clientBuilder.build();
 
-        List<Future<Consumer<byte[]>>> futures = Lists.newArrayList();
-        ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer() //
+        List<Future<Consumer<ByteBuffer>>> futures = Lists.newArrayList();
+        ConsumerBuilder<ByteBuffer> consumerBuilder = pulsarClient.newConsumer(Schema.BYTEBUFFER) //
                 .messageListener(listener) //
                 .receiverQueueSize(arguments.receiverQueueSize) //
                 .maxTotalReceiverQueueSizeAcrossPartitions(arguments.maxTotalReceiverQueueSizeAcrossPartitions)
@@ -327,9 +344,10 @@ public class PerformanceConsumer {
                 .subscriptionInitialPosition(arguments.subscriptionInitialPosition)
                 .autoAckOldestChunkedMessageOnQueueFull(arguments.autoAckOldestChunkedMessageOnQueueFull)
                 .enableBatchIndexAcknowledgment(arguments.batchIndexAck)
+                .poolMessages(arguments.poolMessages)
                 .replicateSubscriptionState(arguments.replicatedSubscription);
-        if (arguments.maxPendingChuckedMessage > 0) {
-            consumerBuilder.maxPendingChuckedMessage(arguments.maxPendingChuckedMessage);
+        if (arguments.maxPendingChunkedMessage > 0) {
+            consumerBuilder.maxPendingChunkedMessage(arguments.maxPendingChunkedMessage);
         }
         if (arguments.expireTimeOfIncompleteChunkedMessageMs > 0) {
             consumerBuilder.expireTimeOfIncompleteChunkedMessage(arguments.expireTimeOfIncompleteChunkedMessageMs,
@@ -354,7 +372,7 @@ public class PerformanceConsumer {
             }
         }
 
-        for (Future<Consumer<byte[]>> future : futures) {
+        for (Future<Consumer<ByteBuffer>> future : futures) {
             future.get();
         }
 

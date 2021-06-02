@@ -18,16 +18,18 @@
  */
 package org.apache.pulsar.broker;
 
-import com.google.common.base.MoreObjects;
 import java.util.Map;
 import java.util.Set;
-import org.apache.pulsar.policies.data.loadbalancer.JSONWritable;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 
 /**
  * Data class aggregating the short term and long term data across all bundles belonging to a broker.
  */
-public class TimeAverageBrokerData extends JSONWritable {
+@Data
+@NoArgsConstructor
+public class TimeAverageBrokerData {
     private double shortTermMsgThroughputIn;
     private double shortTermMsgThroughputOut;
     private double shortTermMsgRateIn;
@@ -36,9 +38,6 @@ public class TimeAverageBrokerData extends JSONWritable {
     private double longTermMsgThroughputOut;
     private double longTermMsgRateIn;
     private double longTermMsgRateOut;
-
-    public TimeAverageBrokerData() {
-    }
 
     /**
      * Initialize a TimeAverageBrokerData.
@@ -104,79 +103,5 @@ public class TimeAverageBrokerData extends JSONWritable {
                 longTermMsgRateOut += longTermData.getMsgRateOut();
             }
         }
-    }
-
-    public double getShortTermMsgThroughputIn() {
-        return shortTermMsgThroughputIn;
-    }
-
-    public void setShortTermMsgThroughputIn(double shortTermMsgThroughputIn) {
-        this.shortTermMsgThroughputIn = shortTermMsgThroughputIn;
-    }
-
-    public double getShortTermMsgThroughputOut() {
-        return shortTermMsgThroughputOut;
-    }
-
-    public void setShortTermMsgThroughputOut(double shortTermMsgThroughputOut) {
-        this.shortTermMsgThroughputOut = shortTermMsgThroughputOut;
-    }
-
-    public double getShortTermMsgRateIn() {
-        return shortTermMsgRateIn;
-    }
-
-    public void setShortTermMsgRateIn(double shortTermMsgRateIn) {
-        this.shortTermMsgRateIn = shortTermMsgRateIn;
-    }
-
-    public double getShortTermMsgRateOut() {
-        return shortTermMsgRateOut;
-    }
-
-    public void setShortTermMsgRateOut(double shortTermMsgRateOut) {
-        this.shortTermMsgRateOut = shortTermMsgRateOut;
-    }
-
-    public double getLongTermMsgThroughputIn() {
-        return longTermMsgThroughputIn;
-    }
-
-    public void setLongTermMsgThroughputIn(double longTermMsgThroughputIn) {
-        this.longTermMsgThroughputIn = longTermMsgThroughputIn;
-    }
-
-    public double getLongTermMsgThroughputOut() {
-        return longTermMsgThroughputOut;
-    }
-
-    public void setLongTermMsgThroughputOut(double longTermMsgThroughputOut) {
-        this.longTermMsgThroughputOut = longTermMsgThroughputOut;
-    }
-
-    public double getLongTermMsgRateIn() {
-        return longTermMsgRateIn;
-    }
-
-    public void setLongTermMsgRateIn(double longTermMsgRateIn) {
-        this.longTermMsgRateIn = longTermMsgRateIn;
-    }
-
-    public double getLongTermMsgRateOut() {
-        return longTermMsgRateOut;
-    }
-
-    public void setLongTermMsgRateOut(double longTermMsgRateOut) {
-        this.longTermMsgRateOut = longTermMsgRateOut;
-    }
-
-    @Override
-    public String toString() {
-        return MoreObjects.toStringHelper(this).add("shortTermMsgThroughputIn", shortTermMsgThroughputIn)
-                .add("shortTermMsgThroughputOut", shortTermMsgThroughputOut)
-                .add("shortTermMsgRateIn", shortTermMsgRateIn).add("shortTermMsgRateOut", shortTermMsgRateOut)
-                .add("longTermMsgThroughputIn", longTermMsgThroughputIn)
-                .add("longTermMsgThroughputOut", longTermMsgThroughputOut).add("longTermMsgRateIn", longTermMsgRateIn)
-                .add("longTermMsgRateOut", longTermMsgRateOut).toString();
     }
 }

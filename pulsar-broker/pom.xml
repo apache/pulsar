@@ -128,14 +128,6 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>managed-ledger</artifactId>
-      <version>${project.version}</version>
-      <type>test-jar</type>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-zookeeper-utils</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -150,14 +142,6 @@
     <dependency>
        <groupId>org.xerial.snappy</groupId>
        <artifactId>snappy-java</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-zookeeper-utils</artifactId>
-      <version>${project.version}</version>
-      <type>test-jar</type>
-      <scope>test</scope>
     </dependency>
 
     <!-- functions related dependencies (begin) -->
@@ -197,6 +181,11 @@
 
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-alpn-conscrypt-server</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-servlet</artifactId>
     </dependency>
 
@@ -223,6 +212,11 @@
     <dependency>
       <groupId>org.glassfish.jersey.media</groupId>
       <artifactId>jersey-media-json-jackson</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>jakarta.activation</groupId>
+      <artifactId>jakarta.activation-api</artifactId>
     </dependency>
 
     <dependency>
@@ -367,13 +361,6 @@
       <version>${project.version}</version>
     </dependency>
 
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-package-core</artifactId>
-      <version>${project.version}</version>
-      <type>test-jar</type>
-      <scope>test</scope>
-    </dependency>
   </dependencies>
 
   <build>
@@ -472,6 +459,10 @@
         <configuration>
           <protocArtifact>com.google.protobuf:protoc:${protoc3.version}:exe:${os.detected.classifier}</protocArtifact>
           <checkStaleness>true</checkStaleness>
+          <excludes>
+            <exclude>**/ResourceUsage.proto</exclude>
+            <exclude>**/TransactionPendingAck.proto</exclude>
+          </excludes>
         </configuration>
         <executions>
           <execution>
@@ -479,6 +470,27 @@
             <goals>
               <goal>compile</goal>
               <goal>test-compile</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>com.github.splunk.lightproto</groupId>
+        <artifactId>lightproto-maven-plugin</artifactId>
+        <version>${lightproto-maven-plugin.version}</version>
+        <configuration>
+          <sources>
+            <source>${project.basedir}/src/main/proto/TransactionPendingAck.proto</source>
+            <source>${project.basedir}/src/main/proto/ResourceUsage.proto</source>
+          </sources>
+          <targetSourcesSubDir>generated-sources/lightproto/java</targetSourcesSubDir>
+          <targetTestSourcesSubDir>generated-sources/lightproto/java</targetTestSourcesSubDir>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>generate</goal>
             </goals>
           </execution>
         </executions>
@@ -493,6 +505,41 @@
   </build>
 
   <profiles>
+    <profile>
+      <!-- enables builds with -Dmaven.test.skip=true -->
+      <id>test-jar-dependencies</id>
+      <activation>
+        <property>
+          <name>maven.test.skip</name>
+          <value>!true</value>
+        </property>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>${project.groupId}</groupId>
+          <artifactId>managed-ledger</artifactId>
+          <version>${project.version}</version>
+          <type>test-jar</type>
+          <scope>test</scope>
+        </dependency>
+
+        <dependency>
+          <groupId>${project.groupId}</groupId>
+          <artifactId>pulsar-zookeeper-utils</artifactId>
+          <version>${project.version}</version>
+          <type>test-jar</type>
+          <scope>test</scope>
+        </dependency>
+
+        <dependency>
+          <groupId>${project.groupId}</groupId>
+          <artifactId>pulsar-package-core</artifactId>
+          <version>${project.version}</version>
+          <type>test-jar</type>
+          <scope>test</scope>
+        </dependency>
+      </dependencies>
+    </profile>
     <profile>
       <id>swagger</id>
       <build>
@@ -621,19 +668,6 @@
               <configuration>
                 <lifecycleMappingMetadata>
                   <pluginExecutions>
-                    <pluginExecution>
-                      <pluginExecutionFilter>
-                        <groupId>org.codehaus.mojo</groupId>
-                        <artifactId>aspectj-maven-plugin</artifactId>
-                        <versionRange>[1.10,)</versionRange>
-                        <goals>
-                          <goal>compile</goal>
-                        </goals>
-                      </pluginExecutionFilter>
-                      <action>
-                        <ignore></ignore>
-                      </action>
-                    </pluginExecution>
                     <pluginExecution>
                       <pluginExecutionFilter>
                         <groupId>org.apache.maven.plugins</groupId>

@@ -219,7 +219,7 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
     /**
      * Remove all the entries from the cache.
      *
-     * @return the old size
+     * @return size of removed entries
      */
     public synchronized long clear() {
         long removedSize = 0;
@@ -235,7 +235,8 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
         }
 
         entries.clear();
-        return size.getAndAdd(-removedSize);
+        size.getAndAdd(-removedSize);
+        return removedSize;
     }
 
     /**

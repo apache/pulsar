@@ -51,10 +51,12 @@ public class MemoryLimitController {
     }
 
     public void reserveMemory(long size) throws InterruptedException {
-        while (!tryReserveMemory(size)) {
+        if (!tryReserveMemory(size)) {
             mutex.lock();
             try {
-                condition.await();
+                while (!tryReserveMemory(size)) {
+                    condition.await();
+                }
             } finally {
                 mutex.unlock();
             }

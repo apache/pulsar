@@ -46,7 +46,7 @@ RUN chmod -R g=u /pulsar
 ### Create 2nd stage from OpenJDK image
 ### and add Python dependencies (for Pulsar functions)
 
-FROM openjdk:8-jdk-slim
+FROM openjdk:11-jdk-slim
 
 # Create the pulsar group and user to make docker container run as a non root user by default
 RUN groupadd -g 10001 pulsar
@@ -72,7 +72,7 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 10
 RUN mkdir /pulsar && chown pulsar:0 /pulsar && chmod g=u /pulsar
 COPY --from=pulsar --chown=pulsar:0 /pulsar /pulsar
 
-RUN echo networkaddress.cache.ttl=1 >> $JAVA_HOME/jre/lib/security/java.security
+RUN echo networkaddress.cache.ttl=1 >> $JAVA_HOME/conf/security/java.security
 
 ENV PULSAR_ROOT_LOGGER=INFO,CONSOLE
 

@@ -221,7 +221,7 @@ public interface PulsarAdminBuilder {
     /**
      * The SSL protocol used to generate the SSLContext.
      * Default setting is TLS, which is fine for most cases.
-     * Allowed values in recent JVMs are TLS, TLSv1.1 and TLSv1.2. SSL, SSLv2.
+     * Allowed values in recent JVMs are TLS, TLSv1.3, TLSv1.2 and TLSv1.1.
      *
      * @param tlsProtocols
      */

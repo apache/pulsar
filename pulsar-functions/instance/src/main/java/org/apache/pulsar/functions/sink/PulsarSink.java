@@ -88,17 +88,15 @@ public class PulsarSink<T> implements Sink<T> {
 
     private interface PulsarSinkProcessor<T> {
 
-        TypedMessageBuilder<byte[]> newMessage(SinkRecord<T> record);
+        TypedMessageBuilder<T> newMessage(SinkRecord<T> record);
 
-        void sendOutputMessage(TypedMessageBuilder<byte[]> msg, SinkRecord<T> record);
-
-        Schema<T> getSchema();
+        void sendOutputMessage(TypedMessageBuilder<T> msg, SinkRecord<T> record);
 
         void close() throws Exception;
     }
 
     abstract class PulsarSinkProcessorBase implements PulsarSinkProcessor<T> {
-        protected Map<String, Producer<byte[]>> publishProducers = new ConcurrentHashMap<>();
+        protected Map<String, Producer<T>> publishProducers = new ConcurrentHashMap<>();
         protected Schema schema;
         protected Crypto crypto;
 
@@ -107,9 +105,9 @@ public class PulsarSink<T> implements Sink<T> {
             this.crypto = crypto;
         }
 
-        public Producer<byte[]> createProducer(PulsarClient client, String topic, String producerName, Schema<T> schema)
+        public Producer<T> createProducer(PulsarClient client, String topic, String producerName, Schema<T> schema)
                 throws PulsarClientException {
-            ProducerBuilder<byte[]> builder = client.newProducer(Schema.AUTO_PRODUCE_BYTES())
+            ProducerBuilder<T> builder = client.newProducer(schema)
                     .blockIfQueueFull(true)
                     .enableBatching(true)
                     .batchingMaxPublishDelay(10, TimeUnit.MILLISECONDS)
@@ -150,20 +148,16 @@ public class PulsarSink<T> implements Sink<T> {
             return builder.properties(properties).create();
         }
 
-        public Schema<T> getSchema() {
-            return schema;
-        }
-
-        protected Producer<byte[]> getProducer(String destinationTopic, Schema<?> schema) {
+        protected Producer<T> getProducer(String destinationTopic, Schema schema) {
             return getProducer(destinationTopic, null, destinationTopic, schema);
         }
 
-        protected Producer<byte[]> getProducer(String producerId, String producerName, String topicName, Schema schema) {
+        protected Producer<T> getProducer(String producerId, String producerName, String topicName, Schema schema) {
             return publishProducers.computeIfAbsent(producerId, s -> {
                 try {
                     log.info("Initializing producer {} on topic {} with schema {}",
                         producerName, topicName, schema);
-                    Producer<byte[]> producer = createProducer(
+                    Producer<T> producer = createProducer(
                             client,
                             topicName,
                             producerName,
@@ -181,8 +175,8 @@ public class PulsarSink<T> implements Sink<T> {
         @Override
         public void close() throws Exception {
             List<CompletableFuture<Void>> closeFutures = new ArrayList<>(publishProducers.size());
-            for (Map.Entry<String, Producer<byte[]>> entry: publishProducers.entrySet()) {
-                Producer<byte[]> producer = entry.getValue();
+            for (Map.Entry<String, Producer<T>> entry: publishProducers.entrySet()) {
+                Producer<T> producer = entry.getValue();
                 closeFutures.add(producer.closeAsync());
             }
             try {
@@ -240,8 +234,8 @@ public class PulsarSink<T> implements Sink<T> {
         }
 
         @Override
-        public TypedMessageBuilder<byte[]> newMessage(SinkRecord<T> record) {
-            Schema<?> schemaToWrite = record.getSchema();
+        public TypedMessageBuilder<T> newMessage(SinkRecord<T> record) {
+            Schema<T> schemaToWrite = record.getSchema();
             if (record.getSourceRecord() instanceof PulsarRecord) {
                 // we are receiving data directly from another Pulsar topic
                 // we must use the destination topic schema
@@ -252,7 +246,7 @@ public class PulsarSink<T> implements Sink<T> {
                 return getProducer(record
                         .getDestinationTopic()
                         .orElse(pulsarSinkConfig.getTopic()), schemaToWrite)
-                        .newMessage(Schema.AUTO_PRODUCE_BYTES(schemaToWrite));
+                        .newMessage(schemaToWrite);
             } else {
                 return getProducer(record
                         .getDestinationTopic()
@@ -262,7 +256,7 @@ public class PulsarSink<T> implements Sink<T> {
         }
 
         @Override
-        public void sendOutputMessage(TypedMessageBuilder<byte[]> msg, SinkRecord<T> record) {
+        public void sendOutputMessage(TypedMessageBuilder<T> msg, SinkRecord<T> record) {
             msg.sendAsync().thenAccept(messageId -> {
                 //no op
             }).exceptionally(getPublishErrorHandler(record, false));
@@ -276,7 +270,7 @@ public class PulsarSink<T> implements Sink<T> {
         }
 
         @Override
-        public void sendOutputMessage(TypedMessageBuilder<byte[]> msg, SinkRecord<T> record) {
+        public void sendOutputMessage(TypedMessageBuilder<T> msg, SinkRecord<T> record) {
             msg.sendAsync()
                     .thenAccept(messageId -> record.ack())
                     .exceptionally(getPublishErrorHandler(record, true));
@@ -291,31 +285,31 @@ public class PulsarSink<T> implements Sink<T> {
         }
 
         @Override
-        public TypedMessageBuilder<byte[]> newMessage(SinkRecord<T> record) {
+        public TypedMessageBuilder<T> newMessage(SinkRecord<T> record) {
             if (!record.getPartitionId().isPresent()) {
                 throw new RuntimeException("PartitionId needs to be specified for every record while in Effectively-once mode");
             }
-            Schema<?> schemaToWrite = record.getSchema();
+            Schema<T> schemaToWrite = record.getSchema();
             if (record.getSourceRecord() instanceof PulsarRecord) {
                 // we are receiving data directly from another Pulsar topic
                 // we must use the destination topic schema
                 schemaToWrite = schema;
             }
-            Producer<byte[]> producer = getProducer(
+            Producer<T> producer = getProducer(
                     String.format("%s-%s",record.getDestinationTopic().orElse(pulsarSinkConfig.getTopic()), record.getPartitionId().get()),
                     record.getPartitionId().get(),
                     record.getDestinationTopic().orElse(pulsarSinkConfig.getTopic()),
                     schemaToWrite
             );
             if (schemaToWrite != null) {
-                return producer.newMessage(Schema.AUTO_PRODUCE_BYTES(schemaToWrite));
+                return producer.newMessage(schemaToWrite);
             } else {
                 return producer.newMessage();
             }
         }
 
         @Override
-        public void sendOutputMessage(TypedMessageBuilder<byte[]> msg, SinkRecord<T> record) {
+        public void sendOutputMessage(TypedMessageBuilder<T> msg, SinkRecord<T> record) {
 
             if (!record.getRecordSequence().isPresent()) {
                 throw new RuntimeException("RecordSequence needs to be specified for every record while in Effectively-once mode");
@@ -371,18 +365,14 @@ public class PulsarSink<T> implements Sink<T> {
     @Override
     public void write(Record<T> record) {
         SinkRecord<T> sinkRecord = (SinkRecord<T>) record;
-        TypedMessageBuilder<byte[]> msg = pulsarSinkProcessor.newMessage(sinkRecord);
+        TypedMessageBuilder<T> msg = pulsarSinkProcessor.newMessage(sinkRecord);
 
         if (record.getKey().isPresent() && !(record.getSchema() instanceof KeyValueSchema &&
                 ((KeyValueSchema) record.getSchema()).getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED)) {
             msg.key(record.getKey().get());
         }
 
-        if (record.getSchema() == null) {
-            msg.value(pulsarSinkProcessor.getSchema().encode(record.getValue()));
-        } else {
-            msg.value(record.getSchema().encode(record.getValue()));
-        }
+        msg.value(record.getValue());
 
         if (!record.getProperties().isEmpty() && pulsarSinkConfig.isForwardSourceMessageProperty()) {
             msg.properties(record.getProperties());

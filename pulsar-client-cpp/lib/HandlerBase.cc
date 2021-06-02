@@ -31,13 +31,14 @@ HandlerBase::HandlerBase(const ClientImplPtr& client, const std::string& topic, 
     : client_(client),
       topic_(topic),
       connection_(),
+      executor_(client->getIOExecutorProvider()->get()),
       mutex_(),
       creationTimestamp_(TimeUtils::now()),
       operationTimeut_(seconds(client->conf().getOperationTimeoutSeconds())),
       state_(Pending),
       backoff_(backoff),
       epoch_(0),
-      timer_(client->getIOExecutorProvider()->get()->createDeadlineTimer()) {}
+      timer_(executor_->createDeadlineTimer()) {}
 
 HandlerBase::~HandlerBase() { timer_->cancel(); }
 

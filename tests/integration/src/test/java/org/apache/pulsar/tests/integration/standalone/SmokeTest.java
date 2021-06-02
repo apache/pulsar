@@ -18,14 +18,15 @@
  */
 package org.apache.pulsar.tests.integration.standalone;
 
+import java.util.function.Supplier;
 import org.apache.pulsar.tests.integration.suites.PulsarStandaloneTestSuite;
 import org.testng.annotations.Test;
 
 public class SmokeTest extends PulsarStandaloneTestSuite {
 
     @Test(dataProvider = "StandaloneServiceUrlAndTopics")
-    public void testPublishAndConsume(String serviceUrl, boolean isPersistent) throws Exception {
-        super.testPublishAndConsume(serviceUrl, isPersistent);
+    public void testPublishAndConsume(Supplier<String> serviceUrl, boolean isPersistent) throws Exception {
+        super.testPublishAndConsume(serviceUrl.get(), isPersistent);
     }
 
 }

@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
+import org.testng.annotations.*;
+
+@Test(groups = "broker")
 public class AvroSchemaCompatibilityCheckTest extends BaseAvroSchemaCompatibilityTest{
 
     @Override
