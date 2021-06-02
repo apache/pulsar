@@ -231,7 +231,7 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |maxConcurrentLookupRequest|  Max number of concurrent lookup request broker allows to throttle heavy incoming lookup traffic |50000|
 |maxConcurrentTopicLoadRequest| Max number of concurrent topic loading request broker allows to control number of zk-operations |5000|
 |authenticationEnabled| Enable authentication |false|
-|authenticationProviders| Autentication provider name list, which is comma separated list of class names  ||
+|authenticationProviders| Authentication provider name list, which is comma separated list of class names  ||
 | authenticationRefreshCheckSeconds | Interval of time for checking for expired authentication credentials | 60 |
 |authorizationEnabled|  Enforce authorization |false|
 |superUserRoles|  Role names that are treated as “super-user”, meaning they will be able to do all admin operations and publish/consume from all topics ||
