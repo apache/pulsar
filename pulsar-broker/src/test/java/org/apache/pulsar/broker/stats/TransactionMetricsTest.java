@@ -223,7 +223,7 @@ public class TransactionMetricsTest extends BrokerTestBase {
         producer.send("hello pulsar".getBytes());
         consumer.acknowledgeAsync(consumer.receive().getMessageId(), transaction).get();
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
-        PrometheusMetricsGenerator.generate(pulsar, false, false, false, statsOut);
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
         String metricsStr = statsOut.toString();
 
         Multimap<String, PrometheusMetricsTest.Metric> metrics = parseMetrics(metricsStr);
@@ -235,6 +235,15 @@ public class TransactionMetricsTest extends BrokerTestBase {
         metric = metrics.get("pulsar_storage_backlog_size");
         checkManagedLedgerMetrics(subName, 16, metric);
         checkManagedLedgerMetrics(MLTransactionLogImpl.TRANSACTION_SUBSCRIPTION_NAME, 126, metric);
+
+        statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, false, false, false, statsOut);
+        metricsStr = statsOut.toString();
+        metrics = parseMetrics(metricsStr);
+        metric = metrics.get("pulsar_storage_size");
+        assertEquals(metric.size(), 3);
+        metric = metrics.get("pulsar_storage_backlog_size");
+        assertEquals(metric.size(), 2);
     }
 
     private void checkManagedLedgerMetrics(String tag, double value, Collection<PrometheusMetricsTest.Metric> metrics) {

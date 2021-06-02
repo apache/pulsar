@@ -49,28 +49,31 @@ public class TransactionAggregator {
                 }
             };
 
-    public static void generate(PulsarService pulsar, SimpleTextOutputStream stream) {
+    public static void generate(PulsarService pulsar, SimpleTextOutputStream stream, boolean includeTopicMetrics) {
         String cluster = pulsar.getConfiguration().getClusterName();
-        pulsar.getBrokerService().getMultiLayerTopicMap().forEach((namespace, bundlesMap) -> {
 
-            bundlesMap.forEach((bundle, topicsMap) -> {
-                topicsMap.forEach((name, topic) -> {
-                    if (topic instanceof PersistentTopic) {
-                        topic.getSubscriptions().values().forEach(subscription -> {
-                            try {
-                                localManageLedgerStats.get().reset();
-                                ManagedLedger managedLedger =
-                                        ((PersistentSubscription) subscription).getPendingAckManageLedger().get();
-                                generateManageLedgerStats(managedLedger,
-                                        stream, cluster, namespace, name, subscription.getName());
-                            } catch (Exception e) {
-                                throw new IOException("Transaction pending ack generate managedLedgerStats fail!");
-                            }
-                        });
-                    }
+        if (includeTopicMetrics) {
+            pulsar.getBrokerService().getMultiLayerTopicMap().forEach((namespace, bundlesMap) -> {
+
+                bundlesMap.forEach((bundle, topicsMap) -> {
+                    topicsMap.forEach((name, topic) -> {
+                        if (topic instanceof PersistentTopic) {
+                            topic.getSubscriptions().values().forEach(subscription -> {
+                                try {
+                                    localManageLedgerStats.get().reset();
+                                    ManagedLedger managedLedger =
+                                            ((PersistentSubscription) subscription).getPendingAckManageLedger().get();
+                                    generateManageLedgerStats(managedLedger,
+                                            stream, cluster, namespace, name, subscription.getName());
+                                } catch (Exception e) {
+                                    throw new IOException("Transaction pending ack generate managedLedgerStats fail!");
+                                }
+                            });
+                        }
+                    });
                 });
             });
-        });
+        }
         AggregatedTransactionCoordinatorStats transactionCoordinatorStats = localTransactionCoordinatorStats.get();
 
         pulsar.getTransactionMetadataStoreService().getStores()
