@@ -249,7 +249,7 @@ The Apache Software License, Version 2.0
     - netty-transport-native-unix-common-4.1.63.Final.jar
     - netty-transport-native-unix-common-4.1.63.Final-linux-x86_64.jar
  * Joda Time
-    - joda-time-2.10.1.jar
+    - joda-time-2.10.5.jar
   * Jetty
     - http2-client-9.4.39.v20210325.jar
     - http2-common-9.4.39.v20210325.jar
