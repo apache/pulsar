@@ -46,10 +46,10 @@
     <!-- Launcher properties -->
     <main-class>io.prestosql.server.PrestoServer</main-class>
     <process-name>${project.artifactId}</process-name>
-    <jackson.version>2.11.1</jackson.version>
+    <jackson.version>2.12.3</jackson.version>
     <!--fix Security Vulnerabilities-->
     <!--https://www.cvedetails.com/vulnerability-list/vendor_id-15866/product_id-42991/Fasterxml-Jackson-databind.html-->
-    <jackson.databind.version>2.11.1</jackson.databind.version>
+    <jackson.databind.version>2.12.3</jackson.databind.version>
     <maven.version>3.0.5</maven.version>
     <guava.version>30.1-jre</guava.version>
     <asynchttpclient.version>2.12.1</asynchttpclient.version>
@@ -255,6 +255,13 @@
         <groupId>com.google.errorprone</groupId>
         <artifactId>error_prone_annotations</artifactId>
         <version>${errorprone.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson</groupId>
+        <artifactId>jackson-bom</artifactId>
+        <version>${jackson.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
       </dependency>
     </dependencies>
   </dependencyManagement>
