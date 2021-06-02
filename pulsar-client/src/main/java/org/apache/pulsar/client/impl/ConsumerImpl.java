@@ -167,7 +167,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private final DeadLetterPolicy deadLetterPolicy;
 
-    private volatile CompletableFuture<Producer<T>> deadLetterProducer;
+    private volatile CompletableFuture<Producer<byte[]>> deadLetterProducer;
 
     private volatile Producer<T> retryLetterProducer;
     private final ReadWriteLock createProducerLock = new ReentrantReadWriteLock();
@@ -590,9 +590,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     initDeadLetterProducerIfNeeded();
                     MessageId finalMessageId = messageId;
                     deadLetterProducer.thenAccept(dlqProducer -> {
-                        TypedMessageBuilder<T> typedMessageBuilderNew = dlqProducer.newMessage()
-                                .value(retryMessage.getValue())
-                                .properties(propertiesMap);
+                        TypedMessageBuilder<byte[]> typedMessageBuilderNew =
+                                dlqProducer.newMessage(Schema.AUTO_PRODUCE_BYTES(retryMessage.getReaderSchema().get()))
+                                        .value(retryMessage.getData())
+                                        .properties(propertiesMap);
                         typedMessageBuilderNew.sendAsync().thenAccept(msgId -> {
                             doAcknowledge(finalMessageId, ackType, properties, null).thenAccept(v -> {
                                 result.complete(null);
@@ -1691,12 +1692,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             initDeadLetterProducerIfNeeded();
             List<MessageImpl<T>> finalDeadLetterMessages = deadLetterMessages;
             MessageIdImpl finalMessageId = messageId;
-            deadLetterProducer.thenAccept(producerDLQ -> {
+            deadLetterProducer.thenAcceptAsync(producerDLQ -> {
                 for (MessageImpl<T> message : finalDeadLetterMessages) {
                     String originMessageIdStr = getOriginMessageIdStr(message);
                     String originTopicNameStr = getOriginTopicNameStr(message);
-                    producerDLQ.newMessage()
-                            .value(message.getValue())
+                    producerDLQ.newMessage(Schema.AUTO_PRODUCE_BYTES(message.getReaderSchema().get()))
+                            .value(message.getData())
                             .properties(getPropertiesMap(message, originMessageIdStr, originTopicNameStr))
                             .sendAsync()
                             .thenAccept(messageIdInDLQ -> {
@@ -1733,7 +1734,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             createProducerLock.writeLock().lock();
             try {
                 if (deadLetterProducer == null) {
-                    deadLetterProducer = client.newProducer(schema)
+                    deadLetterProducer = client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema))
                             .topic(this.deadLetterPolicy.getDeadLetterTopic())
                             .blockIfQueueFull(false)
                             .createAsync();
