@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -41,14 +41,14 @@ else
 fi
 
 # exclude tests jar
-RELEASE_JAR=`ls $PULSAR_HOME/pulsar-*.jar 2> /dev/null | grep -v tests | tail -1` 
+RELEASE_JAR=`ls $PULSAR_HOME/pulsar-*.jar 2> /dev/null | grep -v tests | tail -1`
 if [ $? == 0 ]; then
     PULSAR_JAR=$RELEASE_JAR
 fi
 
 # exclude tests jar
 BUILT_JAR=`ls $PULSAR_HOME/pulsar-client-tools/target/pulsar-*.jar 2> /dev/null | grep -v tests | tail -1`
-if [ $? != 0 ] && [ ! -e "$PULSAR_JAR" ]; then 
+if [ $? != 0 ] && [ ! -e "$PULSAR_JAR" ]; then
     echo "\nCouldn't find pulsar jar.";
     echo "Make sure you've run 'mvn package'\n";
     exit 1;
@@ -61,14 +61,17 @@ add_maven_deps_to_classpath() {
     if [ "$MAVEN_HOME" != "" ]; then
 	MVN=${MAVEN_HOME}/bin/mvn
     fi
-    
+
     # Need to generate classpath from maven pom. This is costly so generate it
     # and cache it. Save the file into our target dir so a mvn clean will get
     # clean it up and force us create a new one.
     f="${PULSAR_HOME}/distribution/server/target/classpath.txt"
     if [ ! -f "${f}" ]
     then
-	${MVN} -f "${PULSAR_HOME}/pom.xml" dependency:build-classpath -Dmdep.outputFile="${f}" &> /dev/null
+    (
+      cd "${PULSAR_HOME}"
+      ${MVN} -pl distribution/server generate-sources &> /dev/null
+    )
     fi
     PULSAR_CLASSPATH=${CLASSPATH}:`cat "${f}"`
 }
