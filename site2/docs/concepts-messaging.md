@@ -273,12 +273,12 @@ A subscription is a named configuration rule that determines how messages are de
 
 > **Pub-Sub or Queuing**
 > In Pulsar, you can use different subscriptions flexibly.
-> * If you want to achieve traditional "fan-out pub-sub messaging" among consumers, specify a unique subscription name for each consumer. It is exclusive subscription mode.
+> * If you want to achieve traditional "fan-out pub-sub messaging" among consumers, specify a unique subscription name for each consumer. It is exclusive subscription type.
 > * If you want to achieve "message queuing" among consumers, share the same subscription name among multiple consumers(shared, failover, key_shared).
-> * If you want to achieve both effects simultaneously, combine exclusive subscription mode with other subscription modes for consumers.
+> * If you want to achieve both effects simultaneously, combine exclusive subscription type with other subscription types for consumers.
 
 ### Consumerless Subscriptions and Their Corresponding Modes
-When a subscription has no consumers, its subscription mode is undefined. A subscription's mode is defined when a consumer connects to the subscription, and the mode can be changed by restarting all consumers with a different configuration.
+When a subscription has no consumers, its subscription type is undefined. A subscription's mode is defined when a consumer connects to the subscription, and the mode can be changed by restarting all consumers with a different configuration.
 
 ### Exclusive
 
@@ -286,7 +286,7 @@ In *exclusive* mode, only a single consumer is allowed to attach to the subscrip
 
 In the diagram below, only **Consumer A-0** is allowed to consume messages.
 
-> Exclusive mode is the default subscription mode.
+> Exclusive mode is the default subscription type.
 
 ![Exclusive subscriptions](assets/pulsar-exclusive-subscriptions.png)
 
