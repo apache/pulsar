@@ -3456,8 +3456,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer2 = consumerBuilder.subscribe();
 
         AtomicInteger consumer1Count = new AtomicInteger(0);
-        admin.topics().getPartitionedStats(topicName, true).partitions.forEach((p, stats) -> {
-            String activeConsumerName = stats.subscriptions.entrySet().iterator().next().getValue().activeConsumerName;
+        admin.topics().getPartitionedStats(topicName, true).getPartitions().forEach((p, stats) -> {
+            String activeConsumerName = stats.getSubscriptions().entrySet().iterator().next().getValue().getActiveConsumerName();
             if (activeConsumerName.equals("aaa")) {
                 consumer1Count.incrementAndGet();
             }
@@ -3476,9 +3476,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         retryStrategically((test) -> {
             try {
                 Map<String, Integer> subsCount = Maps.newHashMap();
-                admin.topics().getPartitionedStats(topicName, true).partitions.forEach((p, stats) -> {
-                    String activeConsumerName = stats.subscriptions.entrySet().iterator().next()
-                            .getValue().activeConsumerName;
+                admin.topics().getPartitionedStats(topicName, true).getPartitions().forEach((p, stats) -> {
+                    String activeConsumerName = stats.getSubscriptions().entrySet().iterator().next()
+                            .getValue().getActiveConsumerName();
                     subsCount.compute(activeConsumerName, (k, v) -> v != null ? v + 1 : 1);
                 });
                 return subsCount.size() == 3 && subsCount.get("bbb1").equals(evenDistributionCount)
@@ -3492,8 +3492,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }, 5, 100);
 
         Map<String, Integer> subsCount = Maps.newHashMap();
-        admin.topics().getPartitionedStats(topicName, true).partitions.forEach((p, stats) -> {
-            String activeConsumerName = stats.subscriptions.entrySet().iterator().next().getValue().activeConsumerName;
+        admin.topics().getPartitionedStats(topicName, true).getPartitions().forEach((p, stats) -> {
+            String activeConsumerName = stats.getSubscriptions().entrySet().iterator().next().getValue().getActiveConsumerName();
             subsCount.compute(activeConsumerName, (k, v) -> v != null ? v + 1 : 1);
         });
         assertEquals(subsCount.size(), 3);

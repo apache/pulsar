@@ -84,6 +84,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BundlesData;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -92,6 +93,7 @@ import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
@@ -166,17 +168,17 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         doReturn(null).when(namespaces).clientAuthData();
         doReturn(Sets.newTreeSet(Lists.newArrayList("use", "usw", "usc", "global"))).when(namespaces).clusters();
 
-        admin.clusters().createCluster("use", new ClusterDataImpl("http://broker-use.com:8080"));
-        admin.clusters().createCluster("usw", new ClusterDataImpl("http://broker-usw.com:8080"));
-        admin.clusters().createCluster("usc", new ClusterDataImpl("http://broker-usc.com:8080"));
+        admin.clusters().createCluster("use", ClusterData.builder().serviceUrl("http://broker-use.com:8080").build());
+        admin.clusters().createCluster("usw", ClusterData.builder().serviceUrl("http://broker-usw.com:8080").build());
+        admin.clusters().createCluster("usc", ClusterData.builder().serviceUrl("http://broker-usc.com:8080").build());
         admin.tenants().createTenant(this.testTenant,
                 new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use", "usc", "usw")));
         admin.tenants().createTenant(this.testOtherTenant,
                 new TenantInfoImpl(Sets.newHashSet("role3", "role4"), Sets.newHashSet("use", "usc", "usw")));
 
-        createTestNamespaces(this.testLocalNamespaces, new BundlesData());
+        createTestNamespaces(this.testLocalNamespaces, BundlesData.builder().build());
         createGlobalTestNamespaces(this.testTenant, this.testGlobalNamespaces.get(0).getLocalName(),
-                new BundlesData());
+                BundlesData.builder().build());
 
         doThrow(new RestException(Status.UNAUTHORIZED, "unauthorized")).when(namespaces)
                 .validateTenantOperation(this.testOtherTenant, null);
@@ -202,7 +204,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testCreateNamespaces() throws Exception {
         try {
-            namespaces.createNamespace(this.testTenant, "other-colo", "my-namespace", new BundlesData());
+            namespaces.createNamespace(this.testTenant, "other-colo", "my-namespace",
+                    BundlesData.builder().build());
             fail("should have failed");
         } catch (RestException e) {
             // Ok, cluster doesn't exist
@@ -212,24 +215,27 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         nsnames.add(NamespaceName.get(this.testTenant, "use", "create-namespace-1"));
         nsnames.add(NamespaceName.get(this.testTenant, "use", "create-namespace-2"));
         nsnames.add(NamespaceName.get(this.testTenant, "usc", "create-other-namespace-1"));
-        createTestNamespaces(nsnames, new BundlesData());
+        createTestNamespaces(nsnames, BundlesData.builder().build());
 
         try {
-            namespaces.createNamespace(this.testTenant, "use", "create-namespace-1", new BundlesData());
+            namespaces.createNamespace(this.testTenant, "use", "create-namespace-1",
+                    BundlesData.builder().build());
             fail("should have failed");
         } catch (RestException e) {
             // Ok, namespace already exists
         }
 
         try {
-            namespaces.createNamespace("non-existing-tenant", "use", "create-namespace-1", new BundlesData());
+            namespaces.createNamespace("non-existing-tenant", "use", "create-namespace-1",
+                    BundlesData.builder().build());
             fail("should have failed");
         } catch (RestException e) {
             // Ok, tenant doesn't exist
         }
 
         try {
-            namespaces.createNamespace(this.testTenant, "use", "create-namespace-#", new BundlesData());
+            namespaces.createNamespace(this.testTenant, "use", "create-namespace-#",
+                    BundlesData.builder().build());
             fail("should have failed");
         } catch (RestException e) {
             // Ok, invalid namespace name
@@ -241,7 +247,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                     && path.equals("/admin/policies/my-tenant/use/my-namespace-3");
             });
         try {
-            namespaces.createNamespace(this.testTenant, "use", "my-namespace-3", new BundlesData());
+            namespaces.createNamespace(this.testTenant, "use", "my-namespace-3", BundlesData.builder().build());
             fail("should have failed");
         } catch (RestException e) {
             // Ok
@@ -288,7 +294,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                     && path.equals("/admin/policies/my-tenant");
             });
         // clear caches to load data from metadata-store again
-        MetadataCacheImpl<TenantInfoImpl> tenantCache = (MetadataCacheImpl<TenantInfoImpl>) pulsar.getPulsarResources()
+        MetadataCacheImpl<TenantInfo> tenantCache = (MetadataCacheImpl<TenantInfo>) pulsar.getPulsarResources()
                 .getTenantResources().getCache();
         AbstractMetadataStore store = (AbstractMetadataStore) tenantCache.getStore();
         tenantCache.invalidateAll();
@@ -319,32 +325,32 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertEquals(namespaces.getPolicies(this.testTenant, this.testLocalCluster,
                 this.testLocalNamespaces.get(0).getLocalName()), expectedPolicies);
         assertEquals(namespaces.getPermissions(this.testTenant, this.testLocalCluster,
-                this.testLocalNamespaces.get(0).getLocalName()), expectedPolicies.auth_policies.namespace_auth);
+                this.testLocalNamespaces.get(0).getLocalName()), expectedPolicies.auth_policies.getNamespaceAuthentication());
 
         namespaces.grantPermissionOnNamespace(this.testTenant, this.testLocalCluster,
                 this.testLocalNamespaces.get(0).getLocalName(), "my-role", EnumSet.of(AuthAction.produce));
 
-        expectedPolicies.auth_policies.namespace_auth.put("my-role", EnumSet.of(AuthAction.produce));
+        expectedPolicies.auth_policies.getNamespaceAuthentication().put("my-role", EnumSet.of(AuthAction.produce));
         assertEquals(namespaces.getPolicies(this.testTenant, this.testLocalCluster,
                 this.testLocalNamespaces.get(0).getLocalName()), expectedPolicies);
         assertEquals(namespaces.getPermissions(this.testTenant, this.testLocalCluster,
-                this.testLocalNamespaces.get(0).getLocalName()), expectedPolicies.auth_policies.namespace_auth);
+                this.testLocalNamespaces.get(0).getLocalName()), expectedPolicies.auth_policies.getNamespaceAuthentication());
 
         namespaces.grantPermissionOnNamespace(this.testTenant, this.testLocalCluster,
                 this.testLocalNamespaces.get(0).getLocalName(), "other-role", EnumSet.of(AuthAction.consume));
-        expectedPolicies.auth_policies.namespace_auth.put("other-role", EnumSet.of(AuthAction.consume));
+        expectedPolicies.auth_policies.getNamespaceAuthentication().put("other-role", EnumSet.of(AuthAction.consume));
         assertEquals(namespaces.getPolicies(this.testTenant, this.testLocalCluster,
                 this.testLocalNamespaces.get(0).getLocalName()), expectedPolicies);
         assertEquals(namespaces.getPermissions(this.testTenant, this.testLocalCluster,
-                this.testLocalNamespaces.get(0).getLocalName()), expectedPolicies.auth_policies.namespace_auth);
+                this.testLocalNamespaces.get(0).getLocalName()), expectedPolicies.auth_policies.getNamespaceAuthentication());
 
         namespaces.revokePermissionsOnNamespace(this.testTenant, this.testLocalCluster,
                 this.testLocalNamespaces.get(0).getLocalName(), "my-role");
-        expectedPolicies.auth_policies.namespace_auth.remove("my-role");
+        expectedPolicies.auth_policies.getNamespaceAuthentication().remove("my-role");
         assertEquals(namespaces.getPolicies(this.testTenant, this.testLocalCluster,
                 this.testLocalNamespaces.get(0).getLocalName()), expectedPolicies);
         assertEquals(namespaces.getPermissions(this.testTenant, this.testLocalCluster,
-                this.testLocalNamespaces.get(0).getLocalName()), expectedPolicies.auth_policies.namespace_auth);
+                this.testLocalNamespaces.get(0).getLocalName()), expectedPolicies.auth_policies.getNamespaceAuthentication());
 
         // Non-existing namespaces
         try {
@@ -612,7 +618,11 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testGetBundles() throws Exception {
-        BundlesData bundle = new BundlesData(Lists.newArrayList("0x00000000", "0x80000000", "0xffffffff"));
+        List<String> boundaries = Lists.newArrayList("0x00000000", "0x80000000", "0xffffffff");
+        BundlesData bundle = BundlesData.builder()
+                .boundaries(boundaries)
+                .numBundles(boundaries.size() - 1)
+                .build();
         createBundledTestNamespaces(this.testTenant, this.testLocalCluster, "test-bundled-namespace-1", bundle);
         BundlesData responseData = namespaces.getBundlesData(testTenant, this.testLocalCluster,
                 "test-bundled-namespace-1");
@@ -771,7 +781,11 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     public void testDeleteNamespaceWithBundles() throws Exception {
         URL localWebServiceUrl = new URL(pulsar.getSafeWebServiceAddress());
         String bundledNsLocal = "test-bundled-namespace-1";
-        BundlesData bundleData = new BundlesData(Lists.newArrayList("0x00000000", "0x80000000", "0xffffffff"));
+        List<String> boundaries = Lists.newArrayList("0x00000000", "0x80000000", "0xffffffff");
+        BundlesData bundleData = BundlesData.builder()
+                .boundaries(boundaries)
+                .numBundles(boundaries.size() - 1)
+                .build();
         createBundledTestNamespaces(this.testTenant, this.testLocalCluster, bundledNsLocal, bundleData);
         final NamespaceName testNs = NamespaceName.get(this.testTenant, this.testLocalCluster, bundledNsLocal);
 
@@ -875,7 +889,11 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     public void testSplitBundles() throws Exception {
         URL localWebServiceUrl = new URL(pulsar.getSafeWebServiceAddress());
         String bundledNsLocal = "test-bundled-namespace-1";
-        BundlesData bundleData = new BundlesData(Lists.newArrayList("0x00000000", "0xffffffff"));
+        List<String> boundaries = Lists.newArrayList("0x00000000", "0xffffffff");
+        BundlesData bundleData = BundlesData.builder()
+                .boundaries(boundaries)
+                .numBundles(boundaries.size() - 1)
+                .build();
         createBundledTestNamespaces(this.testTenant, this.testLocalCluster, bundledNsLocal, bundleData);
         final NamespaceName testNs = NamespaceName.get(this.testTenant, this.testLocalCluster, bundledNsLocal);
 
@@ -896,10 +914,10 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             // verify split bundles
             BundlesData bundlesData = namespaces.getBundlesData(testTenant, testLocalCluster, bundledNsLocal);
             assertNotNull(bundlesData);
-            assertEquals(bundlesData.boundaries.size(), 3);
-            assertEquals(bundlesData.boundaries.get(0), "0x00000000");
-            assertEquals(bundlesData.boundaries.get(1), "0x7fffffff");
-            assertEquals(bundlesData.boundaries.get(2), "0xffffffff");
+            assertEquals(bundlesData.getBoundaries().size(), 3);
+            assertEquals(bundlesData.getBoundaries().get(0), "0x00000000");
+            assertEquals(bundlesData.getBoundaries().get(1), "0x7fffffff");
+            assertEquals(bundlesData.getBoundaries().get(2), "0xffffffff");
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
         }
@@ -909,8 +927,11 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     public void testSplitBundleWithUnDividedRange() throws Exception {
         URL localWebServiceUrl = new URL(pulsar.getSafeWebServiceAddress());
         String bundledNsLocal = "test-bundled-namespace-1";
-        BundlesData bundleData = new BundlesData(
-                Lists.newArrayList("0x00000000", "0x08375b1a", "0x08375b1b", "0xffffffff"));
+        List<String> boundaries = Lists.newArrayList("0x00000000", "0x08375b1a", "0x08375b1b", "0xffffffff");
+        BundlesData bundleData = BundlesData.builder()
+                .boundaries(boundaries)
+                .numBundles(boundaries.size() - 1)
+                .build();
         createBundledTestNamespaces(this.testTenant, this.testLocalCluster, bundledNsLocal, bundleData);
         final NamespaceName testNs = NamespaceName.get(this.testTenant, this.testLocalCluster, bundledNsLocal);
 
@@ -933,7 +954,11 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     public void testUnloadNamespaceWithBundles() throws Exception {
         URL localWebServiceUrl = new URL(pulsar.getSafeWebServiceAddress());
         String bundledNsLocal = "test-bundled-namespace-1";
-        BundlesData bundleData = new BundlesData(Lists.newArrayList("0x00000000", "0x80000000", "0xffffffff"));
+        List<String> boundaries = Lists.newArrayList("0x00000000", "0x80000000", "0xffffffff");
+        BundlesData bundleData = BundlesData.builder()
+                .boundaries(boundaries)
+                .numBundles(boundaries.size() - 1)
+                .build();
         createBundledTestNamespaces(this.testTenant, this.testLocalCluster, bundledNsLocal, bundleData);
         final NamespaceName testNs = NamespaceName.get(this.testTenant, this.testLocalCluster, bundledNsLocal);
 
@@ -1002,7 +1027,11 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         try {
             URL localWebServiceUrl = new URL(pulsar.getSafeWebServiceAddress());
             String bundledNsLocal = "test-bundled-namespace-1";
-            BundlesData bundleData = new BundlesData(Lists.newArrayList("0x00000000", "0xffffffff"));
+            List<String> boundaries = Lists.newArrayList("0x00000000", "0xffffffff");
+            BundlesData bundleData = BundlesData.builder()
+                    .boundaries(boundaries)
+                    .numBundles(boundaries.size() - 1)
+                    .build();
             createBundledTestNamespaces(this.testTenant, this.testLocalCluster, bundledNsLocal, bundleData);
             final NamespaceName testNs = NamespaceName.get(this.testTenant, this.testLocalCluster, bundledNsLocal);
             mockWebUrl(localWebServiceUrl, testNs);
@@ -1060,7 +1089,11 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     public void testValidateTopicOwnership() throws Exception {
         URL localWebServiceUrl = new URL(pulsar.getSafeWebServiceAddress());
         String bundledNsLocal = "test-bundled-namespace-1";
-        BundlesData bundleData = new BundlesData(Lists.newArrayList("0x00000000", "0xffffffff"));
+        List<String> boundaries = Lists.newArrayList("0x00000000", "0xffffffff");
+        BundlesData bundleData = BundlesData.builder()
+                .boundaries(boundaries)
+                .numBundles(boundaries.size() - 1)
+                .build();
         createBundledTestNamespaces(this.testTenant, this.testLocalCluster, bundledNsLocal, bundleData);
         final NamespaceName testNs = NamespaceName.get(this.testTenant, this.testLocalCluster, bundledNsLocal);
         OwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
@@ -1099,7 +1132,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         final String namespace = this.testTenant + "/use/deleteNs";
         admin.namespaces().createNamespace(namespace, 100);
-        assertEquals(admin.namespaces().getPolicies(namespace).bundles.numBundles, 100);
+        assertEquals(admin.namespaces().getPolicies(namespace).bundles.getNumBundles(), 100);
 
         // (1) Force topic creation and namespace being loaded
         final String topicName = "persistent://" + namespace + "/my-topic";
@@ -1477,7 +1510,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         super.internalSetup();
 
         String namespace = "testTenant/ns1";
-        admin.clusters().createCluster("use", new ClusterDataImpl(brokerUrl.toString()));
+        admin.clusters().createCluster("use", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"),
                 Sets.newHashSet("use"));
         admin.tenants().createTenant("testTenant", tenantInfo);
@@ -1527,7 +1560,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         conf.setAllowAutoTopicCreationType("partitioned");
         super.internalSetup();
 
-        admin.clusters().createCluster("use", new ClusterDataImpl(brokerUrl.toString()));
+        admin.clusters().createCluster("use", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
         admin.tenants().createTenant("testTenant", tenantInfo);
         admin.namespaces().createNamespace(namespace, Sets.newHashSet("use"));
         admin.namespaces().setMaxTopicsPerNamespace(namespace, 10);
@@ -1557,7 +1590,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         conf.setAllowAutoTopicCreationType("non-partitioned");
         super.internalSetup();
 
-        admin.clusters().createCluster("use", new ClusterDataImpl(brokerUrl.toString()));
+        admin.clusters().createCluster("use", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
         admin.tenants().createTenant("testTenant", tenantInfo);
         admin.namespaces().createNamespace(namespace, Sets.newHashSet("use"));
         admin.namespaces().setMaxTopicsPerNamespace(namespace, 3);

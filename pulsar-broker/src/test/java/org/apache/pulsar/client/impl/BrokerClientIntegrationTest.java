@@ -92,6 +92,7 @@ import org.apache.pulsar.client.impl.schema.reader.JacksonJsonReader;
 import org.apache.pulsar.client.impl.schema.writer.JacksonJsonWriter;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.protocol.PulsarHandler;
@@ -745,7 +746,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     public void testCleanProducer() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        admin.clusters().createCluster("global", new ClusterDataImpl());
+        admin.clusters().createCluster("global", ClusterData.builder().build());
         admin.namespaces().createNamespace("my-property/global/lookup");
 
         final int operationTimeOut = 500;

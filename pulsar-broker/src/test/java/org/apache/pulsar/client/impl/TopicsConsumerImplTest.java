@@ -38,6 +38,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TopicMetadata;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
@@ -917,12 +918,12 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         Map<String, AtomicInteger> activeConsumers = new HashMap<>();
         PartitionedTopicStats stats = admin.topics().getPartitionedStats(topicName, true);
-        for (TopicStats value : stats.partitions.values()) {
-            for (SubscriptionStats subscriptionStats : value.subscriptions.values()) {
-                assertTrue(subscriptionStats.activeConsumerName.equals(consumer_1.getConsumerName())
-                        || subscriptionStats.activeConsumerName.equals(consumer_2.getConsumerName()));
-                activeConsumers.putIfAbsent(subscriptionStats.activeConsumerName, new AtomicInteger(0));
-                activeConsumers.get(subscriptionStats.activeConsumerName).incrementAndGet();
+        for (TopicStats value : stats.getPartitions().values()) {
+            for (SubscriptionStats subscriptionStats : value.getSubscriptions().values()) {
+                assertTrue(subscriptionStats.getActiveConsumerName().equals(consumer_1.getConsumerName())
+                        || subscriptionStats.getActiveConsumerName().equals(consumer_2.getConsumerName()));
+                activeConsumers.putIfAbsent(subscriptionStats.getActiveConsumerName(), new AtomicInteger(0));
+                activeConsumers.get(subscriptionStats.getActiveConsumerName()).incrementAndGet();
             }
         }
         assertEquals(activeConsumers.get(consumer_1.getConsumerName()).get(), 2);
@@ -959,7 +960,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         final String topicName = "persistent://" + namespace + "/expiry";
         final String subName = "expiredSub";
 
-        admin.clusters().createCluster("use", new ClusterDataImpl(brokerUrl.toString()));
+        admin.clusters().createCluster("use", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
 
         admin.tenants().createTenant("prop", new TenantInfoImpl(null, Sets.newHashSet("use")));
         admin.namespaces().createNamespace(namespace);
@@ -1093,7 +1094,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         topics.add("persistent://prop/use/ns-abc/topic-1");
         topics.add("persistent://prop/use/ns-abc/topic-2");
         topics.add("persistent://prop/use/ns-abc1/topic-3");
-        admin.clusters().createCluster("use", new ClusterDataImpl(brokerUrl.toString()));
+        admin.clusters().createCluster("use", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
         admin.tenants().createTenant("prop", new TenantInfoImpl(null, Sets.newHashSet("use")));
         admin.namespaces().createNamespace("prop/use/ns-abc");
         admin.namespaces().createNamespace("prop/use/ns-abc1");

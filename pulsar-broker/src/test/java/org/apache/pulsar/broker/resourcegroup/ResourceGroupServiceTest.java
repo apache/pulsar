@@ -29,6 +29,7 @@ import org.apache.pulsar.broker.service.resource.usage.ResourceUsage;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -245,6 +246,6 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
     private static final int PUBLISH_INTERVAL_SECS = 500;
     private void prepareData() throws PulsarAdminException {
         this.conf.setResourceUsageTransportPublishIntervalInSecs(PUBLISH_INTERVAL_SECS);
-        admin.clusters().createCluster("test", new ClusterDataImpl(pulsar.getBrokerServiceUrl()));
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
     }
 }

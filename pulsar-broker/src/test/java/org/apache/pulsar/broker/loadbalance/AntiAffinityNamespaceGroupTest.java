@@ -31,6 +31,7 @@ import com.google.common.hash.Hashing;
 
 import java.lang.reflect.Field;
 import java.net.URL;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -55,7 +56,9 @@ import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.FailureDomainImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -168,7 +171,7 @@ public class AntiAffinityNamespaceGroupTest {
     private void createCluster(ZooKeeper zk, ServiceConfiguration config) throws Exception {
         ZkUtils.createFullPathOptimistic(zk, "/admin/clusters/" + config.getClusterName(),
                 ObjectMapperFactory.getThreadLocal().writeValueAsBytes(
-                        new ClusterDataImpl("http://" + config.getAdvertisedAddress() + ":" + config.getWebServicePort().get())),
+                        ClusterData.builder().serviceUrl("http://" + config.getAdvertisedAddress() + ":" + config.getWebServicePort().get()).build()),
                 Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
     }
 
@@ -402,12 +405,14 @@ public class AntiAffinityNamespaceGroupTest {
         final String namespace2 = tenant + "/" + cluster + "/ns2";
         final String namespaceAntiAffinityGroup = "group";
 
-        FailureDomainImpl domain1 = new FailureDomainImpl();
-        domain1.brokers = Sets.newHashSet(broker1);
+        FailureDomain domain1 = FailureDomain.builder()
+                .brokers(Collections.singleton(broker1))
+                .build();
         admin1.clusters().createFailureDomain(cluster, "domain1", domain1);
 
-        FailureDomainImpl domain2 = new FailureDomainImpl();
-        domain2.brokers = Sets.newHashSet(broker2);
+        FailureDomain domain2 = FailureDomain.builder()
+                .brokers(Collections.singleton(broker2))
+                .build();
         admin1.clusters().createFailureDomain(cluster, "domain2", domain2);
 
         admin1.tenants().createTenant(tenant, new TenantInfoImpl(null, Sets.newHashSet(cluster)));

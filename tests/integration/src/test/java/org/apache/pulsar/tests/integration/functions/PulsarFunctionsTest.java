@@ -161,13 +161,13 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             admin.topics().createNonPartitionedTopic(outputTopicName);
             retryStrategically((test) -> {
                 try {
-                    return admin.topics().getStats(inputTopicName).subscriptions.size() == 1;
+                    return admin.topics().getStats(inputTopicName).getSubscriptions().size() == 1;
                 } catch (PulsarAdminException e) {
                     return false;
                 }
             }, 30, 200);
 
-            assertEquals(admin.topics().getStats(inputTopicName).subscriptions.size(), 1);
+            assertEquals(admin.topics().getStats(inputTopicName).getSubscriptions().size(), 1);
 
             // publish and consume result
             if (Runtime.JAVA == runtime) {
@@ -1056,7 +1056,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                     "stats",
                     topic);
             TopicStats topicStats = new Gson().fromJson(result.getStdout(), TopicStats.class);
-            assertEquals(topicStats.subscriptions.size(), 0);
+            assertEquals(topicStats.getSubscriptions().size(), 0);
 
         } catch (ContainerExecException e) {
             fail("Command should have exited with non-zero");
@@ -1071,7 +1071,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                     "stats",
                     topic);
             TopicStats topicStats = new Gson().fromJson(result.getStdout(), TopicStats.class);
-            assertEquals(topicStats.publishers.size(), 0);
+            assertEquals(topicStats.getPublishers().size(), 0);
 
         } catch (ContainerExecException e) {
             fail("Command should have exited with non-zero");
