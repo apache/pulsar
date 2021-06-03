@@ -138,8 +138,13 @@ public class DispatchRateLimiter {
                 dispatchThrottlingRateInByte = -1;
         }
 
-        return new DispatchRate(dispatchThrottlingRateInMsg, dispatchThrottlingRateInByte, 1,
-                config.isDispatchThrottlingRateRelativeToPublishRate());
+
+        return DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(dispatchThrottlingRateInMsg)
+                .dispatchThrottlingRateInByte(dispatchThrottlingRateInByte)
+                .ratePeriodInSecond(1)
+                .relativeToPublishRate(config.isDispatchThrottlingRateRelativeToPublishRate())
+                .build();
     }
 
     /**
@@ -331,11 +336,11 @@ public class DispatchRateLimiter {
         // synchronized to prevent race condition from concurrent zk-watch
         log.info("setting message-dispatch-rate {}", dispatchRate);
 
-        long msgRate = dispatchRate.dispatchThrottlingRateInMsg;
-        long byteRate = dispatchRate.dispatchThrottlingRateInByte;
-        long ratePeriod = dispatchRate.ratePeriodInSecond;
+        long msgRate = dispatchRate.getDispatchThrottlingRateInMsg();
+        long byteRate = dispatchRate.getDispatchThrottlingRateInByte();
+        long ratePeriod = dispatchRate.getRatePeriodInSecond();
 
-        Supplier<Long> permitUpdaterMsg = dispatchRate.relativeToPublishRate
+        Supplier<Long> permitUpdaterMsg = dispatchRate.isRelativeToPublishRate()
                 ? () -> getRelativeDispatchRateInMsg(dispatchRate)
                 : null;
         // update msg-rateLimiter
@@ -344,7 +349,7 @@ public class DispatchRateLimiter {
                 this.dispatchRateLimiterOnMessage = new RateLimiter(brokerService.pulsar().getExecutor(), msgRate,
                         ratePeriod, TimeUnit.SECONDS, permitUpdaterMsg, true);
             } else {
-                this.dispatchRateLimiterOnMessage.setRate(msgRate, dispatchRate.ratePeriodInSecond,
+                this.dispatchRateLimiterOnMessage.setRate(msgRate, dispatchRate.getRatePeriodInSecond(),
                         TimeUnit.SECONDS, permitUpdaterMsg);
             }
         } else {
@@ -355,7 +360,7 @@ public class DispatchRateLimiter {
             }
         }
 
-        Supplier<Long> permitUpdaterByte = dispatchRate.relativeToPublishRate
+        Supplier<Long> permitUpdaterByte = dispatchRate.isRelativeToPublishRate()
                 ? () -> getRelativeDispatchRateInByte(dispatchRate)
                 : null;
         // update byte-rateLimiter
@@ -364,7 +369,7 @@ public class DispatchRateLimiter {
                 this.dispatchRateLimiterOnByte = new RateLimiter(brokerService.pulsar().getExecutor(), byteRate,
                         ratePeriod, TimeUnit.SECONDS, permitUpdaterByte, true);
             } else {
-                this.dispatchRateLimiterOnByte.setRate(byteRate, dispatchRate.ratePeriodInSecond,
+                this.dispatchRateLimiterOnByte.setRate(byteRate, dispatchRate.getRatePeriodInSecond(),
                         TimeUnit.SECONDS, permitUpdaterByte);
             }
         } else {
@@ -378,13 +383,13 @@ public class DispatchRateLimiter {
 
     private long getRelativeDispatchRateInMsg(DispatchRate dispatchRate) {
         return (topic != null && dispatchRate != null)
-                ? (long) topic.getLastUpdatedAvgPublishRateInMsg() + dispatchRate.dispatchThrottlingRateInMsg
+                ? (long) topic.getLastUpdatedAvgPublishRateInMsg() + dispatchRate.getDispatchThrottlingRateInMsg()
                 : 0;
     }
 
     private long getRelativeDispatchRateInByte(DispatchRate dispatchRate) {
         return (topic != null && dispatchRate != null)
-                ? (long) topic.getLastUpdatedAvgPublishRateInByte() + dispatchRate.dispatchThrottlingRateInByte
+                ? (long) topic.getLastUpdatedAvgPublishRateInByte() + dispatchRate.getDispatchThrottlingRateInByte()
                 : 0;
     }
 
@@ -408,8 +413,8 @@ public class DispatchRateLimiter {
 
 
     private static boolean isDispatchRateEnabled(DispatchRate dispatchRate) {
-        return dispatchRate != null && (dispatchRate.dispatchThrottlingRateInMsg > 0
-                || dispatchRate.dispatchThrottlingRateInByte > 0);
+        return dispatchRate != null && (dispatchRate.getDispatchThrottlingRateInMsg() > 0
+                || dispatchRate.getDispatchThrottlingRateInByte() > 0);
     }
 
     public void close() {

@@ -81,7 +81,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
@@ -99,6 +99,7 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.TenantOperation;
+import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
@@ -192,7 +193,7 @@ public abstract class NamespacesBase extends AdminResource {
                         && !policies.replication_clusters.contains(config().getClusterName())) {
                     // the only replication cluster is other cluster, redirect
                     String replCluster = Lists.newArrayList(policies.replication_clusters).get(0);
-                    ClusterDataImpl replClusterData = clusterResources().get(
+                    ClusterData replClusterData = clusterResources().get(
                             AdminResource.path("clusters", replCluster))
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                                     "Cluster " + replCluster + " does not exist"));
@@ -356,7 +357,7 @@ public abstract class NamespacesBase extends AdminResource {
                         && !policies.replication_clusters.contains(config().getClusterName())) {
                     // the only replication cluster is other cluster, redirect
                     String replCluster = Lists.newArrayList(policies.replication_clusters).get(0);
-                    ClusterDataImpl replClusterData =
+                    ClusterData replClusterData =
                             clusterResources().get(AdminResource.path("clusters", replCluster))
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                                     "Cluster " + replCluster + " does not exist"));
@@ -509,7 +510,7 @@ public abstract class NamespacesBase extends AdminResource {
                         && !policies.replication_clusters.contains(config().getClusterName())) {
                     // the only replication cluster is other cluster, redirect
                     String replCluster = Lists.newArrayList(policies.replication_clusters).get(0);
-                    ClusterDataImpl replClusterData =
+                    ClusterData replClusterData =
                             clusterResources().get(AdminResource.path("clusters", replCluster))
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                                     "Cluster " + replCluster + " does not exist"));
@@ -583,7 +584,7 @@ public abstract class NamespacesBase extends AdminResource {
                         && !policies.replication_clusters.contains(config().getClusterName())) {
                     // the only replication cluster is other cluster, redirect
                     String replCluster = Lists.newArrayList(policies.replication_clusters).get(0);
-                    ClusterDataImpl replClusterData =
+                    ClusterData replClusterData =
                             clusterResources().get(AdminResource.path("clusters", replCluster))
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                                     "Cluster " + replCluster + " does not exist"));
@@ -696,7 +697,7 @@ public abstract class NamespacesBase extends AdminResource {
         validatePoliciesReadOnlyAccess();
         checkNotNull(role, "Role should not be null");
         updatePolicies(path(POLICIES, namespaceName.toString()), policies ->{
-            policies.auth_policies.namespace_auth.remove(role);
+            policies.auth_policies.getNamespaceAuthentication().remove(role);
             return policies;
         });
     }
@@ -797,11 +798,11 @@ public abstract class NamespacesBase extends AdminResource {
         validateNamespacePolicyOperation(namespaceName, PolicyName.AUTO_TOPIC_CREATION, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
         if (autoTopicCreationOverride != null) {
-            if (!AutoTopicCreationOverride.isValidOverride(autoTopicCreationOverride)) {
+            if (!AutoTopicCreationOverrideImpl.isValidOverride(autoTopicCreationOverride)) {
                 throw new RestException(Status.PRECONDITION_FAILED,
                         "Invalid configuration for autoTopicCreationOverride");
             }
-            if (maxPartitions > 0 && autoTopicCreationOverride.defaultNumPartitions > maxPartitions) {
+            if (maxPartitions > 0 && autoTopicCreationOverride.getDefaultNumPartitions() > maxPartitions) {
                 throw new RestException(Status.NOT_ACCEPTABLE,
                         "Number of partitions should be less than or equal to " + maxPartitions);
             }
@@ -812,7 +813,7 @@ public abstract class NamespacesBase extends AdminResource {
             return policies;
         }).thenApply(r -> {
             String autoOverride = (autoTopicCreationOverride != null
-                    && autoTopicCreationOverride.allowAutoTopicCreation) ? "enabled" : "disabled";
+                    && autoTopicCreationOverride.isAllowAutoTopicCreation()) ? "enabled" : "disabled";
             log.info("[{}] Successfully {} autoTopicCreation on namespace {}", clientAppId(),
                     autoOverride != null ? autoOverride : "removed", namespaceName);
             asyncResponse.resume(Response.noContent().build());
@@ -844,7 +845,7 @@ public abstract class NamespacesBase extends AdminResource {
             return policies;
         }).thenApply(r -> {
             if (autoSubscriptionCreationOverride != null) {
-                String autoOverride = autoSubscriptionCreationOverride.allowAutoSubscriptionCreation ? "enabled"
+                String autoOverride = autoSubscriptionCreationOverride.isAllowAutoSubscriptionCreation() ? "enabled"
                         : "disabled";
                 log.info("[{}] Successfully {} autoSubscriptionCreation on namespace {}", clientAppId(),
                         autoOverride != null ? autoOverride : "removed", namespaceName);
@@ -1941,7 +1942,7 @@ public abstract class NamespacesBase extends AdminResource {
      */
     private void validatePeerClusterConflict(String clusterName, Set<String> replicationClusters) {
         try {
-            ClusterDataImpl clusterData = clusterResources().get(path("clusters", clusterName)).orElseThrow(
+            ClusterData clusterData = clusterResources().get(path("clusters", clusterName)).orElseThrow(
                     () -> new RestException(Status.PRECONDITION_FAILED, "Invalid replication cluster " + clusterName));
             Set<String> peerClusters = clusterData.getPeerClusterNames();
             if (peerClusters != null && !peerClusters.isEmpty()) {
@@ -1980,7 +1981,10 @@ public abstract class NamespacesBase extends AdminResource {
         }
         List<String> bundles = Lists.newArrayList();
         bundles.addAll(partitions);
-        return new BundlesData(bundles);
+        return BundlesData.builder()
+                .boundaries(bundles)
+                .numBundles(bundles.size() - 1)
+                .build();
     }
 
     private void validatePolicies(NamespaceName ns, Policies policies) {
@@ -2266,7 +2270,7 @@ public abstract class NamespacesBase extends AdminResource {
                 if (policies.offload_policies == null) {
                     policies.offload_policies = new OffloadPoliciesImpl();
                 }
-                policies.offload_policies.setManagedLedgerOffloadThresholdInBytes(newThreshold);
+                ((OffloadPoliciesImpl) policies.offload_policies).setManagedLedgerOffloadThresholdInBytes(newThreshold);
                 policies.offload_threshold = newThreshold;
                 return policies;
             });
@@ -2301,7 +2305,8 @@ public abstract class NamespacesBase extends AdminResource {
                 if (policies.offload_policies == null) {
                     policies.offload_policies = new OffloadPoliciesImpl();
                 }
-                policies.offload_policies.setManagedLedgerOffloadDeletionLagInMillis(newDeletionLagMs);
+                ((OffloadPoliciesImpl) policies.offload_policies)
+                        .setManagedLedgerOffloadDeletionLagInMillis(newDeletionLagMs);
                 policies.offload_deletion_lag_ms = newDeletionLagMs;
                 return policies;
             });

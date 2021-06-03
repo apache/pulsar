@@ -241,7 +241,7 @@ public class Namespaces extends NamespacesBase {
         validateNamespaceOperation(NamespaceName.get(property, namespace), NamespaceOperation.GET_PERMISSION);
 
         Policies policies = getNamespacePolicies(namespaceName);
-        return policies.auth_policies.namespace_auth;
+        return policies.auth_policies.getNamespaceAuthentication();
     }
 
     @POST

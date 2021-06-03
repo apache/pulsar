@@ -20,141 +20,62 @@ package org.apache.pulsar.common.policies.data;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 /**
  * Consumer statistics.
  */
-public class ConsumerStats {
+public interface ConsumerStats {
     /** Total rate of messages delivered to the consumer (msg/s). */
-    public double msgRateOut;
+    double getMsgRateOut();
 
     /** Total throughput delivered to the consumer (bytes/s). */
-    public double msgThroughputOut;
+    double getMsgThroughputOut();
 
     /** Total bytes delivered to consumer (bytes). */
-    public long bytesOutCounter;
+    long getBytesOutCounter();
 
     /** Total messages delivered to consumer (msg). */
-    public long msgOutCounter;
+    long getMsgOutCounter();
 
     /** Total rate of messages redelivered by this consumer (msg/s). */
-    public double msgRateRedeliver;
-
-    /**
-     * Total chunked messages dispatched.
-     * @deprecated use {@link chunkedMessageRate)}
-     */
-    @Deprecated
-    public double chuckedMessageRate;
+    double getMsgRateRedeliver();
 
     /** Total chunked messages dispatched. */
-    public double chunkedMessageRate;
+    double getChunkedMessageRate();
 
     /** Name of the consumer. */
-    public String consumerName;
+    String getConsumerName();
 
     /** Number of available message permits for the consumer. */
-    public int availablePermits;
+    int getAvailablePermits();
 
     /** Number of unacknowledged messages for the consumer. */
-    public int unackedMessages;
+    int getUnackedMessages();
 
     /** Number of average messages per entry for the consumer consumed. */
-    public int avgMessagesPerEntry;
+    int getAvgMessagesPerEntry();
 
     /** Flag to verify if consumer is blocked due to reaching threshold of unacked messages. */
-    public boolean blockedConsumerOnUnackedMsgs;
+    boolean isBlockedConsumerOnUnackedMsgs();
 
     /** The read position of the cursor when the consumer joining. */
-    public String readPositionWhenJoining;
+    String getReadPositionWhenJoining();
 
     /** Address of this consumer. */
-    private int addressOffset = -1;
-    private int addressLength;
+    String getAddress();
 
     /** Timestamp of connection. */
-    private int connectedSinceOffset = -1;
-    private int connectedSinceLength;
+    String getConnectedSince();
 
     /** Client library version. */
-    private int clientVersionOffset = -1;
-    private int clientVersionLength;
+    String getClientVersion();
 
-    public long lastAckedTimestamp;
-    public long lastConsumedTimestamp;
+    long getLastAckedTimestamp();
+    long getLastConsumedTimestamp();
 
     /** Hash ranges assigned to this consumer if is Key_Shared sub mode. **/
-    public List<String> keyHashRanges;
+    List<String> getKeyHashRanges();
 
     /** Metadata (key/value strings) associated with this consumer. */
-    public Map<String, String> metadata;
-
-    /**
-     * In order to prevent multiple string object allocation under stats: create a string-buffer
-     * that stores data for all string place-holders.
-     */
-    private StringBuilder stringBuffer = new StringBuilder();
-
-    public ConsumerStats add(ConsumerStats stats) {
-        Objects.requireNonNull(stats);
-        this.msgRateOut += stats.msgRateOut;
-        this.msgThroughputOut += stats.msgThroughputOut;
-        this.bytesOutCounter += stats.bytesOutCounter;
-        this.msgOutCounter += stats.msgOutCounter;
-        this.msgRateRedeliver += stats.msgRateRedeliver;
-        this.availablePermits += stats.availablePermits;
-        this.unackedMessages += stats.unackedMessages;
-        this.blockedConsumerOnUnackedMsgs = stats.blockedConsumerOnUnackedMsgs;
-        this.readPositionWhenJoining = stats.readPositionWhenJoining;
-        return this;
-    }
-
-    public String getAddress() {
-        return addressOffset == -1 ? null : stringBuffer.substring(addressOffset, addressOffset + addressLength);
-    }
-
-    public void setAddress(String address) {
-        if (address == null) {
-            this.addressOffset = -1;
-            return;
-        }
-        this.addressOffset = this.stringBuffer.length();
-        this.addressLength = address.length();
-        this.stringBuffer.append(address);
-    }
-
-    public String getConnectedSince() {
-        return connectedSinceOffset == -1 ? null
-                : stringBuffer.substring(connectedSinceOffset, connectedSinceOffset + connectedSinceLength);
-    }
-
-    public void setConnectedSince(String connectedSince) {
-        if (connectedSince == null) {
-            this.connectedSinceOffset = -1;
-            return;
-        }
-        this.connectedSinceOffset = this.stringBuffer.length();
-        this.connectedSinceLength = connectedSince.length();
-        this.stringBuffer.append(connectedSince);
-    }
-
-    public String getClientVersion() {
-        return clientVersionOffset == -1 ? null
-                : stringBuffer.substring(clientVersionOffset, clientVersionOffset + clientVersionLength);
-    }
-
-    public void setClientVersion(String clientVersion) {
-        if (clientVersion == null) {
-            this.clientVersionOffset = -1;
-            return;
-        }
-        this.clientVersionOffset = this.stringBuffer.length();
-        this.clientVersionLength = clientVersion.length();
-        this.stringBuffer.append(clientVersion);
-    }
-
-    public String getReadPositionWhenJoining() {
-        return readPositionWhenJoining;
-    }
+    Map<String, String> getMetadata();
 }

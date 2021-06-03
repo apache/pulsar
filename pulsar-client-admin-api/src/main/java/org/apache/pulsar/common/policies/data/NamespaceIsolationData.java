@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.policies.data;
 
 import java.util.List;
+import org.apache.pulsar.client.admin.utils.ReflectionUtils;
 
 public interface NamespaceIsolationData {
 
@@ -28,14 +29,23 @@ public interface NamespaceIsolationData {
 
     List<String> getSecondary();
 
-    AutoFailoverPolicyData getAuto_failover_policy();
+    AutoFailoverPolicyData getAutoFailoverPolicy();
 
-    void setNamespaces(List<String> namespaces);
+    void validate();
 
-    void setPrimary(List<String> primary);
+    interface Builder {
+        Builder namespaces(List<String> namespaces);
 
-    void setSecondary(List<String> secondary);
+        Builder primary(List<String> primary);
 
-    void setAuto_failover_policy(AutoFailoverPolicyData autoFailoverPolicyData);
+        Builder secondary(List<String> secondary);
 
+        Builder autoFailoverPolicy(AutoFailoverPolicyData autoFailoverPolicyData);
+
+        NamespaceIsolationData build();
+    }
+
+    static Builder builder() {
+        return ReflectionUtils.newBuilder("org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl");
+    }
 }

@@ -18,62 +18,26 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.TreeMap;
 
 /**
  * Statistics for a non-persistent topic.
  */
-public class NonPersistentTopicStats extends TopicStats {
+public interface NonPersistentTopicStats extends TopicStats {
 
     /**
      * for non-persistent topic: broker drops msg if publisher publishes messages more than configured max inflight
      * messages per connection.
      **/
-    public double msgDropRate;
+    double getMsgDropRate();
 
     /** List of connected publishers on this topic w/ their stats. */
-    public List<NonPersistentPublisherStats> publishers;
+    List<? extends NonPersistentPublisherStats> getPublishers();
 
     /** Map of subscriptions with their individual statistics. */
-    public Map<String, NonPersistentSubscriptionStats> subscriptions;
+    Map<String, ? extends NonPersistentSubscriptionStats> getSubscriptions();
 
     /** Map of replication statistics by remote cluster context. */
-    public Map<String, NonPersistentReplicatorStats> replication;
-
-    public NonPersistentTopicStats() {
-        this.publishers = new ArrayList<>();
-        this.subscriptions = new HashMap<>();
-        this.replication = new TreeMap<>();
-    }
-
-    public void reset() {
-        super.reset();
-        this.msgDropRate = 0;
-    }
-
-    // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current
-    // stats.
-    public NonPersistentTopicStats add(NonPersistentTopicStats stats) {
-        Objects.requireNonNull(stats);
-        super.add(stats);
-        this.msgDropRate += stats.msgDropRate;
-        return this;
-    }
-
-    public List<NonPersistentPublisherStats> getPublishers() {
-        return this.publishers;
-    }
-
-    public Map<String, NonPersistentSubscriptionStats> getSubscriptions() {
-        return this.subscriptions;
-    }
-
-    public Map<String, NonPersistentReplicatorStats> getReplication() {
-        return this.replication;
-    }
+    Map<String, ? extends NonPersistentReplicatorStats> getReplication();
 }

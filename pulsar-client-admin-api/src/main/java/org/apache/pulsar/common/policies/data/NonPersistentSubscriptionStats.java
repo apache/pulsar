@@ -18,30 +18,14 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import java.util.Objects;
-
 /**
  * Statistics for subscription to non-persistent topics.
  */
-public class NonPersistentSubscriptionStats extends SubscriptionStats {
+public interface NonPersistentSubscriptionStats extends SubscriptionStats {
 
     /**
      * for non-persistent topic: broker drops msg for subscription if none of the consumer available for message
      * delivery.
      **/
-    public double msgDropRate;
-
-    public void reset() {
-        super.reset();
-        msgDropRate = 0;
-    }
-
-    // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current
-    // stats
-    public NonPersistentSubscriptionStats add(NonPersistentSubscriptionStats stats) {
-        Objects.requireNonNull(stats);
-        super.add(stats);
-        this.msgDropRate += stats.msgDropRate;
-        return this;
-    }
+    double getMsgDropRate();
 }

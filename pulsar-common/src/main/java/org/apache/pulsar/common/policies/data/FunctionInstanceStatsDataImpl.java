@@ -36,7 +36,7 @@ import lombok.EqualsAndHashCode;
         "userExceptionsTotal", "avgProcessLatency", "1min", "lastInvocation", "userMetrics" })
 public class FunctionInstanceStatsDataImpl extends FunctionInstanceStatsDataBaseImpl implements FunctionInstanceStatsData {
     @JsonProperty("1min")
-    public FunctionInstanceStatsDataBase oneMin = new FunctionInstanceStatsDataBaseImpl();
+    public FunctionInstanceStatsDataBaseImpl oneMin = new FunctionInstanceStatsDataBaseImpl();
 
     /**
      * Timestamp of when the function was last invoked for instance.

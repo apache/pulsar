@@ -121,22 +121,22 @@ import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
-import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.CursorStats;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.LedgerInfo;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.PublisherStats;
-import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
-import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
-import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
+import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.PublisherStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
@@ -224,7 +224,7 @@ public class PersistentTopic extends AbstractTopic
         public double aggMsgThrottlingFailure;
         public double aggMsgRateOut;
         public double aggMsgThroughputOut;
-        public final ObjectObjectHashMap<String, PublisherStats> remotePublishersStats;
+        public final ObjectObjectHashMap<String, PublisherStatsImpl> remotePublishersStats;
 
         public TopicStatsHelper() {
             remotePublishersStats = new ObjectObjectHashMap<>();
@@ -981,7 +981,7 @@ public class PersistentTopic extends AbstractTopic
     void removeSubscription(String subscriptionName) {
         PersistentSubscription sub = subscriptions.remove(subscriptionName);
         // preserve accumulative stats form removed subscription
-        SubscriptionStats stats = sub.getStats(false, false);
+        SubscriptionStatsImpl stats = sub.getStats(false, false);
         bytesOutFromRemovedSubscriptions.add(stats.bytesOutCounter);
         msgOutFromRemovedSubscriptions.add(stats.msgOutCounter);
     }
@@ -1531,7 +1531,7 @@ public class PersistentTopic extends AbstractTopic
         topicStatsStream.startList("publishers");
         producers.values().forEach(producer -> {
             producer.updateRates();
-            PublisherStats publisherStats = producer.getStats();
+            PublisherStatsImpl publisherStats = producer.getStats();
 
             topicStatsHelper.aggMsgRateIn += publisherStats.msgRateIn;
             topicStatsHelper.aggMsgThroughputIn += publisherStats.msgThroughputIn;
@@ -1567,10 +1567,10 @@ public class PersistentTopic extends AbstractTopic
 
 
             // Update replicator stats
-            ReplicatorStats rStat = replicator.getStats();
+            ReplicatorStatsImpl rStat = replicator.getStats();
 
             // Add incoming msg rates
-            PublisherStats pubStats = topicStatsHelper.remotePublishersStats.get(replicator.getRemoteCluster());
+            PublisherStatsImpl pubStats = topicStatsHelper.remotePublishersStats.get(replicator.getRemoteCluster());
             rStat.msgRateIn = pubStats != null ? pubStats.msgRateIn : 0;
             rStat.msgThroughputIn = pubStats != null ? pubStats.msgThroughputIn : 0;
             rStat.inboundConnection = pubStats != null ? pubStats.getAddress() : null;
@@ -1641,7 +1641,7 @@ public class PersistentTopic extends AbstractTopic
                     ++bundleStats.consumerCount;
                     consumer.updateRates();
 
-                    ConsumerStats consumerStats = consumer.getStats();
+                    ConsumerStatsImpl consumerStats = consumer.getStats();
                     subMsgRateOut += consumerStats.msgRateOut;
                     subMsgThroughputOut += consumerStats.msgThroughputOut;
                     subMsgRateRedeliver += consumerStats.msgRateRedeliver;
@@ -1741,14 +1741,14 @@ public class PersistentTopic extends AbstractTopic
     }
 
     @Override
-    public TopicStats getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize) {
+    public TopicStatsImpl getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize) {
 
-        TopicStats stats = new TopicStats();
+        TopicStatsImpl stats = new TopicStatsImpl();
 
-        ObjectObjectHashMap<String, PublisherStats> remotePublishersStats = new ObjectObjectHashMap<>();
+        ObjectObjectHashMap<String, PublisherStatsImpl> remotePublishersStats = new ObjectObjectHashMap<>();
 
         producers.values().forEach(producer -> {
-            PublisherStats publisherStats = producer.getStats();
+            PublisherStatsImpl publisherStats = producer.getStats();
             stats.msgRateIn += publisherStats.msgRateIn;
             stats.msgThroughputIn += publisherStats.msgThroughputIn;
 
@@ -1768,7 +1768,7 @@ public class PersistentTopic extends AbstractTopic
         stats.msgOutCounter = msgOutFromRemovedSubscriptions.longValue();
 
         subscriptions.forEach((name, subscription) -> {
-            SubscriptionStats subStats = subscription.getStats(getPreciseBacklog, subscriptionBacklogSize);
+            SubscriptionStatsImpl subStats = subscription.getStats(getPreciseBacklog, subscriptionBacklogSize);
 
             stats.msgRateOut += subStats.msgRateOut;
             stats.msgThroughputOut += subStats.msgThroughputOut;
@@ -1781,10 +1781,10 @@ public class PersistentTopic extends AbstractTopic
         });
 
         replicators.forEach((cluster, replicator) -> {
-            ReplicatorStats replicatorStats = replicator.getStats();
+            ReplicatorStatsImpl replicatorStats = replicator.getStats();
 
             // Add incoming msg rates
-            PublisherStats pubStats = remotePublishersStats.get(replicator.getRemoteCluster());
+            PublisherStatsImpl pubStats = remotePublishersStats.get(replicator.getRemoteCluster());
             if (pubStats != null) {
                 replicatorStats.msgRateIn = pubStats.msgRateIn;
                 replicatorStats.msgThroughputIn = pubStats.msgThroughputIn;

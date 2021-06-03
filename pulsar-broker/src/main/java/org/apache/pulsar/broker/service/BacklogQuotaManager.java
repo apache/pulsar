@@ -52,10 +52,11 @@ public class BacklogQuotaManager {
 
     public BacklogQuotaManager(PulsarService pulsar) {
         this.isTopicLevelPoliciesEnable = pulsar.getConfiguration().isTopicLevelPoliciesEnabled();
-        this.defaultQuota = new BacklogQuota(
-                pulsar.getConfiguration().getBacklogQuotaDefaultLimitGB() * 1024 * 1024 * 1024,
-                pulsar.getConfiguration().getBacklogQuotaDefaultLimitSecond(),
-                pulsar.getConfiguration().getBacklogQuotaDefaultRetentionPolicy());
+        this.defaultQuota = BacklogQuota.builder()
+                .limitSize(pulsar.getConfiguration().getBacklogQuotaDefaultLimitGB() * 1024 * 1024 * 1024)
+                .limitTime(pulsar.getConfiguration().getBacklogQuotaDefaultLimitSecond())
+                .retentionPolicy(pulsar.getConfiguration().getBacklogQuotaDefaultRetentionPolicy())
+                .build();
         this.zkCache = pulsar.getConfigurationCache().policiesCache();
         this.pulsar = pulsar;
     }

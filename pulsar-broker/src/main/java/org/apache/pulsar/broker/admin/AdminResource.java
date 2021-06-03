@@ -402,27 +402,27 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected DispatchRate dispatchRate() {
-        return new DispatchRate(
-                pulsar().getConfiguration().getDispatchThrottlingRatePerTopicInMsg(),
-                pulsar().getConfiguration().getDispatchThrottlingRatePerTopicInByte(),
-                1
-        );
+        return DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(config().getDispatchThrottlingRatePerTopicInMsg())
+                .dispatchThrottlingRateInByte(config().getDispatchThrottlingRatePerTopicInByte())
+                .ratePeriodInSecond(1)
+                .build();
     }
 
     protected DispatchRate subscriptionDispatchRate() {
-        return new DispatchRate(
-                pulsar().getConfiguration().getDispatchThrottlingRatePerSubscriptionInMsg(),
-                pulsar().getConfiguration().getDispatchThrottlingRatePerSubscriptionInByte(),
-                1
-        );
+        return DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(config().getDispatchThrottlingRatePerSubscriptionInMsg())
+                .dispatchThrottlingRateInByte(config().getDispatchThrottlingRatePerSubscriptionInByte())
+                .ratePeriodInSecond(1)
+                .build();
     }
 
     protected DispatchRate replicatorDispatchRate() {
-        return new DispatchRate(
-                pulsar().getConfiguration().getDispatchThrottlingRatePerReplicatorInMsg(),
-                pulsar().getConfiguration().getDispatchThrottlingRatePerReplicatorInByte(),
-                1
-        );
+        return DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(config().getDispatchThrottlingRatePerReplicatorInMsg())
+                .dispatchThrottlingRateInByte(config().getDispatchThrottlingRatePerReplicatorInByte())
+                .ratePeriodInSecond(1)
+                .build();
     }
 
     protected SubscribeRate subscribeRate() {

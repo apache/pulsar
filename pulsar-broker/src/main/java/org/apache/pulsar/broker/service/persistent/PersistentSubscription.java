@@ -70,10 +70,10 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ConsumerStats;
-import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
+import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -283,7 +283,7 @@ public class PersistentSubscription implements Subscription {
         }
 
         // preserve accumulative stats form removed consumer
-        ConsumerStats stats = consumer.getStats();
+        ConsumerStatsImpl stats = consumer.getStats();
         bytesOutFromRemovedConsumers.add(stats.bytesOutCounter);
         msgOutFromRemovedConsumer.add(stats.msgOutCounter);
 
@@ -966,8 +966,8 @@ public class PersistentSubscription implements Subscription {
         return cursor.getEstimatedSizeSinceMarkDeletePosition();
     }
 
-    public SubscriptionStats getStats(Boolean getPreciseBacklog, boolean subscriptionBacklogSize) {
-        SubscriptionStats subStats = new SubscriptionStats();
+    public SubscriptionStatsImpl getStats(Boolean getPreciseBacklog, boolean subscriptionBacklogSize) {
+        SubscriptionStatsImpl subStats = new SubscriptionStatsImpl();
         subStats.lastExpireTimestamp = lastExpireTimestamp;
         subStats.lastConsumedFlowTimestamp = lastConsumedFlowTimestamp;
         subStats.lastMarkDeleteAdvancedTimestamp = lastMarkDeleteAdvancedTimestamp;
@@ -978,14 +978,13 @@ public class PersistentSubscription implements Subscription {
             Map<String, List<String>> consumerKeyHashRanges = getType() == SubType.Key_Shared
                     ? ((PersistentStickyKeyDispatcherMultipleConsumers) dispatcher).getConsumerKeyHashRanges() : null;
             dispatcher.getConsumers().forEach(consumer -> {
-                ConsumerStats consumerStats = consumer.getStats();
+                ConsumerStatsImpl consumerStats = consumer.getStats();
                 subStats.consumers.add(consumerStats);
                 subStats.msgRateOut += consumerStats.msgRateOut;
                 subStats.msgThroughputOut += consumerStats.msgThroughputOut;
                 subStats.bytesOutCounter += consumerStats.bytesOutCounter;
                 subStats.msgOutCounter += consumerStats.msgOutCounter;
                 subStats.msgRateRedeliver += consumerStats.msgRateRedeliver;
-                subStats.chuckedMessageRate += consumerStats.chuckedMessageRate;
                 subStats.chunkedMessageRate += consumerStats.chunkedMessageRate;
                 subStats.unackedMessages += consumerStats.unackedMessages;
                 subStats.lastConsumedTimestamp =

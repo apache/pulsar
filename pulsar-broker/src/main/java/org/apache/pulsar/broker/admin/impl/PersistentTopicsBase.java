@@ -107,7 +107,6 @@ import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
-import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
@@ -121,6 +120,8 @@ import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.stats.PartitionedTopicStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -205,13 +206,12 @@ public class PersistentTopicsBase extends AdminResource {
             AuthPolicies auth = policies.auth_policies;
 
             // First add namespace level permissions
-            for (String role : auth.namespace_auth.keySet()) {
-                permissions.put(role, auth.namespace_auth.get(role));
-            }
+            auth.getNamespaceAuthentication().forEach(permissions::put);
 
             // Then add topic level permissions
-            if (auth.destination_auth.containsKey(topicUri)) {
-                for (Map.Entry<String, Set<AuthAction>> entry : auth.destination_auth.get(topicUri).entrySet()) {
+            if (auth.getTopicAuthentication().containsKey(topicUri)) {
+                for (Map.Entry<String, Set<AuthAction>> entry :
+                        auth.getTopicAuthentication().get(topicUri).entrySet()) {
                     String role = entry.getKey();
                     Set<AuthAction> topicPermissions = entry.getValue();
 
@@ -257,11 +257,11 @@ public class PersistentTopicsBase extends AdminResource {
     private void grantPermissions(String topicUri, String role, Set<AuthAction> actions) {
         try {
             namespaceResources().set(path(POLICIES, namespaceName.toString()), (policies) -> {
-                if (!policies.auth_policies.destination_auth.containsKey(topicUri)) {
-                    policies.auth_policies.destination_auth.put(topicUri, new HashMap<>());
+                if (!policies.auth_policies.getTopicAuthentication().containsKey(topicUri)) {
+                    policies.auth_policies.getTopicAuthentication().put(topicUri, new HashMap<>());
                 }
 
-                policies.auth_policies.destination_auth.get(topicUri).put(role, actions);
+                policies.auth_policies.getTopicAuthentication().get(topicUri).put(role, actions);
                 return policies;
             });
             log.info("[{}] Successfully granted access for role {}: {} - topic {}", clientAppId(), role, actions,
@@ -316,8 +316,8 @@ public class PersistentTopicsBase extends AdminResource {
             log.error("[{}] Failed to revoke permissions for topic {}", clientAppId(), topicUri, e);
             throw new RestException(e);
         }
-        if (!policies.auth_policies.destination_auth.containsKey(topicUri)
-                || !policies.auth_policies.destination_auth.get(topicUri).containsKey(role)) {
+        if (!policies.auth_policies.getTopicAuthentication().containsKey(topicUri)
+                || !policies.auth_policies.getTopicAuthentication().get(topicUri).containsKey(role)) {
             log.warn("[{}] Failed to revoke permission from role {} on topic: Not set at topic level {}", clientAppId(),
                     role, topicUri);
             throw new RestException(Status.PRECONDITION_FAILED, "Permissions are not set at the topic level");
@@ -326,7 +326,7 @@ public class PersistentTopicsBase extends AdminResource {
             // Write the new policies to zookeeper
             String namespacePath = path(POLICIES, namespaceName.toString());
             namespaceResources().set(namespacePath, (p) -> {
-                p.auth_policies.destination_auth.get(topicUri).remove(role);
+                p.auth_policies.getTopicAuthentication().get(topicUri).remove(role);
                 return p;
             });
             log.info("[{}] Successfully revoke access for role {} - topic {}", clientAppId(), role, topicUri);
@@ -754,16 +754,18 @@ public class PersistentTopicsBase extends AdminResource {
         TopicPolicies policies = getTopicPolicies(topicName).orElseGet(TopicPolicies::new);
         DelayedDeliveryPolicies delayedDeliveryPolicies = null;
         if (policies.isDelayedDeliveryEnabledSet() && policies.isDelayedDeliveryTickTimeMillisSet()) {
-            delayedDeliveryPolicies = new DelayedDeliveryPolicies(
-                    policies.getDelayedDeliveryTickTimeMillis(),
-                    policies.getDelayedDeliveryEnabled());
+            delayedDeliveryPolicies = DelayedDeliveryPolicies.builder()
+                    .tickTime(policies.getDelayedDeliveryTickTimeMillis())
+                    .active(policies.getDelayedDeliveryEnabled())
+                    .build();
         }
         if (delayedDeliveryPolicies == null && applied) {
             delayedDeliveryPolicies = getNamespacePolicies(namespaceName).delayed_delivery_policies;
             if (delayedDeliveryPolicies == null) {
-                delayedDeliveryPolicies = new DelayedDeliveryPolicies(
-                        pulsar().getConfiguration().getDelayedDeliveryTickTimeMillis(),
-                        pulsar().getConfiguration().isDelayedDeliveryEnabled());
+                delayedDeliveryPolicies = DelayedDeliveryPolicies.builder()
+                        .tickTime(pulsar().getConfiguration().getDelayedDeliveryTickTimeMillis())
+                        .active(pulsar().getConfiguration().isDelayedDeliveryEnabled())
+                        .build();
             }
         }
         return CompletableFuture.completedFuture(delayedDeliveryPolicies);
@@ -1244,7 +1246,7 @@ public class PersistentTopicsBase extends AdminResource {
                 asyncResponse.resume(new RestException(Status.NOT_FOUND, "Partitioned Topic not found"));
                 return;
             }
-            PartitionedTopicStats stats = new PartitionedTopicStats(partitionMetadata);
+            PartitionedTopicStatsImpl stats = new PartitionedTopicStatsImpl(partitionMetadata);
             List<CompletableFuture<TopicStats>> topicStatsFutureList = Lists.newArrayList();
             for (int i = 0; i < partitionMetadata.partitions; i++) {
                 try {
@@ -1279,7 +1281,7 @@ public class PersistentTopicsBase extends AdminResource {
                     try {
                         boolean zkPathExists = namespaceResources().getPartitionedTopicResources().exists(path);
                         if (zkPathExists) {
-                            stats.partitions.put(topicName.toString(), new TopicStats());
+                            stats.partitions.put(topicName.toString(), new TopicStatsImpl());
                         } else {
                             asyncResponse.resume(
                                     new RestException(Status.NOT_FOUND,
@@ -3534,10 +3536,10 @@ public class PersistentTopicsBase extends AdminResource {
             admin.topics().getStatsAsync(topicName.getPartition(0).toString()).thenAccept(stats -> {
                 List<CompletableFuture<Void>> subscriptionFutures = new ArrayList<>();
 
-                stats.subscriptions.entrySet().forEach(e -> {
+                stats.getSubscriptions().entrySet().forEach(e -> {
                     String subscription = e.getKey();
                     SubscriptionStats ss = e.getValue();
-                    if (!ss.isDurable) {
+                    if (!ss.isDurable()) {
                         // We must not re-create non-durable subscriptions on the new partitions
                         return;
                     }

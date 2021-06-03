@@ -18,55 +18,28 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import java.util.Objects;
-import lombok.ToString;
+import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 
 /**
  * Dispatch rate.
  */
-@ToString
-public class DispatchRate {
+public interface DispatchRate {
 
-    public int dispatchThrottlingRateInMsg = -1;
-    public long dispatchThrottlingRateInByte = -1;
-    public boolean relativeToPublishRate = false; /* throttles dispatch relatively publish-rate */
-    public int ratePeriodInSecond = 1; /* by default dispatch-rate will be calculate per 1 second */
+    int getDispatchThrottlingRateInMsg();
+    long getDispatchThrottlingRateInByte();
+    boolean isRelativeToPublishRate(); /* throttles dispatch relatively publish-rate */
+    int getRatePeriodInSecond(); /* by default dispatch-rate will be calculate per 1 second */
 
-    public DispatchRate() {
-        super();
-        this.dispatchThrottlingRateInMsg = -1;
-        this.dispatchThrottlingRateInByte = -1;
-        this.ratePeriodInSecond = 1;
+    interface Builder {
+        Builder dispatchThrottlingRateInMsg(int dispatchThrottlingRateMsg);
+        Builder dispatchThrottlingRateInByte(long dispatchThrottlingRateBytes);
+        Builder relativeToPublishRate(boolean relativeToPublishRate);
+        Builder ratePeriodInSecond(int ratePeriodInSeconds);
+
+        DispatchRate build();
     }
 
-    public DispatchRate(int dispatchThrottlingRateInMsg, long dispatchThrottlingRateInByte,
-            int ratePeriodInSecond) {
-        super();
-        this.dispatchThrottlingRateInMsg = dispatchThrottlingRateInMsg;
-        this.dispatchThrottlingRateInByte = dispatchThrottlingRateInByte;
-        this.ratePeriodInSecond = ratePeriodInSecond;
-    }
-
-    public DispatchRate(int dispatchThrottlingRateInMsg, long dispatchThrottlingRateInByte,
-            int ratePeriodInSecond, boolean relativeToPublishRate) {
-        this(dispatchThrottlingRateInMsg, dispatchThrottlingRateInByte, ratePeriodInSecond);
-        this.relativeToPublishRate = relativeToPublishRate;
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(dispatchThrottlingRateInMsg, dispatchThrottlingRateInByte,
-                ratePeriodInSecond);
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (obj instanceof DispatchRate) {
-            DispatchRate rate = (DispatchRate) obj;
-            return Objects.equals(dispatchThrottlingRateInMsg, rate.dispatchThrottlingRateInMsg)
-                    && Objects.equals(dispatchThrottlingRateInByte, rate.dispatchThrottlingRateInByte)
-                    && Objects.equals(ratePeriodInSecond, rate.ratePeriodInSecond);
-        }
-        return false;
+    static Builder builder() {
+        return DispatchRateImpl.builder();
     }
 }

@@ -32,7 +32,7 @@ import lombok.ToString;
 public class Policies {
 
     @SuppressWarnings("checkstyle:MemberName")
-    public final AuthPolicies auth_policies = new AuthPolicies();
+    public final AuthPolicies auth_policies = AuthPolicies.builder().build();
     @SuppressWarnings("checkstyle:MemberName")
     public Set<String> replication_clusters = new HashSet<>();
     public BundlesData bundles;

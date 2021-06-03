@@ -729,8 +729,12 @@ public class PulsarService implements AutoCloseable {
             this.brokerServiceUrlTls = brokerUrlTls(config);
 
             if (null != this.webSocketService) {
-                ClusterDataImpl clusterData =
-                    new ClusterDataImpl(webServiceAddress, webServiceAddressTls, brokerServiceUrl, brokerServiceUrlTls);
+                ClusterDataImpl clusterData = ClusterDataImpl.builder()
+                        .serviceUrl(webServiceAddress)
+                        .serviceUrlTls(webServiceAddressTls)
+                        .brokerServiceUrl(brokerServiceUrl)
+                        .brokerServiceUrlTls(brokerServiceUrlTls)
+                        .build();
                 this.webSocketService.setLocalCluster(clusterData);
             }
 

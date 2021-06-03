@@ -24,119 +24,37 @@ import org.apache.pulsar.client.api.ProducerAccessMode;
 /**
  * Statistics about a publisher.
  */
-public class PublisherStats {
-    private int count;
+public interface PublisherStats {
 
-    public ProducerAccessMode accessMode;
+    ProducerAccessMode getAccessMode();
 
     /** Total rate of messages published by this publisher (msg/s). */
-    public double msgRateIn;
+    double getMsgRateIn();
 
     /** Total throughput of messages published by this publisher (byte/s). */
-    public double msgThroughputIn;
+    double getMsgThroughputIn();
 
     /** Average message size published by this publisher. */
-    public double averageMsgSize;
+    double getAverageMsgSize();
 
     /** total chunked message count received. **/
-    public double chunkedMessageRate;
+    double getChunkedMessageRate();
 
     /** Id of this publisher. */
-    public long producerId;
+    long getProducerId();
 
     /** Producer name. */
-    private int producerNameOffset = -1;
-    private int producerNameLength;
+    String getProducerName();
 
     /** Address of this publisher. */
-    private int addressOffset = -1;
-    private int addressLength;
+    String getAddress();
 
     /** Timestamp of connection. */
-    private int connectedSinceOffset = -1;
-    private int connectedSinceLength;
+    String getConnectedSince();
 
     /** Client library version. */
-    private int clientVersionOffset = -1;
-    private int clientVersionLength;
-
-    /**
-     * In order to prevent multiple string objects under stats: create a string-buffer that stores data for all string
-     * place-holders.
-     */
-    private StringBuilder stringBuffer = new StringBuilder();
+    String getClientVersion();
 
     /** Metadata (key/value strings) associated with this publisher. */
-    public Map<String, String> metadata;
-
-    public PublisherStats add(PublisherStats stats) {
-        if (stats == null) {
-            throw new NullPointerException();
-        }
-        this.count++;
-        this.msgRateIn += stats.msgRateIn;
-        this.msgThroughputIn += stats.msgThroughputIn;
-        double newAverageMsgSize = (this.averageMsgSize * (this.count - 1) + stats.averageMsgSize) / this.count;
-        this.averageMsgSize = newAverageMsgSize;
-        return this;
-    }
-
-    public String getProducerName() {
-        return producerNameOffset == -1 ? null
-                : stringBuffer.substring(producerNameOffset, producerNameOffset + producerNameLength);
-    }
-
-    public void setProducerName(String producerName) {
-        if (producerName == null) {
-            this.producerNameOffset = -1;
-            return;
-        }
-        this.producerNameOffset = this.stringBuffer.length();
-        this.producerNameLength = producerName.length();
-        this.stringBuffer.append(producerName);
-    }
-
-    public String getAddress() {
-        return addressOffset == -1 ? null : stringBuffer.substring(addressOffset, addressOffset + addressLength);
-    }
-
-    public void setAddress(String address) {
-        if (address == null) {
-            this.addressOffset = -1;
-            return;
-        }
-        this.addressOffset = this.stringBuffer.length();
-        this.addressLength = address.length();
-        this.stringBuffer.append(address);
-    }
-
-    public String getConnectedSince() {
-        return connectedSinceOffset == -1 ? null
-                : stringBuffer.substring(connectedSinceOffset, connectedSinceOffset + connectedSinceLength);
-    }
-
-    public void setConnectedSince(String connectedSince) {
-        if (connectedSince == null) {
-            this.connectedSinceOffset = -1;
-            return;
-        }
-        this.connectedSinceOffset = this.stringBuffer.length();
-        this.connectedSinceLength = connectedSince.length();
-        this.stringBuffer.append(connectedSince);
-    }
-
-    public String getClientVersion() {
-        return clientVersionOffset == -1 ? null
-                : stringBuffer.substring(clientVersionOffset, clientVersionOffset + clientVersionLength);
-    }
-
-    public void setClientVersion(String clientVersion) {
-        if (clientVersion == null) {
-            this.clientVersionOffset = -1;
-            return;
-        }
-        this.clientVersionOffset = this.stringBuffer.length();
-        this.clientVersionLength = clientVersion.length();
-        this.stringBuffer.append(clientVersion);
-    }
+    Map<String, String> getMetadata();
 }

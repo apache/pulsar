@@ -157,6 +157,13 @@
     </dependency>
 
     <dependency>
+      <groupId>com.github.spotbugs</groupId>
+      <artifactId>spotbugs-annotations</artifactId>
+      <scope>provided</scope>
+      <optional>true</optional>
+    </dependency>
+
+    <dependency>
       <groupId>org.lz4</groupId>
       <artifactId>lz4-java</artifactId>
       <version>1.5.0</version>
