@@ -1867,7 +1867,11 @@ flexible messaging model and an intuitive client API.</description>
       <activation>
         <!-- always activate this profile by default. Use "-main" or "!main" in the "-P" parameter to exclude it -->
         <!-- for example use "-Pcore-modules,-main" to activate the core-modules profile -->
-        <file><exists>pom.xml</exists></file>
+        <property>
+          <name>disableMainProfile</name>
+          <!-- always active unless true is passed as a value -->
+          <value>!true</value>
+        </property>
       </activation>
       <modules>
         <module>buildtools</module>
