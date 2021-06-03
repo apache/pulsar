@@ -403,8 +403,8 @@ public class PerformanceConsumer {
 
             long now = System.nanoTime();
             double elapsed = (now - oldTime) / 1e9;
-            long total = messagesReceived.sumThenReset();
-            double rate = total / elapsed;
+            long total = totalMessagesReceived.sum();
+            double rate = messagesReceived.sumThenReset() / elapsed;
             double throughput = bytesReceived.sumThenReset() / elapsed * 8 / 1024 / 1024;
 
             reportHistogram = recorder.getIntervalHistogram(reportHistogram);

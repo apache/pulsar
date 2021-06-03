@@ -453,8 +453,8 @@ public class PerformanceProducer {
 
             long now = System.nanoTime();
             double elapsed = (now - oldTime) / 1e9;
-            long total = messagesSent.sumThenReset();
-            double rate =  total / elapsed;
+            long total = totalMessagesSent.sum();
+            double rate =  messagesSent.sumThenReset() / elapsed;
             double failureRate = messagesFailed.sumThenReset() / elapsed;
             double throughput = bytesSent.sumThenReset() / elapsed / 1024 / 1024 * 8;
 
