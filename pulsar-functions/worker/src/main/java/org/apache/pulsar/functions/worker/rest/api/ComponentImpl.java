@@ -60,8 +60,9 @@ import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.FunctionStats;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataImpl;
+import org.apache.pulsar.common.policies.data.FunctionStatsImpl;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.functions.instance.InstanceUtils;
@@ -87,11 +88,9 @@ import org.apache.pulsar.functions.worker.service.api.Component;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.Base64;
 import java.util.Collection;
@@ -724,12 +723,12 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         }
     }
 
-    public FunctionStats getFunctionStats(final String tenant,
-                                          final String namespace,
-                                          final String componentName,
-                                          final URI uri,
-                                          final String clientRole,
-                                          final AuthenticationDataSource clientAuthenticationDataHttps) {
+    public FunctionStatsImpl getFunctionStats(final String tenant,
+                                              final String namespace,
+                                              final String componentName,
+                                              final URI uri,
+                                              final String clientRole,
+                                              final AuthenticationDataSource clientAuthenticationDataHttps) {
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
@@ -766,7 +765,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         }
 
         FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
-        FunctionStats functionStats;
+        FunctionStatsImpl functionStats;
         try {
             functionStats = functionRuntimeManager.getFunctionStats(tenant, namespace, componentName, uri);
         } catch (WebApplicationException we) {
@@ -780,13 +779,13 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
     }
 
     @Override
-    public FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData getFunctionsInstanceStats(final String tenant,
-                                                                                                   final String namespace,
-                                                                                                   final String componentName,
-                                                                                                   final String instanceId,
-                                                                                                   final URI uri,
-                                                                                                   final String clientRole,
-                                                                                                   final AuthenticationDataSource clientAuthenticationDataHttps) {
+    public FunctionInstanceStatsDataImpl getFunctionsInstanceStats(final String tenant,
+                                                                   final String namespace,
+                                                                   final String componentName,
+                                                                   final String instanceId,
+                                                                   final URI uri,
+                                                                   final String clientRole,
+                                                                   final AuthenticationDataSource clientAuthenticationDataHttps) {
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
@@ -829,7 +828,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         }
 
         FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
-        FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData functionInstanceStatsData;
+        FunctionInstanceStatsDataImpl functionInstanceStatsData;
         try {
             functionInstanceStatsData = functionRuntimeManager.getFunctionInstanceStats(tenant, namespace, componentName,
                     Integer.parseInt(instanceId), uri);
@@ -1448,7 +1447,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
 
             if (clientRole != null) {
                 try {
-                    TenantInfo tenantInfo = worker().getBrokerAdmin().tenants().getTenantInfo(tenant);
+                    TenantInfoImpl tenantInfo = (TenantInfoImpl) worker().getBrokerAdmin().tenants().getTenantInfo(tenant);
                     if (tenantInfo != null && worker().getAuthorizationService().isTenantAdmin(tenant, clientRole, tenantInfo, authenticationData).get()) {
                         return true;
                     }

@@ -25,7 +25,6 @@ import io.netty.util.internal.PlatformDependent;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
@@ -34,18 +33,16 @@ import lombok.Getter;
 import lombok.Setter;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
-import org.apache.pulsar.broker.validator.MultipleListenerValidator;
 import org.apache.pulsar.common.configuration.Category;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadedReadPriority;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.sasl.SaslConstants;
-import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 
 /**
  * Pulsar service configuration object.
@@ -1053,7 +1050,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean authenticationEnabled = false;
     @FieldContext(
         category = CATEGORY_AUTHENTICATION,
-        doc = "Autentication provider name list, which is a list of class names"
+        doc = "Authentication provider name list, which is a list of class names"
     )
     private Set<String> authenticationProviders = Sets.newTreeSet();
 
@@ -1581,7 +1578,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "Read priority when ledgers exists in both bookkeeper and the second layer storage.")
-    private String managedLedgerDataReadPriority = OffloadPolicies.OffloadedReadPriority.TIERED_STORAGE_FIRST
+    private String managedLedgerDataReadPriority = OffloadedReadPriority.TIERED_STORAGE_FIRST
             .getValue();
 
     /*** --- Load balancer --- ****/

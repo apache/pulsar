@@ -142,9 +142,9 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
-import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -1017,7 +1017,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return replicationClients.computeIfAbsent(cluster, key -> {
             try {
                 String path = PulsarWebResource.path("clusters", cluster);
-                ClusterData data = this.pulsar.getConfigurationCache().clustersCache().get(path)
+                ClusterDataImpl data = this.pulsar.getConfigurationCache().clustersCache().get(path)
                         .orElseThrow(() -> new KeeperException.NoNodeException(path));
                 ClientBuilder clientBuilder = PulsarClient.builder()
                         .enableTcpNoDelay(false)
@@ -1029,22 +1029,21 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                     clientBuilder.authentication(pulsar.getConfiguration().getBrokerClientAuthenticationPlugin(),
                             pulsar.getConfiguration().getBrokerClientAuthenticationParameters());
                 }
-                if (pulsar.getConfiguration().isBrokerClientTlsEnabled()) {
-                    clientBuilder
-                            .serviceUrl(isNotBlank(data.getBrokerServiceUrlTls()) ? data.getBrokerServiceUrlTls()
-                                    : data.getServiceUrlTls())
-                            .enableTls(true)
-                            .allowTlsInsecureConnection(pulsar.getConfiguration().isTlsAllowInsecureConnection());
-                    if (pulsar.getConfiguration().isBrokerClientTlsEnabledWithKeyStore()) {
-                        clientBuilder.useKeyStoreTls(true)
-                                .tlsTrustStoreType(pulsar.getConfiguration().getBrokerClientTlsTrustStoreType())
-                                .tlsTrustStorePath(pulsar.getConfiguration().getBrokerClientTlsTrustStore())
-                                .tlsTrustStorePassword(pulsar.getConfiguration()
-                                        .getBrokerClientTlsTrustStorePassword());
-                    } else {
-                        clientBuilder.tlsTrustCertsFilePath(pulsar.getConfiguration()
-                                .getBrokerClientTrustCertsFilePath());
-                    }
+                String serviceUrlTls = isNotBlank(data.getBrokerServiceUrlTls()) ? data.getBrokerServiceUrlTls()
+                        : data.getServiceUrlTls();
+                if (data.isBrokerClientTlsEnabled()) {
+                    configTlsSettings(clientBuilder, serviceUrlTls,
+                            data.isBrokerClientTlsEnabledWithKeyStore(), data.isTlsAllowInsecureConnection(),
+                            data.getBrokerClientTlsTrustStoreType(), data.getBrokerClientTlsTrustStore(),
+                            data.getBrokerClientTlsTrustStorePassword(), data.getBrokerClientTrustCertsFilePath());
+                } else if (pulsar.getConfiguration().isBrokerClientTlsEnabled()) {
+                    configTlsSettings(clientBuilder, serviceUrlTls,
+                            pulsar.getConfiguration().isBrokerClientTlsEnabledWithKeyStore(),
+                            pulsar.getConfiguration().isTlsAllowInsecureConnection(),
+                            pulsar.getConfiguration().getBrokerClientTlsTrustStoreType(),
+                            pulsar.getConfiguration().getBrokerClientTlsTrustStore(),
+                            pulsar.getConfiguration().getBrokerClientTlsTrustStorePassword(),
+                            pulsar.getConfiguration().getBrokerClientTrustCertsFilePath());
                 } else {
                     clientBuilder.serviceUrl(
                             isNotBlank(data.getBrokerServiceUrl()) ? data.getBrokerServiceUrl() : data.getServiceUrl());
@@ -1053,6 +1052,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                     clientBuilder.proxyServiceUrl(data.getProxyServiceUrl(), data.getProxyProtocol());
                     log.info("Configuring proxy-url {} with protocol {}", data.getProxyServiceUrl(),
                             data.getProxyProtocol());
+                }
+                if (data.getListenerName() != null && StringUtils.isNotBlank(data.getListenerName())) {
+                    clientBuilder.listenerName(data.getListenerName());
+                    log.info("Configuring listenerName {}", data.getListenerName());
                 }
                 // Share all the IO threads across broker and client connections
                 ClientConfigurationData conf = ((ClientBuilderImpl) clientBuilder).getClientConfigurationData();
@@ -1063,6 +1066,24 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         });
     }
 
+    private void configTlsSettings(ClientBuilder clientBuilder, String serviceUrl,
+                                   boolean brokerClientTlsEnabledWithKeyStore, boolean isTlsAllowInsecureConnection,
+                                   String brokerClientTlsTrustStoreType, String brokerClientTlsTrustStore,
+                                   String brokerClientTlsTrustStorePassword, String brokerClientTrustCertsFilePath) {
+        clientBuilder
+                .serviceUrl(serviceUrl)
+                .enableTls(true)
+                .allowTlsInsecureConnection(isTlsAllowInsecureConnection);
+        if (brokerClientTlsEnabledWithKeyStore) {
+            clientBuilder.useKeyStoreTls(true)
+                    .tlsTrustStoreType(brokerClientTlsTrustStoreType)
+                    .tlsTrustStorePath(brokerClientTlsTrustStore)
+                    .tlsTrustStorePassword(brokerClientTlsTrustStorePassword);
+        } else {
+            clientBuilder.tlsTrustCertsFilePath(brokerClientTrustCertsFilePath);
+        }
+    }
+
     public PulsarAdmin getClusterPulsarAdmin(String cluster) {
         PulsarAdmin admin = clusterAdmins.get(cluster);
         if (admin != null) {
@@ -1071,7 +1092,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return clusterAdmins.computeIfAbsent(cluster, key -> {
             try {
                 String path = PulsarWebResource.path("clusters", cluster);
-                ClusterData data = this.pulsar.getConfigurationCache().clustersCache().get(path)
+                ClusterDataImpl data = this.pulsar.getConfigurationCache().clustersCache().get(path)
                         .orElseThrow(() -> new KeeperException.NoNodeException(path));
 
                 ServiceConfiguration conf = pulsar.getConfig();
@@ -1269,7 +1290,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
             PersistencePolicies persistencePolicies = null;
             RetentionPolicies retentionPolicies = null;
-            OffloadPolicies topicLevelOffloadPolicies = null;
+            OffloadPoliciesImpl topicLevelOffloadPolicies = null;
 
             if (pulsar.getConfig().isTopicLevelPoliciesEnabled()) {
                 TopicName cloneTopicName = topicName;
@@ -1362,10 +1383,11 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             managedLedgerConfig.setAutoSkipNonRecoverableData(serviceConfig.isAutoSkipNonRecoverableData());
             managedLedgerConfig.setLazyCursorRecovery(serviceConfig.isLazyCursorRecovery());
 
-            OffloadPolicies nsLevelOffloadPolicies = policies.map(p -> p.offload_policies).orElse(null);
-            OffloadPolicies offloadPolicies = OffloadPolicies.mergeConfiguration(
+            OffloadPoliciesImpl nsLevelOffloadPolicies =
+                    (OffloadPoliciesImpl) policies.map(p -> p.offload_policies).orElse(null);
+            OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.mergeConfiguration(
                     topicLevelOffloadPolicies,
-                    OffloadPolicies.oldPoliciesCompatible(nsLevelOffloadPolicies, policies.orElse(null)),
+                    OffloadPoliciesImpl.oldPoliciesCompatible(nsLevelOffloadPolicies, policies.orElse(null)),
                     getPulsar().getConfig().getProperties());
             if (topicLevelOffloadPolicies != null) {
                 try {

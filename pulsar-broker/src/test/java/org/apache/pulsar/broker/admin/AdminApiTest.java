@@ -36,9 +36,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonObject;
+
 import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.ArrayList;
@@ -105,15 +103,16 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
-import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
+import org.apache.pulsar.common.policies.data.AutoFailoverPolicyDataImpl;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
 import org.apache.pulsar.common.policies.data.BrokerAssignment;
 import org.apache.pulsar.common.policies.data.BrokerInfo;
-import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
@@ -121,9 +120,10 @@ import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.PoliciesUtil;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -185,8 +185,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         otheradmin = mockPulsarSetup.getAdmin();
 
         // Setup namespaces
-        admin.clusters().createCluster("test", new ClusterData(pulsar.getWebServiceAddress()));
-        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        admin.clusters().createCluster("test", new ClusterDataImpl(pulsar.getWebServiceAddress()));
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant("prop-xyz", tenantInfo);
         admin.namespaces().createNamespace("prop-xyz/ns1", Sets.newHashSet("test"));
     }
@@ -233,26 +233,26 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     @Test
     public void clusters() throws Exception {
         admin.clusters().createCluster("usw",
-                new ClusterData("http://broker.messaging.use.example.com:8080"));
+                new ClusterDataImpl("http://broker.messaging.use.example.com:8080"));
         // "test" cluster is part of config-default cluster and it's znode gets created when PulsarService creates
         // failure-domain znode of this default cluster
         assertEquals(admin.clusters().getClusters(), Lists.newArrayList("test", "usw"));
 
         assertEquals(admin.clusters().getCluster("test"),
-                new ClusterData(pulsar.getWebServiceAddress()));
+                new ClusterDataImpl(pulsar.getWebServiceAddress()));
 
         admin.clusters().updateCluster("usw",
-                new ClusterData("http://new-broker.messaging.usw.example.com:8080"));
+                new ClusterDataImpl("http://new-broker.messaging.usw.example.com:8080"));
         assertEquals(admin.clusters().getClusters(), Lists.newArrayList("test", "usw"));
         assertEquals(admin.clusters().getCluster("usw"),
-                new ClusterData("http://new-broker.messaging.usw.example.com:8080"));
+                new ClusterDataImpl("http://new-broker.messaging.usw.example.com:8080"));
 
         admin.clusters().updateCluster("usw",
-                new ClusterData("http://new-broker.messaging.usw.example.com:8080",
+                new ClusterDataImpl("http://new-broker.messaging.usw.example.com:8080",
                         "https://new-broker.messaging.usw.example.com:4443"));
         assertEquals(admin.clusters().getClusters(), Lists.newArrayList("test", "usw"));
         assertEquals(admin.clusters().getCluster("usw"),
-                new ClusterData("http://new-broker.messaging.usw.example.com:8080",
+                new ClusterDataImpl("http://new-broker.messaging.usw.example.com:8080",
                         "https://new-broker.messaging.usw.example.com:4443"));
 
         admin.clusters().deleteCluster("usw");
@@ -266,7 +266,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // Check name validation
         try {
-            admin.clusters().createCluster("bf!", new ClusterData("http://dummy.messaging.example.com"));
+            admin.clusters().createCluster("bf!", new ClusterDataImpl("http://dummy.messaging.example.com"));
             fail("should have failed");
         } catch (PulsarAdminException e) {
             assertTrue(e instanceof PreconditionFailedException);
@@ -278,14 +278,14 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         try {
             // create
             String policyName1 = "policy-1";
-            NamespaceIsolationData nsPolicyData1 = new NamespaceIsolationData();
+            NamespaceIsolationDataImpl nsPolicyData1 = new NamespaceIsolationDataImpl();
             nsPolicyData1.namespaces = new ArrayList<String>();
             nsPolicyData1.namespaces.add("other/use/other.*");
             nsPolicyData1.primary = new ArrayList<String>();
             nsPolicyData1.primary.add("prod1-broker[4-6].messaging.use.example.com");
             nsPolicyData1.secondary = new ArrayList<String>();
             nsPolicyData1.secondary.add("prod1-broker.*.messaging.use.example.com");
-            nsPolicyData1.auto_failover_policy = new AutoFailoverPolicyData();
+            nsPolicyData1.auto_failover_policy = new AutoFailoverPolicyDataImpl();
             nsPolicyData1.auto_failover_policy.policy_type = AutoFailoverPolicyType.min_available;
             nsPolicyData1.auto_failover_policy.parameters = new HashMap<String, String>();
             nsPolicyData1.auto_failover_policy.parameters.put("min_limit", "1");
@@ -293,14 +293,14 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             admin.clusters().createNamespaceIsolationPolicy("test", policyName1, nsPolicyData1);
 
             String policyName2 = "policy-2";
-            NamespaceIsolationData nsPolicyData2 = new NamespaceIsolationData();
+            NamespaceIsolationDataImpl nsPolicyData2 = new NamespaceIsolationDataImpl();
             nsPolicyData2.namespaces = new ArrayList<String>();
             nsPolicyData2.namespaces.add("other/use/other.*");
             nsPolicyData2.primary = new ArrayList<String>();
             nsPolicyData2.primary.add("prod1-broker[4-6].messaging.use.example.com");
             nsPolicyData2.secondary = new ArrayList<String>();
             nsPolicyData2.secondary.add("prod1-broker.*.messaging.use.example.com");
-            nsPolicyData2.auto_failover_policy = new AutoFailoverPolicyData();
+            nsPolicyData2.auto_failover_policy = new AutoFailoverPolicyDataImpl();
             nsPolicyData2.auto_failover_policy.policy_type = AutoFailoverPolicyType.min_available;
             nsPolicyData2.auto_failover_policy.parameters = new HashMap<String, String>();
             nsPolicyData2.auto_failover_policy.parameters.put("min_limit", "1");
@@ -308,7 +308,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             admin.clusters().createNamespaceIsolationPolicy("test", policyName2, nsPolicyData2);
 
             // verify create indirectly with get
-            Map<String, NamespaceIsolationData> policiesMap = admin.clusters().getNamespaceIsolationPolicies("test");
+            Map<String, ? extends NamespaceIsolationData> policiesMap = admin.clusters().getNamespaceIsolationPolicies("test");
             assertEquals(policiesMap.get(policyName1), nsPolicyData1);
             assertEquals(policiesMap.get(policyName2), nsPolicyData2);
 
@@ -347,7 +347,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             assertEquals(policiesMap.get(policyName1), nsPolicyData1);
 
             // verify single get
-            NamespaceIsolationData policy1Data = admin.clusters().getNamespaceIsolationPolicy("test", policyName1);
+            NamespaceIsolationDataImpl policy1Data = (NamespaceIsolationDataImpl) admin.clusters().getNamespaceIsolationPolicy("test", policyName1);
             assertEquals(policy1Data, nsPolicyData1);
 
             // verify creation of more than one policy
@@ -419,12 +419,12 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         }
 
         // validate regex: invlid regex for primary and seconday
-        NamespaceIsolationData nsRegexPolicy = new NamespaceIsolationData();
+        NamespaceIsolationDataImpl nsRegexPolicy = new NamespaceIsolationDataImpl();
         nsRegexPolicy.namespaces = new ArrayList<String>();
         nsRegexPolicy.namespaces.add("other/use/other.*");
         nsRegexPolicy.primary = new ArrayList<String>();
         nsRegexPolicy.primary.add("prod1-broker[45-46].messaging.use.example.com");
-        nsRegexPolicy.auto_failover_policy = new AutoFailoverPolicyData();
+        nsRegexPolicy.auto_failover_policy = new AutoFailoverPolicyDataImpl();
         nsRegexPolicy.auto_failover_policy.policy_type = AutoFailoverPolicyType.min_available;
         nsRegexPolicy.auto_failover_policy.parameters = new HashMap<String, String>();
         nsRegexPolicy.auto_failover_policy.parameters.put("min_limit", "1");
@@ -656,14 +656,14 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         }
 
         Set<String> allowedClusters = Sets.newHashSet("test");
-        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), allowedClusters);
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), allowedClusters);
         admin.tenants().updateTenant("prop-xyz", tenantInfo);
 
         assertEquals(admin.tenants().getTenants(), Lists.newArrayList("prop-xyz"));
 
         assertEquals(admin.tenants().getTenantInfo("prop-xyz"), tenantInfo);
 
-        TenantInfo newTenantAdmin = new TenantInfo(Sets.newHashSet("role3", "role4"), allowedClusters);
+        TenantInfoImpl newTenantAdmin = new TenantInfoImpl(Sets.newHashSet("role3", "role4"), allowedClusters);
         admin.tenants().updateTenant("prop-xyz", newTenantAdmin);
 
         assertEquals(admin.tenants().getTenantInfo("prop-xyz"), newTenantAdmin);
@@ -683,12 +683,12 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void namespaces() throws Exception {
-        admin.clusters().createCluster("usw", new ClusterData());
-        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"),
+        admin.clusters().createCluster("usw", new ClusterDataImpl());
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"),
                 Sets.newHashSet("test", "usw"));
         admin.tenants().updateTenant("prop-xyz", tenantInfo);
 
-        assertEquals(admin.namespaces().getPolicies("prop-xyz/ns1").bundles, Policies.defaultBundle());
+        assertEquals(admin.namespaces().getPolicies("prop-xyz/ns1").bundles, PoliciesUtil.defaultBundle());
 
         admin.namespaces().createNamespace("prop-xyz/ns2", Sets.newHashSet("test"));
 
@@ -723,7 +723,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         Policies policies = new Policies();
         policies.replication_clusters = Sets.newHashSet("test");
-        policies.bundles = Policies.defaultBundle();
+        policies.bundles = PoliciesUtil.defaultBundle();
         policies.auth_policies.namespace_auth.put("spiffe://developer/passport-role", EnumSet.allOf(AuthAction.class));
         policies.auth_policies.namespace_auth.put("my-role", EnumSet.allOf(AuthAction.class));
 
@@ -1094,23 +1094,21 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         String partitionTopic0 = partitionedTopicName + "-partition-0";
         String partitionTopic1 = partitionedTopicName + "-partition-1";
 
-        JsonObject partitionTopic0Info = admin.topics().getInternalInfo(partitionTopic0);
-        JsonObject partitionTopic1Info = admin.topics().getInternalInfo(partitionTopic1);
-
-        Gson gson = new GsonBuilder().create();
+        String partitionTopic0InfoResponse = admin.topics().getInternalInfo(partitionTopic0);
+        String partitionTopic1InfoResponse = admin.topics().getInternalInfo(partitionTopic1);
 
         // expected managed info
         PartitionedManagedLedgerInfo partitionedManagedLedgerInfo = new PartitionedManagedLedgerInfo();
         partitionedManagedLedgerInfo.version = 0L;
         partitionedManagedLedgerInfo.partitions.put(partitionTopic0,
-                ObjectMapperFactory.getThreadLocal().readValue(gson.toJson(partitionTopic0Info), ManagedLedgerInfo.class));
+            ObjectMapperFactory.getThreadLocal().readValue(partitionTopic0InfoResponse, ManagedLedgerInfo.class));
         partitionedManagedLedgerInfo.partitions.put(partitionTopic1,
-                ObjectMapperFactory.getThreadLocal().readValue(gson.toJson(partitionTopic1Info), ManagedLedgerInfo.class));
+            ObjectMapperFactory.getThreadLocal().readValue(partitionTopic1InfoResponse, ManagedLedgerInfo.class));
 
         String expectedResult = ObjectMapperFactory.getThreadLocal().writeValueAsString(partitionedManagedLedgerInfo);
 
-        JsonObject partitionTopicInfo = admin.topics().getInternalInfo(partitionedTopicName);
-        assertEquals(gson.toJson(partitionTopicInfo), expectedResult);
+        String partitionTopicInfoResponse = admin.topics().getInternalInfo(partitionedTopicName);
+        assertEquals(partitionTopicInfoResponse, expectedResult);
     }
 
     @Test
@@ -1183,7 +1181,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // create tenant
         admin.tenants().createTenant(tenant,
-                new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test")));
+                new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test")));
 
         assertTrue(admin.tenants().getTenants().contains(tenant));
 
@@ -1214,7 +1212,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertFalse(admin.tenants().getTenants().contains(tenant));
 
         admin.tenants().createTenant(tenant,
-                new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test")));
+                new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test")));
         assertTrue(admin.tenants().getTenants().contains(tenant));
         assertTrue(admin.namespaces().getNamespaces(tenant).isEmpty());
 
@@ -1232,7 +1230,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // create tenant
         admin.tenants().createTenant(tenant,
-                new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test")));
+                new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test")));
 
         assertTrue(admin.tenants().getTenants().contains(tenant));
 
@@ -2205,12 +2203,12 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testObjectWithUnknownProperties() {
 
-        class CustomTenantAdmin extends TenantInfo {
+        class CustomTenantAdmin extends TenantInfoImpl {
             @SuppressWarnings("unused")
             public int newTenant;
         }
 
-        TenantInfo pa = new TenantInfo(Sets.newHashSet("test_appid1", "test_appid2"), Sets.newHashSet("test"));
+        TenantInfoImpl pa = new TenantInfoImpl(Sets.newHashSet("test_appid1", "test_appid2"), Sets.newHashSet("test"));
         CustomTenantAdmin cpa = new CustomTenantAdmin();
         cpa.setAdminRoles(pa.getAdminRoles());
         cpa.setAllowedClusters(pa.getAllowedClusters());
@@ -2597,8 +2595,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testTopicBundleRangeLookup() throws PulsarAdminException, PulsarServerException, Exception {
-        admin.clusters().createCluster("usw", new ClusterData());
-        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"),
+        admin.clusters().createCluster("usw", new ClusterDataImpl());
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"),
                 Sets.newHashSet("test", "usw"));
         admin.tenants().updateTenant("prop-xyz", tenantInfo);
         admin.namespaces().createNamespace("prop-xyz/getBundleNs", 100);
@@ -2781,8 +2779,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testCreateAndDeleteNamespaceWithBundles() throws Exception {
-        admin.clusters().createCluster("usw", new ClusterData());
-        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"),
+        admin.clusters().createCluster("usw", new ClusterDataImpl());
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"),
                 Sets.newHashSet("test", "usw"));
         admin.tenants().updateTenant("prop-xyz", tenantInfo);
 

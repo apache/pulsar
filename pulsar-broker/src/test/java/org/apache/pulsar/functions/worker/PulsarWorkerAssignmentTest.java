@@ -44,8 +44,8 @@ import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.proto.Function.Assignment;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
@@ -108,7 +108,7 @@ public class PulsarWorkerAssignmentTest {
         primaryHost = pulsar.getWebServiceAddress();
 
         // update cluster metadata
-        final ClusterData clusterData = new ClusterData(pulsar.getBrokerServiceUrl());
+        final ClusterDataImpl clusterData = new ClusterDataImpl(pulsar.getBrokerServiceUrl());
         admin.clusters().updateCluster(config.getClusterName(), clusterData);
 
         final ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(this.workerConfig.getPulsarServiceUrl());
@@ -117,7 +117,7 @@ public class PulsarWorkerAssignmentTest {
         }
         pulsarClient = clientBuilder.build();
 
-        final TenantInfo propAdmin = new TenantInfo();
+        final TenantInfoImpl propAdmin = new TenantInfoImpl();
         propAdmin.getAdminRoles().add("superUser");
         propAdmin.setAllowedClusters(Sets.newHashSet(Lists.newArrayList("use")));
         admin.tenants().updateTenant(tenant, propAdmin);

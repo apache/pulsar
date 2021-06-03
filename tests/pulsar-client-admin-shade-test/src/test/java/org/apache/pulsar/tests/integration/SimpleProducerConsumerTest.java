@@ -20,7 +20,6 @@ package org.apache.pulsar.tests.integration;
 
 import lombok.Cleanup;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
@@ -30,7 +29,7 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.shade.io.netty.buffer.ByteBuf;
 import org.apache.pulsar.shade.io.netty.buffer.Unpooled;
@@ -44,7 +43,6 @@ import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -83,7 +81,7 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
         @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarContainer.getPulsarAdminUrl()).build();
         admin.tenants().createTenant("my-property",
-                new TenantInfo(new HashSet<>(Arrays.asList("appid1", "appid2")), Collections.singleton("standalone")));
+                new TenantInfoImpl(new HashSet<>(Arrays.asList("appid1", "appid2")), Collections.singleton("standalone")));
         admin.namespaces().createNamespace("my-property/my-ns");
         admin.namespaces().setNamespaceReplicationClusters("my-property/my-ns", Collections.singleton("standalone"));
     }

@@ -28,8 +28,8 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -129,9 +129,9 @@ public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         clientSetup();
 
         // test rest by admin
-        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        admin.clusters().createCluster("test", new ClusterDataImpl(brokerUrl.toString()));
         admin.tenants().createTenant("my-property",
-                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
 
         // test protocol by producer/consumer

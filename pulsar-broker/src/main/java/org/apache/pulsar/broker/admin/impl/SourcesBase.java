@@ -37,7 +37,7 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.common.functions.UpdateOptions;
+import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.io.ConfigFieldDefinition;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SourceConfig;
@@ -211,7 +211,7 @@ public class SourcesBase extends AdminResource {
             )
             final @FormDataParam("sourceConfig") SourceConfig sourceConfig,
             @ApiParam(value = "Update options for Pulsar Source")
-            final @FormDataParam("updateOptions") UpdateOptions updateOptions) {
+            final @FormDataParam("updateOptions") UpdateOptionsImpl updateOptions) {
         sources().updateSource(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
             sourcePkgUrl, sourceConfig, clientAppId(), clientAuthData(), updateOptions);
     }

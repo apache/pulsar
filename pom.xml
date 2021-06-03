@@ -122,8 +122,8 @@ flexible messaging model and an intuitive client API.</description>
     <log4j2.version>2.14.0</log4j2.version>
     <bouncycastle.version>1.68</bouncycastle.version>
     <bouncycastlefips.version>1.0.2</bouncycastlefips.version>
-    <jackson.version>2.11.1</jackson.version>
-    <jackson.databind.version>2.11.1</jackson.databind.version>
+    <jackson.version>2.12.3</jackson.version>
+    <jackson.databind.version>2.12.3</jackson.databind.version>
     <reflections.version>0.9.11</reflections.version>
     <swagger.version>1.6.2</swagger.version>
     <puppycrawl.checkstyle.version>8.37</puppycrawl.checkstyle.version>
@@ -143,7 +143,7 @@ flexible messaging model and an intuitive client API.</description>
     <rabbitmq-client.version>5.1.1</rabbitmq-client.version>
     <aws-sdk.version>1.11.774</aws-sdk.version>
     <avro.version>1.10.2</avro.version>
-    <joda.version>2.10.1</joda.version>
+    <joda.version>2.10.5</joda.version>
     <jclouds.version>2.3.0</jclouds.version>
     <sqlite-jdbc.version>3.8.11.2</sqlite-jdbc.version>
     <mysql-jdbc.version>8.0.11</mysql-jdbc.version>

@@ -43,7 +43,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.common.functions.UpdateOptions;
+import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.io.ConfigFieldDefinition;
 import org.apache.pulsar.common.io.ConnectorDefinition;
@@ -252,7 +252,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
                            final SinkConfig sinkConfig,
                            final String clientRole,
                            AuthenticationDataHttps clientAuthenticationDataHttps,
-                           UpdateOptions updateOptions) {
+                           UpdateOptionsImpl updateOptions) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();

@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import static org.apache.pulsar.common.policies.data.Policies.defaultBundle;
+import static org.apache.pulsar.common.policies.data.PoliciesUtil.defaultBundle;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 

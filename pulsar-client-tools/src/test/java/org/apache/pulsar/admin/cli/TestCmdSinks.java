@@ -44,7 +44,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.Sinks;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
-import org.apache.pulsar.common.functions.UpdateOptions;
+import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.powermock.api.mockito.PowerMockito;
@@ -712,7 +712,7 @@ public class TestCmdSinks {
                 .namespace(DEFAULT_NAMESPACE)
                 .name(updateSink.name)
                 .archive(updateSink.archive)
-                .build()), eq(updateSink.archive), eq(new UpdateOptions()));
+                .build()), eq(updateSink.archive), eq(new UpdateOptionsImpl()));
 
 
         updateSink.archive = null;
@@ -725,7 +725,7 @@ public class TestCmdSinks {
 
         updateSink.runCmd();
 
-        UpdateOptions updateOptions = new UpdateOptions();
+        UpdateOptionsImpl updateOptions = new UpdateOptionsImpl();
         updateOptions.setUpdateAuthData(true);
 
         verify(sink).updateSink(eq(SinkConfig.builder()

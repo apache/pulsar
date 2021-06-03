@@ -71,7 +71,7 @@ import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
-import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
@@ -206,7 +206,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
     public void activeBrokerParse() throws Exception {
         pulsar1.getConfiguration().setAuthorizationEnabled(true);
         //init clusterData
-        ClusterData cluster2Data = new ClusterData();
+        ClusterDataImpl cluster2Data = new ClusterDataImpl();
         String cluster2ServiceUrls = String.format("%s,localhost:1234,localhost:5678", pulsar2.getWebServiceAddress());
         cluster2Data.setServiceUrl(cluster2ServiceUrls);
         String cluster2 = "activeCLuster2";

@@ -23,8 +23,8 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.RESOURCEGROUPS;
 import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
-import static org.apache.pulsar.common.policies.data.Policies.defaultBundle;
-import static org.apache.pulsar.common.policies.data.Policies.getBundles;
+import static org.apache.pulsar.common.policies.data.PoliciesUtil.defaultBundle;
+import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.collect.Sets.SetView;
@@ -66,7 +66,6 @@ import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
@@ -82,13 +81,13 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
-import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PolicyName;
@@ -193,7 +192,8 @@ public abstract class NamespacesBase extends AdminResource {
                         && !policies.replication_clusters.contains(config().getClusterName())) {
                     // the only replication cluster is other cluster, redirect
                     String replCluster = Lists.newArrayList(policies.replication_clusters).get(0);
-                    ClusterData replClusterData = clusterResources().get(AdminResource.path("clusters", replCluster))
+                    ClusterDataImpl replClusterData = clusterResources().get(
+                            AdminResource.path("clusters", replCluster))
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                                     "Cluster " + replCluster + " does not exist"));
                     URL replClusterUrl;
@@ -356,7 +356,8 @@ public abstract class NamespacesBase extends AdminResource {
                         && !policies.replication_clusters.contains(config().getClusterName())) {
                     // the only replication cluster is other cluster, redirect
                     String replCluster = Lists.newArrayList(policies.replication_clusters).get(0);
-                    ClusterData replClusterData = clusterResources().get(AdminResource.path("clusters", replCluster))
+                    ClusterDataImpl replClusterData =
+                            clusterResources().get(AdminResource.path("clusters", replCluster))
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                                     "Cluster " + replCluster + " does not exist"));
                     URL replClusterUrl;
@@ -508,7 +509,8 @@ public abstract class NamespacesBase extends AdminResource {
                         && !policies.replication_clusters.contains(config().getClusterName())) {
                     // the only replication cluster is other cluster, redirect
                     String replCluster = Lists.newArrayList(policies.replication_clusters).get(0);
-                    ClusterData replClusterData = clusterResources().get(AdminResource.path("clusters", replCluster))
+                    ClusterDataImpl replClusterData =
+                            clusterResources().get(AdminResource.path("clusters", replCluster))
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                                     "Cluster " + replCluster + " does not exist"));
                     URL replClusterUrl;
@@ -581,7 +583,8 @@ public abstract class NamespacesBase extends AdminResource {
                         && !policies.replication_clusters.contains(config().getClusterName())) {
                     // the only replication cluster is other cluster, redirect
                     String replCluster = Lists.newArrayList(policies.replication_clusters).get(0);
-                    ClusterData replClusterData = clusterResources().get(AdminResource.path("clusters", replCluster))
+                    ClusterDataImpl replClusterData =
+                            clusterResources().get(AdminResource.path("clusters", replCluster))
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                                     "Cluster " + replCluster + " does not exist"));
                     URL replClusterUrl;
@@ -1938,7 +1941,7 @@ public abstract class NamespacesBase extends AdminResource {
      */
     private void validatePeerClusterConflict(String clusterName, Set<String> replicationClusters) {
         try {
-            ClusterData clusterData = clusterResources().get(path("clusters", clusterName)).orElseThrow(
+            ClusterDataImpl clusterData = clusterResources().get(path("clusters", clusterName)).orElseThrow(
                     () -> new RestException(Status.PRECONDITION_FAILED, "Invalid replication cluster " + clusterName));
             Set<String> peerClusters = clusterData.getPeerClusterNames();
             if (peerClusters != null && !peerClusters.isEmpty()) {
@@ -2261,7 +2264,7 @@ public abstract class NamespacesBase extends AdminResource {
             final String path = path(POLICIES, namespaceName.toString());
             updatePolicies(path, (policies) -> {
                 if (policies.offload_policies == null) {
-                    policies.offload_policies = new OffloadPolicies();
+                    policies.offload_policies = new OffloadPoliciesImpl();
                 }
                 policies.offload_policies.setManagedLedgerOffloadThresholdInBytes(newThreshold);
                 policies.offload_threshold = newThreshold;
@@ -2296,7 +2299,7 @@ public abstract class NamespacesBase extends AdminResource {
             final String path = path(POLICIES, namespaceName.toString());
             updatePolicies(path, (policies) -> {
                 if (policies.offload_policies == null) {
-                    policies.offload_policies = new OffloadPolicies();
+                    policies.offload_policies = new OffloadPoliciesImpl();
                 }
                 policies.offload_policies.setManagedLedgerOffloadDeletionLagInMillis(newDeletionLagMs);
                 policies.offload_deletion_lag_ms = newDeletionLagMs;
@@ -2398,7 +2401,7 @@ public abstract class NamespacesBase extends AdminResource {
                 PolicyOperation.READ);
         Set<SubscriptionType> subscriptionTypes = new HashSet<>();
         getNamespacePolicies(namespaceName).subscription_types_enabled.forEach(subType ->
-                subscriptionTypes.add(SubscriptionType.valueOf(subType.name())));
+                subscriptionTypes.add(SubscriptionType.valueOf(subType)));
         return subscriptionTypes;
     }
 
@@ -2406,8 +2409,8 @@ public abstract class NamespacesBase extends AdminResource {
         validateNamespacePolicyOperation(namespaceName, PolicyName.SUBSCRIPTION_AUTH_MODE,
                 PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
-        Set<SubType> subTypes = new HashSet<>();
-        subscriptionTypesEnabled.forEach(subscriptionType -> subTypes.add(SubType.valueOf(subscriptionType.name())));
+        Set<String> subTypes = new HashSet<>();
+        subscriptionTypesEnabled.forEach(subscriptionType -> subTypes.add(subscriptionType.name()));
         mutatePolicy((policies) -> {
                     policies.subscription_types_enabled = subTypes;
                     return policies;
@@ -2446,7 +2449,7 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected void internalSetOffloadPolicies(AsyncResponse asyncResponse, OffloadPolicies offloadPolicies) {
+    protected void internalSetOffloadPolicies(AsyncResponse asyncResponse, OffloadPoliciesImpl offloadPolicies) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.OFFLOAD, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
         validateOffloadPolicies(offloadPolicies);
@@ -2455,13 +2458,13 @@ public abstract class NamespacesBase extends AdminResource {
             final String path = path(POLICIES, namespaceName.toString());
             namespaceResources().setAsync(path, (policies) -> {
                 if (Objects.equals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(),
-                        OffloadPolicies.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS)) {
+                        OffloadPoliciesImpl.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS)) {
                     offloadPolicies.setManagedLedgerOffloadDeletionLagInMillis(policies.offload_deletion_lag_ms);
                 } else {
                     policies.offload_deletion_lag_ms = offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis();
                 }
                 if (Objects.equals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(),
-                        OffloadPolicies.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES)) {
+                        OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES)) {
                     offloadPolicies.setManagedLedgerOffloadThresholdInBytes(policies.offload_threshold);
                 } else {
                     policies.offload_threshold = offloadPolicies.getManagedLedgerOffloadThresholdInBytes();
@@ -2513,7 +2516,7 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    private void validateOffloadPolicies(OffloadPolicies offloadPolicies) {
+    private void validateOffloadPolicies(OffloadPoliciesImpl offloadPolicies) {
         if (offloadPolicies == null) {
             log.warn("[{}] Failed to update offload configuration for namespace {}: offloadPolicies is null",
                     clientAppId(), namespaceName);
@@ -2523,9 +2526,9 @@ public abstract class NamespacesBase extends AdminResource {
         if (!offloadPolicies.driverSupported()) {
             log.warn("[{}] Failed to update offload configuration for namespace {}: "
                             + "driver is not supported, support value: {}",
-                    clientAppId(), namespaceName, OffloadPolicies.getSupportedDriverNames());
+                    clientAppId(), namespaceName, OffloadPoliciesImpl.getSupportedDriverNames());
             throw new RestException(Status.PRECONDITION_FAILED,
-                    "The driver is not supported, support value: " + OffloadPolicies.getSupportedDriverNames());
+                    "The driver is not supported, support value: " + OffloadPoliciesImpl.getSupportedDriverNames());
         }
         if (!offloadPolicies.bucketValid()) {
             log.warn("[{}] Failed to update offload configuration for namespace {}: bucket must be specified",
@@ -2535,11 +2538,11 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected OffloadPolicies internalGetOffloadPolicies() {
+    protected OffloadPoliciesImpl internalGetOffloadPolicies() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.OFFLOAD, PolicyOperation.READ);
 
         Policies policies = getNamespacePolicies(namespaceName);
-        return policies.offload_policies;
+        return (OffloadPoliciesImpl) policies.offload_policies;
     }
 
     protected int internalGetMaxTopicsPerNamespace() {

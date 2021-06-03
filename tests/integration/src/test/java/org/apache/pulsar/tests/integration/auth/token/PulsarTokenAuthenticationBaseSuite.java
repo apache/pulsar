@@ -37,7 +37,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.common.policies.data.AuthAction;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.containers.ProxyContainer;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
@@ -150,7 +150,7 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
 
         try {
         admin.tenants().createTenant(tenant,
-                new TenantInfo(Collections.singleton(REGULAR_USER_ROLE),
+                new TenantInfoImpl(Collections.singleton(REGULAR_USER_ROLE),
                         Collections.singleton(pulsarCluster.getClusterName())));
 
         } catch (Exception e) {
@@ -220,7 +220,7 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
 
         try {
             admin.tenants().createTenant(tenant,
-                    new TenantInfo(Collections.singleton(REGULAR_USER_ROLE),
+                    new TenantInfoImpl(Collections.singleton(REGULAR_USER_ROLE),
                             Collections.singleton(pulsarCluster.getClusterName())));
 
         } catch (Exception e) {
@@ -273,7 +273,7 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
                 .build();
 
         admin.tenants().createTenant(tenant,
-                new TenantInfo(Collections.singleton(REGULAR_USER_ROLE),
+                new TenantInfoImpl(Collections.singleton(REGULAR_USER_ROLE),
                         Collections.singleton(pulsarCluster.getClusterName())));
 
         admin.namespaces().createNamespace(namespace, Collections.singleton(pulsarCluster.getClusterName()));
@@ -338,7 +338,7 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
                 .build();
 
         admin.tenants().createTenant(tenant,
-                new TenantInfo(Collections.singleton(REGULAR_USER_ROLE),
+                new TenantInfoImpl(Collections.singleton(REGULAR_USER_ROLE),
                         Collections.singleton(pulsarCluster.getClusterName())));
 
         admin.namespaces().createNamespace(namespace, Collections.singleton(pulsarCluster.getClusterName()));

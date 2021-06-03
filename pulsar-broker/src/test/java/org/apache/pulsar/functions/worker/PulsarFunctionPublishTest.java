@@ -63,10 +63,10 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.FunctionStats;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.FunctionStatsImpl;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
@@ -176,7 +176,7 @@ public class PulsarFunctionPublishTest {
         primaryHost = pulsar.getWebServiceAddress();
 
         // update cluster metadata
-        ClusterData clusterData = new ClusterData(urlTls.toString());
+        ClusterDataImpl clusterData = new ClusterDataImpl(urlTls.toString());
         admin.clusters().updateCluster(config.getClusterName(), clusterData);
 
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(this.workerConfig.getPulsarServiceUrl());
@@ -192,7 +192,7 @@ public class PulsarFunctionPublishTest {
         }
         pulsarClient = clientBuilder.build();
 
-        TenantInfo propAdmin = new TenantInfo();
+        TenantInfoImpl propAdmin = new TenantInfoImpl();
         propAdmin.getAdminRoles().add("superUser");
         propAdmin.setAllowedClusters(Sets.newHashSet(Lists.newArrayList("use")));
         admin.tenants().updateTenant(tenant, propAdmin);
@@ -333,7 +333,8 @@ public class PulsarFunctionPublishTest {
 
         retryStrategically((test) -> {
             try {
-                FunctionStats functionStat = admin.functions().getFunctionStats(tenant, namespacePortion, functionName);
+                FunctionStatsImpl functionStat = (FunctionStatsImpl)
+                        admin.functions().getFunctionStats(tenant, namespacePortion, functionName);
                 return functionStat.getProcessedSuccessfullyTotal() == 5;
             } catch (PulsarAdminException e) {
                 return false;
@@ -470,7 +471,8 @@ public class PulsarFunctionPublishTest {
 
         retryStrategically((test) -> {
             try {
-                FunctionStats functionStat = admin.functions().getFunctionStats(tenant, namespacePortion, functionName);
+                FunctionStatsImpl functionStat = (FunctionStatsImpl)
+                        admin.functions().getFunctionStats(tenant, namespacePortion, functionName);
                 return functionStat.getProcessedSuccessfullyTotal() == 5;
             } catch (PulsarAdminException e) {
                 return false;
