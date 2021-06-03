@@ -226,12 +226,4 @@ public class TypedMessageBuilderImplTest {
         }
     }
 
-    @Test
-    public void test() {
-        producerBase = mock(ProducerBase.class);
-        TypedMessageBuilderImpl builder =  new TypedMessageBuilderImpl(producerBase, null);
-        AutoConsumeSchema autoConsumeSchema = new AutoConsumeSchema();
-    }
-
-
 }
