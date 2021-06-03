@@ -29,7 +29,7 @@ cd ${ROOT_DIR}/site2/website
 yarn
 yarn write-translations
 
-if [ "$CROWDIN_DOCUSAURUS_API_KEY" != "unset" ]; then
+if [ "$CROWDIN_DOCUSAURUS_API_KEY" != "UNSET" ]; then
   # upload only if environment variable CROWDIN_UPLOAD=1 is set
   # or current hour is 0-5
   # this leads to executing crowdin-upload once per day when website build is scheduled
