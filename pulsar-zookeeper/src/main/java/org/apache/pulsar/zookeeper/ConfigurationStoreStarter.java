@@ -18,13 +18,11 @@
  */
 package org.apache.pulsar.zookeeper;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.zookeeper.server.quorum.QuorumPeerMain;
 
 public class ConfigurationStoreStarter extends ZooKeeperStarter {
-    public static void main(String[] args) throws Exception {
-        start(args, "8001");
+    public static void main(String[] args) {
+        // Start the regular ZooKeeper server
+        QuorumPeerMain.main(args);
     }
-
-    private static final Logger log = LoggerFactory.getLogger(ConfigurationStoreStarter.class);
 }
