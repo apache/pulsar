@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.broker.stats.prometheus;
 
-import io.jsonwebtoken.io.IOException;
 import io.netty.util.concurrent.FastThreadLocal;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
 import org.apache.pulsar.broker.PulsarService;
@@ -31,6 +31,7 @@ import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.impl.TransactionMetadataStoreStats;
 
+@Slf4j
 public class TransactionAggregator {
 
     private final static FastThreadLocal<AggregatedTransactionCoordinatorStats> localTransactionCoordinatorStats =
@@ -66,7 +67,7 @@ public class TransactionAggregator {
                                     generateManageLedgerStats(managedLedger,
                                             stream, cluster, namespace, name, subscription.getName());
                                 } catch (Exception e) {
-                                    throw new IOException("Transaction pending ack generate managedLedgerStats fail!");
+                                    log.warn("Transaction pending ack generate managedLedgerStats fail!", e);
                                 }
                             });
                         }
