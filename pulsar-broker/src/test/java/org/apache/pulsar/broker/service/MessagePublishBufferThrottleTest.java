@@ -126,7 +126,7 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
             producer.sendAsync(payload);
         }
 
-        assertEquals(pulsar.getBrokerService().getPausedConnections(), 1);
+        Awaitility.await().untilAsserted(() -> assertEquals(pulsar.getBrokerService().getPausedConnections(), 1));
 
         CompletableFuture<Void> flushFuture = producer.flushAsync();
 
