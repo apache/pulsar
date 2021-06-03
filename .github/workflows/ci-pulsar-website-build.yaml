@@ -44,8 +44,9 @@ jobs:
           path: |
             ~/.m2/repository/*/*/*
             !~/.m2/repository/org/apache/pulsar
-          key: ${{ runner.os }}-m2-dependencies-swagger-${{ hashFiles('**/pom.xml') }}
+          key: ${{ runner.os }}-m2-dependencies-website-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
+            ${{ runner.os }}-m2-dependencies-all-${{ hashFiles('**/pom.xml') }}
             ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
             ${{ runner.os }}-m2-dependencies-core-modules-
 
@@ -58,9 +59,6 @@ jobs:
       - name: Replace maven's wagon-http version
         run: sudo ./build/replace_maven-wagon-http-version.sh
 
-      - name: build
-        run: mvn -B clean package -DskipTests -Pswagger
-
       - name: clean disk
         run: |
           sudo swapoff -a
@@ -68,6 +66,12 @@ jobs:
           sudo apt clean
           docker rmi $(docker images -q) -f
           df -h
+
+      - name: run install by skip tests
+        run: mvn -q -B -ntp clean install -DskipTests -DskipSourceReleaseAssembly=true -Dspotbugs.skip=true -Dlicense.skip=true
+
+      - name: generate swagger json file
+        run: mvn -B -ntp -pl pulsar-broker install -DskipTests -Pswagger
 
       - name: publish
         env:
