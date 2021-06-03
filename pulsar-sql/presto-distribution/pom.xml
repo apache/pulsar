@@ -23,29 +23,22 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>org.apache</groupId>
-    <artifactId>apache</artifactId>
-    <version>23</version>
+    <groupId>org.apache.pulsar</groupId>
+    <artifactId>pulsar-sql</artifactId>
+    <version>2.8.0-SNAPSHOT</version>
   </parent>
 
-  <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar-presto-distribution</artifactId>
   <name>Pulsar SQL :: Pulsar Presto Distribution</name>
-  <version>2.8.0-SNAPSHOT</version>
 
   <properties>
     <skipBuildDistribution>false</skipBuildDistribution>
-    <maven.compiler.source>1.8</maven.compiler.source>
-    <maven.compiler.target>1.8</maven.compiler.target>
     <jersey.version>2.34</jersey.version>
     <presto.version>332</presto.version>
     <airlift.version>0.170</airlift.version>
     <objenesis.version>2.6</objenesis.version>
     <objectsize.version>0.0.12</objectsize.version>
     <guice.version>4.2.0</guice.version>
-    <!-- Launcher properties -->
-    <main-class>io.prestosql.server.PrestoServer</main-class>
-    <process-name>${project.artifactId}</process-name>
     <jackson.version>2.12.3</jackson.version>
     <!--fix Security Vulnerabilities-->
     <!--https://www.cvedetails.com/vulnerability-list/vendor_id-15866/product_id-42991/Fasterxml-Jackson-databind.html-->
@@ -54,6 +47,7 @@
     <guava.version>30.1-jre</guava.version>
     <asynchttpclient.version>2.12.1</asynchttpclient.version>
     <errorprone.version>2.5.1</errorprone.version>
+    <javax.servlet-api>4.0.1</javax.servlet-api>
   </properties>
 
   <dependencies>
@@ -263,6 +257,51 @@
         <type>pom</type>
         <scope>import</scope>
       </dependency>
+      <dependency>
+        <groupId>org.eclipse.jetty</groupId>
+        <artifactId>jetty-http</artifactId>
+        <version>${jetty.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.eclipse.jetty</groupId>
+        <artifactId>jetty-client</artifactId>
+        <version>${jetty.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.eclipse.jetty</groupId>
+        <artifactId>jetty-io</artifactId>
+        <version>${jetty.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.eclipse.jetty</groupId>
+        <artifactId>jetty-security</artifactId>
+        <version>${jetty.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.eclipse.jetty</groupId>
+        <artifactId>jetty-jmx</artifactId>
+        <version>${jetty.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.eclipse.jetty.http2</groupId>
+        <artifactId>http2-client</artifactId>
+        <version>${jetty.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.eclipse.jetty.http2</groupId>
+        <artifactId>http2-http-client-transport</artifactId>
+        <version>${jetty.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.eclipse.jetty.http2</groupId>
+        <artifactId>http2-server</artifactId>
+        <version>${jetty.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>javax.servlet</groupId>
+        <artifactId>javax.servlet-api</artifactId>
+        <version>${javax.servlet-api}</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -279,7 +318,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-assembly-plugin</artifactId>
-        <version>3.3.0</version>
+        <version>${maven-assembly-plugin.version}</version>
         <configuration>
           <appendAssemblyId>false</appendAssemblyId>
           <attach>true</attach>
@@ -300,28 +339,6 @@
         </executions>
       </plugin>
 
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>templating-maven-plugin</artifactId>
-        <version>1.0.0</version>
-        <executions>
-          <execution>
-            <id>filter-src</id>
-            <goals>
-              <goal>filter-sources</goal>
-            </goals>
-            <phase>package</phase>
-            <configuration>
-              <sourceDirectory>${project.build.directory}/${project.artifactId}/bin/</sourceDirectory>
-              <outputDirectory>${project.build.directory}/${project.artifactId}/bin/</outputDirectory>
-              <overwrite>true</overwrite>
-              <delimiters>
-                <delimiter>${*}</delimiter>
-              </delimiters>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
       <plugin>
         <groupId>com.mycila</groupId>
         <artifactId>license-maven-plugin</artifactId>
