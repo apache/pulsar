@@ -333,7 +333,7 @@ public class ClientCnx extends PulsarHandler {
 
         // Run this the code to respond to the authentication challenge in another thread so we are not potentially
         // blocking a pulsar-client-io thread.  A portion of the code is user supplied, such as getting a token, which is another
-        // reason to run in a separate thread so user code cannot not block pulsar-client-io thread. Potential blocking code
+        // reason to run in a separate thread so user code cannot block pulsar-client-io thread. Potential blocking code
         // will also render send timeouts to be not respected since it uses pulsar-client-io thread as well.
         CompletableFuture.runAsync(() -> {
             if (Arrays.equals(AuthData.REFRESH_AUTH_DATA_BYTES, authChallenge.getChallenge().getAuthData())) {
