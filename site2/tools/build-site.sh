@@ -28,8 +28,18 @@ ${ROOT_DIR}/site2/tools/generate-api-docs.sh
 cd ${ROOT_DIR}/site2/website
 yarn
 yarn write-translations
-yarn run crowdin-upload
-yarn run crowdin-download
+
+if [ "$CROWDIN_DOCUSAURUS_API_KEY" != "UNSET" ]; then
+  # upload only if environment variable CROWDIN_UPLOAD=1 is set
+  # or current hour is 0-5
+  # this leads to executing crowdin-upload once per day when website build is scheduled
+  # to run with cron expression '0 */6 * * *'
+  CURRENT_HOUR=`date +%H`
+  if [[ "$CROWDIN_UPLOAD" == "1" || $CURRENT_HOUR -lt 6 ]]; then
+    yarn run crowdin-upload
+  fi
+  yarn run crowdin-download
+fi
 
 # TODO: remove this after figuring out why crowdin removed code tab when generating translated files
 # https://github.com/apache/pulsar/issues/5816
