@@ -4042,14 +4042,9 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalSetReplicatedSubscriptionStatus(AsyncResponse asyncResponse, String subName,
-            boolean authoritative, Boolean enabled) {
+            boolean authoritative, boolean enabled) {
         log.info("[{}] Attempting to change replicated subscription status to {} - {} {}", clientAppId(), enabled,
                 topicName, subName);
-
-        if (enabled == null) {
-            asyncResponse.resume(new RestException(Status.BAD_REQUEST, "Boolean type request body is required"));
-            return;
-        }
 
         // Reject the request if the topic is not persistent
         if (!topicName.isPersistent()) {
@@ -4139,7 +4134,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     private void internalSetReplicatedSubscriptionStatusForNonPartitionedTopic(AsyncResponse asyncResponse,
-            String subName, boolean authoritative, Boolean enabled) {
+            String subName, boolean authoritative, boolean enabled) {
         try {
             // Redirect the request to the appropriate broker if this broker is not the owner of the topic
             validateTopicOwnership(topicName, authoritative);
