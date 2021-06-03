@@ -78,7 +78,7 @@ public class PulsarSchemaToKafkaSchema {
                     if (pulsarSchema.getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
                         KeyValueSchema kvSchema = (KeyValueSchema) pulsarSchema;
                         return SchemaBuilder.map(getKafkaConnectSchema(kvSchema.getKeySchema()),
-                                                 getKafkaConnectSchema(kvSchema.getKeySchema()))
+                                                 getKafkaConnectSchema(kvSchema.getValueSchema()))
                                     .build();
                     }
                     org.apache.pulsar.kafka.shade.avro.Schema avroSchema =
@@ -86,21 +86,20 @@ public class PulsarSchemaToKafkaSchema {
                     return avroData.toConnectSchema(avroSchema);
                 });
             } catch (ExecutionException | UncheckedExecutionException | ExecutionError ee) {
-                logAndThrowOnUnsupportedSchema(pulsarSchema, "Failed to convert to Kafka Schema.", ee);
+                throw logAndThrowOnUnsupportedSchema(pulsarSchema, "Failed to convert to Kafka Schema.", ee);
             }
         }
 
-        logAndThrowOnUnsupportedSchema(pulsarSchema, "Schema is required.", null);
-        return null;
+        throw logAndThrowOnUnsupportedSchema(pulsarSchema, "Schema is required.", null);
     }
 
-    private static void logAndThrowOnUnsupportedSchema(org.apache.pulsar.client.api.Schema pulsarSchema,
+    private static IllegalStateException logAndThrowOnUnsupportedSchema(org.apache.pulsar.client.api.Schema pulsarSchema,
                                                        String prefix,
                                                        Throwable cause) {
         String msg = prefix + " Pulsar Schema: "
                 + (pulsarSchema == null || pulsarSchema.getSchemaInfo() == null
                 ? "null" : pulsarSchema.getSchemaInfo().toString());
         log.error(msg);
-        throw new IllegalStateException(msg, cause);
+        return new IllegalStateException(msg, cause);
     }
 }
