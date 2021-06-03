@@ -21,25 +21,7 @@
 ROOT_DIR=$(git rev-parse --show-toplevel)
 VERSION=$(${ROOT_DIR}/src/get-project-version.py)
 
-set -x -e
-
-export NODE_OPTIONS="--max-old-space-size=2048" #increase to 2gb, default is 512mb
-${ROOT_DIR}/site2/tools/generate-api-docs.sh
-cd ${ROOT_DIR}/site2/website
-yarn
-yarn write-translations
-
-if [ "$CROWDIN_DOCUSAURUS_API_KEY" != "UNSET" ]; then
-  # upload only if environment variable CROWDIN_UPLOAD=1 is set
-  # or current hour is 0-5
-  # this leads to executing crowdin-upload once per day when website build is scheduled
-  # to run with cron expression '0 */6 * * *'
-  CURRENT_HOUR=$(date +%H)
-  if [[ "$CROWDIN_UPLOAD" == "1" || $CURRENT_HOUR -lt 6 ]]; then
-    yarn run crowdin-upload
-  fi
-  yarn run crowdin-download
-
+function workaround_crowdin_problem_by_copying_files() {
   # TODO: remove this after figuring out why crowdin removed code tab when generating translated files
   # https://github.com/apache/pulsar/issues/5816
   cp versioned_docs/version-2.4.2/functions-develop.md translated_docs/zh-CN/version-2.4.2/functions-develop.md
@@ -71,6 +53,29 @@ if [ "$CROWDIN_DOCUSAURUS_API_KEY" != "UNSET" ]; then
   cp versioned_docs/version-2.5.0/io-overview.md translated_docs/ko/version-2.5.0/io-overview.md
   cp versioned_docs/version-2.5.1/functions-develop.md translated_docs/ko/version-2.5.1/functions-develop.md
   cp versioned_docs/version-2.5.2/functions-develop.md translated_docs/ko/version-2.5.2/functions-develop.md
+}
+
+
+set -x -e
+
+export NODE_OPTIONS="--max-old-space-size=2048" #increase to 2gb, default is 512mb
+${ROOT_DIR}/site2/tools/generate-api-docs.sh
+cd ${ROOT_DIR}/site2/website
+yarn
+yarn write-translations
+
+if [ "$CROWDIN_DOCUSAURUS_API_KEY" != "UNSET" ]; then
+  # upload only if environment variable CROWDIN_UPLOAD=1 is set
+  # or current hour is 0-5
+  # this leads to executing crowdin-upload once per day when website build is scheduled
+  # to run with cron expression '0 */6 * * *'
+  CURRENT_HOUR=$(date +%H)
+  if [[ "$CROWDIN_UPLOAD" == "1" || $CURRENT_HOUR -lt 6 ]]; then
+    yarn run crowdin-upload
+  fi
+  yarn run crowdin-download
+
+  workaround_crowdin_problem_by_copying_files
 else
   # set English as the only language to build in this case
   cat > languages.js <<'EOF'
