@@ -55,7 +55,7 @@ RUN sed -i "s|http://archive\.ubuntu\.com/ubuntu/|${UBUNTU_MIRROR:-mirror://mirr
      && apt-get -y dist-upgrade \
      && apt-get -y install --no-install-recommends openjdk-11-jdk-headless netcat dnsutils less procps iputils-ping \
                  python3 python3-yaml python3-kazoo python3-pip \
-                 curl ca-certificates \
+                 curl ca-certificates vim net-tools unzip \
      && apt-get -y --purge autoremove \
      && apt-get autoclean \
      && apt-get clean \
