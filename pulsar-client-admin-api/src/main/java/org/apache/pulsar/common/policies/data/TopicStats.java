@@ -85,4 +85,7 @@ public interface TopicStats {
 
     /** The serialized size of non-contiguous deleted messages ranges. */
     int getNonContiguousDeletedMessagesRangesSerializedSize();
+
+    /** The broker URL which serves this topic. */
+    String getBrokerServiceUrl();
 }

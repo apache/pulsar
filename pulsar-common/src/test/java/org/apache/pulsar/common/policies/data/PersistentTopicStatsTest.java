@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.policies.data;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
@@ -42,6 +43,7 @@ public class PersistentTopicStatsTest {
         topicStats.averageMsgSize = 1;
         topicStats.storageSize = 1;
         topicStats.offloadedStorageSize = 1;
+        topicStats.brokerServiceUrl = "pulsar://localhost:6650";
         topicStats.publishers.add(new PublisherStatsImpl());
         topicStats.subscriptions.put("test_ns", new SubscriptionStatsImpl());
         topicStats.replication.put("test_ns", new ReplicatorStatsImpl());
@@ -57,6 +59,7 @@ public class PersistentTopicStatsTest {
         assertEquals(topicStats.publishers.size(), 1);
         assertEquals(topicStats.subscriptions.size(), 1);
         assertEquals(topicStats.replication.size(), 1);
+        assertEquals(topicStats.brokerServiceUrl,"pulsar://localhost:6650");
         topicStats.reset();
         assertEquals(topicStats.msgRateIn, 0.0);
         assertEquals(topicStats.msgThroughputIn, 0.0);
@@ -68,6 +71,7 @@ public class PersistentTopicStatsTest {
         assertEquals(topicStats.subscriptions.size(), 0);
         assertEquals(topicStats.replication.size(), 0);
         assertEquals(topicStats.offloadedStorageSize, 0);
+        assertNull(topicStats.brokerServiceUrl);
     }
 
     @Test

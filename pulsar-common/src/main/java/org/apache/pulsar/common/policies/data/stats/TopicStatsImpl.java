@@ -25,6 +25,7 @@ import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -103,6 +104,9 @@ public class TopicStatsImpl implements TopicStats {
     /** The serialized size of non-contiguous deleted messages ranges. */
     public int nonContiguousDeletedMessagesRangesSerializedSize;
 
+    /** The broker URL which serves this topic. */
+    public String brokerServiceUrl;
+
     public List<? extends PublisherStats> getPublishers() {
         return publishers;
     }
@@ -143,6 +147,7 @@ public class TopicStatsImpl implements TopicStats {
         this.nonContiguousDeletedMessagesRanges = 0;
         this.nonContiguousDeletedMessagesRangesSerializedSize = 0;
         this.offloadedStorageSize = 0;
+        this.brokerServiceUrl = null;
     }
 
     // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current

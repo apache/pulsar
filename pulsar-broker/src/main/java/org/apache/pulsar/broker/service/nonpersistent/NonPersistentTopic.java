@@ -816,6 +816,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         });
 
         stats.topicEpoch = topicEpoch.orElse(null);
+        stats.brokerServiceUrl = brokerService.pulsar().getBrokerServiceUrl();
         return stats;
     }
 

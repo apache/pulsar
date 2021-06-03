@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.policies.data;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 
 import org.apache.pulsar.common.policies.data.stats.PartitionedTopicStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.PublisherStatsImpl;
@@ -42,6 +43,7 @@ public class PartitionedTopicStatsTest {
         partitionedTopicStats.replication.put("test_ns", new ReplicatorStatsImpl());
         partitionedTopicStats.metadata.partitions = 1;
         partitionedTopicStats.partitions.put("test", partitionedTopicStats);
+        partitionedTopicStats.brokerServiceUrl = "pulsar://localhost:6650";
         partitionedTopicStats.reset();
         assertEquals(partitionedTopicStats.msgRateIn, 0.0);
         assertEquals(partitionedTopicStats.msgThroughputIn, 0.0);
@@ -54,5 +56,6 @@ public class PartitionedTopicStatsTest {
         assertEquals(partitionedTopicStats.replication.size(), 0);
         assertEquals(partitionedTopicStats.metadata.partitions, 0);
         assertEquals(partitionedTopicStats.partitions.size(), 0);
+        assertNull(partitionedTopicStats.brokerServiceUrl);
     }
 }

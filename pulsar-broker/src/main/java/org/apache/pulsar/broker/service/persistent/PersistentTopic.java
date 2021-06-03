@@ -1803,6 +1803,7 @@ public class PersistentTopic extends AbstractTopic
         stats.deduplicationStatus = messageDeduplication.getStatus().toString();
         stats.topicEpoch = topicEpoch.orElse(null);
         stats.offloadedStorageSize = ledger.getOffloadedSize();
+        stats.brokerServiceUrl = brokerService.pulsar().getBrokerServiceUrl();
         return stats;
     }
 

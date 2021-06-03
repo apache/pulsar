@@ -186,6 +186,8 @@ You can check the following statistics of a given non-partitioned topic.
   -   **averageMsgSize**: The average size (in bytes) of messages published within the last interval.
 
   -   **storageSize**: The sum of the ledgers' storage size for this topic. The space used to store the messages for the topic.
+  
+  -   **brokerServiceUrl**: The broker URL which serves a given topic.
 
   -   **publishers**: The list of all local publishers into the topic. The list ranges from zero to thousands.
 
@@ -279,6 +281,7 @@ The following is an example of a topic status.
   "msgThroughputOut": 0,
   "averageMsgSize": 1232439.816728665,
   "storageSize": 135532389160,
+  "brokerServiceUrl": "pulsar://broker1.com:6650",
   "publishers": [
     {
       "msgRateIn": 57.855383881403576,
