@@ -519,16 +519,16 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             messagesForC = Math.max(messagesForC / avgBatchSizePerMsg, 1);
 
             if (messagesForC > 0) {
-
+                int end = Math.min(start + messagesForC, entries.size());
                 // remove positions first from replay list first : sendMessages recycles entries
                 if (readType == ReadType.Replay) {
-                    entries.subList(start, start + messagesForC).forEach(entry -> {
+                    entries.subList(start, end).forEach(entry -> {
                         messagesToRedeliver.remove(entry.getLedgerId(), entry.getEntryId());
                     });
                 }
 
                 SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
-                List<Entry> entriesForThisConsumer = entries.subList(start, start + messagesForC);
+                List<Entry> entriesForThisConsumer = entries.subList(start, end);
 
                 EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesForThisConsumer.size());
                 EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entriesForThisConsumer.size());
