@@ -50,6 +50,7 @@ import org.apache.commons.lang3.builder.ToStringStyle;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.aws.AbstractAwsConnector;
 import org.apache.pulsar.io.aws.AwsCredentialProviderPlugin;
+import org.apache.pulsar.io.common.IOConfigUtils;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.annotations.Connector;
@@ -100,7 +101,7 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<byte[]> {
     private static final int maxPartitionedKeyLength = 256;
     private SinkContext sinkContext;
     private ScheduledExecutorService scheduledExecutor;
-    // 
+    //
     private static final int FALSE = 0;
     private static final int TRUE = 1;
     private volatile int previousPublishFailed = FALSE;
@@ -153,12 +154,12 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<byte[]> {
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
         scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
-        kinesisSinkConfig = KinesisSinkConfig.load(config);
+        kinesisSinkConfig = IOConfigUtils.loadWithSecrets(config, KinesisSinkConfig.class, sinkContext);
         this.sinkContext = sinkContext;
 
         checkArgument(isNotBlank(kinesisSinkConfig.getAwsKinesisStreamName()), "empty kinesis-stream name");
-        checkArgument(isNotBlank(kinesisSinkConfig.getAwsEndpoint()) || 
-                      isNotBlank(kinesisSinkConfig.getAwsRegion()), 
+        checkArgument(isNotBlank(kinesisSinkConfig.getAwsEndpoint()) ||
+                      isNotBlank(kinesisSinkConfig.getAwsRegion()),
                       "Either the aws-end-point or aws-region must be set");
         checkArgument(isNotBlank(kinesisSinkConfig.getAwsCredentialPluginParam()), "empty aws-credential param");
 
