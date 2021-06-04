@@ -514,7 +514,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                         c, c.getAvailablePermits());
             }
 
-            int messagesForC = Math.min(Math.min(entriesToDispatch, availablePermits),
+            int messagesForC = Math.min(Math.min(totalMessages, availablePermits),
                     serviceConfig.getDispatcherMaxRoundRobinBatchSize());
             messagesForC = Math.max(messagesForC / avgBatchSizePerMsg, 1);
 
@@ -532,13 +532,14 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
                 EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesForThisConsumer.size());
                 EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entriesForThisConsumer.size());
-                filterEntriesForConsumer(Optional.ofNullable(entryWrappers), entriesForThisConsumer, batchSizes,
-                        sendMessageInfo, batchIndexesAcks, cursor, readType == ReadType.Replay);
+                filterEntriesForConsumer(Optional.ofNullable(entryWrappers), start, entriesForThisConsumer,
+                        batchSizes, sendMessageInfo, batchIndexesAcks, cursor, readType == ReadType.Replay);
 
                 c.sendMessages(entriesForThisConsumer, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
                         sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(), redeliveryTracker);
 
                 int msgSent = sendMessageInfo.getTotalMessages();
+                totalMessages -= msgSent;
                 start += messagesForC;
                 entriesToDispatch -= messagesForC;
                 TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this,
