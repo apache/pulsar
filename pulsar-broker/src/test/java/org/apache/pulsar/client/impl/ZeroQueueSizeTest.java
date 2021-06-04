@@ -88,8 +88,9 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
     }
 
 
-    @Test(expectedExceptions = PulsarClientException.InvalidConfigurationException.class)
-    public void zeroQueueSizeReceieveAsyncInCompatibility() throws PulsarClientException {
+    @Test(expectedExceptions = PulsarClientException.class)
+    public void zeroQueueSizeReceieveAsyncInCompatibility() throws PulsarClientException{
+
         String key = "zeroQueueSizeReceieveAsyncInCompatibility";
         final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
         final String subscriptionName = "my-ex-subscription-" + key;
@@ -99,7 +100,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         config.put("receiveThreads", 6);
         Consumer<byte[]> consumer = pulsarClient.newConsumer().loadConf(config).topic(topicName).subscriptionName(subscriptionName)
                 .receiverQueueSize(0).subscribe();
-        consumer.receiveAsync(10, TimeUnit.SECONDS);
+        consumer.receive(10, TimeUnit.SECONDS);
     }
 
     @Test(expectedExceptions = PulsarClientException.class)

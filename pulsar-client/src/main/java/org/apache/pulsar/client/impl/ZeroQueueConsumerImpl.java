@@ -24,10 +24,13 @@ import static java.lang.String.format;
 import io.netty.buffer.ByteBuf;
 
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
+import java.util.Objects;
+import java.util.concurrent.*;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Supplier;
 
+import io.netty.util.concurrent.DefaultThreadFactory;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.pulsar.client.api.Consumer;
@@ -39,6 +42,7 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.common.util.FutureUtil;
 
 @Slf4j
 public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
@@ -48,6 +52,8 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
     private volatile boolean waitingOnReceiveForZeroQueueSize = false;
     private volatile boolean waitingOnListenerForZeroQueueSize = false;
 
+    protected static ScheduledExecutorService messageScheduledFuture;
+
     public ZeroQueueConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
             ExecutorProvider executorProvider, int partitionIndex, boolean hasParentConsumer, CompletableFuture<Consumer<T>> subscribeFuture,
             MessageId startMessageId, Schema<T> schema,
@@ -56,6 +62,45 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
         super(client, topic, conf, executorProvider, partitionIndex, hasParentConsumer, subscribeFuture,
                 startMessageId, 0 /* startMessageRollbackDurationInSec */, schema, interceptors,
                 createTopicIfDoesNotExist);
+        //Actually,i want to achieve to
+        this.messageScheduledFuture = Executors.newSingleThreadScheduledExecutor(
+                new DefaultThreadFactory(getClass().getSimpleName()+"-receive-message"));
+    }
+
+
+    @Override
+    protected Message<T> internalReceive(int timeout, TimeUnit unit) throws PulsarClientException {
+        Message<T> tMessage = null;
+
+        if (Objects.nonNull(conf.getReceiveThreads())){
+            messageScheduledFuture = Executors.newScheduledThreadPool(
+                    conf.getReceiveThreads(),new DefaultThreadFactory(getClass().getSimpleName()+"-receive-message")
+            );
+        }
+
+        long time1 = System.nanoTime();
+
+        Supplier<Message<T>> asyncTask = this::doZeroQueue;
+        CompletableFuture<Message<T>> future = new CompletableFuture<>();
+         try {
+             future = FutureUtil.schedule(messageScheduledFuture, asyncTask,
+                     conf.getReceiveInterval(), TimeUnit.SECONDS);
+             //Determine whether the task is over, and then get the result
+             if (future.isDone()) {
+
+                 tMessage = future.get();
+             }
+         }catch (ExecutionException | InterruptedException ignore){
+             long time2 = System.nanoTime();
+             System.out.println("No timeout after " +
+                     (time2-time1)/1000000000.0 + " seconds");
+         }finally {
+             //When the captured futrue throws an exception, the worker thread clears the interruption status in time
+             future.cancel(true);
+         }
+
+
+        return tMessage;
     }
 
     @Override
@@ -79,6 +124,17 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
         }
 
         return future;
+    }
+
+    private Message<T> doZeroQueue() {
+        Message<T> result = null;
+        try {
+            result = internalReceive();
+            return result;
+        } catch (PulsarClientException e) {
+            e.printStackTrace();
+        }
+        return result;
     }
 
     private Message<T> fetchSingleMessageFromBroker() throws PulsarClientException {

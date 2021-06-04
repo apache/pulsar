@@ -191,50 +191,6 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         return internalReceive(timeout, unit);
     }
 
-    @Override
-    public CompletableFuture<Message<T>> receiveAsync(int timeout, TimeUnit unit) {
-
-        if (listener != null) {
-            return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(
-                    "Cannot use receive() when a listener has been set"));
-        }
-        try {
-            verifyConsumerState();
-        } catch (PulsarClientException e) {
-            return FutureUtil.failedFuture(e);
-        }
-
-        ScheduledExecutorService messageScheduledFuture = Executors.newSingleThreadScheduledExecutor(
-                new DefaultThreadFactory(getClass().getSimpleName()+"-receive-message")
-        );
-        if (Objects.nonNull(conf.getReceiveThreads())){
-            messageScheduledFuture = Executors.newScheduledThreadPool(
-                    conf.getReceiveThreads(),new DefaultThreadFactory(getClass().getSimpleName()+"-receive-message")
-            );
-        }
-
-        Supplier<Message<T>> asyncTask = this::doZeroQueue;
-
-        CompletableFuture<Message<T>> future =
-               FutureUtil.schedule(messageScheduledFuture,asyncTask,
-                       conf.getReceiveInterval(),TimeUnit.SECONDS);
-
-        return future;
-    }
-
-    private Message<T> doZeroQueue() {
-        Message<T> result = null;
-        try {
-            result = internalReceive();
-            return result;
-        } catch (PulsarClientException e) {
-            e.printStackTrace();
-        }
-        return result;
-    }
-
-
-
     protected abstract Message<T> internalReceive(int timeout, TimeUnit unit) throws PulsarClientException;
 
     @Override
