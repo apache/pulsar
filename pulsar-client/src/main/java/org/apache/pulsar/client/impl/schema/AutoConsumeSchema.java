@@ -311,7 +311,7 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
         }
     }
 
-    private SchemaVersion getSchemaVersion(byte[] schemaVersion) {
+    private static SchemaVersion getSchemaVersion(byte[] schemaVersion) {
         if (schemaVersion != null) {
             return BytesSchemaVersion.of(schemaVersion);
         }
