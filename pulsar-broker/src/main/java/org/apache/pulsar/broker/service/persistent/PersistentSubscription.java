@@ -179,9 +179,9 @@ public class PersistentSubscription implements Subscription {
     }
 
     public void setReplicated(boolean replicated) {
-        ServiceConfiguration config = topic.getBrokerService().pulsar().getConfiguration();
+        ServiceConfiguration config = topic.getBrokerService().getPulsar().getConfig();
 
-        if (!config.isEnableReplicatedSubscriptions() || !replicated) {
+        if (!replicated || !config.isEnableReplicatedSubscriptions()) {
             this.replicatedSubscriptionSnapshotCache = null;
         } else if (this.replicatedSubscriptionSnapshotCache == null) {
             this.replicatedSubscriptionSnapshotCache = new ReplicatedSubscriptionSnapshotCache(subName,
