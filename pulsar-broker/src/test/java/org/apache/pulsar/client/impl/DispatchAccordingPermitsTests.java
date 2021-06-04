@@ -55,7 +55,7 @@ public class DispatchAccordingPermitsTests extends ProducerConsumerBase {
     /**
      * The test case is to simulate dispatch batches with different batch size to the consumer.
      * 1. The consumer has 1000 available permits
-     * 2. The producer send 3 batches, 500 messages in the first batch, 1 message in the second batch and third batch
+     * 2. The producer send batches with different batch size
      *
      * According the batch average size dispatching, the broker will dispatch all the three batch to the consumer
      *
