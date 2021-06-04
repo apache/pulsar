@@ -1065,15 +1065,15 @@
         "CompletableFuture": {
             "type": "object",
             "properties": {
-                "cancelled": {
-                    "type": "boolean"
-                },
                 "done": {
                     "type": "boolean"
                 },
                 "numberOfDependents": {
                     "type": "integer",
                     "format": "int32"
+                },
+                "cancelled": {
+                    "type": "boolean"
                 },
                 "completedExceptionally": {
                     "type": "boolean"
@@ -1083,15 +1083,15 @@
         "CompletableFutureClusterData": {
             "type": "object",
             "properties": {
-                "cancelled": {
-                    "type": "boolean"
-                },
                 "done": {
                     "type": "boolean"
                 },
                 "numberOfDependents": {
                     "type": "integer",
                     "format": "int32"
+                },
+                "cancelled": {
+                    "type": "boolean"
                 },
                 "completedExceptionally": {
                     "type": "boolean"
@@ -1190,13 +1190,13 @@
                     "type": "integer",
                     "format": "int32"
                 },
+                "displayName": {
+                    "type": "string"
+                },
                 "symbol": {
                     "type": "string"
                 },
                 "numericCodeAsString": {
-                    "type": "string"
-                },
-                "displayName": {
                     "type": "string"
                 }
             }
@@ -1253,11 +1253,11 @@
                 "attributes": {
                     "$ref": "#/definitions/ContextAttributes"
                 },
-                "timeZone": {
-                    "$ref": "#/definitions/TimeZone"
-                },
                 "locale": {
                     "$ref": "#/definitions/Locale"
+                },
+                "timeZone": {
+                    "$ref": "#/definitions/TimeZone"
                 },
                 "typeFactory": {
                     "$ref": "#/definitions/TypeFactory"
@@ -1285,11 +1285,11 @@
         "DeserializationContext": {
             "type": "object",
             "properties": {
-                "timeZone": {
-                    "$ref": "#/definitions/TimeZone"
-                },
                 "locale": {
                     "$ref": "#/definitions/Locale"
+                },
+                "timeZone": {
+                    "$ref": "#/definitions/TimeZone"
                 },
                 "config": {
                     "$ref": "#/definitions/DeserializationConfig"
@@ -1374,20 +1374,20 @@
                 "contentType": {
                     "$ref": "#/definitions/JavaType"
                 },
-                "arrayType": {
-                    "type": "boolean"
-                },
                 "bindings": {
                     "$ref": "#/definitions/TypeBindings"
                 },
                 "concrete": {
                     "type": "boolean"
                 },
-                "throwable": {
-                    "type": "boolean"
-                },
                 "keyType": {
                     "$ref": "#/definitions/JavaType"
+                },
+                "arrayType": {
+                    "type": "boolean"
+                },
+                "throwable": {
+                    "type": "boolean"
                 },
                 "javaLangObject": {
                     "type": "boolean"
@@ -2102,10 +2102,10 @@
         "PublicKey": {
             "type": "object",
             "properties": {
-                "format": {
+                "algorithm": {
                     "type": "string"
                 },
-                "algorithm": {
+                "format": {
                     "type": "string"
                 },
                 "encoded": {
@@ -2179,11 +2179,11 @@
                 "attributes": {
                     "$ref": "#/definitions/ContextAttributes"
                 },
-                "timeZone": {
-                    "$ref": "#/definitions/TimeZone"
-                },
                 "locale": {
                     "$ref": "#/definitions/Locale"
+                },
+                "timeZone": {
+                    "$ref": "#/definitions/TimeZone"
                 },
                 "typeFactory": {
                     "$ref": "#/definitions/TypeFactory"
@@ -2214,11 +2214,11 @@
         "SerializerProvider": {
             "type": "object",
             "properties": {
-                "timeZone": {
-                    "$ref": "#/definitions/TimeZone"
-                },
                 "locale": {
                     "$ref": "#/definitions/Locale"
+                },
+                "timeZone": {
+                    "$ref": "#/definitions/TimeZone"
                 },
                 "config": {
                     "$ref": "#/definitions/SerializationConfig"
@@ -2515,12 +2515,6 @@
                 "issuerX500Principal": {
                     "$ref": "#/definitions/X500Principal"
                 },
-                "issuerDN": {
-                    "$ref": "#/definitions/Principal"
-                },
-                "subjectDN": {
-                    "$ref": "#/definitions/Principal"
-                },
                 "version": {
                     "type": "integer",
                     "format": "int32"
@@ -2597,6 +2591,12 @@
                             "type": "object"
                         }
                     }
+                },
+                "issuerDN": {
+                    "$ref": "#/definitions/Principal"
+                },
+                "subjectDN": {
+                    "$ref": "#/definitions/Principal"
                 },
                 "signature": {
                     "type": "array",
