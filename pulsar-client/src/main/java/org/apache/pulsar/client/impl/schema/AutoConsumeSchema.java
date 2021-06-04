@@ -81,6 +81,12 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
         schemaMap.get(SchemaVersion.Latest).validate(message);
     }
 
+    public void validate(byte[] message, byte[] schemaVersion) {
+        SchemaVersion sv = getSchemaVersion(schemaVersion);
+        ensureSchemaInitialized(sv);
+        schemaMap.get(sv).validate(message);
+    }
+
     @Override
     public byte[] encode(GenericRecord message) {
         throw new UnsupportedOperationException("AutoConsumeSchema is not intended to be used for encoding");
@@ -92,7 +98,7 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
     }
 
     public Schema<?> atSchemaVersion(byte[] schemaVersion) {
-        SchemaVersion sv = BytesSchemaVersion.of(schemaVersion);
+        SchemaVersion sv = getSchemaVersion(schemaVersion);
         fetchSchemaIfNeeded(sv);
         ensureSchemaInitialized(sv);
         Schema<?> topicVersionedSchema = schemaMap.get(sv);
@@ -105,7 +111,7 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
 
     @Override
     public GenericRecord decode(byte[] bytes, byte[] schemaVersion) {
-        SchemaVersion sv = BytesSchemaVersion.of(schemaVersion);
+        SchemaVersion sv = getSchemaVersion(schemaVersion);
         fetchSchemaIfNeeded(sv);
         ensureSchemaInitialized(sv);
         return adapt(schemaMap.get(sv).decode(bytes, schemaVersion), schemaVersion);
@@ -114,8 +120,8 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
     @Override
     public void setSchemaInfoProvider(SchemaInfoProvider schemaInfoProvider) {
         this.schemaInfoProvider = schemaInfoProvider;
-        if (schemaMap.containsKey(SchemaVersion.Latest)) {
-            schemaMap.get(SchemaVersion.Latest).setSchemaInfoProvider(schemaInfoProvider);
+        for (Schema<?> schema : schemaMap.values()) {
+            schema.setSchemaInfoProvider(schemaInfoProvider);
         }
     }
 
@@ -128,10 +134,7 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
     }
 
     public SchemaInfo getSchemaInfo(byte[] schemaVersion) {
-        if (schemaVersion == null) {
-            return Schema.BYTES.getSchemaInfo();
-        }
-        SchemaVersion sv = BytesSchemaVersion.of(schemaVersion);
+        SchemaVersion sv = getSchemaVersion(schemaVersion);
         if (schemaMap.containsKey(sv)) {
             return schemaMap.get(sv).getSchemaInfo();
         }
@@ -251,7 +254,7 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
         if (value instanceof GenericRecord) {
             return (GenericRecord) value;
         }
-        BytesSchemaVersion sv = BytesSchemaVersion.of(schemaVersion);
+        SchemaVersion sv = getSchemaVersion(schemaVersion);
         if (!schemaMap.containsKey(sv)) {
             throw new IllegalStateException("Cannot decode a message without schema");
         }
@@ -267,7 +270,7 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
     }
 
     public Schema<?> getInternalSchema(byte[] schemaVersion) {
-        return schemaMap.get(BytesSchemaVersion.of(schemaVersion));
+        return schemaMap.get(getSchemaVersion(schemaVersion));
     }
 
     /**
@@ -308,13 +311,26 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
         }
     }
 
+    private static SchemaVersion getSchemaVersion(byte[] schemaVersion) {
+        if (schemaVersion != null) {
+            return BytesSchemaVersion.of(schemaVersion);
+        }
+        return BytesSchemaVersion.of(new byte[0]);
+    }
+
     @Override
     public String toString() {
-        if (schemaMap.containsKey(SchemaVersion.Latest)
-                && schemaMap.get(SchemaVersion.Latest).getSchemaInfo() != null) {
-            return "AUTO_CONSUME(schematype=" + schemaMap.get(SchemaVersion.Latest).getSchemaInfo().getType() + ")";
-        } else {
+        if (schemaMap.isEmpty()) {
             return "AUTO_CONSUME(uninitialized)";
         }
+        StringBuilder sb = new StringBuilder("AUTO_CONSUME(");
+        for (Map.Entry<SchemaVersion, Schema<?>> entry : schemaMap.entrySet()) {
+            sb.append("{schemaVersion=").append(entry.getKey())
+                    .append(",schemaType=").append(entry.getValue().getSchemaInfo().getType())
+                    .append("}");
+        }
+        sb.append(")");
+        return sb.toString();
     }
+
 }
