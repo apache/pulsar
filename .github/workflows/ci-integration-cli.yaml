@@ -87,19 +87,19 @@ jobs:
 
       - name: run install by skip tests
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
-        run: mvn -q -B -ntp clean install -DskipTests
+        run: mvn -q -B -fn -ntp clean install -DskipTests
 
       - name: build pulsar image
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
-        run: mvn -B -f docker/pulsar/pom.xml install -am -Pdocker,-main -DskipTests -Ddocker.nocache=true
+        run: mvn -B -fn -f docker/pulsar/pom.xml install -am -Pdocker,-main -DskipTests -Ddocker.nocache=true
 
       - name: build pulsar-all image
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
-        run: mvn -B -f docker/pulsar-all/pom.xml install -am -Pdocker,-main -DskipTests -Ddocker.nocache=true
+        run: mvn -B -fn -f docker/pulsar-all/pom.xml install -am -Pdocker,-main -DskipTests -Ddocker.nocache=true
 
       - name: build artifacts and docker image
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
-        run: mvn -B -f tests/docker-images/pom.xml install -am -Pdocker,-main -DskipTests
+        run: mvn -B -fn -f tests/docker-images/pom.xml install -am -Pdocker,-main -DskipTests
 
       - name: run integration tests
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
