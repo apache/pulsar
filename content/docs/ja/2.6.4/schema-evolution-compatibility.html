@@ -120,16 +120,16 @@
 <tr>
 <td> 
 <p><code>ALWAYS_COMPATIBLE</code></p>
-</td> 
+</td>
 <td> 
 <p>Disable schema compatibility check.</p>
-</td> 
+</td>
 <td> 
 <p>All changes are allowed</p>
-</td> 
+</td>
 <td> 
 <p>All previous versions</p>
-</td> 
+</td>
 <td> 
 <p>Any order</p>
 </td> 
@@ -137,16 +137,16 @@
 <tr>
 <td> 
 <p><code>ALWAYS_INCOMPATIBLE</code></p>
-</td> 
+</td>
 <td> 
 <p>Disable schema evolution.</p>
-</td> 
+</td>
 <td> 
 <p>All changes are disabled</p>
-</td> 
+</td>
 <td> 
 <p>None</p>
-</td> 
+</td>
 <td> 
 <p>None</p>
 </td> 
@@ -154,19 +154,19 @@
 <tr>
 <td> 
 <p><code>BACKWARD</code></p>
-</td> 
+</td>
 <td> 
 <p>Consumers using the schema V3 can process data written by producers using the schema V3 or V2.</p>
-</td> 
+</td>
 <td> 
 <ul>
 <li><p>Add optional fields</p></li>
 <li><p>Delete fields</p></li>
 </ul>
-</td> 
+</td>
 <td> 
 <p>Latest version</p>
-</td> 
+</td>
 <td> 
 <p>Consumers</p>
 </td> 
@@ -174,19 +174,19 @@
 <tr>
 <td> 
 <p><code>BACKWARD_TRANSITIVE</code></p>
-</td> 
+</td>
 <td> 
 <p>Consumers using the schema V3 can process data written by producers using the schema V3, V2 or V1.</p>
-</td> 
+</td>
 <td> 
 <ul>
 <li><p>Add optional fields</p></li>
 <li><p>Delete fields</p></li>
 </ul>
-</td> 
+</td>
 <td> 
 <p>All previous versions</p>
-</td> 
+</td>
 <td> 
 <p>Consumers</p>
 </td> 
@@ -194,19 +194,19 @@
 <tr>
 <td> 
 <p><code>FORWARD</code></p>
-</td> 
+</td>
 <td> 
 <p>Consumers using the schema V3 or V2 can process data written by producers using the schema V3.</p>
-</td> 
+</td>
 <td> 
 <ul>
 <li><p>Add fields</p></li>
 <li><p>Delete optional fields</p></li>
 </ul>
-</td> 
+</td>
 <td> 
 <p>Latest version</p>
-</td> 
+</td>
 <td> 
 <p>Producers</p>
 </td> 
@@ -214,19 +214,19 @@
 <tr>
 <td> 
 <p><code>FORWARD_TRANSITIVE</code></p>
-</td> 
+</td>
 <td> 
 <p>Consumers using the schema V3, V2 or V1 can process data written by producers using the schema V3.</p>
-</td> 
+</td>
 <td> 
 <ul>
 <li><p>Add fields</p></li>
 <li><p>Delete optional fields</p></li>
 </ul>
-</td> 
+</td>
 <td> 
 <p>All previous versions</p>
-</td> 
+</td>
 <td> 
 <p>Producers</p>
 </td> 
@@ -234,18 +234,18 @@
 <tr>
 <td> 
 <p><code>FULL</code></p>
-</td> 
+</td>
 <td> 
 <p>Backward and forward compatible between the schema V3 and V2.</p>
-</td> 
+</td>
 <td> 
 <ul>
 <li>Modify optional fields</li>
 </ul>
-</td> 
+</td>
 <td> 
 <p>Latest version</p>
-</td> 
+</td>
 <td> 
 <p>Any order</p>
 </td> 
@@ -253,18 +253,18 @@
 <tr>
 <td> 
 <p><code>FULL_TRANSITIVE</code></p>
-</td> 
+</td>
 <td> 
 <p>Backward and forward compatible among the schema V3, V2, and V1.</p>
-</td> 
+</td>
 <td> 
 <ul>
 <li>Modify optional fields</li>
 </ul>
-</td> 
+</td>
 <td> 
 <p>All previous versions</p>
-</td> 
+</td>
 <td> 
 <p>Any order</p>
 </td> 
@@ -286,10 +286,10 @@
 <tr>
 <td> 
 <p><code>ALWAYS_COMPATIBLE</code></p>
-</td> 
+</td>
 <td> 
 <p>Disable schema compatibility check.</p>
-</td> 
+</td>
 <td> 
 <p>None</p>
 </td> 
@@ -297,10 +297,10 @@
 <tr>
 <td> 
 <p><code>ALWAYS_INCOMPATIBLE</code></p>
-</td> 
+</td>
 <td> 
 <p>Disable schema evolution, that is, any schema change is rejected.</p>
-</td> 
+</td>
 <td> 
 <ul>
 <li><p>For all schema types except Avro and JSON, the default schema compatibility check strategy is <code>ALWAYS_INCOMPATIBLE</code>.</p></li>
@@ -386,18 +386,18 @@
 <tr>
 <td> 
 <p><code>FULL</code></p>
-</td> 
+</td>
 <td> 
 <p>Schemas are both backward and forward compatible, which means:</p>
 <p>Consumers using the last schema can process data written by producers using the new schema.</p>
 <p>AND</p>
 <p>Consumers using the new schema can process data written by producers using the last schema.</p>
-</td> 
+</td>
 <td> 
 <p>Consumers using the schema V3 can process data written by producers using the schema V3 or V2.</p>
 <p>AND</p>
 <p>Consumers using the schema V3 or V2 can process data written by producers using the schema V3.</p>
-</td> 
+</td>
 <td> 
 <ul>
 <li><p>For Avro and JSON, the default schema compatibility check strategy is <code>FULL</code>.</p></li>
@@ -408,15 +408,15 @@
 <tr>
 <td> 
 <p><code>FULL_TRANSITIVE</code></p>
-</td> 
+</td>
 <td> 
 <p>The new schema is backward and forward compatible with all previously registered schemas.</p>
-</td> 
+</td>
 <td> 
 <p>Consumers using the schema V3 can process data written by producers using the schema V3, V2 or V1.</p>
 <p>AND</p>
 <p>Consumers using the schema V3, V2 or V1 can process data written by producers using the schema V3.</p>
-</td> 
+</td>
 <td> 
 <p>None</p>
 </td>
@@ -449,7 +449,7 @@
 <tr>
 <td> 
 <p><code>ALWAYS_COMPATIBLE</code></p>
-</td> 
+</td>
 <td> 
 <p>All pass</p>
 </td> 
@@ -457,7 +457,7 @@
 <tr>
 <td> 
 <p><code>ALWAYS_INCOMPATIBLE</code></p>
-</td> 
+</td>
 <td> 
 <p>No pass</p>
 </td> 
@@ -465,7 +465,7 @@
 <tr>
 <td> 
 <p><code>BACKWARD</code></p>
-</td> 
+</td>
 <td> 
 <p>Can read the last schema</p>
 </td> 
@@ -473,7 +473,7 @@
 <tr>
 <td> 
 <p><code>BACKWARD_TRANSITIVE</code></p>
-</td> 
+</td>
 <td> 
 <p>Can read all schemas</p>
 </td> 
@@ -481,7 +481,7 @@
 <tr>
 <td> 
 <p><code>FORWARD</code></p>
-</td> 
+</td>
 <td> 
 <p>Can read the last schema</p>
 </td> 
@@ -489,7 +489,7 @@
 <tr>
 <td> 
 <p><code>FORWARD_TRANSITIVE</code></p>
-</td> 
+</td>
 <td> 
 <p>Can read the last schema</p>
 </td> 
@@ -497,7 +497,7 @@
 <tr>
 <td> 
 <p><code>FULL</code></p>
-</td> 
+</td>
 <td> 
 <p>Can read the last schema</p>
 </td> 
@@ -505,7 +505,7 @@
 <tr>
 <td> 
 <p><code>FULL_TRANSITIVE</code></p>
-</td> 
+</td>
 <td> 
 <p>Can read all schemas</p>
 </td> 
@@ -529,10 +529,10 @@
 <tr>
 <td> 
 <p><code>ALWAYS_COMPATIBLE</code></p>
-</td> 
+</td>
 <td> 
 <p>Any order</p>
-</td> 
+</td>
 <td> 
 <p>The compatibility check is disabled.</p>
 <p>Consequently, you can upgrade the producers and consumers in <strong>any order</strong>.</p>
@@ -541,10 +541,10 @@
 <tr>
 <td> 
 <p><code>ALWAYS_INCOMPATIBLE</code></p>
-</td> 
+</td>
 <td> 
 <p>None</p>
-</td> 
+</td>
 <td> 
 <p>The schema evolution is disabled.</p>
 </td> 
@@ -555,10 +555,10 @@
 <li><p><code>BACKWARD</code></p></li>
 <li><p><code>BACKWARD_TRANSITIVE</code></p></li>
 </ul>
-</td> 
+</td>
 <td> 
 <p>Consumers</p>
-</td> 
+</td>
 <td> 
 <p>There is no guarantee that consumers using the old schema can read data produced using the new schema.</p>
 <p>Consequently, <strong>upgrade all consumers first</strong>, and then start producing new data.</p>
@@ -570,10 +570,10 @@
 <li><p><code>FORWARD</code></p></li>
 <li><p><code>FORWARD_TRANSITIVE</code></p></li>
 </ul>
-</td> 
+</td>
 <td> 
 <p>Producers</p>
-</td> 
+</td>
 <td> 
 <p>There is no guarantee that consumers using the new schema can read data produced using the old schema.</p>
 <p>Consequently, <strong>upgrade all producers first</strong> to use the new schema and ensure that the data already produced using the old schemas are not available to consumers, and then upgrade the consumers.</p>
@@ -585,10 +585,10 @@
 <li><p><code>FULL</code></p></li>
 <li><p><code>FULL_TRANSITIVE</code></p></li>
 </ul>
-</td> 
+</td>
 <td> 
 <p>Any order</p>
-</td> 
+</td>
 <td> 
 <p>There is no guarantee that consumers using the old schema can read data produced using the new schema and consumers using the new schema can read data produced using the old schema.</p>
 <p>Consequently, you can upgrade the producers and consumers in <strong>any order</strong>.</p>

@@ -84,7 +84,7 @@
 <p>Skip to the <a href="#how-pulsar-uses-zookeeper-and-bookkeeper">How Pulsar uses ZooKeeper and BookKeeper</a> section below for a more schematic explanation of the role of these two systems in Pulsar.</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="zookeeper"></a><a href="#zookeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ZooKeeper</h2>
-<p>每个 Pulsar 实例需要两个独立的 ZooKeeper 集群。</p>
+<p>每个 Pulsar 实例需要两个独立的 ZooKeeper quorum 节点。</p>
 <ul>
 <li><a href="#deploy-local-zookeeper">本地集群</a>负责集群级别的操作，提供集群的配置管理和协调。 每个 Pulsar 集群都需要一个专用的 ZooKeeper 集群。</li>
 <li><a href="#deploy-configuration-store">Configuration Store</a> 在实例层面运行，为整个系统提供配置管理（从而实现跨集群）。 配置集群可以部署在独立的机器集群，也可以和本地 Zookeeper 集群部署在同一批机器。</li>
@@ -92,12 +92,12 @@
 <h3><a class="anchor" aria-hidden="true" id="部署本地zookeeper"></a><a href="#部署本地zookeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>部署本地Zookeeper</h3>
 <p>ZooKeeper 负责管理与 Pulsar 协调和配置相关的各种基本任务。</p>
 <p>To deploy a Pulsar instance, you need to stand up one local ZooKeeper cluster <em>per Pulsar cluster</em>.</p>
-<p>首先，将所有 ZooKeeper 服务器添加到 <a href="/docs/zh-CN/2.6.4/reference-configuration#zookeeper"><code>conf/zookeeper.conf</code></a> 指定的 quorum 配置中。 在配置文件中为每个节点添加一个 <code>server.N</code> 行，其中 <code>N</code> 是 ZooKeeper 节点的编号。 以下是一个三节点集群的示例：</p>
+<p>首先，将所有 ZooKeeper 服务器添加到 <a href="/docs/zh-CN/2.6.4/reference-configuration#zookeeper"><code>conf/zookeeper.conf</code></a> 指定的 quorum 配置中。 在配置文件中为每个集群节点添加一个 <code>server.N</code> 行，其中 <code>N</code> 是 ZooKeeper 节点的编号。 以下是一个三节点集群的示例：</p>
 <pre><code class="hljs css language-properties"><span class="hljs-meta">server.1</span>=<span class="hljs-string">zk1.us-west.example.com:2888:3888</span>
 <span class="hljs-meta">server.2</span>=<span class="hljs-string">zk2.us-west.example.com:2888:3888</span>
 <span class="hljs-meta">server.3</span>=<span class="hljs-string">zk3.us-west.example.com:2888:3888</span>
 </code></pre>
-<p>在每台主机上，您需要为每个节点指定节点 ID 到 <code>myid</code> 文件中， 默认位置在服务器的 <code>data/zookeeper</code> 目录 (您可以通过 <a href="/docs/zh-CN/2.6.4/reference-configuration#zookeeper-dataDir"><code>dataDir</code></a> 参数更改文件位置)。</p>
+<p>在每台主机上，您需要在每个节点的 <code>myid</code> 文件中指定节点 ID，默认位置在服务器的 <code>data/zookeeper</code> 目录 (您可以通过 <a href="/docs/zh-CN/2.6.4/reference-configuration#zookeeper-dataDir"><code>dataDir</code></a> 参数更改文件位置)。</p>
 <blockquote>
 <p>参考<a href="https://zookeeper.apache.org/doc/r3.4.10/zookeeperAdmin.html#sc_zkMulitServerSetup">多集群安装指南</a>的Zookeeper 文档了解更多关于<code>myid</code>或者其他部分的详细信息。</p>
 </blockquote>
@@ -105,7 +105,7 @@
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> mkdir -p data/zookeeper</span>
 <span class="hljs-meta">$</span><span class="bash"> <span class="hljs-built_in">echo</span> 1 &gt; data/zookeeper/myid</span>
 </code></pre>
-<p>在服务器<code>zk2.us-west.example.com</code>上，设置通过命令<code>echo 2 &gt; data/zookeeper/myid</code>设置myid。</p>
+<p>在服务器<code>zk2.us-west.example.com</code>上，设置命令是<code>echo 2 &gt; data/zookeeper/myid</code>，以此类推。</p>
 <p>一旦你在每台机器增加了<code>zookeeper.conf</code>配置文件，并且设置了<code>myid</code>，你能够在所有机器上使用<a href="/docs/zh-CN/2.6.4/reference-cli-tools#pulsar-daemon"><code>pulsar-daemon</code></a>命令去启动Zookeeper 服务(前台运行或者后台运行)。</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-daemon start zookeeper</span>
 </code></pre>

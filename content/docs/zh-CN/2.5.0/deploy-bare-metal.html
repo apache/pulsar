@@ -230,7 +230,7 @@ tiered-storage-jcloud-2.7.2.nar
 <pre><code class="hljs css language-bash">$ mkdir -p data/zookeeper
 $ <span class="hljs-built_in">echo</span> 1 &gt; data/zookeeper/myid
 </code></pre>
-<p>在服务器<code>zk2.us-west.example.com</code>上，设置通过命令<code>echo 2 &gt; data/zookeeper/myid</code>设置myid。</p>
+<p>在服务器<code>zk2.us-west.example.com</code>上，设置命令是<code>echo 2 &gt; data/zookeeper/myid</code>，以此类推。</p>
 <p>一旦你在每台机器增加了<code>zookeeper.conf</code>配置文件，并且设置了<code>myid</code>，你能够在所有机器上使用<a href="/docs/zh-CN/2.5.0/reference-cli-tools#pulsar-daemon"><code>pulsar-daemon</code></a>命令去启动Zookeeper 服务(前台运行或者后台运行)。</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-daemon start zookeeper
 </code></pre>

@@ -120,16 +120,16 @@
 <tr>
 <td> 
 <p><code>ALWAYS_COMPATIBLE</code></p>
-</td> 
+</td>
 <td> 
 <p>禁用 schema 兼容性检查。</p>
-</td> 
+</td>
 <td> 
 <p>允许所有更改</p>
-</td> 
+</td>
 <td> 
 <p>所有旧版本</p>
-</td> 
+</td>
 <td> 
 <p>任何请求</p>
 </td> 
@@ -137,16 +137,16 @@
 <tr>
 <td> 
 <p><code>ALWAYS_INCOMPATIBLE</code></p>
-</td> 
+</td>
 <td> 
 <p>禁用 schema 演化。</p>
-</td> 
+</td>
 <td> 
 <p>禁用更改</p>
-</td> 
+</td>
 <td> 
 <p>无</p>
-</td> 
+</td>
 <td> 
 <p>无</p>
 </td> 
@@ -154,19 +154,19 @@
 <tr>
 <td> 
 <p><code>BACKWARD</code></p>
-</td> 
+</td>
 <td> 
 <p>使用 schema V3 的 consumer 可以处理 producer 使用 schema V3 或 V2 编写的数据。</p>
-</td> 
+</td>
 <td> 
 <ul>
 <li><p>添加可选字段</p></li>
 <li><p>删除字段</p></li>
 </ul>
-</td> 
+</td>
 <td> 
 <p>最新版本</p>
-</td> 
+</td>
 <td> 
 <p>Consumers</p>
 </td> 
@@ -174,19 +174,19 @@
 <tr>
 <td> 
 <p><code>BACKWARD_TRANSITIVE</code></p>
-</td> 
+</td>
 <td> 
 <p>使用 schema V3 的 consumer 可以处理 producer 使用 schema V3、V2 或 V1 编写的数据。</p>
-</td> 
+</td>
 <td> 
 <ul>
 <li><p>添加可选字段</p></li>
 <li><p>删除字段</p></li>
 </ul>
-</td> 
+</td>
 <td> 
 <p>所有旧版本</p>
-</td> 
+</td>
 <td> 
 <p>Consumers</p>
 </td> 
@@ -194,19 +194,19 @@
 <tr>
 <td> 
 <p><code>FORWARD</code></p>
-</td> 
+</td>
 <td> 
 <p>使用 schema V3 或 V2 的 consumer 可以处理 producer 使用 schema V3 编写的数据。</p>
-</td> 
+</td>
 <td> 
 <ul>
 <li><p>添加字段</p></li>
 <li><p>删除可选字段</p></li>
 </ul>
-</td> 
+</td>
 <td> 
 <p>最新版本</p>
-</td> 
+</td>
 <td> 
 <p>Producers</p>
 </td> 
@@ -214,19 +214,19 @@
 <tr>
 <td> 
 <p><code>FORWARD_TRANSITIVE</code></p>
-</td> 
+</td>
 <td> 
 <p>使用 schema V3、V2 或 V1 的 consumer 可以处理 producer 使用 schema V3 编写的数据。</p>
-</td> 
+</td>
 <td> 
 <ul>
 <li><p>添加字段</p></li>
 <li><p>删除可选字段</p></li>
 </ul>
-</td> 
+</td>
 <td> 
 <p>所有旧版本</p>
-</td> 
+</td>
 <td> 
 <p>Producers</p>
 </td> 
@@ -234,18 +234,18 @@
 <tr>
 <td> 
 <p><code>FULL</code></p>
-</td> 
+</td>
 <td> 
 <p>Schema V3 和 V2 之间向后和向前兼容。</p>
-</td> 
+</td>
 <td> 
 <ul>
 <li>修改可选字段</li>
 </ul>
-</td> 
+</td>
 <td> 
 <p>最新版本</p>
-</td> 
+</td>
 <td> 
 <p>任何请求</p>
 </td> 
@@ -253,18 +253,18 @@
 <tr>
 <td> 
 <p><code>FULL_TRANSITIVE</code></p>
-</td> 
+</td>
 <td> 
 <p>Schema V3、V2 和 V1 之间向后和向前兼容。</p>
-</td> 
+</td>
 <td> 
 <ul>
 <li>修改可选字段</li>
 </ul>
-</td> 
+</td>
 <td> 
 <p>所有旧版本</p>
-</td> 
+</td>
 <td> 
 <p>任何请求</p>
 </td> 
@@ -286,10 +286,10 @@
 <tr>
 <td> 
 <p><code>ALWAYS_COMPATIBLE</code></p>
-</td> 
+</td>
 <td> 
 <p>禁用 schema 兼容性检查。</p>
-</td> 
+</td>
 <td> 
 <p>无</p>
 </td> 
@@ -297,10 +297,10 @@
 <tr>
 <td> 
 <p><code>ALWAYS_INCOMPATIBLE</code></p>
-</td> 
+</td>
 <td> 
 <p>禁用 schema 演化，即不允许 schema 更改。</p>
-</td> 
+</td>
 <td> 
 <ul>
 <li><p>除 Avro 和 JSON 以外所有类型的 schema，其默认 schema 兼容性检查策略为 <code>ALWAYS_INCOMPATIBLE</code> 。</p></li>
@@ -386,18 +386,18 @@
 <tr>
 <td> 
 <p><code>FULL</code></p>
-</td> 
+</td>
 <td> 
 <p>Schema 既向后兼容，也向前兼容，也就是说：</p>
 <p>使用最新 schema 的 consumer 可以处理 producer 使用新 schema 编写的数据。</p>
 <p>并且</p>
 <p>使用 schema 的 consumer 可以处理 producer 使用最新 schema 编写的数据。</p>
-</td> 
+</td>
 <td> 
 <p>使用 schema V3 的 consumer 可以处理 producer 使用 schema V3 或 V2 编写的数据。</p>
 <p>并且</p>
 <p>使用 schema V3 或 V2 的 consumer 可以处理 producer 使用 schema V3 编写的数据。</p>
-</td> 
+</td>
 <td> 
 <ul>
 <li><p>Avro 和 JSON 的默认 schema 兼容性检查策略为 `FULL'。</p></li>
@@ -408,15 +408,15 @@
 <tr>
 <td> 
 <p><code>FULL_TRANSITIVE</code></p>
-</td> 
+</td>
 <td> 
 <p>新的 schema 可以与所有注册过的 schema 向后或向前兼容。</p>
-</td> 
+</td>
 <td> 
 <p>使用 schema V3 的 consumer 可以处理 producer 使用 schema V3、V2 或 V1 编写的数据。</p>
 <p>并且</p>
 <p>使用 schema V3、V2 或 V1 的 consumer 可以处理 producer 使用 schema V3 编写的数据。</p>
-</td> 
+</td>
 <td> 
 <p>无</p>
 </td>
@@ -449,7 +449,7 @@
 <tr>
 <td> 
 <p><code>ALWAYS_COMPATIBLE</code></p>
-</td> 
+</td>
 <td> 
 <p>全部通过</p>
 </td> 
@@ -457,7 +457,7 @@
 <tr>
 <td> 
 <p><code>ALWAYS_INCOMPATIBLE</code></p>
-</td> 
+</td>
 <td> 
 <p>不能通过</p>
 </td> 
@@ -465,7 +465,7 @@
 <tr>
 <td> 
 <p><code>BACKWARD</code></p>
-</td> 
+</td>
 <td> 
 <p>可读取上一个 schema</p>
 </td> 
@@ -473,7 +473,7 @@
 <tr>
 <td> 
 <p><code>BACKWARD_TRANSITIVE</code></p>
-</td> 
+</td>
 <td> 
 <p>可以读取所有 schemas</p>
 </td> 
@@ -481,7 +481,7 @@
 <tr>
 <td> 
 <p><code>FORWARD</code></p>
-</td> 
+</td>
 <td> 
 <p>可读取上一个 schema</p>
 </td> 
@@ -489,7 +489,7 @@
 <tr>
 <td> 
 <p><code>FORWARD_TRANSITIVE</code></p>
-</td> 
+</td>
 <td> 
 <p>可读取上一个 schema</p>
 </td> 
@@ -497,7 +497,7 @@
 <tr>
 <td> 
 <p><code>FULL</code></p>
-</td> 
+</td>
 <td> 
 <p>可读取上一个 schema</p>
 </td> 
@@ -505,7 +505,7 @@
 <tr>
 <td> 
 <p><code>FULL_TRANSITIVE</code></p>
-</td> 
+</td>
 <td> 
 <p>可以读取所有 schemas</p>
 </td> 
@@ -529,10 +529,10 @@
 <tr>
 <td> 
 <p><code>ALWAYS_COMPATIBLE</code></p>
-</td> 
+</td>
 <td> 
 <p>任何请求</p>
-</td> 
+</td>
 <td> 
 <p>兼容性检查被禁用。</p>
 <p>因此，您可以以<strong>任何顺序</strong>升级producers与consumers</p>
@@ -541,10 +541,10 @@
 <tr>
 <td> 
 <p><code>ALWAYS_INCOMPATIBLE</code></p>
-</td> 
+</td>
 <td> 
 <p>无</p>
-</td> 
+</td>
 <td> 
 <p>schema演化被禁用</p>
 </td> 
@@ -555,10 +555,10 @@
 <li><p><code>BACKWARD</code></p></li>
 <li><p><code>BACKWARD_TRANSITIVE</code></p></li>
 </ul>
-</td> 
+</td>
 <td> 
 <p>Consumers</p>
-</td> 
+</td>
 <td> 
 <p>不保证使用旧schema的consumer能读取使用新schema的producer产生的数据。</p>
 <p>因此，<strong>优先升级所有consumers</strong>，然后再开始生产新的数据</p>
@@ -570,10 +570,10 @@
 <li><p><code>FORWARD</code></p></li>
 <li><p><code>FORWARD_TRANSITIVE</code></p></li>
 </ul>
-</td> 
+</td>
 <td> 
 <p>Producers</p>
-</td> 
+</td>
 <td> 
 <p>不保证使用新schema的consumers能读取使用旧schema的producer产生的数据。</p>
 <p>因此，<strong>优先升级所有producers</strong>，让它们用上新的schema，并且保证先前使用旧schema生成的数据不再对consumers可用，然后再去升级consumers</p>
@@ -585,10 +585,10 @@
 <li><p><code>FULL</code></p></li>
 <li><p><code>FULL_TRANSITIVE</code></p></li>
 </ul>
-</td> 
+</td>
 <td> 
 <p>任何请求</p>
-</td> 
+</td>
 <td> 
 <p>不保证使用旧schema的consumers能读取使用新schema生产的数据，或使用新schema的consumers可以读取旧schema生产的数据</p>
 <p>因此，您可以以<strong>任何顺序</strong>升级producers与consumers</p>
