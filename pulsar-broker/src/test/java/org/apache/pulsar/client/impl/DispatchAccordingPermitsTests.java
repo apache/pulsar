@@ -57,9 +57,7 @@ public class DispatchAccordingPermitsTests extends ProducerConsumerBase {
      * 1. The consumer has 1000 available permits
      * 2. The producer send batches with different batch size
      *
-     * According the batch average size dispatching, the broker will dispatch all the three batch to the consumer
-     *
-     * Then we send more messages to the topic to check if the consumer can continues to receive messages.
+     * According the batch average size dispatching, the broker will dispatch all the batches to the consumer
      */
     @Test
     public void testFlowPermitsWithMultiBatchesDispatch() throws PulsarAdminException, PulsarClientException {
