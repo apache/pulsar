@@ -673,7 +673,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         }
         for (Consumer consumer : consumerList) {
             if (isConsumerAvailable(consumer)) {
-                return consumer.getAvailablePermits();
+                int availablePermits = consumer.getAvailablePermits();
+                if (availablePermits > 0) {
+                    return availablePermits;
+                }
             }
         }
         return 0;
