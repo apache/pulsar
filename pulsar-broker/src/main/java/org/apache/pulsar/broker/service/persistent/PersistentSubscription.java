@@ -189,15 +189,10 @@ public class PersistentSubscription implements Subscription {
         }
 
         if (this.cursor != null) {
-            Map<String, Long> properties = this.cursor.getProperties();
-            try {
-                if (replicated) {
-                    properties.put(REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
-                } else {
-                    properties.remove(REPLICATED_SUBSCRIPTION_PROPERTY);
-                }
-            } catch (UnsupportedOperationException e) {
-                // ManagedCursorImpl#lastMarkDeleteEntry has not been initialized yet
+            if (replicated) {
+                this.cursor.putPropertyIfPossible(REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
+            } else {
+                this.cursor.removePropertyIfPossible(REPLICATED_SUBSCRIPTION_PROPERTY);
             }
         }
     }

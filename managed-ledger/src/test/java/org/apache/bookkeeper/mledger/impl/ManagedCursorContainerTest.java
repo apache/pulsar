@@ -67,6 +67,16 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
+        public boolean putPropertyIfPossible(String key, Long value) {
+            return false;
+        }
+
+        @Override
+        public boolean removePropertyIfPossible(String key) {
+            return false;
+        }
+
+        @Override
         public boolean isDurable() {
             return true;
         }
