@@ -118,7 +118,6 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
             MessageMetadata msgMetadata = entryWrapper.isPresent() && entryWrapper.get()[entryWrapperIndex] != null
                     ? entryWrapper.get()[entryWrapperIndex].getMetadata()
                     : null;
-            System.out.println(msgMetadata.getNumMessagesInBatch());
             msgMetadata = msgMetadata == null
                     ? Commands.peekMessageMetadata(metadataAndPayload, subscription.toString(), -1)
                     : msgMetadata;

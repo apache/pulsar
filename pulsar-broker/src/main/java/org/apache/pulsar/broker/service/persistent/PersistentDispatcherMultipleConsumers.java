@@ -482,11 +482,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             return;
         }
         EntryWrapper[] entryWrappers = new EntryWrapper[entries.size()];
-        int totalMessages = updateEntryWrapperWithMetadata(entryWrappers, entries);
+        int remainingMessages = updateEntryWrapperWithMetadata(entryWrappers, entries);
         int start = 0;
         long totalMessagesSent = 0;
         long totalBytesSent = 0;
-        int avgBatchSizePerMsg = totalMessages > 0 ? Math.max(totalMessages / entries.size(), 1) : 1;
+        int avgBatchSizePerMsg = remainingMessages > 0 ? Math.max(remainingMessages / entries.size(), 1) : 1;
 
         int firstAvailableConsumerPermits, currentTotalAvailablePermits;
         boolean dispatchMessage;
@@ -514,7 +514,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                         c, c.getAvailablePermits());
             }
 
-            int messagesForC = Math.min(Math.min(totalMessages, availablePermits),
+            int messagesForC = Math.min(Math.min(remainingMessages, availablePermits),
                     serviceConfig.getDispatcherMaxRoundRobinBatchSize());
             messagesForC = Math.max(messagesForC / avgBatchSizePerMsg, 1);
 
@@ -539,7 +539,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                         sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(), redeliveryTracker);
 
                 int msgSent = sendMessageInfo.getTotalMessages();
-                totalMessages -= msgSent;
+                remainingMessages -= msgSent;
                 start += messagesForC;
                 entriesToDispatch -= messagesForC;
                 TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this,
