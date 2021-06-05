@@ -115,21 +115,21 @@
 <p>如果是部署一个<a href="#single-cluster-pulsar-instance">单集群</a>实例，你不需要另外部署存储配置的 Zookeeper 集群。 但是，如果部署了 <a href="#multi-cluster-pulsar-instance">多集群</a> 实例，则需要为配置任务设置一个单独的 ZooKeeper 集群。</p>
 <h4><a class="anchor" aria-hidden="true" id="单集群-pulsar-实例"></a><a href="#单集群-pulsar-实例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>单集群 Pulsar 实例</h4>
 <p>如果你的 Pulsar 实例只包含一个集群，你可以在同一批机器上部署本地 Zookeeper 集群和配置存储 Zookeeper 集群，此时这两个集群的 TCP 端口信息需要不一样。</p>
-<p>要在单个集群实例中部署配置存储的 Zookeeper 集群。步骤跟部署<a href="#local-zookeeper">本地 Zookeeper</a>一样，将同一批机器(跟本地集群一样的机器列表)信息添加到配置文件<a href="/docs/zh-CN/next/reference-configuration#configuration-store"><code>conf/global_zookeeper.conf</code></a>中，但是必须确保使用不同的端口(Zookeeper 默认使用2181端口)。 以下是一个使用 2184 端口的三节点ZooKeeper 集群的示例：</p>
+<p>要在单个集群实例中部署配置存储的 ZooKeeper 集群，步骤跟部署<a href="#local-zookeeper">本地 ZooKeeper</a>一样，将同一批机器(跟本地集群一样的机器列表)信息添加到配置文件<a href="/docs/zh-CN/next/reference-configuration#configuration-store"><code>conf/global_zookeeper.conf</code></a>中，但是必须确保使用不同的端口(ZooKeeper 默认使用 2181 端口)。 以下是一个使用 2184 端口的三节点ZooKeeper 集群的示例：</p>
 <pre><code class="hljs css language-properties"><span class="hljs-attr">clientPort</span>=<span class="hljs-string">2184</span>
 <span class="hljs-meta">server.1</span>=<span class="hljs-string">zk1.us-west.example.com:2185:2186</span>
 <span class="hljs-meta">server.2</span>=<span class="hljs-string">zk2.us-west.example.com:2185:2186</span>
 <span class="hljs-meta">server.3</span>=<span class="hljs-string">zk3.us-west.example.com:2185:2186</span>
 </code></pre>
 <p>跟之前一样，在 <code>data/global-zoocheper/myid</code> 文件为每个服务器创建 <code>myid</code> 。</p>
-<h4><a class="anchor" aria-hidden="true" id="多集群实例"></a><a href="#多集群实例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>多集群实例</h4>
+<h4><a class="anchor" aria-hidden="true" id="多集群-pulsar-实例"></a><a href="#多集群-pulsar-实例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>多集群 Pulsar 实例</h4>
 <p>当你部署一个全球性的Pulsar实例时，集群分布在不同的地理区域。配置存储必须是一个高可用和强一致的元数据存储服务，必须能够容忍整个区域的故障和分区。</p>
-<p>这里的关键是确保 ZK 成员投票节点必须分布在3个区域，其他区域以观察员身份运行。</p>
-<p>强调一下，配置存储集群的服务器的负载预计会非常低，所以你能够和本地的 zookeeper 服务器的共用同一批机器。</p>
+<p>这里的关键是确保 ZK quorum 节点必须分布在至少 3 个区域，其他区域以观察员身份运行。</p>
+<p>强调一下，配置存储集群的服务器的负载预计会非常低，所以你能够和本地的 ZooKeeper quorum 共用同一批机器。</p>
 <p>例如，假设 Pulsar 实例由如下集群组成：<code>us-west</code>, <code>us-east</code>, <code>us-central</code>, <code>eu-central</code>, <code>ap-south</code>。 并且假设每个集群自己的本地 ZK 服务器的名字格式如下：</p>
 <pre><code class="hljs">zk[1-3].${CLUSTER}.example.com
 </code></pre>
-<p>在这种情况下，可以从几个集群中选择投票节点，让其他所有节点成为 ZK 观察者节点。 例如，要形成7个服务器组成的投票节点，您可以从 <code>us-west</code>中挑选3个服务器，从 <code>us-central</code> 和<code>us-east</code>分别挑选两个。</p>
+<p>在这种情况下，可以从几个集群中选择 quorum 节点，让其他所有节点成为 ZK 观察者节点。 例如，要形成7个服务器组成的投票节点，您可以从 <code>us-west</code>中挑选3个服务器，从 <code>us-central</code> 和<code>us-east</code>分别挑选两个。</p>
 <p>这个方法保证即使其中一个区域无法连接，数据也可以写入配置存储服务。</p>
 <p>所有服务器中的 ZK 配置如下：</p>
 <pre><code class="hljs css language-properties"><span class="hljs-attr">clientPort</span>=<span class="hljs-string">2184</span>
@@ -153,13 +153,13 @@
 <pre><code class="hljs css language-properties"><span class="hljs-attr">peerType</span>=<span class="hljs-string">observer</span>
 </code></pre>
 <h5><a class="anchor" aria-hidden="true" id="启动服务"></a><a href="#启动服务" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>启动服务</h5>
-<p>配置完成后，你可以通过<a href="/docs/zh-CN/next/reference-cli-tools#pulsar-daemon"><code>pulsar-daemon</code></a>来启动集群。</p>
+<p>配置存储服务配置完成后，你可以通过<a href="/docs/zh-CN/next/reference-cli-tools#pulsar-daemon"><code>pulsar-daemon</code></a>来启动集群。</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-daemon start configuration-store</span>
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="zookeeper-配置项说明"></a><a href="#zookeeper-配置项说明" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Zookeeper 配置项说明</h3>
-<p>在 Pulsar 的安装目录中有两个独立的 Zookeeper 配置文件：<a href="#local-zookeeper">本地集群</a>使用<code>conf/zookeeper.conf</code>配置文件，<a href="#configuration-store">配置存储集群</a>使用<code>conf/global-zookeeper.conf</code>配置文件。</p>
-<h4><a class="anchor" aria-hidden="true" id="本地-zookeeper-集群"></a><a href="#本地-zookeeper-集群" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>本地 Zookeeper 集群</h4>
-<p>本地 Zookeeper 集群的配置文件是<a href="/docs/zh-CN/next/reference-configuration#zookeeper"><code>conf/zookeeper.conf</code></a>。下表是可用的配置项列表：</p>
+<p>在 Pulsar 的安装目录中有两个独立的 ZooKeeper 配置文件：一是<a href="#local-zookeeper">本地 ZooKeeper 集群</a>使用<code>conf/zookeeper.conf</code>配置文件，二是<a href="#configuration-store">配置存储集群</a>使用的<code>conf/global-zookeeper.conf</code>配置文件。</p>
+<h4><a class="anchor" aria-hidden="true" id="本地-zookeeper"></a><a href="#本地-zookeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>本地 ZooKeeper</h4>
+<p><a href="/docs/zh-CN/next/reference-configuration#zookeeper"><code>conf/zookeeper.conf</code></a>是处理本地 ZooKeeper 的配置文件。下表是可用的配置项列表：</p>
 <table>
 <thead>
 <tr><th>配置项</th><th>说明</th><th>默认值</th></tr>
@@ -175,10 +175,10 @@
 <tr><td>maxClientCnxns</td><td>客户端连接的最大数量，如果你需要处理更多的 Zookeeper 客户端，就需要增加这个配置项的值。</td><td>60</td></tr>
 </tbody>
 </table>
-<h4><a class="anchor" aria-hidden="true" id="configuration-store"></a><a href="#configuration-store" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration Store</h4>
+<h4><a class="anchor" aria-hidden="true" id="配置存储"></a><a href="#配置存储" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置存储</h4>
 <p>配置存储服务集群使用的配置文件是<a href="/docs/zh-CN/next/reference-configuration#configuration-store"><code>conf/global-zookeeper.conf</code></a>。 下表是可用的配置项列表：</p>
 <h2><a class="anchor" aria-hidden="true" id="bookkeeper"></a><a href="#bookkeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>BookKeeper</h2>
-<p>Pulsar 使用 Bookeeper 来存储所有的持久化消息。 Bookeeper 是一个分布式的<a href="https://en.wikipedia.org/wiki/Write-ahead_logging"> 预写日志</a> 系统。它保证了独立消息日志读取的一致性，称为 ledger。 每个 Bookeeper 服务器称为<em>bookies</em>。</p>
+<p>Pulsar 使用 BookKeeper 来存储所有的持久化消息。 Bookeeper 是一个分布式的<a href="https://en.wikipedia.org/wiki/Write-ahead_logging"> 预写日志</a> 系统。它保证了独立消息日志读取的一致性，称为 ledger。 每个 Bookeeper 服务器称为<em>bookies</em>。</p>
 <blockquote>
 <p>Pulsar 中管理消息的持久性，保留策略和过期时间，请参考<a href="/docs/zh-CN/next/cookbooks-retention-expiry">该指南</a>。</p>
 </blockquote>
@@ -209,7 +209,7 @@
 <blockquote>
 <p>需要了解更多 Bookeeper 的信息，请参考<a href="http://bookkeeper.apache.org">BookKeeper 官方文档</a>。</p>
 </blockquote>
-<h3><a class="anchor" aria-hidden="true" id="部署-bookkeeper"></a><a href="#部署-bookkeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>部署 Bookkeeper</h3>
+<h3><a class="anchor" aria-hidden="true" id="部署-bookkeeper"></a><a href="#部署-bookkeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>部署 BookKeeper</h3>
 <p>BookKeeper provides <a href="/docs/zh-CN/next/concepts-architecture-overview#persistent-storage">persistent message storage</a> for Pulsar. 每个 Pulsar Broker 都有属于自己的 bookie。 The BookKeeper cluster shares a local ZooKeeper quorum with the Pulsar cluster.</p>
 <h3><a class="anchor" aria-hidden="true" id="手动启动-bookie"></a><a href="#手动启动-bookie" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>手动启动 bookie</h3>
 <p>你可以在前台或者后台启动 bookie。</p>
@@ -248,23 +248,23 @@
 <h2><a class="anchor" aria-hidden="true" id="bookeeper-持久化策略"></a><a href="#bookeeper-持久化策略" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Bookeeper 持久化策略</h2>
 <p>在Pulsar中，你可以在命名空间级别设置<em>持久化策略</em>，它决定了 BookKeeper 如何处理消息的持久化。该策略决定了四件事：</p>
 <ul>
-<li>等待每个 ledger 条目的 ack (保证数据保存成功) 数。</li>
+<li>每个 ledger entry 的等待 ack 数 (保证数据保存成功)</li>
 <li>主题使用的的 bookie 数量。</li>
 <li>每个ledger entry 的写入次数。</li>
 <li>标记删除操作的限流率。</li>
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="设置持久化策略"></a><a href="#设置持久化策略" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>设置持久化策略</h3>
-<p>You can set persistence policies for BookKeeper at the <a href="/docs/zh-CN/next/reference-terminology#namespace">namespace</a> level.</p>
+<p>你可以在 <a href="/docs/zh-CN/next/reference-terminology#namespace">命名空间</a> 级别设置 BookKeeper 的持久化策略。</p>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin"></a><a href="#pulsar-admin" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar-admin</h4>
-<p>Use the <a href="/docs/zh-CN/next/pulsar-admin#namespaces-set-persistence"><code>set-persistence</code></a> subcommand and specify a namespace as well as any policies that you want to apply. The available flags are:</p>
+<p>使用 <a href="/docs/zh-CN/next/pulsar-admin#namespaces-set-persistence"><code>set-persistence</code></a> 子命令并指定一个命名空间，以及你想应用的任何策略。 可用参数包括：</p>
 <table>
 <thead>
-<tr><th style="text-align:left">标记</th><th style="text-align:left">说明</th><th style="text-align:left">默认值</th></tr>
+<tr><th style="text-align:left">参数</th><th style="text-align:left">说明</th><th style="text-align:left">默认值</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>-a</code>, <code>--bookkeeper-ack-quorom</code></td><td style="text-align:left">等待每个 ledger 条目 的 ack (保证数据保存成功) 数。</td><td style="text-align:left">0</td></tr>
-<tr><td style="text-align:left"><code>-e</code>, <code>--bookkeeper-ensemble</code></td><td style="text-align:left">主题在命名空间中使用的<a href="/docs/zh-CN/next/reference-terminology#bookie"> bookie </a>数量。</td><td style="text-align:left">0</td></tr>
-<tr><td style="text-align:left"><code>-w</code>, <code>--bookkeeper-write-quorum</code></td><td style="text-align:left">为每个条目写入的次数(即每条消息保存多少份副本)。</td><td style="text-align:left">0</td></tr>
+<tr><td style="text-align:left"><code>-a</code>, <code>--bookkeeper-ack-quorom</code></td><td style="text-align:left">每个 ledger entry 的等待 ack 数 (保证数据保存成功)</td><td style="text-align:left">0</td></tr>
+<tr><td style="text-align:left"><code>-e</code>, <code>--bookkeeper-ensemble</code></td><td style="text-align:left">主题在命名空间中使用的<a href="/docs/zh-CN/next/reference-terminology#bookie"> bookie </a>数量</td><td style="text-align:left">0</td></tr>
+<tr><td style="text-align:left"><code>-w</code>, <code>--bookkeeper-write-quorum</code></td><td style="text-align:left">每个 ledger entry 的写入次数</td><td style="text-align:left">0</td></tr>
 <tr><td style="text-align:left"><code>-r</code>, <code>--ml-mark-delete-max-rate</code></td><td style="text-align:left">标记删除操作的限流频率(0表示不限制)</td><td style="text-align:left">0</td></tr>
 </tbody>
 </table>
@@ -286,9 +286,9 @@ PersistencePolicies policies =
 admin.namespaces().setPersistence(namespace, policies);
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="列出持久化策略"></a><a href="#列出持久化策略" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>列出持久化策略</h3>
-<p>You can see which persistence policy currently applies to a namespace.</p>
+<p>你可以查看当前命名空间应用的持久化策略。</p>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin-1"></a><a href="#pulsar-admin-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar-admin</h4>
-<p>Use the <a href="/docs/zh-CN/next/pulsar-admin#namespaces-get-persistence"><code>get-persistence</code></a> subcommand and specify the namespace.</p>
+<p>使用 <a href="/docs/zh-CN/next/pulsar-admin#namespaces-get-persistence"><code>get-persistence</code></a> 子命令并指定命名空间。</p>
 <p>如下所示：</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin namespaces get-persistence my-tenant/my-ns</span>
 {
@@ -305,10 +305,10 @@ admin.namespaces().setPersistence(namespace, policies);
 <pre><code class="hljs css language-java">PersistencePolicies policies = admin.namespaces().getPersistence(namespace);
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="pulsar-如何使用-zookeeper-和-bookkeeper"></a><a href="#pulsar-如何使用-zookeeper-和-bookkeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar 如何使用 ZooKeeper 和 BookKeeper</h2>
-<p>This diagram illustrates the role of ZooKeeper and BookKeeper in a Pulsar cluster:</p>
+<p>该图解释了 ZooKeeper 和 BookKeeper 在 Pulsar 集群中的作用：</p>
 <p><img src="/docs/assets/pulsar-system-architecture.png" alt="ZooKeeper 和 BookKeeper"></p>
-<p>Each Pulsar cluster consists of one or more message brokers. Each broker relies on an ensemble of bookies.</p>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/deploy-monitoring"><span class="arrow-prev">← </span><span>Monitor</span></a><a class="docs-next button" href="/docs/zh-CN/next/administration-geo"><span>跨地域复制</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#zookeeper">ZooKeeper</a><ul class="toc-headings"><li><a href="#部署本地zookeeper">部署本地Zookeeper</a></li><li><a href="#部署-configuration-store">部署 Configuration Store</a></li><li><a href="#zookeeper-配置项说明">Zookeeper 配置项说明</a></li></ul></li><li><a href="#bookkeeper">BookKeeper</a><ul class="toc-headings"><li><a href="#硬件要求">硬件要求</a></li><li><a href="#configure-bookkeeper">Configure BookKeeper</a></li><li><a href="#部署-bookkeeper">部署 Bookkeeper</a></li><li><a href="#手动启动-bookie">手动启动 bookie</a></li><li><a href="#下线-bookie">下线 bookie</a></li></ul></li><li><a href="#bookeeper-持久化策略">Bookeeper 持久化策略</a><ul class="toc-headings"><li><a href="#设置持久化策略">设置持久化策略</a></li><li><a href="#列出持久化策略">列出持久化策略</a></li></ul></li><li><a href="#pulsar-如何使用-zookeeper-和-bookkeeper">Pulsar 如何使用 ZooKeeper 和 BookKeeper</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+<p>每个 Pulsar 集群由一个或多个消息 broker 组成。每个 broker 依靠一组 bookie。</p>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/deploy-monitoring"><span class="arrow-prev">← </span><span>Monitor</span></a><a class="docs-next button" href="/docs/zh-CN/next/administration-geo"><span>跨地域复制</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#zookeeper">ZooKeeper</a><ul class="toc-headings"><li><a href="#部署本地zookeeper">部署本地Zookeeper</a></li><li><a href="#部署-configuration-store">部署 Configuration Store</a></li><li><a href="#zookeeper-配置项说明">Zookeeper 配置项说明</a></li></ul></li><li><a href="#bookkeeper">BookKeeper</a><ul class="toc-headings"><li><a href="#硬件要求">硬件要求</a></li><li><a href="#configure-bookkeeper">Configure BookKeeper</a></li><li><a href="#部署-bookkeeper">部署 BookKeeper</a></li><li><a href="#手动启动-bookie">手动启动 bookie</a></li><li><a href="#下线-bookie">下线 bookie</a></li></ul></li><li><a href="#bookeeper-持久化策略">Bookeeper 持久化策略</a><ul class="toc-headings"><li><a href="#设置持久化策略">设置持久化策略</a></li><li><a href="#列出持久化策略">列出持久化策略</a></li></ul></li><li><a href="#pulsar-如何使用-zookeeper-和-bookkeeper">Pulsar 如何使用 ZooKeeper 和 BookKeeper</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

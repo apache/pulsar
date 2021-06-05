@@ -121,14 +121,14 @@
 <span class="hljs-meta">server.3</span>=<span class="hljs-string">zk3.us-west.example.com:2185:2186</span>
 </code></pre>
 <p>跟之前一样，在 <code>data/global-zoocheper/myid</code> 文件为每个服务器创建 <code>myid</code> 。</p>
-<h4><a class="anchor" aria-hidden="true" id="多集群实例"></a><a href="#多集群实例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>多集群实例</h4>
+<h4><a class="anchor" aria-hidden="true" id="多集群-pulsar-实例"></a><a href="#多集群-pulsar-实例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>多集群 Pulsar 实例</h4>
 <p>当你部署一个全球性的Pulsar实例时，集群分布在不同的地理区域。配置存储必须是一个高可用和强一致的元数据存储服务，必须能够容忍整个区域的故障和分区。</p>
 <p>这里的关键是确保 ZK 成员投票节点必须分布在3个区域，其他区域以观察员身份运行。</p>
-<p>强调一下，配置存储集群的服务器的负载预计会非常低，所以你能够和本地的 zookeeper 服务器的共用同一批机器。</p>
+<p>强调一下，配置存储集群的服务器的负载预计会非常低，所以你能够和本地的 ZooKeeper quorum 共用同一批机器。</p>
 <p>例如，假设 Pulsar 实例由如下集群组成：<code>us-west</code>, <code>us-east</code>, <code>us-central</code>, <code>eu-central</code>, <code>ap-south</code>。 并且假设每个集群自己的本地 ZK 服务器的名字格式如下：</p>
 <pre><code class="hljs">zk[<span class="hljs-number">1</span><span class="hljs-number">-3</span>].${CLUSTER}.example.com
 </code></pre>
-<p>在这种情况下，可以从几个集群中选择投票节点，让其他所有节点成为 ZK 观察者节点。 例如，要形成7个服务器组成的投票节点，您可以从 <code>us-west</code>中挑选3个服务器，从 <code>us-central</code> 和<code>us-east</code>分别挑选两个。</p>
+<p>在这种情况下，可以从几个集群中选择 quorum 节点，让其他所有节点成为 ZK 观察者节点。 例如，要形成7个服务器组成的投票节点，您可以从 <code>us-west</code>中挑选3个服务器，从 <code>us-central</code> 和<code>us-east</code>分别挑选两个。</p>
 <p>这个方法保证即使其中一个区域无法连接，数据也可以写入配置存储服务。</p>
 <p>所有服务器中的 ZK 配置如下：</p>
 <pre><code class="hljs css language-properties"><span class="hljs-attr">clientPort</span>=<span class="hljs-string">2184</span>
@@ -152,12 +152,12 @@
 <pre><code class="hljs css language-properties"><span class="hljs-attr">peerType</span>=<span class="hljs-string">observer</span>
 </code></pre>
 <h5><a class="anchor" aria-hidden="true" id="启动服务"></a><a href="#启动服务" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>启动服务</h5>
-<p>配置完成后，你可以通过<a href="/docs/zh-CN/2.7.1/reference-cli-tools#pulsar-daemon"><code>pulsar-daemon</code></a>来启动集群。</p>
+<p>配置存储服务配置完成后，你可以通过<a href="/docs/zh-CN/2.7.1/reference-cli-tools#pulsar-daemon"><code>pulsar-daemon</code></a>来启动集群。</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-daemon start configuration-store</span>
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="zookeeper-配置项说明"></a><a href="#zookeeper-配置项说明" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Zookeeper 配置项说明</h3>
-<p>在 Pulsar 的安装目录中有两个独立的 Zookeeper 配置文件：<a href="#local-zookeeper">本地集群</a>使用<code>conf/zookeeper.conf</code>配置文件，<a href="#configuration-store">配置存储集群</a>使用<code>conf/global-zookeeper.conf</code>配置文件。</p>
-<h4><a class="anchor" aria-hidden="true" id="本地-zookeeper-集群"></a><a href="#本地-zookeeper-集群" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>本地 Zookeeper 集群</h4>
+<p>在 Pulsar 的安装目录中有两个独立的 ZooKeeper 配置文件：一是<a href="#local-zookeeper">本地 ZooKeeper 集群</a>使用<code>conf/zookeeper.conf</code>配置文件，二是<a href="#configuration-store">配置存储集群</a>使用的<code>conf/global-zookeeper.conf</code>配置文件。</p>
+<h4><a class="anchor" aria-hidden="true" id="本地-zookeeper"></a><a href="#本地-zookeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>本地 ZooKeeper</h4>
 <p>The <a href="/docs/zh-CN/2.7.1/reference-configuration#zookeeper"><code>conf/zookeeper.conf</code></a> file handles the configuration for local ZooKeeper. 下表是可用的配置项列表：</p>
 <table>
 <thead>
@@ -177,7 +177,7 @@
 <h4><a class="anchor" aria-hidden="true" id="configuration-store"></a><a href="#configuration-store" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration Store</h4>
 <p>配置存储服务集群使用的配置文件是<a href="/docs/zh-CN/2.7.1/reference-configuration#configuration-store"><code>conf/global-zookeeper.conf</code></a>。 下表是可用的配置项列表：</p>
 <h2><a class="anchor" aria-hidden="true" id="bookkeeper"></a><a href="#bookkeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>BookKeeper</h2>
-<p>Pulsar 使用 Bookeeper 来存储所有的持久化消息。 Bookeeper 是一个分布式的<a href="https://en.wikipedia.org/wiki/Write-ahead_logging"> 预写日志</a> 系统。它保证了独立消息日志读取的一致性，称为 ledger。 Individual BookKeeper servers are also called <em>bookies</em>.</p>
+<p>Pulsar 使用 BookKeeper 来存储所有的持久化消息。 Bookeeper 是一个分布式的<a href="https://en.wikipedia.org/wiki/Write-ahead_logging"> 预写日志</a> 系统。它保证了独立消息日志读取的一致性，称为 ledger。 Individual BookKeeper servers are also called <em>bookies</em>.</p>
 <blockquote>
 <p>Pulsar 中管理消息的持久性，保留策略和过期时间，请参考<a href="/docs/zh-CN/2.7.1/cookbooks-retention-expiry">该指南</a>。</p>
 </blockquote>
@@ -248,7 +248,7 @@
 <h2><a class="anchor" aria-hidden="true" id="bookeeper-持久化策略"></a><a href="#bookeeper-持久化策略" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Bookeeper 持久化策略</h2>
 <p>In Pulsar, you can set <em>persistence policies</em> at the namespace level, which determines how BookKeeper handles persistent storage of messages. Policies determine four things:</p>
 <ul>
-<li>等待每个 ledger 条目的 ack (保证数据保存成功) 数。</li>
+<li>每个 ledger entry 的等待 ack 数 (保证数据保存成功)</li>
 <li>主题使用的的 bookie 数量。</li>
 <li>每个ledger entry 的写入次数。</li>
 <li>标记删除操作的限流率。</li>
@@ -262,9 +262,9 @@
 <tr><th style="text-align:left">标记</th><th style="text-align:left">说明</th><th style="text-align:left">默认值</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>-a</code>, <code>--bookkeeper-ack-quorom</code></td><td style="text-align:left">等待每个 ledger 条目 的 ack (保证数据保存成功) 数。</td><td style="text-align:left">0</td></tr>
-<tr><td style="text-align:left"><code>-e</code>, <code>--bookkeeper-ensemble</code></td><td style="text-align:left">主题在命名空间中使用的<a href="/docs/zh-CN/2.7.1/reference-terminology#bookie"> bookie </a>数量。</td><td style="text-align:left">0</td></tr>
-<tr><td style="text-align:left"><code>-w</code>, <code>--bookkeeper-write-quorum</code></td><td style="text-align:left">为每个条目写入的次数(即每条消息保存多少份副本)。</td><td style="text-align:left">0</td></tr>
+<tr><td style="text-align:left"><code>-a</code>, <code>--bookkeeper-ack-quorom</code></td><td style="text-align:left">每个 ledger entry 的等待 ack 数 (保证数据保存成功)</td><td style="text-align:left">0</td></tr>
+<tr><td style="text-align:left"><code>-e</code>, <code>--bookkeeper-ensemble</code></td><td style="text-align:left">主题在命名空间中使用的<a href="/docs/zh-CN/2.7.1/reference-terminology#bookie"> bookie </a>数量</td><td style="text-align:left">0</td></tr>
+<tr><td style="text-align:left"><code>-w</code>, <code>--bookkeeper-write-quorum</code></td><td style="text-align:left">每个 ledger entry 的写入次数</td><td style="text-align:left">0</td></tr>
 <tr><td style="text-align:left"><code>-r</code>, <code>--ml-mark-delete-max-rate</code></td><td style="text-align:left">标记删除操作的限流频率(0表示不限制)</td><td style="text-align:left">0</td></tr>
 </tbody>
 </table>
