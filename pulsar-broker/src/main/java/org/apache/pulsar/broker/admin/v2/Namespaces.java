@@ -68,6 +68,7 @@ import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrat
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
+import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -568,7 +569,7 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Set dispatch-rate throttling for all topics of the namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
     public void setDispatchRate(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-            @ApiParam(value = "Dispatch rate for all topics of the specified namespace") DispatchRate dispatchRate) {
+            @ApiParam(value = "Dispatch rate for all topics of the specified namespace") DispatchRateImpl dispatchRate) {
         validateNamespaceName(tenant, namespace);
         internalSetTopicDispatchRate(dispatchRate);
     }
@@ -600,7 +601,7 @@ public class Namespaces extends NamespacesBase {
     public void setSubscriptionDispatchRate(@PathParam("tenant") String tenant,
                                             @PathParam("namespace") String namespace, @ApiParam(value =
             "Subscription dispatch rate for all topics of the specified namespace")
-                                                        DispatchRate dispatchRate) {
+                                                        DispatchRateImpl dispatchRate) {
         validateNamespaceName(tenant, namespace);
         internalSetSubscriptionDispatchRate(dispatchRate);
     }
@@ -675,7 +676,7 @@ public class Namespaces extends NamespacesBase {
     public void setReplicatorDispatchRate(@PathParam("tenant") String tenant,
                                           @PathParam("namespace") String namespace, @ApiParam(value =
             "Replicator dispatch rate for all topics of the specified namespace")
-                                                      DispatchRate dispatchRate) {
+                                                      DispatchRateImpl dispatchRate) {
         validateNamespaceName(tenant, namespace);
         internalSetReplicatorDispatchRate(dispatchRate);
     }

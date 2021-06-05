@@ -27,7 +27,6 @@ import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.google.gson.Gson;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashSet;
@@ -67,6 +66,7 @@ import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.api.examples.AutoSchemaFunction;
 import org.apache.pulsar.functions.api.examples.AvroSchemaTestFunction;
 import org.apache.pulsar.functions.api.examples.MergeTopicFunction;
@@ -1055,7 +1055,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                     "topics",
                     "stats",
                     topic);
-            TopicStats topicStats = new Gson().fromJson(result.getStdout(), TopicStats.class);
+            TopicStats topicStats = ObjectMapperFactory.getThreadLocal().readValue(result.getStdout(), TopicStats.class);
             assertEquals(topicStats.getSubscriptions().size(), 0);
 
         } catch (ContainerExecException e) {
@@ -1070,7 +1070,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                     "topics",
                     "stats",
                     topic);
-            TopicStats topicStats = new Gson().fromJson(result.getStdout(), TopicStats.class);
+            TopicStats topicStats = ObjectMapperFactory.getThreadLocal().readValue(result.getStdout(), TopicStats.class);
             assertEquals(topicStats.getPublishers().size(), 0);
 
         } catch (ContainerExecException e) {

@@ -42,6 +42,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -968,19 +969,19 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         final String cluster = "test";
 
         Optional<Policies> policies = Optional.of(new Policies());
-        DispatchRate clusterDispatchRate = DispatchRate.builder()
+        DispatchRateImpl clusterDispatchRate = DispatchRateImpl.builder()
                 .dispatchThrottlingRateInMsg(10)
                 .dispatchThrottlingRateInByte(512)
                 .ratePeriodInSecond(1)
                 .build();
-        DispatchRate topicDispatchRate = DispatchRate.builder()
+        DispatchRateImpl topicDispatchRate = DispatchRateImpl.builder()
                 .dispatchThrottlingRateInMsg(200)
                 .dispatchThrottlingRateInByte(1024)
                 .ratePeriodInSecond(1)
                 .build();
 
         // (1) If both clusterDispatchRate and topicDispatchRate are empty, dispatch throttling is disabled
-        DispatchRate dispatchRate = DispatchRateLimiter.getPoliciesDispatchRate(cluster, policies,
+        DispatchRateImpl dispatchRate = DispatchRateLimiter.getPoliciesDispatchRate(cluster, policies,
                 DispatchRateLimiter.Type.TOPIC);
         Assert.assertNull(dispatchRate);
 
@@ -1007,12 +1008,12 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         DispatchRateLimiter dispatchRateLimiter = new DispatchRateLimiter(topic, DispatchRateLimiter.Type.TOPIC);
 
         Policies policies = new Policies();
-        DispatchRate clusterDispatchRate = DispatchRate.builder()
+        DispatchRateImpl clusterDispatchRate = DispatchRateImpl.builder()
                 .dispatchThrottlingRateInMsg(100)
                 .dispatchThrottlingRateInByte(512)
                 .ratePeriodInSecond(1)
                 .build();
-        DispatchRate topicDispatchRate = DispatchRate.builder()
+        DispatchRateImpl topicDispatchRate = DispatchRateImpl.builder()
                 .dispatchThrottlingRateInMsg(200)
                 .dispatchThrottlingRateInByte(1024)
                 .ratePeriodInSecond(1)

@@ -169,6 +169,7 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
                 .listenerName(listenerName);
     }
 
+    @Data
     public static class ClusterDataImplBuilder implements ClusterData.Builder {
         private String serviceUrl;
         private String serviceUrlTls;

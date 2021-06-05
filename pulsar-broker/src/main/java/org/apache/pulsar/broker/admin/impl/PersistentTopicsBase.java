@@ -121,6 +121,7 @@ import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
+import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.policies.data.stats.PartitionedTopicStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
@@ -2827,12 +2828,12 @@ public class PersistentTopicsBase extends AdminResource {
         return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
     }
 
-    protected CompletableFuture<DispatchRate> internalGetReplicatorDispatchRate(boolean applied) {
-        DispatchRate dispatchRate = getTopicPolicies(topicName)
+    protected CompletableFuture<DispatchRateImpl> internalGetReplicatorDispatchRate(boolean applied) {
+        DispatchRateImpl dispatchRate = getTopicPolicies(topicName)
                 .map(TopicPolicies::getReplicatorDispatchRate)
                 .orElseGet(() -> {
                     if (applied) {
-                        DispatchRate namespacePolicy = getNamespacePolicies(namespaceName)
+                        DispatchRateImpl namespacePolicy = getNamespacePolicies(namespaceName)
                                 .replicatorDispatchRate.get(pulsar().getConfiguration().getClusterName());
                         return namespacePolicy == null ? replicatorDispatchRate() : namespacePolicy;
                     }
@@ -2841,7 +2842,7 @@ public class PersistentTopicsBase extends AdminResource {
         return CompletableFuture.completedFuture(dispatchRate);
     }
 
-    protected CompletableFuture<Void> internalSetReplicatorDispatchRate(DispatchRate dispatchRate) {
+    protected CompletableFuture<Void> internalSetReplicatorDispatchRate(DispatchRateImpl dispatchRate) {
         TopicPolicies topicPolicies = getTopicPolicies(topicName).orElseGet(TopicPolicies::new);
         topicPolicies.setReplicatorDispatchRate(dispatchRate);
         return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
@@ -3751,12 +3752,12 @@ public class PersistentTopicsBase extends AdminResource {
 
     }
 
-    protected CompletableFuture<DispatchRate> internalGetDispatchRate(boolean applied) {
-        DispatchRate dispatchRate = getTopicPolicies(topicName)
+    protected CompletableFuture<DispatchRateImpl> internalGetDispatchRate(boolean applied) {
+        DispatchRateImpl dispatchRate = getTopicPolicies(topicName)
                 .map(TopicPolicies::getDispatchRate)
                 .orElseGet(() -> {
                     if (applied) {
-                        DispatchRate namespacePolicy = getNamespacePolicies(namespaceName)
+                        DispatchRateImpl namespacePolicy = getNamespacePolicies(namespaceName)
                                 .topicDispatchRate.get(pulsar().getConfiguration().getClusterName());
                         return namespacePolicy == null ? dispatchRate() : namespacePolicy;
                     }
@@ -3765,7 +3766,7 @@ public class PersistentTopicsBase extends AdminResource {
         return CompletableFuture.completedFuture(dispatchRate);
     }
 
-    protected CompletableFuture<Void> internalSetDispatchRate(DispatchRate dispatchRate) {
+    protected CompletableFuture<Void> internalSetDispatchRate(DispatchRateImpl dispatchRate) {
         if (dispatchRate == null) {
             return CompletableFuture.completedFuture(null);
         }
@@ -3790,7 +3791,7 @@ public class PersistentTopicsBase extends AdminResource {
                 .map(TopicPolicies::getSubscriptionDispatchRate)
                 .orElseGet(() -> {
                     if (applied) {
-                        DispatchRate namespacePolicy = getNamespacePolicies(namespaceName)
+                        DispatchRateImpl namespacePolicy = getNamespacePolicies(namespaceName)
                                 .subscriptionDispatchRate.get(pulsar().getConfiguration().getClusterName());
                         return namespacePolicy == null ? subscriptionDispatchRate() : namespacePolicy;
                     }
@@ -3799,7 +3800,7 @@ public class PersistentTopicsBase extends AdminResource {
         return CompletableFuture.completedFuture(dispatchRate);
     }
 
-    protected CompletableFuture<Void> internalSetSubscriptionDispatchRate(DispatchRate dispatchRate) {
+    protected CompletableFuture<Void> internalSetSubscriptionDispatchRate(DispatchRateImpl dispatchRate) {
         if (dispatchRate == null) {
             return CompletableFuture.completedFuture(null);
         }

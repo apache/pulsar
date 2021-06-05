@@ -33,6 +33,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
+import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.util.RateLimiter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -273,10 +274,10 @@ public class DispatchRateLimiter {
     }
 
     @SuppressWarnings("deprecation")
-    public static DispatchRate getPoliciesDispatchRate(final String cluster, Optional<Policies> policies, Type type) {
+    public static DispatchRateImpl getPoliciesDispatchRate(final String cluster, Optional<Policies> policies, Type type) {
         // return policy-dispatch rate only if it's enabled in policies
         return policies.map(p -> {
-            DispatchRate dispatchRate;
+            DispatchRateImpl dispatchRate;
             switch (type) {
                 case TOPIC:
                     dispatchRate = p.topicDispatchRate.get(cluster);

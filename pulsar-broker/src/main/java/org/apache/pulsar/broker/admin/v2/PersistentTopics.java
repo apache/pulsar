@@ -73,6 +73,7 @@ import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
+import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1964,7 +1965,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                           @PathParam("namespace") String namespace,
                                           @PathParam("topic") @Encoded String encodedTopic,
                                           @ApiParam(value = "Replicator dispatch rate of the topic")
-                                                      DispatchRate dispatchRate) {
+                                                  DispatchRateImpl dispatchRate) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation();
         internalSetReplicatorDispatchRate(dispatchRate).whenComplete((r, ex) -> {
@@ -2522,7 +2523,8 @@ public class PersistentTopics extends PersistentTopicsBase {
                                 @PathParam("tenant") String tenant,
                                 @PathParam("namespace") String namespace,
                                 @PathParam("topic") @Encoded String encodedTopic,
-                                @ApiParam(value = "Dispatch rate for the specified topic") DispatchRate dispatchRate) {
+                                @ApiParam(value = "Dispatch rate for the specified topic")
+                                            DispatchRateImpl dispatchRate) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation();
         internalSetDispatchRate(dispatchRate).whenComplete((r, ex) -> {
@@ -2618,7 +2620,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Subscription message dispatch rate for the specified topic")
-                    DispatchRate dispatchRate) {
+                    DispatchRateImpl dispatchRate) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation();
         internalSetSubscriptionDispatchRate(dispatchRate).whenComplete((r, ex) -> {

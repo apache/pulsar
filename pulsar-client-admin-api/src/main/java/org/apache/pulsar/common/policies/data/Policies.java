@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import lombok.ToString;
+import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 
 /**
  * Definition of Pulsar policies.
@@ -39,10 +40,10 @@ public class Policies {
     @SuppressWarnings("checkstyle:MemberName")
     public Map<BacklogQuota.BacklogQuotaType, BacklogQuota> backlog_quota_map = new HashMap<>();
     @Deprecated
-    public Map<String, DispatchRate> clusterDispatchRate = new HashMap<>();
-    public Map<String, DispatchRate> topicDispatchRate = new HashMap<>();
-    public Map<String, DispatchRate> subscriptionDispatchRate = new HashMap<>();
-    public Map<String, DispatchRate> replicatorDispatchRate = new HashMap<>();
+    public Map<String, DispatchRateImpl> clusterDispatchRate = new HashMap<>();
+    public Map<String, DispatchRateImpl> topicDispatchRate = new HashMap<>();
+    public Map<String, DispatchRateImpl> subscriptionDispatchRate = new HashMap<>();
+    public Map<String, DispatchRateImpl> replicatorDispatchRate = new HashMap<>();
     public Map<String, SubscribeRate> clusterSubscribeRate = new HashMap<>();
     public PersistencePolicies persistence = null;
 

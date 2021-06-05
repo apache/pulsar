@@ -100,6 +100,7 @@ import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
+import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
@@ -1185,7 +1186,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     @SuppressWarnings("deprecation")
-    protected void internalSetTopicDispatchRate(DispatchRate dispatchRate) {
+    protected void internalSetTopicDispatchRate(DispatchRateImpl dispatchRate) {
         validateSuperUserAccess();
         log.info("[{}] Set namespace dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
 
@@ -1231,7 +1232,7 @@ public abstract class NamespacesBase extends AdminResource {
         return policies.topicDispatchRate.get(pulsar().getConfiguration().getClusterName());
     }
 
-    protected void internalSetSubscriptionDispatchRate(DispatchRate dispatchRate) {
+    protected void internalSetSubscriptionDispatchRate(DispatchRateImpl dispatchRate) {
         validateSuperUserAccess();
         log.info("[{}] Set namespace subscription dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
 
@@ -1333,7 +1334,7 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected void internalSetReplicatorDispatchRate(DispatchRate dispatchRate) {
+    protected void internalSetReplicatorDispatchRate(DispatchRateImpl dispatchRate) {
         validateSuperUserAccess();
         log.info("[{}] Set namespace replicator dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
         try {

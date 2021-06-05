@@ -59,6 +59,7 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
+import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -401,24 +402,24 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
-    protected DispatchRate dispatchRate() {
-        return DispatchRate.builder()
+    protected DispatchRateImpl dispatchRate() {
+        return DispatchRateImpl.builder()
                 .dispatchThrottlingRateInMsg(config().getDispatchThrottlingRatePerTopicInMsg())
                 .dispatchThrottlingRateInByte(config().getDispatchThrottlingRatePerTopicInByte())
                 .ratePeriodInSecond(1)
                 .build();
     }
 
-    protected DispatchRate subscriptionDispatchRate() {
-        return DispatchRate.builder()
+    protected DispatchRateImpl subscriptionDispatchRate() {
+        return DispatchRateImpl.builder()
                 .dispatchThrottlingRateInMsg(config().getDispatchThrottlingRatePerSubscriptionInMsg())
                 .dispatchThrottlingRateInByte(config().getDispatchThrottlingRatePerSubscriptionInByte())
                 .ratePeriodInSecond(1)
                 .build();
     }
 
-    protected DispatchRate replicatorDispatchRate() {
-        return DispatchRate.builder()
+    protected DispatchRateImpl replicatorDispatchRate() {
+        return DispatchRateImpl.builder()
                 .dispatchThrottlingRateInMsg(config().getDispatchThrottlingRatePerReplicatorInMsg())
                 .dispatchThrottlingRateInByte(config().getDispatchThrottlingRatePerReplicatorInByte())
                 .ratePeriodInSecond(1)
