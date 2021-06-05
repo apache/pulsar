@@ -274,7 +274,9 @@ public class DispatchRateLimiter {
     }
 
     @SuppressWarnings("deprecation")
-    public static DispatchRateImpl getPoliciesDispatchRate(final String cluster, Optional<Policies> policies, Type type) {
+    public static DispatchRateImpl getPoliciesDispatchRate(final String cluster,
+                                                           Optional<Policies> policies,
+                                                           Type type) {
         // return policy-dispatch rate only if it's enabled in policies
         return policies.map(p -> {
             DispatchRateImpl dispatchRate;

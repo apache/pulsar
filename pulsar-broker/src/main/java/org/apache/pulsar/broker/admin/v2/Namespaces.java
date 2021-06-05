@@ -569,7 +569,8 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Set dispatch-rate throttling for all topics of the namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
     public void setDispatchRate(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-            @ApiParam(value = "Dispatch rate for all topics of the specified namespace") DispatchRateImpl dispatchRate) {
+            @ApiParam(value = "Dispatch rate for all topics of the specified namespace")
+                    DispatchRateImpl dispatchRate) {
         validateNamespaceName(tenant, namespace);
         internalSetTopicDispatchRate(dispatchRate);
     }
