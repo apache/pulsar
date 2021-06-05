@@ -48,6 +48,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.OffloadedReadPriority;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -174,15 +175,15 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         long offloadDeletionLagInMillis = 100L;
         OffloadedReadPriority priority = OffloadedReadPriority.TIERED_STORAGE_FIRST;
 
-        OffloadPoliciesImpl offload1 = OffloadPoliciesImpl.create(
+        OffloadPolicies offload1 = OffloadPoliciesImpl.create(
                 driver, region, bucket, endpoint, null, null, null, null,
                 100, 100, offloadThresholdInBytes, offloadDeletionLagInMillis, priority);
         admin.namespaces().setOffloadPolicies(namespaceName, offload1);
-        OffloadPoliciesImpl offload2 = (OffloadPoliciesImpl) admin.namespaces().getOffloadPolicies(namespaceName);
+        OffloadPolicies offload2 = admin.namespaces().getOffloadPolicies(namespaceName);
         assertEquals(offload1, offload2);
 
         admin.namespaces().removeOffloadPolicies(namespaceName);
-        OffloadPoliciesImpl offload3 = (OffloadPoliciesImpl) admin.namespaces().getOffloadPolicies(namespaceName);
+        OffloadPolicies offload3 = admin.namespaces().getOffloadPolicies(namespaceName);
         assertNull(offload3);
     }
 

@@ -2938,12 +2938,12 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             Assert.assertNotNull(partitionedSubStats);
             sumMsgBacklog += partitionedSubStats.getMsgBacklog();
             sumMsgBacklogNoDelayed += partitionedSubStats.getMsgBacklogNoDelayed();
-            sumMsgDelayed += partitionedSubStats.getMsgBacklog();
+            sumMsgDelayed += partitionedSubStats.getMsgDelayed();
         }
         Assert.assertEquals(sumMsgBacklog, sumMsgBacklogNoDelayed + sumMsgDelayed);
         Assert.assertEquals(sumMsgBacklog, subStats.getMsgBacklog());
         Assert.assertEquals(sumMsgBacklogNoDelayed, subStats.getMsgBacklogNoDelayed());
-        Assert.assertEquals(sumMsgDelayed, subStats.getMsgBacklog());
+        Assert.assertEquals(sumMsgDelayed, subStats.getMsgDelayed());
     }
 
     @Test(timeOut = 20000)
