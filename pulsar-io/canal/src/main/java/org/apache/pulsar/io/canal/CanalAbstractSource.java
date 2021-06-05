@@ -143,7 +143,7 @@ public abstract class CanalAbstractSource<V> extends PushSource<V> {
 
     @Getter
     @Setter
-    static private class CanalRecord<V> implements Record<V> {
+    private static class CanalRecord<V> implements Record<V> {
 
         private V record;
         private Long id;
