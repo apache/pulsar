@@ -82,7 +82,7 @@ jobs:
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         uses: apache/pulsar-test-infra/setup-maven@master
         with:
-          maven-version: 3.6.1
+          maven-version: 3.8.1
 
       - name: build and check license
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
