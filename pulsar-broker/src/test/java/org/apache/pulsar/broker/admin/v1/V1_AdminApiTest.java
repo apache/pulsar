@@ -29,11 +29,14 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import com.google.common.collect.BoundType;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Range;
+import com.google.common.collect.Sets;
+import com.google.common.hash.Hashing;
 import java.lang.reflect.Field;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
@@ -44,12 +47,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
-
 import lombok.Builder;
+import lombok.Cleanup;
 import lombok.Value;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -64,8 +67,8 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedExceptio
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.client.admin.internal.LookupImpl;
-import org.apache.pulsar.client.admin.internal.TopicsImpl;
 import org.apache.pulsar.client.admin.internal.TenantsImpl;
+import org.apache.pulsar.client.admin.internal.TopicsImpl;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
@@ -84,7 +87,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
-import org.apache.pulsar.common.policies.data.AutoFailoverPolicyDataImpl;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
@@ -92,19 +94,18 @@ import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
 import org.apache.pulsar.common.policies.data.BrokerAssignment;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
-import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
-import org.apache.pulsar.common.policies.data.PoliciesUtil;
-import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.PoliciesUtil;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.compaction.Compactor;
@@ -116,16 +117,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.BoundType;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Range;
-import com.google.common.collect.Sets;
-import com.google.common.hash.Hashing;
-
-import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Test(groups = "broker")
@@ -261,9 +252,9 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
             parameters1.put("usage_threshold", "100");
 
             NamespaceIsolationData nsPolicyData1 = NamespaceIsolationData.builder()
-                    .namespaces(Collections.singletonList("other/use/other.*"))
-                    .primary(Collections.singletonList(".*")) // match all broker. make it easy to verify `getBrokersWithNamespaceIsolationPolicy` later
-                    .secondary(Collections.singletonList("prod1-broker.*.messaging.use.example.com"))
+                    .namespaces(Lists.newArrayList("other/use/other.*"))
+                    .primary(Lists.newArrayList(".*")) // match all broker. make it easy to verify `getBrokersWithNamespaceIsolationPolicy` later
+                    .secondary(Lists.newArrayList("prod1-broker.*.messaging.use.example.com"))
                     .autoFailoverPolicy(AutoFailoverPolicyData.builder()
                             .policyType(AutoFailoverPolicyType.min_available)
                             .parameters(parameters1)
@@ -278,9 +269,9 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
             parameters2.put("usage_threshold", "100");
 
             NamespaceIsolationData nsPolicyData2 = NamespaceIsolationData.builder()
-                    .namespaces(Collections.singletonList("other/use/other.*"))
-                    .primary(Collections.singletonList("prod1-broker[4-6].messaging.use.example.com"))
-                    .secondary(Collections.singletonList("prod1-broker.*.messaging.use.example.com"))
+                    .namespaces(Lists.newArrayList("other/use/other.*"))
+                    .primary(Lists.newArrayList("prod1-broker[4-6].messaging.use.example.com"))
+                    .secondary(Lists.newArrayList("prod1-broker.*.messaging.use.example.com"))
                     .autoFailoverPolicy(AutoFailoverPolicyData.builder()
                             .policyType(AutoFailoverPolicyType.min_available)
                             .parameters(parameters1)

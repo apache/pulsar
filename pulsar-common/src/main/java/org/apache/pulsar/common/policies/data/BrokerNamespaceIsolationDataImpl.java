@@ -66,14 +66,11 @@ public final class BrokerNamespaceIsolationDataImpl implements BrokerNamespaceIs
     }
 
 
-    public static class BrokerNamespaceIsolationDataImplBuilder {
+    public static class BrokerNamespaceIsolationDataImplBuilder implements BrokerNamespaceIsolationData.Builder {
         private String brokerName;
         private String policyName;
         private boolean isPrimary;
         private List<String> namespaceRegex;
-
-        BrokerNamespaceIsolationDataImplBuilder() {
-        }
 
         public BrokerNamespaceIsolationDataImplBuilder brokerName(String brokerName) {
             this.brokerName = brokerName;
@@ -85,7 +82,7 @@ public final class BrokerNamespaceIsolationDataImpl implements BrokerNamespaceIs
             return this;
         }
 
-        public BrokerNamespaceIsolationDataImplBuilder isPrimary(boolean isPrimary) {
+        public BrokerNamespaceIsolationDataImplBuilder primary(boolean isPrimary) {
             this.isPrimary = isPrimary;
             return this;
         }
