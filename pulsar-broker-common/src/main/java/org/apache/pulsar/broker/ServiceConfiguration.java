@@ -1473,7 +1473,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Max number of entries to append to a ledger before triggering a rollover.\n\n"
             + "A ledger rollover is triggered on these conditions Either the max"
             + " rollover time has been reached or max entries have been written to the"
-            + " ledged and at least min-time has passed")
+            + " ledger and at least min-time has passed")
     private int managedLedgerMaxEntriesPerLedger = 50000;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
