@@ -1705,7 +1705,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
     public void testObjectWithUnknownProperties() {
         TenantInfo pa = TenantInfo.builder()
                 .adminRoles(Sets.newHashSet("test_appid1", "test_appid2"))
-                .allowedClusters(Sets.newHashSet("test"))
+                .allowedClusters(Sets.newHashSet("use"))
                 .build();
         CustomTenantAdmin cpa = CustomTenantAdmin.builder()
                 .adminRoles(pa.getAdminRoles())
