@@ -95,7 +95,7 @@ public class HealthCheckTest extends TestRetrySupport {
 
     @Test
     public void testZooKeeperDown() throws Exception {
-        pulsarCluster.getZooKeeper().execCmd("pkill", "-STOP", "-f", "ZooKeeperStarter");
+        pulsarCluster.getZooKeeper().execCmd("pkill", "-STOP", "-f", "QuorumPeerMain");
         assertHealthcheckFailure();
     }
 
