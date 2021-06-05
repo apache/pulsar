@@ -68,6 +68,7 @@ import org.apache.pulsar.common.policies.data.NonPersistentSubscriptionStats;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
@@ -91,6 +92,7 @@ import org.apache.pulsar.common.policies.data.stats.NonPersistentPublisherStatsI
 import org.apache.pulsar.common.policies.data.stats.NonPersistentReplicatorStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentSubscriptionStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentTopicStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.PartitionedTopicStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.PublisherStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
@@ -178,6 +180,7 @@ public class ObjectMapperFactory {
         resolver.addMapping(NonPersistentReplicatorStats.class, NonPersistentReplicatorStatsImpl.class);
         resolver.addMapping(NonPersistentSubscriptionStats.class, NonPersistentSubscriptionStatsImpl.class);
         resolver.addMapping(NonPersistentTopicStats.class, NonPersistentTopicStatsImpl.class);
+        resolver.addMapping(PartitionedTopicStats.class, PartitionedTopicStatsImpl.class);
         resolver.addMapping(PublisherStats.class, PublisherStatsImpl.class);
         resolver.addMapping(ReplicatorStats.class, ReplicatorStatsImpl.class);
         resolver.addMapping(SubscriptionStats.class, SubscriptionStatsImpl.class);
