@@ -30,6 +30,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
+import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 
 
 /**
@@ -43,7 +44,7 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 @Setter
 public class TopicPolicies {
 
-    private Map<String, BacklogQuota> backLogQuotaMap = Maps.newHashMap();
+    private Map<String, BacklogQuotaImpl> backLogQuotaMap = Maps.newHashMap();
     private PersistencePolicies persistence = null;
     private RetentionPolicies retentionPolicies = null;
     private Boolean deduplicationEnabled = null;

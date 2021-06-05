@@ -120,6 +120,7 @@ import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.apache.pulsar.common.policies.data.stats.PartitionedTopicStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
@@ -2553,7 +2554,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalSetBacklogQuota(AsyncResponse asyncResponse,
-                                           BacklogQuota.BacklogQuotaType backlogQuotaType, BacklogQuota backlogQuota) {
+                                           BacklogQuota.BacklogQuotaType backlogQuotaType, BacklogQuotaImpl backlogQuota) {
         validateTopicPolicyOperation(topicName, PolicyName.BACKLOG, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
         if (backlogQuotaType == null) {
@@ -2587,7 +2588,7 @@ public class PersistentTopicsBase extends AdminResource {
         } else {
             topicPolicies.getBackLogQuotaMap().remove(backlogQuotaType.name());
         }
-        Map<String, BacklogQuota> backLogQuotaMap = topicPolicies.getBackLogQuotaMap();
+        Map<String, BacklogQuotaImpl> backLogQuotaMap = topicPolicies.getBackLogQuotaMap();
         pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies)
                 .whenComplete((r, ex) -> {
                     if (ex != null) {
