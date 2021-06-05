@@ -2554,7 +2554,8 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalSetBacklogQuota(AsyncResponse asyncResponse,
-                                           BacklogQuota.BacklogQuotaType backlogQuotaType, BacklogQuotaImpl backlogQuota) {
+                                           BacklogQuota.BacklogQuotaType backlogQuotaType,
+                                           BacklogQuotaImpl backlogQuota) {
         validateTopicPolicyOperation(topicName, PolicyName.BACKLOG, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
         if (backlogQuotaType == null) {
