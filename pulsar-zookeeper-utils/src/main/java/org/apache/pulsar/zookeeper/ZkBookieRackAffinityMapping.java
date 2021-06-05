@@ -19,16 +19,13 @@
 package org.apache.pulsar.zookeeper;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.bookkeeper.client.ITopologyAwareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RackChangeNotifier;
 import org.apache.bookkeeper.conf.ClientConfiguration;
@@ -94,21 +91,24 @@ public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                 bookies.forEach((addr, bi) -> {
                     try {
                         BookieId bookieId = BookieId.parse(addr);
-                        BookieSocketAddress bsa = getBookieAddressResolver().resolve(bookieId);
-                        newRacksWithHost.updateBookie(group, bsa.toString(), bi);
+                        BookieAddressResolver bookieAddressResolver = getBookieAddressResolver();
+                        if (bookieAddressResolver != null) {
+                            BookieSocketAddress bsa = bookieAddressResolver.resolve(bookieId);
+                            newRacksWithHost.updateBookie(group, bsa.toString(), bi);
+                            String hostname = bsa.getSocketAddress().getHostName();
+                            newBookieInfoMap.put(hostname, bi);
 
-                        String hostname = bsa.getSocketAddress().getHostName();
-                        newBookieInfoMap.put(hostname, bi);
-
-                        InetAddress address = bsa.getSocketAddress().getAddress();
-                        if (null != address) {
-                            String hostIp = address.getHostAddress();
-                            if (null != hostIp) {
-                                newBookieInfoMap.put(hostIp, bi);
+                            InetAddress address = bsa.getSocketAddress().getAddress();
+                            if (null != address) {
+                                String hostIp = address.getHostAddress();
+                                if (null != hostIp) {
+                                    newBookieInfoMap.put(hostIp, bi);
+                                }
+                            } else {
+                                LOG.info("Network address for {} is unresolvable yet.", addr);
                             }
-                        } else {
-                            LOG.info("Network address for {} is unresolvable yet.", addr);
                         }
+
                     } catch (BookieAddressResolver.BookieIdNotResolvedException e) {
                         LOG.info("Network address for {} is unresolvable yet. error is {}", addr, e);
                     }
@@ -123,18 +123,12 @@ public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
         if (conf.getProperty(ZooKeeperCache.ZK_CACHE_INSTANCE) != null) {
             zkCache = (ZooKeeperCache) conf.getProperty(ZooKeeperCache.ZK_CACHE_INSTANCE);
         } else {
-            int zkTimeout;
-            String zkServers;
             if (conf instanceof ClientConfiguration) {
-                zkTimeout = ((ClientConfiguration) conf).getZkTimeout();
-                zkServers = ((ClientConfiguration) conf).getZkServers();
-                String zkLedgersRootPath = ((ClientConfiguration) conf).getZkLedgersRootPath();
+                int zkTimeout = ((ClientConfiguration) conf).getZkTimeout();
                 try {
-                    int zkLedgerRootIndex = zkLedgersRootPath.contains("/") ?
-                            zkLedgersRootPath.lastIndexOf("/") : 0;
-                    String zkChangeRoot = zkLedgersRootPath.substring(0, zkLedgerRootIndex);
-                    zkChangeRoot = zkChangeRoot.startsWith("/") ? zkChangeRoot : "/" + zkChangeRoot;
-                    ZooKeeper zkClient = ZooKeeperClient.newBuilder().connectString(zkServers + zkChangeRoot)
+                    String serviceUri = ((ClientConfiguration) conf).getMetadataServiceUri();
+                    String connectString = ZkUtils.getBookieZkConnect(serviceUri);
+                    ZooKeeper zkClient = ZooKeeperClient.newBuilder().connectString(connectString)
                             .sessionTimeoutMs(zkTimeout).build();
                     zkCache = new ZooKeeperCache("bookies-racks", zkClient,
                             (int) TimeUnit.MILLISECONDS.toSeconds(zkTimeout)) {

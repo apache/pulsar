@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.zookeeper;
 
+import static org.apache.pulsar.zookeeper.ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.netty.util.HashedWheelTimer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -27,15 +30,14 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.bookkeeper.client.BKException.BKNotEnoughBookiesException;
 import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicyImpl;
-import org.apache.bookkeeper.common.util.JsonUtil;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.feature.FeatureProvider;
+import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.net.DNSToSwitchMapping;
+import org.apache.bookkeeper.proto.BookieAddressResolver;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
 import org.apache.commons.configuration.Configuration;
@@ -44,6 +46,7 @@ import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
+import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.zookeeper.ZooKeeperCache.Deserializer;
 import org.apache.zookeeper.KeeperException;
@@ -51,14 +54,6 @@ import org.apache.zookeeper.ZooKeeper;
 import org.inferred.freebuilder.shaded.com.google.common.collect.Sets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import io.netty.util.HashedWheelTimer;
-import org.apache.bookkeeper.net.BookieId;
-import org.apache.bookkeeper.proto.BookieAddressResolver;
-
-import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 
 public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlacementPolicy
         implements Deserializer<BookiesRackConfiguration> {
@@ -125,13 +120,12 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
         if (conf.getProperty(ZooKeeperCache.ZK_CACHE_INSTANCE) != null) {
             zkCache = (ZooKeeperCache) conf.getProperty(ZooKeeperCache.ZK_CACHE_INSTANCE);
         } else {
-            int zkTimeout;
-            String zkServers;
             if (conf instanceof ClientConfiguration) {
-                zkTimeout = ((ClientConfiguration) conf).getZkTimeout();
-                zkServers = ((ClientConfiguration) conf).getZkServers();
+                int zkTimeout = ((ClientConfiguration) conf).getZkTimeout();
                 try {
-                    ZooKeeper zkClient = ZooKeeperClient.newBuilder().connectString(zkServers)
+                    String serviceUri = ((ClientConfiguration) conf).getMetadataServiceUri();
+                    String connectString = ZkUtils.getBookieZkConnect(serviceUri);
+                    ZooKeeper zkClient = ZooKeeperClient.newBuilder().connectString(connectString)
                             .sessionTimeoutMs(zkTimeout).build();
                     zkCache = new ZooKeeperCache("bookies-isolation", zkClient,
                             (int) TimeUnit.MILLISECONDS.toSeconds(zkTimeout)) {
@@ -225,9 +219,9 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
         try {
             if (bookieMappingCache != null) {
                 BookiesRackConfiguration allGroupsBookieMapping = bookieMappingCache
-                    .getData(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, this)
+                    .getData(BOOKIE_INFO_ROOT_PATH, this)
                     .orElseThrow(() -> new KeeperException.NoNodeException(
-                        ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH));
+                        BOOKIE_INFO_ROOT_PATH));
                 Set<String> allBookies = allGroupsBookieMapping.keySet();
                 int totalAvailableBookiesInPrimaryGroup = 0;
                 Set<String> primaryIsolationGroup = Collections.emptySet();

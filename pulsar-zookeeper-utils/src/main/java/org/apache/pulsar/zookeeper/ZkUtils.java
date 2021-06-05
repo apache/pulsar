@@ -18,8 +18,10 @@
  */
 package org.apache.pulsar.zookeeper;
 
+import java.net.URI;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.NodeExistsException;
 import org.apache.zookeeper.Watcher;
@@ -121,4 +123,24 @@ public final class ZkUtils {
         final String parentPath = sb.toString();
         return (parentPath.length() == 0) ? null : parentPath;
     }
+
+
+    /**
+     * Returns the zookeeper client connect string.
+     *
+     * @param bookkeeperMetadataServiceUri bookkeeper metadata service uri sting.
+     *                                     eg: zk+hierarchical://1.1.1.1:2181;1.1.1.2:2181;1.1.1.3:2181/ledgers
+     * @return the zookeeper client connect string.
+     * eg: 1.1.1.1:2181,1.1.1.2:2181,1.1.1.3:2181/ledgers
+     */
+    public static final String getBookieZkConnect(String bookkeeperMetadataServiceUri) {
+        URI uri = URI.create(bookkeeperMetadataServiceUri);
+        String path = uri.getPath();
+        String bookieZkConnect = StringUtils.replace(uri.getAuthority(), ";", ",") + path;
+
+        return bookieZkConnect;
+    }
+
+
+
 }

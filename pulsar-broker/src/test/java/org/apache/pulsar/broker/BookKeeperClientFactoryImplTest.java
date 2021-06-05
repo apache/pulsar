@@ -23,15 +23,14 @@ import static org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy.RE
 import static org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy.REPP_ENABLE_VALIDATION;
 import static org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy.REPP_MINIMUM_REGIONS_FOR_DURABILITY;
 import static org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy.REPP_REGIONS_TO_WRITE;
-import static org.apache.bookkeeper.conf.AbstractConfiguration.MIN_NUM_RACKS_PER_WRITE_QUORUM;
 import static org.apache.bookkeeper.conf.AbstractConfiguration.ENFORCE_MIN_NUM_RACKS_PER_WRITE_QUORUM;
+import static org.apache.bookkeeper.conf.AbstractConfiguration.MIN_NUM_RACKS_PER_WRITE_QUORUM;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.net.CachedDNSToSwitchMapping;
@@ -210,13 +209,37 @@ public class BookKeeperClientFactoryImplTest {
     public void testOpportunisticStripingConfiguration() {
         BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
         ServiceConfiguration conf = new ServiceConfiguration();
-        // default value
-        assertFalse(factory.createBkClientConfiguration(conf).getOpportunisticStriping());
-        conf.getProperties().setProperty("bookkeeper_opportunisticStriping", "true");
-        assertTrue(factory.createBkClientConfiguration(conf).getOpportunisticStriping());
-        conf.getProperties().setProperty("bookkeeper_opportunisticStriping", "false");
-        assertFalse(factory.createBkClientConfiguration(conf).getOpportunisticStriping());
+        ClientConfiguration clientConfiguration = factory.createBkClientConfiguration(conf);
 
+        // default value
+        assertFalse(clientConfiguration.getOpportunisticStriping());
+
+        // bookkeeper_opportunisticStriping->true
+        conf.getProperties().setProperty("bookkeeper_opportunisticStriping", "true");
+        factory.extraBkConf(conf, clientConfiguration);
+        assertTrue(clientConfiguration.getOpportunisticStriping());
+
+        // bookkeeper_opportunisticStriping->false
+        conf.getProperties().setProperty("bookkeeper_opportunisticStriping", "false");
+        factory.extraBkConf(conf, clientConfiguration);
+        assertFalse(clientConfiguration.getOpportunisticStriping());
+
+    }
+
+
+    @Test
+    public void testBookkeeperPreHighestPriorityConfiguration() {
+        BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
+        ServiceConfiguration conf = new ServiceConfiguration();
+
+        conf.setBookkeeperEnableStickyReads(false);
+        ClientConfiguration clientConfiguration = factory.createBkClientConfiguration(conf);
+        assertFalse(clientConfiguration.isStickyReadsEnabled());
+
+        // Ensure the `bookkeeper_` pre configuration has the highest priority.
+        conf.getProperties().setProperty("bookkeeper_stickyReadSEnabled", "true");
+        factory.extraBkConf(conf, clientConfiguration);
+        assertTrue(clientConfiguration.isStickyReadsEnabled());
     }
 
 }

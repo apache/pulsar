@@ -21,14 +21,11 @@ package org.apache.pulsar.zookeeper;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.util.ZkUtils;
@@ -56,7 +53,7 @@ public class ZkBookieRackAffinityMappingTest {
     public void setUp() throws Exception {
         localZkS = new ZookeeperServerTest(0);
         localZkS.start();
-        localZkc = ZooKeeperClient.newBuilder().connectString("127.0.0.1:" + localZkS.getZookeeperPort()).build();
+        localZkc = ZooKeeperClient.newBuilder().connectString("127.0.0.1:" + localZkS.getZookeeperPort() + "/ledgers").build();
         BOOKIE1 = new BookieSocketAddress("127.0.0.1:3181");
         BOOKIE2 = new BookieSocketAddress("127.0.0.2:3181");
         BOOKIE3 = new BookieSocketAddress("127.0.0.3:3181");

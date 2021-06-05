@@ -29,6 +29,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.servlet.ServletContext;
 import javax.ws.rs.WebApplicationException;
@@ -92,12 +93,31 @@ public abstract class AdminResource extends PulsarWebResource {
         return pulsar().getLocalZkCache();
     }
 
+    // bookkeeper zookeeper
+    protected ZooKeeper bookieZk() {
+        return pulsar().getBookieZkClient();
+    }
+
+    // bookkeeper zookeeper cache
+    protected ZooKeeperCache bookieZkCache() {
+        ZooKeeper zkClient = bookieZk();
+
+        ZooKeeperCache zkCache = new ZooKeeperCache("bookies-admin", zkClient,
+                (int) TimeUnit.MILLISECONDS.toSeconds(zkClient.getSessionTimeout())) {
+        };
+        return zkCache;
+    }
+
     protected LocalZooKeeperCacheService localCacheService() {
         return pulsar().getLocalZkCacheService();
     }
 
     protected void localZKCreate(String path, byte[] content) throws Exception {
         localZk().create(path, content, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+    }
+
+    protected void bookieZKCreate(String path, byte[] content) throws Exception {
+        bookieZk().create(path, content, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
     }
 
     /**

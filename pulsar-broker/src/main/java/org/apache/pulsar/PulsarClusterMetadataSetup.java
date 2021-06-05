@@ -48,6 +48,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreLifecycle;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.zookeeper.ZkBookieRackAffinityMapping;
+import org.apache.pulsar.zookeeper.ZkUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -206,12 +207,14 @@ public class PulsarClusterMetadataSetup {
             }
         }
 
-
         String uriStr = bkConf.getMetadataServiceUri();
+        boolean existBk = false;
         if (arguments.existingBkMetadataServiceUri != null) {
             uriStr = arguments.existingBkMetadataServiceUri;
+            existBk = true;
         } else if (arguments.bookieMetadataServiceUri != null) {
             uriStr = arguments.bookieMetadataServiceUri;
+            existBk = true;
         }
         ServiceURI bkMetadataServiceUri = ServiceURI.create(uriStr);
 
@@ -224,9 +227,21 @@ public class PulsarClusterMetadataSetup {
             initializer.initializeCluster(bkMetadataServiceUri.getUri(), arguments.numStreamStorageContainers);
         }
 
-        if (!localStore.exists(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH).get()) {
-            createMetadataNode(localStore, ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, "{}".getBytes());
+        // exist the existing-bk-metadata-service-uri or bookkeeper-metadata-service-uri,
+        // should create metadata on the bookkeeper side
+        MetadataStoreExtended bookieStore = null;
+        if (existBk) {
+            String bkZKStr = ZkUtils.getBookieZkConnect(uriStr);
+            bookieStore = initMetadataStore(bkZKStr, arguments.zkSessionTimeoutMillis);
+            if (!bookieStore.exists(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH).get()) {
+                createMetadataNode(bookieStore, ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, "{}".getBytes());
+            }
+        } else {
+            if (!localStore.exists(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH).get()) {
+                createMetadataNode(localStore, ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, "{}".getBytes());
+            }
         }
+
 
         createMetadataNode(localStore, "/managed-ledgers", new byte[0]);
 
@@ -268,6 +283,10 @@ public class PulsarClusterMetadataSetup {
 
         localStore.close();
         configStore.close();
+
+        if (bookieStore != null) {
+            bookieStore.close();
+        }
 
         log.info("Cluster metadata for '{}' setup correctly", arguments.cluster);
     }

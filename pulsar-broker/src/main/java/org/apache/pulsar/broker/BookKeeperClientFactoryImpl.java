@@ -78,6 +78,9 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         } else {
             setDefaultEnsemblePlacementPolicy(rackawarePolicyZkCache, clientIsolationZkCache, bkConf, conf, zkClient);
         }
+
+        // Ensure the `bookkeeper_` pre configuration has the highest priority.
+        extraBkConf(conf, bkConf);
         try {
             return BookKeeper.forConfig(bkConf)
                     .allocator(PulsarByteBufAllocator.DEFAULT)
@@ -147,6 +150,13 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
                 conf.getBookkeeperClientGetBookieInfoIntervalSeconds(), TimeUnit.SECONDS);
         bkConf.setGetBookieInfoRetryIntervalSeconds(
                 conf.getBookkeeperClientGetBookieInfoRetryIntervalSeconds(), TimeUnit.SECONDS);
+
+        return bkConf;
+    }
+
+    // Extra BookKeeper client configuration
+    @VisibleForTesting
+    void extraBkConf(ServiceConfiguration conf, ClientConfiguration bkConf) {
         Properties allProps = conf.getProperties();
         allProps.forEach((key, value) -> {
             String sKey = key.toString();
@@ -156,7 +166,6 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
                 bkConf.setProperty(bkExtraConfigKey, value);
             }
         });
-        return bkConf;
     }
 
     public static void setDefaultEnsemblePlacementPolicy(
