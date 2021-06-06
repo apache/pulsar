@@ -270,12 +270,12 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void createNamespace(String namespace, int numBundles) throws PulsarAdminException {
-        createNamespace(namespace, new BundlesData(numBundles));
+        createNamespace(namespace, BundlesData.builder().numBundles(numBundles).build());
     }
 
     @Override
     public CompletableFuture<Void> createNamespaceAsync(String namespace, int numBundles) {
-        return createNamespaceAsync(namespace, new BundlesData(numBundles));
+        return createNamespaceAsync(namespace, BundlesData.builder().numBundles(numBundles).build());
     }
 
     @Override

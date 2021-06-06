@@ -123,8 +123,8 @@ public class ZkBookieRackAffinityMappingTest {
         Map<String, Map<BookieSocketAddress, BookieInfo>> bookieMapping = new HashMap<>();
         Map<BookieSocketAddress, BookieInfo> mainBookieGroup = new HashMap<>();
 
-        mainBookieGroup.put(BOOKIE1, new BookieInfo("/rack0", null));
-        mainBookieGroup.put(BOOKIE2, new BookieInfo("/rack1", null));
+        mainBookieGroup.put(BOOKIE1, BookieInfo.builder().rack("/rack0").build());
+        mainBookieGroup.put(BOOKIE2, BookieInfo.builder().rack("/rack1").build());
 
         bookieMapping.put("group1", mainBookieGroup);
 
@@ -146,8 +146,8 @@ public class ZkBookieRackAffinityMappingTest {
         Map<String, Map<BookieSocketAddress, BookieInfo>> bookieMapping = new HashMap<>();
         Map<BookieSocketAddress, BookieInfo> mainBookieGroup = new HashMap<>();
 
-        mainBookieGroup.put(BOOKIE1, new BookieInfo("rack0", null));
-        mainBookieGroup.put(BOOKIE2, new BookieInfo("rack1", null));
+        mainBookieGroup.put(BOOKIE1, BookieInfo.builder().rack("rack0").build());
+        mainBookieGroup.put(BOOKIE2, BookieInfo.builder().rack("rack1").build());
 
         bookieMapping.put("group1", mainBookieGroup);
 
@@ -168,7 +168,7 @@ public class ZkBookieRackAffinityMappingTest {
 
         // add info for BOOKIE3 and check if the mapping picks up the change
         Map<BookieSocketAddress, BookieInfo> secondaryBookieGroup = new HashMap<>();
-        secondaryBookieGroup.put(BOOKIE3, new BookieInfo("rack0", null));
+        secondaryBookieGroup.put(BOOKIE3, BookieInfo.builder().rack("rack0").build());
 
         bookieMapping.put("group2", secondaryBookieGroup);
         localZkc.setData(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookieMapping),

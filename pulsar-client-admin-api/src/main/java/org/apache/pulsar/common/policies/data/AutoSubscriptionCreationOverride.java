@@ -18,34 +18,22 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import java.util.Objects;
-import lombok.ToString;
+import org.apache.pulsar.common.policies.data.impl.AutoSubscriptionCreationOverrideImpl;
 
 /**
  * Override of autoSubscriptionCreation settings on a namespace level.
  */
-@ToString
-public class AutoSubscriptionCreationOverride {
-    public boolean allowAutoSubscriptionCreation;
+public interface AutoSubscriptionCreationOverride {
 
-    public AutoSubscriptionCreationOverride() {
+    boolean isAllowAutoSubscriptionCreation();
+
+    static Builder builder() {
+        return AutoSubscriptionCreationOverrideImpl.builder();
     }
 
-    public AutoSubscriptionCreationOverride(boolean allowAutoSubscriptionCreation) {
-        this.allowAutoSubscriptionCreation = allowAutoSubscriptionCreation;
-    }
+    interface Builder {
+        Builder allowAutoSubscriptionCreation(boolean allowAutoSubscriptionCreation);
 
-    @Override
-    public int hashCode() {
-        return Objects.hash(allowAutoSubscriptionCreation);
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (obj instanceof AutoSubscriptionCreationOverride) {
-            AutoSubscriptionCreationOverride other = (AutoSubscriptionCreationOverride) obj;
-            return Objects.equals(this.allowAutoSubscriptionCreation, other.allowAutoSubscriptionCreation);
-        }
-        return false;
+        AutoSubscriptionCreationOverride build();
     }
 }

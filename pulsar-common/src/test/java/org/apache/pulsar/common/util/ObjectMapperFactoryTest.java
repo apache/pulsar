@@ -19,8 +19,10 @@
 package org.apache.pulsar.common.util;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.ToString;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
+import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.apache.pulsar.common.stats.Metrics;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -41,8 +43,11 @@ public class ObjectMapperFactoryTest {
 
         try {
             String expectJson = "{\"limitSize\":10,\"limitTime\":0,\"policy\":\"producer_request_hold\"}";
-            BacklogQuota backlogQuota = new BacklogQuota(10, 0,
-                    BacklogQuota.RetentionPolicy.producer_request_hold);
+            BacklogQuota backlogQuota = BacklogQuota.builder()
+                    .limitSize(10)
+                    .limitTime(0)
+                    .retentionPolicy(BacklogQuota.RetentionPolicy.producer_request_hold)
+                    .build();
             String writeJson = objectMapper.writeValueAsString(backlogQuota);
             Assert.assertEquals(expectJson, writeJson);
         } catch (Exception ex) {

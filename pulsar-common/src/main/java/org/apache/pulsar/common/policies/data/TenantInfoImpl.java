@@ -18,16 +18,20 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import com.google.common.collect.Sets;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
+import java.util.HashSet;
 import java.util.Set;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
  * Information of admin roles and allowed clusters for tenant.
  */
 @Data
+@AllArgsConstructor
+@NoArgsConstructor
 @ApiModel(value = "TenantInfo", description = "Information of adminRoles and allowedClusters for tenant")
 public class TenantInfoImpl implements TenantInfo {
     /**
@@ -48,33 +52,36 @@ public class TenantInfoImpl implements TenantInfo {
     )
     private Set<String> allowedClusters;
 
-    public TenantInfoImpl() {
-        adminRoles = Sets.newHashSet();
-        allowedClusters = Sets.newHashSet();
+
+    public static TenantInfoImplBuilder builder() {
+        return new TenantInfoImplBuilder();
     }
 
-    public TenantInfoImpl(Set<String> adminRoles, Set<String> allowedClusters) {
-        this.adminRoles = adminRoles;
-        this.allowedClusters = allowedClusters;
-    }
+    public static class TenantInfoImplBuilder implements TenantInfo.Builder {
+        private Set<String> adminRoles;
+        private Set<String> allowedClusters;
 
-    @Override
-    public Set<String> getAdminRoles() {
-        return adminRoles;
-    }
+        TenantInfoImplBuilder() {
+        }
 
-    @Override
-    public void setAdminRoles(Set<String> adminRoles) {
-        this.adminRoles = adminRoles;
-    }
+        public TenantInfoImplBuilder adminRoles(Set<String> adminRoles) {
+            this.adminRoles = adminRoles;
+            return this;
+        }
 
-    @Override
-    public Set<String> getAllowedClusters() {
-        return allowedClusters;
-    }
+        public TenantInfoImplBuilder allowedClusters(Set<String> allowedClusters) {
+            this.allowedClusters = allowedClusters;
+            return this;
+        }
 
-    @Override
-    public void setAllowedClusters(Set<String> allowedClusters) {
-        this.allowedClusters = allowedClusters;
+        public TenantInfoImpl build() {
+            if (adminRoles == null) {
+                adminRoles = new HashSet<>();
+            }
+            if (allowedClusters == null) {
+                allowedClusters = new HashSet<>();
+            }
+            return new TenantInfoImpl(adminRoles, allowedClusters);
+        }
     }
 }

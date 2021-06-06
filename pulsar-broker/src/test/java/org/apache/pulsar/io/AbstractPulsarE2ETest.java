@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -50,7 +51,9 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -179,7 +182,7 @@ public abstract class AbstractPulsarE2ETest {
         primaryHost = String.format("http://%s:%d", "localhost", pulsar.getListenPortHTTP().get());
 
         // update cluster metadata
-        ClusterDataImpl clusterData = new ClusterDataImpl(pulsar.getBrokerServiceUrlTls());
+        ClusterData clusterData = ClusterData.builder().serviceUrl(pulsar.getBrokerServiceUrlTls()).build();
         admin.clusters().updateCluster(config.getClusterName(), clusterData);
 
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(this.workerConfig.getPulsarServiceUrl());
@@ -195,9 +198,10 @@ public abstract class AbstractPulsarE2ETest {
         }
         pulsarClient = clientBuilder.build();
 
-        TenantInfoImpl propAdmin = new TenantInfoImpl();
-        propAdmin.getAdminRoles().add("superUser");
-        propAdmin.setAllowedClusters(Sets.newHashSet(Lists.newArrayList("use")));
+        TenantInfo propAdmin = TenantInfo.builder()
+                .adminRoles(Collections.singleton("superUser"))
+                .allowedClusters(Collections.singleton("use"))
+                .build();
         admin.tenants().updateTenant(tenant, propAdmin);
 
         assertTrue(getPulsarIODataGeneratorNar().exists(), "pulsar-io-data-generator.nar file "

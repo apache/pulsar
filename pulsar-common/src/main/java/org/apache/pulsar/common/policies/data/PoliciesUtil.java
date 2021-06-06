@@ -31,12 +31,13 @@ import java.util.List;
 public class PoliciesUtil {
 
     public static BundlesData defaultBundle() {
-        BundlesData bundle = new BundlesData(1);
         List<String> boundaries = new ArrayList<>();
         boundaries.add(FIRST_BOUNDARY);
         boundaries.add(LAST_BOUNDARY);
-        bundle.setBoundaries(boundaries);
-        return bundle;
+        return BundlesData.builder()
+                .numBundles(1)
+                .boundaries(boundaries)
+                .build();
     }
 
     public static void setStorageQuota(Policies polices, BacklogQuota quota) {
@@ -66,6 +67,9 @@ public class PoliciesUtil {
             }
             curPartition += segSize;
         }
-        return new BundlesData(partitions);
+        return BundlesData.builder()
+                .boundaries(partitions)
+                .numBundles(numBundles)
+                .build();
     }
 }

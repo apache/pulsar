@@ -95,7 +95,7 @@ public class Bookies extends AdminResource {
             RawBookieInfo bookieInfo = new RawBookieInfo(bookieId.toString());
             result.add(bookieInfo);
         }
-        return new BookiesClusterInfo(result);
+        return BookiesClusterInfo.builder().bookies(result).build();
     }
 
     @GET

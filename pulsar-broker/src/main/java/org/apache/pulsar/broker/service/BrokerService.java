@@ -151,8 +151,8 @@ import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
-import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.TopicType;
+import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FieldParser;
@@ -1346,9 +1346,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                         .setBookKeeperEnsemblePlacementPolicyClassName(ZkIsolatedBookieEnsemblePlacementPolicy.class);
                 Map<String, Object> properties = Maps.newHashMap();
                 properties.put(ZkIsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS,
-                        localPolicies.get().bookieAffinityGroup.bookkeeperAffinityGroupPrimary);
+                        localPolicies.get().bookieAffinityGroup.getBookkeeperAffinityGroupPrimary());
                 properties.put(ZkIsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS,
-                        localPolicies.get().bookieAffinityGroup.bookkeeperAffinityGroupSecondary);
+                        localPolicies.get().bookieAffinityGroup.getBookkeeperAffinityGroupSecondary());
                 managedLedgerConfig.setBookKeeperEnsemblePlacementPolicyProperties(properties);
             }
             managedLedgerConfig.setThrottleMarkDelete(persistencePolicies.getManagedLedgerMaxMarkDeleteRate());
@@ -1835,8 +1835,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return producerNameGenerator.getNextId();
     }
 
-    public Map<String, TopicStats> getTopicStats() {
-        HashMap<String, TopicStats> stats = new HashMap<>();
+    public Map<String, TopicStatsImpl> getTopicStats() {
+        HashMap<String, TopicStatsImpl> stats = new HashMap<>();
 
         forEachTopic(topic -> stats.put(topic.getName(), topic.getStats(false, false)));
 
@@ -2496,7 +2496,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }
         AutoTopicCreationOverride autoTopicCreationOverride = getAutoTopicCreationOverride(topicName);
         if (autoTopicCreationOverride != null) {
-            return autoTopicCreationOverride.allowAutoTopicCreation;
+            return autoTopicCreationOverride.isAllowAutoTopicCreation();
         } else {
             return pulsar.getConfiguration().isAllowAutoTopicCreation();
         }
@@ -2505,7 +2505,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public boolean isDefaultTopicTypePartitioned(final TopicName topicName) {
         AutoTopicCreationOverride autoTopicCreationOverride = getAutoTopicCreationOverride(topicName);
         if (autoTopicCreationOverride != null) {
-            return TopicType.PARTITIONED.toString().equals(autoTopicCreationOverride.topicType);
+            return TopicType.PARTITIONED.toString().equals(autoTopicCreationOverride.getTopicType());
         } else {
             return pulsar.getConfiguration().isDefaultTopicTypePartitioned();
         }
@@ -2514,7 +2514,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public int getDefaultNumPartitions(final TopicName topicName) {
         AutoTopicCreationOverride autoTopicCreationOverride = getAutoTopicCreationOverride(topicName);
         if (autoTopicCreationOverride != null) {
-            return autoTopicCreationOverride.defaultNumPartitions;
+            return autoTopicCreationOverride.getDefaultNumPartitions();
         } else {
             return pulsar.getConfiguration().getDefaultNumPartitions();
         }
@@ -2547,7 +2547,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         AutoSubscriptionCreationOverride autoSubscriptionCreationOverride =
                 getAutoSubscriptionCreationOverride(topicName);
         if (autoSubscriptionCreationOverride != null) {
-            return autoSubscriptionCreationOverride.allowAutoSubscriptionCreation;
+            return autoSubscriptionCreationOverride.isAllowAutoSubscriptionCreation();
         } else {
             return pulsar.getConfiguration().isAllowAutoSubscriptionCreation();
         }

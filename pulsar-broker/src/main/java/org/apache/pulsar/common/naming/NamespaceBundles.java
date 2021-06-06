@@ -167,7 +167,7 @@ public class NamespaceBundles {
         if (bundlesData == null) {
             return new long[]{Long.decode(FIRST_BOUNDARY), Long.decode(LAST_BOUNDARY)};
         } else {
-            List<String> boundaries = bundlesData.boundaries;
+            List<String> boundaries = bundlesData.getBoundaries();
             long[] partitions = new long[boundaries.size()];
             for (int i = 0; i < boundaries.size(); i++) {
                 partitions[i] = Long.decode(boundaries.get(i));
@@ -195,7 +195,10 @@ public class NamespaceBundles {
                 .boxed()
                 .map(p -> format("0x%08x", p))
                 .collect(Collectors.toList());
-        return new BundlesData(boundaries);
+        return BundlesData.builder()
+                .boundaries(boundaries)
+                .numBundles(boundaries.size() - 1)
+                .build();
     }
 
     public LocalPolicies toLocalPolicies() {

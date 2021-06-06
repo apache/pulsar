@@ -20,22 +20,26 @@ package org.apache.pulsar.common.policies.data;
 
 import static org.testng.Assert.assertEquals;
 
+import org.apache.pulsar.common.policies.data.stats.PartitionedTopicStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.PublisherStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
 import org.testng.annotations.Test;
 
 public class PartitionedTopicStatsTest {
 
     @Test
     public void testPartitionedTopicStats() {
-        PartitionedTopicStats partitionedTopicStats = new PartitionedTopicStats();
+        PartitionedTopicStatsImpl partitionedTopicStats = new PartitionedTopicStatsImpl();
         partitionedTopicStats.msgRateIn = 1;
         partitionedTopicStats.msgThroughputIn = 1;
         partitionedTopicStats.msgRateOut = 1;
         partitionedTopicStats.msgThroughputOut = 1;
         partitionedTopicStats.averageMsgSize = 1;
         partitionedTopicStats.storageSize = 1;
-        partitionedTopicStats.publishers.add(new PublisherStats());
-        partitionedTopicStats.subscriptions.put("test_ns", new SubscriptionStats());
-        partitionedTopicStats.replication.put("test_ns", new ReplicatorStats());
+        partitionedTopicStats.publishers.add(new PublisherStatsImpl());
+        partitionedTopicStats.subscriptions.put("test_ns", new SubscriptionStatsImpl());
+        partitionedTopicStats.replication.put("test_ns", new ReplicatorStatsImpl());
         partitionedTopicStats.metadata.partitions = 1;
         partitionedTopicStats.partitions.put("test", partitionedTopicStats);
         partitionedTopicStats.reset();

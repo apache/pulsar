@@ -18,21 +18,22 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import org.apache.pulsar.common.policies.data.impl.DelayedDeliveryPoliciesImpl;
 
 /**
  * Definition of the delayed delivery policy.
  */
-@Data
-@AllArgsConstructor
-@Setter
-@Getter
-@NoArgsConstructor
-public class DelayedDeliveryPolicies {
-    private long tickTime;
-    private boolean active;
+public interface DelayedDeliveryPolicies {
+    long getTickTime();
+    boolean isActive();
+
+    interface Builder {
+        Builder tickTime(long tickTime);
+        Builder active(boolean active);
+        DelayedDeliveryPolicies build();
+    }
+
+    static Builder builder() {
+        return DelayedDeliveryPoliciesImpl.builder();
+    }
 }
