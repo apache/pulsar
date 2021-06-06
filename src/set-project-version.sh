@@ -38,7 +38,6 @@ OLD_VERSION=`python ${ROOT_DIR}/src/get-project-version.py`
 
 mvn versions:set -DnewVersion=$NEW_VERSION
 mvn versions:set -DnewVersion=$NEW_VERSION -pl buildtools
-mvn versions:set -DnewVersion=$NEW_VERSION -pl pulsar-sql/presto-distribution
 # Set terraform ansible deployment pulsar version
 sed -i -e "s/${OLD_VERSION}/${NEW_VERSION}/g" ${TERRAFORM_DIR}/deploy-pulsar.yaml
 
