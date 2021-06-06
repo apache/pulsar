@@ -19,10 +19,9 @@
 package org.apache.pulsar.io.core;
 
 import java.util.Collection;
-
-import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
