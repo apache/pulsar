@@ -101,25 +101,25 @@
 <tbody>
 <tr><td>bookiePort</td><td>bookie 服务器监听的端口。</td><td>3181</td></tr>
 <tr><td>allowLoopback</td><td>是否允许 bookie 使用 loopback 接口作为它的主要接口（例如，用于确立身份的接口）。 默认情况下，loopback 接口不允许作为主接口。 使用 loopback 接口作为主接口通常意味着配置错误。 例如，在某些 VPS 设置中，通常不会配置主机名或使主机名解析为 <code>127.0.0.1</code>。 如果情况如此，那么集群中的所有 bookie 都会将其身份设置为 <code>127.0.0.1:3181</code> 并且只有一个能成功加入集群。 对于像这样配置的 VPS，你应该显性地设置监听接口。</td><td>false</td></tr>
-<tr><td>listeningInterface</td><td>The network interface on which the bookie listens. If not set, the bookie will listen on all interfaces.</td><td>eth0</td></tr>
+<tr><td>listeningInterface</td><td>选择需要监听的网卡。 如果未设置此项，则默认监听主机上的所有网卡。</td><td>eth0</td></tr>
 <tr><td>journalDirectory</td><td>BookKeeper 输出 write-ahead 日志（WAL）的目录</td><td>data/bookkeeper/journal</td></tr>
 <tr><td>ledgerDirectories</td><td>BookKeeper 输出 ledger 快照的目录。 这里可以定义多个目录来存储以逗号分隔的快照，比如 <code>ledgerDirectories=/tmp/bk1-data,/tmp/bk2-data</code>。 最理想的情况是，ledger 目录和日志目录都是在不同的设备中，这减少了随机读写和顺序写入之间的争执。 可以用单个磁盘运行，但性能将显著降低。</td><td>data/bookkeeper/ledgers</td></tr>
 <tr><td>ledgerManagerType</td><td>用于管理 ledger 如何存储与管理，以及垃圾收集的 ledger 管理器类型。 查看 <a href="http://bookkeeper.apache.org/docs/latest/getting-started/concepts">BookKeeper Internals</a> 获取更多信息。</td><td>hierarchical</td></tr>
-<tr><td>zkLedgersRootPath</td><td>The root ZooKeeper path used to store ledger metadata. This parameter is used by the ZooKeeper-based ledger manager as a root znode to store all ledgers.</td><td>/ledgers</td></tr>
+<tr><td>zkLedgersRootPath</td><td>Zookeeper 上用于存储 ledger 元信息的路径。 这个参数仅适用于使用 root znode 来存储所有 ledger 信息的Zookeeper 元信息管理器。</td><td>/ledgers</td></tr>
 <tr><td>ledgerStorageClass</td><td>Ledger 存储实现类</td><td>org.apache.bookkeeper.bookie.storage.ldb.DbLedgerStorage</td></tr>
 <tr><td>entryLogFilePreallocationEnabled</td><td>启用或禁用条目日志记录器预分配</td><td>true</td></tr>
-<tr><td>logSizeLimit</td><td>Max file size of the entry logger, in bytes. A new entry log file will be created when the old one reaches the file size limitation.</td><td>2147483648</td></tr>
+<tr><td>logSizeLimit</td><td>最大的日志文件大小，单位是字节。 当日志文件达到本参数设置的大小后，会自动创建一个新的日志文件。</td><td>2147483648</td></tr>
 <tr><td>minorCompactionThreshold</td><td>次级压缩的阈值。 其剩余大小百分比低于此阈值的条目日志文件将在次级压缩中被压缩。 如果设置为零，次级压缩将被禁用。</td><td>0.2</td></tr>
-<tr><td>minorCompactionInterval</td><td>Time interval to run minor compaction, in seconds. 如果设置为零，次级压缩将被禁用。</td><td>3600</td></tr>
+<tr><td>minorCompactionInterval</td><td>运行次级压缩的时间间隔，单位是秒。 如果设置为零，次级压缩将被禁用。</td><td>3600</td></tr>
 <tr><td>majorCompactionThreshold</td><td>首级压缩的阈值。 其剩余大小百分比低于此阈值的条目日志文件将在首级压缩中被压缩。 剩余大小百分比仍高于阈值的条目日志文件永远不会被压缩。 如果设置为零，次级压缩将被禁用。</td><td>0.5</td></tr>
-<tr><td>majorCompactionInterval</td><td>The time interval to run major compaction, in seconds. If set to less than zero, the major compaction is disabled.</td><td>86400</td></tr>
+<tr><td>majorCompactionInterval</td><td>运行一级压缩的时间间隔，单位是秒。 如果设置为 0，一级压缩将会被禁用。</td><td>86400</td></tr>
 <tr><td>compactionMaxOutstandingRequests</td><td>设置压缩过程中无需刷写的最大条目数。 在压缩时，条目被写入条目日志，新的偏移被缓存在内存中。 一旦条目日志被刷写，索引将被新的偏移量更新。 此参数控制在强制刷写之前添加到条目日志的条目数量。 此参数的值越狱高意味着将有更多内存用于偏移量。 每个偏移量由三个 long 型组成。 此参数不应被修改，除非你完全了解其后果。</td><td>100000</td></tr>
 <tr><td>compactionRate</td><td>压缩过程中读取条目的频率，以每秒添加数为单位。</td><td>1000</td></tr>
 <tr><td>isThrottleByBytes</td><td>以字节或条目为单位进行阈值压缩</td><td>false</td></tr>
 <tr><td>compactionRateByEntries</td><td>压缩过程中读取条目的频率，以每秒添加数为单位。</td><td>1000</td></tr>
-<tr><td>compactionRateByBytes</td><td>Set the rate at which compaction will readd entries. The unit is bytes added per second.</td><td>1000000</td></tr>
-<tr><td>journalMaxSizeMB</td><td>Max file size of journal file, in megabytes. A new journal file will be created when the old one reaches the file size limitation.</td><td>2048</td></tr>
-<tr><td>journalMaxBackups</td><td>The max number of old journal filse to keep. Keeping a number of old journal files would help data recovery in special cases.</td><td>5</td></tr>
+<tr><td>compactionRateByBytes</td><td>设置做压缩时读取数据的速率。 单位是每秒读取的字节数。</td><td>1000000</td></tr>
+<tr><td>journalMaxSizeMB</td><td>日志（journal）文件的最大大小，单位是MB。 当日志（journal）文件达到本参数设置的大小后，会自动创建一个新的日志文件。</td><td>2048</td></tr>
+<tr><td>journalMaxBackups</td><td>保留的最多日志文件个数。 保留一定数量的日志文件，可以方便某些特殊情况下的数据恢复。</td><td>5</td></tr>
 <tr><td>journalPreAllocSizeMB</td><td>每次在日志中预分配的空间大小。</td><td>16</td></tr>
 <tr><td>journalWriteBufferSizeKB</td><td>日志使用的写缓冲区大小。</td><td>64</td></tr>
 <tr><td>journalRemoveFromPageCache</td><td>强制写入后，页是否应从页缓存中删除。</td><td>true</td></tr>
@@ -135,7 +135,7 @@
 <tr><td>gcOverreplicatedLedgerWaitTime</td><td>触发下一次垃圾收集器收集过度复制的 ledger 的时间间隔（毫秒）。 这种情况不应经常发生，因为我们从 zookeeper 的 bookie 上读取所有 ledger 的元数据。</td><td>86400000</td></tr>
 <tr><td>flushInterval</td><td>刷新 ledger 索引页到磁盘的间隔，以毫秒计。 刷新索引文件会引入大量随机磁盘 I/O。 如果在不同的设备上将日志目录和 ledger 目录分开，刷写就不会影响性能。 但是，如果在同一设备上放置日志目录和 ledger 目录，性能会在频繁刷写的情况下大幅下降。 你可以考虑增加刷写间隔来获得更好的性能，但你需要在 bookie 服务器失败重启后花更多时间。</td><td>60000</td></tr>
 <tr><td>bookieDeathWatchInterval</td><td>查看 bookie 是否已死亡的时间间隔，以毫秒为单位</td><td>1000</td></tr>
-<tr><td>zkServers</td><td>A list of one of more servers on which zookeeper is running. The server list can be comma separated values, for example: zkServers=zk1:2181,zk2:2181,zk3:2181.</td><td>localhost:2181</td></tr>
+<tr><td>zkServers</td><td>Zookeeper 运行的服务器节点清单。 服务器清单用逗号分隔，例如：zkServers=zk1:2181,zk2:2181,zk3:2181 。</td><td>localhost:2181</td></tr>
 <tr><td>zkTimeout</td><td>ZooKeeper 客户端会话超时时间，以毫秒为单位。Bookie 服务器如果收到 SESSION_EXPIRED，将退出，因为它从 ZooKeeper 进行分区超过了会话超时时间。JVM 垃圾收集和磁盘 I/O 会导致 SESSION_EXPIRED。 增加这个值可以帮助避免这个问题</td><td>30000</td></tr>
 <tr><td>serverTcpNoDelay</td><td>此设置用于启用/禁用 Nagle 的算法，该算法能通过减少通过网络发送的数据包数量来提高 TCP/IP 网络效率。 如果你正在发送许多小消息，这样在单个 IP 数据包中就可以放入不止一个消息，设置 server.tcpnodelay 为 false 来启用 Nagle 算法可以提供更好的性能。</td><td>true</td></tr>
 <tr><td>openFileLimit</td><td>在 bookie 服务器上可以打开 ledger 索引文件的最大数量。如果 ledger 索引文件数量达到这个限制，bookie 服务器会开始将一些 ledger 从内存交换到磁盘。 过于频繁的交换会影响性能。 你可以根据你的要求调整这个数字以获得性能提升。</td><td>0</td></tr>
@@ -146,18 +146,18 @@
 <tr><td>diskCheckInterval</td><td>磁盘检查间隔，以毫秒为单位，检查 ledger 目录使用情况的时间间隔。</td><td>10000</td></tr>
 <tr><td>auditorPeriodicCheckInterval</td><td>审查者对集群内所有 ledger 进行核对的时间间隔。 默认情况下，每周运行一次。 间隔以秒为单位。 要完全禁用定期检查，请将此设置为 0。 请注意，定期检查会给集群带来额外的负荷，因此每天的运行次数不应超过一次。</td><td>604800</td></tr>
 <tr><td>auditorPeriodicBookieCheckInterval</td><td>审查者 bookie 检查的时间间隔。 审查者 bookie 检查，检查 ledger 的元数据来查看哪些 bookie 应该包含各个 ledger 的条目。 如果本应包含条目的 bookie 不可用，包含该条目的 ledger 会被标记去做恢复。 设置为 0 会禁用定期检查。 当 bookie 失效时，bookie 检查仍然会进行。 间隔以秒为单位。</td><td>86400</td></tr>
-<tr><td>numAddWorkerThreads</td><td>number of threads that should handle write requests. if zero, the writes would be handled by netty threads directly.</td><td>0</td></tr>
-<tr><td>numReadWorkerThreads</td><td>number of threads that should handle read requests. if zero, the reads would be handled by netty threads directly.</td><td>8</td></tr>
+<tr><td>numAddWorkerThreads</td><td>处理写入请求的最大线程数。 如果设置为 0，写入请求将直接被 nerry 线程进行处理。</td><td>0</td></tr>
+<tr><td>numReadWorkerThreads</td><td>处理读取请求的最大线程数。 如果设置为 0，读取请求将直接被 netty 线程处理。</td><td>8</td></tr>
 <tr><td>maxPendingReadRequestsPerThread</td><td>如果启用了读 worker 线程，限制待处理请求的数量，以避免执行器队列无止境增长。</td><td>2500</td></tr>
 <tr><td>readBufferSizeBytes</td><td>用作 BufferedReadChannel 容量的字节数量。</td><td>4096</td></tr>
 <tr><td>writeBufferSizeBytes</td><td>用作写缓存容量的字节数</td><td>65536</td></tr>
-<tr><td>useHostNameAsBookieID</td><td>Whether the bookie should use its hostname to register with the coordination service (e.g.: zookeeper service). When false, bookie will use its ipaddress for the registration.</td><td>false</td></tr>
+<tr><td>useHostNameAsBookieID</td><td>是否使用主机名去注册 bookie 的协调服务（如：Zookeeper）。 如果设置为 false，bookie 会直接使用 IP 地址进行注册登记。</td><td>false</td></tr>
 <tr><td>statsProviderClass</td><td></td><td>org.apache.bookkeeper.stats.prometheus.PrometheusMetricsProvider</td></tr>
 <tr><td>prometheusStatsHttpPort</td><td></td><td>8000</td></tr>
-<tr><td>dbStorage_writeCacheMaxSizeMb</td><td>Size of Write Cache. Memory is allocated from JVM direct memory. Write cache is used to buffer entries before flushing into the entry log For good performance, it should be big enough to hold a substantial amount of entries in the flush interval.</td><td>25% 的直接内存</td></tr>
-<tr><td>dbStorage_readAheadCacheMaxSizeMb</td><td>Size of Read cache. Memory is allocated from JVM direct memory. This read cache is pre-filled doing read-ahead whenever a cache miss happens</td><td>25% 的直接内存</td></tr>
+<tr><td>dbStorage_writeCacheMaxSizeMb</td><td>写入缓存的大小。 所使用的内存是 JVM 直接内存。 Write cache is used to buffer entries before flushing into the entry log For good performance, it should be big enough to hold a substantial amount of entries in the flush interval.</td><td>25% 的直接内存</td></tr>
+<tr><td>dbStorage_readAheadCacheMaxSizeMb</td><td>读取缓存的大小。 所使用的内存是 JVM 直接内存。 这个读取缓存是在缓存失灵时预先填写的读取缓存。</td><td>25% 的直接内存</td></tr>
 <tr><td>dbStorage_readAheadCacheBatchSize</td><td>当读缓存 miss 发生后预装填的条目数量</td><td>1000</td></tr>
-<tr><td>dbStorage_rocksDB_blockCacheSize</td><td>Size of RocksDB block-cache. For best performance, this cache should be big enough to hold a significant portion of the index database which can reach ~2GB in some cases</td><td>10% 的直接内存</td></tr>
+<tr><td>dbStorage_rocksDB_blockCacheSize</td><td>RocksDB 的 block-cache 大小。 为了最佳性能，这个缓存应该足够大，可以持有相当一部分索引数据库，在某些情况下可以达到 ~2GB。</td><td>10% 的直接内存</td></tr>
 <tr><td>dbStorage_rocksDB_writeBufferSizeMB</td><td></td><td>64</td></tr>
 <tr><td>dbStorage_rocksDB_sstSizeInMB</td><td></td><td>64</td></tr>
 <tr><td>dbStorage_rocksDB_blockSize</td><td></td><td>65536</td></tr>
@@ -185,7 +185,7 @@
 <tr><td>webServicePortTls</td><td>Port to use to server HTTPS request</td><td>8443</td></tr>
 <tr><td>webSocketServiceEnabled</td><td>Enable the WebSocket API service in broker</td><td>false</td></tr>
 <tr><td>bindAddress</td><td>Hostname or IP address the service binds on, default is 0.0.0.0.</td><td>0.0.0.0</td></tr>
-<tr><td>advertisedAddress</td><td>Hostname or IP address the service advertises to the outside world. If not set, the value of <code>InetAddress.getLocalHost().getHostName()</code> is used.</td><td></td></tr>
+<tr><td>advertisedAddress</td><td>服务对外发布的主机名或 IP 地址。 如果未设置，将使用 <code>InnetAddress.getLocalHost().getHostName()</code> 的值。</td><td></td></tr>
 <tr><td>clusterName</td><td>Name of the cluster to which this broker belongs to</td><td></td></tr>
 <tr><td>brokerDeduplicationEnabled</td><td>Sets the default behavior for message deduplication in the broker. If enabled, the broker will reject messages that were already stored in the topic. This setting can be overridden on a per-namespace basis.</td><td>false</td></tr>
 <tr><td>brokerDeduplicationMaxNumberOfProducers</td><td>The maximum number of producers for which information will be stored for deduplication purposes.</td><td>10000</td></tr>
@@ -194,9 +194,9 @@
 <tr><td>dispatchThrottlingRatePerReplicatorInMsg</td><td>The default messages per second dispatch throttling-limit for every replicator in replication. The value of <code>0</code> means disabling replication message dispatch-throttling</td><td>0</td></tr>
 <tr><td>dispatchThrottlingRatePerReplicatorInByte</td><td>The default bytes per second dispatch throttling-limit for every replicator in replication. The value of <code>0</code> means disabling replication message-byte dispatch-throttling</td><td>0</td></tr>
 <tr><td>zooKeeperSessionTimeoutMillis</td><td>Zookeeper session timeout in milliseconds</td><td>30000</td></tr>
-<tr><td>brokerShutdownTimeoutMs</td><td>Time to wait for broker graceful shutdown. After this time elapses, the process will be killed</td><td>60000</td></tr>
+<tr><td>brokerShutdownTimeoutMs</td><td>等待 broker 关闭的时长。 达到本设置时间之后，将会直接关掉进程。</td><td>60000</td></tr>
 <tr><td>skipBrokerShutdownOnOOM</td><td>Flag to skip broker shutdown when broker handles Out of memory error.</td><td>false</td></tr>
-<tr><td>backlogQuotaCheckEnabled</td><td>Enable backlog quota check. Enforces action on topic when the quota is reached</td><td>true</td></tr>
+<tr><td>backlogQuotaCheckEnabled</td><td>打开 backlog 配额检查。 当某个 Topic 已经达到配额，将会采取强制行动。</td><td>true</td></tr>
 <tr><td>backlogQuotaCheckIntervalInSeconds</td><td>How often to check for topics that have reached the quota</td><td>60</td></tr>
 <tr><td>backlogQuotaDefaultLimitGB</td><td>The default per-topic backlog quota limit</td><td>-1</td></tr>
 <tr><td>allowAutoTopicCreation</td><td>Enable topic auto creation if a new producer or consumer connected</td><td>true</td></tr>
@@ -409,7 +409,7 @@
 <tr><td>brokerServicePort</td><td>The port on which the standalone broker listens for connections</td><td>6650</td></tr>
 <tr><td>webServicePort</td><td>THe port used by the standalone broker for HTTP requests</td><td>8080</td></tr>
 <tr><td>bindAddress</td><td>The hostname or IP address on which the standalone service binds</td><td>0.0.0.0</td></tr>
-<tr><td>advertisedAddress</td><td>The hostname or IP address that the standalone service advertises to the outside world. If not set, the value of <code>InetAddress.getLocalHost().getHostName()</code> is used.</td><td></td></tr>
+<tr><td>advertisedAddress</td><td>The hostname or IP address that the standalone service advertises to the outside world. 如果未设置，将使用 <code>InnetAddress.getLocalHost().getHostName()</code> 的值。</td><td></td></tr>
 <tr><td>clusterName</td><td>The name of the cluster that this broker belongs to.</td><td>standalone</td></tr>
 <tr><td>zooKeeperSessionTimeoutMillis</td><td>The ZooKeeper session timeout, in milliseconds.</td><td>30000</td></tr>
 <tr><td>brokerShutdownTimeoutMs</td><td>The time to wait for graceful broker shutdown. After this time elapses, the process will be killed.</td><td>60000</td></tr>
