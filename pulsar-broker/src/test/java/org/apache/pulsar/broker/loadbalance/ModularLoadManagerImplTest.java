@@ -68,6 +68,7 @@ import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -493,7 +494,7 @@ public class ModularLoadManagerImplTest {
         final String broker1Address = pulsar1.getAdvertisedAddress() + "0";
         final String broker2Address = pulsar2.getAdvertisedAddress() + "1";
         final String sharedBroker = "broker3";
-        admin1.clusters().createCluster(cluster, new ClusterDataImpl("http://" + pulsar1.getAdvertisedAddress()));
+        admin1.clusters().createCluster(cluster, ClusterData.builder().serviceUrl("http://" + pulsar1.getAdvertisedAddress()).build());
         admin1.tenants().createTenant(tenant,
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(cluster)));
         admin1.namespaces().createNamespace(tenant + "/" + cluster + "/" + namespace);

@@ -797,7 +797,7 @@ public class TopicsImpl extends BaseResource implements Topics {
                     @Override
                     public void completed(PartitionedTopicStats response) {
                         if (!perPartition) {
-                            response.partitions.clear();
+                            response.getPartitions().clear();
                         }
                         future.complete(response);
                     }

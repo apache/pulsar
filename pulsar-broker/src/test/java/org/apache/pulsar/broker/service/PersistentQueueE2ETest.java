@@ -496,10 +496,10 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         Awaitility.await().untilAsserted(() -> {
             TopicStats stats = admin.topics().getStats(topicName);
             // Unacked messages count should be 0 for both consumers at this point
-            SubscriptionStats subStats = stats.subscriptions.get(subName);
-            assertEquals(subStats.msgBacklog, 0);
-            for (ConsumerStats cs : subStats.consumers) {
-                assertEquals(cs.unackedMessages, 0);
+            SubscriptionStats subStats = stats.getSubscriptions().get(subName);
+            assertEquals(subStats.getMsgBacklog(), 0);
+            for (ConsumerStats cs : subStats.getConsumers()) {
+                assertEquals(cs.getUnackedMessages(), 0);
             }
         });
 

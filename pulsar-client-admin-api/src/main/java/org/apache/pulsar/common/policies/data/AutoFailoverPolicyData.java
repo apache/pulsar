@@ -19,13 +19,24 @@
 package org.apache.pulsar.common.policies.data;
 
 import java.util.Map;
+import org.apache.pulsar.client.admin.utils.ReflectionUtils;
 
 public interface AutoFailoverPolicyData {
-    AutoFailoverPolicyType getPolicy_type();
+    AutoFailoverPolicyType getPolicyType();
 
     Map<String, String> getParameters();
 
-    void setPolicy_type(AutoFailoverPolicyType policyType);
+    void validate();
 
-    void setParameters(Map<String, String> parameters);
+    interface Builder {
+        Builder policyType(AutoFailoverPolicyType policyType);
+
+        Builder parameters(Map<String, String> parameters);
+
+        AutoFailoverPolicyData build();
+    }
+
+    static Builder builder() {
+        return ReflectionUtils.newBuilder("org.apache.pulsar.common.policies.data.AutoFailoverPolicyDataImpl");
+    }
 }

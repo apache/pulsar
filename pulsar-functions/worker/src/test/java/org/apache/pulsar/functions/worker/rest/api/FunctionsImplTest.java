@@ -28,7 +28,7 @@ import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.policies.data.FunctionInstanceStatsImpl;
 import org.apache.pulsar.common.policies.data.FunctionStatsImpl;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.InstanceUtils;
@@ -114,7 +114,7 @@ public class FunctionsImplTest {
     private PulsarAdmin mockedPulsarAdmin;
     private Tenants mockedTenants;
     private Namespaces mockedNamespaces;
-    private TenantInfoImpl mockedTenantInfo;
+    private TenantInfo mockedTenantInfo;
     private List<String> namespaceList = new LinkedList<>();
     private FunctionMetaDataManager mockedManager;
     private FunctionRuntimeManager mockedFunctionRunTimeManager;
@@ -130,7 +130,7 @@ public class FunctionsImplTest {
     public void setup() throws Exception {
         this.mockedManager = mock(FunctionMetaDataManager.class);
         this.mockedFunctionRunTimeManager = mock(FunctionRuntimeManager.class);
-        this.mockedTenantInfo = mock(TenantInfoImpl.class);
+        this.mockedTenantInfo = mock(TenantInfo.class);
         this.mockedRuntimeFactory = mock(RuntimeFactory.class);
         this.mockedInputStream = mock(InputStream.class);
         this.mockedNamespace = mock(Namespace.class);
@@ -247,7 +247,7 @@ public class FunctionsImplTest {
     @Test
     public void testIsAuthorizedRole() throws PulsarAdminException, InterruptedException, ExecutionException {
 
-        TenantInfoImpl tenantInfo = new TenantInfoImpl();
+        TenantInfo tenantInfo = TenantInfo.builder().build();
         AuthenticationDataSource authenticationDataSource = mock(AuthenticationDataSource.class);
         FunctionsImpl functionImpl = spy(new FunctionsImpl(() -> mockedWorkerService));
         AuthorizationService authorizationService = mock(AuthorizationService.class);
@@ -283,7 +283,7 @@ public class FunctionsImplTest {
         functionImpl = spy(new FunctionsImpl(() -> mockedWorkerService));
         doReturn(false).when(functionImpl).allowFunctionOps(any(), any(), any());
         tenants = mock(Tenants.class);
-        tenantInfo.setAdminRoles(Collections.singleton("test-user"));
+        tenantInfo = TenantInfo.builder().adminRoles(Collections.singleton("test-user")).build();
         when(tenants.getTenantInfo(any())).thenReturn(tenantInfo);
 
         admin = mock(PulsarAdmin.class);
@@ -297,7 +297,7 @@ public class FunctionsImplTest {
         functionImpl = spy(new FunctionsImpl(() -> mockedWorkerService));
         doReturn(true).when(functionImpl).allowFunctionOps(any(), any(), any());
         tenants = mock(Tenants.class);
-        tenantInfo.setAdminRoles(Collections.emptySet());
+        tenantInfo = TenantInfo.builder().build();
         when(tenants.getTenantInfo(any())).thenReturn(tenantInfo);
 
         admin = mock(PulsarAdmin.class);
@@ -310,7 +310,7 @@ public class FunctionsImplTest {
         functionImpl = spy(new FunctionsImpl(() -> mockedWorkerService));
         doReturn(true).when(functionImpl).allowFunctionOps(any(), any(), any());
         tenants = mock(Tenants.class);
-        when(tenants.getTenantInfo(any())).thenReturn(new TenantInfoImpl());
+        when(tenants.getTenantInfo(any())).thenReturn(TenantInfo.builder().build());
 
         admin = mock(PulsarAdmin.class);
         when(admin.tenants()).thenReturn(tenants);

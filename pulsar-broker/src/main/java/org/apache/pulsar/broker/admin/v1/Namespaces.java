@@ -67,6 +67,7 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.TenantOperation;
+import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -241,7 +242,7 @@ public class Namespaces extends NamespacesBase {
         validateNamespaceOperation(NamespaceName.get(property, namespace), NamespaceOperation.GET_PERMISSION);
 
         Policies policies = getNamespacePolicies(namespaceName);
-        return policies.auth_policies.namespace_auth;
+        return policies.auth_policies.getNamespaceAuthentication();
     }
 
     @POST
@@ -627,7 +628,7 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(hidden = true, value = "Set dispatch-rate throttling for all topics of the namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
     public void setDispatchRate(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace, DispatchRate dispatchRate) {
+            @PathParam("namespace") String namespace, DispatchRateImpl dispatchRate) {
         validateNamespaceName(property, cluster, namespace);
         internalSetTopicDispatchRate(dispatchRate);
     }
@@ -651,7 +652,7 @@ public class Namespaces extends NamespacesBase {
     public void setSubscriptionDispatchRate(@PathParam("property") String property,
                                             @PathParam("cluster") String cluster,
                                             @PathParam("namespace") String namespace,
-                                            DispatchRate dispatchRate) {
+                                            DispatchRateImpl dispatchRate) {
         validateNamespaceName(property, cluster, namespace);
         internalSetSubscriptionDispatchRate(dispatchRate);
     }
@@ -677,7 +678,7 @@ public class Namespaces extends NamespacesBase {
             @PathParam("tenant") String tenant,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
             @ApiParam(value = "Replicator dispatch rate for all topics of the specified namespace")
-                    DispatchRate dispatchRate) {
+                    DispatchRateImpl dispatchRate) {
         validateNamespaceName(tenant, cluster, namespace);
         internalSetReplicatorDispatchRate(dispatchRate);
     }

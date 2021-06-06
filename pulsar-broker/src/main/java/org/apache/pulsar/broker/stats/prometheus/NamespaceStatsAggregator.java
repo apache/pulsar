@@ -25,8 +25,9 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.common.policies.data.ConsumerStats;
-import org.apache.pulsar.common.policies.data.ReplicatorStats;
+import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 
 public class NamespaceStatsAggregator {
@@ -114,8 +115,7 @@ public class NamespaceStatsAggregator {
             stats.managedLedgerStats.storageReadRate = mlStats.getReadEntriesRate();
         }
 
-        org.apache.pulsar.common.policies.data.TopicStats tStatus = topic.getStats(getPreciseBacklog,
-                subscriptionBacklogSize);
+        TopicStatsImpl tStatus = topic.getStats(getPreciseBacklog, subscriptionBacklogSize);
         stats.msgInCounter = tStatus.msgInCounter;
         stats.bytesInCounter = tStatus.bytesInCounter;
         stats.msgOutCounter = tStatus.msgOutCounter;
@@ -185,7 +185,7 @@ public class NamespaceStatsAggregator {
                 AggregatedSubscriptionStats subsStats = stats.subscriptionStats
                         .computeIfAbsent(name, k -> new AggregatedSubscriptionStats());
                 subscription.getConsumers().forEach(consumer -> {
-                    ConsumerStats conStats = consumer.getStats();
+                    ConsumerStatsImpl conStats = consumer.getStats();
 
                     AggregatedConsumerStats consumerStats = subsStats.consumerStat
                             .computeIfAbsent(consumer, k -> new AggregatedConsumerStats());
@@ -206,7 +206,7 @@ public class NamespaceStatsAggregator {
             AggregatedReplicationStats aggReplStats = stats.replicationStats.computeIfAbsent(cluster,
                     k -> new AggregatedReplicationStats());
 
-            ReplicatorStats replStats = replicator.getStats();
+            ReplicatorStatsImpl replStats = replicator.getStats();
             aggReplStats.msgRateOut += replStats.msgRateOut;
             aggReplStats.msgThroughputOut += replStats.msgThroughputOut;
             aggReplStats.replicationBacklog += replStats.replicationBacklog;

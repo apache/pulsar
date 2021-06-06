@@ -34,7 +34,8 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
@@ -305,8 +306,10 @@ public class PulsarStandalone implements AutoCloseable {
                     webServiceUrl.toString()).authentication(
                     config.getBrokerClientAuthenticationPlugin(),
                     config.getBrokerClientAuthenticationParameters()).build();
-            ClusterDataImpl clusterData =
-                    new ClusterDataImpl(webServiceUrl.toString(), null, brokerServiceUrl, null);
+            ClusterData clusterData = ClusterData.builder()
+                    .serviceUrl(webServiceUrl.toString())
+                    .brokerServiceUrl(brokerServiceUrl)
+                    .build();
             createSampleNameSpace(clusterData, cluster);
         } else {
             URL webServiceUrlTls = new URL(
@@ -333,8 +336,10 @@ public class PulsarStandalone implements AutoCloseable {
             }
 
             admin = builder.build();
-            ClusterDataImpl clusterData = new ClusterDataImpl(null, webServiceUrlTls.toString(),
-                    null, brokerServiceUrlTls);
+            ClusterData clusterData = ClusterData.builder()
+                    .serviceUrlTls(webServiceUrlTls.toString())
+                    .brokerServiceUrlTls(brokerServiceUrlTls)
+                    .build();
             createSampleNameSpace(clusterData, cluster);
         }
 
@@ -355,7 +360,10 @@ public class PulsarStandalone implements AutoCloseable {
         try {
             if (!admin.tenants().getTenants().contains(publicTenant)) {
                 admin.tenants().createTenant(publicTenant,
-                        new TenantInfoImpl(Sets.newHashSet(config.getSuperUserRoles()), Sets.newHashSet(cluster)));
+                        TenantInfo.builder()
+                                .adminRoles(Sets.newHashSet(config.getSuperUserRoles()))
+                                .allowedClusters(Sets.newHashSet(cluster))
+                                .build());
             }
             if (!admin.namespaces().getNamespaces(publicTenant).contains(defaultNamespace)) {
                 admin.namespaces().createNamespace(defaultNamespace);
@@ -367,7 +375,7 @@ public class PulsarStandalone implements AutoCloseable {
         }
     }
 
-    private void createSampleNameSpace(ClusterDataImpl clusterData, String cluster) {
+    private void createSampleNameSpace(ClusterData clusterData, String cluster) {
         // Create a sample namespace
         final String tenant = "sample";
         final String globalCluster = "global";
@@ -383,7 +391,7 @@ public class PulsarStandalone implements AutoCloseable {
             try {
                 admin.clusters().getCluster(globalCluster);
             } catch (PulsarAdminException.NotFoundException ex) {
-                admin.clusters().createCluster(globalCluster, new ClusterDataImpl(null, null));
+                admin.clusters().createCluster(globalCluster, ClusterData.builder().build());
             }
 
             if (!admin.tenants().getTenants().contains(tenant)) {

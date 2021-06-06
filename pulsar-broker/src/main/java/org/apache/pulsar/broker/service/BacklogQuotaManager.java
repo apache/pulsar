@@ -37,6 +37,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
+import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.slf4j.Logger;
@@ -44,7 +45,7 @@ import org.slf4j.LoggerFactory;
 
 public class BacklogQuotaManager {
     private static final Logger log = LoggerFactory.getLogger(BacklogQuotaManager.class);
-    private final BacklogQuota defaultQuota;
+    private final BacklogQuotaImpl defaultQuota;
     private final ZooKeeperDataCache<Policies> zkCache;
     private final PulsarService pulsar;
     private final boolean isTopicLevelPoliciesEnable;
@@ -52,22 +53,24 @@ public class BacklogQuotaManager {
 
     public BacklogQuotaManager(PulsarService pulsar) {
         this.isTopicLevelPoliciesEnable = pulsar.getConfiguration().isTopicLevelPoliciesEnabled();
-        this.defaultQuota = new BacklogQuota(
-                pulsar.getConfiguration().getBacklogQuotaDefaultLimitGB() * 1024 * 1024 * 1024,
-                pulsar.getConfiguration().getBacklogQuotaDefaultLimitSecond(),
-                pulsar.getConfiguration().getBacklogQuotaDefaultRetentionPolicy());
+        this.defaultQuota = BacklogQuotaImpl.builder()
+                .limitSize(pulsar.getConfiguration().getBacklogQuotaDefaultLimitGB() * 1024 * 1024 * 1024)
+                .limitTime(pulsar.getConfiguration().getBacklogQuotaDefaultLimitSecond())
+                .retentionPolicy(pulsar.getConfiguration().getBacklogQuotaDefaultRetentionPolicy())
+                .build();
         this.zkCache = pulsar.getConfigurationCache().policiesCache();
         this.pulsar = pulsar;
     }
 
-    public BacklogQuota getDefaultQuota() {
+    public BacklogQuotaImpl getDefaultQuota() {
         return this.defaultQuota;
     }
 
-    public BacklogQuota getBacklogQuota(String namespace, String policyPath) {
+    public BacklogQuotaImpl getBacklogQuota(String namespace, String policyPath) {
         try {
             return zkCache.get(policyPath)
-                    .map(p -> p.backlog_quota_map.getOrDefault(BacklogQuotaType.destination_storage, defaultQuota))
+                    .map(p -> (BacklogQuotaImpl) p.backlog_quota_map
+                            .getOrDefault(BacklogQuotaType.destination_storage, defaultQuota))
                     .orElse(defaultQuota);
         } catch (Exception e) {
             log.warn("Failed to read policies data, will apply the default backlog quota: namespace={}", namespace, e);
@@ -75,7 +78,7 @@ public class BacklogQuotaManager {
         }
     }
 
-    public BacklogQuota getBacklogQuota(TopicName topicName) {
+    public BacklogQuotaImpl getBacklogQuota(TopicName topicName) {
         String policyPath = AdminResource.path(POLICIES, topicName.getNamespace());
         if (!isTopicLevelPoliciesEnable) {
             return getBacklogQuota(topicName.getNamespace(), policyPath);

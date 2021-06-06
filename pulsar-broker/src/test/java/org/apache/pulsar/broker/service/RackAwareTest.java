@@ -97,7 +97,10 @@ public class RackAwareTest extends BkEnsemblesTestBase {
 
             // Place bookie-1 in "rack-1" and the rest in "rack-2"
             int rackId = i == 0 ? 1 : 2;
-            BookieInfo bi = new BookieInfo("rack-" + rackId, "bookie-" + (i + 1));
+            BookieInfo bi = BookieInfo.builder()
+                    .rack("rack-" + rackId)
+                    .hostname("bookie-" + (i + 1))
+                    .build();
             log.info("setting rack for bookie at {} -- {}", bookie, bi);
             admin.bookies().updateBookieRackInfo(bookie, "default", bi);
         }

@@ -18,59 +18,44 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import java.util.Objects;
-
 /**
  * Statistics about a replicator.
  */
-public class ReplicatorStats {
+public interface ReplicatorStats {
 
     /** Total rate of messages received from the remote cluster (msg/s). */
-    public double msgRateIn;
+    double getMsgRateIn();
 
     /** Total throughput received from the remote cluster (bytes/s). */
-    public double msgThroughputIn;
+    double getMsgThroughputIn();
 
     /** Total rate of messages delivered to the replication-subscriber (msg/s). */
-    public double msgRateOut;
+    double getMsgRateOut();
 
     /** Total throughput delivered to the replication-subscriber (bytes/s). */
-    public double msgThroughputOut;
+    double getMsgThroughputOut();
 
     /** Total rate of messages expired (msg/s). */
-    public double msgRateExpired;
+    double getMsgRateExpired();
 
     /** Number of messages pending to be replicated to remote cluster. */
-    public long replicationBacklog;
+    long getReplicationBacklog();
 
     /** is the replication-subscriber up and running to replicate to remote cluster. */
-    public boolean connected;
+    boolean isConnected();
 
     /** Time in seconds from the time a message was produced to the time when it is about to be replicated. */
-    public long replicationDelayInSeconds;
+    long getReplicationDelayInSeconds();
 
     /** Address of incoming replication connection. */
-    public String inboundConnection;
+    String getInboundConnection();
 
     /** Timestamp of incoming connection establishment time. */
-    public String inboundConnectedSince;
+    String getInboundConnectedSince();
 
     /** Address of outbound replication connection. */
-    public String outboundConnection;
+    String getOutboundConnection();
 
     /** Timestamp of outbound connection establishment time. */
-    public String outboundConnectedSince;
-
-    public ReplicatorStats add(ReplicatorStats stats) {
-        Objects.requireNonNull(stats);
-        this.msgRateIn += stats.msgRateIn;
-        this.msgThroughputIn += stats.msgThroughputIn;
-        this.msgRateOut += stats.msgRateOut;
-        this.msgThroughputOut += stats.msgThroughputOut;
-        this.msgRateExpired += stats.msgRateExpired;
-        this.replicationBacklog += stats.replicationBacklog;
-        this.connected &= stats.connected;
-        this.replicationDelayInSeconds = Math.max(this.replicationDelayInSeconds, stats.replicationDelayInSeconds);
-        return this;
-    }
+    String getOutboundConnectedSince();
 }

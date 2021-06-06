@@ -18,16 +18,20 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import org.apache.pulsar.common.policies.data.impl.BrokerInfoImpl;
 
 /**
  * Broker Information.
  */
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
-public class BrokerInfo {
-    private String serviceUrl;
+public interface BrokerInfo {
+    String getServiceUrl();
+
+    interface Builder {
+        Builder serviceUrl(String serviceUrl);
+        BrokerInfo build();
+    }
+
+    static Builder builder() {
+        return BrokerInfoImpl.builder();
+    }
 }

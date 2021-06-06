@@ -109,7 +109,8 @@ public class DiscoveryServiceWebTest extends ProducerConsumerBase {
 
         assertEquals(hitBrokerService(HttpMethod.POST, postRequestUrl, Lists.newArrayList("use")),
                 "Need to authenticate to perform the request");
-        assertEquals(hitBrokerService(HttpMethod.PUT, putRequestUrl, new BundlesData(1)), "Need to authenticate to perform the request");
+        assertEquals(hitBrokerService(HttpMethod.PUT, putRequestUrl,
+                BundlesData.builder().numBundles(1).build()), "Need to authenticate to perform the request");
         assertEquals(hitBrokerService(HttpMethod.GET, getRequestUrl, null), "Need to authenticate to perform the request");
     }
 

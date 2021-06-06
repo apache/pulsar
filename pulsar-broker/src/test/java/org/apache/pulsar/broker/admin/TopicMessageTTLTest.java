@@ -24,6 +24,7 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
@@ -57,7 +58,7 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         this.conf.setTtlDurationDefaultInSeconds(3600);
         super.internalSetup();
 
-        admin.clusters().createCluster("test", new ClusterDataImpl(pulsar.getWebServiceAddress()));
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant(this.testTenant, tenantInfo);
         admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Sets.newHashSet("test"));
@@ -130,7 +131,7 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         this.conf.setTopicLevelPoliciesEnabled(false);
         super.internalSetup();
 
-        admin.clusters().createCluster("test", new ClusterDataImpl(pulsar.getWebServiceAddress()));
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant(this.testTenant, tenantInfo);
         admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Sets.newHashSet("test"));

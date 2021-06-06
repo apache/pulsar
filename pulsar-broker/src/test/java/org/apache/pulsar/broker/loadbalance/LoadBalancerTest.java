@@ -32,6 +32,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -51,9 +52,11 @@ import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.internal.NamespacesImpl;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyDataImpl;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.BundlesData;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
@@ -561,7 +564,10 @@ public class LoadBalancerTest {
             }
             curPartition += segSize;
         }
-        return new BundlesData(partitions);
+        return BundlesData.builder()
+                .boundaries(partitions)
+                .numBundles(partitions.size() - 1)
+                .build();
     }
 
     private void createNamespace(PulsarService pulsar, String namespace, int numBundles) throws Exception {
@@ -708,53 +714,53 @@ public class LoadBalancerTest {
         NamespaceIsolationPolicies policies = new NamespaceIsolationPolicies();
 
         // set up policy that use this broker as primary
-        NamespaceIsolationDataImpl policyData = new NamespaceIsolationDataImpl();
-        policyData.namespaces = new ArrayList<String>();
-        policyData.namespaces.add("pulsar/use/primary-ns.*");
-        policyData.primary = new ArrayList<String>();
+        Map<String, String> parameters = new HashMap<>();
+        parameters.put("min_limit", "1");
+        parameters.put("usage_threshold", "100");
+
+        List<String> allBrokers = new ArrayList<>();
         for (int i = 0; i < BROKER_COUNT; i++) {
-            policyData.primary.add(pulsarServices[i].getAdvertisedAddress());
+            allBrokers.add(pulsarServices[i].getAdvertisedAddress());
         }
-        policyData.secondary = new ArrayList<String>();
-        policyData.auto_failover_policy = new AutoFailoverPolicyDataImpl();
-        policyData.auto_failover_policy.policy_type = AutoFailoverPolicyType.min_available;
-        policyData.auto_failover_policy.parameters = new HashMap<>();
-        policyData.auto_failover_policy.parameters.put("min_limit", "1");
-        policyData.auto_failover_policy.parameters.put("usage_threshold", "100");
+
+        NamespaceIsolationData policyData = NamespaceIsolationData.builder()
+                .namespaces(Collections.singletonList("pulsar/use/primary-ns.*"))
+                .primary(allBrokers)
+                .secondary(Collections.emptyList())
+                .autoFailoverPolicy(AutoFailoverPolicyData.builder()
+                        .policyType(AutoFailoverPolicyType.min_available)
+                        .parameters(parameters)
+                        .build())
+                .build();
         policies.setPolicy("primaryBrokerPolicy", policyData);
 
-        // set up policy that use this broker as secondary
-        policyData = new NamespaceIsolationDataImpl();
-        policyData.namespaces = new ArrayList<String>();
-        policyData.namespaces.add("pulsar/use/secondary-ns.*");
-        policyData.primary = new ArrayList<String>();
-        policyData.primary.add(pulsarServices[0].getAdvertisedAddress());
-        policyData.secondary = new ArrayList<String>();
+        List<String> allExceptFirstBroker = new ArrayList<>();
         for (int i = 1; i < BROKER_COUNT; i++) {
-            policyData.secondary.add(pulsarServices[i].getAdvertisedAddress());
+            allExceptFirstBroker.add(pulsarServices[i].getAdvertisedAddress());
         }
-        policyData.auto_failover_policy = new AutoFailoverPolicyDataImpl();
-        policyData.auto_failover_policy.policy_type = AutoFailoverPolicyType.min_available;
-        policyData.auto_failover_policy.parameters = new HashMap<String, String>();
-        policyData.auto_failover_policy.parameters.put("min_limit", "1");
-        policyData.auto_failover_policy.parameters.put("usage_threshold", "100");
+
+        // set up policy that use this broker as secondary
+        policyData = NamespaceIsolationData.builder()
+                .namespaces(Collections.singletonList("pulsar/use/secondary-ns.*"))
+                .primary(Collections.singletonList(pulsarServices[0].getWebServiceAddress()))
+                .secondary(allExceptFirstBroker)
+                .autoFailoverPolicy(AutoFailoverPolicyData.builder()
+                        .policyType(AutoFailoverPolicyType.min_available)
+                        .parameters(parameters)
+                        .build())
+                .build();
         policies.setPolicy("secondaryBrokerPolicy", policyData);
 
         // set up policy that do not use this broker (neither primary nor secondary)
-        policyData = new NamespaceIsolationDataImpl();
-        policyData.namespaces = new ArrayList<String>();
-        policyData.namespaces.add("pulsar/use/shared-ns.*");
-        policyData.primary = new ArrayList<String>();
-        policyData.primary.add(pulsarServices[0].getAdvertisedAddress());
-        policyData.secondary = new ArrayList<String>();
-        for (int i = 1; i < BROKER_COUNT; i++) {
-            policyData.secondary.add(pulsarServices[i].getAdvertisedAddress());
-        }
-        policyData.auto_failover_policy = new AutoFailoverPolicyDataImpl();
-        policyData.auto_failover_policy.policy_type = AutoFailoverPolicyType.min_available;
-        policyData.auto_failover_policy.parameters = new HashMap<String, String>();
-        policyData.auto_failover_policy.parameters.put("min_limit", "1");
-        policyData.auto_failover_policy.parameters.put("usage_threshold", "100");
+        policyData = NamespaceIsolationData.builder()
+                .namespaces(Collections.singletonList("pulsar/use/shared-ns.*"))
+                .primary(Collections.singletonList(pulsarServices[0].getWebServiceAddress()))
+                .secondary(allExceptFirstBroker)
+                .autoFailoverPolicy(AutoFailoverPolicyData.builder()
+                        .policyType(AutoFailoverPolicyType.min_available)
+                        .parameters(parameters)
+                        .build())
+                .build();
         policies.setPolicy("otherBrokerPolicy", policyData);
 
         String path = AdminResource.path("clusters", "use", "namespaceIsolationPolicies");

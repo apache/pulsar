@@ -34,6 +34,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.client.admin.Clusters;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -63,8 +64,8 @@ public class TestCmdClusters {
 
     public void testCmdClusterConfigFile(ClusterData testClusterData, ClusterData expectedClusterData) throws Exception {
         File file = Files.createTempFile("tmp_cluster", ".yaml").toFile();
-        new YAMLMapper().writeValue(file, testClusterData);
-        Assert.assertEquals(testClusterData, CmdUtils.loadConfig(file.getAbsolutePath(), ClusterDataImpl.class));
+        ObjectMapperFactory.getThreadLocalYaml().writeValue(file, testClusterData);
+        Assert.assertEquals(testClusterData, CmdUtils.loadConfig(file.getAbsolutePath(), ClusterData.class));
 
         // test create cluster
         cmdClusters.run(new String[]{"create", "test_cluster", "--cluster-config-file", file.getAbsolutePath()});
@@ -75,7 +76,7 @@ public class TestCmdClusters {
     }
 
     public ClusterData buildClusterData() {
-        return ClusterDataImpl.builder()
+        return ClusterData.builder()
                 .serviceUrlTls("https://my-service.url:4443")
                 .authenticationPlugin("authenticationPlugin")
                 .authenticationParameters("authenticationParameters")

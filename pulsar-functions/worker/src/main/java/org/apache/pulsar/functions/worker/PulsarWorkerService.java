@@ -55,6 +55,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.naming.NamedEntity;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
@@ -318,11 +319,10 @@ public class PulsarWorkerService implements WorkerService {
         // create cluster for function worker service
         try {
             NamedEntity.checkName(cluster);
-            ClusterDataImpl clusterData = new ClusterDataImpl(
-                workerConfig.getPulsarWebServiceUrl(),
-                null /* serviceUrlTls */,
-                workerConfig.getPulsarServiceUrl(),
-                null /* brokerServiceUrlTls */);
+            ClusterDataImpl clusterData = ClusterDataImpl.builder()
+                    .serviceUrl(workerConfig.getPulsarWebServiceUrl())
+                    .brokerServiceUrl(workerConfig.getPulsarServiceUrl())
+                    .build();
             pulsarResources.getClusterResources().create(
                 PolicyPath.path("clusters", cluster),
                 clusterData);

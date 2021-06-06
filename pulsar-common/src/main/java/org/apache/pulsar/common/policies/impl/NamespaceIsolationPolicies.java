@@ -25,6 +25,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.NamespaceIsolationPolicy;
 import org.apache.pulsar.common.policies.data.BrokerAssignment;
 import org.apache.pulsar.common.policies.data.BrokerStatus;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 
 /**
@@ -35,7 +36,7 @@ public class NamespaceIsolationPolicies {
     private Map<String, NamespaceIsolationDataImpl> policies = null;
 
     public NamespaceIsolationPolicies() {
-        policies = new HashMap<String, NamespaceIsolationDataImpl>();
+        policies = new HashMap<>();
     }
 
     public NamespaceIsolationPolicies(Map<String, NamespaceIsolationDataImpl> policiesMap) {
@@ -65,7 +66,7 @@ public class NamespaceIsolationPolicies {
      * @return
      */
     public NamespaceIsolationPolicy getPolicyByNamespace(NamespaceName namespace) {
-        for (NamespaceIsolationDataImpl nsPolicyData : policies.values()) {
+        for (NamespaceIsolationData nsPolicyData : policies.values()) {
             if (this.namespaceMatches(namespace, nsPolicyData)) {
                 return new NamespaceIsolationPolicyImpl(nsPolicyData);
             }
@@ -73,8 +74,8 @@ public class NamespaceIsolationPolicies {
         return null;
     }
 
-    private boolean namespaceMatches(NamespaceName namespace, NamespaceIsolationDataImpl nsPolicyData) {
-        for (String nsnameRegex : nsPolicyData.namespaces) {
+    private boolean namespaceMatches(NamespaceName namespace, NamespaceIsolationData nsPolicyData) {
+        for (String nsnameRegex : nsPolicyData.getNamespaces()) {
             if (namespace.toString().matches(nsnameRegex)) {
                 return true;
             }
@@ -88,9 +89,9 @@ public class NamespaceIsolationPolicies {
      * @param policyName
      * @param policyData
      */
-    public void setPolicy(String policyName, NamespaceIsolationDataImpl policyData) {
+    public void setPolicy(String policyName, NamespaceIsolationData policyData) {
         policyData.validate();
-        policies.put(policyName, policyData);
+        policies.put(policyName, (NamespaceIsolationDataImpl) policyData);
     }
 
     /**
@@ -118,7 +119,7 @@ public class NamespaceIsolationPolicies {
      * @return
      */
     public boolean isSharedBroker(String host) {
-        for (NamespaceIsolationDataImpl policyData : this.policies.values()) {
+        for (NamespaceIsolationData policyData : this.policies.values()) {
             NamespaceIsolationPolicyImpl policy = new NamespaceIsolationPolicyImpl(policyData);
             if (policy.isPrimaryBroker(host)) {
                 // not free for sharing, this is some properties' primary broker

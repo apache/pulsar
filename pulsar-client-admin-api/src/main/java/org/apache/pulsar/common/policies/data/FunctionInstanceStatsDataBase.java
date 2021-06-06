@@ -28,14 +28,4 @@ public interface FunctionInstanceStatsDataBase {
     long getUserExceptionsTotal();
 
     Double getAvgProcessLatency();
-
-    void setReceivedTotal(long receivedTotal);
-
-    void setProcessedSuccessfullyTotal(long processedSuccessfullyTotal);
-
-    void setSystemExceptionsTotal(long systemExceptionsTotal);
-
-    void setUserExceptionsTotal(long userExceptionsTotal);
-
-    void setAvgProcessLatency(Double avgProcessLatency);
 }

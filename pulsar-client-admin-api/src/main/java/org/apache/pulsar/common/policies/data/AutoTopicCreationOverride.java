@@ -18,66 +18,29 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import java.util.Objects;
-import lombok.ToString;
+import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
 
 /**
  * Override of autoTopicCreation settings on a namespace level.
  */
-@ToString
-public class AutoTopicCreationOverride {
-    public boolean allowAutoTopicCreation;
-    public String topicType;
-    public Integer defaultNumPartitions;
+public interface AutoTopicCreationOverride {
+    boolean isAllowAutoTopicCreation();
 
-    public AutoTopicCreationOverride() {
+    String getTopicType();
+
+    Integer getDefaultNumPartitions();
+
+    interface Builder {
+        Builder allowAutoTopicCreation(boolean allowTopicCreation);
+
+        Builder topicType(String topicType);
+
+        Builder defaultNumPartitions(Integer defaultNumPartition);
+
+        AutoTopicCreationOverride build();
     }
 
-    public AutoTopicCreationOverride(boolean allowAutoTopicCreation, String topicType,
-                                     Integer defaultNumPartitions) {
-        this.allowAutoTopicCreation = allowAutoTopicCreation;
-        this.topicType = topicType;
-        this.defaultNumPartitions = defaultNumPartitions;
+    static Builder builder() {
+        return AutoTopicCreationOverrideImpl.builder();
     }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(allowAutoTopicCreation, topicType, defaultNumPartitions);
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (obj instanceof AutoTopicCreationOverride) {
-            AutoTopicCreationOverride other = (AutoTopicCreationOverride) obj;
-            return Objects.equals(this.allowAutoTopicCreation, other.allowAutoTopicCreation)
-                    && Objects.equals(this.topicType, other.topicType)
-                    && Objects.equals(this.defaultNumPartitions, other.defaultNumPartitions);
-        }
-        return false;
-    }
-
-    public static boolean isValidOverride(AutoTopicCreationOverride override) {
-        if (override == null) {
-            return false;
-        }
-        if (override.allowAutoTopicCreation) {
-            if (!TopicType.isValidTopicType(override.topicType)) {
-                return false;
-            }
-            if (TopicType.PARTITIONED.toString().equals(override.topicType)) {
-                if (override.defaultNumPartitions == null) {
-                    return false;
-                }
-                if (!(override.defaultNumPartitions > 0)) {
-                    return false;
-                }
-            } else if (TopicType.NON_PARTITIONED.toString().equals(override.topicType)) {
-                if (override.defaultNumPartitions != null) {
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
-
 }

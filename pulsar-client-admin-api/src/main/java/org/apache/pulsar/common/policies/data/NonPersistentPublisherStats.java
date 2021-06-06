@@ -18,22 +18,13 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import java.util.Objects;
-
 /**
  * Non-persistent publisher statistics.
  */
-public class NonPersistentPublisherStats extends PublisherStats {
+public interface NonPersistentPublisherStats extends PublisherStats {
     /**
      * for non-persistent topic: broker drops msg if publisher publishes messages more than configured max inflight
      * messages per connection.
      **/
-    public double msgDropRate;
-
-    public NonPersistentPublisherStats add(NonPersistentPublisherStats stats) {
-        Objects.requireNonNull(stats);
-        super.add(stats);
-        this.msgDropRate += stats.msgDropRate;
-        return this;
-    }
+    double getMsgDropRate();
 }

@@ -63,7 +63,7 @@ public class FunctionStatsImpl implements FunctionStats {
     public Double avgProcessLatency;
 
     @JsonProperty("1min")
-    public FunctionInstanceStatsDataBase oneMin =
+    public FunctionInstanceStatsDataBaseImpl oneMin =
             new FunctionInstanceStatsDataBaseImpl();
 
     /**
@@ -71,10 +71,9 @@ public class FunctionStatsImpl implements FunctionStats {
      **/
     public Long lastInvocation;
 
-    public List<FunctionInstanceStats> instances = new LinkedList<>();
+    public List<FunctionInstanceStatsImpl> instances = new LinkedList<>();
 
-    @Override
-    public void addInstance(FunctionInstanceStats functionInstanceStats) {
+    public void addInstance(FunctionInstanceStatsImpl functionInstanceStats) {
         instances.add(functionInstanceStats);
     }
 

@@ -81,7 +81,7 @@ import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.path.PolicyPath;
@@ -268,7 +268,7 @@ public abstract class PulsarWebResource {
                     (isClientAuthenticated(clientAppId)), clientAppId);
         }
 
-        TenantInfoImpl tenantInfo = pulsar.getPulsarResources().getTenantResources().get(path(POLICIES, tenant))
+        TenantInfo tenantInfo = pulsar.getPulsarResources().getTenantResources().get(path(POLICIES, tenant))
                 .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Tenant does not exist"));
 
         if (pulsar.getConfiguration().isAuthenticationEnabled() && pulsar.getConfiguration().isAuthorizationEnabled()) {
@@ -322,7 +322,7 @@ public abstract class PulsarWebResource {
     }
 
     protected void validateClusterForTenant(String tenant, String cluster) {
-        TenantInfoImpl tenantInfo;
+        TenantInfo tenantInfo;
         try {
             tenantInfo = pulsar().getPulsarResources().getTenantResources().get(path(POLICIES, tenant))
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Tenant does not exist"));

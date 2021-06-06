@@ -19,14 +19,14 @@
 package org.apache.pulsar.broker.service;
 
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
-import org.apache.pulsar.common.policies.data.ConsumerStats;
-import org.apache.pulsar.common.policies.data.PublisherStats;
+import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.PublisherStatsImpl;
 import org.apache.pulsar.utils.StatsOutputStream;
 
 public class StreamingStats {
     private StreamingStats() {}
 
-    public static void writePublisherStats(StatsOutputStream statsStream, PublisherStats stats) {
+    public static void writePublisherStats(StatsOutputStream statsStream, PublisherStatsImpl stats) {
         statsStream.startObject();
 
         statsStream.writePair("msgRateIn", stats.msgRateIn);
@@ -53,7 +53,7 @@ public class StreamingStats {
 
 
     public static void writeConsumerStats(StatsOutputStream statsStream, CommandSubscribe.SubType subType,
-        ConsumerStats stats) {
+        ConsumerStatsImpl stats) {
         // Populate consumer specific stats here
         statsStream.startObject();
 

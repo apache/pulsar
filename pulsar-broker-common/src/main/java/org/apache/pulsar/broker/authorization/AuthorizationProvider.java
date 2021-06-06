@@ -33,6 +33,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.TenantOperation;
@@ -78,7 +79,7 @@ public interface AuthorizationProvider extends Closeable {
      * @return a CompletableFuture containing a boolean in which true means the role is an admin user
      * and false if it is not
      */
-    default CompletableFuture<Boolean> isTenantAdmin(String tenant, String role, TenantInfoImpl tenantInfo,
+    default CompletableFuture<Boolean> isTenantAdmin(String tenant, String role, TenantInfo tenantInfo,
                                                      AuthenticationDataSource authenticationData) {
         return CompletableFuture.completedFuture(role != null && tenantInfo.getAdminRoles() != null && tenantInfo.getAdminRoles().contains(role) ? true : false);
     }

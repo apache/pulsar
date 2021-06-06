@@ -125,7 +125,7 @@ public class NamespaceBundleFactory {
         if (LOG.isDebugEnabled()) {
             LOG.debug("[{}] Get bundles from getLocalZkCacheService: bundles: {}, version: {}",
                     namespace,
-                    (localPolicies.bundles.boundaries != null) ? localPolicies.bundles : "null",
+                    (localPolicies.bundles.getBoundaries() != null) ? localPolicies.bundles : "null",
                     namespaceBundles.getVersion());
         }
         return namespaceBundles;

@@ -19,11 +19,13 @@
 package org.apache.pulsar.common.policies.data;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import com.google.common.base.Objects;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import java.util.Map;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.apache.pulsar.common.policies.impl.AutoFailoverPolicyFactory;
 
 /**
@@ -34,14 +36,17 @@ import org.apache.pulsar.common.policies.impl.AutoFailoverPolicyFactory;
         description = "The auto failover policy configuration data"
 )
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class AutoFailoverPolicyDataImpl implements AutoFailoverPolicyData {
     @ApiModelProperty(
             name = "policy_type",
             value = "The auto failover policy type",
             allowableValues = "min_available"
     )
-    @SuppressWarnings("checkstyle:MemberName")
-    public AutoFailoverPolicyType policy_type;
+    @JsonProperty("policy_type")
+    private AutoFailoverPolicyType policyType;
+
     @ApiModelProperty(
             name = "parameters",
             value =
@@ -57,30 +62,33 @@ public class AutoFailoverPolicyDataImpl implements AutoFailoverPolicyData {
                             + "  \"usage_threshold\": 80\n"
                             + "}\n"
     )
-    public Map<String, String> parameters;
+    private Map<String, String> parameters;
 
-    @Override
-    public int hashCode() {
-        return Objects.hashCode(policy_type, parameters);
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (obj instanceof AutoFailoverPolicyDataImpl) {
-            AutoFailoverPolicyDataImpl other = (AutoFailoverPolicyDataImpl) obj;
-            return Objects.equal(policy_type, other.policy_type) && Objects.equal(parameters, other.parameters);
-        }
-
-        return false;
+    public static AutoFailoverPolicyDataImplBuilder builder() {
+        return new AutoFailoverPolicyDataImplBuilder();
     }
 
     public void validate() {
-        checkArgument(policy_type != null && parameters != null);
+        checkArgument(policyType != null && parameters != null);
         AutoFailoverPolicyFactory.create(this);
     }
 
-    @Override
-    public String toString() {
-        return String.format("policy_type=%s parameters=%s", policy_type, parameters);
+    public static class AutoFailoverPolicyDataImplBuilder implements AutoFailoverPolicyData.Builder {
+        private AutoFailoverPolicyType policyType;
+        private Map<String, String> parameters;
+
+        public AutoFailoverPolicyDataImplBuilder policyType(AutoFailoverPolicyType policyType) {
+            this.policyType = policyType;
+            return this;
+        }
+
+        public AutoFailoverPolicyDataImplBuilder parameters(Map<String, String> parameters) {
+            this.parameters = parameters;
+            return this;
+        }
+
+        public AutoFailoverPolicyDataImpl build() {
+            return new AutoFailoverPolicyDataImpl(policyType, parameters);
+        }
     }
 }

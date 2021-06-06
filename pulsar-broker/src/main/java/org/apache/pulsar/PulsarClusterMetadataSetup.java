@@ -36,7 +36,7 @@ import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -236,15 +236,18 @@ public class PulsarClusterMetadataSetup {
 
         createMetadataNode(configStore, "/admin/clusters", new byte[0]);
 
-        ClusterDataImpl clusterData = new ClusterDataImpl(arguments.clusterWebServiceUrl,
-                arguments.clusterWebServiceUrlTls, arguments.clusterBrokerServiceUrl,
-                arguments.clusterBrokerServiceUrlTls);
+        ClusterData clusterData = ClusterData.builder()
+                .serviceUrl(arguments.clusterWebServiceUrl)
+                .serviceUrlTls(arguments.clusterWebServiceUrlTls)
+                .brokerServiceUrl(arguments.clusterBrokerServiceUrl)
+                .brokerServiceUrlTls(arguments.clusterBrokerServiceUrlTls)
+                .build();
         byte[] clusterDataJson = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(clusterData);
 
         createMetadataNode(configStore, "/admin/clusters/" + arguments.cluster, clusterDataJson);
 
         // Create marker for "global" cluster
-        ClusterDataImpl globalClusterData = new ClusterDataImpl(null, null);
+        ClusterData globalClusterData = ClusterData.builder().build();
         byte[] globalClusterDataJson = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(globalClusterData);
 
         createMetadataNode(configStore, "/admin/clusters/global", globalClusterDataJson);

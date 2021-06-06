@@ -34,6 +34,7 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.BundlesData;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -129,14 +130,14 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
 
         /***** Broker 2 Started *****/
         try (PulsarAdmin admin = buildAdminClient("superproxy")) {
-            admin.clusters().createCluster("test", new ClusterDataImpl(brokerUrl.toString()));
+            admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
             admin.tenants().createTenant("tenant",
                                          new TenantInfoImpl(ImmutableSet.of("admin"),
                                                         ImmutableSet.of("test")));
         }
         try (PulsarAdmin admin = buildAdminClient("admin")) {
             Policies policies = new Policies();
-            policies.bundles = new BundlesData(4);
+            policies.bundles = BundlesData.builder().numBundles(4).build();
             policies.replication_clusters = ImmutableSet.of("test");
             admin.namespaces().createNamespace("tenant/ns", policies);
             try {

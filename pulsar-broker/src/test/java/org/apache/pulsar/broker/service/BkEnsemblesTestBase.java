@@ -24,6 +24,7 @@ import java.util.Properties;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.tests.TestRetrySupport;
@@ -98,7 +99,7 @@ public abstract class BkEnsemblesTestBase extends TestRetrySupport {
 
             admin = PulsarAdmin.builder().serviceHttpUrl(pulsar.getWebServiceAddress()).build();
 
-            admin.clusters().createCluster("usc", new ClusterDataImpl(pulsar.getWebServiceAddress()));
+            admin.clusters().createCluster("usc", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
             admin.tenants().createTenant("prop",
                     new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("usc")));
         } catch (Throwable t) {

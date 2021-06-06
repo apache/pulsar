@@ -47,6 +47,7 @@ import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamedEntity;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
@@ -197,7 +198,7 @@ public class TenantsBase extends PulsarWebResource {
                 asyncResponse.resume(new RestException(Status.NOT_FOUND, "Tenant " + tenant + " not found"));
                 return;
             }
-            TenantInfoImpl oldTenantAdmin = tenantAdmin.get();
+            TenantInfo oldTenantAdmin = tenantAdmin.get();
             Set<String> newClusters = new HashSet<>(newTenantAdmin.getAllowedClusters());
             canUpdateCluster(tenant, oldTenantAdmin.getAllowedClusters(), newClusters).thenApply(r -> {
                 tenantResources().setAsync(path(POLICIES, tenant), old -> {
@@ -334,7 +335,7 @@ public class TenantsBase extends PulsarWebResource {
         });
     }
 
-    private void validateClusters(TenantInfoImpl info) {
+    private void validateClusters(TenantInfo info) {
         // empty cluster shouldn't be allowed
         if (info == null || info.getAllowedClusters().stream().filter(c -> !StringUtils.isBlank(c))
                 .collect(Collectors.toSet()).isEmpty()

@@ -18,54 +18,29 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import lombok.EqualsAndHashCode;
+import org.apache.pulsar.common.policies.data.impl.BrokerStatusImpl;
 
 /**
  * Information about the broker status.
  */
-@EqualsAndHashCode
-public class BrokerStatus implements Comparable<BrokerStatus> {
-    private String brokerAddress;
-    private boolean active;
-    private int loadFactor;
+public interface BrokerStatus extends Comparable<BrokerStatus> {
+    String getBrokerAddress();
 
-    public BrokerStatus(String lookupServiceAddress, boolean active, int loadFactor) {
-        this.brokerAddress = lookupServiceAddress;
-        this.active = active;
-        this.loadFactor = loadFactor;
+    boolean isActive();
+
+    int getLoadFactor();
+
+    interface Builder {
+        Builder brokerAddress(String brokerAddress);
+
+        Builder active(boolean active);
+
+        Builder loadFactor(int loadFactor);
+
+        BrokerStatus build();
     }
 
-    public boolean isActive() {
-        return this.active;
-    }
-
-    public int getLoadFactor() {
-        return this.loadFactor;
-    }
-
-    public String getBrokerAddress() {
-        return this.brokerAddress;
-    }
-
-    public void setActive(boolean active) {
-        this.active = active;
-    }
-
-    public void setLoadFactor(int loadFactor) {
-        this.loadFactor = loadFactor;
-    }
-
-    @Override
-    public int compareTo(BrokerStatus other) {
-        int result = Integer.compare(this.loadFactor, other.loadFactor);
-        if (result == 0) {
-            result = this.brokerAddress.compareTo(other.brokerAddress);
-        }
-        return result;
-    }
-
-    @Override
-    public String toString() {
-        return String.format("[brokerAddress=%s, active=%s, loadFactor=%s]", brokerAddress, active, loadFactor);
+    static Builder builder() {
+        return BrokerStatusImpl.builder();
     }
 }

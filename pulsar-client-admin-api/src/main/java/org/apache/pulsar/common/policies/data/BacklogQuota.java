@@ -18,8 +18,7 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import java.util.Objects;
-import lombok.ToString;
+import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 
 /**
  * Unit of a backlog quota configuration for a scoped resource in a Pulsar instance.
@@ -27,81 +26,42 @@ import lombok.ToString;
  * <p>A scoped resource is identified by a {@link BacklogQuotaType} enumeration type which is containing two attributes:
  * <code>limit</code> representing a quota limit in bytes and <code>policy</code> for backlog retention policy.
  */
-@ToString
-public class BacklogQuota {
-    private long limitSize;
-    // backlog quota by time in second
-    private int limitTime;
-    private RetentionPolicy policy;
+public interface BacklogQuota {
 
     /**
      * Gets quota limit in size.
      *
      * @return quota limit in bytes
      */
-    public long getLimitSize() {
-        return limitSize;
-    }
+    long getLimitSize();
 
     /**
      * Gets quota limit in time.
      *
      * @return quota limit in second
      */
-    public int getLimitTime() {
-        return limitTime;
+    int getLimitTime();
+
+    RetentionPolicy getPolicy();
+
+    interface Builder {
+        Builder limitSize(long limitSize);
+
+        Builder limitTime(int limitTime);
+
+        Builder retentionPolicy(RetentionPolicy retentionPolicy);
+
+        BacklogQuota build();
     }
 
-    public RetentionPolicy getPolicy() {
-        return policy;
+    static Builder builder() {
+        return BacklogQuotaImpl.builder();
     }
-
-    /**
-     * Sets quota limit in bytes.
-     *
-     * @param limitSize
-     *            quota limit in bytes
-     */
-    public void setLimitSize(long limitSize) {
-        this.limitSize = limitSize;
-    }
-
-    public void setPolicy(RetentionPolicy policy) {
-        this.policy = policy;
-    }
-
-    protected BacklogQuota() {
-    }
-
-    public BacklogQuota(long limitSize, RetentionPolicy policy) {
-        this(limitSize, -1, policy);
-    }
-
-    public BacklogQuota(long limitSize, int limitTime, RetentionPolicy policy) {
-        this.limitTime = limitTime;
-        this.limitSize = limitSize;
-        this.policy = policy;
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(Long.valueOf(limitSize), Long.valueOf(limitTime), policy);
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (obj instanceof BacklogQuota) {
-            BacklogQuota other = (BacklogQuota) obj;
-            return Objects.equals(limitSize, other.limitSize) && Objects.equals(limitTime, other.limitTime)
-                    && Objects.equals(policy, other.policy);
-        }
-        return false;
-    };
 
     /**
      * Identifier to a backlog quota configuration (an instance of {@link BacklogQuota}).
      */
-    public enum BacklogQuotaType {
+    enum BacklogQuotaType {
         destination_storage,
         message_age,
     }
@@ -109,7 +69,7 @@ public class BacklogQuota {
     /**
      * Enumeration type determines how to retain backlog against the resource shortages.
      */
-    public enum RetentionPolicy {
+    enum RetentionPolicy {
         /** Policy which holds producer's send request until the resource becomes available (or holding times out). */
         producer_request_hold,
 

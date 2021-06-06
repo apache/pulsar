@@ -67,16 +67,17 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
-import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.CursorStats;
-import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
-import org.apache.pulsar.common.policies.data.NonPersistentReplicatorStats;
-import org.apache.pulsar.common.policies.data.NonPersistentSubscriptionStats;
-import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublisherStats;
-import org.apache.pulsar.common.policies.data.SubscriptionStats;
+import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.NonPersistentPublisherStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.NonPersistentReplicatorStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.NonPersistentSubscriptionStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.NonPersistentTopicStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.PublisherStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
@@ -647,7 +648,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         topicStatsStream.startList("publishers");
         producers.values().forEach(producer -> {
             producer.updateRates();
-            PublisherStats publisherStats = producer.getStats();
+            PublisherStatsImpl publisherStats = producer.getStats();
 
             topicStats.aggMsgRateIn += publisherStats.msgRateIn;
             topicStats.aggMsgThroughputIn += publisherStats.msgThroughputIn;
@@ -689,7 +690,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
                     consumer.updateRates();
 
-                    ConsumerStats consumerStats = consumer.getStats();
+                    ConsumerStatsImpl consumerStats = consumer.getStats();
                     subMsgRateOut += consumerStats.msgRateOut;
                     subMsgThroughputOut += consumerStats.msgThroughputOut;
                     subMsgRateRedeliver += consumerStats.msgRateRedeliver;
@@ -761,14 +762,14 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     }
 
     @Override
-    public NonPersistentTopicStats getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize) {
+    public NonPersistentTopicStatsImpl getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize) {
 
-        NonPersistentTopicStats stats = new NonPersistentTopicStats();
+        NonPersistentTopicStatsImpl stats = new NonPersistentTopicStatsImpl();
 
-        ObjectObjectHashMap<String, PublisherStats> remotePublishersStats = new ObjectObjectHashMap<>();
+        ObjectObjectHashMap<String, PublisherStatsImpl> remotePublishersStats = new ObjectObjectHashMap<>();
 
         producers.values().forEach(producer -> {
-            NonPersistentPublisherStats publisherStats = (NonPersistentPublisherStats) producer.getStats();
+            NonPersistentPublisherStatsImpl publisherStats = (NonPersistentPublisherStatsImpl) producer.getStats();
             stats.msgRateIn += publisherStats.msgRateIn;
             stats.msgThroughputIn += publisherStats.msgThroughputIn;
 
@@ -787,7 +788,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         stats.msgOutCounter = msgOutFromRemovedSubscriptions.longValue();
 
         subscriptions.forEach((name, subscription) -> {
-            NonPersistentSubscriptionStats subStats = subscription.getStats();
+            NonPersistentSubscriptionStatsImpl subStats = subscription.getStats();
 
             stats.msgRateOut += subStats.msgRateOut;
             stats.msgThroughputOut += subStats.msgThroughputOut;
@@ -797,10 +798,10 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         });
 
         replicators.forEach((cluster, replicator) -> {
-            NonPersistentReplicatorStats replicatorStats = replicator.getStats();
+            NonPersistentReplicatorStatsImpl replicatorStats = replicator.getStats();
 
             // Add incoming msg rates
-            PublisherStats pubStats = remotePublishersStats.get(replicator.getRemoteCluster());
+            PublisherStatsImpl pubStats = remotePublishersStats.get(replicator.getRemoteCluster());
             if (pubStats != null) {
                 replicatorStats.msgRateIn = pubStats.msgRateIn;
                 replicatorStats.msgThroughputIn = pubStats.msgThroughputIn;
@@ -984,7 +985,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         return CompletableFuture.runAsync(() -> {
             NonPersistentSubscription sub = subscriptions.remove(subscriptionName);
             // preserve accumulative stats form removed subscription
-            SubscriptionStats stats = sub.getStats();
+            SubscriptionStatsImpl stats = sub.getStats();
             bytesOutFromRemovedSubscriptions.add(stats.bytesOutCounter);
             msgOutFromRemovedSubscriptions.add(stats.msgOutCounter);
         }, brokerService.executor());

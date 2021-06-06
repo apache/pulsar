@@ -34,6 +34,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
@@ -134,7 +135,7 @@ public class SuperUserAuthedAdminProxyHandlerTest extends MockedPulsarServiceBas
     @Test
     public void testAuthenticatedProxyAsAdmin() throws Exception {
         try (PulsarAdmin adminAdmin = getAdminClient("admin")) {
-            adminAdmin.clusters().createCluster(configClusterName, new ClusterDataImpl(brokerUrl.toString()));
+            adminAdmin.clusters().createCluster(configClusterName, ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
             adminAdmin.tenants().createTenant("tenant1",
                                               new TenantInfoImpl(ImmutableSet.of("randoUser"),
                                                              ImmutableSet.of(configClusterName)));
@@ -152,7 +153,7 @@ public class SuperUserAuthedAdminProxyHandlerTest extends MockedPulsarServiceBas
             } catch (PulsarAdminException.NotAuthorizedException e) {
                 // expected
             }
-            adminAdmin.clusters().createCluster(configClusterName, new ClusterDataImpl(brokerUrl.toString()));
+            adminAdmin.clusters().createCluster(configClusterName, ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
             adminAdmin.tenants().createTenant("tenant1",
                                               new TenantInfoImpl(ImmutableSet.of("unknownUser"),
                                                              ImmutableSet.of(configClusterName)));

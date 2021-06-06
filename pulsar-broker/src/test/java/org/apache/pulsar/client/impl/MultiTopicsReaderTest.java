@@ -47,6 +47,7 @@ import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -71,7 +72,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         super.internalSetup();
 
         admin.clusters().createCluster("test",
-                new ClusterDataImpl(pulsar.getWebServiceAddress()));
+                ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         admin.tenants().createTenant("my-property",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         Policies policies = new Policies();

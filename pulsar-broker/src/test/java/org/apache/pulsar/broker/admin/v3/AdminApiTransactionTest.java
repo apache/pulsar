@@ -36,6 +36,7 @@ import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -72,7 +73,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         conf.setSystemTopicEnabled(true);
         conf.setTransactionBufferSnapshotMaxTransactionCount(1);
         super.internalSetup();
-        admin.clusters().createCluster("test", new ClusterDataImpl(pulsar.getWebServiceAddress()));
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant("pulsar", tenantInfo);
         admin.namespaces().createNamespace("pulsar/system", Sets.newHashSet("test"));

@@ -18,42 +18,26 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import java.util.Objects;
+import org.apache.pulsar.common.policies.data.impl.BookieAffinityGroupDataImpl;
 
 /**
  * Description of a BookKeeper's affinity group.
  */
-public class BookieAffinityGroupData {
+public interface BookieAffinityGroupData {
 
-    public String bookkeeperAffinityGroupPrimary;
-    public String bookkeeperAffinityGroupSecondary;
+    String getBookkeeperAffinityGroupPrimary();
 
-    public BookieAffinityGroupData() {
+    String getBookkeeperAffinityGroupSecondary();
+
+    interface Builder {
+        Builder bookkeeperAffinityGroupPrimary(String bookkeeperAffinityGroupPrimary);
+
+        Builder bookkeeperAffinityGroupSecondary(String bookkeeperAffinityGroupSecondary);
+
+        BookieAffinityGroupData build();
     }
 
-    public BookieAffinityGroupData(String bookkeeperAffinityGroupPrimary, String bookkeeperAffinityGroupSecondary) {
-        this.bookkeeperAffinityGroupPrimary = bookkeeperAffinityGroupPrimary;
-        this.bookkeeperAffinityGroupSecondary = bookkeeperAffinityGroupSecondary;
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(bookkeeperAffinityGroupPrimary, bookkeeperAffinityGroupSecondary);
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (obj instanceof BookieAffinityGroupData) {
-            BookieAffinityGroupData other = (BookieAffinityGroupData) obj;
-            return Objects.equals(bookkeeperAffinityGroupPrimary, other.bookkeeperAffinityGroupPrimary)
-                    && Objects.equals(bookkeeperAffinityGroupSecondary, other.bookkeeperAffinityGroupSecondary);
-        }
-        return false;
-    }
-
-    @Override
-    public String toString() {
-        return String.format("bookkeeperAffinityGroupPrimary=%s bookkeeperAffinityGroupSecondary=%s",
-                bookkeeperAffinityGroupPrimary, bookkeeperAffinityGroupSecondary);
+    static Builder builder() {
+        return BookieAffinityGroupDataImpl.builder();
     }
 }

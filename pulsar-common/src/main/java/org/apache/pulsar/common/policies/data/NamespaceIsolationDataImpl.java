@@ -18,17 +18,21 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import com.google.common.base.Objects;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.Value;
+import lombok.extern.jackson.Jacksonized;
+import org.apache.commons.lang3.StringUtils;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
-
-import lombok.Data;
-import org.apache.commons.lang3.StringUtils;
+import static com.google.common.base.Preconditions.checkArgument;
 
 /**
  * The data of namespace isolation configuration.
@@ -38,23 +42,28 @@ import org.apache.commons.lang3.StringUtils;
         description = "The data of namespace isolation configuration"
 )
 @Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class NamespaceIsolationDataImpl implements NamespaceIsolationData {
 
     @ApiModelProperty(
             name = "namespaces",
             value = "The list of namespaces to apply this namespace isolation data"
     )
-    public List<String> namespaces = new ArrayList<String>();
+    private List<String> namespaces;
+
     @ApiModelProperty(
             name = "primary",
             value = "The list of primary brokers for serving the list of namespaces in this isolation policy"
     )
-    public List<String> primary = new ArrayList<String>();
+    private List<String> primary;
+
     @ApiModelProperty(
             name = "primary",
             value = "The list of secondary brokers for serving the list of namespaces in this isolation policy"
     )
-    public List<String> secondary = new ArrayList<String>();
+    private List<String> secondary;
+
     @ApiModelProperty(
             name = "auto_failover_policy",
             value = "The data of auto-failover policy configuration",
@@ -66,31 +75,18 @@ public class NamespaceIsolationDataImpl implements NamespaceIsolationData {
                             + "  }"
                             + "}"
     )
-    @SuppressWarnings("checkstyle:MemberName")
-    public AutoFailoverPolicyDataImpl auto_failover_policy;
+    @JsonProperty("auto_failover_policy")
+    private AutoFailoverPolicyData autoFailoverPolicy;
 
-    @Override
-    public int hashCode() {
-        return Objects.hashCode(namespaces, primary, secondary,
-                auto_failover_policy);
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (obj instanceof NamespaceIsolationDataImpl) {
-            NamespaceIsolationDataImpl other = (NamespaceIsolationDataImpl) obj;
-            return Objects.equal(namespaces, other.namespaces) && Objects.equal(primary, other.primary)
-                    && Objects.equal(secondary, other.secondary)
-                    && Objects.equal(auto_failover_policy, other.auto_failover_policy);
-        }
-
-        return false;
+    public static NamespaceIsolationDataImplBuilder builder() {
+        return new NamespaceIsolationDataImplBuilder();
     }
 
     public void validate() {
         checkArgument(namespaces != null && !namespaces.isEmpty() && primary != null && !primary.isEmpty()
-                && validateRegex(primary) && secondary != null && validateRegex(secondary) && auto_failover_policy != null);
-        auto_failover_policy.validate();
+                && validateRegex(primary) && secondary != null && validateRegex(secondary)
+                && autoFailoverPolicy != null);
+        autoFailoverPolicy.validate();
     }
 
     private boolean validateRegex(List<String> policies) {
@@ -108,14 +104,34 @@ public class NamespaceIsolationDataImpl implements NamespaceIsolationData {
         return true;
     }
 
-    @Override
-    public String toString() {
-        return String.format("namespaces=%s primary=%s secondary=%s auto_failover_policy=%s", namespaces, primary,
-                secondary, auto_failover_policy);
-    }
+    public static class NamespaceIsolationDataImplBuilder implements NamespaceIsolationData.Builder {
+        private List<String> namespaces = new ArrayList<>();
+        private List<String> primary = new ArrayList<>();
+        private List<String> secondary = new ArrayList<>();
+        private AutoFailoverPolicyData autoFailoverPolicy;
 
-    @Override
-    public void setAuto_failover_policy(AutoFailoverPolicyData autoFailoverPolicyData) {
-        this.auto_failover_policy = (AutoFailoverPolicyDataImpl) autoFailoverPolicyData;
+        public NamespaceIsolationDataImplBuilder namespaces(List<String> namespaces) {
+            this.namespaces = namespaces;
+            return this;
+        }
+
+        public NamespaceIsolationDataImplBuilder primary(List<String> primary) {
+            this.primary = primary;
+            return this;
+        }
+
+        public NamespaceIsolationDataImplBuilder secondary(List<String> secondary) {
+            this.secondary = secondary;
+            return this;
+        }
+
+        public NamespaceIsolationDataImplBuilder autoFailoverPolicy(AutoFailoverPolicyData autoFailoverPolicy) {
+            this.autoFailoverPolicy = autoFailoverPolicy;
+            return this;
+        }
+
+        public NamespaceIsolationDataImpl build() {
+            return new NamespaceIsolationDataImpl(namespaces, primary, secondary, autoFailoverPolicy);
+        }
     }
 }

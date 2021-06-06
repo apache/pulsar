@@ -357,7 +357,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         Thread.sleep(2000); // Two seconds sleep
         runTest.set(false);
         pulsar.getBrokerService().updateRates();
-        double actualRate = admin.topics().getStats(topicName).msgRateOut;
+        double actualRate = admin.topics().getStats(topicName).getMsgRateOut();
         assertTrue(actualRate > (produceRate / batchSize));
         consumer.unsubscribe();
         log.info("-- Exiting {} test --", methodName);

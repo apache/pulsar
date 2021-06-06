@@ -126,7 +126,7 @@ public class TenantsImpl extends BaseResource implements Tenants, Properties {
     @Override
     public CompletableFuture<Void> createTenantAsync(String tenant, TenantInfo config) {
         WebTarget path = adminTenants.path(tenant);
-        return asyncPutRequest(path, Entity.entity((TenantInfoImpl) config, MediaType.APPLICATION_JSON));
+        return asyncPutRequest(path, Entity.entity(config, MediaType.APPLICATION_JSON));
     }
 
     @Override

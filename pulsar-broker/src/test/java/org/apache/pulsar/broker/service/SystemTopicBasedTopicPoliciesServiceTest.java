@@ -25,6 +25,7 @@ import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
@@ -205,7 +206,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
     }
 
     private void prepareData() throws PulsarAdminException {
-        admin.clusters().createCluster("test", new ClusterDataImpl(pulsar.getBrokerServiceUrl()));
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
         admin.tenants().createTenant("system-topic",
                 new TenantInfoImpl(Sets.newHashSet(), Sets.newHashSet("test")));
         admin.namespaces().createNamespace(NAMESPACE1);

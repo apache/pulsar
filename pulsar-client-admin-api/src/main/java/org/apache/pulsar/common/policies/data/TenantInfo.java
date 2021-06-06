@@ -19,13 +19,20 @@
 package org.apache.pulsar.common.policies.data;
 
 import java.util.Set;
+import org.apache.pulsar.client.admin.utils.ReflectionUtils;
 
 public interface TenantInfo {
     Set<String> getAdminRoles();
 
-    void setAdminRoles(Set<String> adminRoles);
-
     Set<String> getAllowedClusters();
 
-    void setAllowedClusters(Set<String> allowedClusters);
+    interface Builder {
+        Builder adminRoles(Set<String> adminRoles);
+        Builder allowedClusters(Set<String> allowedClusters);
+        TenantInfo build();
+    }
+
+    static Builder builder() {
+        return ReflectionUtils.newBuilder("org.apache.pulsar.common.policies.data.TenantInfoImpl");
+    }
 }

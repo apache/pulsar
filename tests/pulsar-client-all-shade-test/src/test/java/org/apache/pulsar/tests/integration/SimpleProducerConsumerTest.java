@@ -29,7 +29,7 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.shade.io.netty.buffer.ByteBuf;
 import org.apache.pulsar.shade.io.netty.buffer.Unpooled;
@@ -75,7 +75,10 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
         @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarContainer.getPulsarAdminUrl()).build();
         admin.tenants().createTenant("my-property",
-                new TenantInfoImpl(new HashSet<>(Arrays.asList("appid1", "appid2")), Collections.singleton("standalone")));
+                TenantInfo.builder()
+                        .adminRoles(new HashSet<>(Arrays.asList("appid1", "appid2")))
+                        .allowedClusters(Collections.singleton("standalone"))
+                        .build());
         admin.namespaces().createNamespace("my-property/my-ns");
         admin.namespaces().setNamespaceReplicationClusters("my-property/my-ns", Collections.singleton("standalone"));
     }

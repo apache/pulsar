@@ -35,34 +35,34 @@ public class ConfigHelper {
     }
 
     public static BacklogQuota backlogQuota(ServiceConfiguration configuration) {
-        return new BacklogQuota(
-                configuration.getBacklogQuotaDefaultLimitGB() * 1024 * 1024 * 1024,
-                configuration.getBacklogQuotaDefaultRetentionPolicy()
-        );
+        return BacklogQuota.builder()
+                .limitSize(configuration.getBacklogQuotaDefaultLimitGB() * 1024 * 1024 * 1024)
+                .retentionPolicy(configuration.getBacklogQuotaDefaultRetentionPolicy())
+                .build();
     }
 
     public static DispatchRate topicDispatchRate(ServiceConfiguration configuration) {
-        return new DispatchRate(
-                configuration.getDispatchThrottlingRatePerTopicInMsg(),
-                configuration.getDispatchThrottlingRatePerTopicInByte(),
-                1
-        );
+        return DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(configuration.getDispatchThrottlingRatePerTopicInMsg())
+                .dispatchThrottlingRateInByte(configuration.getDispatchThrottlingRatePerTopicInByte())
+                .ratePeriodInSecond(1)
+                .build();
     }
 
     public static DispatchRate subscriptionDispatchRate(ServiceConfiguration configuration) {
-        return new DispatchRate(
-                configuration.getDispatchThrottlingRatePerSubscriptionInMsg(),
-                configuration.getDispatchThrottlingRatePerSubscriptionInByte(),
-                1
-        );
+        return DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(configuration.getDispatchThrottlingRatePerSubscriptionInMsg())
+                .dispatchThrottlingRateInByte(configuration.getDispatchThrottlingRatePerSubscriptionInByte())
+                .ratePeriodInSecond(1)
+                .build();
     }
 
     public static DispatchRate replicatorDispatchRate(ServiceConfiguration configuration) {
-        return new DispatchRate(
-            configuration.getDispatchThrottlingRatePerReplicatorInMsg(),
-            configuration.getDispatchThrottlingRatePerReplicatorInByte(),
-            1
-        );
+        return DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(configuration.getDispatchThrottlingRatePerReplicatorInMsg())
+                .dispatchThrottlingRateInByte(configuration.getDispatchThrottlingRatePerReplicatorInByte())
+                .ratePeriodInSecond(1)
+                .build();
     }
 
     public static SubscribeRate subscribeRate(ServiceConfiguration configuration) {

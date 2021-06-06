@@ -31,7 +31,7 @@ import org.apache.pulsar.broker.resourcegroup.ResourceGroup.ResourceGroupRefType
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -406,11 +406,11 @@ public class ResourceGroupService {
         long mSecsSinceEpochStart, mSecsSinceEpochEnd, diffMSecs;
         mSecsSinceEpochStart = System.currentTimeMillis();
         BrokerService bs = this.pulsar.getBrokerService();
-        Map<String, TopicStats> topicStatsMap = bs.getTopicStats();
+        Map<String, TopicStatsImpl> topicStatsMap = bs.getTopicStats();
 
-        for (Map.Entry<String, TopicStats> entry : topicStatsMap.entrySet()) {
+        for (Map.Entry<String, TopicStatsImpl> entry : topicStatsMap.entrySet()) {
             String topicName = entry.getKey();
-            TopicStats topicStats = entry.getValue();
+            TopicStatsImpl topicStats = entry.getValue();
             TopicName topic = TopicName.get(topicName);
             String tenantString = topic.getTenant();
             String nsString = topic.getNamespacePortion();

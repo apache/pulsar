@@ -32,6 +32,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationProviderBasic;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.tls.PublicSuffixMatcher;
 import org.apache.pulsar.common.tls.TlsHostnameVerifier;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
@@ -117,7 +118,9 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
                 .tlsTrustCertsFilePath(TLS_MIM_TRUST_CERT_FILE_PATH).allowTlsInsecureConnection(true)
                 .authentication(authTls).enableTls(true).enableTlsHostnameVerification(hostnameVerificationEnabled));
 
-        admin.clusters().createCluster("test", new ClusterDataImpl(brokerUrl.toString()));
+        admin.clusters().createCluster("test", ClusterData.builder()
+                .serviceUrl(brokerUrl.toString())
+                .build());
 
         admin.tenants().createTenant("my-property",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));

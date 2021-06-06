@@ -29,6 +29,7 @@ import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
@@ -80,7 +81,7 @@ public class AuthorizationService {
         return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
     }
 
-    public CompletableFuture<Boolean> isTenantAdmin(String tenant, String role, TenantInfoImpl tenantInfo,
+    public CompletableFuture<Boolean> isTenantAdmin(String tenant, String role, TenantInfo tenantInfo,
                                                     AuthenticationDataSource authenticationData) {
         if (provider != null) {
             return provider.isTenantAdmin(tenant, role, tenantInfo, authenticationData);

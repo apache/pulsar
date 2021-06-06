@@ -139,7 +139,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
         PublisherStats producerStats = topic.getStats(false, false).publishers.get(0);
 
-        assertTrue(producerStats.chunkedMessageRate > 0);
+        assertTrue(producerStats.getChunkedMessageRate() > 0);
 
         ManagedCursorImpl mcursor = (ManagedCursorImpl) topic.getManagedLedger().getCursors().iterator().next();
         PositionImpl readPosition = (PositionImpl) mcursor.getReadPosition();

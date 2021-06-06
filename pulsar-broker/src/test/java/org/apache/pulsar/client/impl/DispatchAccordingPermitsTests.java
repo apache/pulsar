@@ -100,6 +100,6 @@ public class DispatchAccordingPermitsTests extends ProducerConsumerBase {
         Assert.assertEquals(consumerImpl.incomingMessages.size(), 0);
 
         TopicStats stats = admin.topics().getStats(topic);
-        Assert.assertTrue(stats.subscriptions.get(subName).consumers.get(0).availablePermits > 0);
+        Assert.assertTrue(stats.getSubscriptions().get(subName).getConsumers().get(0).getAvailablePermits() > 0);
     }
 }

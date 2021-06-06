@@ -39,6 +39,7 @@ import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
@@ -118,7 +119,8 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                     if (isNotBlank(subscription)) {
                         // validate if role is authorize to access subscription. (skip validatation if authorization
                         // list is empty)
-                        Set<String> roles = policies.get().auth_policies.subscription_auth_roles.get(subscription);
+                        Set<String> roles = policies.get().auth_policies
+                                .getSubscriptionAuthentication().get(subscription);
                         if (roles != null && !roles.isEmpty() && !roles.contains(role)) {
                             log.warn("[{}] is not authorized to subscribe on {}-{}", role, topicName, subscription);
                             PulsarServerException ex = new PulsarServerException(
@@ -242,7 +244,8 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                         log.debug("Policies node couldn't be found for namespace : {}", namespaceName);
                     }
                 } else {
-                    Map<String, Set<AuthAction>> namespaceRoles = policies.get().auth_policies.namespace_auth;
+                    Map<String, Set<AuthAction>> namespaceRoles = policies.get()
+                            .auth_policies.getNamespaceAuthentication();
                     Set<AuthAction> namespaceActions = namespaceRoles.get(role);
                     if (namespaceActions != null && namespaceActions.contains(authAction)) {
                         // The role has namespace level permission
@@ -294,7 +297,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         final String policiesPath = String.format("/%s/%s/%s", "admin", POLICIES, namespaceName.toString());
         try {
             pulsarResources.getNamespaceResources().set(policiesPath, (policies)->{
-                policies.auth_policies.namespace_auth.put(role, actions);
+                policies.auth_policies.getNamespaceAuthentication().put(role, actions);
                 return policies;
             });
             log.info("[{}] Successfully granted access for role {}: {} - namespace {}", role, role, actions,
@@ -344,15 +347,15 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
             Policies policies = pulsarResources.getNamespaceResources().get(policiesPath)
                     .orElseThrow(() -> new NotFoundException(policiesPath + " not found"));
             if (remove) {
-                if (policies.auth_policies.subscription_auth_roles.get(subscriptionName) != null) {
-                    policies.auth_policies.subscription_auth_roles.get(subscriptionName).removeAll(roles);
+                if (policies.auth_policies.getSubscriptionAuthentication().get(subscriptionName) != null) {
+                    policies.auth_policies.getSubscriptionAuthentication().get(subscriptionName).removeAll(roles);
                 }else {
                     log.info("[{}] Couldn't find role {} while revoking for sub = {}", namespace, subscriptionName, roles);
                     result.completeExceptionally(new IllegalArgumentException("couldn't find subscription"));
                     return result;
                 }
             } else {
-                policies.auth_policies.subscription_auth_roles.put(subscriptionName, roles);
+                policies.auth_policies.getSubscriptionAuthentication().put(subscriptionName, roles);
             }
             pulsarResources.getNamespaceResources().set(policiesPath, (data)->policies);
 
@@ -400,7 +403,8 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                         log.debug("Policies node couldn't be found for topic : {}", topicName);
                     }
                 } else {
-                    Map<String, Set<AuthAction>> namespaceRoles = policies.get().auth_policies.namespace_auth;
+                    Map<String, Set<AuthAction>> namespaceRoles = policies.get().auth_policies
+                            .getNamespaceAuthentication();
                     Set<AuthAction> namespaceActions = namespaceRoles.get(role);
                     if (namespaceActions != null && namespaceActions.contains(action)) {
                         // The role has namespace level permission
@@ -408,7 +412,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                         return;
                     }
 
-                    Map<String, Set<AuthAction>> topicRoles = policies.get().auth_policies.destination_auth
+                    Map<String, Set<AuthAction>> topicRoles = policies.get().auth_policies.getTopicAuthentication()
                             .get(topicName.toString());
                     if (topicRoles != null && role != null) {
                         // Topic has custom policy
@@ -440,7 +444,8 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                     // We can also check the permission of partitioned topic.
                     // For https://github.com/apache/pulsar/issues/10300
                     if (topicName.isPartitioned()) {
-                        topicRoles = policies.get().auth_policies.destination_auth.get(topicName.getPartitionedTopicName());
+                        topicRoles = policies.get().auth_policies
+                                .getTopicAuthentication().get(topicName.getPartitionedTopicName());
                         if (topicRoles != null) {
                             // Topic has custom policy
                             Set<AuthAction> topicActions = topicRoles.get(role);
@@ -634,7 +639,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                         return CompletableFuture.completedFuture(true);
                     } else {
                         try {
-                            TenantInfoImpl tenantInfo = pulsarResources.getTenantResources()
+                            TenantInfo tenantInfo = pulsarResources.getTenantResources()
                                     .get(path(POLICIES, tenantName))
                                     .orElseThrow(() -> new RestException(Response.Status.NOT_FOUND, "Tenant does not exist"));
                             return isTenantAdmin(tenantName, role, tenantInfo, authData);

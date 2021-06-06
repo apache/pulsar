@@ -18,22 +18,13 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import java.util.Objects;
-
 /**
  * Statistics for a non-persistent replicator.
  */
-public class NonPersistentReplicatorStats extends ReplicatorStats {
+public interface NonPersistentReplicatorStats extends ReplicatorStats {
 
     /**
      * for non-persistent topic: broker drops msg for replicator if replicator connection is not writable.
      **/
-    public double msgDropRate;
-
-    public NonPersistentReplicatorStats add(NonPersistentReplicatorStats stats) {
-        Objects.requireNonNull(stats);
-        super.add(stats);
-        this.msgDropRate += stats.msgDropRate;
-        return this;
-    }
+    double getMsgDropRate();
 }

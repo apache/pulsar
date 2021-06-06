@@ -315,16 +315,16 @@ public class TopicReaderTest extends ProducerConsumerBase {
         Reader<byte[]> reader2 = pulsarClient.newReader().topic(topicName).startMessageId(MessageId.earliest).create();
 
         TopicStats stats = admin.topics().getStats(topicName);
-        assertEquals(stats.subscriptions.size(), 2);
+        assertEquals(stats.getSubscriptions().size(), 2);
 
         reader1.close();
         stats = admin.topics().getStats(topicName);
-        assertEquals(stats.subscriptions.size(), 1);
+        assertEquals(stats.getSubscriptions().size(), 1);
 
         reader2.close();
 
         stats = admin.topics().getStats(topicName);
-        assertEquals(stats.subscriptions.size(), 0);
+        assertEquals(stats.getSubscriptions().size(), 0);
     }
 
     @Test
@@ -337,16 +337,16 @@ public class TopicReaderTest extends ProducerConsumerBase {
         Reader<byte[]> reader2 = pulsarClient.newReader().topic(topicName).startMessageId(MessageId.earliest).create();
 
         TopicStats stats = admin.topics().getPartitionedStats(topicName,true);
-        assertEquals(stats.subscriptions.size(), 2);
+        assertEquals(stats.getSubscriptions().size(), 2);
 
         reader1.close();
         stats = admin.topics().getPartitionedStats(topicName, true);
-        assertEquals(stats.subscriptions.size(), 1);
+        assertEquals(stats.getSubscriptions().size(), 1);
 
         reader2.close();
 
         stats = admin.topics().getPartitionedStats(topicName, true);
-        assertEquals(stats.subscriptions.size(), 0);
+        assertEquals(stats.getSubscriptions().size(), 0);
     }
 
     @Test(dataProvider = "variationsForResetOnLatestMsg")

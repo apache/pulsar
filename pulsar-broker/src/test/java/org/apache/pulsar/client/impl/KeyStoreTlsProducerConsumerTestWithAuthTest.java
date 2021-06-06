@@ -39,6 +39,7 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.testng.Assert;
@@ -155,8 +156,12 @@ public class KeyStoreTlsProducerConsumerTestWithAuthTest extends ProducerConsume
                 .tlsTrustStorePassword(BROKER_TRUSTSTORE_PW)
                 .allowTlsInsecureConnection(false)
                 .authentication(AuthenticationKeyStoreTls.class.getName(), authParams).build());
-        admin.clusters().createCluster(clusterName, new ClusterDataImpl(brokerUrl.toString(), brokerUrlTls.toString(),
-                pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls()));
+        admin.clusters().createCluster(clusterName, ClusterData.builder()
+                .serviceUrl(brokerUrl.toString())
+                .serviceUrlTls(brokerUrlTls.toString())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl())
+                .brokerServiceUrlTls(pulsar.getBrokerServiceUrlTls())
+                .build());
         admin.tenants().createTenant("my-property",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
         admin.namespaces().createNamespace("my-property/my-ns");

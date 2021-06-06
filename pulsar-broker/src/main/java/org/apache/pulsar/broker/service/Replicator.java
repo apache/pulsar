@@ -22,13 +22,13 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.ReplicatorStats;
+import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;
 
 public interface Replicator {
 
     void startProducer();
 
-    ReplicatorStats getStats();
+    ReplicatorStatsImpl getStats();
 
     CompletableFuture<Void> disconnect();
 

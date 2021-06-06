@@ -22,8 +22,4 @@ public interface FunctionInstanceStats {
     int getInstanceId();
 
     FunctionInstanceStatsData getMetrics();
-
-    void setInstanceId(int instanceId);
-
-    void setMetrics(FunctionInstanceStatsData metrics);
 }

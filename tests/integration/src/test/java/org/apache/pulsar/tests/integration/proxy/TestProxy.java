@@ -83,7 +83,7 @@ public class TestProxy extends PulsarTestSuite {
         for (int i = 0; i < 10; i++) {
             // Ensure we can get the stats for the topic irrespective of which broker the proxy decides to connect to
             TopicStats stats = admin.topics().getStats(topic);
-            assertEquals(stats.publishers.size(), 1);
+            assertEquals(stats.getPublishers().size(), 1);
         }
     }
 

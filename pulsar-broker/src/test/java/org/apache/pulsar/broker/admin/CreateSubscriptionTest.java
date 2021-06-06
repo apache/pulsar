@@ -69,16 +69,16 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
         p1.send("test-2".getBytes());
         MessageId m3 = p1.send("test-3".getBytes());
 
-        assertEquals(admin.topics().getStats(topic).subscriptions.get("sub-1").msgBacklog, 3);
+        assertEquals(admin.topics().getStats(topic).getSubscriptions().get("sub-1").getMsgBacklog(), 3);
 
         admin.topics().createSubscription(topic, "sub-2", MessageId.latest);
-        assertEquals(admin.topics().getStats(topic).subscriptions.get("sub-2").msgBacklog, 0);
+        assertEquals(admin.topics().getStats(topic).getSubscriptions().get("sub-2").getMsgBacklog(), 0);
 
         admin.topics().createSubscription(topic, "sub-3", MessageId.earliest);
-        assertEquals(admin.topics().getStats(topic).subscriptions.get("sub-3").msgBacklog, 3);
+        assertEquals(admin.topics().getStats(topic).getSubscriptions().get("sub-3").getMsgBacklog(), 3);
 
         admin.topics().createSubscription(topic, "sub-5", m3);
-        assertEquals(admin.topics().getStats(topic).subscriptions.get("sub-5").msgBacklog, 1);
+        assertEquals(admin.topics().getStats(topic).getSubscriptions().get("sub-5").getMsgBacklog(), 1);
     }
 
     @Test

@@ -1713,7 +1713,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     }
 
     /**
-     * {@link NonPersistentReplicator.removeReplicator} doesn't remove replicator in atomic way and does in multiple step:
+     * NonPersistentReplicator.removeReplicator doesn't remove replicator in atomic way and does in multiple step:
      * 1. disconnect replicator producer
      * <p>
      * 2. close cursor

@@ -19,22 +19,21 @@
 package org.apache.pulsar.admin.cli;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import com.google.common.collect.Sets;
 import java.util.Arrays;
 import java.util.function.Supplier;
+import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ProxyProtocol;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
-import org.apache.pulsar.common.policies.data.FailureDomainImpl;
-
 import org.apache.pulsar.common.policies.data.ClusterData;
-import lombok.Getter;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.FailureDomain;
+import org.apache.pulsar.common.policies.data.FailureDomainImpl;
 
 @Parameters(commandDescription = "Operations about clusters")
 public class CmdClusters extends CmdBase {
@@ -146,17 +145,17 @@ public class CmdClusters extends CmdBase {
 
     @Parameters(commandDescription = "Get list of peer-clusters")
     private class GetPeerClusters extends CliCommand {
-        
+
         @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
-        
+
         void run() throws PulsarAdminException {
             String cluster = getOneArgument(params);
             print(getAdmin().clusters().getPeerClusterNames(cluster));
         }
     }
-    
-    
+
+
     @Parameters(commandDescription = "Create a new failure-domain for a cluster. updates it if already created.")
     private class CreateFailureDomain extends CliCommand {
         @Parameter(description = "cluster-name", required = true)
@@ -167,11 +166,12 @@ public class CmdClusters extends CmdBase {
 
         @Parameter(names = "--broker-list", description = "Comma separated broker list", required = false)
         private String brokerList;
-        
+
         void run() throws PulsarAdminException {
             String cluster = getOneArgument(params);
-            FailureDomainImpl domain = new FailureDomainImpl();
-            domain.setBrokers((isNotBlank(brokerList) ? Sets.newHashSet(brokerList.split(",")): null));
+            FailureDomain domain = FailureDomainImpl.builder()
+                    .brokers((isNotBlank(brokerList) ? Sets.newHashSet(brokerList.split(",")) : null))
+                    .build();
             getAdmin().clusters().createFailureDomain(cluster, domainName, domain);
         }
     }
@@ -189,12 +189,13 @@ public class CmdClusters extends CmdBase {
 
         void run() throws PulsarAdminException {
             String cluster = getOneArgument(params);
-            FailureDomainImpl domain = new FailureDomainImpl();
-            domain.setBrokers((isNotBlank(brokerList) ? Sets.newHashSet(brokerList.split(",")) : null));
+            FailureDomain domain = FailureDomainImpl.builder()
+                    .brokers((isNotBlank(brokerList) ? Sets.newHashSet(brokerList.split(",")) : null))
+                    .build();
             getAdmin().clusters().updateFailureDomain(cluster, domainName, domain);
         }
     }
-    
+
     @Parameters(commandDescription = "Deletes an existing failure-domain")
     private class DeleteFailureDomain extends CliCommand {
         @Parameter(description = "cluster-name", required = true)
@@ -211,10 +212,10 @@ public class CmdClusters extends CmdBase {
 
     @Parameters(commandDescription = "List the existing failure-domains for a cluster")
     private class ListFailureDomains extends CliCommand {
-        
+
         @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
-        
+
         void run() throws PulsarAdminException {
             String cluster = getOneArgument(params);
             print(getAdmin().clusters().getFailureDomains(cluster));
@@ -225,7 +226,7 @@ public class CmdClusters extends CmdBase {
     private class GetFailureDomain extends CliCommand {
         @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
-        
+
         @Parameter(names = "--domain-name", description = "domain-name", required = true)
         private String domainName;
 
@@ -322,64 +323,68 @@ public class CmdClusters extends CmdBase {
         void processArguments() throws Exception {
             super.processArguments();
 
+            ClusterData.Builder builder;
             if (null != clusterConfigFile) {
-                this.clusterData = CmdUtils.loadConfig(clusterConfigFile, ClusterDataImpl.class);
+                builder = CmdUtils.loadConfig(clusterConfigFile, ClusterDataImpl.ClusterDataImplBuilder.class);
             } else {
-                this.clusterData = new ClusterDataImpl();
+                builder = ClusterData.builder();
             }
 
             if (serviceUrl != null) {
-                clusterData.setServiceUrl(serviceUrl);
+                builder.serviceUrl(serviceUrl);
             }
             if (serviceUrlTls != null) {
-                clusterData.setServiceUrlTls(serviceUrlTls);
+                builder.serviceUrlTls(serviceUrlTls);
             }
             if (brokerServiceUrl != null) {
-                clusterData.setBrokerServiceUrl(brokerServiceUrl);
+                builder.brokerServiceUrl(brokerServiceUrl);
             }
             if (brokerServiceUrlTls != null) {
-                clusterData.setBrokerServiceUrlTls(brokerServiceUrlTls);
+                builder.brokerServiceUrlTls(brokerServiceUrlTls);
             }
             if (proxyServiceUrl != null) {
-                clusterData.setProxyServiceUrl(proxyServiceUrl);
+                builder.proxyServiceUrl(proxyServiceUrl);
             }
             if (authenticationPlugin != null) {
-                clusterData.setAuthenticationPlugin(authenticationPlugin);
+                builder.authenticationPlugin(authenticationPlugin);
             }
             if (authenticationParameters != null) {
-                clusterData.setAuthenticationParameters(authenticationParameters);
+                builder.authenticationParameters(authenticationParameters);
             }
             if (proxyProtocol != null) {
-                clusterData.setProxyProtocol(proxyProtocol);
+                builder.proxyProtocol(proxyProtocol);
             }
             if (brokerClientTlsEnabled != null) {
-                clusterData.setBrokerClientTlsEnabled(brokerClientTlsEnabled);
+                builder.brokerClientTlsEnabled(brokerClientTlsEnabled);
             }
             if (tlsAllowInsecureConnection != null) {
-                clusterData.setTlsAllowInsecureConnection(tlsAllowInsecureConnection);
+                builder.tlsAllowInsecureConnection(tlsAllowInsecureConnection);
             }
             if (brokerClientTlsEnabledWithKeyStore != null) {
-                clusterData.setBrokerClientTlsEnabledWithKeyStore(brokerClientTlsEnabledWithKeyStore);
+                builder.brokerClientTlsEnabledWithKeyStore(brokerClientTlsEnabledWithKeyStore);
             }
             if (brokerClientTlsTrustStoreType != null) {
-                clusterData.setBrokerClientTlsTrustStoreType(brokerClientTlsTrustStoreType);
+                builder.brokerClientTlsTrustStoreType(brokerClientTlsTrustStoreType);
             }
             if (brokerClientTlsTrustStore != null) {
-                clusterData.setBrokerClientTlsTrustStore(brokerClientTlsTrustStore);
+                builder.brokerClientTlsTrustStore(brokerClientTlsTrustStore);
             }
             if (brokerClientTlsTrustStorePassword != null) {
-                clusterData.setBrokerClientTlsTrustStorePassword(brokerClientTlsTrustStorePassword);
+                builder.brokerClientTlsTrustStorePassword(brokerClientTlsTrustStorePassword);
             }
             if (brokerClientTrustCertsFilePath != null) {
-                clusterData.setBrokerClientTrustCertsFilePath(brokerClientTrustCertsFilePath);
+                builder.brokerClientTrustCertsFilePath(brokerClientTrustCertsFilePath);
             }
+
             if (listenerName != null) {
-                clusterData.setListenerName(listenerName);
+                builder.listenerName(listenerName);
             }
+
+            this.clusterData = builder.build();
             validateClusterData(clusterData);
         }
     }
-    
+
     public CmdClusters(Supplier<PulsarAdmin> admin) {
         super("clusters", admin);
         jcommander.addCommand("get", new Get());

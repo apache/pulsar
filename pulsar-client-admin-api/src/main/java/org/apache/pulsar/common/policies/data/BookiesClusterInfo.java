@@ -19,22 +19,21 @@
 package org.apache.pulsar.common.policies.data;
 
 import java.util.List;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
+import org.apache.pulsar.common.policies.data.impl.BookiesClusterInfoImpl;
 
 /**
  * Raw bookies information.
  */
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@ToString
-public class BookiesClusterInfo {
+public interface BookiesClusterInfo {
 
-    private static final long serialVersionUID = 0L;
+    List<RawBookieInfo> getBookies();
 
-    private List<RawBookieInfo> bookies;
+    interface Builder {
+        Builder bookies(List<RawBookieInfo> bookies);
+        BookiesClusterInfo build();
+    }
 
+    static Builder builder() {
+        return BookiesClusterInfoImpl.builder();
+    }
 }

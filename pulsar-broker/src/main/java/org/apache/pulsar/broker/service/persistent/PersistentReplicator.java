@@ -55,7 +55,7 @@ import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.SendCallback;
 import org.apache.pulsar.common.api.proto.MarkerType;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.ReplicatorStats;
+import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;
 import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
@@ -99,7 +99,7 @@ public class PersistentReplicator extends AbstractReplicator
     // for connected subscriptions, message expiry will be checked if the backlog is greater than this threshold
     private static final int MINIMUM_BACKLOG_FOR_EXPIRY_CHECK = 1000;
 
-    private final ReplicatorStats stats = new ReplicatorStats();
+    private final ReplicatorStatsImpl stats = new ReplicatorStatsImpl();
 
     public PersistentReplicator(PersistentTopic topic, ManagedCursor cursor, String localCluster, String remoteCluster,
                                 BrokerService brokerService) throws NamingException {
@@ -626,7 +626,7 @@ public class PersistentReplicator extends AbstractReplicator
         stats.msgRateExpired = msgExpired.getRate() + expiryMonitor.getMessageExpiryRate();
     }
 
-    public ReplicatorStats getStats() {
+    public ReplicatorStatsImpl getStats() {
         stats.replicationBacklog = cursor != null ? cursor.getNumberOfEntriesInBacklog(false) : 0;
         stats.connected = producer != null && producer.isConnected();
         stats.replicationDelayInSeconds = getReplicationDelayInSeconds();
