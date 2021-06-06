@@ -258,6 +258,13 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
 
         log.info("Executing query: result for topic {} returnedTimestamps size: {}", topic, returnedTimestamps.size());
         assertThat(returnedTimestamps.size()).isEqualTo(0);
+
+        query = String.format("select count(*) from pulsar.\"%s\".\"%s\"", namespace, topic);
+        log.info("Executing query: {}", query);
+        res = connection.createStatement().executeQuery(query);
+        res.next();
+        int count = res.getInt("_col0");
+        assertThat(count).isGreaterThan(messageNum - 2);
     }
 
     public ContainerExecResult execQuery(final String query) throws Exception {
