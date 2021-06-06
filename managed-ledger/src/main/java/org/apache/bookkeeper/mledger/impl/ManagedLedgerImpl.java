@@ -138,9 +138,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
-    private  long MegaByte = 1024 * 1024;
+    private static final long MegaByte = 1024 * 1024;
 
-    protected  int AsyncOperationTimeoutSeconds = 30;
+    protected static final int AsyncOperationTimeoutSeconds = 30;
 
     protected final BookKeeper bookKeeper;
     protected final String name;
