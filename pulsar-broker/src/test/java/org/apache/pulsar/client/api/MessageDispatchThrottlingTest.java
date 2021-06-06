@@ -422,7 +422,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         DispatchRate dispatchRate = DispatchRate.builder()
                 .dispatchThrottlingRateInMsg(-1)
                 .dispatchThrottlingRateInByte(byteRate)
-                .ratePeriodInSecond(360)
+                .ratePeriodInSecond(1)
                 .build();
         admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
