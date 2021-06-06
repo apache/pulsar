@@ -102,7 +102,7 @@ public class NSQSource extends PushSource<byte[]> {
     }
 
     @Data
-    static private class NSQRecord implements Record<byte[]> {
+    private static class NSQRecord implements Record<byte[]> {
         private final byte[] value;
     }
 }

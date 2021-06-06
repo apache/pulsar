@@ -108,7 +108,7 @@ public class RabbitMQSource extends PushSource<byte[]> {
     }
 
     @Data
-    static private class RabbitMQRecord implements Record<byte[]> {
+    private static class RabbitMQRecord implements Record<byte[]> {
         private final Optional<String> key;
         private final byte[] value;
     }
