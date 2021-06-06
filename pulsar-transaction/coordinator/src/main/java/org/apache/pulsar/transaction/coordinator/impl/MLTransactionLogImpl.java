@@ -54,11 +54,11 @@ public class MLTransactionLogImpl implements TransactionLog {
 
     private final ManagedLedger managedLedger;
 
-    public final static String TRANSACTION_LOG_PREFIX = "__transaction_log_";
+    public static final String TRANSACTION_LOG_PREFIX = "__transaction_log_";
 
     private final ManagedCursor cursor;
 
-    public final static String TRANSACTION_SUBSCRIPTION_NAME = "transaction.subscription";
+    public static final String TRANSACTION_SUBSCRIPTION_NAME = "transaction.subscription";
 
     private final SpscArrayQueue<Entry> entryQueue;
 

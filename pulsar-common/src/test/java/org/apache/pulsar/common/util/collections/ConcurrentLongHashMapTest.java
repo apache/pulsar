@@ -390,9 +390,9 @@ public class ConcurrentLongHashMapTest {
         assertEquals(map.get(2).intValue(), 2);
     }
 
-    final static int Iterations = 1;
-    final static int ReadIterations = 10000;
-    final static int N = 100_000;
+    static final int Iterations = 1;
+    static final int ReadIterations = 10000;
+    static final int N = 100_000;
 
     public void benchConcurrentLongHashMap() throws Exception {
         ConcurrentLongHashMap<String> map = new ConcurrentLongHashMap<>(N, 1);

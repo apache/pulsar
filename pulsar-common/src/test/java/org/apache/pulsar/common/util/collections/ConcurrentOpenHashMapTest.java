@@ -369,9 +369,9 @@ public class ConcurrentOpenHashMapTest {
         assertNull(map.get(t1_b));
     }
 
-    final static int Iterations = 1;
-    final static int ReadIterations = 1000;
-    final static int N = 1_000_000;
+    static final int Iterations = 1;
+    static final int ReadIterations = 1000;
+    static final int N = 1_000_000;
 
     public void benchConcurrentOpenHashMap() throws Exception {
         ConcurrentOpenHashMap<Long, String> map = new ConcurrentOpenHashMap<>(N, 1);

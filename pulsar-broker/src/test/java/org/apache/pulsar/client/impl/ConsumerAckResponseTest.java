@@ -42,7 +42,7 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-impl")
 public class ConsumerAckResponseTest extends ProducerConsumerBase {
 
-    private final static TransactionImpl transaction = mock(TransactionImpl.class);
+    private static final TransactionImpl transaction = mock(TransactionImpl.class);
 
     @BeforeClass
     public void setup() throws Exception {

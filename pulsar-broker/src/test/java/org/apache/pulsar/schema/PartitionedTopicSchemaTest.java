@@ -42,9 +42,9 @@ import org.testng.annotations.Test;
 @Test(groups = "schema")
 public class PartitionedTopicSchemaTest extends MockedPulsarServiceBaseTest {
 
-    private final static String PARTITIONED_TOPIC = "public/default/partitioned-schema-topic";
-    private final static int MESSAGE_COUNT_PER_PARTITION  = 12;
-    private final static int TOPIC_PARTITION = 3;
+    private static final String PARTITIONED_TOPIC = "public/default/partitioned-schema-topic";
+    private static final int MESSAGE_COUNT_PER_PARTITION  = 12;
+    private static final int TOPIC_PARTITION = 3;
 
     @BeforeMethod
     @Override

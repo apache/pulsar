@@ -126,7 +126,7 @@ abstract class CliCommand {
         return arguments.get(0);
     }
 
-    static private String[] splitParameter(List<String> params, int n) {
+    private static String[] splitParameter(List<String> params, int n) {
         if (params.size() != 1) {
             throw new ParameterException("Need to provide just 1 parameter");
         }

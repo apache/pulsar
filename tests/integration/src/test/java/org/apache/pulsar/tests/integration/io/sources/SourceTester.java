@@ -41,16 +41,16 @@ import org.testng.collections.Maps;
 @Slf4j
 public abstract class SourceTester<ServiceContainerT extends GenericContainer> {
 
-    public final static String INSERT = "INSERT";
+    public static final String INSERT = "INSERT";
 
-    public final static String DELETE = "DELETE";
+    public static final String DELETE = "DELETE";
 
-    public final static String UPDATE = "UPDATE";
+    public static final String UPDATE = "UPDATE";
 
     protected final String sourceType;
     protected final Map<String, Object> sourceConfig;
 
-    public final static Set<String> DEBEZIUM_FIELD_SET = new HashSet<String>() {{
+    public static final Set<String> DEBEZIUM_FIELD_SET = new HashSet<String>() {{
         add("before");
         add("after");
         add("source");

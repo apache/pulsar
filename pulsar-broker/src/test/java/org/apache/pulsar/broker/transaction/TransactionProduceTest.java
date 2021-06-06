@@ -73,14 +73,14 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class TransactionProduceTest extends TransactionTestBase {
 
-    private final static int TOPIC_PARTITION = 3;
+    private static final int TOPIC_PARTITION = 3;
 
-    private final static String TENANT = "tnx";
-    private final static String NAMESPACE1 = TENANT + "/ns1";
-    private final static String PRODUCE_COMMIT_TOPIC = NAMESPACE1 + "/produce-commit";
-    private final static String PRODUCE_ABORT_TOPIC = NAMESPACE1 + "/produce-abort";
-    private final static String ACK_COMMIT_TOPIC = NAMESPACE1 + "/ack-commit";
-    private final static String ACK_ABORT_TOPIC = NAMESPACE1 + "/ack-abort";
+    private static final String TENANT = "tnx";
+    private static final String NAMESPACE1 = TENANT + "/ns1";
+    private static final String PRODUCE_COMMIT_TOPIC = NAMESPACE1 + "/produce-commit";
+    private static final String PRODUCE_ABORT_TOPIC = NAMESPACE1 + "/produce-abort";
+    private static final String ACK_COMMIT_TOPIC = NAMESPACE1 + "/ack-commit";
+    private static final String ACK_ABORT_TOPIC = NAMESPACE1 + "/ack-abort";
 
     @BeforeMethod
     protected void setup() throws Exception {
