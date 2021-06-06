@@ -18,19 +18,19 @@
  */
 package org.apache.pulsar.common.policies.data.impl;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 
 /**
  * Override of autoSubscriptionCreation settings on a namespace level.
  */
 @Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class AutoSubscriptionCreationOverrideImpl implements AutoSubscriptionCreationOverride {
-    private final boolean allowAutoSubscriptionCreation;
-
-    AutoSubscriptionCreationOverrideImpl(boolean allowAutoSubscriptionCreation) {
-        this.allowAutoSubscriptionCreation = allowAutoSubscriptionCreation;
-    }
+    private boolean allowAutoSubscriptionCreation;
 
     public static AutoSubscriptionCreationOverrideImplBuilder builder() {
         return new AutoSubscriptionCreationOverrideImplBuilder();

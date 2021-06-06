@@ -34,6 +34,7 @@ import org.apache.pulsar.common.functions.JsonIgnorePropertiesMixIn;
 import org.apache.pulsar.common.policies.data.AuthPolicies;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyDataImpl;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
+import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuotaMixIn;
@@ -77,6 +78,7 @@ import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.impl.AutoSubscriptionCreationOverrideImpl;
 import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.apache.pulsar.common.policies.data.impl.BookieAffinityGroupDataImpl;
@@ -184,6 +186,7 @@ public class ObjectMapperFactory {
         resolver.addMapping(PublisherStats.class, PublisherStatsImpl.class);
         resolver.addMapping(ReplicatorStats.class, ReplicatorStatsImpl.class);
         resolver.addMapping(SubscriptionStats.class, SubscriptionStatsImpl.class);
+        resolver.addMapping(AutoSubscriptionCreationOverride.class, AutoSubscriptionCreationOverrideImpl.class);
 
         // we use MixIn class to add jackson annotations
         mapper.addMixIn(BacklogQuotaImpl.class, BacklogQuotaMixIn.class);
