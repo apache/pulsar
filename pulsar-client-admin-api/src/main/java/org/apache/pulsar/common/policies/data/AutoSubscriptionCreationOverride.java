@@ -28,7 +28,7 @@ public interface AutoSubscriptionCreationOverride {
     boolean isAllowAutoSubscriptionCreation();
 
     static Builder builder() {
-        return (Builder) AutoSubscriptionCreationOverrideImpl.builder();
+        return AutoSubscriptionCreationOverrideImpl.builder();
     }
 
     interface Builder {
