@@ -21,6 +21,8 @@ package org.apache.pulsar.broker.systopic;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -168,12 +170,17 @@ public interface SystemTopicClient<T> {
     }
 
     static boolean isSystemTopic(TopicName topicName) {
-        if (topicName.isPartitioned()) {
-            return EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME
-                    .equals(TopicName.get(topicName.getPartitionedTopicName()).getLocalName());
+        boolean rs = false;
+        String localName = TopicName.get(topicName.getPartitionedTopicName()).getLocalName();
+        if (StringUtils.equals(EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME, localName) || StringUtils
+                .equals(EventsTopicNames.TRANSACTION_BUFFER_SNAPSHOT, localName) || (
+                StringUtils.startsWith(localName, EventsTopicNames.TRANSACTION_BUFFER_SNAPSHOT) && StringUtils
+                        .endsWith(localName, MLPendingAckStore.PENDING_ACK_STORE_SUFFIX))) {
+
+            rs = true;
         }
 
-        return EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME.equals(topicName.getLocalName());
+        return rs;
     }
 
 }

@@ -30,7 +30,7 @@ public class EventsTopicNames {
     public static final String NAMESPACE_EVENTS_LOCAL_NAME = "__change_events";
 
     /**
-     * Local topic name for the namespace events.
+     * Local topic name for the transaction buffer snapshot.
      */
     public static final String TRANSACTION_BUFFER_SNAPSHOT = "__transaction_buffer_snapshot";
 
