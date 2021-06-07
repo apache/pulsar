@@ -47,7 +47,7 @@ Previously, the broker only tracked the acknowledged state in the batch message 
 This PIP adds support for acknowledging the local batch index of a batch. This feature is not enabled by default. You can enable it in the `broker.conf` as below.
 
 ```
-batchIndexAcknowledgeEnable=true
+acknowledgmentAtBatchIndexLevelEnabled=true
 ```
 
 For more information about PIP-54, see [here](https://github.com/apache/pulsar/wiki/PIP-54:-Support-acknowledgment-at-batch-index-level). <br> For more information about implementation details, see [PR-6052](https://github.com/apache/pulsar/pull/6052).

@@ -21,11 +21,10 @@ package org.apache.pulsar.common.policies.data;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import java.util.HashSet;
-import java.util.Objects;
 import java.util.Set;
-
+import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.ToString;
+import lombok.NoArgsConstructor;
 
 /**
  * The data of a failure domain configuration in a cluster.
@@ -34,39 +33,32 @@ import lombok.ToString;
     value = "FailureDomain",
     description = "The data of a failure domain configuration in a cluster"
 )
-@ToString
 @Data
-public class FailureDomainImpl implements FailureDomain {
+@NoArgsConstructor
+@AllArgsConstructor
+public final class FailureDomainImpl implements FailureDomain {
 
     @ApiModelProperty(
         name = "brokers",
         value = "The collection of brokers in the same failure domain",
         example = "[ 'broker-1', 'broker-2' ]"
     )
-    public Set<String> brokers = new HashSet<String>();
+    public Set<String> brokers;
 
-    @Override
-    public Set<String> getBrokers() {
-        return brokers;
+    public static FailureDomainImplBuilder builder() {
+        return new FailureDomainImplBuilder();
     }
 
-    @Override
-    public void setBrokers(Set<String> brokers) {
-        this.brokers = brokers;
-    }
+    public static class FailureDomainImplBuilder implements FailureDomain.Builder {
+        private Set<String> brokers = new HashSet<>();
 
-    @Override
-    public int hashCode() {
-        return Objects.hashCode(brokers);
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (obj instanceof FailureDomainImpl) {
-            FailureDomainImpl other = (FailureDomainImpl) obj;
-            return Objects.equals(brokers, other.brokers);
+        public FailureDomainImplBuilder brokers(Set<String> brokers) {
+            this.brokers = brokers;
+            return this;
         }
 
-        return false;
+        public FailureDomainImpl build() {
+            return new FailureDomainImpl(brokers);
+        }
     }
 }

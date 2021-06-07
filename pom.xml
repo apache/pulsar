@@ -109,7 +109,7 @@ flexible messaging model and an intuitive client API.</description>
     <dropwizardmetrics.version>3.2.5</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.1.0</curator.version>
     <netty.version>4.1.63.Final</netty.version>
-    <netty-tc-native.version>2.0.38.Final</netty-tc-native.version>
+    <netty-tc-native.version>2.0.33.Final</netty-tc-native.version>
     <jetty.version>9.4.39.v20210325</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
     <jersey.version>2.34</jersey.version>
@@ -1202,6 +1202,11 @@ flexible messaging model and an intuitive client API.</description>
         </exclusion>
       </exclusions>
     </dependency>
+    <dependency>
+      <groupId>org.apache.zookeeper</groupId>
+      <artifactId>zookeeper-prometheus-metrics</artifactId>
+      <version>${zookeeper.version}</version>
+    </dependency>
   </dependencies>
 
   <build>
@@ -1867,7 +1872,11 @@ flexible messaging model and an intuitive client API.</description>
       <activation>
         <!-- always activate this profile by default. Use "-main" or "!main" in the "-P" parameter to exclude it -->
         <!-- for example use "-Pcore-modules,-main" to activate the core-modules profile -->
-        <file><exists>pom.xml</exists></file>
+        <property>
+          <name>disableMainProfile</name>
+          <!-- always active unless true is passed as a value -->
+          <value>!true</value>
+        </property>
       </activation>
       <modules>
         <module>buildtools</module>
@@ -1895,7 +1904,6 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-testclient</module>
         <module>pulsar-broker-auth-athenz</module>
         <module>pulsar-client-auth-athenz</module>
-        <module>pulsar-zookeeper</module>
         <module>pulsar-sql</module>
         <module>dashboard</module>
         <module>pulsar-broker-auth-sasl</module>
@@ -1957,7 +1965,6 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-discovery-service</module>
         <module>pulsar-zookeeper-utils</module>
         <module>pulsar-testclient</module>
-        <module>pulsar-zookeeper</module>
         <module>pulsar-broker-auth-sasl</module>
         <module>pulsar-client-auth-sasl</module>
         <module>pulsar-config-validation</module>

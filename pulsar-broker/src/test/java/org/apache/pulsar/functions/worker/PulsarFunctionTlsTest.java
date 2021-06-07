@@ -26,6 +26,7 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -40,6 +41,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -165,8 +167,9 @@ public class PulsarFunctionTlsTest {
         leaderAdmin = pulsarAdmins[0];
         Thread.sleep(1000);
 
-        TenantInfoImpl tenantInfo = new TenantInfoImpl();
-        tenantInfo.setAllowedClusters(Sets.newHashSet(testCluster));
+        TenantInfo tenantInfo = TenantInfo.builder()
+                .allowedClusters(Collections.singleton(testCluster))
+                .build();
         pulsarAdmins[0].tenants().createTenant(testTenant, tenantInfo);
         pulsarAdmins[0].namespaces().createNamespace(testNamespace, 16);
     }

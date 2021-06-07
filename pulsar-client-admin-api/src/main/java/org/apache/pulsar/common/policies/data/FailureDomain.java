@@ -19,9 +19,17 @@
 package org.apache.pulsar.common.policies.data;
 
 import java.util.Set;
+import org.apache.pulsar.client.admin.utils.ReflectionUtils;
 
 public interface FailureDomain {
     Set<String> getBrokers();
 
-    void setBrokers(Set<String> brokers);
+    interface Builder {
+        Builder brokers(Set<String> brokers);
+        FailureDomain build();
+    }
+
+    static Builder builder() {
+        return ReflectionUtils.newBuilder("org.apache.pulsar.common.policies.data.FailureDomainImpl");
+    }
 }

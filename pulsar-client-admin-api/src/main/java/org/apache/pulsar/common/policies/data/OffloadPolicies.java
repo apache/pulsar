@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import org.apache.pulsar.client.admin.utils.ReflectionUtils;
+
 public interface OffloadPolicies {
     String getOffloadersDirectory();
 
@@ -75,59 +77,68 @@ public interface OffloadPolicies {
 
     Integer getManagedLedgerOffloadReadBufferSizeInBytes();
 
-    void setOffloadersDirectory(String offloadersDirectory);
+    interface Builder {
 
-    void setManagedLedgerOffloadDriver(String managedLedgerOffloadDriver);
+        Builder offloadersDirectory(String offloadersDirectory);
 
-    void setManagedLedgerOffloadMaxThreads(Integer managedLedgerOffloadMaxThreads);
+        Builder managedLedgerOffloadDriver(String managedLedgerOffloadDriver);
 
-    void setManagedLedgerOffloadPrefetchRounds(Integer managedLedgerOffloadPrefetchRounds);
+        Builder managedLedgerOffloadMaxThreads(Integer managedLedgerOffloadMaxThreads);
 
-    void setManagedLedgerOffloadThresholdInBytes(Long managedLedgerOffloadThresholdInBytes);
+        Builder managedLedgerOffloadPrefetchRounds(Integer managedLedgerOffloadPrefetchRounds);
 
-    void setManagedLedgerOffloadDeletionLagInMillis(Long managedLedgerOffloadDeletionLagInMillis);
+        Builder managedLedgerOffloadThresholdInBytes(Long managedLedgerOffloadThresholdInBytes);
 
-    void setManagedLedgerOffloadedReadPriority(OffloadedReadPriority managedLedgerOffloadedReadPriority);
+        Builder managedLedgerOffloadDeletionLagInMillis(Long managedLedgerOffloadDeletionLagInMillis);
 
-    void setS3ManagedLedgerOffloadRegion(String s3ManagedLedgerOffloadRegion);
+        Builder managedLedgerOffloadedReadPriority(OffloadedReadPriority managedLedgerOffloadedReadPriority);
 
-    void setS3ManagedLedgerOffloadBucket(String s3ManagedLedgerOffloadBucket);
+        Builder s3ManagedLedgerOffloadRegion(String s3ManagedLedgerOffloadRegion);
 
-    void setS3ManagedLedgerOffloadServiceEndpoint(String s3ManagedLedgerOffloadServiceEndpoint);
+        Builder s3ManagedLedgerOffloadBucket(String s3ManagedLedgerOffloadBucket);
 
-    void setS3ManagedLedgerOffloadMaxBlockSizeInBytes(Integer s3ManagedLedgerOffloadMaxBlockSizeInBytes);
+        Builder s3ManagedLedgerOffloadServiceEndpoint(String s3ManagedLedgerOffloadServiceEndpoint);
 
-    void setS3ManagedLedgerOffloadReadBufferSizeInBytes(Integer s3ManagedLedgerOffloadReadBufferSizeInBytes);
+        Builder s3ManagedLedgerOffloadMaxBlockSizeInBytes(Integer s3ManagedLedgerOffloadMaxBlockSizeInBytes);
 
-    void setS3ManagedLedgerOffloadCredentialId(String s3ManagedLedgerOffloadCredentialId);
+        Builder s3ManagedLedgerOffloadReadBufferSizeInBytes(Integer s3ManagedLedgerOffloadReadBufferSizeInBytes);
 
-    void setS3ManagedLedgerOffloadCredentialSecret(String s3ManagedLedgerOffloadCredentialSecret);
+        Builder s3ManagedLedgerOffloadCredentialId(String s3ManagedLedgerOffloadCredentialId);
 
-    void setS3ManagedLedgerOffloadRole(String s3ManagedLedgerOffloadRole);
+        Builder s3ManagedLedgerOffloadCredentialSecret(String s3ManagedLedgerOffloadCredentialSecret);
 
-    void setS3ManagedLedgerOffloadRoleSessionName(String s3ManagedLedgerOffloadRoleSessionName);
+        Builder s3ManagedLedgerOffloadRole(String s3ManagedLedgerOffloadRole);
 
-    void setGcsManagedLedgerOffloadRegion(String gcsManagedLedgerOffloadRegion);
+        Builder setS3ManagedLedgerOffloadRoleSessionName(String s3ManagedLedgerOffloadRoleSessionName);
 
-    void setGcsManagedLedgerOffloadBucket(String gcsManagedLedgerOffloadBucket);
+        Builder gcsManagedLedgerOffloadRegion(String gcsManagedLedgerOffloadRegion);
 
-    void setGcsManagedLedgerOffloadMaxBlockSizeInBytes(Integer gcsManagedLedgerOffloadMaxBlockSizeInBytes);
+        Builder gcsManagedLedgerOffloadBucket(String gcsManagedLedgerOffloadBucket);
 
-    void setGcsManagedLedgerOffloadReadBufferSizeInBytes(Integer gcsManagedLedgerOffloadReadBufferSizeInBytes);
+        Builder gcsManagedLedgerOffloadMaxBlockSizeInBytes(Integer gcsManagedLedgerOffloadMaxBlockSizeInBytes);
 
-    void setGcsManagedLedgerOffloadServiceAccountKeyFile(String gcsManagedLedgerOffloadServiceAccountKeyFile);
+        Builder gcsManagedLedgerOffloadReadBufferSizeInBytes(Integer gcsManagedLedgerOffloadReadBufferSizeInBytes);
 
-    void setFileSystemProfilePath(String fileSystemProfilePath);
+        Builder gcsManagedLedgerOffloadServiceAccountKeyFile(String gcsManagedLedgerOffloadServiceAccountKeyFile);
 
-    void setFileSystemURI(String fileSystemURI);
+        Builder fileSystemProfilePath(String fileSystemProfilePath);
 
-    void setManagedLedgerOffloadBucket(String managedLedgerOffloadBucket);
+        Builder fileSystemURI(String fileSystemURI);
 
-    void setManagedLedgerOffloadRegion(String managedLedgerOffloadRegion);
+        Builder managedLedgerOffloadBucket(String managedLedgerOffloadBucket);
 
-    void setManagedLedgerOffloadServiceEndpoint(String managedLedgerOffloadServiceEndpoint);
+        Builder managedLedgerOffloadRegion(String managedLedgerOffloadRegion);
 
-    void setManagedLedgerOffloadMaxBlockSizeInBytes(Integer managedLedgerOffloadMaxBlockSizeInBytes);
+        Builder managedLedgerOffloadServiceEndpoint(String managedLedgerOffloadServiceEndpoint);
 
-    void setManagedLedgerOffloadReadBufferSizeInBytes(Integer managedLedgerOffloadReadBufferSizeInBytes);
+        Builder managedLedgerOffloadMaxBlockSizeInBytes(Integer managedLedgerOffloadMaxBlockSizeInBytes);
+
+        Builder managedLedgerOffloadReadBufferSizeInBytes(Integer managedLedgerOffloadReadBufferSizeInBytes);
+
+        OffloadPolicies build();
+    }
+
+    static Builder builder() {
+        return ReflectionUtils.newBuilder("org.apache.pulsar.common.policies.data.OffloadPoliciesImpl");
+    }
 }

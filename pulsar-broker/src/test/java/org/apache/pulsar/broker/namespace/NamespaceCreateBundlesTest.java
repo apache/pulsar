@@ -56,8 +56,8 @@ public class NamespaceCreateBundlesTest extends BrokerTestBase {
         admin.namespaces().createNamespace(namespaceName);
 
         Policies policies = admin.namespaces().getPolicies(namespaceName);
-        assertEquals(policies.bundles.numBundles, 16);
-        assertEquals(policies.bundles.boundaries.size(), 17);
+        assertEquals(policies.bundles.getNumBundles(), 16);
+        assertEquals(policies.bundles.getBoundaries().size(), 17);
     }
 
     @Test
@@ -73,8 +73,9 @@ public class NamespaceCreateBundlesTest extends BrokerTestBase {
         Producer<byte[]> producer = producerBuilder.create();
 
         String bundle = admin.lookups().getBundleRange(topicName);
-        BookieAffinityGroupData bookieAffinityGroup = new BookieAffinityGroupData();
-        bookieAffinityGroup.bookkeeperAffinityGroupPrimary = "test";
+        BookieAffinityGroupData bookieAffinityGroup = BookieAffinityGroupData.builder()
+                .bookkeeperAffinityGroupPrimary("test")
+                .build();
         admin.namespaces().setBookieAffinityGroup(namespaceName, bookieAffinityGroup);
         admin.namespaces().splitNamespaceBundle(namespaceName, bundle, false, null);
         assertNotNull(admin.namespaces().getBookieAffinityGroup(namespaceName));

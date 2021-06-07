@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.policies.data;
 
 import java.util.LinkedHashSet;
+import org.apache.pulsar.client.admin.utils.ReflectionUtils;
 import org.apache.pulsar.client.api.ProxyProtocol;
 
 public interface ClusterData {
@@ -26,59 +27,77 @@ public interface ClusterData {
 
     String getServiceUrlTls();
 
-    ClusterData setServiceUrl(String serviceUrl);
-
-    ClusterData setServiceUrlTls(String serviceUrlTls);
-
     String getBrokerServiceUrl();
-
-    ClusterData setBrokerServiceUrl(String brokerServiceUrl);
 
     String getBrokerServiceUrlTls();
 
-    ClusterData setBrokerServiceUrlTls(String brokerServiceUrlTls);
-
     String getProxyServiceUrl();
 
-    ClusterData setProxyServiceUrl(String proxyServiceUrl);
-
     ProxyProtocol getProxyProtocol();
-
-    ClusterData setProxyProtocol(ProxyProtocol proxyProtocol);
 
     LinkedHashSet<String> getPeerClusterNames();
 
     String getAuthenticationPlugin();
 
-    ClusterData setAuthenticationPlugin(String authenticationPlugin);
-
     String getAuthenticationParameters();
 
-    ClusterData setAuthenticationParameters(String authenticationParameters);
-
-    ClusterData setPeerClusterNames(LinkedHashSet<String> peerClusterNames);
-
-    ClusterData setBrokerClientTlsEnabled(boolean enabled);
     boolean isBrokerClientTlsEnabled();
 
-    ClusterData setTlsAllowInsecureConnection(boolean enabled);
     boolean isTlsAllowInsecureConnection();
 
-    ClusterData setBrokerClientTlsEnabledWithKeyStore(boolean enabled);
     boolean isBrokerClientTlsEnabledWithKeyStore();
 
-    ClusterData setBrokerClientTlsTrustStoreType(String trustStoreType);
     String getBrokerClientTlsTrustStoreType();
 
-    ClusterData setBrokerClientTlsTrustStore(String tlsTrustStore);
     String getBrokerClientTlsTrustStore();
 
-    ClusterData setBrokerClientTlsTrustStorePassword(String trustStorePassword);
     String getBrokerClientTlsTrustStorePassword();
 
-    ClusterData setBrokerClientTrustCertsFilePath(String trustCertsFilePath);
     String getBrokerClientTrustCertsFilePath();
 
-    ClusterData setListenerName(String listenerName);
     String getListenerName();
+
+    interface Builder {
+        Builder serviceUrl(String serviceUrl);
+
+        Builder serviceUrlTls(String serviceUrlTls);
+
+        Builder brokerServiceUrl(String brokerServiceUrl);
+
+        Builder brokerServiceUrlTls(String brokerServiceUrlTls);
+
+        Builder proxyServiceUrl(String proxyServiceUrl);
+
+        Builder proxyProtocol(ProxyProtocol proxyProtocol);
+
+        Builder authenticationPlugin(String authenticationPlugin);
+
+        Builder authenticationParameters(String authenticationParameters);
+
+        Builder peerClusterNames(LinkedHashSet<String> peerClusterNames);
+
+        Builder brokerClientTlsEnabled(boolean enabled);
+
+        Builder tlsAllowInsecureConnection(boolean enabled);
+
+        Builder brokerClientTlsEnabledWithKeyStore(boolean enabled);
+
+        Builder brokerClientTlsTrustStoreType(String trustStoreType);
+
+        Builder brokerClientTlsTrustStore(String tlsTrustStore);
+
+        Builder brokerClientTlsTrustStorePassword(String trustStorePassword);
+
+        Builder brokerClientTrustCertsFilePath(String trustCertsFilePath);
+
+        Builder listenerName(String listenerName);
+
+        ClusterData build();
+    }
+
+    Builder clone();
+
+    static Builder builder() {
+        return ReflectionUtils.newBuilder("org.apache.pulsar.common.policies.data.ClusterDataImpl");
+    }
 }

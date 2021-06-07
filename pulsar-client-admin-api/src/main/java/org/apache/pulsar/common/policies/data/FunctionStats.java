@@ -21,8 +21,6 @@ package org.apache.pulsar.common.policies.data;
 import java.util.List;
 
 public interface FunctionStats {
-    void addInstance(FunctionInstanceStats functionInstanceStats);
-
     FunctionStats calculateOverall();
 
     long getReceivedTotal();
@@ -39,21 +37,5 @@ public interface FunctionStats {
 
     Long getLastInvocation();
 
-    List<FunctionInstanceStats> getInstances();
-
-    void setReceivedTotal(long receivedTotal);
-
-    void setProcessedSuccessfullyTotal(long processedSuccessfullyTotal);
-
-    void setSystemExceptionsTotal(long systemExceptionsTotal);
-
-    void setUserExceptionsTotal(long userExceptionsTotal);
-
-    void setAvgProcessLatency(Double avgProcessLatency);
-
-    void setOneMin(FunctionInstanceStatsDataBase oneMin);
-
-    void setLastInvocation(Long lastInvocation);
-
-    void setInstances(List<FunctionInstanceStats> instances);
+    List<? extends FunctionInstanceStats> getInstances();
 }

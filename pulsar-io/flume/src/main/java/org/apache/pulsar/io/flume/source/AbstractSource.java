@@ -112,7 +112,7 @@ public abstract class AbstractSource<V> extends PushSource<V> {
 
     @Getter
     @Setter
-    static private class FlumeRecord<V> implements Record<V> {
+    private static class FlumeRecord<V> implements Record<V> {
         private V record;
         private Long id;
 

@@ -18,8 +18,9 @@
  */
 package org.apache.pulsar.common.policies.impl;
 
-import java.util.Objects;
 import java.util.SortedSet;
+import lombok.AllArgsConstructor;
+import lombok.Data;
 import org.apache.pulsar.common.policies.AutoFailoverPolicy;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
@@ -28,6 +29,8 @@ import org.apache.pulsar.common.policies.data.BrokerStatus;
 /**
  * Implementation of min available policy.
  */
+@Data
+@AllArgsConstructor
 public class MinAvailablePolicy extends AutoFailoverPolicy {
     private static final String MIN_LIMIT_KEY = "min_limit";
     private static final String USAGE_THRESHOLD_KEY = "usage_threshold";
@@ -38,13 +41,8 @@ public class MinAvailablePolicy extends AutoFailoverPolicy {
     @SuppressWarnings("checkstyle:MemberName")
     public int usage_threshold;
 
-    MinAvailablePolicy(int minLimit, int usageThreshold) {
-        this.min_limit = minLimit;
-        this.usage_threshold = usageThreshold;
-    }
-
     public MinAvailablePolicy(AutoFailoverPolicyData policyData) {
-        if (!policyData.getPolicy_type().equals(AutoFailoverPolicyType.min_available)) {
+        if (!policyData.getPolicyType().equals(AutoFailoverPolicyType.min_available)) {
             throw new IllegalArgumentException();
         }
         if (!policyData.getParameters().containsKey(MIN_LIMIT_KEY)) {
@@ -55,20 +53,6 @@ public class MinAvailablePolicy extends AutoFailoverPolicy {
         }
         this.min_limit = Integer.parseInt(policyData.getParameters().get(MIN_LIMIT_KEY));
         this.usage_threshold = Integer.parseInt(policyData.getParameters().get(USAGE_THRESHOLD_KEY));
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(min_limit, usage_threshold);
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (obj instanceof MinAvailablePolicy) {
-            MinAvailablePolicy other = (MinAvailablePolicy) obj;
-            return Objects.equals(min_limit, other.min_limit) && Objects.equals(usage_threshold, other.usage_threshold);
-        }
-        return false;
     }
 
     @Override
@@ -92,10 +76,5 @@ public class MinAvailablePolicy extends AutoFailoverPolicy {
     @Override
     public boolean shouldFailoverToSecondary(int totalPrimaryCandidates) {
         return totalPrimaryCandidates < this.min_limit;
-    }
-
-    @Override
-    public String toString() {
-        return String.format("[policy_type=min_available min_limit=%s usage_threshold=%s]", min_limit, usage_threshold);
     }
 }

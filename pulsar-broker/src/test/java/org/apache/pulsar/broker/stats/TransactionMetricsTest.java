@@ -34,7 +34,6 @@ import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
@@ -198,7 +197,10 @@ public class TransactionMetricsTest extends BrokerTestBase {
         String subName = "test_managed_ledger_metrics";
         admin.topics().createNonPartitionedTopic(topic);
         admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
-                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
+                TenantInfo.builder()
+                        .adminRoles(Sets.newHashSet("appid1"))
+                        .allowedClusters(Sets.newHashSet("test"))
+                        .build());
         admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
         admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), 1);
         TransactionCoordinatorID transactionCoordinatorIDOne = TransactionCoordinatorID.get(0);

@@ -50,6 +50,7 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -71,7 +72,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         super.internalSetup();
 
         admin.clusters().createCluster("test",
-                new ClusterDataImpl(pulsar.getWebServiceAddress()));
+                ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         admin.tenants().createTenant("my-property",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
@@ -332,17 +333,17 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
                 .startMessageId(MessageId.earliest)
             .create();
 
-        Assert.assertEquals(admin.topics().getStats(topic).subscriptions.size(), 2);
+        Assert.assertEquals(admin.topics().getStats(topic).getSubscriptions().size(), 2);
         Assert.assertEquals(admin.topics().getInternalStats(topic, false).cursors.size(), 2);
 
         reader1.close();
 
-        Assert.assertEquals(admin.topics().getStats(topic).subscriptions.size(), 1);
+        Assert.assertEquals(admin.topics().getStats(topic).getSubscriptions().size(), 1);
         Assert.assertEquals(admin.topics().getInternalStats(topic, false).cursors.size(), 1);
 
         reader2.close();
 
-        Assert.assertEquals(admin.topics().getStats(topic).subscriptions.size(), 0);
+        Assert.assertEquals(admin.topics().getStats(topic).getSubscriptions().size(), 0);
         Assert.assertEquals(admin.topics().getInternalStats(topic, false).cursors.size(), 0);
 
     }

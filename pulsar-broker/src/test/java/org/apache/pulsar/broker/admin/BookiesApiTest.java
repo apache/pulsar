@@ -68,14 +68,14 @@ public class BookiesApiTest extends MockedPulsarServiceBaseTest {
         }
 
         // update the bookie info
-        BookieInfo newInfo0 = new BookieInfo(
-            "/rack1",
-            "127.0.0.1"
-        );
-        BookieInfo newInfo1 = new BookieInfo(
-            "/rack1",
-            "127.0.0.2"
-        );
+        BookieInfo newInfo0 = BookieInfo.builder()
+                .rack("/rack1")
+                .hostname("127.0.0.1")
+                .build();
+        BookieInfo newInfo1 = BookieInfo.builder()
+                .rack("/rack1")
+                .hostname("127.0.0.2")
+                .build();
         admin.bookies().updateBookieRackInfo(bookie0, "default", newInfo0);
         BookieInfo readInfo0 = admin.bookies().getBookieRackInfo(bookie0);
         assertEquals(newInfo0, readInfo0);

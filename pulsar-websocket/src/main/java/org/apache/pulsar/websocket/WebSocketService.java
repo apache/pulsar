@@ -42,7 +42,7 @@ import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -75,7 +75,7 @@ public class WebSocketService implements Closeable {
     private ServiceConfiguration config;
     private ConfigurationMetadataCacheService configurationCacheService;
 
-    private ClusterDataImpl localCluster;
+    private ClusterData localCluster;
     private final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ProducerHandler>> topicProducerMap;
     private final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ConsumerHandler>> topicConsumerMap;
     private final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ReaderHandler>> topicReaderMap;
@@ -85,7 +85,7 @@ public class WebSocketService implements Closeable {
         this(createClusterData(config), PulsarConfigurationLoader.convertFrom(config));
     }
 
-    public WebSocketService(ClusterDataImpl localCluster, ServiceConfiguration config) {
+    public WebSocketService(ClusterData localCluster, ServiceConfiguration config) {
         this.config = config;
         this.localCluster = localCluster;
         this.topicProducerMap = new ConcurrentOpenHashMap<>();
@@ -168,11 +168,11 @@ public class WebSocketService implements Closeable {
         return pulsarClient;
     }
 
-    public synchronized void setLocalCluster(ClusterDataImpl clusterData) {
+    public synchronized void setLocalCluster(ClusterData clusterData) {
         this.localCluster = clusterData;
     }
 
-    private PulsarClient createClientInstance(ClusterDataImpl clusterData) throws IOException {
+    private PulsarClient createClientInstance(ClusterData clusterData) throws IOException {
         ClientBuilder clientBuilder = PulsarClient.builder() //
                 .statsInterval(0, TimeUnit.SECONDS) //
                 .enableTls(config.isTlsEnabled()) //
@@ -202,18 +202,25 @@ public class WebSocketService implements Closeable {
         return clientBuilder.build();
     }
 
-    private static ClusterDataImpl createClusterData(WebSocketProxyConfiguration config) {
+    private static ClusterData createClusterData(WebSocketProxyConfiguration config) {
         if (isNotBlank(config.getBrokerServiceUrl()) || isNotBlank(config.getBrokerServiceUrlTls())) {
-            return new ClusterDataImpl(config.getServiceUrl(), config.getServiceUrlTls(), config.getBrokerServiceUrl(),
-                    config.getBrokerServiceUrlTls());
+            return ClusterData.builder()
+                    .serviceUrl(config.getServiceUrl())
+                    .serviceUrlTls(config.getServiceUrlTls())
+                    .brokerServiceUrl(config.getBrokerServiceUrl())
+                    .brokerServiceUrlTls(config.getBrokerServiceUrlTls())
+                    .build();
         } else if (isNotBlank(config.getServiceUrl()) || isNotBlank(config.getServiceUrlTls())) {
-            return new ClusterDataImpl(config.getServiceUrl(), config.getServiceUrlTls());
+            return ClusterData.builder()
+                    .serviceUrl(config.getServiceUrl())
+                    .serviceUrlTls(config.getServiceUrlTls())
+                    .build();
         } else {
             return null;
         }
     }
 
-    private ClusterDataImpl retrieveClusterData() throws PulsarServerException {
+    private ClusterData retrieveClusterData() throws PulsarServerException {
         if (configurationCacheService == null) {
             throw new PulsarServerException(
                 "Failed to retrieve Cluster data due to empty ConfigurationStoreServers");

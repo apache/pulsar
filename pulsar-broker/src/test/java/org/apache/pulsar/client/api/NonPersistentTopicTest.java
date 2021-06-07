@@ -59,6 +59,7 @@ import org.apache.pulsar.client.impl.PartitionedProducerImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
 import org.apache.pulsar.common.policies.data.NonPersistentSubscriptionStats;
@@ -499,7 +500,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
         // subscription stats
         assertEquals(stats.getSubscriptions().keySet().size(), 1);
-        assertEquals(subStats.consumers.size(), 1);
+        assertEquals(subStats.getConsumers().size(), 1);
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         Thread.sleep(timeWaitToSync);
@@ -515,14 +516,14 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         stats = topicRef.getStats(false, false);
         subStats = stats.getSubscriptions().values().iterator().next();
 
-        assertTrue(subStats.msgRateOut > 0);
-        assertEquals(subStats.consumers.size(), 1);
-        assertTrue(subStats.msgThroughputOut > 0);
+        assertTrue(subStats.getMsgRateOut() > 0);
+        assertEquals(subStats.getConsumers().size(), 1);
+        assertTrue(subStats.getMsgThroughputOut() > 0);
 
         // consumer stats
-        assertTrue(subStats.consumers.get(0).msgRateOut > 0.0);
-        assertTrue(subStats.consumers.get(0).msgThroughputOut > 0.0);
-        assertEquals(subStats.msgRateRedeliver, 0.0);
+        assertTrue(subStats.getConsumers().get(0).getMsgRateOut() > 0.0);
+        assertTrue(subStats.getConsumers().get(0).getMsgThroughputOut() > 0.0);
+        assertEquals(subStats.getMsgRateRedeliver(), 0.0);
         producer.close();
         consumer.close();
 
@@ -584,7 +585,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
             // subscription stats
             assertEquals(stats.getSubscriptions().keySet().size(), 2);
-            assertEquals(subStats.consumers.size(), 1);
+            assertEquals(subStats.getConsumers().size(), 1);
 
             Thread.sleep(timeWaitToSync);
 
@@ -653,14 +654,14 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             stats = topicRef.getStats(false, false);
             subStats = stats.getSubscriptions().values().iterator().next();
 
-            assertTrue(subStats.msgRateOut > 0);
-            assertEquals(subStats.consumers.size(), 1);
-            assertTrue(subStats.msgThroughputOut > 0);
+            assertTrue(subStats.getMsgRateOut() > 0);
+            assertEquals(subStats.getConsumers().size(), 1);
+            assertTrue(subStats.getMsgThroughputOut() > 0);
 
             // consumer stats
-            assertTrue(subStats.consumers.get(0).msgRateOut > 0.0);
-            assertTrue(subStats.consumers.get(0).msgThroughputOut > 0.0);
-            assertEquals(subStats.msgRateRedeliver, 0.0);
+            assertTrue(subStats.getConsumers().get(0).getMsgRateOut() > 0.0);
+            assertTrue(subStats.getConsumers().get(0).getMsgThroughputOut() > 0.0);
+            assertEquals(subStats.getMsgRateRedeliver(), 0.0);
 
             producer.close();
             consumer1.close();
@@ -870,9 +871,9 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             NonPersistentPublisherStats npStats = stats.getPublishers().get(0);
             NonPersistentSubscriptionStats sub1Stats = stats.getSubscriptions().get("subscriber-1");
             NonPersistentSubscriptionStats sub2Stats = stats.getSubscriptions().get("subscriber-2");
-            assertTrue(npStats.msgDropRate > 0);
-            assertTrue(sub1Stats.msgDropRate > 0);
-            assertTrue(sub2Stats.msgDropRate > 0);
+            assertTrue(npStats.getMsgDropRate() > 0);
+            assertTrue(sub1Stats.getMsgDropRate() > 0);
+            assertTrue(sub2Stats.getMsgDropRate() > 0);
 
             producer.close();
             consumer.close();
@@ -1004,14 +1005,23 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             admin3 = PulsarAdmin.builder().serviceHttpUrl(url3.toString()).build();
 
             // Provision the global namespace
-            admin1.clusters().createCluster("r1", new ClusterDataImpl(url1.toString(), null, pulsar1.getSafeBrokerServiceUrl(),
-                    pulsar1.getBrokerServiceUrlTls()));
-            admin1.clusters().createCluster("r2", new ClusterDataImpl(url2.toString(), null, pulsar2.getSafeBrokerServiceUrl(),
-                    pulsar1.getBrokerServiceUrlTls()));
-            admin1.clusters().createCluster("r3", new ClusterDataImpl(url3.toString(), null, pulsar3.getSafeBrokerServiceUrl(),
-                    pulsar1.getBrokerServiceUrlTls()));
+            admin1.clusters().createCluster("r1", ClusterData.builder()
+                    .serviceUrl(url1.toString())
+                    .brokerServiceUrl(pulsar1.getSafeBrokerServiceUrl())
+                    .brokerServiceUrlTls(pulsar1.getBrokerServiceUrlTls())
+                    .build());
+            admin1.clusters().createCluster("r2", ClusterData.builder()
+                    .serviceUrl(url2.toString())
+                    .brokerServiceUrl(pulsar2.getSafeBrokerServiceUrl())
+                    .brokerServiceUrlTls(pulsar1.getBrokerServiceUrlTls())
+                    .build());
+            admin1.clusters().createCluster("r3", ClusterData.builder()
+                    .serviceUrl(url3.toString())
+                    .brokerServiceUrl(pulsar3.getSafeBrokerServiceUrl())
+                    .brokerServiceUrlTls(pulsar1.getBrokerServiceUrlTls())
+                    .build());
 
-            admin1.clusters().createCluster("global", new ClusterDataImpl("http://global:8080"));
+            admin1.clusters().createCluster("global", ClusterData.builder().serviceUrl("http://global:8080").build());
             admin1.tenants().createTenant("pulsar", new TenantInfoImpl(
                     Sets.newHashSet("appid1", "appid2", "appid3"), Sets.newHashSet("r1", "r2", "r3")));
             admin1.namespaces().createNamespace("pulsar/global/ns");
