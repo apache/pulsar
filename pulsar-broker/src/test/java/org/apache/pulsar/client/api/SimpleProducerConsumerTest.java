@@ -4051,6 +4051,24 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         assertEquals(1, res.getFields().size());
     }
 
+    @Test
+    public void testTopicDoesNotExists() throws Exception {
+        cleanup();
+        conf.setAllowAutoTopicCreation(false);
+        setup();
+        String topic = "persistent://my-property/my-ns/none" + UUID.randomUUID();
+        try {
+            @Cleanup
+            Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                    .topic(topic).subscriptionName("sub").subscribe();
+            fail("should fail");
+        } catch (Exception e) {
+            assertTrue(e.getMessage().contains("Topic " + topic + " does not exist"));
+        } finally {
+            conf.setAllowAutoTopicCreation(true);
+        }
+    }
+
     /**
      * Test validates that consumer of partitioned-topic utilizes threads of all partitioned-consumers and slow-listener
      * of one of the partition doesn't impact listener-processing of other partition.
