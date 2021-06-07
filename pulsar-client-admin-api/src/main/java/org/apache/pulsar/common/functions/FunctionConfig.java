@@ -95,7 +95,6 @@ public class FunctionConfig {
     private String batchBuilder;
     private Boolean forwardSourceMessageProperty;
     private Map<String, Object> userConfig;
-    private Map<String, ExternalPulsarConfig> externalPulsars;
     // This is a map of secretName(aka how the secret is going to be
     // accessed in the function via context) to an object that
     // encapsulates how the secret is fetched by the underlying
