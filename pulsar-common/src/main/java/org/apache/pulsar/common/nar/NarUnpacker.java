@@ -44,7 +44,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class NarUnpacker {
 
-    private final static String HASH_FILENAME = "nar-md5sum";
+    private static final String HASH_FILENAME = "nar-md5sum";
 
     /**
      * Unpacks the specified nar into the specified base working directory.

@@ -1015,7 +1015,7 @@ public class Commands {
         return serializeWithSize(newGetTopicsOfNamespaceResponseCommand(topics, requestId));
     }
 
-    private final static ByteBuf cmdPing;
+    private static final ByteBuf cmdPing;
 
     static {
         BaseCommand cmd = new BaseCommand()
@@ -1030,7 +1030,7 @@ public class Commands {
         return cmdPing.retainedDuplicate();
     }
 
-    private final static ByteBuf cmdPong;
+    private static final ByteBuf cmdPong;
 
     static {
         BaseCommand cmd = new BaseCommand()

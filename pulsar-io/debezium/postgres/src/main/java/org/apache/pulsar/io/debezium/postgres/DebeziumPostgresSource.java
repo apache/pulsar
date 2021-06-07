@@ -28,7 +28,7 @@ import org.apache.pulsar.io.debezium.DebeziumSource;
  * A pulsar source that runs debezium postgres source
  */
 public class DebeziumPostgresSource extends DebeziumSource {
-    static private final String DEFAULT_TASK = "io.debezium.connector.postgresql.PostgresConnectorTask";
+    private static final String DEFAULT_TASK = "io.debezium.connector.postgresql.PostgresConnectorTask";
 
     @Override
     public void setDbConnectorTask(Map<String, Object> config) throws Exception {

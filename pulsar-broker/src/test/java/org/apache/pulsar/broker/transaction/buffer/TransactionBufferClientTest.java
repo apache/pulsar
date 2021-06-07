@@ -80,7 +80,7 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
     TopicName partitionedTopicName = TopicName.get("persistent", "public", "test", "tb-client");
     int partitions = 10;
     BrokerService[] brokerServices;
-    private final static String namespace = "public/test";
+    private static final String namespace = "public/test";
 
     private EventLoopGroup eventLoopGroup;
 

@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
  */
 public class EntryCacheDefaultEvictionPolicy implements EntryCacheEvictionPolicy {
 
-    private final static double PercentOfSizeToConsiderForEviction = 0.5;
+    private static final double PercentOfSizeToConsiderForEviction = 0.5;
 
     @Override
     public void doEviction(List<EntryCache> caches, long sizeToFree) {

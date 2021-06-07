@@ -72,13 +72,13 @@ import static org.testng.Assert.assertTrue;
 @Slf4j
 public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
-    private final static String TENANT = "tnx";
-    private final static String NAMESPACE1 = TENANT + "/ns1";
-    private final static String RECOVER_COMMIT = NAMESPACE1 + "/recover-commit";
-    private final static String RECOVER_ABORT = NAMESPACE1 + "/recover-abort";
-    private final static String SUBSCRIPTION_NAME = "test-recover";
-    private final static String TAKE_SNAPSHOT = NAMESPACE1 + "/take-snapshot";
-    private final static String ABORT_DELETE = NAMESPACE1 + "/abort-delete";
+    private static final String TENANT = "tnx";
+    private static final String NAMESPACE1 = TENANT + "/ns1";
+    private static final String RECOVER_COMMIT = NAMESPACE1 + "/recover-commit";
+    private static final String RECOVER_ABORT = NAMESPACE1 + "/recover-abort";
+    private static final String SUBSCRIPTION_NAME = "test-recover";
+    private static final String TAKE_SNAPSHOT = NAMESPACE1 + "/take-snapshot";
+    private static final String ABORT_DELETE = NAMESPACE1 + "/abort-delete";
 
     @BeforeMethod
     protected void setup() throws Exception {

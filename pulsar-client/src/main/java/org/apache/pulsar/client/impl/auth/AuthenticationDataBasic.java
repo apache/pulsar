@@ -28,7 +28,7 @@ import java.util.Set;
 import java.util.Base64;
 
 public class AuthenticationDataBasic implements AuthenticationDataProvider {
-    private final static String HTTP_HEADER_NAME = "Authorization";
+    private static final String HTTP_HEADER_NAME = "Authorization";
     private String httpAuthToken;
     private String commandAuthToken;
 

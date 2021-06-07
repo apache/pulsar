@@ -55,7 +55,7 @@ import org.testng.annotations.Test;
 @Slf4j
 @Test(groups = "schema")
 public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
-    private final static String CLUSTER_NAME = "test";
+    private static final String CLUSTER_NAME = "test";
 
     @BeforeMethod
     @Override

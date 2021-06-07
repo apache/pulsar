@@ -59,7 +59,7 @@ import org.testng.annotations.Test;
 @Slf4j
 public class PendingAckPersistentTest extends TransactionTestBase {
 
-    private final static String PENDING_ACK_REPLAY_TOPIC = "persistent://public/txn/pending-ack-replay";
+    private static final String PENDING_ACK_REPLAY_TOPIC = "persistent://public/txn/pending-ack-replay";
 
     @BeforeMethod
     public void setup() throws Exception {

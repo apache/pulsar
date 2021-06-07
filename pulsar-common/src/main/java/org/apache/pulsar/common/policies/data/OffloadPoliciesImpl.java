@@ -45,9 +45,9 @@ import static org.apache.pulsar.common.util.FieldParser.value;
 @NoArgsConstructor
 public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
 
-    private final static long serialVersionUID = 0L;
+    private static final long serialVersionUID = 0L;
 
-    public final static List<Field> CONFIGURATION_FIELDS;
+    public static final List<Field> CONFIGURATION_FIELDS;
 
     static {
         List<Field> temp = new ArrayList<>();
@@ -61,20 +61,20 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
         CONFIGURATION_FIELDS = Collections.unmodifiableList(temp);
     }
 
-    public final static int DEFAULT_MAX_BLOCK_SIZE_IN_BYTES = 64 * 1024 * 1024;   // 64MB
-    public final static int DEFAULT_READ_BUFFER_SIZE_IN_BYTES = 1024 * 1024;      // 1MB
-    public final static int DEFAULT_OFFLOAD_MAX_THREADS = 2;
-    public final static int DEFAULT_OFFLOAD_MAX_PREFETCH_ROUNDS = 1;
-    public final static ImmutableList<String> DRIVER_NAMES = ImmutableList
+    public static final int DEFAULT_MAX_BLOCK_SIZE_IN_BYTES = 64 * 1024 * 1024;   // 64MB
+    public static final int DEFAULT_READ_BUFFER_SIZE_IN_BYTES = 1024 * 1024;      // 1MB
+    public static final int DEFAULT_OFFLOAD_MAX_THREADS = 2;
+    public static final int DEFAULT_OFFLOAD_MAX_PREFETCH_ROUNDS = 1;
+    public static final ImmutableList<String> DRIVER_NAMES = ImmutableList
             .of("S3", "aws-s3", "google-cloud-storage", "filesystem", "azureblob", "aliyun-oss");
-    public final static String DEFAULT_OFFLOADER_DIRECTORY = "./offloaders";
-    public final static Long DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES = null;
-    public final static Long DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS = null;
+    public static final String DEFAULT_OFFLOADER_DIRECTORY = "./offloaders";
+    public static final Long DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES = null;
+    public static final Long DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS = null;
 
-    public final static String OFFLOAD_THRESHOLD_NAME_IN_CONF_FILE =
+    public static final String OFFLOAD_THRESHOLD_NAME_IN_CONF_FILE =
             "managedLedgerOffloadAutoTriggerSizeThresholdBytes";
-    public final static String DELETION_LAG_NAME_IN_CONF_FILE = "managedLedgerOffloadDeletionLagMs";
-    public final static OffloadedReadPriority DEFAULT_OFFLOADED_READ_PRIORITY = OffloadedReadPriority.TIERED_STORAGE_FIRST;
+    public static final String DELETION_LAG_NAME_IN_CONF_FILE = "managedLedgerOffloadDeletionLagMs";
+    public static final OffloadedReadPriority DEFAULT_OFFLOADED_READ_PRIORITY = OffloadedReadPriority.TIERED_STORAGE_FIRST;
 
     // common config
     @Configuration

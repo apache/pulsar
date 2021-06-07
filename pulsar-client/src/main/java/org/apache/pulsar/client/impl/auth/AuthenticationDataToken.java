@@ -27,7 +27,7 @@ import java.util.function.Supplier;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 
 public class AuthenticationDataToken implements AuthenticationDataProvider {
-    public final static String HTTP_HEADER_NAME = "Authorization";
+    public static final String HTTP_HEADER_NAME = "Authorization";
 
     private final Supplier<String> tokenSupplier;
 

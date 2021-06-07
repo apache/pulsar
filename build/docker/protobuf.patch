@@ -604,7 +604,7 @@ index 4c087db5..3ae1c14c 100644
 +    "  this.handle = handle;\n"
      "  maybeForceBuilderInitialization();\n"
      "}\n"
-+    "private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {\n"
++    "private static final io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {\n"
 +    "   protected Builder newObject(io.netty.util.Recycler.Handle handle) {\n"
 +    "         return new Builder(handle);\n"
 +    "       }\n"

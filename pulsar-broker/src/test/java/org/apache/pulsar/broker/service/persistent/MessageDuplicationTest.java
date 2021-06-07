@@ -50,9 +50,9 @@ import static org.testng.Assert.assertTrue;
 @Test(groups = "broker")
 public class MessageDuplicationTest {
 
-    private final static int BROKER_DEDUPLICATION_ENTRIES_INTERVAL = 10;
-    private final static int BROKER_DEDUPLICATION_MAX_NUMBER_PRODUCERS = 10;
-    private final static String REPLICATOR_PREFIX = "foo";
+    private static final int BROKER_DEDUPLICATION_ENTRIES_INTERVAL = 10;
+    private static final int BROKER_DEDUPLICATION_MAX_NUMBER_PRODUCERS = 10;
+    private static final String REPLICATOR_PREFIX = "foo";
 
     @Test
     public void testIsDuplicate() {

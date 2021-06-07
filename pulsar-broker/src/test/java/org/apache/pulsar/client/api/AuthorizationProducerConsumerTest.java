@@ -66,8 +66,8 @@ import org.testng.annotations.Test;
 public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(AuthorizationProducerConsumerTest.class);
 
-    private final static String clientRole = "plugbleRole";
-    private final static Set<String> clientAuthProviderSupportedRoles = Sets.newHashSet(clientRole);
+    private static final String clientRole = "plugbleRole";
+    private static final Set<String> clientAuthProviderSupportedRoles = Sets.newHashSet(clientRole);
 
     protected void setup() throws Exception {
 

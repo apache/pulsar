@@ -594,7 +594,7 @@ public class ResourceGroupService {
     // set the value to 4.
     // Setting this to 0 will make us report in every round.
     // Don't set to negative values; behavior will be "undefined".
-    protected final static int MaxUsageReportSuppressRounds = 5;
+    protected static final int MaxUsageReportSuppressRounds = 5;
 
     // Convenient shorthand, for MaxUsageReportSuppressRounds converted to a time interval in milliseconds.
     protected static long maxIntervalForSuppressingReportsMSecs;
@@ -602,5 +602,5 @@ public class ResourceGroupService {
     // The percentage difference that is considered "within limits" to suppress usage reporting.
     // Setting this to 0 will also make us report in every round.
     // Don't set it to negative values; behavior will be "undefined".
-    protected final static float UsageReportSuppressionTolerancePercentage = 5;
+    protected static final float UsageReportSuppressionTolerancePercentage = 5;
 }

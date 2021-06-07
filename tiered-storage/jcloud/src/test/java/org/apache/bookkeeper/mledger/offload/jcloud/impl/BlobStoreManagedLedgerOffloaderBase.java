@@ -44,7 +44,7 @@ import org.testng.Assert;
 
 public abstract class BlobStoreManagedLedgerOffloaderBase {
 
-    public final static String BUCKET = "pulsar-unittest";
+    public static final String BUCKET = "pulsar-unittest";
     protected static final int DEFAULT_BLOCK_SIZE = 5*1024*1024;
     protected static final int DEFAULT_READ_BUFFER_SIZE = 1*1024*1024;
 

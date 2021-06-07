@@ -55,7 +55,7 @@ import org.slf4j.LoggerFactory;
  * this class are controlled across a network via LoadSimulationController.
  */
 public class LoadSimulationClient {
-    private final static Logger log = LoggerFactory.getLogger(LoadSimulationClient.class);
+    private static final Logger log = LoggerFactory.getLogger(LoadSimulationClient.class);
 
     // Values for command encodings.
     public static final byte CHANGE_COMMAND = 0;

@@ -47,7 +47,7 @@ import org.apache.zookeeper.KeeperException;
 @Slf4j
 public class BookKeeperPackagesStorage implements PackagesStorage {
 
-    private final static String NS_CLIENT_ID = "packages-management";
+    private static final String NS_CLIENT_ID = "packages-management";
     final BookKeeperPackagesStorageConfiguration configuration;
     private Namespace namespace;
 

@@ -51,10 +51,10 @@ import static org.testng.Assert.expectThrows;
 
 
 public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
-    private final static String CLUSTER_NAME = "test";
-    private final static String PUBLIC_TENANT = "public";
-    private final static String namespace = "test-namespace";
-    private final static String namespaceName = PUBLIC_TENANT + "/" + namespace;
+    private static final String CLUSTER_NAME = "test";
+    private static final String PUBLIC_TENANT = "public";
+    private static final String namespace = "test-namespace";
+    private static final String namespaceName = PUBLIC_TENANT + "/" + namespace;
 
     @BeforeClass
     @Override

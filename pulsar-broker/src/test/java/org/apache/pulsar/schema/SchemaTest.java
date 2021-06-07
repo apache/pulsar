@@ -83,7 +83,7 @@ import org.testng.annotations.Test;
 @Test(groups = "schema")
 public class SchemaTest extends MockedPulsarServiceBaseTest {
 
-    private final static String CLUSTER_NAME = "test";
+    private static final String CLUSTER_NAME = "test";
 
     @BeforeMethod
     @Override

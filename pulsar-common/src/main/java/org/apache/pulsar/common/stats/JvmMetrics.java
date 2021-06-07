@@ -51,7 +51,7 @@ public class JvmMetrics {
     private final JvmGCMetricsLogger gcLogger;
 
     private final String componentName;
-    private final static Map<String, Class<? extends JvmGCMetricsLogger>> gcLoggerMap = new HashMap<>();
+    private static final Map<String, Class<? extends JvmGCMetricsLogger>> gcLoggerMap = new HashMap<>();
     static {
         try {
             directMemoryUsage = io.netty.util.internal.PlatformDependent.class

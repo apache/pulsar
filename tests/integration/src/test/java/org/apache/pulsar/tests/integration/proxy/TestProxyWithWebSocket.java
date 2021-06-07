@@ -50,7 +50,7 @@ import static org.apache.pulsar.tests.integration.containers.PulsarContainer.CS_
  * Test cases for proxy.
  */
 public class TestProxyWithWebSocket extends PulsarTestSuite {
-    private final static Logger log = LoggerFactory.getLogger(TestProxyWithWebSocket.class);
+    private static final Logger log = LoggerFactory.getLogger(TestProxyWithWebSocket.class);
 
     @Override
     protected PulsarClusterSpec.PulsarClusterSpecBuilder beforeSetupCluster(

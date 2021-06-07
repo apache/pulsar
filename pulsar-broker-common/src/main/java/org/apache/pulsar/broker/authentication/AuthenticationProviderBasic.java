@@ -35,8 +35,8 @@ import java.io.IOException;
 import java.util.*;
 
 public class AuthenticationProviderBasic implements AuthenticationProvider {
-    private final static String HTTP_HEADER_NAME = "Authorization";
-    private final static String CONF_SYSTEM_PROPERTY_KEY = "pulsar.auth.basic.conf";
+    private static final String HTTP_HEADER_NAME = "Authorization";
+    private static final String CONF_SYSTEM_PROPERTY_KEY = "pulsar.auth.basic.conf";
     private Map<String, String> users;
 
     @Override

@@ -49,7 +49,7 @@ public class SimpleTestProducerSocket {
     private final CountDownLatch closeLatch;
     private volatile Session session;
     private ConcurrentHashMap<String, Long> startTimeMap = new ConcurrentHashMap<>();
-    private final static String CONTEXT = "context";
+    private static final String CONTEXT = "context";
 
     public SimpleTestProducerSocket() {
         this.closeLatch = new CountDownLatch(2);

@@ -54,9 +54,9 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class TransactionStablePositionTest extends TransactionTestBase {
 
-    private final static String TENANT = "tnx";
-    private final static String NAMESPACE1 = TENANT + "/ns1";
-    private final static String TOPIC = NAMESPACE1 + "/test-topic";
+    private static final String TENANT = "tnx";
+    private static final String NAMESPACE1 = TENANT + "/ns1";
+    private static final String TOPIC = NAMESPACE1 + "/test-topic";
 
     @BeforeMethod
     protected void setup() throws Exception {
