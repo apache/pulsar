@@ -425,6 +425,8 @@ page at http://checkstyle.sourceforge.net/config.html -->
             <property name="severity" value="error"/>
         </module>
 
+        <module name="ClassMemberImpliedModifier" />
+
 
     </module>
 </module>
