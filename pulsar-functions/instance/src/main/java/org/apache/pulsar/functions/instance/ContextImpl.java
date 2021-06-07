@@ -80,7 +80,7 @@ import static org.apache.pulsar.functions.instance.stats.FunctionStatsManager.US
 /**
  * This class implements the Context interface exposed to the user.
  */
-@ToString
+@ToString(exclude = {"pulsarAdmin"})
 class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable {
     private InstanceConfig config;
     private Logger logger;
