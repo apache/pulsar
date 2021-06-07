@@ -48,7 +48,6 @@ import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 import org.apache.pulsar.common.policies.data.RawBookieInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.zookeeper.ZkBookieRackAffinityMapping;
-import org.apache.pulsar.zookeeper.ZooKeeperCache.Deserializer;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,7 +66,9 @@ public class Bookies extends AdminResource {
         validateSuperUserAccess();
 
         return localZkCache().getData(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH,
-                (key, content) -> ObjectMapperFactory.getThreadLocal().readValue(content, BookiesRackConfiguration.class)).orElse(new BookiesRackConfiguration());
+                (key, content) ->
+                        ObjectMapperFactory.getThreadLocal().readValue(content, BookiesRackConfiguration.class))
+                .orElse(new BookiesRackConfiguration());
     }
 
     @GET
