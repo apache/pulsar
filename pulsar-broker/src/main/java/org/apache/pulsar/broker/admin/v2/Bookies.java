@@ -67,14 +67,7 @@ public class Bookies extends AdminResource {
         validateSuperUserAccess();
 
         return localZkCache().getData(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH,
-                new Deserializer<BookiesRackConfiguration>() {
-
-                    @Override
-                    public BookiesRackConfiguration deserialize(String key, byte[] content) throws Exception {
-                        return ObjectMapperFactory.getThreadLocal().readValue(content, BookiesRackConfiguration.class);
-                    }
-
-                }).orElse(new BookiesRackConfiguration());
+                (key, content) -> ObjectMapperFactory.getThreadLocal().readValue(content, BookiesRackConfiguration.class)).orElse(new BookiesRackConfiguration());
     }
 
     @GET

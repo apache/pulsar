@@ -653,12 +653,9 @@ public class PulsarService implements AutoCloseable {
             attributeMap.put(WebService.ATTRIBUTE_PULSAR_NAME, this);
             Map<String, Object> vipAttributeMap = Maps.newHashMap();
             vipAttributeMap.put(VipStatus.ATTRIBUTE_STATUS_FILE_PATH, this.config.getStatusFilePath());
-            vipAttributeMap.put(VipStatus.ATTRIBUTE_IS_READY_PROBE, new Supplier<Boolean>() {
-                @Override
-                public Boolean get() {
-                    // Ensure the VIP status is only visible when the broker is fully initialized
-                    return state == State.Started;
-                }
+            vipAttributeMap.put(VipStatus.ATTRIBUTE_IS_READY_PROBE, (Supplier<Boolean>) () -> {
+                // Ensure the VIP status is only visible when the broker is fully initialized
+                return state == State.Started;
             });
             this.webService.addRestResources("/",
                     VipStatus.class.getPackage().getName(), false, vipAttributeMap);

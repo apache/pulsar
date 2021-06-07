@@ -22,10 +22,8 @@ import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAG
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
@@ -151,7 +149,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         }
 
         consumerList.add(consumer);
-        consumerList.sort((c1, c2) -> c1.getPriorityLevel() - c2.getPriorityLevel());
+        consumerList.sort(Comparator.comparingInt(Consumer::getPriorityLevel));
         consumerSet.add(consumer);
     }
 
