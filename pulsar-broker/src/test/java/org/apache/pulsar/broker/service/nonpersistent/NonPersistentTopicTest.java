@@ -70,7 +70,6 @@ public class NonPersistentTopicTest extends BrokerTestBase {
         assertEquals(stats.getMsgOutCounter(), 0);
 
         producer.newMessage().value("test").eventTime(5).send();
-        producer.newMessage().value("test").eventTime(5).send();
 
         Message<String> msg = consumer1.receive();
         assertNotNull(msg);
