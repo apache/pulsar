@@ -4057,13 +4057,16 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         conf.setAllowAutoTopicCreation(false);
         setup();
         String topic = "persistent://my-property/my-ns/none" + UUID.randomUUID();
+        admin.topics().createPartitionedTopic(topic, 3);
         try {
             @Cleanup
             Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                    .enableRetry(true)
                     .topic(topic).subscriptionName("sub").subscribe();
             fail("should fail");
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("Topic " + topic + " does not exist"));
+            String retryTopic = topic + "-sub-RETRY";
+            assertTrue(e.getMessage().contains("Topic " + retryTopic + " does not exist"));
         } finally {
             conf.setAllowAutoTopicCreation(true);
         }
