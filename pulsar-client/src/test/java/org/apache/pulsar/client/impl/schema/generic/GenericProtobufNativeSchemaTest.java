@@ -60,7 +60,7 @@ public class GenericProtobufNativeSchemaTest {
         assertEquals(message.getDoubleField(), DOUBLE_FIELD_VLUE);
     }
 
-    private final static String STRING_FIELD_VLUE = "stringFieldValue";
-    private final static double DOUBLE_FIELD_VLUE = 0.2D;
+    private static final String STRING_FIELD_VLUE = "stringFieldValue";
+    private static final double DOUBLE_FIELD_VLUE = 0.2D;
 
 }

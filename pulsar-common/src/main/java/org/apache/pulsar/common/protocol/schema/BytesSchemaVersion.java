@@ -145,7 +145,7 @@ public class BytesSchemaVersion implements SchemaVersion, Comparable<BytesSchema
     /**
      * A byte array comparator based on lexicograpic ordering.
      */
-    public final static ByteArrayComparator BYTES_LEXICO_COMPARATOR = new LexicographicByteArrayComparator();
+    public static final ByteArrayComparator BYTES_LEXICO_COMPARATOR = new LexicographicByteArrayComparator();
 
     /**
      * This interface helps to compare byte arrays.

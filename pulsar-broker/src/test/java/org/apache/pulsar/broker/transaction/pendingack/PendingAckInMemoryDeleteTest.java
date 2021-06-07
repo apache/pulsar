@@ -71,8 +71,8 @@ import static org.testng.Assert.assertTrue;
 @Test(groups = "broker")
 public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
 
-    private final static String TENANT = "tnx";
-    private final static String NAMESPACE1 = TENANT + "/ns1";
+    private static final String TENANT = "tnx";
+    private static final String NAMESPACE1 = TENANT + "/ns1";
 
     @BeforeMethod
     protected void setup() throws Exception {

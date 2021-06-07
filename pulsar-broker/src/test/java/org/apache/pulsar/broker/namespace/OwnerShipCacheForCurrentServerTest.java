@@ -32,9 +32,9 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class OwnerShipCacheForCurrentServerTest extends OwnerShipForCurrentServerTestBase {
 
-    private final static String TENANT = "ownership";
-    private final static String NAMESPACE = TENANT + "/ns1";
-    private final static String TOPIC_TEST = NAMESPACE + "/test";
+    private static final String TENANT = "ownership";
+    private static final String NAMESPACE = TENANT + "/ns1";
+    private static final String TOPIC_TEST = NAMESPACE + "/test";
 
     @BeforeMethod
     protected void setup() throws Exception {

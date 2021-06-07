@@ -400,8 +400,8 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
     }
 
 
-    final static String KEY_SCHEMA_COLUMN_PREFIX = "__key.";
-    final static String PRIMITIVE_COLUMN_NAME = "__value__";
+    static final String KEY_SCHEMA_COLUMN_PREFIX = "__key.";
+    static final String PRIMITIVE_COLUMN_NAME = "__value__";
 
     @Data
     static class Foo {

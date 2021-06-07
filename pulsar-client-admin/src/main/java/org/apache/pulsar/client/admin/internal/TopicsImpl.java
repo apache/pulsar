@@ -99,9 +99,10 @@ public class TopicsImpl extends BaseResource implements Topics {
     private final WebTarget adminV2Topics;
     // CHECKSTYLE.OFF: MemberName
     private static final String BATCH_HEADER = "X-Pulsar-num-batch-message";
-    private static final String BATCH_SIZE_HEADER = "X-Pulsar-batch-size";
     private static final String MESSAGE_ID = "X-Pulsar-Message-ID";
     private static final String PUBLISH_TIME = "X-Pulsar-publish-time";
+    // CHECKSTYLE.ON: MemberName
+    private static final String BATCH_SIZE_HEADER = "X-Pulsar-batch-size";
     private static final String EVENT_TIME = "X-Pulsar-event-time";
     private static final String DELIVER_AT_TIME = "X-Pulsar-deliver-at-time";
     private static final String BROKER_ENTRY_TIMESTAMP = "X-Pulsar-Broker-Entry-METADATA-timestamp";
@@ -128,7 +129,6 @@ public class TopicsImpl extends BaseResource implements Topics {
     private static final String SCHEMA_VERSION = "X-Pulsar-Base64-schema-version-b64encoded";
     private static final String ENCRYPTION_PARAM = "X-Pulsar-Base64-encryption-param";
     private static final String ENCRYPTION_KEYS = "X-Pulsar-Base64-encryption-keys";
-    // CHECKSTYLE.ON: MemberName
 
     public TopicsImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
         super(auth, readTimeoutMs);

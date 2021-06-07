@@ -68,8 +68,8 @@ import org.testng.annotations.Test;
 public class PulsarSourceTest {
 
 
-    private final static String TOPIC = "persistent://sample/ns1/test_result";
-    private final static ConsumerConfig CONSUMER_CONFIG =  ConsumerConfig.builder()
+    private static final String TOPIC = "persistent://sample/ns1/test_result";
+    private static final ConsumerConfig CONSUMER_CONFIG =  ConsumerConfig.builder()
             .serdeClassName(TopicSchema.DEFAULT_SERDE).isRegexPattern(false).build();
 
     private static Map<String, ConsumerConfig> consumerConfigs = new HashMap<>();

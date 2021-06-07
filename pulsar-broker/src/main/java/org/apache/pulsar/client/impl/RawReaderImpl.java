@@ -44,7 +44,7 @@ import org.slf4j.LoggerFactory;
 
 public class RawReaderImpl implements RawReader {
 
-    final static int DEFAULT_RECEIVER_QUEUE_SIZE = 1000;
+    static final int DEFAULT_RECEIVER_QUEUE_SIZE = 1000;
     private final ConsumerConfigurationData<byte[]> consumerConfiguration;
     private RawConsumerImpl consumer;
 

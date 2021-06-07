@@ -32,7 +32,7 @@ public class PulsarColumnMetadata extends ColumnMetadata {
     // need this because presto ColumnMetadata saves name in lowercase
     private String nameWithCase;
     private PulsarColumnHandle.HandleKeyValueType handleKeyValueType;
-    public final static String KEY_SCHEMA_COLUMN_PREFIX = "__key.";
+    public static final String KEY_SCHEMA_COLUMN_PREFIX = "__key.";
 
     private DecoderExtraInfo decoderExtraInfo;
 

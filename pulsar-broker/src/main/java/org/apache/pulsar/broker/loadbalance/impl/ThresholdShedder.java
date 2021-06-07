@@ -40,7 +40,7 @@ public class ThresholdShedder implements LoadSheddingStrategy {
 
     private final Multimap<String, String> selectedBundlesCache = ArrayListMultimap.create();
 
-    private final static double ADDITIONAL_THRESHOLD_PERCENT_MARGIN = 0.05;
+    private static final double ADDITIONAL_THRESHOLD_PERCENT_MARGIN = 0.05;
 
     private static final double MB = 1024 * 1024;
 

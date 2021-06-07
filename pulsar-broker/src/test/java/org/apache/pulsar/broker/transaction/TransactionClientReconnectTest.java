@@ -45,7 +45,7 @@ import static org.testng.FileAssert.fail;
 
 public class TransactionClientReconnectTest extends TransactionTestBase {
 
-    private final static String RECONNECT_TOPIC = "persistent://public/txn/txn-client-reconnect-test";
+    private static final String RECONNECT_TOPIC = "persistent://public/txn/txn-client-reconnect-test";
 
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {

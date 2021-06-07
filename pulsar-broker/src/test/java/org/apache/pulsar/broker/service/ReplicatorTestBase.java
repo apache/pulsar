@@ -87,8 +87,8 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
 
     static final int TIME_TO_CHECK_BACKLOG_QUOTA = 5;
 
-    protected final static String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/certificate/server.crt";
-    protected final static String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/certificate/server.key";
+    protected static final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/certificate/server.crt";
+    protected static final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/certificate/server.key";
 
     // Default frequency
     public int getBrokerServicePurgeInactiveFrequency() {

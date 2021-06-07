@@ -30,12 +30,12 @@ import org.testng.annotations.Test;
  */
 public class WebSocketHttpServletRequestWrapperTest {
 
-    private final static String TOKEN = "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0ZXN0LXVzZXIifQ.U387jG"
+    private static final String TOKEN = "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0ZXN0LXVzZXIifQ.U387jG"
             + "-gmpEXNmTjbnnnk24jCXnfy7OTiQhhhOdXPgV2wEvZYr83KRSmH54wJQr4V2FCWIFb_6mBc_"
             + "E2acpfpfBOTTzrtietfhd6wE5uOP2NXaLpy_kUDsE3ZQGKPEsn18cWQUw54GAzS1oRcG9TnoqSCSFFGabvo"
             + "FTiOMHoBQ3ZHO3TqAGqlJlRF5ZXMkRtQ9vwbPC-mlwIfRrRIJfK5_ijPRkpgFSEvAwp0rX6roz08SyTj_"
             + "d4UNT96nsEL6sRNTpZMQ0qNj2_LMKFnwF3O_xe43-Uen3TllkAzhNd9Z6qIxyJyFbaFyWAVgiAfoFWQD0v4EmV96ZzKZvv3CbGjw";
-    private final static String BEARER_TOKEN = WebSocketHttpServletRequestWrapper.HTTP_HEADER_VALUE_PREFIX + TOKEN;
+    private static final String BEARER_TOKEN = WebSocketHttpServletRequestWrapper.HTTP_HEADER_VALUE_PREFIX + TOKEN;
 
     @Test
     public void testTokenParamWithBearerPrefix() {

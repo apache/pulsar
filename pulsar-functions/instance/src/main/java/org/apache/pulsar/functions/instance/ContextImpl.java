@@ -114,7 +114,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
 
     private final SubscriptionType subscriptionType;
 
-    private final static String[] userMetricsLabelNames;
+    private static final String[] userMetricsLabelNames;
 
     private boolean exposePulsarAdminClientEnabled;
 

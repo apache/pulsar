@@ -63,10 +63,7 @@ import org.testng.annotations.Test;
 public class PendingAckPersistentTest extends TransactionTestBase {
 
     private static final String PENDING_ACK_REPLAY_TOPIC = "persistent://public/txn/pending-ack-replay";
-
     private static final String NAMESPACE = "public/txn";
-
-    private static final int NUM_PARTITIONS = 16;
 
     @BeforeMethod
     public void setup() throws Exception {

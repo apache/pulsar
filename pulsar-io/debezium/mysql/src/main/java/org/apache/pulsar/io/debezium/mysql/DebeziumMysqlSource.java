@@ -27,7 +27,7 @@ import org.apache.pulsar.io.debezium.DebeziumSource;
  * A pulsar source that runs debezium mysql source
  */
 public class DebeziumMysqlSource extends DebeziumSource {
-    static private final String DEFAULT_TASK = "io.debezium.connector.mysql.MySqlConnectorTask";
+    private static final String DEFAULT_TASK = "io.debezium.connector.mysql.MySqlConnectorTask";
 
     @Override
     public void setDbConnectorTask(Map<String, Object> config) throws Exception {

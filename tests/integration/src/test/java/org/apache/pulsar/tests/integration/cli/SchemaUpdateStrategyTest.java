@@ -52,7 +52,7 @@ import org.slf4j.LoggerFactory;
  * Test setting the schema update strategy via the CLI.
  */
 public class SchemaUpdateStrategyTest extends PulsarTestSuite {
-    private final static Logger log = LoggerFactory.getLogger(SchemaUpdateStrategyTest.class);
+    private static final Logger log = LoggerFactory.getLogger(SchemaUpdateStrategyTest.class);
 
     private void testAutoUpdateBackward(String namespace, String topicName) throws Exception {
         ContainerExecResult result = pulsarCluster.runAdminCommandOnAnyBroker(
