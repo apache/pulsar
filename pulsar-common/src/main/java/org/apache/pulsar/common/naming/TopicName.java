@@ -78,7 +78,7 @@ public class TopicName implements ServiceUnitId {
     }
 
     public static TopicName get(String domain, String tenant, String cluster, String namespace,
-            String topic) {
+                                String topic) {
         String name = domain + "://" + tenant + '/' + cluster + '/' + namespace + '/' + topic;
         return TopicName.get(name);
     }

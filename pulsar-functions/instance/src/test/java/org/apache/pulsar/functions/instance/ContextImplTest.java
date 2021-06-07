@@ -189,11 +189,6 @@ public class ContextImplTest {
         assertEquals(context.getPulsarAdmin(), pulsarAdmin);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testGetPulsarAdminWithNonExistClusterName() {
-        assertNull(context.getPulsarAdmin("foo"));
-    }
-
     @Test(expectedExceptions = IllegalStateException.class)
     public void testGetPulsarAdminWithExposePulsarAdminDisabled() {
         config.setExposePulsarAdminClientEnabled(false);

@@ -18,14 +18,18 @@
  */
 package org.apache.pulsar.common.functions;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
  * Configuration to aggregate various authentication params.
  */
 @Data
 @Builder
+@AllArgsConstructor
+@NoArgsConstructor
 public class AuthenticationConfig {
     private String clientAuthenticationPlugin;
     private String clientAuthenticationParameters;

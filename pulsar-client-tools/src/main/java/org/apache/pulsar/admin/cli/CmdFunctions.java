@@ -52,7 +52,6 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.functions.ConsumerConfig;
-import org.apache.pulsar.common.functions.ExternalPulsarConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Resources;
@@ -322,8 +321,6 @@ public class CmdFunctions extends CmdBase {
         protected String customRuntimeOptions;
         @Parameter(names = "--dead-letter-topic", description = "The topic where messages that are not processed successfully are sent to")
         protected String deadLetterTopic;
-        @Parameter(names = "--external-pulsars", description = "The map of external pulsar cluster name to its configuration (as a JSON string)")
-        protected String externalPulsars;
         protected FunctionConfig functionConfig;
         protected String userCodeFile;
 
@@ -401,11 +398,6 @@ public class CmdFunctions extends CmdBase {
             }
             if (null != output) {
                 functionConfig.setOutput(output);
-            }
-            if (null != externalPulsars) {
-                Type type = new TypeToken<Map<String, ExternalPulsarConfig>>() {
-                }.getType();
-                functionConfig.setExternalPulsars(new Gson().fromJson(externalPulsars, type));
             }
             if (null != producerConfig) {
                 Type type = new TypeToken<ProducerConfig>() {}.getType();

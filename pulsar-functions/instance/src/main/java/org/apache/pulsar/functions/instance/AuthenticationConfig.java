@@ -16,27 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.pulsar.functions.instance;
 
-package org.apache.pulsar.common.functions;
-
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
 
 /**
- * Configuration of extra pulsar clusters to sent output message.
+ * Configuration to aggregate various authentication params.
  */
 @Data
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@EqualsAndHashCode
-public class ExternalPulsarConfig {
-    private String name;
-    private String serviceURL;
-    private String webServiceURL;
-    private AuthenticationConfig authConfig;
-    private ProducerConfig producerConfig;
+public class AuthenticationConfig {
+    private String clientAuthenticationPlugin;
+    private String clientAuthenticationParameters;
+    private String tlsTrustCertsFilePath;
+    private boolean useTls;
+    private boolean tlsAllowInsecureConnection;
+    private boolean tlsHostnameVerificationEnable;
 }

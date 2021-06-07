@@ -18,9 +18,19 @@
  */
 package org.apache.pulsar.functions.sink;
 
+import static org.apache.commons.lang.StringUtils.isEmpty;
 import com.google.common.annotations.VisibleForTesting;
-
 import java.nio.charset.StandardCharsets;
+import java.security.Security;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -47,30 +57,17 @@ import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.FunctionResultRouter;
 import org.apache.pulsar.functions.instance.SinkRecord;
 import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
 import org.apache.pulsar.functions.source.PulsarRecord;
 import org.apache.pulsar.functions.source.TopicSchema;
-import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.utils.CryptoUtils;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
-
-import java.security.Security;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
-
-import static org.apache.commons.lang.StringUtils.isEmpty;
 
 @Slf4j
 public class PulsarSink<T> implements Sink<T> {

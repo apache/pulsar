@@ -20,7 +20,6 @@ package org.apache.pulsar.io.core;
 
 import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 import org.apache.pulsar.functions.api.StateStore;

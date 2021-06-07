@@ -31,7 +31,6 @@ import lombok.AccessLevel;
 import lombok.Data;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
 

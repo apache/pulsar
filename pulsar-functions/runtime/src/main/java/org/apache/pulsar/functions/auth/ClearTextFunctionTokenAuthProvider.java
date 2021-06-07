@@ -20,7 +20,7 @@ package org.apache.pulsar.functions.auth;
 
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
-import org.apache.pulsar.common.functions.AuthenticationConfig;
+import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.proto.Function;
 
 import java.util.Optional;

@@ -20,10 +20,8 @@ package org.apache.pulsar.functions.instance;
 
 import java.util.Map;
 import java.util.Optional;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Schema;
