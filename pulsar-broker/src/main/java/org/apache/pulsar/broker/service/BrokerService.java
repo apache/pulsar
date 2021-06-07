@@ -2608,7 +2608,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 maxTopicsPerNamespace = pulsar.getConfig().getMaxTopicsPerNamespace();
             }
 
-            if (maxTopicsPerNamespace > 0) {
+            if (maxTopicsPerNamespace > 0 && !SystemTopicClient.isSystemTopic(topicName)) {
                 String partitionedTopicPath = PulsarWebResource.joinPath(MANAGED_LEDGER_PATH_ZNODE,
                         topicName.getNamespace(), topicName.getDomain().value());
                 List<String> topics = pulsar().getLocalZkCache().getZooKeeper()
