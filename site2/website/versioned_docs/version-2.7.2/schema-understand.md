@@ -171,8 +171,8 @@ The conversions between **Pulsar schema types** and **language-specific primitiv
 | DATE | java.util.Date | | |
 | INSTANT | java.time.Instant | | |
 | LOCAL_DATE | java.time.LocalDate | | |
-| LOCAL_TIME | java.time.LocalDateTime | |
-| LOCAL_DATE_TIME | java.time.LocalTime | |
+| LOCAL_TIME | java.time.LocalTime | |
+| LOCAL_DATE_TIME | java.time.LocalDateTime | |
 
 **Example**
 
