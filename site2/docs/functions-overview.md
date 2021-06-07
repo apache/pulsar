@@ -107,9 +107,11 @@ class RoutingFunction(Function):
         self.fruits_topic = "persistent://public/default/fruits"
         self.vegetables_topic = "persistent://public/default/vegetables"
 
+    @staticmethod
     def is_fruit(item):
         return item in [b"apple", b"orange", b"pear", b"other fruits..."]
 
+    @staticmethod
     def is_vegetable(item):
         return item in [b"carrot", b"lettuce", b"radish", b"other vegetables..."]
 
