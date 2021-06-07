@@ -67,7 +67,7 @@ public class MessageImpl<T> implements Message<T> {
     private Optional<EncryptionContext> encryptionCtx = Optional.empty();
 
     private String topic; // only set for incoming messages
-    transient private Map<String, String> properties;
+    private transient Map<String, String> properties;
     private int redeliveryCount;
     private int uncompressedSize;
 
@@ -660,7 +660,7 @@ public class MessageImpl<T> implements Message<T> {
 
     private Handle<MessageImpl<?>> recyclerHandle;
 
-    private final static Recycler<MessageImpl<?>> RECYCLER = new Recycler<MessageImpl<?>>() {
+    private static final Recycler<MessageImpl<?>> RECYCLER = new Recycler<MessageImpl<?>>() {
         @Override
         protected MessageImpl<?> newObject(Handle<MessageImpl<?>> handle) {
             return new MessageImpl<>(handle);

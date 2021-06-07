@@ -87,12 +87,12 @@ import org.testng.annotations.Test;
 @Test(groups = "flaky")
 public class TransactionEndToEndTest extends TransactionTestBase {
 
-    private final static int TOPIC_PARTITION = 3;
+    private static final int TOPIC_PARTITION = 3;
 
-    private final static String TENANT = "tnx";
-    private final static String NAMESPACE1 = TENANT + "/ns1";
-    private final static String TOPIC_OUTPUT = NAMESPACE1 + "/output";
-    private final static String TOPIC_MESSAGE_ACK_TEST = NAMESPACE1 + "/message-ack-test";
+    private static final String TENANT = "tnx";
+    private static final String NAMESPACE1 = TENANT + "/ns1";
+    private static final String TOPIC_OUTPUT = NAMESPACE1 + "/output";
+    private static final String TOPIC_MESSAGE_ACK_TEST = NAMESPACE1 + "/message-ack-test";
 
     @BeforeMethod
     protected void setup() throws Exception {

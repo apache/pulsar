@@ -40,7 +40,7 @@ public abstract class ComponentStatsManager implements AutoCloseable {
 
     protected final EvictingQueue EMPTY_QUEUE = EvictingQueue.create(0);
 
-    public final static String USER_METRIC_PREFIX = "user_metric_";
+    public static final String USER_METRIC_PREFIX = "user_metric_";
 
     public static final String[] metricsLabelNames = {"tenant", "namespace", "name", "instance_id", "cluster", "fqfn"};
 

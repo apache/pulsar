@@ -59,9 +59,9 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class TransactionConsumeTest extends TransactionTestBase {
 
-    private final static String CONSUME_TOPIC = "persistent://public/txn/txn-consume-test";
-    private final static String NORMAL_MSG_CONTENT = "Normal - ";
-    private final static String TXN_MSG_CONTENT = "Txn - ";
+    private static final String CONSUME_TOPIC = "persistent://public/txn/txn-consume-test";
+    private static final String NORMAL_MSG_CONTENT = "Normal - ";
+    private static final String TXN_MSG_CONTENT = "Txn - ";
 
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {

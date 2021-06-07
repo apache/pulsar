@@ -38,7 +38,7 @@ import org.testng.annotations.Test;
  * Test cases for proxy.
  */
 public class TestProxy extends PulsarTestSuite {
-    private final static Logger log = LoggerFactory.getLogger(TestProxy.class);
+    private static final Logger log = LoggerFactory.getLogger(TestProxy.class);
 
     @Override
     protected PulsarClusterSpec.PulsarClusterSpecBuilder beforeSetupCluster(
