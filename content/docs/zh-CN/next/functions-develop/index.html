@@ -264,11 +264,11 @@
 </blockquote>
 <p>You can monitor Pulsar Functions that have been deployed with the following methods:</p>
 <ul>
-<li><p>Check the metrics provided by Pulsar.</p>
-<p>Pulsar Functions expose the metrics that can be collected and used for monitoring the health of <strong>Java, Python, and Go</strong> functions. You can check the metrics by following the <a href="/docs/zh-CN/next/deploy-monitoring">monitoring</a> guide.</p>
+<li><p>检查由 Pulsar 提供的 Metrics。</p>
+<p>Pulsar Functions expose the metrics that can be collected and used for monitoring the health of <strong>Java, Python, and Go</strong> functions. 你可以通过关注 <a href="/docs/zh-CN/next/deploy-monitoring">监控</a> 指南来检查这些指标。</p>
 <p>For the complete list of the function metrics, see <a href="/docs/zh-CN/next/reference-metrics#pulsar-functions">here</a>.</p></li>
-<li><p>Set and check your customized metrics.</p>
-<p>In addition to the metrics provided by Pulsar, Pulsar allows you to customize metrics for <strong>Java and Python</strong> functions. Function workers collect user-defined metrics to Prometheus automatically and you can check them in Grafana.</p></li>
+<li><p>设置并检查你的自定义 Metrics。</p>
+<p>In addition to the metrics provided by Pulsar, Pulsar allows you to customize metrics for <strong>Java and Python</strong> functions. Function workers 会自动将这些 Metrics 数据收集并发送到 Prometheus，你可以在 Grafana 中查看这些指标。</p></li>
 </ul>
 <p>Here are examples of how to customize metrics for Java and Python functions.</p>
 <div class="tabs"><div class="nav-tabs"><div id="tab-group-2546-tab-2547" class="nav-link active" data-group="group_2546" data-tab="tab-group-2546-content-2547">Java</div><div id="tab-group-2546-tab-2548" class="nav-link" data-group="group_2546" data-tab="tab-group-2546-content-2548">Python</div><div id="tab-group-2546-tab-2549" class="nav-link" data-group="group_2546" data-tab="tab-group-2546-content-2549">Go</div></div><div class="tab-content"><div id="tab-group-2546-content-2547" class="tab-pane active" data-group="group_2546" tabindex="-1"><div><span><p><a href="#context"><code>Context</code></a> object on a per-key basis. For example, you can set a metric for the <code>process-count</code> key and a different metric for the <code>elevens-count</code> key every time the function processes a message.</p>
