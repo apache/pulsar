@@ -237,15 +237,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
 
     @Override
     public CompletableFuture<Void> delete(String path) {
-        return store.delete(path, Optional.empty())
-                .thenAccept(v -> {
-                    // Mark in the cache that the object was removed
-                    // objCache.put(path, FutureUtils.value(Optional.empty()));
-                    // We shouldn't add this to the cache. If we add it to the cache, then local get requests
-                    // will be served from the cache. Since we are not watching this znode, we will not be
-                    // notified if this added on some other broker. We will continue the return `object not found`
-                    // errors even though it now exists in the system
-                });
+        return store.delete(path, Optional.empty());
     }
 
     @Override

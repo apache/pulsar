@@ -130,7 +130,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         multiStoreAddDelete(allCaches, 1, 1, "add cache1 del cache1");
     }
 
-    private void multiStoreAddDelete(List<MetadataCache<MyClass>> caches, int addOn, int delFrom, String testName) {
+    private void multiStoreAddDelete(List<MetadataCache<MyClass>> caches, int addOn, int delFrom, String testName) throws InterruptedException {
         MetadataCache<MyClass> addCache = caches.get(addOn);
         MetadataCache<MyClass> delCache = caches.get(delFrom);
 
@@ -140,6 +140,8 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         MyClass value1 = new MyClass(testName, 1);
 
         addCache.create(key1, value1).join();
+        // all time for changes to propagate to other caches
+        Thread.sleep(100);
         for (MetadataCache<MyClass> cache: caches) {
             if (cache == addCache) {
                 assertEquals(cache.getIfCached(key1), Optional.of(value1));
@@ -150,6 +152,8 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
 
         delCache.delete(key1).join();
 
+        // all time for changes to propagate to other caches
+        Thread.sleep(100);
         // The entry should get removed from all caches
         for (MetadataCache<MyClass> cache: caches) {
             assertEquals(cache.getIfCached(key1), Optional.empty());
