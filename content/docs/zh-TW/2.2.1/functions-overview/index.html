@@ -171,9 +171,11 @@
         self.fruits_topic = <span class="hljs-string">"persistent://public/default/fruits"</span>
         self.vegetables_topic = <span class="hljs-string">"persistent://public/default/vegetables"</span>
 
+<span class="hljs-meta">    @staticmethod</span>
     <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">is_fruit</span><span class="hljs-params">(item)</span>:</span>
         <span class="hljs-keyword">return</span> item <span class="hljs-keyword">in</span> [<span class="hljs-string">"apple"</span>, <span class="hljs-string">"orange"</span>, <span class="hljs-string">"pear"</span>, <span class="hljs-string">"other fruits..."</span>]
 
+<span class="hljs-meta">    @staticmethod</span>
     <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">is_vegetable</span><span class="hljs-params">(item)</span>:</span>
         <span class="hljs-keyword">return</span> item <span class="hljs-keyword">in</span> [<span class="hljs-string">"carrot"</span>, <span class="hljs-string">"lettuce"</span>, <span class="hljs-string">"radish"</span>, <span class="hljs-string">"other vegetables..."</span>]
 
