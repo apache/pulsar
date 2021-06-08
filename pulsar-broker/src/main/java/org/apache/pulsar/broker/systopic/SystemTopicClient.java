@@ -170,17 +170,16 @@ public interface SystemTopicClient<T> {
     }
 
     static boolean isSystemTopic(TopicName topicName) {
-        boolean rs = false;
         String localName = TopicName.get(topicName.getPartitionedTopicName()).getLocalName();
-        if (StringUtils.equals(EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME, localName) || StringUtils
-                .equals(EventsTopicNames.TRANSACTION_BUFFER_SNAPSHOT, localName) || (
+        if (StringUtils.equals(localName, EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME) || StringUtils
+                .equals(localName, EventsTopicNames.TRANSACTION_BUFFER_SNAPSHOT) || (
                 StringUtils.startsWith(localName, EventsTopicNames.TRANSACTION_BUFFER_SNAPSHOT) && StringUtils
                         .endsWith(localName, MLPendingAckStore.PENDING_ACK_STORE_SUFFIX))) {
 
-            rs = true;
+            return true;
         }
 
-        return rs;
+        return false;
     }
 
 }
