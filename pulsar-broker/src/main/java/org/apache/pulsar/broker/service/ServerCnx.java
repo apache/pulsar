@@ -986,7 +986,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 .thenCompose(optTopic -> {
                                     if (!optTopic.isPresent()) {
                                         return FutureUtil
-                                                .failedFuture(new TopicNotFoundException("Topic does not exist"));
+                                                .failedFuture(new TopicNotFoundException(
+                                                        "Topic " + topicName + " does not exist"));
                                     }
 
                                     Topic topic = optTopic.get();
