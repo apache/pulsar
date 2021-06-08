@@ -272,7 +272,7 @@ public class TopicName implements ServiceUnitId {
         int partitionIndex = -1;
         if (topic.contains(PARTITIONED_TOPIC_SUFFIX)) {
             try {
-                partitionIndex = Integer.parseInt(StringUtils.substringAfterLast(topic,PARTITIONED_TOPIC_SUFFIX));
+                partitionIndex = Integer.parseInt(StringUtils.substringAfterLast(topic, PARTITIONED_TOPIC_SUFFIX));
             } catch (NumberFormatException nfe) {
                 log.warn("Could not get the partition index from the topic {}", topic);
             }

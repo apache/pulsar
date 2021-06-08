@@ -32,9 +32,11 @@ public class SystemTopicClientTest {
         assertFalse(SystemTopicClient.isSystemTopic(TopicName.get("persistent://public/default/test")));
         assertFalse(SystemTopicClient.isSystemTopic(TopicName.get("non-persistent://public/default/test")));
 
-        assertTrue(TopicName.get("__change_events-partition-0").isPartitioned());
         assertFalse(TopicName.get("__change_events-partition-0-1").isPartitioned());
         assertFalse(SystemTopicClient.isSystemTopic(TopicName.get("__change_events-partition-0-1")));
+
+        assertTrue(SystemTopicClient.isSystemTopic(TopicName.get("pulsar/system/topic")));
+        assertTrue(SystemTopicClient.isSystemTopic(TopicName.get("pulsar/system/topic-partition-1")));
 
         assertTrue(SystemTopicClient.isSystemTopic(TopicName.get("__change_events")));
         assertTrue(SystemTopicClient.isSystemTopic(TopicName.get("__change_events-partition-0")));
