@@ -2125,32 +2125,28 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }));
         // register a listener: it updates field value and triggers appropriate registered field-listener only if
         // field's value has been changed so, registered doesn't have to update field value in ServiceConfiguration
-        dynamicConfigurationCache.registerListener(new ZooKeeperCacheListener<Map<String, String>>() {
-            @SuppressWarnings("unchecked")
-            @Override
-            public void onUpdate(String path, Map<String, String> data, Stat stat) {
-                if (BROKER_SERVICE_CONFIGURATION_PATH.equalsIgnoreCase(path) && data != null) {
-                    data.forEach((configKey, value) -> {
-                        Field configField = dynamicConfigurationMap.get(configKey).field;
-                        Object newValue = FieldParser.value(data.get(configKey), configField);
-                        if (configField != null) {
-                            Consumer listener = configRegisteredListeners.get(configKey);
-                            try {
-                                Object existingValue = configField.get(pulsar.getConfiguration());
-                                configField.set(pulsar.getConfiguration(), newValue);
-                                log.info("Successfully updated configuration {}/{}", configKey,
-                                        data.get(configKey));
-                                if (listener != null && !existingValue.equals(newValue)) {
-                                    listener.accept(newValue);
-                                }
-                            } catch (Exception e) {
-                                log.error("Failed to update config {}/{}", configKey, newValue);
+        dynamicConfigurationCache.registerListener((path, data, stat) -> {
+            if (BROKER_SERVICE_CONFIGURATION_PATH.equalsIgnoreCase(path) && data != null) {
+                data.forEach((configKey, value) -> {
+                    Field configField = dynamicConfigurationMap.get(configKey).field;
+                    Object newValue = FieldParser.value(data.get(configKey), configField);
+                    if (configField != null) {
+                        Consumer listener = configRegisteredListeners.get(configKey);
+                        try {
+                            Object existingValue = configField.get(pulsar.getConfiguration());
+                            configField.set(pulsar.getConfiguration(), newValue);
+                            log.info("Successfully updated configuration {}/{}", configKey,
+                                    data.get(configKey));
+                            if (listener != null && !existingValue.equals(newValue)) {
+                                listener.accept(newValue);
                             }
-                        } else {
-                            log.error("Found non-dynamic field in dynamicConfigMap {}/{}", configKey, newValue);
+                        } catch (Exception e) {
+                            log.error("Failed to update config {}/{}", configKey, newValue);
                         }
-                    });
-                }
+                    } else {
+                        log.error("Found non-dynamic field in dynamicConfigMap {}/{}", configKey, newValue);
+                    }
+                });
             }
         });
 
