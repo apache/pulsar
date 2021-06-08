@@ -55,19 +55,19 @@ public interface ConnectionController {
 
         private final int maxConnections;
         private final int maxConnectionPerIp;
-        private final boolean enabledMaxConnections;
-        private final boolean enabledMaxConnectionPerIp;
+        private final boolean maxConnectionsLimitEnabled;
+        private final boolean maxConnectionsLimitPerIpEnabled;
 
         public DefaultConnectionController(ServiceConfiguration configuration) {
             this.maxConnections = configuration.getBrokerMaxConnections();
             this.maxConnectionPerIp = configuration.getBrokerMaxConnectionsPerIp();
-            this.enabledMaxConnections = configuration.getBrokerMaxConnections() > 0;
-            this.enabledMaxConnectionPerIp = configuration.getBrokerMaxConnectionsPerIp() > 0;
+            this.maxConnectionsLimitEnabled = configuration.getBrokerMaxConnections() > 0;
+            this.maxConnectionsLimitPerIpEnabled = configuration.getBrokerMaxConnectionsPerIp() > 0;
         }
 
         @Override
         public boolean increaseConnection(SocketAddress remoteAddress) {
-            if (!enabledMaxConnections && !enabledMaxConnectionPerIp) {
+            if (!maxConnectionsLimitEnabled && !maxConnectionsLimitPerIpEnabled) {
                 return true;
             }
             if (!(remoteAddress instanceof InetSocketAddress) || !IPV4_PATTERN.matcher(
@@ -77,18 +77,18 @@ public interface ConnectionController {
             lock.lock();
             try {
                 String ip = ((InetSocketAddress) remoteAddress).getHostString();
-                if (enabledMaxConnectionPerIp) {
+                if (maxConnectionsLimitPerIpEnabled) {
                     CONNECTIONS.computeIfAbsent(ip, (x) -> new MutableInt(0)).increment();
                 }
-                if (enabledMaxConnections) {
+                if (maxConnectionsLimitEnabled) {
                     totalConnectionNum++;
                 }
-                if (enabledMaxConnections && totalConnectionNum > maxConnections) {
+                if (maxConnectionsLimitEnabled && totalConnectionNum > maxConnections) {
                     log.info("Reject connect request from {}, because reached the maximum number of connections {}",
                             remoteAddress, totalConnectionNum);
                     return false;
                 }
-                if (enabledMaxConnectionPerIp && CONNECTIONS.get(ip).getValue() > maxConnectionPerIp) {
+                if (maxConnectionsLimitPerIpEnabled && CONNECTIONS.get(ip).getValue() > maxConnectionPerIp) {
                     log.info("Reject connect request from {}, because reached the maximum number "
                                     + "of connections per Ip {}",
                             remoteAddress, CONNECTIONS.get(ip).getValue());
@@ -104,7 +104,7 @@ public interface ConnectionController {
 
         @Override
         public void decreaseConnection(SocketAddress remoteAddress) {
-            if (!enabledMaxConnections && !enabledMaxConnectionPerIp) {
+            if (!maxConnectionsLimitEnabled && !maxConnectionsLimitPerIpEnabled) {
                 return;
             }
             if (!(remoteAddress instanceof InetSocketAddress) || !IPV4_PATTERN.matcher(
@@ -115,10 +115,10 @@ public interface ConnectionController {
             try {
                 String ip = ((InetSocketAddress) remoteAddress).getHostString();
                 MutableInt mutableInt = CONNECTIONS.get(ip);
-                if (enabledMaxConnectionPerIp && mutableInt != null && mutableInt.decrementAndGet() <= 0) {
+                if (maxConnectionsLimitPerIpEnabled && mutableInt != null && mutableInt.decrementAndGet() <= 0) {
                     CONNECTIONS.remove(ip);
                 }
-                if (enabledMaxConnections) {
+                if (maxConnectionsLimitEnabled) {
                     totalConnectionNum--;
                 }
             } finally {
