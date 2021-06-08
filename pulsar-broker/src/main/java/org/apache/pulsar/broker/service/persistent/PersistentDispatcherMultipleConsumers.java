@@ -23,6 +23,7 @@ import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -151,7 +152,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         }
 
         consumerList.add(consumer);
-        consumerList.sort((c1, c2) -> c1.getPriorityLevel() - c2.getPriorityLevel());
+        consumerList.sort(Comparator.comparingInt(Consumer::getPriorityLevel));
         consumerSet.add(consumer);
     }
 
