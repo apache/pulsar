@@ -82,18 +82,14 @@ public interface ManagedCursor {
     Map<String, Long> getProperties();
 
     /**
-     * If the last stored position exists and its properties map is mutable, add a property to it.
-     *
-     * @return true if the property was added successfully, false otherwise
+     * Add a property associated with the last stored position.
      */
-    boolean putPropertyIfPossible(String key, Long value);
+    boolean putProperty(String key, Long value);
 
     /**
-     * If the last stored position exists and its properties map is mutable, remove a property from it.
-     *
-     * @return true if the property was removed successfully, false otherwise
+     * Remove a property associated with the last stored position.
      */
-    boolean removePropertyIfPossible(String key);
+    boolean removeProperty(String key);
 
     /**
      * Read entries from the ManagedLedger, up to the specified number. The returned list can be smaller.

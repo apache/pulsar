@@ -67,12 +67,12 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public boolean putPropertyIfPossible(String key, Long value) {
+        public boolean putProperty(String key, Long value) {
             return false;
         }
 
         @Override
-        public boolean removePropertyIfPossible(String key) {
+        public boolean removeProperty(String key) {
             return false;
         }
 

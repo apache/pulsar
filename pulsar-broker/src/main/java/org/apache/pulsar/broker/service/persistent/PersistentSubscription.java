@@ -190,9 +190,9 @@ public class PersistentSubscription implements Subscription {
 
         if (this.cursor != null) {
             if (replicated) {
-                this.cursor.putPropertyIfPossible(REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
+                this.cursor.putProperty(REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
             } else {
-                this.cursor.removePropertyIfPossible(REPLICATED_SUBSCRIPTION_PROPERTY);
+                this.cursor.removeProperty(REPLICATED_SUBSCRIPTION_PROPERTY);
             }
         }
     }

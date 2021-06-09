@@ -286,26 +286,30 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     @Override
-    public boolean putPropertyIfPossible(String key, Long value) {
+    public boolean putProperty(String key, Long value) {
         if (lastMarkDeleteEntry != null) {
-            try {
-                lastMarkDeleteEntry.properties.put(key, value);
-                return true;
-            } catch (UnsupportedOperationException e) {
-                // lastMarkDeleteEntry.properties can be Collections.emptyMap(), i.e. an immutable object
+            MarkDeleteEntry currentLastMarkDeleteEntry = lastMarkDeleteEntry;
+            Map<String, Long> properties = currentLastMarkDeleteEntry.properties;
+            if (properties == null || properties.isEmpty()) {
+                Map<String, Long> newProperties = Maps.newHashMap();
+                newProperties.put(key, value);
+                lastMarkDeleteEntry = new MarkDeleteEntry(currentLastMarkDeleteEntry.newPosition, newProperties,
+                        currentLastMarkDeleteEntry.callback, currentLastMarkDeleteEntry.ctx);
+            } else {
+                properties.put(key, value);
             }
+            return true;
         }
         return false;
     }
 
     @Override
-    public boolean removePropertyIfPossible(String key) {
+    public boolean removeProperty(String key) {
         if (lastMarkDeleteEntry != null) {
-            try {
-                lastMarkDeleteEntry.properties.remove(key);
+            Map<String, Long> properties = lastMarkDeleteEntry.properties;
+            if (properties != null && properties.containsKey(key)) {
+                properties.remove(key);
                 return true;
-            } catch (UnsupportedOperationException e) {
-                // lastMarkDeleteEntry.properties can be Collections.emptyMap(), i.e. an immutable object
             }
         }
         return false;
