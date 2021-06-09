@@ -489,9 +489,9 @@ The Apache Software License, Version 2.0
   * @FreeBuilder
     - org.inferred-freebuilder-1.14.9.jar
   * Kubernetes Client
-    - io.kubernetes-client-java-12.0.0.jar
-    - io.kubernetes-client-java-api-12.0.0.jar
-    - io.kubernetes-client-java-proto-12.0.0.jar
+    - io.kubernetes-client-java-12.0.1.jar
+    - io.kubernetes-client-java-api-12.0.1.jar
+    - io.kubernetes-client-java-proto-12.0.1.jar
   * Dropwizard
     - io.dropwizard.metrics-metrics-core-3.2.5.jar
     - io.dropwizard.metrics-metrics-graphite-3.2.5.jar
