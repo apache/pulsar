@@ -52,6 +52,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException.ContentDeserializat
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.api.Stat;
+import org.awaitility.Awaitility;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -140,25 +141,28 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         MyClass value1 = new MyClass(testName, 1);
 
         addCache.create(key1, value1).join();
+
         // all time for changes to propagate to other caches
-        Thread.sleep(100);
-        for (MetadataCache<MyClass> cache: caches) {
-            if (cache == addCache) {
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+            for (MetadataCache<MyClass> cache : caches) {
+                if (cache == addCache) {
+                    assertEquals(cache.getIfCached(key1), Optional.of(value1));
+                }
+                assertEquals(cache.get(key1).join(), Optional.of(value1));
                 assertEquals(cache.getIfCached(key1), Optional.of(value1));
             }
-            assertEquals(cache.get(key1).join(), Optional.of(value1));
-            assertEquals(cache.getIfCached(key1), Optional.of(value1));
-        }
+        });
 
         delCache.delete(key1).join();
 
         // all time for changes to propagate to other caches
-        Thread.sleep(100);
-        // The entry should get removed from all caches
-        for (MetadataCache<MyClass> cache: caches) {
-            assertEquals(cache.getIfCached(key1), Optional.empty());
-            assertEquals(cache.get(key1).join(), Optional.empty());
-        }
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+            // The entry should get removed from all caches
+            for (MetadataCache<MyClass> cache : caches) {
+                assertEquals(cache.getIfCached(key1), Optional.empty());
+                assertEquals(cache.get(key1).join(), Optional.empty());
+            }
+        });
     }
 
     @Test(dataProvider = "impl")
