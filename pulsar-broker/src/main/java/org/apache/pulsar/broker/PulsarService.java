@@ -568,6 +568,8 @@ public class PulsarService implements AutoCloseable {
                 PulsarVersion.getBuildHost(),
                 PulsarVersion.getBuildTime());
 
+        long startTimestamp = System.currentTimeMillis();  // start time mills
+
         mutex.lock();
         try {
             if (state != State.Init) {
@@ -802,13 +804,15 @@ public class PulsarService implements AutoCloseable {
                 this.resourceUsageTransportManager = (ResourceUsageTransportManager) object;
             }
 
+            long currentTimestamp = System.currentTimeMillis();
+            final long bootstrapTimeSeconds = TimeUnit.MILLISECONDS.toSeconds(currentTimestamp - startTimestamp);
+
             final String bootstrapMessage = "bootstrap service "
                     + (config.getWebServicePort().isPresent() ? "port = " + config.getWebServicePort().get() : "")
                     + (config.getWebServicePortTls().isPresent() ? ", tls-port = " + config.getWebServicePortTls() : "")
                     + (config.getBrokerServicePort().isPresent() ? ", broker url= " + brokerServiceUrl : "")
                     + (config.getBrokerServicePortTls().isPresent() ? ", broker tls url= " + brokerServiceUrlTls : "");
-            LOG.info("messaging service is ready");
-
+            LOG.info("messaging service is ready, bootstrap_seconds={}", bootstrapTimeSeconds);
             LOG.info("messaging service is ready, {}, cluster={}, configs={}", bootstrapMessage,
                     config.getClusterName(), ReflectionToStringBuilder.toString(config));
 
