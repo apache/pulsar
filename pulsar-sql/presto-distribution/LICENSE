@@ -426,7 +426,7 @@ The Apache Software License, Version 2.0
     - codahale-metrics-provider-4.14.1.jar
   * Apache Commons
     - commons-cli-1.2.jar
-    - commons-codec-1.10.jar
+    - commons-codec-1.15.jar
     - commons-collections4-4.1.jar
     - commons-configuration-1.10.jar
     - commons-io-2.8.0.jar
