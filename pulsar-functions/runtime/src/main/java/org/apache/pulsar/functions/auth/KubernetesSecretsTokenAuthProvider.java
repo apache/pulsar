@@ -22,7 +22,7 @@ import com.google.common.annotations.VisibleForTesting;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.models.V1ObjectMeta;
-import io.kubernetes.client.openapi.models.V1SecurityContext;
+import io.kubernetes.client.openapi.models.V1PodSecurityContext;
 import io.kubernetes.client.openapi.models.V1PodSpec;
 import io.kubernetes.client.openapi.models.V1Secret;
 import io.kubernetes.client.openapi.models.V1SecretVolumeSource;
@@ -101,16 +101,17 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                                 new V1SecretVolumeSource()
 				        .secretName(getSecretName(new String(functionAuthData.get().getData())))
                                         .defaultMode(256))));
+                                        
+        podSpec.setSecurityContext(
+            new V1PodSecurityContext()
+                        .fsGroup(Long.valueOf(10001)));
 
-	podSpec.getContainers().forEach(container -> {
+        podSpec.getContainers().forEach(container -> {
             container.setVolumeMounts(Collections.singletonList(
                 new V1VolumeMount()
                         .name(SECRET_NAME)
                         .mountPath(DEFAULT_SECRET_MOUNT_DIR)
                         .readOnly(true)));
-            container.setSecurityContext(
-                new V1SecurityContext()
-                        .runAsGroup(Long.valueOf(10001)));
         });
 
     }
