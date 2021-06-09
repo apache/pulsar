@@ -288,17 +288,17 @@ public class ManagedCursorImpl implements ManagedCursor {
     @Override
     public boolean putProperty(String key, Long value) {
         if (lastMarkDeleteEntry != null) {
-            MarkDeleteEntry currentLastMarkDeleteEntry = lastMarkDeleteEntry;
-            Map<String, Long> properties = currentLastMarkDeleteEntry.properties;
-            if (properties == null || properties.isEmpty()) {
-                Map<String, Long> newProperties = Maps.newHashMap();
+            LAST_MARK_DELETE_ENTRY_UPDATER.updateAndGet(this, last -> {
+                Map<String, Long> properties = last.properties;
+                Map<String, Long> newProperties = properties == null ? Maps.newHashMap() : Maps.newHashMap(properties);
                 newProperties.put(key, value);
-                lastMarkDeleteEntry = new MarkDeleteEntry(currentLastMarkDeleteEntry.newPosition, newProperties,
-                        currentLastMarkDeleteEntry.callback, currentLastMarkDeleteEntry.ctx);
-                lastMarkDeleteEntry.callbackGroup = currentLastMarkDeleteEntry.callbackGroup;
-            } else {
-                properties.put(key, value);
-            }
+
+                MarkDeleteEntry newLastMarkDeleteEntry = new MarkDeleteEntry(last.newPosition, newProperties,
+                        last.callback, last.ctx);
+                newLastMarkDeleteEntry.callbackGroup = last.callbackGroup;
+
+                return newLastMarkDeleteEntry;
+            });
             return true;
         }
         return false;
@@ -307,11 +307,14 @@ public class ManagedCursorImpl implements ManagedCursor {
     @Override
     public boolean removeProperty(String key) {
         if (lastMarkDeleteEntry != null) {
-            Map<String, Long> properties = lastMarkDeleteEntry.properties;
-            if (properties != null && properties.containsKey(key)) {
-                properties.remove(key);
-                return true;
-            }
+            LAST_MARK_DELETE_ENTRY_UPDATER.updateAndGet(this, last -> {
+                Map<String, Long> properties = last.properties;
+                if (properties != null && properties.containsKey(key)) {
+                    properties.remove(key);
+                }
+                return last;
+            });
+            return true;
         }
         return false;
     }
