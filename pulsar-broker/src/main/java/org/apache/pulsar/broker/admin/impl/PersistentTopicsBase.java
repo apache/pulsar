@@ -4152,7 +4152,12 @@ public class PersistentTopicsBase extends AdminResource {
             }
 
             if (topic instanceof PersistentTopic && sub instanceof PersistentSubscription) {
-                ((PersistentSubscription) sub).setReplicated(enabled);
+                if (!((PersistentSubscription) sub).setReplicated(enabled)) {
+                    asyncResponse.resume(
+                            new RestException(Status.INTERNAL_SERVER_ERROR, "Failed to update cursor properties"));
+                    return;
+                }
+
                 ((PersistentTopic) topic).checkReplicatedSubscriptionControllerState();
                 log.info("[{}] Changed replicated subscription status to {} - {} {}", clientAppId(), enabled, topicName,
                         subName);

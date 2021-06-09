@@ -178,7 +178,7 @@ public class PersistentSubscription implements Subscription {
         return replicatedSubscriptionSnapshotCache != null;
     }
 
-    public void setReplicated(boolean replicated) {
+    public boolean setReplicated(boolean replicated) {
         ServiceConfiguration config = topic.getBrokerService().getPulsar().getConfig();
 
         if (!replicated || !config.isEnableReplicatedSubscriptions()) {
@@ -190,11 +190,13 @@ public class PersistentSubscription implements Subscription {
 
         if (this.cursor != null) {
             if (replicated) {
-                this.cursor.putProperty(REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
+                return this.cursor.putProperty(REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
             } else {
-                this.cursor.removeProperty(REPLICATED_SUBSCRIPTION_PROPERTY);
+                return this.cursor.removeProperty(REPLICATED_SUBSCRIPTION_PROPERTY);
             }
         }
+
+        return false;
     }
 
     @Override
