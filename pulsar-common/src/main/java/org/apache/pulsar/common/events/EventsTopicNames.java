@@ -18,11 +18,12 @@
  */
 package org.apache.pulsar.common.events;
 
+import org.apache.pulsar.common.naming.TopicName;
+
 /**
- * System topic name for the event type.
+ * System topic names for each {@link EventType}.
  */
 public class EventsTopicNames {
-
 
     /**
      * Local topic name for the namespace events.
@@ -34,13 +35,9 @@ public class EventsTopicNames {
      */
     public static final String TRANSACTION_BUFFER_SNAPSHOT = "__transaction_buffer_snapshot";
 
-    public static boolean checkTopicIsEventsNames(String topicName) {
-        if (topicName.endsWith(NAMESPACE_EVENTS_LOCAL_NAME)) {
+    public static boolean checkTopicIsEventsNames(TopicName topicName) {
+        if (topicName.getLocalName().equals(NAMESPACE_EVENTS_LOCAL_NAME)) {
             return true;
-        } else if (topicName.endsWith(TRANSACTION_BUFFER_SNAPSHOT)) {
-            return true;
-        } else {
-            return false;
-        }
+        } else return topicName.getLocalName().equals(TRANSACTION_BUFFER_SNAPSHOT);
     }
 }
