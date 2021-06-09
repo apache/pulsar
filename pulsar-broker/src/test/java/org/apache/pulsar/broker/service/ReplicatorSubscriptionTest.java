@@ -260,25 +260,25 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         createReplicatedSubscription(client2, topicName, subName, true);
 
         TopicStats stats = admin1.topics().getStats(topicName);
-        assertTrue(stats.subscriptions.get(subName).isReplicated);
+        assertTrue(stats.getSubscriptions().get(subName).isReplicated());
 
         // Disable replicated subscription in r1
         admin1.topics().setReplicatedSubscriptionStatus(topicName, subName, false);
         stats = admin1.topics().getStats(topicName);
-        assertFalse(stats.subscriptions.get(subName).isReplicated);
+        assertFalse(stats.getSubscriptions().get(subName).isReplicated());
         stats = admin2.topics().getStats(topicName);
-        assertTrue(stats.subscriptions.get(subName).isReplicated);
+        assertTrue(stats.getSubscriptions().get(subName).isReplicated());
 
         // Disable replicated subscription in r2
         admin2.topics().setReplicatedSubscriptionStatus(topicName, subName, false);
         stats = admin2.topics().getStats(topicName);
-        assertFalse(stats.subscriptions.get(subName).isReplicated);
+        assertFalse(stats.getSubscriptions().get(subName).isReplicated());
 
         // Unload topic in r1
         admin1.topics().unload(topicName);
         Thread.sleep(1000);
         stats = admin1.topics().getStats(topicName);
-        assertFalse(stats.subscriptions.get(subName).isReplicated);
+        assertFalse(stats.getSubscriptions().get(subName).isReplicated());
 
         // Make sure the replicated subscription is actually disabled
         final int numMessages = 20;
@@ -305,14 +305,14 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         // Enable replicated subscription in r1
         admin1.topics().setReplicatedSubscriptionStatus(topicName, subName, true);
         stats = admin1.topics().getStats(topicName);
-        assertTrue(stats.subscriptions.get(subName).isReplicated);
+        assertTrue(stats.getSubscriptions().get(subName).isReplicated());
         stats = admin2.topics().getStats(topicName);
-        assertFalse(stats.subscriptions.get(subName).isReplicated);
+        assertFalse(stats.getSubscriptions().get(subName).isReplicated());
 
         // Enable replicated subscription in r2
         admin2.topics().setReplicatedSubscriptionStatus(topicName, subName, true);
         stats = admin2.topics().getStats(topicName);
-        assertTrue(stats.subscriptions.get(subName).isReplicated);
+        assertTrue(stats.getSubscriptions().get(subName).isReplicated());
 
         // Make sure the replicated subscription is actually enabled
         sentMessages.clear();
@@ -371,22 +371,22 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         createReplicatedSubscription(client2, topicName, subName, true);
 
         PartitionedTopicStats partitionedStats = admin1.topics().getPartitionedStats(topicName, true);
-        for (TopicStats stats : partitionedStats.partitions.values()) {
-            assertTrue(stats.subscriptions.get(subName).isReplicated);
+        for (TopicStats stats : partitionedStats.getPartitions().values()) {
+            assertTrue(stats.getSubscriptions().get(subName).isReplicated());
         }
 
         // Disable replicated subscription in r1
         admin1.topics().setReplicatedSubscriptionStatus(topicName, subName, false);
         partitionedStats = admin1.topics().getPartitionedStats(topicName, true);
-        for (TopicStats stats : partitionedStats.partitions.values()) {
-            assertFalse(stats.subscriptions.get(subName).isReplicated);
+        for (TopicStats stats : partitionedStats.getPartitions().values()) {
+            assertFalse(stats.getSubscriptions().get(subName).isReplicated());
         }
 
         // Disable replicated subscription in r2
         admin2.topics().setReplicatedSubscriptionStatus(topicName, subName, false);
         partitionedStats = admin2.topics().getPartitionedStats(topicName, true);
-        for (TopicStats stats : partitionedStats.partitions.values()) {
-            assertFalse(stats.subscriptions.get(subName).isReplicated);
+        for (TopicStats stats : partitionedStats.getPartitions().values()) {
+            assertFalse(stats.getSubscriptions().get(subName).isReplicated());
         }
 
         // Make sure the replicated subscription is actually disabled
@@ -415,15 +415,15 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         // Enable replicated subscription in r1
         admin1.topics().setReplicatedSubscriptionStatus(topicName, subName, true);
         partitionedStats = admin1.topics().getPartitionedStats(topicName, true);
-        for (TopicStats stats : partitionedStats.partitions.values()) {
-            assertTrue(stats.subscriptions.get(subName).isReplicated);
+        for (TopicStats stats : partitionedStats.getPartitions().values()) {
+            assertTrue(stats.getSubscriptions().get(subName).isReplicated());
         }
 
         // Enable replicated subscription in r2
         admin2.topics().setReplicatedSubscriptionStatus(topicName, subName, true);
         partitionedStats = admin2.topics().getPartitionedStats(topicName, true);
-        for (TopicStats stats : partitionedStats.partitions.values()) {
-            assertTrue(stats.subscriptions.get(subName).isReplicated);
+        for (TopicStats stats : partitionedStats.getPartitions().values()) {
+            assertTrue(stats.getSubscriptions().get(subName).isReplicated());
         }
 
         // Make sure the replicated subscription is actually enabled
