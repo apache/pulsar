@@ -470,6 +470,10 @@ flexible messaging model and an intuitive client API.</description>
             <groupId>org.codehaus.jackson</groupId>
             <artifactId>jackson-mapper-asl</artifactId>
           </exclusion>
+          <exclusion>
+            <groupId>org.inferred</groupId>
+            <artifactId>freebuilder</artifactId>
+          </exclusion>
         </exclusions>
       </dependency>
 
