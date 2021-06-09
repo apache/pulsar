@@ -44,6 +44,9 @@ import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
+import org.apache.zookeeper.AddWatchMode;
+import org.apache.zookeeper.AsyncCallback;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.Code;
@@ -53,7 +56,7 @@ import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
 
 @Slf4j
-public class ZKMetadataStore extends AbstractMetadataStore implements MetadataStoreExtended, Watcher, MetadataStoreLifecycle {
+public class ZKMetadataStore extends AbstractMetadataStore implements MetadataStoreExtended, MetadataStoreLifecycle {
 
     private final String metadataURL;
     private final MetadataStoreConfig metadataStoreConfig;
@@ -76,6 +79,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
                         }
                     }))
                     .build();
+            zkc.addWatch("/", this::handleWatchEvent, AddWatchMode.PERSISTENT_RECURSIVE);
             sessionWatcher = new ZKSessionWatcher(zkc, this::receivedSessionEvent);
         } catch (Throwable t) {
             throw new MetadataStoreException(t);
@@ -92,11 +96,37 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
     }
 
     @Override
+    protected void receivedSessionEvent(SessionEvent event) {
+        if (event == SessionEvent.SessionReestablished) {
+            // Recreate the persistent watch on the new session
+            zkc.addWatch("/", this::handleWatchEvent, AddWatchMode.PERSISTENT_RECURSIVE,
+                    (rc, path, ctx) -> {
+                        if (rc == Code.OK.intValue()) {
+                            super.receivedSessionEvent(event);
+                        } else {
+                            log.error("Failed to recreate persistent watch on ZooKeeper: {}", Code.get(rc));
+                            sessionWatcher.setSessionInvalid();
+                            // On the reconnectable client, mark the session as expired to trigger a new reconnect and 
+                            // we will have the chance to set the watch again.
+                            if (zkc instanceof ZooKeeperClient) {
+                                ((ZooKeeperClient) zkc).process(
+                                        new WatchedEvent(Watcher.Event.EventType.None,
+                                                Watcher.Event.KeeperState.Expired,
+                                                null));
+                             }
+                        }
+                    }, null);
+        } else {
+            super.receivedSessionEvent(event);
+        }
+    }
+
+    @Override
     public CompletableFuture<Optional<GetResult>> get(String path) {
         CompletableFuture<Optional<GetResult>> future = new CompletableFuture<>();
 
         try {
-            zkc.getData(path, this, (rc, path1, ctx, data, stat) -> {
+            zkc.getData(path, null, (rc, path1, ctx, data, stat) -> {
                 execute(() -> {
                     Code code = Code.get(rc);
                     if (code == Code.OK) {
@@ -137,7 +167,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
         CompletableFuture<List<String>> future = new CompletableFuture<>();
 
         try {
-            zkc.getChildren(path, this, (rc, path1, ctx, children) -> {
+            zkc.getChildren(path, null, (rc, path1, ctx, children) -> {
                 execute(() -> {
                     Code code = Code.get(rc);
                     if (code == Code.OK) {
@@ -180,7 +210,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
         CompletableFuture<Boolean> future = new CompletableFuture<>();
 
         try {
-            zkc.exists(path, this, (rc, path1, ctx, stat) -> {
+            zkc.exists(path, null, (rc, path1, ctx, stat) -> {
                 execute(() -> {
                     Code code = Code.get(rc);
                     if (code == Code.OK) {
@@ -205,7 +235,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
     }
 
     @Override
-    public CompletableFuture<Stat> storePut(String path, byte[] value, Optional<Long> optExpectedVersion,
+    protected CompletableFuture<Stat> storePut(String path, byte[] value, Optional<Long> optExpectedVersion,
             EnumSet<CreateOption> options) {
         boolean hasVersion = optExpectedVersion.isPresent();
         int expectedVersion = optExpectedVersion.orElse(-1L).intValue();
@@ -262,7 +292,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
     }
 
     @Override
-    public CompletableFuture<Void> storeDelete(String path, Optional<Long> optExpectedVersion) {
+    protected CompletableFuture<Void> storeDelete(String path, Optional<Long> optExpectedVersion) {
         int expectedVersion = optExpectedVersion.orElse(-1L).intValue();
 
         CompletableFuture<Void> future = new CompletableFuture<>();
@@ -315,8 +345,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
         }
     }
 
-    @Override
-    public void process(WatchedEvent event) {
+    private void handleWatchEvent(WatchedEvent event) {
         if (log.isDebugEnabled()) {
             log.debug("Received ZK watch : {}", event);
         }
@@ -326,10 +355,15 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
             return;
         }
 
+        String parent = parent(path);
+
         NotificationType type;
         switch (event.getType()) {
         case NodeCreated:
             type = NotificationType.Created;
+            if (parent != null) {
+                receivedNotification(new Notification(NotificationType.ChildrenChanged, parent));
+            }
             break;
 
         case NodeDataChanged:
@@ -342,6 +376,9 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
 
         case NodeDeleted:
             type = NotificationType.Deleted;
+            if (parent != null) {
+                receivedNotification(new Notification(NotificationType.ChildrenChanged, parent));
+            }
             break;
 
         default:
