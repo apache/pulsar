@@ -20,6 +20,11 @@ package org.apache.pulsar.common.events;
 
 import org.apache.pulsar.common.naming.TopicName;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
+
 /**
  * System topic names for each {@link EventType}.
  */
@@ -35,9 +40,14 @@ public class EventsTopicNames {
      */
     public static final String TRANSACTION_BUFFER_SNAPSHOT = "__transaction_buffer_snapshot";
 
+    /**
+     * The set of all local topic names declared above.
+     */
+    public static final Set<String> EVENTS_TOPIC_NAMES =
+        Collections.unmodifiableSet(
+            new HashSet<>(Arrays.asList(NAMESPACE_EVENTS_LOCAL_NAME, TRANSACTION_BUFFER_SNAPSHOT)));
+
     public static boolean checkTopicIsEventsNames(TopicName topicName) {
-        if (topicName.getLocalName().equals(NAMESPACE_EVENTS_LOCAL_NAME)) {
-            return true;
-        } else return topicName.getLocalName().equals(TRANSACTION_BUFFER_SNAPSHOT);
+        return EVENTS_TOPIC_NAMES.contains(topicName.getLocalName());
     }
 }
