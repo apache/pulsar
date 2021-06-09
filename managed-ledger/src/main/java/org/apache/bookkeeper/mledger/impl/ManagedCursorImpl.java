@@ -295,6 +295,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 newProperties.put(key, value);
                 lastMarkDeleteEntry = new MarkDeleteEntry(currentLastMarkDeleteEntry.newPosition, newProperties,
                         currentLastMarkDeleteEntry.callback, currentLastMarkDeleteEntry.ctx);
+                lastMarkDeleteEntry.callbackGroup = currentLastMarkDeleteEntry.callbackGroup;
             } else {
                 properties.put(key, value);
             }
