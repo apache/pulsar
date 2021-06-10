@@ -179,7 +179,7 @@ public interface SystemTopicClient<T> {
 
         String localName = TopicName.get(topicName.getPartitionedTopicName()).getLocalName();
         // event topic
-        if (EventsTopicNames.EVENTS_TOPICS.contains(localName)) {
+        if (EventsTopicNames.EVENTS_TOPIC_NAMES.contains(localName)) {
             return true;
         }
         // transaction pending ack topic
