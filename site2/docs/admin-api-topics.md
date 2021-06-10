@@ -269,7 +269,7 @@ You can check the following statistics of a given non-partitioned topic.
 
           -   **msgBacklogNoDelayed**: Number of messages in the subscription backlog that do not contain the delay messages.
 
-          -   **blockedSubscriptionOnUnackedMsgs**: Flag to verify if subscription is blocked due to reaching threshold of unacked messages.
+          -   **blockedSubscriptionOnUnackedMsgs**: Flag to verify if a subscription is blocked due to reaching threshold of unacked messages.
 
           -   **msgDelayed**: Number of delayed messages currently being tracked.
 
