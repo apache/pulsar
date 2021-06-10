@@ -281,7 +281,7 @@ You can check the following statistics of a given non-partitioned topic.
 
           -   **lastMarkDeleteAdvancedTimestamp**: Last MarkDelete position advanced timestamp.
 
-          -   **durable**: Tells whether this subscription is durable or ephemeral (eg.: from a reader).
+          -   **durable**: Whether the subscription is durable or ephemeral (for example, from a reader).
 
           -   **replicated**: Mark that the subscription state is kept in sync across different regions.
 
