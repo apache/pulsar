@@ -21,7 +21,6 @@ package org.apache.pulsar.io.kafka.connect;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -42,6 +41,7 @@ import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.KeyValue;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
+import org.apache.pulsar.io.kafka.connect.schema.PulsarSchemaToKafkaSchema;
 
 import java.util.List;
 import java.util.Map;
@@ -59,36 +59,7 @@ import static org.apache.pulsar.io.kafka.connect.PulsarKafkaWorkerConfig.PULSAR_
 
 @Slf4j
 public class KafkaConnectSink implements Sink<GenericObject> {
-
     private boolean unwrapKeyValueIfAvailable;
-
-    private final static ImmutableMap<Class<?>, Schema> primitiveTypeToSchema;
-    private final static ImmutableMap<SchemaType, Schema> pulsarSchemaTypeTypeToKafkaSchema;
-
-    static {
-        primitiveTypeToSchema = ImmutableMap.<Class<?>, Schema>builder()
-                .put(Boolean.class, Schema.BOOLEAN_SCHEMA)
-                .put(Byte.class, Schema.INT8_SCHEMA)
-                .put(Short.class, Schema.INT16_SCHEMA)
-                .put(Integer.class, Schema.INT32_SCHEMA)
-                .put(Long.class, Schema.INT64_SCHEMA)
-                .put(Float.class, Schema.FLOAT32_SCHEMA)
-                .put(Double.class, Schema.FLOAT64_SCHEMA)
-                .put(String.class, Schema.STRING_SCHEMA)
-                .put(byte[].class, Schema.BYTES_SCHEMA)
-                .build();
-        pulsarSchemaTypeTypeToKafkaSchema = ImmutableMap.<SchemaType, Schema>builder()
-                .put(SchemaType.BOOLEAN, Schema.BOOLEAN_SCHEMA)
-                .put(SchemaType.INT8, Schema.INT8_SCHEMA)
-                .put(SchemaType.INT16, Schema.INT16_SCHEMA)
-                .put(SchemaType.INT32, Schema.INT32_SCHEMA)
-                .put(SchemaType.INT64, Schema.INT64_SCHEMA)
-                .put(SchemaType.FLOAT, Schema.FLOAT32_SCHEMA)
-                .put(SchemaType.DOUBLE, Schema.FLOAT64_SCHEMA)
-                .put(SchemaType.STRING, Schema.STRING_SCHEMA)
-                .put(SchemaType.BYTES, Schema.BYTES_SCHEMA)
-                .build();
-    }
 
     private PulsarKafkaSinkContext sinkContext;
     @VisibleForTesting
@@ -252,37 +223,6 @@ public class KafkaConnectSink implements Sink<GenericObject> {
         }
     }
 
-    /**
-     * org.apache.kafka.connect.data.Schema for the object
-     * @param obj - Object to get schema of.
-     * @return org.apache.kafka.connect.data.Schema
-     */
-    private static Schema getKafkaConnectSchemaForObject(Object obj) {
-        if (obj != null && primitiveTypeToSchema.containsKey(obj.getClass())) {
-            return primitiveTypeToSchema.get(obj.getClass());
-        }
-        return null;
-    }
-
-    public static Schema getKafkaConnectSchema(org.apache.pulsar.client.api.Schema pulsarSchema, Object obj) {
-        if (pulsarSchema != null && pulsarSchema.getSchemaInfo() != null
-                && pulsarSchemaTypeTypeToKafkaSchema.containsKey(pulsarSchema.getSchemaInfo().getType())) {
-            return pulsarSchemaTypeTypeToKafkaSchema.get(pulsarSchema.getSchemaInfo().getType());
-        }
-
-        Schema result = getKafkaConnectSchemaForObject(obj);
-        if (result == null) {
-            throw new IllegalStateException("Unsupported kafka schema for Pulsar Schema "
-                    + (pulsarSchema == null || pulsarSchema.getSchemaInfo() == null
-                        ? "null"
-                        : pulsarSchema.getSchemaInfo().toString())
-                    + " object class "
-                    + (obj == null ? "null" : obj.getClass().getCanonicalName()));
-        }
-        return result;
-    }
-
-
     @SuppressWarnings("rawtypes")
     private SinkRecord toSinkRecord(Record<GenericObject> sourceRecord) {
         final int partition = sourceRecord.getPartitionIndex().orElse(0);
@@ -301,8 +241,8 @@ public class KafkaConnectSink implements Sink<GenericObject> {
             KeyValue kv = (KeyValue) sourceRecord.getValue().getNativeObject();
             key = kv.getKey();
             value = kv.getValue();
-            keySchema = getKafkaConnectSchema(kvSchema.getKeySchema(), key);
-            valueSchema = getKafkaConnectSchema(kvSchema.getValueSchema(), value);
+            keySchema = PulsarSchemaToKafkaSchema.getKafkaConnectSchema(kvSchema.getKeySchema());
+            valueSchema = PulsarSchemaToKafkaSchema.getKafkaConnectSchema(kvSchema.getValueSchema());
         } else {
             if (sourceRecord.getMessage().get().hasBase64EncodedKey()) {
                 key = sourceRecord.getMessage().get().getKeyBytes();
@@ -311,8 +251,8 @@ public class KafkaConnectSink implements Sink<GenericObject> {
                 key = sourceRecord.getKey().orElse(null);
                 keySchema = Schema.STRING_SCHEMA;
             }
+            valueSchema = PulsarSchemaToKafkaSchema.getKafkaConnectSchema(sourceRecord.getSchema());
             value = sourceRecord.getValue().getNativeObject();
-            valueSchema = getKafkaConnectSchema(sourceRecord.getSchema(), value);
         }
 
         long offset = sourceRecord.getRecordSequence()
