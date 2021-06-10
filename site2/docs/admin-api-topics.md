@@ -187,7 +187,7 @@ You can check the following statistics of a given non-partitioned topic.
 
   -   **storageSize**: The sum of the ledgers' storage size for this topic. The space used to store the messages for the topic.
 
-  -   **bytesInCounter**: Total bytes published to the topic (bytes).
+  -   **bytesInCounter**: Total bytes published to the topic.
 
   -   **msgInCounter**: Total messages published to the topic (msg).
 
