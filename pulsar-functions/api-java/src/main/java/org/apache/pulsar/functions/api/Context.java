@@ -121,14 +121,6 @@ public interface Context extends BaseContext {
     PulsarAdmin getPulsarAdmin();
 
     /**
-     * Record a user defined metric.
-     *
-     * @param metricName The name of the metric
-     * @param value      The value of the metric
-     */
-    void recordMetric(String metricName, double value);
-
-    /**
      * Publish an object using serDe or schema class for serializing to the topic.
      *
      * @param topicName              The name of the topic for publishing
