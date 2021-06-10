@@ -319,19 +319,25 @@ public class TokensCliUtils {
 
         String cmd = jcommander.getParsedCommand();
 
-        if (cmd.equals("create-secret-key")) {
-            commandCreateSecretKey.run();
-        } else if (cmd.equals("create-key-pair")) {
-            commandCreateKeyPair.run();
-        } else if (cmd.equals("create")) {
-            commandCreateToken.run();
-        } else if (cmd.equals("show")) {
-            commandShowToken.run();
-        } else if (cmd.equals("validate")) {
-            commandValidateToken.run();
-        } else {
-            System.err.println("Invalid command: " + cmd);
-            System.exit(1);
+        switch (cmd) {
+            case "create-secret-key":
+                commandCreateSecretKey.run();
+                break;
+            case "create-key-pair":
+                commandCreateKeyPair.run();
+                break;
+            case "create":
+                commandCreateToken.run();
+                break;
+            case "show":
+                commandShowToken.run();
+                break;
+            case "validate":
+                commandValidateToken.run();
+                break;
+            default:
+                System.err.println("Invalid command: " + cmd);
+                System.exit(1);
         }
     }
 }
