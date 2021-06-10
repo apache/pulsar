@@ -63,8 +63,8 @@ public class KafkaConnectSink implements Sink<GenericObject> {
 
     private boolean unwrapKeyValueIfAvailable;
 
-    private final static ImmutableMap<Class<?>, Schema> primitiveTypeToSchema;
-    private final static ImmutableMap<SchemaType, Schema> pulsarSchemaTypeTypeToKafkaSchema;
+    private static final ImmutableMap<Class<?>, Schema> primitiveTypeToSchema;
+    private static final ImmutableMap<SchemaType, Schema> pulsarSchemaTypeTypeToKafkaSchema;
 
     static {
         primitiveTypeToSchema = ImmutableMap.<Class<?>, Schema>builder()

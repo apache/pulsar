@@ -26,6 +26,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
 import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
+import static org.apache.pulsar.common.events.EventsTopicNames.checkTopicIsEventsNames;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
@@ -128,7 +129,6 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.FieldContext;
-import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataUtils;
@@ -236,7 +236,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     private DistributedIdGenerator producerNameGenerator;
 
-    public final static String PRODUCER_NAME_GENERATOR_PATH = "/counters/producer-name";
+    public static final String PRODUCER_NAME_GENERATOR_PATH = "/counters/producer-name";
 
     private final BacklogQuotaManager backlogQuotaManager;
 
@@ -2125,32 +2125,28 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }));
         // register a listener: it updates field value and triggers appropriate registered field-listener only if
         // field's value has been changed so, registered doesn't have to update field value in ServiceConfiguration
-        dynamicConfigurationCache.registerListener(new ZooKeeperCacheListener<Map<String, String>>() {
-            @SuppressWarnings("unchecked")
-            @Override
-            public void onUpdate(String path, Map<String, String> data, Stat stat) {
-                if (BROKER_SERVICE_CONFIGURATION_PATH.equalsIgnoreCase(path) && data != null) {
-                    data.forEach((configKey, value) -> {
-                        Field configField = dynamicConfigurationMap.get(configKey).field;
-                        Object newValue = FieldParser.value(data.get(configKey), configField);
-                        if (configField != null) {
-                            Consumer listener = configRegisteredListeners.get(configKey);
-                            try {
-                                Object existingValue = configField.get(pulsar.getConfiguration());
-                                configField.set(pulsar.getConfiguration(), newValue);
-                                log.info("Successfully updated configuration {}/{}", configKey,
-                                        data.get(configKey));
-                                if (listener != null && !existingValue.equals(newValue)) {
-                                    listener.accept(newValue);
-                                }
-                            } catch (Exception e) {
-                                log.error("Failed to update config {}/{}", configKey, newValue);
+        dynamicConfigurationCache.registerListener((path, data, stat) -> {
+            if (BROKER_SERVICE_CONFIGURATION_PATH.equalsIgnoreCase(path) && data != null) {
+                data.forEach((configKey, value) -> {
+                    Field configField = dynamicConfigurationMap.get(configKey).field;
+                    Object newValue = FieldParser.value(data.get(configKey), configField);
+                    if (configField != null) {
+                        Consumer listener = configRegisteredListeners.get(configKey);
+                        try {
+                            Object existingValue = configField.get(pulsar.getConfiguration());
+                            configField.set(pulsar.getConfiguration(), newValue);
+                            log.info("Successfully updated configuration {}/{}", configKey,
+                                    data.get(configKey));
+                            if (listener != null && !existingValue.equals(newValue)) {
+                                listener.accept(newValue);
                             }
-                        } else {
-                            log.error("Found non-dynamic field in dynamicConfigMap {}/{}", configKey, newValue);
+                        } catch (Exception e) {
+                            log.error("Failed to update config {}/{}", configKey, newValue);
                         }
-                    });
-                }
+                    } else {
+                        log.error("Found non-dynamic field in dynamicConfigMap {}/{}", configKey, newValue);
+                    }
+                });
             }
         });
 
@@ -2490,8 +2486,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     public boolean isAllowAutoTopicCreation(final TopicName topicName) {
         //System topic can always be created automatically
-        if (EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME.equals(topicName.getLocalName())
-                && pulsar.getConfiguration().isSystemTopicEnabled()) {
+        if (pulsar.getConfiguration().isSystemTopicEnabled() && checkTopicIsEventsNames(topicName)) {
             return true;
         }
         AutoTopicCreationOverride autoTopicCreationOverride = getAutoTopicCreationOverride(topicName);

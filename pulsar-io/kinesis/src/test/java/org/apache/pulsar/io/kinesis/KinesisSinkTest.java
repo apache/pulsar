@@ -110,9 +110,9 @@ public class KinesisSinkTest {
 
     public static class AwsCredentialProviderPluginImpl implements AwsCredentialProviderPlugin {
 
-        public final static String accessKey = "ak";
-        public final static String secretKey = "sk";
-        public final static String sessionToken = "st";
+        public static final String accessKey = "ak";
+        public static final String secretKey = "sk";
+        public static final String sessionToken = "st";
 
         public void init(String param) {
             // no-op

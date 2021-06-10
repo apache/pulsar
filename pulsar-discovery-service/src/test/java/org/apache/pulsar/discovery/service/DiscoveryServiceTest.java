@@ -63,8 +63,8 @@ import org.awaitility.Awaitility;
 
 public class DiscoveryServiceTest extends BaseDiscoveryTestSetup {
 
-    private final static String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/certificate/client.crt";
-    private final static String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/certificate/client.key";
+    private static final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/certificate/client.crt";
+    private static final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/certificate/client.key";
 
     @BeforeMethod
     private void init() throws Exception {

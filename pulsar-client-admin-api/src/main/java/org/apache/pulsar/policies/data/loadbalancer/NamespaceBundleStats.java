@@ -36,13 +36,13 @@ public class NamespaceBundleStats implements Comparable<NamespaceBundleStats>, S
     public long cacheSize;
 
     // Consider the throughput equal if difference is less than 100 KB/s
-    private final static double throughputDifferenceThreshold = 1e5;
+    private static final double throughputDifferenceThreshold = 1e5;
     // Consider the msgRate equal if the difference is less than 100
-    private final static double msgRateDifferenceThreshold = 100;
+    private static final double msgRateDifferenceThreshold = 100;
     // Consider the total topics/producers/consumers equal if the difference is less than 500
-    private final static long topicConnectionDifferenceThreshold = 500;
+    private static final long topicConnectionDifferenceThreshold = 500;
     // Consider the cache size equal if the difference is less than 100 kb
-    private final static long cacheSizeDifferenceThreshold = 100000;
+    private static final long cacheSizeDifferenceThreshold = 100000;
 
     public NamespaceBundleStats() {
         reset();

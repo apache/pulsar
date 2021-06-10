@@ -28,10 +28,10 @@ import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 @Slf4j
 public abstract class PulsarSQLTestSuite extends PulsarTestSuite {
 
-    public final static int ENTRIES_PER_LEDGER = 100;
-    public final static String OFFLOAD_DRIVER = "aws-s3";
-    public final static String BUCKET = "pulsar-integtest";
-    public final static String ENDPOINT = "http://" + S3Container.NAME + ":9090";
+    public static final int ENTRIES_PER_LEDGER = 100;
+    public static final String OFFLOAD_DRIVER = "aws-s3";
+    public static final String BUCKET = "pulsar-integtest";
+    public static final String ENDPOINT = "http://" + S3Container.NAME + ":9090";
 
     @Override
     protected PulsarClusterSpec.PulsarClusterSpecBuilder beforeSetupCluster(String clusterName, PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {

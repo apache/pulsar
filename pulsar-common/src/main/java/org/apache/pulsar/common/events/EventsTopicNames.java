@@ -18,15 +18,17 @@
  */
 package org.apache.pulsar.common.events;
 
-import com.google.common.collect.Sets;
+import org.apache.pulsar.common.naming.TopicName;
+
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Set;
 
 /**
- * System topic name for the event type.
+ * System topic names for each {@link EventType}.
  */
 public class EventsTopicNames {
-
 
     /**
      * Local topic name for the namespace events.
@@ -34,20 +36,18 @@ public class EventsTopicNames {
     public static final String NAMESPACE_EVENTS_LOCAL_NAME = "__change_events";
 
     /**
-     * Local topic name for the transaction buffer snapshot.
+     * Local topic name for the namespace events.
      */
     public static final String TRANSACTION_BUFFER_SNAPSHOT = "__transaction_buffer_snapshot";
 
-    public static final Set<String> EVENTS_TOPICS =
-            Collections.unmodifiableSet(Sets.newHashSet(NAMESPACE_EVENTS_LOCAL_NAME, TRANSACTION_BUFFER_SNAPSHOT));
+    /**
+     * The set of all local topic names declared above.
+     */
+    public static final Set<String> EVENTS_TOPIC_NAMES =
+        Collections.unmodifiableSet(
+            new HashSet<>(Arrays.asList(NAMESPACE_EVENTS_LOCAL_NAME, TRANSACTION_BUFFER_SNAPSHOT)));
 
-    public static boolean checkTopicIsEventsNames(String topicName) {
-        if (topicName.endsWith(NAMESPACE_EVENTS_LOCAL_NAME)) {
-            return true;
-        } else if (topicName.endsWith(TRANSACTION_BUFFER_SNAPSHOT)) {
-            return true;
-        } else {
-            return false;
-        }
+    public static boolean checkTopicIsEventsNames(TopicName topicName) {
+        return EVENTS_TOPIC_NAMES.contains(topicName.getLocalName());
     }
 }
