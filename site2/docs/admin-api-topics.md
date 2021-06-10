@@ -197,7 +197,7 @@ You can check the following statistics of a given non-partitioned topic.
 
   -   **msgChunkPublished**: Topic has chunked message published on it.
 
-  -   **backlogSize**: Estimated total unconsumed or backlog size in bytes.
+  -   **backlogSize**: Estimated total unconsumed or backlog size (in bytes).
 
   -   **offloadedStorageSize**: Space used to store the offloaded messages for the topic.
   
