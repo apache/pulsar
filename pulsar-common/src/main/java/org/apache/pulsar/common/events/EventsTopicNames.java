@@ -45,6 +45,7 @@ public class EventsTopicNames {
             Collections.unmodifiableSet(Sets.newHashSet(NAMESPACE_EVENTS_LOCAL_NAME, TRANSACTION_BUFFER_SNAPSHOT));
 
     public static boolean checkTopicIsEventsNames(TopicName topicName) {
-        return EVENTS_TOPIC_NAMES.contains(topicName.getLocalName());
+        String name = TopicName.get(topicName.getPartitionedTopicName()).getLocalName();
+        return EVENTS_TOPIC_NAMES.contains(name);
     }
 }

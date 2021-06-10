@@ -177,11 +177,12 @@ public interface SystemTopicClient<T> {
             return true;
         }
 
-        String localName = TopicName.get(topicName.getPartitionedTopicName()).getLocalName();
         // event topic
-        if (EventsTopicNames.EVENTS_TOPIC_NAMES.contains(localName)) {
+        if (EventsTopicNames.checkTopicIsEventsNames(topicName)) {
             return true;
         }
+
+        String localName = TopicName.get(topicName.getPartitionedTopicName()).getLocalName();
         // transaction pending ack topic
         if (StringUtils.startsWith(localName, EventsTopicNames.TRANSACTION_BUFFER_SNAPSHOT) && StringUtils
                 .endsWith(localName, MLPendingAckStore.PENDING_ACK_STORE_SUFFIX)) {
