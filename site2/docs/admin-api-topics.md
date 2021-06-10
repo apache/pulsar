@@ -315,7 +315,7 @@ You can check the following statistics of a given non-partitioned topic.
 
                 -   **clientVersion**: The client library version of this consumer.
 
-                -   **bytesOutCounter**: Total bytes delivered to consumer (bytes).
+                -   **bytesOutCounter**: Total bytes delivered to consumer.
 
                 -   **msgOutCounter**: Total messages delivered to consumer (msg).
 
