@@ -28,6 +28,7 @@ import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
 
 import com.beust.jcommander.ParameterException;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import java.io.Closeable;
 import java.io.File;
@@ -144,7 +145,7 @@ public class TestCmdSinks {
         }
     }
 
-    public SinkConfig getSinkConfig() {
+    public SinkConfig getSinkConfig() throws JsonProcessingException {
         SinkConfig sinkConfig = new SinkConfig();
         sinkConfig.setTenant(TENANT);
         sinkConfig.setNamespace(NAMESPACE);
