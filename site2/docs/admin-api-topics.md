@@ -317,7 +317,7 @@ You can check the following statistics of a given non-partitioned topic.
 
                 -   **bytesOutCounter**: Total bytes delivered to consumer.
 
-                -   **msgOutCounter**: Total messages delivered to consumer (msg).
+                -   **msgOutCounter**: Total messages delivered to consumer.
 
                 -   **msgRateRedeliver**: Total rate of messages redelivered by this consumer (msg/s).
 
