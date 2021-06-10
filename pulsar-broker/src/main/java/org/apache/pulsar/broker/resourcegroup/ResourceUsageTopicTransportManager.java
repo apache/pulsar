@@ -18,10 +18,11 @@
  */
 package org.apache.pulsar.broker.resourcegroup;
 
-import static org.apache.pulsar.client.api.CompressionType.SNAPPY;
+import static org.apache.pulsar.client.api.CompressionType.LZ4;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -40,9 +41,10 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderListener;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,19 +60,19 @@ import org.slf4j.LoggerFactory;
 public class ResourceUsageTopicTransportManager implements ResourceUsageTransportManager {
 
     private class ResourceUsageWriterTask implements Runnable, AutoCloseable {
-        private final Producer<byte[]> producer;
+        private final Producer<ByteBuffer> producer;
         private final ScheduledFuture<?> resourceUsagePublishTask;
 
-        private Producer<byte[]> createProducer() throws PulsarClientException {
+        private Producer<ByteBuffer> createProducer() throws PulsarClientException {
             final int publishDelayMilliSecs = 10;
             final int sendTimeoutSecs = 10;
 
-            return pulsarClient.newProducer()
+            return pulsarClient.newProducer(Schema.BYTEBUFFER)
                     .topic(RESOURCE_USAGE_TOPIC_NAME)
                     .batchingMaxPublishDelay(publishDelayMilliSecs, TimeUnit.MILLISECONDS)
                     .sendTimeout(sendTimeoutSecs, TimeUnit.SECONDS)
                     .blockIfQueueFull(false)
-                    .compressionType(SNAPPY)
+                    .compressionType(LZ4)
                     .create();
         }
 
@@ -84,7 +86,10 @@ public class ResourceUsageTopicTransportManager implements ResourceUsageTranspor
         }
 
         @Override
-        public void run() {
+        public synchronized void run() {
+            if (resourceUsagePublishTask.isCancelled()) {
+                return;
+            }
             if (!publisherMap.isEmpty()) {
                 ResourceUsageInfo rUsageInfo = new ResourceUsageInfo();
                 rUsageInfo.setBroker(pulsarService.getBrokerServiceUrl());
@@ -94,10 +99,9 @@ public class ResourceUsageTopicTransportManager implements ResourceUsageTranspor
                 ByteBuf buf = PulsarByteBufAllocator.DEFAULT.heapBuffer(rUsageInfo.getSerializedSize());
                 rUsageInfo.writeTo(buf);
 
-                byte[] bytes = buf.array();
-                producer.sendAsync(bytes).whenComplete((id, ex) -> {
+                producer.sendAsync(buf.nioBuffer()).whenComplete((id, ex) -> {
                     if (null != ex) {
-                        LOG.error("Resource usage publisher: sending message ID {} error", id, ex);
+                        LOG.error("Resource usage publisher: error sending message ID {}", id, ex);
                     }
                     buf.release();
                 });
@@ -105,7 +109,7 @@ public class ResourceUsageTopicTransportManager implements ResourceUsageTranspor
         }
 
         @Override
-        public void close() throws Exception {
+        public synchronized void close() throws Exception {
             resourceUsagePublishTask.cancel(true);
             producer.close();
         }
@@ -187,7 +191,7 @@ public class ResourceUsageTopicTransportManager implements ResourceUsageTranspor
         if (!tenantList.contains(tenant)) {
             try {
                 admin.tenants().createTenant(tenant,
-                  new TenantInfo(Sets.newHashSet(config.getSuperUserRoles()), Sets.newHashSet(cluster)));
+                  new TenantInfoImpl(Sets.newHashSet(config.getSuperUserRoles()), Sets.newHashSet(cluster)));
             } catch (PulsarAdminException ex1) {
                 if (!(ex1 instanceof PulsarAdminException.ConflictException)) {
                     LOG.error("Unexpected exception {} when creating tenant {}", ex1, tenant);
@@ -208,7 +212,8 @@ public class ResourceUsageTopicTransportManager implements ResourceUsageTranspor
         }
     }
 
-    public ResourceUsageTopicTransportManager(PulsarService pulsarService) throws Exception {
+    public ResourceUsageTopicTransportManager(PulsarService pulsarService)
+        throws PulsarServerException, PulsarAdminException, PulsarClientException {
         this.pulsarService = pulsarService;
         this.pulsarClient = pulsarService.getClient();
 

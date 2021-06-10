@@ -127,7 +127,7 @@ public class ResourceGroupService {
         try {
             checkNotNull(rgConfig);
         } catch (NullPointerException e) {
-            throw new IllegalArgumentException("ResourceGroupUpdate: Invalid null ResourceGroupConfigInfo");
+            throw new IllegalArgumentException("ResourceGroupUpdate: Invalid null ResourceGroup config");
         }
         ResourceGroup rg = this.getResourceGroupInternal(rgName);
         if (rg == null) {
@@ -248,6 +248,16 @@ public class ResourceGroupService {
 
         // Associate this NS-name with the RG.
         this.namespaceToRGsMap.put(namespaceName, rg);
+    }
+
+    /**
+     * Return the resource group associated with a namespace.
+     *
+     * @param namespaceName
+     * @throws if the RG does not exist, or if the NS already references the RG.
+     */
+    public ResourceGroup getNamespaceResourceGroup(String namespaceName) {
+        return this.namespaceToRGsMap.get(namespaceName);
     }
 
     /**
@@ -557,7 +567,7 @@ public class ResourceGroupService {
         try {
             checkNotNull(rgConfig);
         } catch (NullPointerException e) {
-            throw new IllegalArgumentException("ResourceGroupCreate: Invalid null ResourceGroupConfigInfo");
+            throw new IllegalArgumentException("ResourceGroupCreate: Invalid null ResourceGroup config");
         }
 
         if (rgName.isEmpty()) {

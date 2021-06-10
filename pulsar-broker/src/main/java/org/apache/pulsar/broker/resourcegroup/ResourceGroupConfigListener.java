@@ -35,103 +35,116 @@ import org.slf4j.LoggerFactory;
 
 public class ResourceGroupConfigListener implements Consumer<Notification> {
 
-  private static final Logger LOG = LoggerFactory.getLogger(ResourceGroupConfigListener.class);
-  private final ResourceGroupService rgService;
-  private final PulsarService pulsarService;
-  private final ResourceGroupResources rgResources;
+    private static final Logger LOG = LoggerFactory.getLogger(ResourceGroupConfigListener.class);
+    private final ResourceGroupService rgService;
+    private final PulsarService pulsarService;
+    private final ResourceGroupResources rgResources;
+    private final ResourceGroupNamespaceConfigListener rgNamespaceConfigListener;
 
-  public ResourceGroupConfigListener(ResourceGroupService rgService, PulsarService pulsarService) {
-    this.rgService = rgService;
-    this.pulsarService = pulsarService;
-    this.rgResources = pulsarService.getPulsarResources().getResourcegroupResources();
-    loadAllResourceGroups();
-    this.rgResources.getStore().registerListener(this);
-  }
+    public ResourceGroupConfigListener(ResourceGroupService rgService, PulsarService pulsarService) {
+        this.rgService = rgService;
+        this.pulsarService = pulsarService;
+        this.rgResources = pulsarService.getPulsarResources().getResourcegroupResources();
+        loadAllResourceGroups();
+        this.rgResources.getStore().registerListener(this);
+        rgNamespaceConfigListener = new ResourceGroupNamespaceConfigListener(
+                rgService, pulsarService, this);
+    }
 
-  private void loadAllResourceGroups() {
-    rgResources.getChildrenAsync(path(RESOURCEGROUPS)).whenComplete((rgList, ex) -> {
-      if (ex != null) {
-        LOG.error("Exception when fetching resource groups", ex);
-        return;
-      }
-      final Set<String> existingSet = rgService.resourceGroupGetAll();
-      HashSet<String> newSet = new HashSet<>();
-
-      for (String rgName : rgList) {
-        newSet.add(rgName);
-      }
-
-      final Sets.SetView<String> deleteList = Sets.difference(existingSet, newSet);
-
-      for (String rgName: deleteList) {
-        try {
-          rgService.resourceGroupDelete(rgName);
-        } catch (PulsarAdminException e) {
-          LOG.error("Got exception while deleting resource group {}, {}", rgName, e);
-        }
-      }
-
-      final Sets.SetView<String> addList = Sets.difference(newSet, existingSet);
-      for (String rgName: addList) {
-        final String resourceGroupPath = path(RESOURCEGROUPS, rgName);
-        pulsarService.getPulsarResources().getResourcegroupResources()
-          .getAsync(resourceGroupPath).thenAccept((optionalRg) -> {
-            ResourceGroup rg = optionalRg.get();
-            if (rgService.resourceGroupGet(rgName) == null) {
-              LOG.info("Creating resource group {}, {}", rgName, rg.toString());
-              try {
-                rgService.resourceGroupCreate(rgName, rg);
-              } catch (PulsarAdminException ex1) {
-                LOG.error("Got an exception while creating RG {}", rgName, ex1);
-              }
+    private void loadAllResourceGroups() {
+        rgResources.getChildrenAsync(path(RESOURCEGROUPS)).whenCompleteAsync((rgList, ex) -> {
+            if (ex != null) {
+                LOG.error("Exception when fetching resource groups", ex);
+                return;
             }
-          }).exceptionally((ex1) -> {
-            LOG.error("Failed to fetch resourceGroup", ex1);
-            return null;
+            final Set<String> existingSet = rgService.resourceGroupGetAll();
+            HashSet<String> newSet = new HashSet<>();
+
+            for (String rgName : rgList) {
+                newSet.add(rgName);
+            }
+
+            final Sets.SetView<String> deleteList = Sets.difference(existingSet, newSet);
+
+            for (String rgName: deleteList) {
+                deleteResourceGroup(rgName);
+            }
+
+            final Sets.SetView<String> addList = Sets.difference(newSet, existingSet);
+            for (String rgName: addList) {
+                final String resourceGroupPath = path(RESOURCEGROUPS, rgName);
+                pulsarService.getPulsarResources().getResourcegroupResources()
+                    .getAsync(resourceGroupPath).thenAcceptAsync((optionalRg) -> {
+                    ResourceGroup rg = optionalRg.get();
+                    createResourceGroup(rgName, rg);
+                }).exceptionally((ex1) -> {
+                    LOG.error("Failed to fetch resourceGroup", ex1);
+                    return null;
+                });
+            }
         });
-      }
-    });
-  }
-
-  private void updateResourceGroup(String notifyPath) {
-    String rgName = notifyPath.substring(notifyPath.lastIndexOf('/') + 1);
-
-    rgResources.getAsync(notifyPath).whenComplete((optionalRg, ex) -> {
-      if (ex != null) {
-        LOG.error("Exception when getting resource group {}", rgName, ex);
-        return;
-      }
-      ResourceGroup rg = optionalRg.get();
-      LOG.info("RG: {}", rg.toString());
-      try {
-          LOG.info("Updating resource group {}, {}", rgName, rg.toString());
-          rgService.resourceGroupUpdate(rgName, rg);
-      } catch (PulsarAdminException ex1) {
-        LOG.error("Got an exception while creating resource group {}", rgName, ex1);
-      }
-    });
-  }
-
-  @Override
-  public void accept(Notification notification) {
-    String notifyPath = notification.getPath();
-
-    LOG.info("Metadata store notification: Path {}, Type {}", notifyPath, notification.getType());
-    if (!notifyPath.startsWith(path(RESOURCEGROUPS))) {
-      return;
     }
 
-    String rgName = notifyPath.substring(notifyPath.lastIndexOf('/') + 1);
-    if (notification.getType() == NotificationType.ChildrenChanged) {
-      loadAllResourceGroups();
-    } else if (!RESOURCEGROUPS.equals(rgName)) {
-      switch (notification.getType()) {
-      case Modified:
-        updateResourceGroup(notifyPath);
-        break;
-      default:
-        break;
-      }
+    public synchronized void deleteResourceGroup(String rgName) {
+        try {
+            if (rgService.resourceGroupGet(rgName) != null) {
+                LOG.info("Deleting resource group {}", rgName);
+                rgService.resourceGroupDelete(rgName);
+            }
+        } catch (PulsarAdminException e) {
+            LOG.error("Got exception while deleting resource group {}, {}", rgName, e);
+        }
     }
-  }
+
+    public synchronized void createResourceGroup(String rgName, ResourceGroup rg) {
+        if (rgService.resourceGroupGet(rgName) == null) {
+            LOG.info("Creating resource group {}, {}", rgName, rg.toString());
+            try {
+                rgService.resourceGroupCreate(rgName, rg);
+            } catch (PulsarAdminException ex1) {
+                LOG.error("Got an exception while creating RG {}", rgName, ex1);
+            }
+        }
+    }
+
+    private void updateResourceGroup(String notifyPath) {
+        String rgName = notifyPath.substring(notifyPath.lastIndexOf('/') + 1);
+
+        rgResources.getAsync(notifyPath).whenComplete((optionalRg, ex) -> {
+            if (ex != null) {
+                LOG.error("Exception when getting resource group {}", rgName, ex);
+                return;
+            }
+            ResourceGroup rg = optionalRg.get();
+            try {
+                LOG.info("Updating resource group {}, {}", rgName, rg.toString());
+                rgService.resourceGroupUpdate(rgName, rg);
+            } catch (PulsarAdminException ex1) {
+                LOG.error("Got an exception while creating resource group {}", rgName, ex1);
+            }
+        });
+    }
+
+    @Override
+    public void accept(Notification notification) {
+        String notifyPath = notification.getPath();
+
+        if (!notifyPath.startsWith(path(RESOURCEGROUPS))) {
+            return;
+        }
+        LOG.info("Metadata store notification: Path {}, Type {}", notifyPath, notification.getType());
+
+        String rgName = notifyPath.substring(notifyPath.lastIndexOf('/') + 1);
+        if (notification.getType() == NotificationType.ChildrenChanged) {
+            loadAllResourceGroups();
+        } else if (!RESOURCEGROUPS.equals(rgName)) {
+            switch (notification.getType()) {
+            case Modified:
+                updateResourceGroup(notifyPath);
+                break;
+            default:
+                break;
+            }
+        }
+    }
 }

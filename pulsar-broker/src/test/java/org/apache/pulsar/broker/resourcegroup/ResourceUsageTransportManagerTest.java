@@ -18,10 +18,12 @@
  */
 package org.apache.pulsar.broker.resourcegroup;
 
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.resource.usage.NetworkUsage;
 import org.apache.pulsar.broker.service.resource.usage.ResourceUsage;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
@@ -36,6 +38,7 @@ import static org.testng.Assert.assertNotNull;
 public class ResourceUsageTransportManagerTest extends MockedPulsarServiceBaseTest {
 
     private static final int PUBLISH_INTERVAL_SECS = 1;
+    ResourceUsageTopicTransportManager tManager;
 
     @BeforeClass
     @Override
@@ -47,12 +50,12 @@ public class ResourceUsageTransportManagerTest extends MockedPulsarServiceBaseTe
     @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
+        tManager.close();
         super.internalCleanup();
     }
 
     @Test
     public void testNamespaceCreation() throws Exception {
-        ResourceUsageTopicTransportManager tManager = new ResourceUsageTopicTransportManager(pulsar);
         TopicName topicName = TopicName.get(ResourceUsageTopicTransportManager.RESOURCE_USAGE_TOPIC_NAME);
 
         assertTrue(admin.tenants().getTenants().contains(topicName.getTenant()));
@@ -61,7 +64,6 @@ public class ResourceUsageTransportManagerTest extends MockedPulsarServiceBaseTe
     
     @Test
     public void testPublish() throws Exception {
-        ResourceUsageTopicTransportManager tManager = new ResourceUsageTopicTransportManager(pulsar);
         ResourceUsage recvdUsage = new ResourceUsage();
         final String[] recvdBroker = new String[1];
 
@@ -113,9 +115,10 @@ public class ResourceUsageTransportManagerTest extends MockedPulsarServiceBaseTe
         assertEquals(recvdUsage.getStorage().getTotalBytes(), 500003);
     }
 
-    private void prepareData() throws PulsarAdminException {
+    private void prepareData() throws PulsarServerException, PulsarAdminException, PulsarClientException {
         this.conf.setResourceUsageTransportClassName("org.apache.pulsar.broker.resourcegroup.ResourceUsageTopicTransportManager");
         this.conf.setResourceUsageTransportPublishIntervalInSecs(PUBLISH_INTERVAL_SECS);
         admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        tManager = new ResourceUsageTopicTransportManager(pulsar);
     }
 }
