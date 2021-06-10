@@ -275,7 +275,7 @@ You can check the following statistics of a given non-partitioned topic.
 
           -   **unackedMessages**: Number of unacknowledged messages for the subscription.
 
-          -   **activeConsumerName**: The name of the consumer that is active for single active consumer subscriptions i.e. failover or exclusive. 
+          -   **activeConsumerName**: The name of the consumer that is active for single active consumer subscriptions. For example, failover or exclusive. 
 
           -   **totalMsgExpired**: Total messages expired on this subscription. 
 
