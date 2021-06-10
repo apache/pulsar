@@ -131,14 +131,19 @@ public class PrometheusMetricsGenerator {
         parseMetricsToPrometheusMetrics(new ManagedLedgerCacheMetrics(pulsar).generate(),
                 clusterName, Collector.Type.GAUGE, stream);
 
-        // generate managedLedger metrics
-        parseMetricsToPrometheusMetrics(new ManagedLedgerMetrics(pulsar).generate(),
+        // if Topic-level metrics is disabled, we shouldn't expose managed ledger metrics
+        if (pulsar.getConfiguration().isExposeTopicLevelMetricsInPrometheus()) {
+
+            // generate managedLedger metrics
+            parseMetricsToPrometheusMetrics(new ManagedLedgerMetrics(pulsar).generate(),
                 clusterName, Collector.Type.GAUGE, stream);
 
-        if (pulsar.getConfiguration().isExposeManagedCursorMetricsInPrometheus()) {
-            // generate managedCursor metrics
-            parseMetricsToPrometheusMetrics(new ManagedCursorMetrics(pulsar).generate(),
+            if (pulsar.getConfiguration().isExposeManagedCursorMetricsInPrometheus()) {
+                // generate managedCursor metrics
+                parseMetricsToPrometheusMetrics(new ManagedCursorMetrics(pulsar).generate(),
                     clusterName, Collector.Type.GAUGE, stream);
+            }
+
         }
 
         parseMetricsToPrometheusMetrics(Collections.singletonList(pulsar.getBrokerService()
