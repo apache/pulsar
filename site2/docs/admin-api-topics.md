@@ -189,7 +189,7 @@ You can check the following statistics of a given non-partitioned topic.
 
   -   **bytesInCounter**: Total bytes published to the topic.
 
-  -   **msgInCounter**: Total messages published to the topic (msg).
+  -   **msgInCounter**: Total messages published to the topic.
 
   -   **bytesOutCounter**: Total bytes delivered to consumer (bytes).
 
