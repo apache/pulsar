@@ -2609,7 +2609,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 List<String> topics = pulsar().getLocalZkCache().getZooKeeper()
                         .getChildren(partitionedTopicPath, false);
                 // exclude system topic
-                long topicsCount = topics.stream().filter(t -> !SystemTopicClient.isSystemTopic(TopicName.get(t))).count();
+                long topicsCount =
+                        topics.stream().filter(t -> !SystemTopicClient.isSystemTopic(TopicName.get(t))).count();
                 if (topicsCount + numPartitions > maxTopicsPerNamespace) {
                     log.error("Failed to create persistent topic {}, "
                             + "exceed maximum number of topics in namespace", topicName);
