@@ -26,7 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
-import org.apache.pulsar.client.impl.schema.KeyValueSchema;
+import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.functions.api.KVRecord;
 import org.apache.pulsar.functions.api.Record;
 
@@ -119,7 +119,7 @@ public class SinkRecord<T> implements Record<T> {
 
         if (sourceRecord instanceof KVRecord) {
             KVRecord kvRecord = (KVRecord) sourceRecord;
-            return KeyValueSchema.of(kvRecord.getKeySchema(), kvRecord.getValueSchema(),
+            return KeyValueSchemaImpl.of(kvRecord.getKeySchema(), kvRecord.getValueSchema(),
                     kvRecord.getKeyValueEncodingType());
         }
 

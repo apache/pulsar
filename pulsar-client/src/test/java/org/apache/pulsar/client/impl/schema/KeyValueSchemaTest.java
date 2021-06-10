@@ -51,13 +51,13 @@ public class KeyValueSchemaTest {
         assertEquals(keyValueSchema1.getSchemaInfo().getType(), SchemaType.KEY_VALUE);
         assertEquals(keyValueSchema2.getSchemaInfo().getType(), SchemaType.KEY_VALUE);
 
-        assertEquals(((KeyValueSchema<Foo, Bar>) keyValueSchema1).getKeySchema().getSchemaInfo().getType(),
+        assertEquals(((KeyValueSchemaImpl<Foo, Bar>) keyValueSchema1).getKeySchema().getSchemaInfo().getType(),
                 SchemaType.AVRO);
-        assertEquals(((KeyValueSchema<Foo, Bar>) keyValueSchema1).getValueSchema().getSchemaInfo().getType(),
+        assertEquals(((KeyValueSchemaImpl<Foo, Bar>) keyValueSchema1).getValueSchema().getSchemaInfo().getType(),
                 SchemaType.AVRO);
-        assertEquals(((KeyValueSchema<Foo, Bar>) keyValueSchema2).getKeySchema().getSchemaInfo().getType(),
+        assertEquals(((KeyValueSchemaImpl<Foo, Bar>) keyValueSchema2).getKeySchema().getSchemaInfo().getType(),
                 SchemaType.AVRO);
-        assertEquals(((KeyValueSchema<Foo, Bar>) keyValueSchema2).getValueSchema().getSchemaInfo().getType(),
+        assertEquals(((KeyValueSchemaImpl<Foo, Bar>) keyValueSchema2).getValueSchema().getSchemaInfo().getType(),
                 SchemaType.AVRO);
 
         String schemaInfo1 = new String(keyValueSchema1.getSchemaInfo().getSchema());
@@ -103,13 +103,13 @@ public class KeyValueSchemaTest {
         assertEquals(keyValueSchema1.getSchemaInfo().getType(), SchemaType.KEY_VALUE);
         assertEquals(keyValueSchema2.getSchemaInfo().getType(), SchemaType.KEY_VALUE);
 
-        assertEquals(((KeyValueSchema<Foo, Bar>) keyValueSchema1).getKeySchema().getSchemaInfo().getType(),
+        assertEquals(((KeyValueSchemaImpl<Foo, Bar>) keyValueSchema1).getKeySchema().getSchemaInfo().getType(),
             SchemaType.AVRO);
-        assertEquals(((KeyValueSchema<Foo, Bar>) keyValueSchema1).getValueSchema().getSchemaInfo().getType(),
+        assertEquals(((KeyValueSchemaImpl<Foo, Bar>) keyValueSchema1).getValueSchema().getSchemaInfo().getType(),
             SchemaType.AVRO);
-        assertEquals(((KeyValueSchema<Foo, Bar>) keyValueSchema2).getKeySchema().getSchemaInfo().getType(),
+        assertEquals(((KeyValueSchemaImpl<Foo, Bar>) keyValueSchema2).getKeySchema().getSchemaInfo().getType(),
             SchemaType.AVRO);
-        assertEquals(((KeyValueSchema<Foo, Bar>) keyValueSchema2).getValueSchema().getSchemaInfo().getType(),
+        assertEquals(((KeyValueSchemaImpl<Foo, Bar>) keyValueSchema2).getValueSchema().getSchemaInfo().getType(),
             SchemaType.AVRO);
 
         String schemaInfo1 = new String(keyValueSchema1.getSchemaInfo().getSchema());
@@ -130,17 +130,17 @@ public class KeyValueSchemaTest {
         assertEquals(keyValueSchema2.getSchemaInfo().getType(), SchemaType.KEY_VALUE);
         assertEquals(keyValueSchema3.getSchemaInfo().getType(), SchemaType.KEY_VALUE);
 
-        assertEquals(((KeyValueSchema<Foo, Bar>) keyValueSchema1).getKeySchema().getSchemaInfo().getType(),
+        assertEquals(((KeyValueSchemaImpl<Foo, Bar>) keyValueSchema1).getKeySchema().getSchemaInfo().getType(),
                 SchemaType.JSON);
-        assertEquals(((KeyValueSchema<Foo, Bar>) keyValueSchema1).getValueSchema().getSchemaInfo().getType(),
+        assertEquals(((KeyValueSchemaImpl<Foo, Bar>) keyValueSchema1).getValueSchema().getSchemaInfo().getType(),
                 SchemaType.JSON);
-        assertEquals(((KeyValueSchema<Foo, Bar>) keyValueSchema2).getKeySchema().getSchemaInfo().getType(),
+        assertEquals(((KeyValueSchemaImpl<Foo, Bar>) keyValueSchema2).getKeySchema().getSchemaInfo().getType(),
                 SchemaType.JSON);
-        assertEquals(((KeyValueSchema<Foo, Bar>) keyValueSchema2).getValueSchema().getSchemaInfo().getType(),
+        assertEquals(((KeyValueSchemaImpl<Foo, Bar>) keyValueSchema2).getValueSchema().getSchemaInfo().getType(),
                 SchemaType.JSON);
-        assertEquals(((KeyValueSchema<Foo, Bar>) keyValueSchema3).getKeySchema().getSchemaInfo().getType(),
+        assertEquals(((KeyValueSchemaImpl<Foo, Bar>) keyValueSchema3).getKeySchema().getSchemaInfo().getType(),
                 SchemaType.JSON);
-        assertEquals(((KeyValueSchema<Foo, Bar>) keyValueSchema3).getValueSchema().getSchemaInfo().getType(),
+        assertEquals(((KeyValueSchemaImpl<Foo, Bar>) keyValueSchema3).getValueSchema().getSchemaInfo().getType(),
                 SchemaType.JSON);
 
         String schemaInfo1 = new String(keyValueSchema1.getSchemaInfo().getSchema());
@@ -168,17 +168,17 @@ public class KeyValueSchemaTest {
         assertEquals(keyValueSchema2.getSchemaInfo().getType(), SchemaType.KEY_VALUE);
         assertEquals(keyValueSchema3.getSchemaInfo().getType(), SchemaType.KEY_VALUE);
 
-        assertEquals(((KeyValueSchema<Foo, Bar>) keyValueSchema1).getKeySchema().getSchemaInfo().getType(),
+        assertEquals(((KeyValueSchemaImpl<Foo, Bar>) keyValueSchema1).getKeySchema().getSchemaInfo().getType(),
             SchemaType.JSON);
-        assertEquals(((KeyValueSchema<Foo, Bar>) keyValueSchema1).getValueSchema().getSchemaInfo().getType(),
+        assertEquals(((KeyValueSchemaImpl<Foo, Bar>) keyValueSchema1).getValueSchema().getSchemaInfo().getType(),
             SchemaType.JSON);
-        assertEquals(((KeyValueSchema<Foo, Bar>) keyValueSchema2).getKeySchema().getSchemaInfo().getType(),
+        assertEquals(((KeyValueSchemaImpl<Foo, Bar>) keyValueSchema2).getKeySchema().getSchemaInfo().getType(),
             SchemaType.JSON);
-        assertEquals(((KeyValueSchema<Foo, Bar>) keyValueSchema2).getValueSchema().getSchemaInfo().getType(),
+        assertEquals(((KeyValueSchemaImpl<Foo, Bar>) keyValueSchema2).getValueSchema().getSchemaInfo().getType(),
             SchemaType.JSON);
-        assertEquals(((KeyValueSchema<Foo, Bar>) keyValueSchema3).getKeySchema().getSchemaInfo().getType(),
+        assertEquals(((KeyValueSchemaImpl<Foo, Bar>) keyValueSchema3).getKeySchema().getSchemaInfo().getType(),
             SchemaType.JSON);
-        assertEquals(((KeyValueSchema<Foo, Bar>) keyValueSchema3).getValueSchema().getSchemaInfo().getType(),
+        assertEquals(((KeyValueSchemaImpl<Foo, Bar>) keyValueSchema3).getValueSchema().getSchemaInfo().getType(),
             SchemaType.JSON);
 
         String schemaInfo1 = new String(keyValueSchema1.getSchemaInfo().getSchema());
@@ -324,7 +324,7 @@ public class KeyValueSchemaTest {
         } catch (SchemaSerializationException e) {
             Assert.assertTrue(e.getMessage().contains("This method cannot be used under this SEPARATED encoding type"));
         }
-        KeyValue<Foo, Bar>  keyValue = ((KeyValueSchema)keyValueSchema).decode(fooSchema.encode(foo), encodeBytes, null);
+        KeyValue<Foo, Bar>  keyValue = ((KeyValueSchemaImpl)keyValueSchema).decode(fooSchema.encode(foo), encodeBytes, null);
         Foo fooBack = keyValue.getKey();
         Bar barBack = keyValue.getValue();
         assertEquals(foo, fooBack);
@@ -391,9 +391,9 @@ public class KeyValueSchemaTest {
 
     @Test
     public void testKeyValueSchemaSeparatedEncoding() {
-        KeyValueSchema<String, String> keyValueSchema = (KeyValueSchema<String,String>)
-                KeyValueSchema.of(Schema.STRING, Schema.STRING, KeyValueEncodingType.SEPARATED);
-        KeyValueSchema<String, String> keyValueSchema2 = (KeyValueSchema<String,String>)
+        KeyValueSchemaImpl<String, String> keyValueSchema = (KeyValueSchemaImpl<String,String>)
+                KeyValueSchemaImpl.of(Schema.STRING, Schema.STRING, KeyValueEncodingType.SEPARATED);
+        KeyValueSchemaImpl<String, String> keyValueSchema2 = (KeyValueSchemaImpl<String,String>)
                 AutoConsumeSchema.getSchema(keyValueSchema.getSchemaInfo());
         assertEquals(keyValueSchema.getKeyValueEncodingType(), keyValueSchema2.getKeyValueEncodingType());
     }
