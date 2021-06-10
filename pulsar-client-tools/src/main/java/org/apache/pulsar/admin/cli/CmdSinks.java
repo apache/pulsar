@@ -58,6 +58,7 @@ import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.functions.Utils;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 @Getter
 @Parameters(commandDescription = "Interface for managing Pulsar IO sinks (egress data from Pulsar)")
@@ -471,7 +472,7 @@ public class CmdSinks extends CmdBase {
                     sinkConfig.setConfigs(parseConfigs(sinkConfigString));
                 }
             } catch (Exception ex) {
-                throw new ParameterException("Cannot convert sink-config", ex);
+                throw new ParameterException("Cannot parse sink-config", ex);
             }
 
             if (autoAck != null) {
@@ -493,7 +494,7 @@ public class CmdSinks extends CmdBase {
         }
 
         protected Map<String, Object> parseConfigs(String str) throws JsonProcessingException {
-            ObjectMapper mapper = new ObjectMapper();
+            ObjectMapper mapper = ObjectMapperFactory.getThreadLocal();
             TypeReference<HashMap<String,Object>> typeRef
                 = new TypeReference<HashMap<String,Object>>() {};
 

@@ -95,7 +95,7 @@ public class TestCmdSinks {
     private static final Double CPU = 100.0;
     private static final Long RAM = 1024L * 1024L;
     private static final Long DISK = 1024L * 1024L * 1024L;
-    private static final String SINK_CONFIG_STRING = "{\"created_at\":\"Mon Jul 02 00:33:15 0000 2018\"}";
+    private static final String SINK_CONFIG_STRING = "{\"created_at\":\"Mon Jul 02 00:33:15 +0000 2018\",\"int\":1000,\"int_string\":\"1000\",\"float\":1000.0,\"float_string\":\"1000.0\"}";
 
     private PulsarAdmin pulsarAdmin;
     private Sinks sink;
@@ -738,5 +738,16 @@ public class TestCmdSinks {
 
 
 
+    }
+
+    @Test
+    public void testParseConfigs() throws Exception {
+        SinkConfig testSinkConfig = getSinkConfig();
+        Map<String, Object> config = testSinkConfig.getConfigs();
+        Assert.assertEquals(config.get("int"), 1000);
+        Assert.assertEquals(config.get("int_string"), "1000");
+        Assert.assertEquals(config.get("float"), 1000.0);
+        Assert.assertEquals(config.get("float_string"), "1000.0");
+        Assert.assertEquals(config.get("created_at"), "Mon Jul 02 00:33:15 +0000 2018");
     }
 }
