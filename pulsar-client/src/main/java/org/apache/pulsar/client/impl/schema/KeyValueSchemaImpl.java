@@ -24,8 +24,8 @@ import java.util.concurrent.CompletableFuture;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.schema.KeyValueSchema;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
@@ -38,14 +38,13 @@ import org.apache.pulsar.common.schema.SchemaType;
  * [Key, Value] pair schema definition
  */
 @Slf4j
-public class KeyValueSchema<K, V> extends AbstractSchema<KeyValue<K, V>> {
+public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> implements KeyValueSchema<K,V> {
 
-    @Getter
+
     private final Schema<K> keySchema;
-    @Getter
+
     private final Schema<V> valueSchema;
 
-    @Getter
     private final KeyValueEncodingType keyValueEncodingType;
 
     // schemaInfo combined by KeySchemaInfo and ValueSchemaInfo:
@@ -59,25 +58,25 @@ public class KeyValueSchema<K, V> extends AbstractSchema<KeyValue<K, V>> {
     public static <K, V> Schema<KeyValue<K, V>> of(Class<K> key, Class<V> value, SchemaType type) {
         checkArgument(SchemaType.JSON == type || SchemaType.AVRO == type);
         if (SchemaType.JSON == type) {
-            return new KeyValueSchema<>(JSONSchema.of(key), JSONSchema.of(value), KeyValueEncodingType.INLINE);
+            return new KeyValueSchemaImpl<>(JSONSchema.of(key), JSONSchema.of(value), KeyValueEncodingType.INLINE);
         } else {
             // AVRO
-            return new KeyValueSchema<>(AvroSchema.of(key), AvroSchema.of(value), KeyValueEncodingType.INLINE);
+            return new KeyValueSchemaImpl<>(AvroSchema.of(key), AvroSchema.of(value), KeyValueEncodingType.INLINE);
         }
     }
 
 
     public static <K, V> Schema<KeyValue<K, V>> of(Schema<K> keySchema, Schema<V> valueSchema) {
-        return new KeyValueSchema<>(keySchema, valueSchema, KeyValueEncodingType.INLINE);
+        return new KeyValueSchemaImpl<>(keySchema, valueSchema, KeyValueEncodingType.INLINE);
     }
 
     public static <K, V> Schema<KeyValue<K, V>> of(Schema<K> keySchema,
                                                    Schema<V> valueSchema,
                                                    KeyValueEncodingType keyValueEncodingType) {
-        return new KeyValueSchema<>(keySchema, valueSchema, keyValueEncodingType);
+        return new KeyValueSchemaImpl<>(keySchema, valueSchema, keyValueEncodingType);
     }
 
-    private static final Schema<KeyValue<byte[], byte[]>> KV_BYTES = new KeyValueSchema<>(
+    private static final Schema<KeyValue<byte[], byte[]>> KV_BYTES = new KeyValueSchemaImpl<>(
         BytesSchema.of(),
         BytesSchema.of());
 
@@ -90,14 +89,14 @@ public class KeyValueSchema<K, V> extends AbstractSchema<KeyValue<K, V>> {
         return keySchema.supportSchemaVersioning() || valueSchema.supportSchemaVersioning();
     }
 
-    private KeyValueSchema(Schema<K> keySchema,
-                           Schema<V> valueSchema) {
+    private KeyValueSchemaImpl(Schema<K> keySchema,
+                               Schema<V> valueSchema) {
         this(keySchema, valueSchema, KeyValueEncodingType.INLINE);
     }
 
-    private KeyValueSchema(Schema<K> keySchema,
-                           Schema<V> valueSchema,
-                           KeyValueEncodingType keyValueEncodingType) {
+    private KeyValueSchemaImpl(Schema<K> keySchema,
+                               Schema<V> valueSchema,
+                               KeyValueEncodingType keyValueEncodingType) {
         this.keySchema = keySchema;
         this.valueSchema = valueSchema;
         this.keyValueEncodingType = keyValueEncodingType;
@@ -223,7 +222,7 @@ public class KeyValueSchema<K, V> extends AbstractSchema<KeyValue<K, V>> {
 
     @Override
     public Schema<KeyValue<K, V>> clone() {
-        return KeyValueSchema.of(keySchema.clone(), valueSchema.clone(), keyValueEncodingType);
+        return KeyValueSchemaImpl.of(keySchema.clone(), valueSchema.clone(), keyValueEncodingType);
     }
 
     private void buildKeyValueSchemaInfo() {
@@ -285,8 +284,38 @@ public class KeyValueSchema<K, V> extends AbstractSchema<KeyValue<K, V>> {
         } else {
             Schema<?> keySchema = this.keySchema instanceof AbstractSchema ? ((AbstractSchema) this.keySchema).atSchemaVersion(schemaVersion) : this.keySchema;
             Schema<?> valueSchema = this.valueSchema instanceof AbstractSchema ? ((AbstractSchema) this.valueSchema).atSchemaVersion(schemaVersion) : this.valueSchema;
-            return KeyValueSchema.of(keySchema, valueSchema, keyValueEncodingType);
+            return KeyValueSchemaImpl.of(keySchema, valueSchema, keyValueEncodingType);
         }
     }
 
+    /**
+     * Get the Schema of the Key.
+     * @return the Schema of the Key
+     */
+    @Override
+    public Schema<K> getKeySchema() {
+        return keySchema;
+    }
+
+    /**
+     * Get the Schema of the Value.
+     *
+     * @return the Schema of the Value
+     */
+    @Override
+    public Schema<V> getValueSchema() {
+        return valueSchema;
+    }
+
+    /**
+     * Get the KeyValueEncodingType.
+     *
+     * @return the KeyValueEncodingType
+     * @see KeyValueEncodingType#INLINE
+     * @see KeyValueEncodingType#SEPARATED
+     */
+    @Override
+    public KeyValueEncodingType getKeyValueEncodingType() {
+        return keyValueEncodingType;
+    }
 }

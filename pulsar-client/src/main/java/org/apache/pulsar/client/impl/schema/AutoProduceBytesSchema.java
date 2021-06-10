@@ -74,9 +74,9 @@ public class AutoProduceBytesSchema<T> implements Schema<byte[]> {
 
         if (requireSchemaValidation) {
             // verify if the message can be decoded by the underlying schema
-            if (schema instanceof KeyValueSchema
-                    && ((KeyValueSchema) schema).getKeyValueEncodingType().equals(KeyValueEncodingType.SEPARATED)) {
-                ((KeyValueSchema) schema).getValueSchema().validate(message);
+            if (schema instanceof KeyValueSchemaImpl
+                    && ((KeyValueSchemaImpl) schema).getKeyValueEncodingType().equals(KeyValueEncodingType.SEPARATED)) {
+                ((KeyValueSchemaImpl) schema).getValueSchema().validate(message);
             } else {
                 schema.validate(message);
             }

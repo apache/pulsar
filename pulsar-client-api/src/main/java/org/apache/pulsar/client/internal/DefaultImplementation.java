@@ -301,28 +301,28 @@ public class DefaultImplementation {
     public static Schema<KeyValue<byte[], byte[]>> newKeyValueBytesSchema() {
         return catchExceptions(
                 () -> (Schema<KeyValue<byte[], byte[]>>) getStaticMethod(
-                    "org.apache.pulsar.client.impl.schema.KeyValueSchema",
+                    "org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl",
                         "kvBytes").invoke(null));
     }
 
     public static <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(Schema<K> keySchema, Schema<V> valueSchema) {
         return catchExceptions(
                 () -> (Schema<KeyValue<K, V>>) getStaticMethod(
-                    "org.apache.pulsar.client.impl.schema.KeyValueSchema",
+                    "org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl",
                         "of", Schema.class, Schema.class).invoke(null, keySchema, valueSchema));
     }
 
     public static <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(Schema<K> keySchema, Schema<V> valueSchema,
                                                                   KeyValueEncodingType keyValueEncodingType) {
         return catchExceptions(
-                () -> (Schema<KeyValue<K, V>>) getStaticMethod("org.apache.pulsar.client.impl.schema.KeyValueSchema",
+                () -> (Schema<KeyValue<K, V>>) getStaticMethod("org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl",
                         "of", Schema.class, Schema.class, KeyValueEncodingType.class)
                         .invoke(null, keySchema, valueSchema, keyValueEncodingType));
     }
 
     public static <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(Class<K> key, Class<V> value, SchemaType type) {
         return catchExceptions(
-                () -> (Schema<KeyValue<K, V>>) getStaticMethod("org.apache.pulsar.client.impl.schema.KeyValueSchema",
+                () -> (Schema<KeyValue<K, V>>) getStaticMethod("org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl",
                         "of", Class.class, Class.class, SchemaType.class).invoke(null, key, value, type));
     }
 
