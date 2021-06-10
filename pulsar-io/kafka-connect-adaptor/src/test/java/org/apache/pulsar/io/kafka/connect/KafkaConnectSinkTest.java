@@ -30,8 +30,10 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.util.MessageIdUtils;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.source.PulsarRecord;
@@ -47,6 +49,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -281,59 +284,71 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
 
     @Test
     public void bytesRecordSchemaTest() throws Exception {
-        recordSchemaTest("val".getBytes(StandardCharsets.US_ASCII), null, "val", "BYTES");
         recordSchemaTest("val".getBytes(StandardCharsets.US_ASCII), Schema.BYTES, "val", "BYTES");
     }
 
     @Test
     public void stringRecordSchemaTest() throws Exception {
-        recordSchemaTest("val", null, "val", "STRING");
         recordSchemaTest("val", Schema.STRING, "val", "STRING");
     }
 
     @Test
     public void booleanRecordSchemaTest() throws Exception {
-        recordSchemaTest(true, null, true, "BOOLEAN");
         recordSchemaTest(true, Schema.BOOL, true, "BOOLEAN");
     }
 
     @Test
     public void byteRecordSchemaTest() throws Exception {
         // int 1 is coming back from ObjectMapper
-        recordSchemaTest((byte)1, null, 1, "INT8");
         recordSchemaTest((byte)1, Schema.INT8, 1, "INT8");
     }
 
     @Test
     public void shortRecordSchemaTest() throws Exception {
         // int 1 is coming back from ObjectMapper
-        recordSchemaTest((short)1, null, 1, "INT16");
         recordSchemaTest((short)1, Schema.INT16, 1, "INT16");
     }
 
     @Test
     public void integerRecordSchemaTest() throws Exception {
-        recordSchemaTest(Integer.MAX_VALUE, null, Integer.MAX_VALUE, "INT32");
         recordSchemaTest(Integer.MAX_VALUE, Schema.INT32, Integer.MAX_VALUE, "INT32");
     }
 
     @Test
     public void longRecordSchemaTest() throws Exception {
-        recordSchemaTest(Long.MAX_VALUE, null, Long.MAX_VALUE, "INT64");
         recordSchemaTest(Long.MAX_VALUE, Schema.INT64, Long.MAX_VALUE, "INT64");
     }
 
     @Test
     public void floatRecordSchemaTest() throws Exception {
         // 1.0d is coming back from ObjectMapper
-        recordSchemaTest(1.0f, null, 1.0d, "FLOAT32");
         recordSchemaTest(1.0f, Schema.FLOAT, 1.0d, "FLOAT32");
     }
 
     @Test
     public void doubleRecordSchemaTest() throws Exception {
-        recordSchemaTest(Double.MAX_VALUE, null, Double.MAX_VALUE, "FLOAT64");
         recordSchemaTest(Double.MAX_VALUE, Schema.DOUBLE, Double.MAX_VALUE, "FLOAT64");
+    }
+
+    @Test
+    public void jsonSchemaTest() throws Exception {
+        JSONSchema<PulsarSchemaToKafkaSchemaTest.StructWithAnnotations> jsonSchema = JSONSchema
+                .of(SchemaDefinition.<PulsarSchemaToKafkaSchemaTest.StructWithAnnotations>builder()
+                        .withPojo(PulsarSchemaToKafkaSchemaTest.StructWithAnnotations.class)
+                        .withAlwaysAllowNull(false)
+                        .build());
+        PulsarSchemaToKafkaSchemaTest.StructWithAnnotations obj = new PulsarSchemaToKafkaSchemaTest.StructWithAnnotations();
+        obj.setField1(10);
+        obj.setField2("test");
+        obj.setField3(100L);
+
+        Map<String, Object> expected = new LinkedHashMap<>();
+        expected.put("field1", 10);
+        expected.put("field2", "test");
+        // integer is coming back from ObjectMapper
+        expected.put("field3", 100);
+
+        recordSchemaTest(obj, jsonSchema, expected, "STRUCT");
     }
 
     @Test
