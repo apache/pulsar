@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.common.events;
 
+import com.google.common.collect.Sets;
+import java.util.Collections;
+import java.util.Set;
+
 /**
  * System topic name for the event type.
  */
@@ -33,6 +37,9 @@ public class EventsTopicNames {
      * Local topic name for the transaction buffer snapshot.
      */
     public static final String TRANSACTION_BUFFER_SNAPSHOT = "__transaction_buffer_snapshot";
+
+    public static final Set<String> EVENTS_TOPICS =
+            Collections.unmodifiableSet(Sets.newHashSet(NAMESPACE_EVENTS_LOCAL_NAME, TRANSACTION_BUFFER_SNAPSHOT));
 
     public static boolean checkTopicIsEventsNames(String topicName) {
         if (topicName.endsWith(NAMESPACE_EVENTS_LOCAL_NAME)) {

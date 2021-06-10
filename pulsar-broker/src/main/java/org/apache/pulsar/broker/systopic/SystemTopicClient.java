@@ -172,15 +172,19 @@ public interface SystemTopicClient<T> {
     }
 
     static boolean isSystemTopic(TopicName topicName) {
+        // system namespace
         if (Objects.equal(SYSTEM_NAMESPACE, topicName.getNamespaceObject())) {
             return true;
         }
-        String localName = TopicName.get(topicName.getPartitionedTopicName()).getLocalName();
-        if (StringUtils.equals(localName, EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME) || StringUtils
-                .equals(localName, EventsTopicNames.TRANSACTION_BUFFER_SNAPSHOT) || (
-                StringUtils.startsWith(localName, EventsTopicNames.TRANSACTION_BUFFER_SNAPSHOT) && StringUtils
-                        .endsWith(localName, MLPendingAckStore.PENDING_ACK_STORE_SUFFIX))) {
 
+        String localName = TopicName.get(topicName.getPartitionedTopicName()).getLocalName();
+        // event topic
+        if (EventsTopicNames.EVENTS_TOPICS.contains(localName)) {
+            return true;
+        }
+        // transaction pending ack topic
+        if (StringUtils.startsWith(localName, EventsTopicNames.TRANSACTION_BUFFER_SNAPSHOT) && StringUtils
+                .endsWith(localName, MLPendingAckStore.PENDING_ACK_STORE_SUFFIX)) {
             return true;
         }
 
