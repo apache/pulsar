@@ -32,19 +32,16 @@ public class SystemTopicClientTest {
         assertFalse(SystemTopicClient.isSystemTopic(TopicName.get("persistent://public/default/test")));
         assertFalse(SystemTopicClient.isSystemTopic(TopicName.get("non-persistent://public/default/test")));
 
-        assertTrue(SystemTopicClient.isSystemTopic(TopicName.get("pulsar/system/topic")));
-        assertTrue(SystemTopicClient.isSystemTopic(TopicName.get("pulsar/system/topic-partition-1")));
-
         assertTrue(SystemTopicClient.isSystemTopic(TopicName.get("__change_events")));
         assertTrue(SystemTopicClient.isSystemTopic(TopicName.get("__change_events-partition-0")));
         assertTrue(SystemTopicClient.isSystemTopic(TopicName.get("__change_events-partition-1")));
         assertTrue(SystemTopicClient.isSystemTopic(TopicName.get("__transaction_buffer_snapshot")));
         assertTrue(SystemTopicClient.isSystemTopic(TopicName.get("__transaction_buffer_snapshot-partition-0")));
         assertTrue(SystemTopicClient.isSystemTopic(TopicName.get("__transaction_buffer_snapshot-partition-1")));
-        assertTrue(SystemTopicClient.isSystemTopic(
-                TopicName.get("__transaction_buffer_snapshot-multiTopicsReader-05c0ded5e9__transaction_pending_ack")));
         assertTrue(SystemTopicClient.isSystemTopic(TopicName
-                .get("__transaction_buffer_snapshot-partition-0-multiTopicsReader-05c0ded5e9__transaction_pending_ack")));
+                .get("topicxxx-partition-0-multiTopicsReader-f433329d68__transaction_pending_ack")));
+        assertTrue(SystemTopicClient.isSystemTopic(
+                TopicName.get("topicxxx-multiTopicsReader-f433329d68__transaction_pending_ack")));
 
     }
 }

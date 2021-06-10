@@ -1524,9 +1524,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant("testTenant", tenantInfo);
-        admin.tenants().createTenant("pulsar", tenantInfo);
         admin.namespaces().createNamespace("testTenant/ns1", Sets.newHashSet("test"));
-        admin.namespaces().createNamespace("pulsar/system", Sets.newHashSet("test"));
 
         // check create partitioned/non-partitioned topics
         String topic = "persistent://testTenant/ns1/test_create_topic_v";
@@ -1554,21 +1552,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
             admin.topics().createNonPartitionedTopic(topic + i + i);
         }
 
-        // check create system topics under the pulsar/system namespace, unlimited even setMaxTopicsPerNamespace
-        String systemNSTopic = "persistent://pulsar/system/system-ns-topic";
-        super.internalCleanup();
-        conf.setMaxTopicsPerNamespace(5);
-        super.internalSetup();
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
-        admin.tenants().createTenant("pulsar", tenantInfo);
-        admin.namespaces().createNamespace("pulsar/system", Sets.newHashSet("test"));
-        for (int i = 0; i < 10; ++i) {
-            admin.topics().createPartitionedTopic(systemNSTopic + i, 2);
-            admin.topics().createNonPartitionedTopic(systemNSTopic + i + i);
-        }
-
-        // check create system topics under the simple namespace(none system), unlimited even setMaxTopicsPerNamespace
-        String normalTopic = "persistent://testTenant/ns1/normal-topic";
+        // check first create normal topic, then system topics, unlimited even setMaxTopicsPerNamespace
         super.internalCleanup();
         conf.setMaxTopicsPerNamespace(5);
         super.internalSetup();
@@ -1576,13 +1560,30 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         admin.tenants().createTenant("testTenant", tenantInfo);
         admin.namespaces().createNamespace("testTenant/ns1", Sets.newHashSet("test"));
         for (int i = 0; i < 5; ++i) {
-            admin.topics().createPartitionedTopic(normalTopic + i, 1);
+            admin.topics().createPartitionedTopic(topic + i, 1);
         }
         admin.topics().createPartitionedTopic("persistent://testTenant/ns1/__change_events", 2);
         admin.topics().createPartitionedTopic("persistent://testTenant/ns1/__transaction_buffer_snapshot", 2);
         admin.topics().createPartitionedTopic(
                 "persistent://testTenant/ns1/__transaction_buffer_snapshot-multiTopicsReader"
                         + "-05c0ded5e9__transaction_pending_ack", 2);
+
+
+        // check first create system topics, then normal topic, unlimited even setMaxTopicsPerNamespace
+        super.internalCleanup();
+        conf.setMaxTopicsPerNamespace(5);
+        super.internalSetup();
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.tenants().createTenant("testTenant", tenantInfo);
+        admin.namespaces().createNamespace("testTenant/ns1", Sets.newHashSet("test"));
+        admin.topics().createPartitionedTopic("persistent://testTenant/ns1/__change_events", 2);
+        admin.topics().createPartitionedTopic("persistent://testTenant/ns1/__transaction_buffer_snapshot", 2);
+        admin.topics().createPartitionedTopic(
+                "persistent://testTenant/ns1/__transaction_buffer_snapshot-multiTopicsReader"
+                        + "-05c0ded5e9__transaction_pending_ack", 2);
+        for (int i = 0; i < 5; ++i) {
+            admin.topics().createPartitionedTopic(topic + i, 1);
+        }
 
         // check producer/consumer auto create partitioned topic
         super.internalCleanup();

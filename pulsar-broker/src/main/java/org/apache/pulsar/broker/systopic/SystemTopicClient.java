@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.broker.systopic;
 
-import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
-import com.google.common.base.Objects;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -172,11 +170,6 @@ public interface SystemTopicClient<T> {
     }
 
     static boolean isSystemTopic(TopicName topicName) {
-        // system namespace
-        if (Objects.equal(SYSTEM_NAMESPACE, topicName.getNamespaceObject())) {
-            return true;
-        }
-
         // event topic
         if (EventsTopicNames.checkTopicIsEventsNames(topicName)) {
             return true;
@@ -184,8 +177,7 @@ public interface SystemTopicClient<T> {
 
         String localName = TopicName.get(topicName.getPartitionedTopicName()).getLocalName();
         // transaction pending ack topic
-        if (StringUtils.startsWith(localName, EventsTopicNames.TRANSACTION_BUFFER_SNAPSHOT) && StringUtils
-                .endsWith(localName, MLPendingAckStore.PENDING_ACK_STORE_SUFFIX)) {
+        if (StringUtils.endsWith(localName, MLPendingAckStore.PENDING_ACK_STORE_SUFFIX)) {
             return true;
         }
 

@@ -639,9 +639,10 @@ public abstract class AdminResource extends PulsarWebResource {
                 maxTopicsPerNamespace = pulsar().getConfig().getMaxTopicsPerNamespace();
             }
 
-            if (maxTopicsPerNamespace > 0) {
+            // new create check
+            if (maxTopicsPerNamespace > 0 && !SystemTopicClient.isSystemTopic(topicName)) {
                 List<String> partitionedTopics = getTopicPartitionList(TopicDomain.persistent);
-                // exclude system topic
+                // exclude created system topic
                 long topicsCount =
                         partitionedTopics.stream().filter(t -> !SystemTopicClient.isSystemTopic(TopicName.get(t)))
                                 .count();
