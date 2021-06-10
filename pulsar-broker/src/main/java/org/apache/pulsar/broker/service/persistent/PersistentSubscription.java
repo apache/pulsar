@@ -141,7 +141,7 @@ public class PersistentSubscription implements Subscription {
         this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, subscriptionName, cursor, this);
         this.setReplicated(replicated);
         if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
-                && !checkTopicIsEventsNames(topicName)
+                && !checkTopicIsEventsNames(TopicName.get(topicName))
                 && !topicName.startsWith(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getLocalName())
                 && !topicName.startsWith(MLTransactionLogImpl.TRANSACTION_LOG_PREFIX)
                 && !topicName.endsWith(MLPendingAckStore.PENDING_ACK_STORE_SUFFIX)) {
