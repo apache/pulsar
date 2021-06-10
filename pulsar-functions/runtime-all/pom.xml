@@ -105,7 +105,7 @@
           <execution>
             <id>make-assembly</id>
             <!-- bind to the packaging phase -->
-            <phase>package</phase>
+            <phase>compile</phase>
             <goals>
               <goal>single</goal>
             </goals>
