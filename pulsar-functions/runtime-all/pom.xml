@@ -98,11 +98,7 @@
         <executions>
           <execution>
             <id>default-jar</id>
-            <phase>none</phase>
-            <configuration>
-              <finalName>unwanted</finalName>
-              <classifier>unwanted</classifier>
-            </configuration>
+            <phase/>
           </execution>
         </executions>
       </plugin>
