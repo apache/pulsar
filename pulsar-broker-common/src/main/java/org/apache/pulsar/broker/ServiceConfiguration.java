@@ -1945,6 +1945,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean exposeProducerLevelMetricsInPrometheus = false;
     @FieldContext(
             category = CATEGORY_METRICS,
+            doc = "If true, export managed ledger metrics (aggregated by namespace)"
+    )
+    private boolean exposeManagedLedgerMetricsInPrometheus = true;
+    @FieldContext(
+            category = CATEGORY_METRICS,
             doc = "If true, export managed cursor metrics"
     )
     private boolean exposeManagedCursorMetricsInPrometheus = false;
@@ -1960,6 +1965,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
             " this would be more efficient but may be inaccurate. Default is false."
     )
     private boolean exposePreciseBacklogInPrometheus = false;
+
+    @FieldContext(
+        category = CATEGORY_METRICS,
+        doc = "Time in milliseconds that metrics endpoint would time out. Default is 30s.\n" +
+            " Increase it if there are a lot of topics to expose topic-level metrics.\n" +
+            " Set it to 0 to disable timeout."
+    )
+    private long metricsServletTimeoutMs = 30000;
 
     @FieldContext(
             category = CATEGORY_METRICS,
