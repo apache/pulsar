@@ -56,10 +56,11 @@ public class TestGenericObjectSink implements Sink<GenericObject> {
 
         if (record.getSchema().getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
             // assert that we are able to access the schema (leads to ClassCastException if there is a problem)
-            KeyValueSchema kvSchema = (KeyValueSchema) record.getSchema();
-            log.info("key schema type {}", kvSchema.getKeySchema());
-            log.info("value schema type {}", kvSchema.getValueSchema());
-            log.info("key encoding {}", kvSchema.getKeyValueEncodingType());
+            // TODO need to expose KeyValueSchema was an interface in pulsar-client-api
+//            KeyValueSchema kvSchema = (KeyValueSchema) record.getSchema();
+//            log.info("key schema type {}", kvSchema.getKeySchema());
+//            log.info("value schema type {}", kvSchema.getValueSchema());
+//            log.info("key encoding {}", kvSchema.getKeyValueEncodingType());
 
             KeyValue keyValue = (KeyValue) record.getValue().getNativeObject();
             log.info("kvkey {}", keyValue.getKey());
