@@ -41,12 +41,11 @@ import org.apache.pulsar.common.schema.SchemaType;
 @Slf4j
 public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> implements KeyValueSchema<K,V> {
 
-    @Getter
+
     private final Schema<K> keySchema;
-    @Getter
+
     private final Schema<V> valueSchema;
 
-    @Getter
     private final KeyValueEncodingType keyValueEncodingType;
 
     // schemaInfo combined by KeySchemaInfo and ValueSchemaInfo:
@@ -290,4 +289,34 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
         }
     }
 
+    /**
+     * Get the Schema of the Key.
+     * @return the Schema of the Key
+     */
+    @Override
+    public Schema<K> getKeySchema() {
+        return keySchema;
+    }
+
+    /**
+     * Get the Schema of the Value.
+     *
+     * @return the Schema of the Value
+     */
+    @Override
+    public Schema<V> getValueSchema() {
+        return valueSchema;
+    }
+
+    /**
+     * Get the KeyValueEncodingType.
+     *
+     * @return the KeyValueEncodingType
+     * @see KeyValueEncodingType#INLINE
+     * @see KeyValueEncodingType#SEPARATED
+     */
+    @Override
+    public KeyValueEncodingType getKeyValueEncodingType() {
+        return keyValueEncodingType;
+    }
 }

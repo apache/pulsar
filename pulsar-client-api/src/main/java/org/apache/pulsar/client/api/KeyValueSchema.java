@@ -40,7 +40,7 @@ public interface KeyValueSchema<K,V> extends Schema<KeyValue<K,V>> {
      *
      * @return the Schema of the Value
      */
-    Schema<K> getValueSchema();
+    Schema<V> getValueSchema();
 
     /**
      * Get the KeyValueEncodingType.
