@@ -28,7 +28,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
-import org.apache.pulsar.client.impl.schema.KeyValueSchema;
+import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.io.kafka.connect.schema.PulsarSchemaToKafkaSchema;
 import org.testng.annotations.Test;
 
@@ -131,7 +131,7 @@ public class PulsarSchemaToKafkaSchemaTest {
 
     @Test
     public void kvBytesIntSchemaTests() {
-        Schema pulsarKvSchema = KeyValueSchema.of(Schema.STRING, Schema.INT64);
+        Schema pulsarKvSchema = KeyValueSchemaImpl.of(Schema.STRING, Schema.INT64);
         org.apache.kafka.connect.data.Schema kafkaSchema =
                 PulsarSchemaToKafkaSchema.getKafkaConnectSchema(pulsarKvSchema);
         assertEquals(kafkaSchema.type(), org.apache.kafka.connect.data.Schema.Type.MAP);
