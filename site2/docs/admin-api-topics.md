@@ -201,7 +201,7 @@ You can check the following statistics of a given non-partitioned topic.
 
   -   **offloadedStorageSize**: Space used to store the offloaded messages for the topic.
   
-  -   **waitingPublishers**: The number of publishers waiting in queue in exclusive access mode.
+  -   **waitingPublishers**: The number of publishers waiting in a queue in exclusive access mode.
   
   -   **deduplicationStatus**: The status of message deduplication for the topic.
   
