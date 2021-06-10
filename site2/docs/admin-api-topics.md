@@ -193,7 +193,7 @@ You can check the following statistics of a given non-partitioned topic.
 
   -   **bytesOutCounter**: Total bytes delivered to consumer (bytes).
 
-  -   **msgOutCounter**: Total messages delivered to consumer (msg).
+  -   **msgOutCounter**: Total messages delivered to consumer.
 
   -   **msgChunkPublished**: Topic has chunked message published on it.
 
