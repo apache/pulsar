@@ -1962,6 +1962,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean exposePreciseBacklogInPrometheus = false;
 
     @FieldContext(
+        category = CATEGORY_METRICS,
+        doc = "Time in milliseconds that metrics endpoint would time out. Default is 30s.\n" +
+            " Increase it if there are a lot of topics to expose topic-level metrics.\n" +
+            " Set it to 0 to disable timeout."
+    )
+    private long metricsServletTimeoutMs = 30000;
+
+    @FieldContext(
             category = CATEGORY_METRICS,
             doc = "Enable expose the backlog size for each subscription when generating stats.\n" +
                     " Locking is used for fetching the status so default to false."
