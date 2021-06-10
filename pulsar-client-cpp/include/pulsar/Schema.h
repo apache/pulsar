@@ -117,6 +117,16 @@ typedef std::map<std::string, std::string> StringMap;
  */
 class PULSAR_PUBLIC SchemaInfo {
    public:
+    /**
+     * The default constructor with following configs:
+     * - schemaType: SchemaType::BYTES
+     * - name: "BYTES"
+     * - schema: ""
+     * - properties: {}
+     *
+     * @see SchemaInfo(SchemaType schemaType, const std::string& name, const std::string& schema, const
+     * StringMap& properties)
+     */
     SchemaInfo();
 
     /**

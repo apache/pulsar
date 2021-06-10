@@ -30,40 +30,23 @@ struct ProducerConfigurationImpl {
     SchemaInfo schemaInfo;
     Optional<std::string> producerName;
     Optional<int64_t> initialSequenceId;
-    int sendTimeoutMs;
-    CompressionType compressionType;
-    int maxPendingMessages;
-    int maxPendingMessagesAcrossPartitions;
-    ProducerConfiguration::PartitionsRoutingMode routingMode;
+    int sendTimeoutMs{30000};
+    CompressionType compressionType{CompressionNone};
+    int maxPendingMessages{1000};
+    int maxPendingMessagesAcrossPartitions{50000};
+    ProducerConfiguration::PartitionsRoutingMode routingMode{ProducerConfiguration::UseSinglePartition};
     MessageRoutingPolicyPtr messageRouter;
-    ProducerConfiguration::HashingScheme hashingScheme;
-    bool blockIfQueueFull;
-    bool batchingEnabled;
-    unsigned int batchingMaxMessages;
-    unsigned long batchingMaxAllowedSizeInBytes;
-    unsigned long batchingMaxPublishDelayMs;
-    ProducerConfiguration::BatchingType batchingType;
+    ProducerConfiguration::HashingScheme hashingScheme{ProducerConfiguration::BoostHash};
+    bool blockIfQueueFull{false};
+    bool batchingEnabled{true};
+    unsigned int batchingMaxMessages{1000};
+    unsigned long batchingMaxAllowedSizeInBytes{128 * 1024};  // 128 KB
+    unsigned long batchingMaxPublishDelayMs{10};              // 10 milli seconds
+    ProducerConfiguration::BatchingType batchingType{ProducerConfiguration::DefaultBatching};
     CryptoKeyReaderPtr cryptoKeyReader;
     std::set<std::string> encryptionKeys;
-    ProducerCryptoFailureAction cryptoFailureAction;
+    ProducerCryptoFailureAction cryptoFailureAction{ProducerCryptoFailureAction::FAIL};
     std::map<std::string, std::string> properties;
-    ProducerConfigurationImpl()
-        : schemaInfo(),
-          sendTimeoutMs(30000),
-          compressionType(CompressionNone),
-          maxPendingMessages(1000),
-          maxPendingMessagesAcrossPartitions(50000),
-          routingMode(ProducerConfiguration::UseSinglePartition),
-          hashingScheme(ProducerConfiguration::BoostHash),
-          blockIfQueueFull(false),
-          batchingEnabled(true),
-          batchingMaxMessages(1000),
-          batchingMaxAllowedSizeInBytes(128 * 1024),  // 128 KB
-          batchingMaxPublishDelayMs(10),              // 10 milli seconds
-          batchingType(ProducerConfiguration::DefaultBatching),
-          cryptoKeyReader(),
-          encryptionKeys(),
-          cryptoFailureAction(ProducerCryptoFailureAction::FAIL) {}
 };
 }  // namespace pulsar
 
