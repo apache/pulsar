@@ -28,6 +28,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.testng.Assert;
@@ -41,9 +42,9 @@ import org.testng.annotations.Test;
 @Test(groups = "schema")
 public class PartitionedTopicSchemaTest extends MockedPulsarServiceBaseTest {
 
-    private final static String PARTITIONED_TOPIC = "public/default/partitioned-schema-topic";
-    private final static int MESSAGE_COUNT_PER_PARTITION  = 12;
-    private final static int TOPIC_PARTITION = 3;
+    private static final String PARTITIONED_TOPIC = "public/default/partitioned-schema-topic";
+    private static final int MESSAGE_COUNT_PER_PARTITION  = 12;
+    private static final int TOPIC_PARTITION = 3;
 
     @BeforeMethod
     @Override
@@ -51,7 +52,7 @@ public class PartitionedTopicSchemaTest extends MockedPulsarServiceBaseTest {
         isTcpLookup = true;
         super.internalSetup();
 
-        admin.clusters().createCluster("test", new ClusterDataImpl(pulsar.getWebServiceAddress()));
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         admin.tenants().createTenant("my-property",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns");

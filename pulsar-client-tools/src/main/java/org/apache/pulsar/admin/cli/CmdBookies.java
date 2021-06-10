@@ -87,7 +87,11 @@ public class CmdBookies extends CmdBase {
 
         @Override
         void run() throws Exception {
-            getAdmin().bookies().updateBookieRackInfo(bookieAddress, group, new BookieInfo(bookieRack, bookieHost));
+            getAdmin().bookies().updateBookieRackInfo(bookieAddress, group,
+                    BookieInfo.builder()
+                            .rack(bookieRack)
+                            .hostname(bookieHost)
+                            .build());
         }
     }
 

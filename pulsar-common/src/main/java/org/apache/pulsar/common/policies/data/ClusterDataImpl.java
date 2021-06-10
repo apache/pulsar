@@ -18,17 +18,12 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import java.util.LinkedHashSet;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
-import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
-import lombok.experimental.Accessors;
 import org.apache.pulsar.client.api.ProxyProtocol;
 
 /**
@@ -39,11 +34,9 @@ import org.apache.pulsar.client.api.ProxyProtocol;
         description = "The configuration data for a cluster"
 )
 @Data
-@Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@Accessors(chain = true)
-public class ClusterDataImpl implements  ClusterData {
+public final class ClusterDataImpl implements  ClusterData, Cloneable {
     @ApiModelProperty(
             name = "serviceUrl",
             value = "The HTTP rest service URL (for admin operations)",
@@ -106,26 +99,26 @@ public class ClusterDataImpl implements  ClusterData {
         value = "Enable TLS when talking with other brokers in the same cluster (admin operation)"
                 + " or different clusters (replication)"
     )
-    private boolean brokerClientTlsEnabled = false;
+    private boolean brokerClientTlsEnabled;
     @ApiModelProperty(
         name = "tlsAllowInsecureConnection",
         value = "Allow TLS connections to servers whose certificate cannot be"
                 + " be verified to have been signed by a trusted certificate"
                 + " authority."
     )
-    private boolean tlsAllowInsecureConnection = false;
+    private boolean tlsAllowInsecureConnection;
     @ApiModelProperty(
         name = "brokerClientTlsEnabledWithKeyStore",
         value = "Whether internal client use KeyStore type to authenticate with other Pulsar brokers"
     )
-    private boolean brokerClientTlsEnabledWithKeyStore = false;
+    private boolean brokerClientTlsEnabledWithKeyStore;
     @ApiModelProperty(
         name = "brokerClientTlsTrustStoreType",
         value = "TLS TrustStore type configuration for internal client: JKS, PKCS12"
                 + " used by the internal client to authenticate with Pulsar brokers",
         example = "JKS"
     )
-    private String brokerClientTlsTrustStoreType = "JKS";
+    private String brokerClientTlsTrustStoreType;
     @ApiModelProperty(
         name = "brokerClientTlsTrustStore",
         value = "TLS TrustStore path for internal client"
@@ -150,74 +143,142 @@ public class ClusterDataImpl implements  ClusterData {
     )
     private String listenerName;
 
-    public ClusterDataImpl(String serviceUrl) {
-        this(serviceUrl, "");
+    public static ClusterDataImplBuilder builder() {
+        return new ClusterDataImplBuilder();
     }
 
-    public ClusterDataImpl(String serviceUrl, String serviceUrlTls) {
-        this.serviceUrl = serviceUrl;
-        this.serviceUrlTls = serviceUrlTls;
+    @Override
+    public ClusterDataImplBuilder clone() {
+        return builder()
+                .serviceUrl(serviceUrl)
+                .serviceUrlTls(serviceUrlTls)
+                .brokerServiceUrl(brokerServiceUrl)
+                .brokerServiceUrlTls(brokerServiceUrlTls)
+                .proxyServiceUrl(proxyServiceUrl)
+                .authenticationPlugin(authenticationPlugin)
+                .authenticationParameters(authenticationParameters)
+                .proxyProtocol(proxyProtocol)
+                .peerClusterNames(peerClusterNames)
+                .brokerClientTlsEnabled(brokerClientTlsEnabled)
+                .tlsAllowInsecureConnection(tlsAllowInsecureConnection)
+                .brokerClientTlsEnabledWithKeyStore(brokerClientTlsEnabledWithKeyStore)
+                .brokerClientTlsTrustStoreType(brokerClientTlsTrustStoreType)
+                .brokerClientTlsTrustStore(brokerClientTlsTrustStore)
+                .brokerClientTlsTrustStorePassword(brokerClientTlsTrustStorePassword)
+                .brokerClientTrustCertsFilePath(brokerClientTrustCertsFilePath)
+                .listenerName(listenerName);
     }
 
-    public ClusterDataImpl(String serviceUrl, String serviceUrlTls, String brokerServiceUrl, String brokerServiceUrlTls) {
-        this.serviceUrl = serviceUrl;
-        this.serviceUrlTls = serviceUrlTls;
-        this.brokerServiceUrl = brokerServiceUrl;
-        this.brokerServiceUrlTls = brokerServiceUrlTls;
-    }
+    @Data
+    public static class ClusterDataImplBuilder implements ClusterData.Builder {
+        private String serviceUrl;
+        private String serviceUrlTls;
+        private String brokerServiceUrl;
+        private String brokerServiceUrlTls;
+        private String proxyServiceUrl;
+        private String authenticationPlugin;
+        private String authenticationParameters;
+        private ProxyProtocol proxyProtocol;
+        private LinkedHashSet<String> peerClusterNames;
+        private boolean brokerClientTlsEnabled = false;
+        private boolean tlsAllowInsecureConnection = false;
+        private boolean brokerClientTlsEnabledWithKeyStore = false;
+        private String brokerClientTlsTrustStoreType = "JKS";
+        private String brokerClientTlsTrustStore;
+        private String brokerClientTlsTrustStorePassword;
+        private String brokerClientTrustCertsFilePath;
+        private String listenerName;
 
-    public ClusterDataImpl(String serviceUrl, String serviceUrlTls, String brokerServiceUrl, String brokerServiceUrlTls,
-                           String authenticationPlugin, String authenticationParameters) {
-        this.serviceUrl = serviceUrl;
-        this.serviceUrlTls = serviceUrlTls;
-        this.brokerServiceUrl = brokerServiceUrl;
-        this.brokerServiceUrlTls = brokerServiceUrlTls;
-        this.authenticationPlugin = authenticationPlugin;
-        this.authenticationParameters = authenticationParameters;
-    }
+        ClusterDataImplBuilder() {
+        }
 
-    public ClusterDataImpl(String serviceUrl, String serviceUrlTls, String brokerServiceUrl, String brokerServiceUrlTls,
-                       String authenticationPlugin, String authenticationParameters, String listenerName) {
-        this.serviceUrl = serviceUrl;
-        this.serviceUrlTls = serviceUrlTls;
-        this.brokerServiceUrl = brokerServiceUrl;
-        this.brokerServiceUrlTls = brokerServiceUrlTls;
-        this.authenticationPlugin = authenticationPlugin;
-        this.authenticationParameters = authenticationParameters;
-        this.listenerName = listenerName;
-    }
+        public ClusterDataImplBuilder serviceUrl(String serviceUrl) {
+            this.serviceUrl = serviceUrl;
+            return this;
+        }
 
-    public ClusterDataImpl(String serviceUrl, String serviceUrlTls, String brokerServiceUrl, String brokerServiceUrlTls,
-                           String proxyServiceUrl, String authenticationPlugin, String authenticationParameters,
-                           ProxyProtocol proxyProtocol) {
-        this.serviceUrl = serviceUrl;
-        this.serviceUrlTls = serviceUrlTls;
-        this.brokerServiceUrl = brokerServiceUrl;
-        this.brokerServiceUrlTls = brokerServiceUrlTls;
-        this.authenticationPlugin = authenticationPlugin;
-        this.authenticationParameters = authenticationParameters;
-        this.proxyServiceUrl = proxyServiceUrl;
-        this.proxyProtocol = proxyProtocol;
-    }
+        public ClusterDataImplBuilder serviceUrlTls(String serviceUrlTls) {
+            this.serviceUrlTls = serviceUrlTls;
+            return this;
+        }
 
+        public ClusterDataImplBuilder brokerServiceUrl(String brokerServiceUrl) {
+            this.brokerServiceUrl = brokerServiceUrl;
+            return this;
+        }
 
-    public void update(ClusterDataImpl other) {
-        checkNotNull(other);
-        this.serviceUrl = other.serviceUrl;
-        this.serviceUrlTls = other.serviceUrlTls;
-        this.brokerServiceUrl = other.brokerServiceUrl;
-        this.brokerServiceUrlTls = other.brokerServiceUrlTls;
-        this.proxyServiceUrl = other.proxyServiceUrl;
-        this.proxyProtocol = other.proxyProtocol;
-        this.authenticationPlugin = other.authenticationPlugin;
-        this.authenticationParameters = other.authenticationParameters;
-        this.brokerClientTlsEnabled = other.brokerClientTlsEnabled;
-        this.tlsAllowInsecureConnection = other.tlsAllowInsecureConnection;
-        this.brokerClientTlsEnabledWithKeyStore = other.brokerClientTlsEnabledWithKeyStore;
-        this.brokerClientTlsTrustStoreType = other.brokerClientTlsTrustStoreType;
-        this.brokerClientTlsTrustStore = other.brokerClientTlsTrustStore;
-        this.brokerClientTlsTrustStorePassword = other.brokerClientTlsTrustStorePassword;
-        this.brokerClientTrustCertsFilePath = other.brokerClientTrustCertsFilePath;
-        this.listenerName = other.listenerName;
+        public ClusterDataImplBuilder brokerServiceUrlTls(String brokerServiceUrlTls) {
+            this.brokerServiceUrlTls = brokerServiceUrlTls;
+            return this;
+        }
+
+        public ClusterDataImplBuilder proxyServiceUrl(String proxyServiceUrl) {
+            this.proxyServiceUrl = proxyServiceUrl;
+            return this;
+        }
+
+        public ClusterDataImplBuilder authenticationPlugin(String authenticationPlugin) {
+            this.authenticationPlugin = authenticationPlugin;
+            return this;
+        }
+
+        public ClusterDataImplBuilder authenticationParameters(String authenticationParameters) {
+            this.authenticationParameters = authenticationParameters;
+            return this;
+        }
+
+        public ClusterDataImplBuilder proxyProtocol(ProxyProtocol proxyProtocol) {
+            this.proxyProtocol = proxyProtocol;
+            return this;
+        }
+
+        public ClusterDataImplBuilder peerClusterNames(LinkedHashSet<String> peerClusterNames) {
+            this.peerClusterNames = peerClusterNames;
+            return this;
+        }
+
+        public ClusterDataImplBuilder brokerClientTlsEnabled(boolean brokerClientTlsEnabled) {
+            this.brokerClientTlsEnabled = brokerClientTlsEnabled;
+            return this;
+        }
+
+        public ClusterDataImplBuilder tlsAllowInsecureConnection(boolean tlsAllowInsecureConnection) {
+            this.tlsAllowInsecureConnection = tlsAllowInsecureConnection;
+            return this;
+        }
+
+        public ClusterDataImplBuilder brokerClientTlsEnabledWithKeyStore(boolean brokerClientTlsEnabledWithKeyStore) {
+            this.brokerClientTlsEnabledWithKeyStore = brokerClientTlsEnabledWithKeyStore;
+            return this;
+        }
+
+        public ClusterDataImplBuilder brokerClientTlsTrustStoreType(String brokerClientTlsTrustStoreType) {
+            this.brokerClientTlsTrustStoreType = brokerClientTlsTrustStoreType;
+            return this;
+        }
+
+        public ClusterDataImplBuilder brokerClientTlsTrustStore(String brokerClientTlsTrustStore) {
+            this.brokerClientTlsTrustStore = brokerClientTlsTrustStore;
+            return this;
+        }
+
+        public ClusterDataImplBuilder brokerClientTlsTrustStorePassword(String brokerClientTlsTrustStorePassword) {
+            this.brokerClientTlsTrustStorePassword = brokerClientTlsTrustStorePassword;
+            return this;
+        }
+
+        public ClusterDataImplBuilder brokerClientTrustCertsFilePath(String brokerClientTrustCertsFilePath) {
+            this.brokerClientTrustCertsFilePath = brokerClientTrustCertsFilePath;
+            return this;
+        }
+
+        public ClusterDataImplBuilder listenerName(String listenerName) {
+            this.listenerName = listenerName;
+            return this;
+        }
+
+        public ClusterDataImpl build() {
+            return new ClusterDataImpl(serviceUrl, serviceUrlTls, brokerServiceUrl, brokerServiceUrlTls, proxyServiceUrl, authenticationPlugin, authenticationParameters, proxyProtocol, peerClusterNames, brokerClientTlsEnabled, tlsAllowInsecureConnection, brokerClientTlsEnabledWithKeyStore, brokerClientTlsTrustStoreType, brokerClientTlsTrustStore, brokerClientTlsTrustStorePassword, brokerClientTrustCertsFilePath, listenerName);
+        }
     }
 }

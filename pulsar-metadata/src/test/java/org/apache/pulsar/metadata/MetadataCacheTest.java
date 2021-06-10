@@ -28,6 +28,8 @@ import static org.testng.Assert.fail;
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
@@ -50,6 +52,8 @@ import org.apache.pulsar.metadata.api.MetadataStoreException.ContentDeserializat
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.api.Stat;
+import org.awaitility.Awaitility;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class MetadataCacheTest extends BaseMetadataStoreTest {
@@ -88,6 +92,77 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         } catch (CompletionException e) {
             assertEquals(e.getCause().getClass(), NotFoundException.class);
         }
+    }
+
+    @DataProvider(name = "zk")
+    public Object[][] zkimplementations() {
+        return new Object[][] {
+            { "ZooKeeper", zks.getConnectionString() },
+        };
+    }
+
+    @Test(dataProvider = "zk")
+    public void crossStoreUpdates(String provider, String url) throws Exception {
+        @Cleanup
+        MetadataStore store1 = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
+
+        @Cleanup
+        MetadataStore store2 = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
+
+        @Cleanup
+        MetadataStore store3 = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
+
+        MetadataCache<MyClass> objCache1 = store1.getMetadataCache(MyClass.class);
+        MetadataCache<MyClass> objCache2 = store2.getMetadataCache(MyClass.class);
+        MetadataCache<MyClass> objCache3 = store3.getMetadataCache(MyClass.class);
+
+        List<MetadataCache<MyClass>> allCaches = new ArrayList<>();
+        allCaches.add(objCache1);
+        allCaches.add(objCache2);
+        allCaches.add(objCache3);
+
+        // Add on one cache and remove from another
+        multiStoreAddDelete(allCaches, 0, 1, "add cache0 del cache1");
+        // retry same order to rule out any stale state
+        multiStoreAddDelete(allCaches, 0, 1, "add cache0 del cache1");
+        // Reverse the operations
+        multiStoreAddDelete(allCaches, 1, 0, "add cache1 del cache0");
+        // Ensure that working on same cache continues to work.
+        multiStoreAddDelete(allCaches, 1, 1, "add cache1 del cache1");
+    }
+
+    private void multiStoreAddDelete(List<MetadataCache<MyClass>> caches, int addOn, int delFrom, String testName) throws InterruptedException {
+        MetadataCache<MyClass> addCache = caches.get(addOn);
+        MetadataCache<MyClass> delCache = caches.get(delFrom);
+
+        String key1 = "/test-key1";
+        assertEquals(addCache.getIfCached(key1), Optional.empty());
+
+        MyClass value1 = new MyClass(testName, 1);
+
+        addCache.create(key1, value1).join();
+
+        // all time for changes to propagate to other caches
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+            for (MetadataCache<MyClass> cache : caches) {
+                if (cache == addCache) {
+                    assertEquals(cache.getIfCached(key1), Optional.of(value1));
+                }
+                assertEquals(cache.get(key1).join(), Optional.of(value1));
+                assertEquals(cache.getIfCached(key1), Optional.of(value1));
+            }
+        });
+
+        delCache.delete(key1).join();
+
+        // all time for changes to propagate to other caches
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+            // The entry should get removed from all caches
+            for (MetadataCache<MyClass> cache : caches) {
+                assertEquals(cache.getIfCached(key1), Optional.empty());
+                assertEquals(cache.get(key1).join(), Optional.empty());
+            }
+        });
     }
 
     @Test(dataProvider = "impl")

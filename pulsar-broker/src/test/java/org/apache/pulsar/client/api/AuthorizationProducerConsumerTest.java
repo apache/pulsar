@@ -48,8 +48,10 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
@@ -64,8 +66,8 @@ import org.testng.annotations.Test;
 public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(AuthorizationProducerConsumerTest.class);
 
-    private final static String clientRole = "plugbleRole";
-    private final static Set<String> clientAuthProviderSupportedRoles = Sets.newHashSet(clientRole);
+    private static final String clientRole = "plugbleRole";
+    private static final Set<String> clientAuthProviderSupportedRoles = Sets.newHashSet(clientRole);
 
     protected void setup() throws Exception {
 
@@ -129,7 +131,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
                 .operationTimeout(1000, TimeUnit.MILLISECONDS)
                 .authentication(authenticationInvalidRole).build();
 
-        admin.clusters().createCluster("test", new ClusterDataImpl(brokerUrl.toString()));
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
 
         admin.tenants().createTenant("my-property",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
@@ -194,7 +196,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
 
         Authentication authentication = new ClientAuthentication(subscriptionRole);
 
-        superAdmin.clusters().createCluster("test", new ClusterDataImpl(brokerUrl.toString()));
+        superAdmin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
 
         superAdmin.tenants().createTenant("my-property",
                 new TenantInfoImpl(Sets.newHashSet(tenantRole), Sets.newHashSet("test")));
@@ -291,7 +293,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
                 .authentication(authentication));
 
 
-        admin.clusters().createCluster("test", new ClusterDataImpl(brokerUrl.toString()));
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
 
         admin.tenants().createTenant("prop-prefix",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
@@ -512,7 +514,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         }
 
         @Override
-        public CompletableFuture<Boolean> isTenantAdmin(String tenant, String role, TenantInfoImpl tenantInfo, AuthenticationDataSource authenticationData) {
+        public CompletableFuture<Boolean> isTenantAdmin(String tenant, String role, TenantInfo tenantInfo, AuthenticationDataSource authenticationData) {
             return CompletableFuture.completedFuture(true);
         }
 

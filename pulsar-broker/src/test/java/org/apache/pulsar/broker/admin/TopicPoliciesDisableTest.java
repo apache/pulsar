@@ -23,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -55,7 +56,7 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
         this.conf.setTopicLevelPoliciesEnabled(false);
         super.internalSetup();
 
-        admin.clusters().createCluster("test", new ClusterDataImpl(pulsar.getWebServiceAddress()));
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant(this.testTenant, tenantInfo);
         admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Sets.newHashSet("test"));
@@ -70,7 +71,10 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testBacklogQuotaDisabled() {
-        BacklogQuota backlogQuota = new BacklogQuota(1024, BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
+        BacklogQuota backlogQuota = BacklogQuota.builder()
+                .limitSize(1024)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                .build();
         log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
 
         try {
@@ -137,7 +141,7 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testDispatchRateDisabled() throws Exception {
-        DispatchRate dispatchRate = new DispatchRate();
+        DispatchRate dispatchRate = DispatchRate.builder().build();
         log.info("Dispatch Rate: {} will set to the topic: {}", dispatchRate, testTopic);
 
         try {
@@ -157,8 +161,11 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testSubscriptionDispatchRateDisabled() throws Exception {
-        DispatchRate dispatchRate = new DispatchRate(1000,
-                1020*1024, 1);
+        DispatchRate dispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(1000)
+                .dispatchThrottlingRateInMsg(1020*1024)
+                .ratePeriodInSecond(1)
+                .build();
         log.info("Dispatch Rate: {} will set to the topic: {}", dispatchRate, testTopic);
 
         try {

@@ -27,6 +27,9 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.StringConverter;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
@@ -35,6 +38,7 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -58,6 +62,7 @@ import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.functions.Utils;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 @Getter
 @Parameters(commandDescription = "Interface for managing Pulsar IO Sources (ingress data into Pulsar)")
@@ -417,8 +422,12 @@ public class CmdSources extends CmdBase {
                 sourceConfig.setResources(resources);
             }
 
-            if (null != sourceConfigString) {
-                sourceConfig.setConfigs(parseConfigs(sourceConfigString));
+            try {
+                if (null != sourceConfigString) {
+                    sourceConfig.setConfigs(parseConfigs(sourceConfigString));
+                }
+            } catch (Exception ex) {
+                throw new ParameterException("Cannot parse source-config", ex);
             }
             
             if (null != batchSourceConfigString) {
@@ -432,12 +441,15 @@ public class CmdSources extends CmdBase {
             validateSourceConfigs(sourceConfig);
         }
 
-        protected Map<String, Object> parseConfigs(String str) {
-            Type type = new TypeToken<Map<String, Object>>(){}.getType();
-            return new Gson().fromJson(str, type); 
+        protected Map<String, Object> parseConfigs(String str) throws JsonProcessingException {
+            ObjectMapper mapper = ObjectMapperFactory.getThreadLocal();
+            TypeReference<HashMap<String,Object>> typeRef
+                    = new TypeReference<HashMap<String,Object>>() {};
+
+            return mapper.readValue(str, typeRef);
         }
-        
-        protected BatchSourceConfig parseBatchSourceConfigs(String str) {
+
+            protected BatchSourceConfig parseBatchSourceConfigs(String str) {
         	return new Gson().fromJson(str, BatchSourceConfig.class);
         }
 

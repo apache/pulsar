@@ -50,31 +50,31 @@ import io.jsonwebtoken.security.SignatureException;
 
 public class AuthenticationProviderToken implements AuthenticationProvider {
 
-    final static String HTTP_HEADER_NAME = "Authorization";
-    final static String HTTP_HEADER_VALUE_PREFIX = "Bearer ";
+    static final String HTTP_HEADER_NAME = "Authorization";
+    static final String HTTP_HEADER_VALUE_PREFIX = "Bearer ";
 
     // When symmetric key is configured
-    final static String CONF_TOKEN_SETTING_PREFIX = "";
+    static final String CONF_TOKEN_SETTING_PREFIX = "";
 
     // When symmetric key is configured
-    final static String CONF_TOKEN_SECRET_KEY = "tokenSecretKey";
+    static final String CONF_TOKEN_SECRET_KEY = "tokenSecretKey";
 
     // When public/private key pair is configured
-    final static String CONF_TOKEN_PUBLIC_KEY = "tokenPublicKey";
+    static final String CONF_TOKEN_PUBLIC_KEY = "tokenPublicKey";
 
     // The token's claim that corresponds to the "role" string
-    final static String CONF_TOKEN_AUTH_CLAIM = "tokenAuthClaim";
+    static final String CONF_TOKEN_AUTH_CLAIM = "tokenAuthClaim";
 
     // When using public key's, the algorithm of the key
-    final static String CONF_TOKEN_PUBLIC_ALG = "tokenPublicAlg";
+    static final String CONF_TOKEN_PUBLIC_ALG = "tokenPublicAlg";
 
     // The token audience "claim" name, e.g. "aud", that will be used to get the audience from token.
-    final static String CONF_TOKEN_AUDIENCE_CLAIM = "tokenAudienceClaim";
+    static final String CONF_TOKEN_AUDIENCE_CLAIM = "tokenAudienceClaim";
 
     // The token audience stands for this broker. The field `tokenAudienceClaim` of a valid token, need contains this.
-    final static String CONF_TOKEN_AUDIENCE = "tokenAudience";
+    static final String CONF_TOKEN_AUDIENCE = "tokenAudience";
 
-    final static String TOKEN = "token";
+    static final String TOKEN = "token";
 
     private static final Counter expiredTokenMetrics = Counter.build()
             .name("pulsar_expired_token_count")

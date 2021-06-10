@@ -163,9 +163,9 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
             try {
                 TopicStats topicStats = admin.topics().getStats(sourceTopic);
 
-                return topicStats.subscriptions.containsKey(subscriptionName)
-                        && topicStats.subscriptions.get(subscriptionName).consumers.size() == 1
-                        && topicStats.subscriptions.get(subscriptionName).consumers.get(0).availablePermits == 1000;
+                return topicStats.getSubscriptions().containsKey(subscriptionName)
+                        && topicStats.getSubscriptions().get(subscriptionName).getConsumers().size() == 1
+                        && topicStats.getSubscriptions().get(subscriptionName).getConsumers().get(0).getAvailablePermits() == 1000;
 
             } catch (PulsarAdminException e) {
                 return false;
@@ -234,9 +234,9 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
             try {
                 TopicStats topicStats = admin.topics().getStats(sourceTopic);
 
-                return topicStats.subscriptions.containsKey(subscriptionName)
-                        && topicStats.subscriptions.get(subscriptionName).consumers.size() == 1
-                        && topicStats.subscriptions.get(subscriptionName).consumers.get(0).availablePermits == 523;
+                return topicStats.getSubscriptions().containsKey(subscriptionName)
+                        && topicStats.getSubscriptions().get(subscriptionName).getConsumers().size() == 1
+                        && topicStats.getSubscriptions().get(subscriptionName).getConsumers().get(0).getAvailablePermits() == 523;
 
             } catch (PulsarAdminException e) {
                 return false;
@@ -244,10 +244,10 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
         }, 50, 150);
 
         TopicStats topicStats = admin.topics().getStats(sourceTopic);
-        assertEquals(topicStats.subscriptions.size(), 1);
-        assertTrue(topicStats.subscriptions.containsKey(subscriptionName));
-        assertEquals(topicStats.subscriptions.get(subscriptionName).consumers.size(), 1);
-        assertEquals(topicStats.subscriptions.get(subscriptionName).consumers.get(0).availablePermits, 523);
+        assertEquals(topicStats.getSubscriptions().size(), 1);
+        assertTrue(topicStats.getSubscriptions().containsKey(subscriptionName));
+        assertEquals(topicStats.getSubscriptions().get(subscriptionName).getConsumers().size(), 1);
+        assertEquals(topicStats.getSubscriptions().get(subscriptionName).getConsumers().get(0).getAvailablePermits(), 523);
 
         // validate prometheus metrics empty
         String prometheusMetrics = PulsarFunctionTestUtils.getPrometheusMetrics(pulsar.getListenPortHTTP().get());
@@ -325,8 +325,8 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
         }
         retryStrategically((test) -> {
             try {
-                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).subscriptions.get(subscriptionName);
-                return subStats.unackedMessages == 0 && subStats.msgThroughputOut == totalMsgs;
+                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
+                return subStats.getUnackedMessages() == 0 && subStats.getMsgThroughputOut() == totalMsgs;
             } catch (PulsarAdminException e) {
                 return false;
             }
@@ -407,14 +407,14 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
 
         retryStrategically((test) -> {
             try {
-                return admin.topics().getStats(sourceTopic).subscriptions.size() == 0;
+                return admin.topics().getStats(sourceTopic).getSubscriptions().size() == 0;
             } catch (PulsarAdminException e) {
                 return false;
             }
         }, 50, 150);
 
         // make sure subscriptions are cleanup
-        assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 0);
+        assertEquals(admin.topics().getStats(sourceTopic).getSubscriptions().size(), 0);
 
         tempDirectory.assertThatFunctionDownloadTempFilesHaveBeenDeleted();
     }

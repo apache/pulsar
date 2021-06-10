@@ -18,43 +18,26 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
+import org.apache.pulsar.client.admin.utils.ReflectionUtils;
 
 /**
  * Authentication policies.
  */
-public class AuthPolicies {
-    @SuppressWarnings("checkstyle:MemberName")
-    public final Map<String, Set<AuthAction>> namespace_auth;
-    @SuppressWarnings("checkstyle:MemberName")
-    public final Map<String, Map<String, Set<AuthAction>>> destination_auth;
-    @SuppressWarnings("checkstyle:MemberName")
-    public final Map<String, Set<String>> subscription_auth_roles;
+public interface AuthPolicies {
+    Map<String, Set<AuthAction>> getNamespaceAuthentication();
+    Map<String, Map<String, Set<AuthAction>>> getTopicAuthentication();
+    Map<String, Set<String>> getSubscriptionAuthentication();
 
-    public AuthPolicies() {
-        namespace_auth = new HashMap<>();
-        destination_auth = new HashMap<>();
-        subscription_auth_roles = new HashMap<>();
+    static Builder builder() {
+        return ReflectionUtils.newBuilder("org.apache.pulsar.client.admin.internal.data.AuthPoliciesImpl");
     }
 
-    @Override
-    public int hashCode() {
-        return Objects.hash(namespace_auth, destination_auth,
-                subscription_auth_roles);
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (obj instanceof AuthPolicies) {
-            AuthPolicies other = (AuthPolicies) obj;
-            return Objects.equals(namespace_auth, other.namespace_auth)
-                    && Objects.equals(destination_auth, other.destination_auth)
-                    && Objects.equals(subscription_auth_roles, other.subscription_auth_roles);
-        }
-
-        return false;
+    interface Builder {
+        AuthPolicies build();
+        Builder namespaceAuthentication(Map<String, Set<AuthAction>> namespaceAuthentication);
+        Builder topicAuthentication(Map<String, Map<String, Set<AuthAction>>> topicAuthentication);
+        Builder subscriptionAuthentication(Map<String, Set<String>> subscriptionAuthentication);
     }
 }

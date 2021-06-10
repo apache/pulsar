@@ -28,6 +28,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.testng.annotations.*;
@@ -102,8 +103,13 @@ public class TlsProducerConsumerBase extends ProducerConsumerBase {
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrlTls.toString())
                 .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).allowTlsInsecureConnection(false)
                 .authentication(AuthenticationTls.class.getName(), authParams).build());
-        admin.clusters().createCluster(clusterName, new ClusterDataImpl(brokerUrl.toString(), brokerUrlTls.toString(),
-                pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls()));
+        admin.clusters().createCluster(clusterName,
+                ClusterData.builder()
+                        .serviceUrl(brokerUrl.toString())
+                        .serviceUrlTls(brokerUrlTls.toString())
+                        .brokerServiceUrl(pulsar.getBrokerServiceUrl())
+                        .brokerServiceUrlTls(pulsar.getBrokerServiceUrlTls())
+                        .build());
         admin.tenants().createTenant("my-property",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
         admin.namespaces().createNamespace("my-property/my-ns");

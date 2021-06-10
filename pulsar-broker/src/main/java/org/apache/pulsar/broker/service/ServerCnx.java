@@ -128,8 +128,8 @@ import org.apache.pulsar.common.naming.Metadata;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
-import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.TopicOperation;
+import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.CommandUtils;
 import org.apache.pulsar.common.protocol.Commands;
@@ -566,7 +566,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     ByteBuf createConsumerStatsResponse(Consumer consumer, long requestId) {
-        ConsumerStats consumerStats = consumer.getStats();
+        ConsumerStatsImpl consumerStats = consumer.getStats();
         Subscription subscription = consumer.getSubscription();
 
         BaseCommand cmd = Commands.newConsumerStatsResponseCommand(ServerError.UnknownError, null, requestId);
@@ -986,7 +986,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 .thenCompose(optTopic -> {
                                     if (!optTopic.isPresent()) {
                                         return FutureUtil
-                                                .failedFuture(new TopicNotFoundException("Topic does not exist"));
+                                                .failedFuture(new TopicNotFoundException(
+                                                        "Topic " + topicName + " does not exist"));
                                     }
 
                                     Topic topic = optTopic.get();

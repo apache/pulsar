@@ -45,8 +45,8 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ConsumerStats;
-import org.apache.pulsar.common.policies.data.NonPersistentSubscriptionStats;
+import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.NonPersistentSubscriptionStatsImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -197,7 +197,7 @@ public class NonPersistentSubscription implements Subscription {
             dispatcher.removeConsumer(consumer);
         }
         // preserve accumulative stats form removed consumer
-        ConsumerStats stats = consumer.getStats();
+        ConsumerStatsImpl stats = consumer.getStats();
         bytesOutFromRemovedConsumers.add(stats.bytesOutCounter);
         msgOutFromRemovedConsumer.add(stats.msgOutCounter);
 
@@ -452,15 +452,15 @@ public class NonPersistentSubscription implements Subscription {
                 + " non-persistent topic.");
     }
 
-    public NonPersistentSubscriptionStats getStats() {
-        NonPersistentSubscriptionStats subStats = new NonPersistentSubscriptionStats();
+    public NonPersistentSubscriptionStatsImpl getStats() {
+        NonPersistentSubscriptionStatsImpl subStats = new NonPersistentSubscriptionStatsImpl();
         subStats.bytesOutCounter = bytesOutFromRemovedConsumers.longValue();
         subStats.msgOutCounter = msgOutFromRemovedConsumer.longValue();
 
         NonPersistentDispatcher dispatcher = this.dispatcher;
         if (dispatcher != null) {
             dispatcher.getConsumers().forEach(consumer -> {
-                ConsumerStats consumerStats = consumer.getStats();
+                ConsumerStatsImpl consumerStats = consumer.getStats();
                 subStats.consumers.add(consumerStats);
                 subStats.msgRateOut += consumerStats.msgRateOut;
                 subStats.msgThroughputOut += consumerStats.msgThroughputOut;

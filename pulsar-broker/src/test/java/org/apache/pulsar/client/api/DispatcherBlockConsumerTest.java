@@ -546,12 +546,12 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
 
             rolloverPerIntervalStats();
             stats = topicRef.getStats(false, false);
-            subStats = stats.subscriptions.values().iterator().next();
+            subStats = stats.getSubscriptions().values().iterator().next();
 
             // subscription stats
-            assertEquals(stats.subscriptions.keySet().size(), 1);
-            assertEquals(subStats.msgBacklog, 0);
-            assertEquals(subStats.consumers.size(), 1);
+            assertEquals(stats.getSubscriptions().keySet().size(), 1);
+            assertEquals(subStats.getMsgBacklog(), 0);
+            assertEquals(subStats.getConsumers().size(), 1);
 
             Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
             Thread.sleep(timeWaitToSync);
@@ -564,17 +564,17 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
 
             rolloverPerIntervalStats();
             stats = topicRef.getStats(false, false);
-            subStats = stats.subscriptions.values().iterator().next();
+            subStats = stats.getSubscriptions().values().iterator().next();
 
-            assertTrue(subStats.msgBacklog > 0);
-            assertTrue(subStats.unackedMessages > 0);
-            assertTrue(subStats.blockedSubscriptionOnUnackedMsgs);
-            assertEquals(subStats.consumers.get(0).unackedMessages, subStats.unackedMessages);
+            assertTrue(subStats.getMsgBacklog() > 0);
+            assertTrue(subStats.getUnackedMessages() > 0);
+            assertTrue(subStats.isBlockedSubscriptionOnUnackedMsgs());
+            assertEquals(subStats.getConsumers().get(0).getUnackedMessages(), subStats.getUnackedMessages());
 
             // consumer stats
-            assertTrue(subStats.consumers.get(0).msgRateOut > 0.0);
-            assertTrue(subStats.consumers.get(0).msgThroughputOut > 0.0);
-            assertEquals(subStats.msgRateRedeliver, 0.0);
+            assertTrue(subStats.getConsumers().get(0).getMsgRateOut() > 0.0);
+            assertTrue(subStats.getConsumers().get(0).getMsgThroughputOut() > 0.0);
+            assertEquals(subStats.getMsgRateRedeliver(), 0.0);
             producer.close();
             consumer.close();
 

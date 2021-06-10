@@ -39,6 +39,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.api.raw.RawMessageImpl;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.jctools.queues.SpscArrayQueue;
@@ -61,7 +62,7 @@ public class TestCacheSizeAllocator extends MockedPulsarServiceBaseTest {
     protected void setup() throws Exception {
         super.internalSetup();
 
-        admin.clusters().createCluster("test", new ClusterDataImpl(brokerUrl.toString()));
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
 
         // so that clients can test short names
         admin.tenants().createTenant("public",

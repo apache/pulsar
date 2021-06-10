@@ -29,8 +29,10 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.schema.Schemas;
@@ -49,10 +51,10 @@ import static org.testng.Assert.expectThrows;
 
 
 public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
-    private final static String CLUSTER_NAME = "test";
-    private final static String PUBLIC_TENANT = "public";
-    private final static String namespace = "test-namespace";
-    private final static String namespaceName = PUBLIC_TENANT + "/" + namespace;
+    private static final String CLUSTER_NAME = "test";
+    private static final String PUBLIC_TENANT = "public";
+    private static final String namespace = "test-namespace";
+    private static final String namespaceName = PUBLIC_TENANT + "/" + namespace;
 
     @BeforeClass
     @Override
@@ -60,10 +62,11 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
         super.internalSetup();
 
         // Setup namespaces
-        admin.clusters().createCluster(CLUSTER_NAME, new ClusterDataImpl(pulsar.getBrokerServiceUrl()));
+        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
 
-        TenantInfoImpl tenantInfo = new TenantInfoImpl();
-        tenantInfo.setAllowedClusters(Collections.singleton(CLUSTER_NAME));
+        TenantInfo tenantInfo = TenantInfo.builder()
+                .allowedClusters(Collections.singleton(CLUSTER_NAME))
+                .build();
         admin.tenants().createTenant(PUBLIC_TENANT, tenantInfo);
         admin.namespaces().createNamespace(namespaceName, Sets.newHashSet(CLUSTER_NAME));
 

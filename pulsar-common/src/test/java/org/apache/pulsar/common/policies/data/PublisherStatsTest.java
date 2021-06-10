@@ -21,13 +21,14 @@ package org.apache.pulsar.common.policies.data;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 
+import org.apache.pulsar.common.policies.data.stats.PublisherStatsImpl;
 import org.testng.annotations.Test;
 
 public class PublisherStatsTest {
 
     @Test
     public void testPublisherStats() {
-        PublisherStats stats = new PublisherStats();
+        PublisherStatsImpl stats = new PublisherStatsImpl();
         assertNull(stats.getAddress());
         assertNull(stats.getClientVersion());
         assertNull(stats.getConnectedSince());
@@ -77,17 +78,17 @@ public class PublisherStatsTest {
 
     @Test
     public void testPublisherStatsAggregation() {
-        PublisherStats stats1 = new PublisherStats();
+        PublisherStatsImpl stats1 = new PublisherStatsImpl();
         stats1.msgRateIn = 1;
         stats1.msgThroughputIn = 1;
         stats1.averageMsgSize = 1;
 
-        PublisherStats stats2 = new PublisherStats();
+        PublisherStatsImpl stats2 = new PublisherStatsImpl();
         stats2.msgRateIn = 1;
         stats2.msgThroughputIn = 2;
         stats2.averageMsgSize = 3;
 
-        PublisherStats target = new PublisherStats();
+        PublisherStatsImpl target = new PublisherStatsImpl();
         target.add(stats1);
         target.add(stats2);
 

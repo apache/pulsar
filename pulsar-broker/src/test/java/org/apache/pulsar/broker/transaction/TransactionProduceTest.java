@@ -56,6 +56,7 @@ import org.apache.pulsar.common.api.proto.MarkerType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.protocol.Commands;
@@ -72,14 +73,14 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class TransactionProduceTest extends TransactionTestBase {
 
-    private final static int TOPIC_PARTITION = 3;
+    private static final int TOPIC_PARTITION = 3;
 
-    private final static String TENANT = "tnx";
-    private final static String NAMESPACE1 = TENANT + "/ns1";
-    private final static String PRODUCE_COMMIT_TOPIC = NAMESPACE1 + "/produce-commit";
-    private final static String PRODUCE_ABORT_TOPIC = NAMESPACE1 + "/produce-abort";
-    private final static String ACK_COMMIT_TOPIC = NAMESPACE1 + "/ack-commit";
-    private final static String ACK_ABORT_TOPIC = NAMESPACE1 + "/ack-abort";
+    private static final String TENANT = "tnx";
+    private static final String NAMESPACE1 = TENANT + "/ns1";
+    private static final String PRODUCE_COMMIT_TOPIC = NAMESPACE1 + "/produce-commit";
+    private static final String PRODUCE_ABORT_TOPIC = NAMESPACE1 + "/produce-abort";
+    private static final String ACK_COMMIT_TOPIC = NAMESPACE1 + "/ack-commit";
+    private static final String ACK_ABORT_TOPIC = NAMESPACE1 + "/ack-abort";
 
     @BeforeMethod
     protected void setup() throws Exception {
@@ -87,7 +88,7 @@ public class TransactionProduceTest extends TransactionTestBase {
 
         String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
         String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length -1];
-        admin.clusters().createCluster(CLUSTER_NAME, new ClusterDataImpl("http://localhost:" + webServicePort));
+        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl("http://localhost:" + webServicePort).build());
         admin.tenants().createTenant(TENANT,
                 new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(NAMESPACE1);

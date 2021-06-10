@@ -64,7 +64,8 @@ public class PulsarPrimitiveRowDecoderFactory implements PulsarRowDecoderFactory
             return new PulsarPrimitiveRowDecoder((AbstractSchema<?>) AutoConsumeSchema.getSchema(schemaInfo),
                     columns.iterator().next());
         } else {
-            throw new RuntimeException("Primitive type must has only one ColumnHandle.");
+            return new PulsarPrimitiveRowDecoder((AbstractSchema<?>) AutoConsumeSchema.getSchema(schemaInfo),
+                    null);
         }
     }
 

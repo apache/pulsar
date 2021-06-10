@@ -34,7 +34,7 @@ import org.apache.pulsar.transaction.coordinator.impl.TransactionMetadataStoreSt
 @Slf4j
 public class TransactionAggregator {
 
-    private final static FastThreadLocal<AggregatedTransactionCoordinatorStats> localTransactionCoordinatorStats =
+    private static final FastThreadLocal<AggregatedTransactionCoordinatorStats> localTransactionCoordinatorStats =
             new FastThreadLocal<AggregatedTransactionCoordinatorStats>() {
                 @Override
                 protected AggregatedTransactionCoordinatorStats initialValue() throws Exception {
@@ -42,7 +42,7 @@ public class TransactionAggregator {
                 }
             };
 
-    private final static FastThreadLocal<ManagedLedgerStats> localManageLedgerStats =
+    private static final FastThreadLocal<ManagedLedgerStats> localManageLedgerStats =
             new FastThreadLocal<ManagedLedgerStats>() {
                 @Override
                 protected ManagedLedgerStats initialValue() throws Exception {

@@ -18,11 +18,12 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import com.google.common.base.Objects;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
-import lombok.Data;
 import java.util.List;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
  * The namespace isolation data for a given broker.
@@ -32,44 +33,67 @@ import java.util.List;
         description = "The namespace isolation data for a given broker"
 )
 @Data
-public class BrokerNamespaceIsolationDataImpl implements BrokerNamespaceIsolationData {
+@AllArgsConstructor
+@NoArgsConstructor
+public final class BrokerNamespaceIsolationDataImpl implements BrokerNamespaceIsolationData {
 
     @ApiModelProperty(
             name = "brokerName",
             value = "The broker name",
             example = "broker1:8080"
     )
-    public String brokerName;
+    private String brokerName;
     @ApiModelProperty(
             name = "policyName",
             value = "Policy name",
             example = "my-policy"
     )
-    public String policyName;
+    private String policyName;
     @ApiModelProperty(
             name = "isPrimary",
             value = "Is Primary broker",
             example = "true/false"
     )
-    public boolean isPrimary;
+    private boolean isPrimary;
     @ApiModelProperty(
             name = "namespaceRegex",
             value = "The namespace-isolation policies attached to this broker"
     )
-    public List<String> namespaceRegex; //isolated namespace regex
+    private List<String> namespaceRegex; //isolated namespace regex
 
-    @Override
-    public int hashCode() {
-        return Objects.hashCode(brokerName, namespaceRegex);
+    public static BrokerNamespaceIsolationDataImplBuilder builder() {
+        return new BrokerNamespaceIsolationDataImplBuilder();
     }
 
-    @Override
-    public boolean equals(Object obj) {
-        if (obj instanceof BrokerNamespaceIsolationDataImpl) {
-            BrokerNamespaceIsolationDataImpl other = (BrokerNamespaceIsolationDataImpl) obj;
-            return Objects.equal(brokerName, other.brokerName) && Objects.equal(namespaceRegex, other.namespaceRegex);
+
+    public static class BrokerNamespaceIsolationDataImplBuilder implements BrokerNamespaceIsolationData.Builder {
+        private String brokerName;
+        private String policyName;
+        private boolean isPrimary;
+        private List<String> namespaceRegex;
+
+        public BrokerNamespaceIsolationDataImplBuilder brokerName(String brokerName) {
+            this.brokerName = brokerName;
+            return this;
         }
-        return false;
-    }
 
+        public BrokerNamespaceIsolationDataImplBuilder policyName(String policyName) {
+            this.policyName = policyName;
+            return this;
+        }
+
+        public BrokerNamespaceIsolationDataImplBuilder primary(boolean isPrimary) {
+            this.isPrimary = isPrimary;
+            return this;
+        }
+
+        public BrokerNamespaceIsolationDataImplBuilder namespaceRegex(List<String> namespaceRegex) {
+            this.namespaceRegex = namespaceRegex;
+            return this;
+        }
+
+        public BrokerNamespaceIsolationDataImpl build() {
+            return new BrokerNamespaceIsolationDataImpl(brokerName, policyName, isPrimary, namespaceRegex);
+        }
+    }
 }

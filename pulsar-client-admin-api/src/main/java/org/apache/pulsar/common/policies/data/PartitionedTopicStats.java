@@ -18,35 +18,15 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import java.util.HashMap;
 import java.util.Map;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 
 /**
  * Statistics for a partitioned topic.
  */
-public class PartitionedTopicStats extends TopicStats {
+public interface PartitionedTopicStats extends TopicStats {
 
-    public PartitionedTopicMetadata metadata;
+    PartitionedTopicMetadata getMetadata();
 
-    public Map<String, TopicStats> partitions;
-
-    public PartitionedTopicStats() {
-        super();
-        metadata = new PartitionedTopicMetadata();
-        partitions = new HashMap<>();
-    }
-
-    public PartitionedTopicStats(PartitionedTopicMetadata metadata) {
-        this();
-        this.metadata = metadata;
-    }
-
-    @Override
-    public void reset() {
-        super.reset();
-        partitions.clear();
-        metadata.partitions = 0;
-    }
-
+    Map<String, TopicStats> getPartitions();
 }

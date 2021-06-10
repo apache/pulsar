@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.policies.data;
 
 import java.util.List;
+import org.apache.pulsar.client.admin.utils.ReflectionUtils;
 
 public interface BrokerNamespaceIsolationData {
     String getBrokerName();
@@ -29,11 +30,22 @@ public interface BrokerNamespaceIsolationData {
 
     List<String> getNamespaceRegex();
 
-    void setBrokerName(String brokerName);
+    interface Builder {
+        Builder brokerName(String brokerName);
 
-    void setPolicyName(String policyName);
+        Builder policyName(String policyName);
 
-    void setPrimary(boolean isPrimary);
+        Builder primary(boolean isPrimary);
 
-    void setNamespaceRegex(List<String> namespaceRegex);
+        Builder namespaceRegex(List<String> namespaceRegex);
+
+        BrokerNamespaceIsolationData build();
+    }
+
+    static Builder builder() {
+        return ReflectionUtils.newBuilder(
+                "org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataImpl");
+    }
+
+
 }

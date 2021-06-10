@@ -575,6 +575,8 @@ public class PulsarService implements AutoCloseable {
                 PulsarVersion.getBuildHost(),
                 PulsarVersion.getBuildTime());
 
+        long startTimestamp = System.currentTimeMillis();  // start time mills
+
         mutex.lock();
         try {
             if (state != State.Init) {
@@ -664,12 +666,9 @@ public class PulsarService implements AutoCloseable {
             attributeMap.put(WebService.ATTRIBUTE_PULSAR_NAME, this);
             Map<String, Object> vipAttributeMap = Maps.newHashMap();
             vipAttributeMap.put(VipStatus.ATTRIBUTE_STATUS_FILE_PATH, this.config.getStatusFilePath());
-            vipAttributeMap.put(VipStatus.ATTRIBUTE_IS_READY_PROBE, new Supplier<Boolean>() {
-                @Override
-                public Boolean get() {
-                    // Ensure the VIP status is only visible when the broker is fully initialized
-                    return state == State.Started;
-                }
+            vipAttributeMap.put(VipStatus.ATTRIBUTE_IS_READY_PROBE, (Supplier<Boolean>) () -> {
+                // Ensure the VIP status is only visible when the broker is fully initialized
+                return state == State.Started;
             });
             this.webService.addRestResources("/",
                     VipStatus.class.getPackage().getName(), false, vipAttributeMap);
@@ -740,8 +739,12 @@ public class PulsarService implements AutoCloseable {
             this.brokerServiceUrlTls = brokerUrlTls(config);
 
             if (null != this.webSocketService) {
-                ClusterDataImpl clusterData =
-                    new ClusterDataImpl(webServiceAddress, webServiceAddressTls, brokerServiceUrl, brokerServiceUrlTls);
+                ClusterDataImpl clusterData = ClusterDataImpl.builder()
+                        .serviceUrl(webServiceAddress)
+                        .serviceUrlTls(webServiceAddressTls)
+                        .brokerServiceUrl(brokerServiceUrl)
+                        .brokerServiceUrlTls(brokerServiceUrlTls)
+                        .build();
                 this.webSocketService.setLocalCluster(clusterData);
             }
 
@@ -812,13 +815,15 @@ public class PulsarService implements AutoCloseable {
                 this.resourceUsageTransportManager = (ResourceUsageTransportManager) object;
             }
 
+            long currentTimestamp = System.currentTimeMillis();
+            final long bootstrapTimeSeconds = TimeUnit.MILLISECONDS.toSeconds(currentTimestamp - startTimestamp);
+
             final String bootstrapMessage = "bootstrap service "
                     + (config.getWebServicePort().isPresent() ? "port = " + config.getWebServicePort().get() : "")
                     + (config.getWebServicePortTls().isPresent() ? ", tls-port = " + config.getWebServicePortTls() : "")
                     + (config.getBrokerServicePort().isPresent() ? ", broker url= " + brokerServiceUrl : "")
                     + (config.getBrokerServicePortTls().isPresent() ? ", broker tls url= " + brokerServiceUrlTls : "");
-            LOG.info("messaging service is ready");
-
+            LOG.info("messaging service is ready, bootstrap_seconds={}", bootstrapTimeSeconds);
             LOG.info("messaging service is ready, {}, cluster={}, configs={}", bootstrapMessage,
                     config.getClusterName(), ReflectionToStringBuilder.toString(config));
 

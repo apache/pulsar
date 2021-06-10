@@ -28,6 +28,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.AutoFailoverPolicy;
 import org.apache.pulsar.common.policies.NamespaceIsolationPolicy;
 import org.apache.pulsar.common.policies.data.BrokerStatus;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 
 /**
@@ -59,11 +60,11 @@ public class NamespaceIsolationPolicyImpl implements NamespaceIsolationPolicy {
         return matchedBrokers;
     }
 
-    public NamespaceIsolationPolicyImpl(NamespaceIsolationDataImpl policyData) {
-        this.namespaces = policyData.namespaces;
-        this.primary = policyData.primary;
-        this.secondary = policyData.secondary;
-        this.autoFailoverPolicy = AutoFailoverPolicyFactory.create(policyData.auto_failover_policy);
+    public NamespaceIsolationPolicyImpl(NamespaceIsolationData policyData) {
+        this.namespaces = policyData.getNamespaces();
+        this.primary = policyData.getPrimary();
+        this.secondary = policyData.getSecondary();
+        this.autoFailoverPolicy = AutoFailoverPolicyFactory.create(policyData.getAutoFailoverPolicy());
     }
 
     @Override

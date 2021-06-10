@@ -19,61 +19,23 @@
 package org.apache.pulsar.common.policies.data;
 
 import java.util.List;
-import java.util.Objects;
-import lombok.ToString;
+import org.apache.pulsar.common.policies.data.impl.BundlesDataImpl;
 
 /**
  * Holder for bundles.
  */
-@ToString
-public class BundlesData {
-    public List<String> boundaries;
-    public int numBundles;
+public interface BundlesData {
+    List<String> getBoundaries();
+    int getNumBundles();
 
-    public BundlesData() {
-        this.boundaries = null;
-        this.numBundles = 0;
+    interface Builder {
+        Builder boundaries(List<String> boundaries);
+        Builder numBundles(int numBundles);
+        BundlesData build();
     }
 
-    public BundlesData(List<String> boundaries) {
-        this.boundaries = boundaries;
-        this.numBundles = boundaries.size() - 1;
-    }
-
-    public BundlesData(int numBundles) {
-        this.boundaries = null;
-        this.numBundles = numBundles;
-    }
-
-    public List<String> getBoundaries() {
-        return boundaries;
-    }
-
-    public void setBoundaries(List<String> boundaries) {
-        this.boundaries = boundaries;
-    }
-
-    public int getNumBundles() {
-        return numBundles;
-    }
-
-    public void setNumBundles(int numBundles) {
-        this.numBundles = numBundles;
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(boundaries);
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (obj instanceof BundlesData) {
-            BundlesData other = (BundlesData) obj;
-            return Objects.equals(boundaries, other.boundaries);
-        }
-
-        return false;
+    static Builder builder() {
+        return BundlesDataImpl.builder();
     }
 
 }

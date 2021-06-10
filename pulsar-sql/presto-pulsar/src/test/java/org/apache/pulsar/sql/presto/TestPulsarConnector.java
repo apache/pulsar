@@ -96,7 +96,7 @@ public abstract class TestPulsarConnector {
 
     protected static PulsarDispatchingRowDecoderFactory dispatchingRowDecoderFactory;
 
-    protected final static PulsarConnectorId pulsarConnectorId = new PulsarConnectorId("test-connector");
+    protected static final PulsarConnectorId pulsarConnectorId = new PulsarConnectorId("test-connector");
 
     protected static List<TopicName> topicNames;
     protected static List<TopicName> partitionedTopicNames;
@@ -104,7 +104,7 @@ public abstract class TestPulsarConnector {
     protected static Map<String, SchemaInfo> topicsToSchemas;
     protected static Map<String, Long> topicsToNumEntries;
 
-    private final static ObjectMapper objectMapper = new ObjectMapper();
+    private static final ObjectMapper objectMapper = new ObjectMapper();
 
     protected static List<String> fooFieldNames = new ArrayList<>();
 

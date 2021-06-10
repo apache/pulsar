@@ -18,17 +18,22 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import org.apache.pulsar.common.policies.data.impl.BookieInfoImpl;
 
 /**
  * Bookie information.
  */
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
-public class BookieInfo {
-    private String rack;
-    private String hostname;
+public interface BookieInfo {
+    String getRack();
+    String getHostname();
+
+    interface Builder {
+        Builder rack(String rack);
+        Builder hostname(String hostname);
+        BookieInfo build();
+    }
+
+    static Builder builder() {
+        return BookieInfoImpl.builder();
+    }
 }

@@ -16,27 +16,39 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.pulsar.common.policies.data.impl;
 
-package org.apache.pulsar.common.functions;
-
+import java.util.List;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import org.apache.pulsar.common.policies.data.BookiesClusterInfo;
+import org.apache.pulsar.common.policies.data.RawBookieInfo;
 
 /**
- * Configuration of extra pulsar clusters to sent output message.
+ * Raw bookies information.
  */
 @Data
-@Builder
-@NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode
-public class ExternalPulsarConfig {
-    private String name;
-    private String serviceURL;
-    private String webServiceURL;
-    private AuthenticationConfig authConfig;
-    private ProducerConfig producerConfig;
+@NoArgsConstructor
+public final class BookiesClusterInfoImpl implements BookiesClusterInfo {
+
+    private List<RawBookieInfo> bookies;
+
+    public static BookiesClusterInfoImplBuilder builder() {
+        return new BookiesClusterInfoImplBuilder();
+    }
+
+    public static class BookiesClusterInfoImplBuilder implements BookiesClusterInfo.Builder{
+        private List<RawBookieInfo> bookies;
+
+        public BookiesClusterInfoImplBuilder bookies(List<RawBookieInfo> bookies) {
+            this.bookies = bookies;
+            return this;
+        }
+
+        public BookiesClusterInfoImpl build() {
+            return new BookiesClusterInfoImpl(bookies);
+        }
+    }
 }

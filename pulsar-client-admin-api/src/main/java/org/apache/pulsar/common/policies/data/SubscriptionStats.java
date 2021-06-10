@@ -18,160 +18,91 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 /**
  * Statistics about subscription.
  */
-public class SubscriptionStats {
+public interface SubscriptionStats {
     /** Total rate of messages delivered on this subscription (msg/s). */
-    public double msgRateOut;
+    double getMsgRateOut();
 
     /** Total throughput delivered on this subscription (bytes/s). */
-    public double msgThroughputOut;
+    double getMsgThroughputOut();
 
     /** Total bytes delivered to consumer (bytes). */
-    public long bytesOutCounter;
+    long getBytesOutCounter();
 
     /** Total messages delivered to consumer (msg). */
-    public long msgOutCounter;
+    long getMsgOutCounter();
 
     /** Total rate of messages redelivered on this subscription (msg/s). */
-    public double msgRateRedeliver;
-
-    /**
-     * Chunked message dispatch rate.
-     * @deprecated use {@link chunkedMessageRate)}
-     */
-    @Deprecated
-    public int chuckedMessageRate;
+    double getMsgRateRedeliver();
 
     /** Chunked message dispatch rate. */
-    public int chunkedMessageRate;
+    int getChunkedMessageRate();
 
     /** Number of messages in the subscription backlog. */
-    public long msgBacklog;
+    long getMsgBacklog();
 
     /** Size of backlog in byte. **/
-    public long backlogSize;
+    long getBacklogSize();
 
     /** Number of messages in the subscription backlog that do not contain the delay messages. */
-    public long msgBacklogNoDelayed;
+    long getMsgBacklogNoDelayed();
 
     /** Flag to verify if subscription is blocked due to reaching threshold of unacked messages. */
-    public boolean blockedSubscriptionOnUnackedMsgs;
+    boolean isBlockedSubscriptionOnUnackedMsgs();
 
     /** Number of delayed messages currently being tracked. */
-    public long msgDelayed;
+    long getMsgDelayed();
 
     /** Number of unacknowledged messages for the subscription. */
-    public long unackedMessages;
+    long getUnackedMessages();
 
     /** Whether this subscription is Exclusive or Shared or Failover. */
-    public String type;
+    String getType();
 
     /** The name of the consumer that is active for single active consumer subscriptions i.e. failover or exclusive. */
-    public String activeConsumerName;
+    String getActiveConsumerName();
 
     /** Total rate of messages expired on this subscription (msg/s). */
-    public double msgRateExpired;
+    double getMsgRateExpired();
 
     /** Total messages expired on this subscription. */
-    public long totalMsgExpired;
+    long getTotalMsgExpired();
 
     /** Last message expire execution timestamp. */
-    public long lastExpireTimestamp;
+    long getLastExpireTimestamp();
 
     /** Last received consume flow command timestamp. */
-    public long lastConsumedFlowTimestamp;
+    long getLastConsumedFlowTimestamp();
 
     /** Last consume message timestamp. */
-    public long lastConsumedTimestamp;
+    long getLastConsumedTimestamp();
 
     /** Last acked message timestamp. */
-    public long lastAckedTimestamp;
+    long getLastAckedTimestamp();
 
     /** Last MarkDelete position advanced timesetamp. */
-    public long lastMarkDeleteAdvancedTimestamp;
+    long getLastMarkDeleteAdvancedTimestamp();
 
     /** List of connected consumers on this subscription w/ their stats. */
-    public List<ConsumerStats> consumers;
+    List<? extends ConsumerStats> getConsumers();
 
     /** Tells whether this subscription is durable or ephemeral (eg.: from a reader). */
-    public boolean isDurable;
+    boolean isDurable();
 
     /** Mark that the subscription state is kept in sync across different regions. */
-    public boolean isReplicated;
+    boolean isReplicated();
 
     /** This is for Key_Shared subscription to get the recentJoinedConsumers in the Key_Shared subscription. */
-    public Map<String, String> consumersAfterMarkDeletePosition;
+    Map<String, String> getConsumersAfterMarkDeletePosition();
 
     /** The number of non-contiguous deleted messages ranges. */
-    public int nonContiguousDeletedMessagesRanges;
+    int getNonContiguousDeletedMessagesRanges();
 
     /** The serialized size of non-contiguous deleted messages ranges. */
-    public int nonContiguousDeletedMessagesRangesSerializedSize;
-
-    public SubscriptionStats() {
-        this.consumers = new ArrayList<>();
-        this.consumersAfterMarkDeletePosition = new LinkedHashMap<>();
-    }
-
-    public void reset() {
-        msgRateOut = 0;
-        msgThroughputOut = 0;
-        bytesOutCounter = 0;
-        msgOutCounter = 0;
-        msgRateRedeliver = 0;
-        msgBacklog = 0;
-        backlogSize = 0;
-        msgBacklogNoDelayed = 0;
-        unackedMessages = 0;
-        msgRateExpired = 0;
-        totalMsgExpired = 0;
-        lastExpireTimestamp = 0L;
-        lastMarkDeleteAdvancedTimestamp = 0L;
-        consumers.clear();
-        consumersAfterMarkDeletePosition.clear();
-        nonContiguousDeletedMessagesRanges = 0;
-        nonContiguousDeletedMessagesRangesSerializedSize = 0;
-    }
-
-    // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current
-    // stats
-    public SubscriptionStats add(SubscriptionStats stats) {
-        Objects.requireNonNull(stats);
-        this.msgRateOut += stats.msgRateOut;
-        this.msgThroughputOut += stats.msgThroughputOut;
-        this.bytesOutCounter += stats.bytesOutCounter;
-        this.msgOutCounter += stats.msgOutCounter;
-        this.msgRateRedeliver += stats.msgRateRedeliver;
-        this.msgBacklog += stats.msgBacklog;
-        this.backlogSize += stats.backlogSize;
-        this.msgBacklogNoDelayed += stats.msgBacklogNoDelayed;
-        this.msgDelayed += stats.msgDelayed;
-        this.unackedMessages += stats.unackedMessages;
-        this.msgRateExpired += stats.msgRateExpired;
-        this.totalMsgExpired += stats.totalMsgExpired;
-        this.isReplicated |= stats.isReplicated;
-        this.isDurable |= stats.isDurable;
-        if (this.consumers.size() != stats.consumers.size()) {
-            for (int i = 0; i < stats.consumers.size(); i++) {
-                ConsumerStats consumerStats = new ConsumerStats();
-                this.consumers.add(consumerStats.add(stats.consumers.get(i)));
-            }
-        } else {
-            for (int i = 0; i < stats.consumers.size(); i++) {
-                this.consumers.get(i).add(stats.consumers.get(i));
-            }
-        }
-        this.consumersAfterMarkDeletePosition.putAll(stats.consumersAfterMarkDeletePosition);
-        this.nonContiguousDeletedMessagesRanges += stats.nonContiguousDeletedMessagesRanges;
-        this.nonContiguousDeletedMessagesRangesSerializedSize += stats.nonContiguousDeletedMessagesRangesSerializedSize;
-        return this;
-    }
+    int getNonContiguousDeletedMessagesRangesSerializedSize();
 }

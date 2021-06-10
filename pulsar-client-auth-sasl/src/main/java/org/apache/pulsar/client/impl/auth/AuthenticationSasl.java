@@ -78,8 +78,8 @@ import org.apache.pulsar.common.sasl.JAASCredentialsContainer;
 public class AuthenticationSasl implements Authentication, EncodedAuthenticationParameterSupport {
     private static final long serialVersionUID = 1L;
     // this is a static object that shares amongst client.
-    static private JAASCredentialsContainer jaasCredentialsContainer;
-    static private volatile boolean initializedJAAS = false;
+    private static JAASCredentialsContainer jaasCredentialsContainer;
+    private static volatile boolean initializedJAAS = false;
 
     private Map<String, String> configuration;
     private String loginContextName;
