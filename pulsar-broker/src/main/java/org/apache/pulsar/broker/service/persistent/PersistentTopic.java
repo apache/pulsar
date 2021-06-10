@@ -316,7 +316,7 @@ public class PersistentTopic extends AbstractTopic
         checkReplicatedSubscriptionControllerState();
         TopicName topicName = TopicName.get(topic);
         if (brokerService.getPulsar().getConfiguration().isTransactionCoordinatorEnabled()
-                && !checkTopicIsEventsNames(topic)
+                && !checkTopicIsEventsNames(topicName)
                 && !topicName.getEncodedLocalName().startsWith(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getLocalName())
                 && !topicName.getEncodedLocalName().startsWith(MLTransactionLogImpl.TRANSACTION_LOG_PREFIX)
                 && !topicName.getEncodedLocalName().endsWith(MLPendingAckStore.PENDING_ACK_STORE_SUFFIX)) {

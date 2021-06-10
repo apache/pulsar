@@ -25,6 +25,7 @@ import static org.testng.Assert.fail;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.TopicType;
@@ -365,5 +366,31 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         } catch (Exception e) {
             assertTrue(e instanceof PulsarClientException);
         }
+    }
+
+    @Test
+    public void testAutoCreationOfSystemTopicTransactionBufferSnapshot() throws Exception {
+        pulsar.getConfiguration().setAllowAutoTopicCreation(false);
+        pulsar.getConfiguration().setSystemTopicEnabled(true);
+
+        final String topicString = "persistent://prop/ns-abc/" + EventsTopicNames.TRANSACTION_BUFFER_SNAPSHOT;
+
+        pulsarClient.newProducer().topic(topicString).create();
+
+        assertTrue(admin.namespaces().getTopics("prop/ns-abc").contains(topicString));
+        assertFalse(admin.topics().getPartitionedTopicList("prop/ns-abc").contains(topicString));
+    }
+
+    @Test
+    public void testAutoCreationOfSystemTopicNamespaceEvents() throws Exception {
+        pulsar.getConfiguration().setAllowAutoTopicCreation(false);
+        pulsar.getConfiguration().setSystemTopicEnabled(true);
+
+        final String topicString = "persistent://prop/ns-abc/" + EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME;
+
+        pulsarClient.newProducer().topic(topicString).create();
+
+        assertTrue(admin.namespaces().getTopics("prop/ns-abc").contains(topicString));
+        assertFalse(admin.topics().getPartitionedTopicList("prop/ns-abc").contains(topicString));
     }
 }
