@@ -265,7 +265,7 @@ You can check the following statistics of a given non-partitioned topic.
 
           -   **chunkedMessageRate**: Chunked message dispatch rate.
 
-          -   **backlogSize**: Size of backlog in byte.
+          -   **backlogSize**: Size of backlog (in byte).
 
           -   **msgBacklogNoDelayed**: Number of messages in the subscription backlog that do not contain the delay messages.
 
