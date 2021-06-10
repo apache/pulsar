@@ -86,6 +86,7 @@
                                     <include>org.apache.pulsar:pulsar-client-api</include>
                                     <include>org.apache.pulsar:pulsar-client-admin-api</include>
                                     <include>org.apache.pulsar:pulsar-functions-api-examples</include>
+                                    <include>com.google.guava:*</include>
                                 </includes>
                             </artifactSet>
                             <filters>
