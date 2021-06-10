@@ -37,11 +37,6 @@
     <vulnerabilityName regex="true">.*</vulnerabilityName>
   </suppress>
   <suppress>
-    <notes>Suppress vert.x 3.5.4 vulnerabilities</notes>
-    <gav regex="true">io\.vertx:.*:3\.5\.4</gav>
-    <vulnerabilityName regex="true">.*</vulnerabilityName>
-  </suppress>
-  <suppress>
     <notes>Suppress Zookeeper 3.6.2 vulnerabilities</notes>
     <gav regex="true">org\.apache\.zookeeper:.*:3\.6\.2</gav>
     <vulnerabilityName regex="true">.*</vulnerabilityName>
