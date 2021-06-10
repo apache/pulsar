@@ -257,7 +257,7 @@ You can check the following statistics of a given non-partitioned topic.
           
           -   **lastAckedTimestamp**: The latest timestamp of all the acked timestamp of the consumers.
 
-          -   **bytesOutCounter**: Total bytes delivered to consumer (bytes).
+          -   **bytesOutCounter**: Total bytes delivered to consumer.
 
           -   **msgOutCounter**: Total messages delivered to consumer (msg).
 
