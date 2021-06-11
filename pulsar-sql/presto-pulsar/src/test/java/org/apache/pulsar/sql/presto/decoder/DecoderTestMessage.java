@@ -75,14 +75,14 @@ public class DecoderTestMessage {
      * POJO for cyclic detect.
      */
     @Data
-    static public class CyclicFoo {
+    public static class CyclicFoo {
         private String field1;
         private Integer field2;
         private CyclicBoo boo;
     }
 
     @Data
-    static public class CyclicBoo {
+    public static class CyclicBoo {
         private String field1;
         private Boolean field2;
         private CyclicFoo foo;

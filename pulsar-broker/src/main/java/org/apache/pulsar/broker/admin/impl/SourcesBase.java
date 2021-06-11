@@ -37,7 +37,7 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.common.functions.UpdateOptions;
+import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.io.ConfigFieldDefinition;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SourceConfig;
@@ -59,7 +59,7 @@ public class SourcesBase extends AdminResource {
             @ApiResponse(code = 200, message = "Pulsar Function successfully created"),
             @ApiResponse(code = 400, message =
                     "Invalid request (Function already exists or Tenant, Namespace or Name is not provided, etc.)"),
-            @ApiResponse(code = 401, message = "Client is not authorize to perform operation"),
+            @ApiResponse(code = 401, message = "Client is not authorized to perform operation"),
             @ApiResponse(code = 500, message = "Internal Server Error"),
             @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
 
@@ -139,7 +139,7 @@ public class SourcesBase extends AdminResource {
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 400, message =
                     "Invalid request (Function already exists or Tenant, Namespace or Name is not provided, etc.)"),
-            @ApiResponse(code = 401, message = "Client is not authorize to perform operation"),
+            @ApiResponse(code = 401, message = "Client is not authorized to perform operation"),
             @ApiResponse(code = 200, message = "Pulsar Function successfully updated"),
             @ApiResponse(code = 404, message = "Not Found(The Pulsar Source doesn't exist)"),
             @ApiResponse(code = 500, message = "Internal Server Error"),
@@ -211,7 +211,7 @@ public class SourcesBase extends AdminResource {
             )
             final @FormDataParam("sourceConfig") SourceConfig sourceConfig,
             @ApiParam(value = "Update options for Pulsar Source")
-            final @FormDataParam("updateOptions") UpdateOptions updateOptions) {
+            final @FormDataParam("updateOptions") UpdateOptionsImpl updateOptions) {
         sources().updateSource(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
             sourcePkgUrl, sourceConfig, clientAppId(), clientAuthData(), updateOptions);
     }
@@ -221,7 +221,7 @@ public class SourcesBase extends AdminResource {
     @ApiOperation(value = "Deletes a Pulsar Source currently running in cluster mode")
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 401, message = "Client is not authorize to perform operation"),
+            @ApiResponse(code = 401, message = "Client is not authorized to perform operation"),
             @ApiResponse(code = 404, message = "Not Found(The Pulsar Source doesn't exist)"),
             @ApiResponse(code = 408, message = "Request timeout"),
             @ApiResponse(code = 200, message = "The function was successfully deleted"),
@@ -314,7 +314,7 @@ public class SourcesBase extends AdminResource {
     )
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 401, message = "Client is not authorize to perform operation"),
+            @ApiResponse(code = 401, message = "Client is not authorized to perform operation"),
             @ApiResponse(code = 500, message = "Internal Server Error"),
             @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
     })
@@ -333,7 +333,7 @@ public class SourcesBase extends AdminResource {
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this source"),
             @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 401, message = "Client is not authorize to perform operation"),
+            @ApiResponse(code = 401, message = "Client is not authorized to perform operation"),
             @ApiResponse(code = 404, message = "Not Found(The Pulsar Source doesn't exist)"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
@@ -355,7 +355,7 @@ public class SourcesBase extends AdminResource {
     @ApiOperation(value = "Restart all instances of a Pulsar Source", response = Void.class)
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 401, message = "Client is not authorize to perform operation"),
+            @ApiResponse(code = 401, message = "Client is not authorized to perform operation"),
             @ApiResponse(code = 404, message = "Not Found(The Pulsar Source doesn't exist)"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
@@ -376,7 +376,7 @@ public class SourcesBase extends AdminResource {
     @ApiOperation(value = "Stop instance of a Pulsar Source", response = Void.class)
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 401, message = "Client is not authorize to perform operation"),
+            @ApiResponse(code = 401, message = "Client is not authorized to perform operation"),
             @ApiResponse(code = 404, message = "Not Found(The Pulsar Source doesn't exist)"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
@@ -397,7 +397,7 @@ public class SourcesBase extends AdminResource {
     @ApiOperation(value = "Stop all instances of a Pulsar Source", response = Void.class)
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 401, message = "Client is not authorize to perform operation"),
+            @ApiResponse(code = 401, message = "Client is not authorized to perform operation"),
             @ApiResponse(code = 404, message = "Not Found(The Pulsar Source doesn't exist)"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
@@ -418,7 +418,7 @@ public class SourcesBase extends AdminResource {
     @ApiOperation(value = "Start an instance of a Pulsar Source", response = Void.class)
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 401, message = "Client is not authorize to perform operation"),
+            @ApiResponse(code = 401, message = "Client is not authorized to perform operation"),
             @ApiResponse(code = 404, message = "Not Found(The Pulsar Source doesn't exist)"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
@@ -439,7 +439,7 @@ public class SourcesBase extends AdminResource {
     @ApiOperation(value = "Start all instances of a Pulsar Source", response = Void.class)
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 401, message = "Client is not authorize to perform operation"),
+            @ApiResponse(code = 401, message = "Client is not authorized to perform operation"),
             @ApiResponse(code = 404, message = "Not Found(The Pulsar Source doesn't exist)"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
@@ -506,6 +506,6 @@ public class SourcesBase extends AdminResource {
     })
     @Path("/reloadBuiltInSources")
     public void reloadSources() {
-        sources().reloadConnectors(clientAppId());
+        sources().reloadConnectors(clientAppId(), clientAuthData());
     }
 }

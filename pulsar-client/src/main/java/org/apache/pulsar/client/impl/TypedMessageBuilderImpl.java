@@ -35,7 +35,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
-import org.apache.pulsar.client.impl.schema.KeyValueSchema;
+import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
@@ -108,7 +108,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     @Override
     public TypedMessageBuilder<T> key(String key) {
         if (schema.getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
-            KeyValueSchema kvSchema = (KeyValueSchema) schema;
+            KeyValueSchemaImpl kvSchema = (KeyValueSchemaImpl) schema;
             checkArgument(!(kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED),
                     "This method is not allowed to set keys when in encoding type is SEPARATED");
             if (key == null) {
@@ -123,8 +123,8 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     @Override
     public TypedMessageBuilder<T> keyBytes(byte[] key) {
-        if (schema.getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
-            KeyValueSchema kvSchema = (KeyValueSchema) schema;
+        if (schema instanceof KeyValueSchemaImpl && schema.getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
+            KeyValueSchemaImpl kvSchema = (KeyValueSchemaImpl) schema;
             checkArgument(!(kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED),
                     "This method is not allowed to set keys when in encoding type is SEPARATED");
             if (key == null) {
@@ -149,8 +149,9 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
             msgMetadata.setNullValue(true);
             return this;
         }
-        if (schema.getSchemaInfo() != null && schema.getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
-            KeyValueSchema kvSchema = (KeyValueSchema) schema;
+        if (value instanceof org.apache.pulsar.common.schema.KeyValue
+                && schema.getSchemaInfo() != null && schema.getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
+            KeyValueSchemaImpl kvSchema = (KeyValueSchemaImpl) schema;
             org.apache.pulsar.common.schema.KeyValue kv = (org.apache.pulsar.common.schema.KeyValue) value;
             if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
                 // set key as the message key

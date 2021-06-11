@@ -230,7 +230,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |maxConcurrentLookupRequest|  Max number of concurrent lookup request broker allows to throttle heavy incoming lookup traffic |50000|
 |maxConcurrentTopicLoadRequest| Max number of concurrent topic loading request broker allows to control number of zk-operations |5000|
 |authenticationEnabled| Enable authentication |false|
-|authenticationProviders| Autentication provider name list, which is comma separated list of class names  ||
+|authenticationProviders| Authentication provider name list, which is comma separated list of class names  ||
 | authenticationRefreshCheckSeconds | Interval of time for checking for expired authentication credentials | 60 |
 |authorizationEnabled|  Enforce authorization |false|
 |superUserRoles|  Role names that are treated as “super-user”, meaning they will be able to do all admin operations and publish/consume from all topics ||
@@ -459,7 +459,7 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |ttlDurationDefaultInSeconds|  The default Time to Live (TTL) for namespaces if the TTL is not configured at namespace policies. When the value is set to `0`, TTL is disabled. By default, TTL is disabled. |0|
 |brokerDeleteInactiveTopicsEnabled| Enable the deletion of inactive topics. |true|
 |brokerDeleteInactiveTopicsFrequencySeconds|  How often to check for inactive topics, in seconds. |60|
-| maxPendingPublishdRequestsPerConnection | Maximum pending publish requests per connection to avoid keeping large number of pending requests in memory | 1000|
+| maxPendingPublishRequestsPerConnection | Maximum pending publish requests per connection to avoid keeping large number of pending requests in memory | 1000|
 |messageExpiryCheckIntervalInMinutes| How often to proactively check and purged expired messages. |5|
 |activeConsumerFailoverDelayTimeMillis| How long to delay rewinding cursor and dispatching messages when active consumer is changed.  |1000|
 | subscriptionExpirationTimeMinutes | How long to delete inactive subscriptions from last consumption. When it is set to 0, inactive subscriptions are not deleted automatically | 0 |
@@ -564,8 +564,8 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |bookkeeperClientHealthCheckIntervalSeconds|  The time interval, in seconds, at which health checks are performed. New ledgers are not created during health checks.  |60|
 |bookkeeperClientHealthCheckErrorThresholdPerInterval|  Error threshold for health checks.  |5|
 |bookkeeperClientHealthCheckQuarantineTimeInSeconds|  If bookies have more than the allowed number of failures within the time interval specified by bookkeeperClientHealthCheckIntervalSeconds |1800|
-|bookkeeperGetBookieInfoIntervalSeconds|Specify options for the GetBookieInfo check. This setting helps ensure the list of bookies that are up to date on the brokers.|86400|
-|bookkeeperGetBookieInfoRetryIntervalSeconds|Specify options for the GetBookieInfo check. This setting helps ensure the list of bookies that are up to date on the brokers.|60|
+|bookkeeperClientGetBookieInfoIntervalSeconds|Specify options for the GetBookieInfo check. This setting helps ensure the list of bookies that are up to date on the brokers.|86400|
+|bookkeeperClientGetBookieInfoRetryIntervalSeconds|Specify options for the GetBookieInfo check. This setting helps ensure the list of bookies that are up to date on the brokers.|60|
 |bookkeeperClientRackawarePolicyEnabled|    |true|
 |bookkeeperClientRegionawarePolicyEnabled|    |false|
 |bookkeeperClientMinNumRacksPerWriteQuorum|    |2|

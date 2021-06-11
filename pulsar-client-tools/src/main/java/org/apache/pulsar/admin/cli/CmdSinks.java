@@ -27,6 +27,9 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.StringConverter;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
@@ -51,10 +54,11 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
-import org.apache.pulsar.common.functions.UpdateOptions;
+import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.functions.Utils;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 @Getter
 @Parameters(commandDescription = "Interface for managing Pulsar IO sinks (egress data from Pulsar)")
@@ -169,6 +173,8 @@ public class CmdSinks extends CmdBase {
         protected String secretsProviderClassName;
         @Parameter(names = "--secrets-provider-config", description = "Config that needs to be passed to secrets provider")
         protected String secretsProviderConfig;
+        @Parameter(names = "--metrics-port-start", description = "The starting port range for metrics server")
+        protected String metricsPortStart;
 
         private void mergeArgs() {
             if (!StringUtils.isBlank(DEPRECATED_brokerServiceUrl)) brokerServiceUrl = DEPRECATED_brokerServiceUrl;
@@ -229,7 +235,7 @@ public class CmdSinks extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            UpdateOptions updateOptions = new UpdateOptions();
+            UpdateOptionsImpl updateOptions = new UpdateOptionsImpl();
             updateOptions.setUpdateAuthData(updateAuthData);
             if (Utils.isFunctionPackageUrlSupported(archive)) {
                 getAdmin().sinks().updateSinkWithUrl(sinkConfig, sinkConfig.getArchive(), updateOptions);
@@ -461,8 +467,12 @@ public class CmdSinks extends CmdBase {
                 sinkConfig.setResources(resources);
             }
 
-            if (null != sinkConfigString) {
-                sinkConfig.setConfigs(parseConfigs(sinkConfigString));
+            try {
+                if (null != sinkConfigString) {
+                    sinkConfig.setConfigs(parseConfigs(sinkConfigString));
+                }
+            } catch (Exception ex) {
+                throw new ParameterException("Cannot parse sink-config", ex);
             }
 
             if (autoAck != null) {
@@ -483,9 +493,12 @@ public class CmdSinks extends CmdBase {
             validateSinkConfigs(sinkConfig);
         }
 
-        protected Map<String, Object> parseConfigs(String str) {
-            Type type = new TypeToken<Map<String, Object>>(){}.getType();
-            return new Gson().fromJson(str, type);
+        protected Map<String, Object> parseConfigs(String str) throws JsonProcessingException {
+            ObjectMapper mapper = ObjectMapperFactory.getThreadLocal();
+            TypeReference<HashMap<String,Object>> typeRef
+                = new TypeReference<HashMap<String,Object>>() {};
+
+            return mapper.readValue(str, typeRef);
         }
 
         protected void validateSinkConfigs(SinkConfig sinkConfig) {

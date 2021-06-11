@@ -72,6 +72,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
@@ -90,12 +91,12 @@ import org.testng.collections.Lists;
 /**
  * Starts 3 brokers that are in 3 different clusters
  */
-@Test(groups = "flaky")
+@Test(groups = "quarantine")
 public class ReplicatorTest extends ReplicatorTestBase {
 
     protected String methodName;
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void beforeMethod(Method m) throws Exception {
         methodName = m.getName();
         admin1.namespaces().removeBacklogQuota("pulsar/ns");
@@ -104,7 +105,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
     }
 
     @Override
-    @BeforeClass(timeOut = 300000)
+    @BeforeClass(alwaysRun = true, timeOut = 300000)
     public void setup() throws Exception {
         super.setup();
     }
@@ -206,12 +207,12 @@ public class ReplicatorTest extends ReplicatorTestBase {
     public void activeBrokerParse() throws Exception {
         pulsar1.getConfiguration().setAuthorizationEnabled(true);
         //init clusterData
-        ClusterData cluster2Data = new ClusterData();
+
         String cluster2ServiceUrls = String.format("%s,localhost:1234,localhost:5678", pulsar2.getWebServiceAddress());
-        cluster2Data.setServiceUrl(cluster2ServiceUrls);
+        ClusterData cluster2Data = ClusterData.builder().serviceUrl(cluster2ServiceUrls).build();
         String cluster2 = "activeCLuster2";
         admin2.clusters().createCluster(cluster2, cluster2Data);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).until(()
+        Awaitility.await().until(()
                 -> admin2.clusters().getCluster(cluster2) != null);
 
         List<String> list = admin1.brokers().getActiveBrokers(cluster2);
@@ -258,6 +259,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         replicationClients.put("r3", pulsarClient);
 
         admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"));
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newFixedThreadPool(5);
         for (int i = 0; i < 5; i++) {
             executor.submit(() -> {
@@ -274,8 +276,6 @@ public class ReplicatorTest extends ReplicatorTestBase {
                 .createProducerAsync(
                         Mockito.any(ProducerConfigurationData.class),
                         Mockito.any(Schema.class), eq(null));
-
-        executor.shutdown();
     }
 
     @DataProvider(name = "namespace")
@@ -493,7 +493,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         replicator.updateRates(); // for code-coverage
         replicator.expireMessages(1); // for code-coverage
         ReplicatorStats status = replicator.getStats();
-        assertEquals(status.replicationBacklog, 0);
+        assertEquals(status.getReplicationBacklog(), 0);
     }
 
     @Test(timeOut = 30000)
@@ -659,7 +659,10 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         for (RetentionPolicy policy : policies) {
             // Use 1Mb quota by default
-            admin1.namespaces().setBacklogQuota("pulsar/ns1", new BacklogQuota(1 * 1024 * 1024, policy));
+            admin1.namespaces().setBacklogQuota("pulsar/ns1", BacklogQuota.builder()
+                    .limitSize(1 * 1024 * 1024)
+                    .retentionPolicy(policy)
+                    .build());
             Thread.sleep(200);
 
             TopicName dest = TopicName
@@ -684,7 +687,10 @@ public class ReplicatorTest extends ReplicatorTestBase {
             Thread.sleep(500);
 
             // Restrict backlog quota limit to 1 byte to stop replication
-            admin1.namespaces().setBacklogQuota("pulsar/ns1", new BacklogQuota(1, policy));
+            admin1.namespaces().setBacklogQuota("pulsar/ns1", BacklogQuota.builder()
+                    .limitSize(1)
+                    .retentionPolicy(policy)
+                    .build());
 
             Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA + 1) * 1000);
 
@@ -770,12 +776,14 @@ public class ReplicatorTest extends ReplicatorTestBase {
     public void verifyChecksumAfterReplication() throws Exception {
         final String topicName = BrokerTestUtil.newUniqueName("persistent://pulsar/ns/checksumAfterReplication");
 
+        @Cleanup
         PulsarClient c1 = PulsarClient.builder().serviceUrl(url1.toString()).build();
         Producer<byte[]> p1 = c1.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .create();
 
+        @Cleanup
         PulsarClient c2 = PulsarClient.builder().serviceUrl(url2.toString()).build();
         RawReader reader2 = RawReader.create(c2, topicName, "sub").get();
 
@@ -820,6 +828,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         }
 
         // load namespace with dummy topic on ns
+        @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(url1.toString()).build();
         client.newProducer().topic("persistent://" + namespace + "/dummyTopic")
             .enableBatching(false)
@@ -865,8 +874,10 @@ public class ReplicatorTest extends ReplicatorTestBase {
         admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"));
         admin1.topics().createPartitionedTopic(topicName, 4);
 
+        @Cleanup
         PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
+        @Cleanup
         PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
@@ -915,8 +926,10 @@ public class ReplicatorTest extends ReplicatorTestBase {
         admin1.namespaces().createNamespace(namespace, Sets.newHashSet(cluster1, cluster2));
         admin1.topics().createPartitionedTopic(topicName, startPartitions);
 
+        @Cleanup
         PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
+        @Cleanup
         PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
@@ -943,9 +956,6 @@ public class ReplicatorTest extends ReplicatorTestBase {
         producer2.close();
         consumer1.close();
         consumer2.close();
-
-        client1.close();
-        client2.close();
     }
 
     @DataProvider(name = "topicPrefix")
@@ -968,8 +978,10 @@ public class ReplicatorTest extends ReplicatorTestBase {
         admin1.topics().createPartitionedTopic(partitionedTopicName, startPartitions);
         admin1.topics().createNonPartitionedTopic(nonPartitionedTopicName);
 
+        @Cleanup
         PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
+        @Cleanup
         PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
 

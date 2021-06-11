@@ -19,39 +19,38 @@
 package org.apache.pulsar.metadata.coordination.impl;
 
 import com.fasterxml.jackson.databind.type.TypeFactory;
-
-import java.util.EnumSet;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.pulsar.metadata.api.MetadataCache;
+import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.LockBusyException;
+import org.apache.pulsar.metadata.api.Notification;
+import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.coordination.LockManager;
 import org.apache.pulsar.metadata.api.coordination.ResourceLock;
-import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.cache.impl.JSONMetadataSerdeSimpleType;
-import org.apache.pulsar.metadata.cache.impl.MetadataSerde;
 
 @Slf4j
 class LockManagerImpl<T> implements LockManager<T> {
 
-    private final Set<ResourceLock<T>> locks = new HashSet<>();
+    private final Map<String, ResourceLockImpl<T>> locks = new ConcurrentHashMap<>();
     private final MetadataStoreExtended store;
     private final MetadataCache<T> cache;
     private final MetadataSerde<T> serde;
 
-    private static enum State {
+    private enum State {
         Ready, Closed
     }
 
@@ -61,6 +60,8 @@ class LockManagerImpl<T> implements LockManager<T> {
         this.store = store;
         this.cache = store.getMetadataCache(clazz);
         this.serde = new JSONMetadataSerdeSimpleType<>(TypeFactory.defaultInstance().constructSimpleType(clazz, null));
+        store.registerSessionListener(this::handleSessionEvent);
+        store.registerListener(this::handleDataNotification);
     }
 
     @Override
@@ -70,45 +71,52 @@ class LockManagerImpl<T> implements LockManager<T> {
 
     @Override
     public CompletableFuture<ResourceLock<T>> acquireLock(String path, T value) {
-        byte[] payload;
-        try {
-            payload = serde.serialize(value);
-        } catch (Throwable t) {
-            return FutureUtils.exception(t);
-        }
+        ResourceLockImpl<T> lock = new ResourceLockImpl<>(store, serde, path, value);
 
         CompletableFuture<ResourceLock<T>> result = new CompletableFuture<>();
-        store.put(path, payload, Optional.of(-1L), EnumSet.of(CreateOption.Ephemeral))
-                .thenAccept(stat -> {
-                    ResourceLock<T> lock = new ResourceLockImpl<>(store, serde, path, value,
-                            stat.getVersion());
-                    synchronized (LockManagerImpl.this) {
-                        if (state == State.Ready) {
-                            log.info("Acquired resource lock on {}", path);
-                            locks.add(lock);
-                            lock.getLockExpiredFuture().thenRun(() -> {
-                                log.info("Released resource lock on {}", path);
-                                synchronized (LockManagerImpl.this) {
-                                    locks.remove(lock);
-                                }
-                            });
-                        } else {
-                            // LockManager was closed in between. Release the lock asynchronously
-                            lock.release();
+        lock.acquire().thenRun(() -> {
+            synchronized (LockManagerImpl.this) {
+                if (state == State.Ready) {
+                    locks.put(path, lock);
+                    lock.getLockExpiredFuture().thenRun(() -> {
+                        log.info("Released resource lock on {}", path);
+                        synchronized (LockManagerImpl.this) {
+                            locks.remove(path, lock);
                         }
-                    }
-                    result.complete(lock);
-                }).exceptionally(ex -> {
-                    if (ex.getCause() instanceof BadVersionException) {
-                        result.completeExceptionally(
-                                new LockBusyException("Resource at " + path + " is already locked"));
-                    } else {
-                        result.completeExceptionally(ex.getCause());
-                    }
-                    return null;
-                });
+                    });
+                } else {
+                    // LockManager was closed in between. Release the lock asynchronously
+                    lock.release();
+                }
+            }
+            result.complete(lock);
+        }).exceptionally(ex -> {
+            if (ex.getCause() instanceof BadVersionException) {
+                result.completeExceptionally(
+                        new LockBusyException("Resource at " + path + " is already locked"));
+            } else {
+                result.completeExceptionally(ex.getCause());
+            }
+            return null;
+        });
 
         return result;
+    }
+
+    private void handleSessionEvent(SessionEvent se) {
+        if (se == SessionEvent.SessionReestablished) {
+            log.info("Metadata store session has been re-established. Revalidating all the existing locks.");
+            locks.values().forEach(ResourceLockImpl::revalidate);
+        }
+    }
+
+    private void handleDataNotification(Notification n) {
+        if (n.getType() == NotificationType.Deleted) {
+            ResourceLockImpl<T> lock = locks.get(n.getPath());
+            if (lock != null) {
+                lock.lockWasInvalidated();
+            }
+        }
     }
 
     @Override
@@ -127,18 +135,19 @@ class LockManagerImpl<T> implements LockManager<T> {
 
     @Override
     public CompletableFuture<Void> asyncClose() {
-        Set<ResourceLock<T>> locks;
+        Map<String, ResourceLock<T>> locks;
         synchronized (this) {
             if (state != State.Ready) {
                 return CompletableFuture.completedFuture(null);
             }
 
-            locks = new HashSet<>(this.locks);
+            locks = new HashMap<>(this.locks);
             this.state = State.Closed;
         }
 
         return FutureUtils.collect(
-                locks.stream().map(ResourceLock::release)
+                locks.values().stream()
+                        .map(ResourceLock::release)
                         .collect(Collectors.toList()))
                 .thenApply(x -> null);
     }

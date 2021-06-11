@@ -31,8 +31,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-import lombok.AllArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
@@ -72,6 +72,9 @@ public class PulsarAdminTool {
 
     @Parameter(names = { "--tls-enable-hostname-verification" }, description = "Enable TLS common name verification")
     Boolean tlsEnableHostnameVerification;
+
+    @Parameter(names = { "-v", "--version" }, description = "Get version of pulsar admin client")
+    boolean version;
 
     @Parameter(names = { "-h", "--help", }, help = true, description = "Show this help.")
     boolean help;
@@ -123,6 +126,7 @@ public class PulsarAdminTool {
         commandMap.put("brokers", CmdBrokers.class);
         commandMap.put("broker-stats", CmdBrokerStats.class);
         commandMap.put("tenants", CmdTenants.class);
+        commandMap.put("resourcegroups", CmdResourceGroups.class);
         commandMap.put("properties", CmdTenants.CmdProperties.class); // deprecated, doesn't show in usage()
         commandMap.put("namespaces", CmdNamespaces.class);
         commandMap.put("topics", CmdTopics.class);
@@ -245,6 +249,11 @@ public class PulsarAdminTool {
             return false;
         }
 
+        if (version) {
+            System.out.println("Current version of pulsar admin client is: " + PulsarVersion.getVersion());
+            return true;
+        }
+
         if (help) {
             setupCommands(adminFactory);
             jcommander.usage();
@@ -292,7 +301,7 @@ public class PulsarAdminTool {
         PulsarAdminTool tool = new PulsarAdminTool(properties);
 
         int cmdPos;
-        for (cmdPos = 1; cmdPos < args.length; cmdPos++) {
+        for (cmdPos = 0; cmdPos < args.length; cmdPos++) {
             if (tool.commandMap.containsKey(args[cmdPos])) {
                 break;
             }

@@ -53,7 +53,8 @@ import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.impl.RawMessageImpl;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -79,9 +80,9 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         super.internalSetup();
 
         admin.clusters().createCluster("use",
-                new ClusterData(pulsar.getWebServiceAddress()));
+                ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         admin.tenants().createTenant("my-property",
-                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
         admin.namespaces().createNamespace("my-property/use/my-ns");
     }
 
@@ -153,7 +154,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testEntryLookup() throws Exception {
         BookKeeper bk = pulsar.getBookKeeperClientFactory().create(
-                this.conf, null, Optional.empty(), null);
+                this.conf, null, null, Optional.empty(), null);
 
         Triple<Long, List<Pair<MessageIdData, Long>>, List<Pair<MessageIdData, Long>>> compactedLedgerData
             = buildCompactedLedger(bk, 500);
@@ -208,7 +209,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testCleanupOldCompactedTopicLedger() throws Exception {
         BookKeeper bk = pulsar.getBookKeeperClientFactory().create(
-                this.conf, null, Optional.empty(), null);
+                this.conf, null, null, Optional.empty(), null);
 
         LedgerHandle oldCompactedLedger = bk.createLedger(1, 1,
                 Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,

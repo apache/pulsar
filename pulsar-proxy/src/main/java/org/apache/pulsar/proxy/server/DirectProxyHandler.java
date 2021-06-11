@@ -59,7 +59,7 @@ import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.impl.tls.TlsHostnameVerifier;
+import org.apache.pulsar.common.tls.TlsHostnameVerifier;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.CommandAuthChallenge;
@@ -341,10 +341,10 @@ public class DirectProxyHandler {
             }
 
             channelFuture.addListener(future -> {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] [{}] Removing decoder from pipeline", inboundChannel, outboundChannel);
-                }
                 if (service.getProxyLogLevel() == 0) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] [{}] Removing decoder from pipeline", inboundChannel, outboundChannel);
+                    }
                     // direct tcp proxy
                     inboundChannel.pipeline().remove("frameDecoder");
                     outboundChannel.pipeline().remove("frameDecoder");

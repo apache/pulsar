@@ -98,7 +98,7 @@ public class BaseResources<T> {
     }
 
     public CompletableFuture<Void> setAsync(String path, Function<T, T> modifyFunction) {
-        return cache.readModifyUpdate(path, modifyFunction);
+        return cache.readModifyUpdate(path, modifyFunction).thenApply(__ -> null);
     }
 
     public void setWithCreate(String path, Function<Optional<T>, T> createFunction) throws MetadataStoreException {
@@ -113,7 +113,7 @@ public class BaseResources<T> {
     }
 
     public CompletableFuture<Void> setWithCreateAsync(String path, Function<Optional<T>, T> createFunction) {
-        return cache.readModifyUpdateOrCreate(path, createFunction);
+        return cache.readModifyUpdateOrCreate(path, createFunction).thenApply(__ -> null);
     }
 
     public void create(String path, T data) throws MetadataStoreException {
@@ -155,6 +155,10 @@ public class BaseResources<T> {
         } catch (Exception e) {
             throw new MetadataStoreException("Failed to check exist " + path, e);
         }
+    }
+
+    public int getOperationTimeoutSec() {
+        return operationTimeoutSec;
     }
 
     public CompletableFuture<Boolean> existsAsync(String path) {

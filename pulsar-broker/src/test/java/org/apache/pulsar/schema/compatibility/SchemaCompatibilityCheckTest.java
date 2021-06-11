@@ -39,8 +39,10 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.schema.Schemas;
@@ -53,7 +55,7 @@ import org.testng.annotations.Test;
 @Slf4j
 @Test(groups = "schema")
 public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
-    private final static String CLUSTER_NAME = "test";
+    private static final String CLUSTER_NAME = "test";
 
     @BeforeMethod
     @Override
@@ -61,9 +63,10 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         super.internalSetup();
 
         // Setup namespaces
-        admin.clusters().createCluster(CLUSTER_NAME, new ClusterData(pulsar.getBrokerServiceUrl()));
-        TenantInfo tenantInfo = new TenantInfo();
-        tenantInfo.setAllowedClusters(Collections.singleton(CLUSTER_NAME));
+        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        TenantInfo tenantInfo = TenantInfo.builder()
+                .allowedClusters(Collections.singleton(CLUSTER_NAME))
+                .build();
         admin.tenants().createTenant(PUBLIC_TENANT, tenantInfo);
     }
 

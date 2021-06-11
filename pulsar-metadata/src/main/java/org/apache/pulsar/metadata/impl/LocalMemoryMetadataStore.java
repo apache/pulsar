@@ -49,6 +49,7 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
         final byte[] data;
         final long createdTimestamp;
         final long modifiedTimestamp;
+        final boolean ephemeral;
     }
 
     private final NavigableMap<String, Value> map;
@@ -68,7 +69,8 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
         Value v = map.get(path);
         if (v != null) {
             return FutureUtils.value(
-                    Optional.of(new GetResult(v.data, new Stat(path, v.version, v.createdTimestamp, v.modifiedTimestamp))));
+                    Optional.of(new GetResult(v.data, new Stat(path, v.version, v.createdTimestamp, v.modifiedTimestamp,
+                            v.isEphemeral(), true))));
         } else {
             return FutureUtils.value(Optional.empty());
         }
@@ -127,7 +129,7 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
         long now = System.currentTimeMillis();
 
         if (hasVersion && expectedVersion == -1) {
-            Value newValue = new Value(0, data, now, now);
+            Value newValue = new Value(0, data, now, now, options.contains(CreateOption.Ephemeral));
             Value existingValue = map.putIfAbsent(path, newValue);
             if (existingValue != null) {
                 return FutureUtils.exception(new BadVersionException(""));
@@ -137,7 +139,7 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
                 if (parent != null) {
                     receivedNotification(new Notification(NotificationType.ChildrenChanged, parent));
                 }
-                return FutureUtils.value(new Stat(path, 0, now, now));
+                return FutureUtils.value(new Stat(path, 0, now, now, newValue.isEphemeral(), true));
             }
         } else {
             Value existingValue = map.get(path);
@@ -147,7 +149,8 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
             } else {
                 long newVersion = existingValue != null ? existingValue.version + 1 : 0;
                 long createdTimestamp = existingValue != null ? existingValue.createdTimestamp : now;
-                Value newValue = new Value(newVersion, data, createdTimestamp, now);
+                Value newValue = new Value(newVersion, data, createdTimestamp, now,
+                        options.contains(CreateOption.Ephemeral));
                 map.put(path, newValue);
 
                 NotificationType type = existingValue == null ? NotificationType.Created : NotificationType.Modified;
@@ -159,7 +162,7 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
                     }
                 }
                 return FutureUtils
-                        .value(new Stat(path, newValue.version, newValue.createdTimestamp, newValue.modifiedTimestamp));
+                        .value(new Stat(path, newValue.version, newValue.createdTimestamp, newValue.modifiedTimestamp, false, true));
             }
         }
     }

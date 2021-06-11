@@ -18,11 +18,25 @@
  */
 package org.apache.bookkeeper.client;
 
-import java.util.*;
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicLong;
-
 import com.google.common.collect.Lists;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Queue;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
 import org.apache.bookkeeper.client.AsyncCallback.DeleteCallback;
 import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
@@ -31,9 +45,9 @@ import org.apache.bookkeeper.client.api.OpenBuilder;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.impl.OpenBuilderBase;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.discover.RegistrationClient;
-import org.apache.bookkeeper.discover.ZKRegistrationClient;
 import org.apache.bookkeeper.meta.LayoutManager;
 import org.apache.bookkeeper.meta.LedgerManagerFactory;
 import org.apache.bookkeeper.meta.MetadataClientDriver;
@@ -54,13 +68,8 @@ import org.slf4j.LoggerFactory;
  */
 public class PulsarMockBookKeeper extends BookKeeper {
 
+    final OrderedExecutor orderedExecutor;
     final ExecutorService executor;
-    final ZooKeeper zkc;
-
-    @Override
-    public ZooKeeper getZkHandle() {
-        return zkc;
-    }
 
     @Override
     public ClientConfiguration getConf() {
@@ -80,11 +89,17 @@ public class PulsarMockBookKeeper extends BookKeeper {
         return ensemble;
     }
 
+    Queue<Long> addEntryDelaysMillis = new ConcurrentLinkedQueue<>();
     List<CompletableFuture<Void>> failures = new ArrayList<>();
 
-    public PulsarMockBookKeeper(ZooKeeper zkc, ExecutorService executor) throws Exception {
-        this.zkc = zkc;
-        this.executor = executor;
+    public PulsarMockBookKeeper(OrderedExecutor orderedExecutor) throws Exception {
+        this.orderedExecutor = orderedExecutor;
+        this.executor = orderedExecutor.chooseThread();
+    }
+
+    @Override
+    public OrderedExecutor getMainWorkerPool() {
+        return orderedExecutor;
     }
 
     @Override
@@ -204,6 +219,8 @@ public class PulsarMockBookKeeper extends BookKeeper {
     public void close() throws InterruptedException, BKException {
         shutdown();
     }
+
+
 
     @Override
     public OpenBuilder newOpenLedgerOp() {
@@ -328,6 +345,10 @@ public class PulsarMockBookKeeper extends BookKeeper {
         CompletableFuture<Void> promise = new CompletableFuture<>();
         failures.set(steps, promise);
         return promise;
+    }
+
+    public synchronized void addEntryDelay(long delay, TimeUnit unit) {
+        addEntryDelaysMillis.add(unit.toMillis(delay));
     }
 
     static int getExceptionCode(Throwable t) {

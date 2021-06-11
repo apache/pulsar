@@ -91,16 +91,16 @@ public class EnableProxyProtocolTest extends BrokerTestBase  {
         pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
                 .subscribe();
         org.apache.pulsar.broker.service.Consumer c = pulsar.getBrokerService().getTopicReference(topicName).get().getSubscription(subName).getConsumers().get(0);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> Assert.assertTrue(c.cnx().hasHAProxyMessage()));
+        Awaitility.await().untilAsserted(() -> Assert.assertTrue(c.cnx().hasHAProxyMessage()));
         TopicStats topicStats = admin.topics().getStats(topicName);
-        Assert.assertEquals(topicStats.subscriptions.size(), 1);
-        SubscriptionStats subscriptionStats = topicStats.subscriptions.get(subName);
-        Assert.assertEquals(subscriptionStats.consumers.size(), 1);
-        Assert.assertEquals(subscriptionStats.consumers.get(0).getAddress(), "198.51.100.22:35646");
+        Assert.assertEquals(topicStats.getSubscriptions().size(), 1);
+        SubscriptionStats subscriptionStats = topicStats.getSubscriptions().get(subName);
+        Assert.assertEquals(subscriptionStats.getConsumers().size(), 1);
+        Assert.assertEquals(subscriptionStats.getConsumers().get(0).getAddress(), "198.51.100.22:35646");
 
         pulsarClient.newProducer().topic(topicName).create();
         topicStats = admin.topics().getStats(topicName);
-        Assert.assertEquals(topicStats.publishers.size(), 1);
-        Assert.assertEquals(topicStats.publishers.get(0).getAddress(), "198.51.100.22:35646");
+        Assert.assertEquals(topicStats.getPublishers().size(), 1);
+        Assert.assertEquals(topicStats.getPublishers().get(0).getAddress(), "198.51.100.22:35646");
     }
 }

@@ -19,8 +19,11 @@
 package org.apache.pulsar.client.admin.internal;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.module.SimpleAbstractTypeResolver;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import javax.ws.rs.ext.ContextResolver;
 import javax.ws.rs.ext.Provider;
+import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 /**
@@ -33,6 +36,20 @@ public class JacksonConfigurator implements ContextResolver<ObjectMapper> {
 
     public JacksonConfigurator() {
         mapper = ObjectMapperFactory.create();
+        setInterfaceDefaultMapperModule();
+    }
+
+    private void setInterfaceDefaultMapperModule() {
+        SimpleModule module = new SimpleModule("InterfaceDefaultMapperModule");
+
+        // we not specific @JsonDeserialize annotation in OffloadProcessStatus
+        // because we do not want to have jackson dependency in pulsar-client-admin-api
+        // In this case we use SimpleAbstractTypeResolver to map interfaces to impls
+        SimpleAbstractTypeResolver resolver = new SimpleAbstractTypeResolver();
+        resolver.addMapping(OffloadProcessStatus.class, OffloadProcessStatusImpl.class);
+
+        module.setAbstractTypes(resolver);
+        mapper.registerModule(module);
     }
 
     @Override

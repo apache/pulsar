@@ -19,7 +19,7 @@
 package org.apache.pulsar.functions.worker;
 
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-import static org.apache.pulsar.common.policies.data.Policies.getBundles;
+import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -32,6 +32,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.Supplier;
 import javax.ws.rs.core.Response;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -55,9 +56,10 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.path.PolicyPath;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
@@ -301,8 +303,8 @@ public class PulsarWorkerService implements WorkerService {
         // create tenant for function worker service
         try {
             NamedEntity.checkName(property);
-            pulsarResources.getTenatResources().create(PolicyPath.path(POLICIES, property),
-                    new TenantInfo(Sets.newHashSet(workerConfig.getSuperUserRoles()), Sets.newHashSet(cluster)));
+            pulsarResources.getTenantResources().create(PolicyPath.path(POLICIES, property),
+                    new TenantInfoImpl(Sets.newHashSet(workerConfig.getSuperUserRoles()), Sets.newHashSet(cluster)));
             LOG.info("Created property {} for function worker", property);
         } catch (AlreadyExistsException e) {
             LOG.debug("Failed to create already existing property {} for function worker service", cluster, e);
@@ -317,11 +319,10 @@ public class PulsarWorkerService implements WorkerService {
         // create cluster for function worker service
         try {
             NamedEntity.checkName(cluster);
-            ClusterData clusterData = new ClusterData(
-                workerConfig.getPulsarWebServiceUrl(),
-                null /* serviceUrlTls */,
-                workerConfig.getPulsarServiceUrl(),
-                null /* brokerServiceUrlTls */);
+            ClusterDataImpl clusterData = ClusterDataImpl.builder()
+                    .serviceUrl(workerConfig.getPulsarWebServiceUrl())
+                    .brokerServiceUrl(workerConfig.getPulsarServiceUrl())
+                    .build();
             pulsarResources.getClusterResources().create(
                 PolicyPath.path("clusters", cluster),
                 clusterData);
@@ -498,6 +499,7 @@ public class PulsarWorkerService implements WorkerService {
             log.info("/** Initializing Runtime Manager **/");
 
             MessageId lastAssignmentMessageId = functionRuntimeManager.initialize();
+            Supplier<Boolean> checkIsStillLeader = () -> membershipManager.getLeader().getWorkerId().equals(workerConfig.getWorkerId());
 
             // Setting references to managers in scheduler
             schedulerManager.setFunctionMetaDataManager(functionMetaDataManager);
@@ -520,15 +522,16 @@ public class PulsarWorkerService implements WorkerService {
             // Starting cluster services
             this.clusterServiceCoordinator = new ClusterServiceCoordinator(
                     workerConfig.getWorkerId(),
-                    leaderService);
+                    leaderService,
+                    checkIsStillLeader);
 
             clusterServiceCoordinator.addTask("membership-monitor",
                     workerConfig.getFailureCheckFreqMs(),
                     () -> {
                         // computing a new schedule and checking for failures cannot happen concurrently
                         // both paths of code modify internally cached assignments map in function runtime manager
+                        schedulerManager.getSchedulerLock().lock();
                         try {
-                            schedulerManager.getSchedulerLock().lock();
                             membershipManager.checkFailures(
                                     functionMetaDataManager, functionRuntimeManager, schedulerManager);
                         } finally {
@@ -561,6 +564,7 @@ public class PulsarWorkerService implements WorkerService {
             workerStatsManager.setFunctionRuntimeManager(functionRuntimeManager);
             workerStatsManager.setFunctionMetaDataManager(functionMetaDataManager);
             workerStatsManager.setLeaderService(leaderService);
+            workerStatsManager.setIsLeader(checkIsStillLeader);
             workerStatsManager.startupTimeEnd();
         } catch (Throwable t) {
             log.error("Error Starting up in worker", t);

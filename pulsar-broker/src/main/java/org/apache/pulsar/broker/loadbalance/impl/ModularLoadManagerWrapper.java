@@ -30,8 +30,6 @@ import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
-import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
-import org.apache.pulsar.zookeeper.ZooKeeperCache.Deserializer;
 
 /**
  * Wrapper class allowing classes of instance ModularLoadManager to be compatible with the interface LoadManager.
@@ -122,11 +120,6 @@ public class ModularLoadManagerWrapper implements LoadManager {
     @Override
     public void writeResourceQuotasToZooKeeper() {
         loadManager.writeBundleDataOnZooKeeper();
-    }
-
-    @Override
-    public Deserializer<? extends ServiceLookupData> getLoadReportDeserializer() {
-        return loadManager.getLoadReportDeserializer();
     }
 
     public ModularLoadManager getLoadManager() {

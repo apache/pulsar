@@ -19,12 +19,14 @@
 package org.apache.pulsar.testclient;
 
 import com.google.common.collect.Sets;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -32,20 +34,31 @@ import org.testng.annotations.Test;
 
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.testng.Assert.fail;
+
+@Slf4j
 public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
     private final String testTenant = "prop-xyz";
     private final String testNamespace = "ns1";
     private final String myNamespace = testTenant + "/" + testNamespace;
     private final String testTopic = "persistent://" + myNamespace + "/test-";
+    private final AtomicInteger lastExitCode = new AtomicInteger(0);
 
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
+        PerfClientUtils.setExitProcedure(code -> {
+            log.error("JVM exit code is {}", code);
+            if (code != 0) {
+                throw new RuntimeException("JVM should exit with code " + code);
+            }
+        });
         // Setup namespaces
-        admin.clusters().createCluster("test", new ClusterData(pulsar.getWebServiceAddress()));
-        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant(testTenant, tenantInfo);
         admin.namespaces().createNamespace(myNamespace, Sets.newHashSet("test"));
     }
@@ -54,6 +67,10 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+        int exitCode = lastExitCode.get();
+        if (exitCode != 0) {
+            fail("Unexpected JVM exit code "+exitCode);
+        }
     }
 
     @Test(timeOut = 20000)
@@ -143,4 +160,34 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
         newConsumer1.close();
         newConsumer2.close();
     }
+
+    @Test(timeOut = 20000)
+    public void testCreatePartitions() throws Exception {
+        String argString = "%s -r 10 -u %s -au %s -m 5 -np 10";
+        String topic = testTopic + UUID.randomUUID().toString();
+        String args = String.format(argString, topic, pulsar.getBrokerServiceUrl(), pulsar.getWebServiceAddress());
+        Thread thread = new Thread(() -> {
+            try {
+                PerformanceProducer.main(args.split(" "));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
+        thread.start();
+        thread.join();
+        Assert.assertEquals(10, pulsar.getAdminClient().topics().getPartitionedTopicMetadata(topic).partitions);
+    }
+
+    @Test
+    public void testNotExistIMessageFormatter() {
+        IMessageFormatter msgFormatter = PerformanceProducer.getMessageFormatter("org.apache.pulsar.testclient.NonExistentFormatter");
+        Assert.assertNull(msgFormatter);
+    }
+
+    @Test
+    public void testDefaultIMessageFormatter() {
+        IMessageFormatter msgFormatter = PerformanceProducer.getMessageFormatter("org.apache.pulsar.testclient.DefaultMessageFormatter");
+        Assert.assertTrue(msgFormatter instanceof DefaultMessageFormatter);
+    }
+
 }

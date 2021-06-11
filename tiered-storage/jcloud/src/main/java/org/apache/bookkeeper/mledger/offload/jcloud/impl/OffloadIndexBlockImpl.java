@@ -174,7 +174,7 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
         return new OffloadIndexBlock.IndexInputStream(new ByteBufInputStream(out, true), indexBlockLength);
     }
 
-    static private class InternalLedgerMetadata implements LedgerMetadata {
+    private static class InternalLedgerMetadata implements LedgerMetadata {
 
         private int ensembleSize;
         private int writeQuorumSize;

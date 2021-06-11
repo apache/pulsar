@@ -66,8 +66,9 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.zookeeper.ZooKeeperManagedLedgerCache;
 import org.apache.zookeeper.KeeperException;
@@ -128,10 +129,10 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         doReturn(mock(AuthenticationDataHttps.class)).when(nonPersistentTopic).clientAuthData();
 
 
-        admin.clusters().createCluster("use", new ClusterData("http://broker-use.com:8080"));
-        admin.clusters().createCluster("test", new ClusterData("http://broker-use.com:8080"));
+        admin.clusters().createCluster("use", ClusterData.builder().serviceUrl("http://broker-use.com:8080").build());
+        admin.clusters().createCluster("test",ClusterData.builder().serviceUrl("http://broker-use.com:8080").build());
         admin.tenants().createTenant(this.testTenant,
-                new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet(testLocalCluster, "test")));
+                new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet(testLocalCluster, "test")));
         admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Sets.newHashSet(testLocalCluster, "test"));
     }
 
@@ -236,9 +237,8 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
-
         TopicStats topicStats = persistentTopics.getStats(testTenant, testNamespace, testLocalTopicName, true, true, false);
-        long msgBacklog = topicStats.subscriptions.get(SUB_EARLIEST).msgBacklog;
+        long msgBacklog = topicStats.getSubscriptions().get(SUB_EARLIEST).getMsgBacklog();
         System.out.println("Message back log for " + SUB_EARLIEST + " is :" + msgBacklog);
         Assert.assertEquals(msgBacklog, numberOfMessages);
 
@@ -251,7 +251,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
         topicStats = persistentTopics.getStats(testTenant, testNamespace, testLocalTopicName, true, true, false);
-        msgBacklog = topicStats.subscriptions.get(SUB_LATEST).msgBacklog;
+        msgBacklog = topicStats.getSubscriptions().get(SUB_LATEST).getMsgBacklog();
         System.out.println("Message back log for " + SUB_LATEST + " is :" + msgBacklog);
         Assert.assertEquals(msgBacklog, 0);
 
@@ -264,7 +264,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
         topicStats = persistentTopics.getStats(testTenant, testNamespace, testLocalTopicName, true, true, false);
-        msgBacklog = topicStats.subscriptions.get(SUB_NONE_MESSAGE_ID).msgBacklog;
+        msgBacklog = topicStats.getSubscriptions().get(SUB_NONE_MESSAGE_ID).getMsgBacklog();
         System.out.println("Message back log for " + SUB_NONE_MESSAGE_ID + " is :" + msgBacklog);
         Assert.assertEquals(msgBacklog, 0);
 
@@ -405,7 +405,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         persistentTopics.updatePartitionedTopic(testTenant, testNamespace, partitionedTopicName, true, false, 10);
     }
 
-    @Test
+    @Test(timeOut = 10_000)
     public void testUnloadTopic() {
         final String topicName = "standard-topic-to-be-unload";
         final String partitionTopicName = "partition-topic-to-be-unload";
@@ -414,7 +414,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         AsyncResponse response = mock(AsyncResponse.class);
         persistentTopics.unloadTopic(response, testTenant, testNamespace, "topic-not-exist", true);
         ArgumentCaptor<RestException> errCaptor = ArgumentCaptor.forClass(RestException.class);
-        verify(response, timeout(5000).times(1)).resume(errCaptor.capture());
+        verify(response, timeout(45_000).times(1)).resume(errCaptor.capture());
         Assert.assertEquals(errCaptor.getValue().getResponse().getStatus(), Response.Status.NOT_FOUND.getStatusCode());
 
         // 2) create non partitioned topic and unload
@@ -445,12 +445,12 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
     }
 
-    @Test
+    @Test(timeOut = 10_000)
     public void testUnloadTopicShallThrowNotFoundWhenTopicNotExist() {
         AsyncResponse response = mock(AsyncResponse.class);
         persistentTopics.unloadTopic(response, testTenant, testNamespace,"non-existent-topic", true);
         ArgumentCaptor<RestException> responseCaptor = ArgumentCaptor.forClass(RestException.class);
-        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        verify(response, timeout(45_000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getResponse().getStatus(), Response.Status.NOT_FOUND.getStatusCode());
     }
 
@@ -632,7 +632,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testGetLastMessageId() throws Exception {
-        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant("prop-xyz", tenantInfo);
         admin.namespaces().createNamespace("prop-xyz/ns1", Sets.newHashSet("test"));
         final String topicName = "persistent://prop-xyz/ns1/testGetLastMessageId";
@@ -662,7 +662,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testExamineMessage() throws Exception {
-        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant("tenant-xyz", tenantInfo);
         admin.namespaces().createNamespace("tenant-xyz/ns-abc", Sets.newHashSet("test"));
         final String topicName = "persistent://tenant-xyz/ns-abc/topic-123";
@@ -710,4 +710,5 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(e.getResponse().getStatus(), Response.Status.BAD_REQUEST.getStatusCode());
         }
     }
+
 }

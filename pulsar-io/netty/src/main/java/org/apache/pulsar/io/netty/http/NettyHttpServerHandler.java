@@ -137,7 +137,7 @@ public class NettyHttpServerHandler extends SimpleChannelInboundHandler<Object> 
     }
 
     @Data
-    static private class NettyHttpRecord implements Record<byte[]>, Serializable {
+    private static class NettyHttpRecord implements Record<byte[]>, Serializable {
         private final Optional<String> key;
         private final byte[] value;
     }

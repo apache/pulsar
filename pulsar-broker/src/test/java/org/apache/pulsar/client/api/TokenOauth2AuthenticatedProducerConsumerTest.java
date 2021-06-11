@@ -36,11 +36,11 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationFactoryOAuth2;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -63,7 +63,7 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
     // Credentials File, which contains "client_id" and "client_secret"
     private final String CREDENTIALS_FILE = "./src/test/resources/authentication/token/credentials_file.json";
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         conf.setAuthenticationEnabled(true);
@@ -109,7 +109,7 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
                 .authentication(authentication));
     }
 
-    @AfterMethod(alwaysRun = true, groups = "broker-api")
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -152,9 +152,9 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         clientSetup();
 
         // test rest by admin
-        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
         admin.tenants().createTenant("my-property",
-                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
 
         // test protocol by producer/consumer
@@ -169,9 +169,9 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         clientSetup();
 
         // test rest by admin
-        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
         admin.tenants().createTenant("my-property",
-            new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+            new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic")

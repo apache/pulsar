@@ -28,7 +28,7 @@ RUN apt-get install -y procps curl git
 
 ENV GOLANG_VERSION 1.13.3
 
-RUN curl -sSL https://storage.googleapis.com/golang/go$GOLANG_VERSION.linux-amd64.tar.gz \
+RUN curl -sSL https://golang.org/dl/go$GOLANG_VERSION.linux-amd64.tar.gz \
 		| tar -C /usr/local -xz
 
 # RUN wget https://dl.google.com/go/go1.13.3.linux-amd64.tar.gz && tar -xvf go1.13.3.linux-amd64.tar.gz && mv go /usr/local
@@ -54,12 +54,6 @@ FROM apachepulsar/pulsar-all:latest as pulsar-all
 ###### Main image build
 ########################################
 FROM apachepulsar/pulsar:latest
-
-# Switch to run as the root user to simplify building container and then running
-# supervisord. Each of the pulsar components are spawned by supervisord and their
-# process configuration files specify that the process will be run as the "pulsar" user
-# However, any processes exec'ing into the containers will run as root, by default.
-USER root
 
 RUN rm -rf /var/lib/apt/lists/* && apt update
 
@@ -99,15 +93,15 @@ COPY target/java-test-functions.jar /pulsar/examples/
 COPY --from=pulsar-function-go /go/bin /pulsar/examples/go-examples
 
 # Include all offloaders
-COPY --from=pulsar-all --chown=pulsar:0 /pulsar/offloaders /pulsar/offloaders
+COPY --from=pulsar-all /pulsar/offloaders /pulsar/offloaders
 
 # Include only the connectors needed by integration tests
-COPY --from=pulsar-all --chown=pulsar:0 /pulsar/connectors/pulsar-io-cassandra-*.nar /pulsar/connectors/
-COPY --from=pulsar-all --chown=pulsar:0 /pulsar/connectors/pulsar-io-debezium-*.nar /pulsar/connectors/
-COPY --from=pulsar-all --chown=pulsar:0 /pulsar/connectors/pulsar-io-elastic-*.nar /pulsar/connectors/
-COPY --from=pulsar-all --chown=pulsar:0 /pulsar/connectors/pulsar-io-hdfs*.nar /pulsar/connectors/
-COPY --from=pulsar-all --chown=pulsar:0 /pulsar/connectors/pulsar-io-jdbc-postgres-*.nar /pulsar/connectors/
-COPY --from=pulsar-all --chown=pulsar:0 /pulsar/connectors/pulsar-io-kafka-*.nar /pulsar/connectors/
-COPY --from=pulsar-all --chown=pulsar:0 /pulsar/connectors/pulsar-io-rabbitmq-*.nar /pulsar/connectors/
+COPY --from=pulsar-all /pulsar/connectors/pulsar-io-cassandra-*.nar /pulsar/connectors/
+COPY --from=pulsar-all /pulsar/connectors/pulsar-io-debezium-*.nar /pulsar/connectors/
+COPY --from=pulsar-all /pulsar/connectors/pulsar-io-elastic-*.nar /pulsar/connectors/
+COPY --from=pulsar-all /pulsar/connectors/pulsar-io-hdfs*.nar /pulsar/connectors/
+COPY --from=pulsar-all /pulsar/connectors/pulsar-io-jdbc-postgres-*.nar /pulsar/connectors/
+COPY --from=pulsar-all /pulsar/connectors/pulsar-io-kafka-*.nar /pulsar/connectors/
+COPY --from=pulsar-all /pulsar/connectors/pulsar-io-rabbitmq-*.nar /pulsar/connectors/
 
 CMD bash

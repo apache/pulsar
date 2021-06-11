@@ -189,6 +189,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |forceDeleteNamespaceAllowed| Enable you to delete a namespace forcefully. |false|
 |messageExpiryCheckIntervalInMinutes| The frequency of proactively checking and purging expired messages. |5|
 |brokerServiceCompactionMonitorIntervalInSeconds| Interval between checks to determine whether topics with compaction policies need compaction. |60|
+brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater than this threshold, compression is triggered.<br><br>Set this threshold to 0 means disabling the compression check.|N/A
 |delayedDeliveryEnabled| Whether to enable the delayed delivery for messages. If disabled, messages will be immediately delivered and there will be no tracking overhead.|true|
 |delayedDeliveryTickTimeMillis|Control the tick time for retrying on delayed delivery, which affects the accuracy of the delivery time compared to the scheduled time. By default, it is 1 second.|1000|
 |activeConsumerFailoverDelayTimeMillis| How long to delay rewinding cursor and dispatching messages when active consumer is changed.  |1000|
@@ -202,7 +203,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |tlsKeyFilePath|  Path for the TLS private key file ||
 |tlsTrustCertsFilePath| Path for the trusted TLS certificate file. This cert is used to verify that any certs presented by connecting clients are signed by a certificate authority. If this verification fails, then the certs are untrusted and the connections are dropped. ||
 |tlsAllowInsecureConnection| Accept untrusted TLS certificate from client. If it is set to `true`, a client with a cert which cannot be verified with the 'tlsTrustCertsFilePath' cert will be allowed to connect to the server, though the cert will not be used for client authentication. |false|
-|tlsProtocols|Specify the tls protocols the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- ```TLSv1.2```, ```TLSv1.1```, ```TLSv1``` ||
+|tlsProtocols|Specify the tls protocols the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- ```TLSv1.3```, ```TLSv1.2``` ||
 |tlsCiphers|Specify the tls cipher the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- ```TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256```||
 |tlsEnabledWithKeyStore| Enable TLS with KeyStore type configuration in broker |false|
 |tlsProvider| TLS Provider for KeyStore type ||
@@ -215,7 +216,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |brokerClientTlsTrustStore| TLS TrustStore path for internal client, used by the internal client to authenticate with Pulsar brokers ||
 |brokerClientTlsTrustStorePassword| TLS TrustStore password for internal client, used by the internal client to authenticate with Pulsar brokers ||
 |brokerClientTlsCiphers| Specify the tls cipher the internal client will use to negotiate during TLS Handshake. (a comma-separated list of ciphers) e.g.  [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]||
-|brokerClientTlsProtocols|Specify the tls protocols the broker will use to negotiate during TLS handshake. (a comma-separated list of protocol names). e.g.  [TLSv1.2, TLSv1.1, TLSv1] ||
+|brokerClientTlsProtocols|Specify the tls protocols the broker will use to negotiate during TLS handshake. (a comma-separated list of protocol names). e.g.  `TLSv1.3`, `TLSv1.2` ||
 |ttlDurationDefaultInSeconds|The default Time to Live (TTL) for namespaces if the TTL is not configured at namespace policies. When the value is set to `0`, TTL is disabled. By default, TTL is disabled. |0|
 |tokenSecretKey| Configure the secret key to be used to validate auth tokens. The key can be specified like: `tokenSecretKey=data:;base64,xxxxxxxxx` or `tokenSecretKey=file:///my/secret.key`.  Note: key file must be DER-encoded.||
 |tokenPublicKey| Configure the public key to be used to validate auth tokens. The key can be specified like: `tokenPublicKey=data:;base64,xxxxxxxxx` or `tokenPublicKey=file:///my/secret.key`.  Note: key file must be DER-encoded.||
@@ -230,7 +231,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |maxConcurrentLookupRequest|  Max number of concurrent lookup request broker allows to throttle heavy incoming lookup traffic |50000|
 |maxConcurrentTopicLoadRequest| Max number of concurrent topic loading request broker allows to control number of zk-operations |5000|
 |authenticationEnabled| Enable authentication |false|
-|authenticationProviders| Autentication provider name list, which is comma separated list of class names  ||
+|authenticationProviders| Authentication provider name list, which is comma separated list of class names  ||
 | authenticationRefreshCheckSeconds | Interval of time for checking for expired authentication credentials | 60 |
 |authorizationEnabled|  Enforce authorization |false|
 |superUserRoles|  Role names that are treated as “super-user”, meaning they will be able to do all admin operations and publish/consume from all topics ||
@@ -245,6 +246,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |bookkeeperClientAuthenticationPlugin|  Authentication plugin to use when connecting to bookies ||
 |bookkeeperClientAuthenticationParametersName|  BookKeeper auth plugin implementatation specifics parameters name and values  ||
 |bookkeeperClientAuthenticationParameters|||
+|bookkeeperClientNumWorkerThreads|  Number of BookKeeper client worker threads. Default is Runtime.getRuntime().availableProcessors()  ||
 |bookkeeperClientTimeoutInSeconds|  Timeout for BK add / read operations  |30|
 |bookkeeperClientSpeculativeReadTimeoutInMillis|  Speculative reads are initiated if a read request doesn’t complete within a certain time Using a value of 0, is disabling the speculative reads |0|
 |bookkeeperNumberOfChannelsPerBookie|  Number of channels per bookie  |16|
@@ -338,7 +340,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |replicatedSubscriptionsSnapshotFrequencyMillis|The frequency of snapshots for replicated subscriptions tracking.|1000|
 |replicatedSubscriptionsSnapshotTimeoutSeconds|The timeout for building a consistent snapshot for tracking replicated subscriptions state.|30|
 |replicatedSubscriptionsSnapshotMaxCachedPerSubscription|The maximum number of snapshot to be cached per subscription.|10|
-|maxMessagePublishBufferSizeInMB|The maximum memory size for broker handling messages sent from producers. If the processing message size exceeds this value, broker stops reading data from the connection. The processing messages means messages are sent to broker but broker have not sent response to the client. Usually the message are waiting to be written to bookies. It's shared across all the topics running in the same broker. The value `-1` disables the memory limitation. By default, it is 50% of direct memory.|N/A|
+|maxMessagePublishBufferSizeInMB|The maximum memory size for a broker to handle messages that are sent by producers. If the processing message size exceeds this value, the broker stops reading data from the connection. The processing messages refer to the messages that are sent to the broker but the broker has not sent response to the client. Usually the messages are waiting to be written to bookies. It is shared across all the topics running in the same broker. The value `-1` disables the memory limitation. By default, it is 50% of direct memory.|N/A|
 |messagePublishBufferCheckIntervalInMillis|Interval between checks to see if message publish buffer size exceeds the maximum. Use `0` or negative number to disable the max publish buffer limiting.|100|
 |retentionCheckIntervalInSeconds|Check between intervals to see if consumed ledgers need to be trimmed. Use 0 or negative number to disable the check.|120|
 | maxMessageSize | Set the maximum size of a message. | 5242880 |
@@ -346,10 +348,11 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 | lazyCursorRecovery | Whether to recover cursors lazily when trying to recover a managed ledger backing a persistent topic. It can improve write availability of topics. The caveat is now when recovered ledger is ready to write we're not sure if all old consumers' last mark delete position(ack position) can be recovered or not. So user can make the trade off or have custom logic in application to checkpoint consumer state.| false |  
 |haProxyProtocolEnabled | Enable or disable the [HAProxy](http://www.haproxy.org/) protocol. |false|
 | maxTopicsPerNamespace | The maximum number of persistent topics that can be created in the namespace. When the number of topics reaches this threshold, the broker rejects the request of creating a new topic, including the auto-created topics by the producer or consumer, until the number of connected consumers decreases. The default value 0 disables the check. | 0 |
+|subscriptionTypesEnabled| Enable all subscription types, which are exclusive, shared, failover, and key_shared. | Exclusive, Shared, Failover, Key_Shared |
 
 ## Client
 
-The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used to publish messages to Pulsar and consume messages from Pulsar topics. This tool can be used in lieu of a client library.
+You can use the [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool to publish messages to and consume messages from Pulsar topics. You can use this tool in place of a client library.
 
 |Name|Description|Default|
 |---|---|---|
@@ -357,7 +360,7 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |brokerServiceUrl|  The Pulsar protocol URL for the cluster.  |pulsar://localhost:6650/|
 |authPlugin|  The authentication plugin.  ||
 |authParams|  The authentication parameters for the cluster, as a comma-separated string. ||
-|useTls|  Whether or not TLS authentication will be enforced in the cluster.  |false|
+|useTls|  Whether to enforce the TLS authentication in the cluster.  |false|
 | tlsAllowInsecureConnection | Allow TLS connections to servers whose certificate cannot be verified to have been signed by a trusted certificate authority. | false |
 | tlsEnableHostnameVerification | Whether the server hostname must match the common name of the certificate that is used by the server. | false |
 |tlsTrustCertsFilePath|||
@@ -462,7 +465,7 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |ttlDurationDefaultInSeconds|The default Time to Live (TTL) for namespaces if the TTL is not configured at namespace policies. When the value is set to `0`, TTL is disabled. By default, TTL is disabled. |0|
 |brokerDeleteInactiveTopicsEnabled| Enable the deletion of inactive topics. |true|
 |brokerDeleteInactiveTopicsFrequencySeconds|  How often to check for inactive topics, in seconds. |60|
-| maxPendingPublishdRequestsPerConnection | Maximum pending publish requests per connection to avoid keeping large number of pending requests in memory | 1000|
+| maxPendingPublishRequestsPerConnection | Maximum pending publish requests per connection to avoid keeping large number of pending requests in memory | 1000|
 |messageExpiryCheckIntervalInMinutes| How often to proactively check and purged expired messages. |5|
 |activeConsumerFailoverDelayTimeMillis| How long to delay rewinding cursor and dispatching messages when active consumer is changed.  |1000|
 | subscriptionExpirationTimeMinutes | How long to delete inactive subscriptions from last consumption. When it is set to 0, inactive subscriptions are not deleted automatically | 0 |
@@ -564,6 +567,7 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |bookkeeperClientAuthenticationPlugin|  Authentication plugin to be used when connecting to bookies (BookKeeper servers). ||
 |bookkeeperClientAuthenticationParametersName|  BookKeeper authentication plugin implementation parameters and values.  ||
 |bookkeeperClientAuthenticationParameters|  Parameters associated with the bookkeeperClientAuthenticationParametersName ||
+|bookkeeperClientNumWorkerThreads|  Number of BookKeeper client worker threads. Default is Runtime.getRuntime().availableProcessors()  ||
 |bookkeeperClientTimeoutInSeconds|  Timeout for BookKeeper add and read operations. |30|
 |bookkeeperClientSpeculativeReadTimeoutInMillis|  Speculative reads are initiated if a read request doesn’t complete within a certain time. A value of 0 disables speculative reads.  |0|
 |bookkeeperUseV2WireProtocol|Use older Bookkeeper wire protocol with bookie.|true|
@@ -571,8 +575,8 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |bookkeeperClientHealthCheckIntervalSeconds|  The time interval, in seconds, at which health checks are performed. New ledgers are not created during health checks.  |60|
 |bookkeeperClientHealthCheckErrorThresholdPerInterval|  Error threshold for health checks.  |5|
 |bookkeeperClientHealthCheckQuarantineTimeInSeconds|  If bookies have more than the allowed number of failures within the time interval specified by bookkeeperClientHealthCheckIntervalSeconds |1800|
-|bookkeeperGetBookieInfoIntervalSeconds|Specify options for the GetBookieInfo check. This setting helps ensure the list of bookies that are up to date on the brokers.|86400|
-|bookkeeperGetBookieInfoRetryIntervalSeconds|Specify options for the GetBookieInfo check. This setting helps ensure the list of bookies that are up to date on the brokers.|60|
+|bookkeeperClientGetBookieInfoIntervalSeconds|Specify options for the GetBookieInfo check. This setting helps ensure the list of bookies that are up to date on the brokers.|86400|
+|bookkeeperClientGetBookieInfoRetryIntervalSeconds|Specify options for the GetBookieInfo check. This setting helps ensure the list of bookies that are up to date on the brokers.|60|
 |bookkeeperClientRackawarePolicyEnabled|    |true|
 |bookkeeperClientRegionawarePolicyEnabled|    |false|
 |bookkeeperClientMinNumRacksPerWriteQuorum|    |2|
@@ -739,7 +743,7 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 |tlsTrustCertsFilePath| Path for the trusted TLS certificate pem file ||
 |tlsHostnameVerificationEnabled|  Whether the hostname is validated when the proxy creates a TLS connection with brokers  |false|
 |tlsRequireTrustedClientCertOnConnect|  Whether client certificates are required for TLS. Connections are rejected if the client certificate isn’t trusted. |false|
-|tlsProtocols|Specify the tls protocols the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- ```TLSv1.2```, ```TLSv1.1```, ```TLSv1``` ||
+|tlsProtocols|Specify the tls protocols the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- ```TLSv1.3```, ```TLSv1.2``` ||
 |tlsCiphers|Specify the tls cipher the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- ```TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256```||
 | httpReverseProxyConfigs | HTTP directs to redirect to non-pulsar services | |
 | httpOutputBufferSize | HTTP output buffer size. The amount of data that will be buffered for HTTP requests before it is flushed to the channel. A larger buffer size may result in higher HTTP throughput though it may take longer for the client to see data. If using HTTP streaming via the reverse proxy, this should be set to the minimum value (1) so that clients see the data as soon as possible. | 32768 |

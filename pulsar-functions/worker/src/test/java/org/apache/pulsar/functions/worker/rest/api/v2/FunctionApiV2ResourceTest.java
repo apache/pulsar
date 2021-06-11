@@ -62,7 +62,7 @@ import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
@@ -85,12 +85,14 @@ import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImplV2;
+import org.apache.pulsar.functions.worker.rest.api.PulsarFunctionTestTemporaryDirectory;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.testng.Assert;
 import org.testng.IObjectFactory;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
@@ -133,7 +135,7 @@ public class FunctionApiV2ResourceTest {
     private Tenants mockedTenants;
     private Namespaces mockedNamespaces;
     private Functions mockedFunctions;
-    private TenantInfo mockedTenantInfo;
+    private TenantInfoImpl mockedTenantInfo;
     private List<String> namespaceList = new LinkedList<>();
     private FunctionMetaDataManager mockedManager;
     private FunctionRuntimeManager mockedFunctionRunTimeManager;
@@ -144,12 +146,13 @@ public class FunctionApiV2ResourceTest {
     private FormDataContentDisposition mockedFormData;
     private FunctionMetaData mockedFunctionMetadata;
     private LeaderService mockedLeaderService;
+    private PulsarFunctionTestTemporaryDirectory tempDirectory;
 
     @BeforeMethod
     public void setup() throws Exception {
         this.mockedManager = mock(FunctionMetaDataManager.class);
         this.mockedFunctionRunTimeManager = mock(FunctionRuntimeManager.class);
-        this.mockedTenantInfo = mock(TenantInfo.class);
+        this.mockedTenantInfo = mock(TenantInfoImpl.class);
         this.mockedRuntimeFactory = mock(RuntimeFactory.class);
         this.mockedInputStream = mock(InputStream.class);
         this.mockedNamespace = mock(Namespace.class);
@@ -184,10 +187,11 @@ public class FunctionApiV2ResourceTest {
         WorkerConfig workerConfig = new WorkerConfig()
                 .setWorkerId("test")
                 .setWorkerPort(8080)
-                .setDownloadDirectory("/tmp/pulsar/functions")
                 .setFunctionMetadataTopicName("pulsar/functions")
                 .setNumFunctionPackageReplicas(3)
                 .setPulsarServiceUrl("pulsar://localhost:6650/");
+        tempDirectory = PulsarFunctionTestTemporaryDirectory.create(getClass().getSimpleName());
+        tempDirectory.useTemporaryDirectoriesForWorkerConfig(workerConfig);
         when(mockedWorkerService.getWorkerConfig()).thenReturn(workerConfig);
 
         FunctionsImpl functions = spy(new FunctionsImpl(() -> mockedWorkerService));
@@ -197,6 +201,13 @@ public class FunctionApiV2ResourceTest {
 
         this.resource = spy(new FunctionsImplV2(functions));
 
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void cleanup() {
+        if (tempDirectory != null) {
+            tempDirectory.delete();
+        }
     }
 
     //

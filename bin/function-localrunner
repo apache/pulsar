@@ -20,7 +20,83 @@
 
 BINDIR=$(dirname "$0")
 export PULSAR_HOME=`cd -P $BINDIR/..;pwd`
-. "$PULSAR_HOME/bin/pulsar-admin-common.sh"
+
+DEFAULT_LOG_CONF=$PULSAR_HOME/conf/log4j2.yaml
+
+PULSAR_MEM=${PULSAR_MEM:-"-Xmx128m -XX:MaxDirectMemorySize=128m"}
+
+# Garbage collection options
+PULSAR_GC=${PULSAR_GC:-"-XX:+UseG1GC -XX:MaxGCPauseMillis=10 -XX:+ParallelRefProcEnabled -XX:+UnlockExperimentalVMOptions -XX:+DoEscapeAnalysis -XX:G1NewSizePercent=50 -XX:+DisableExplicitGC -XX:-ResizePLAB"}
+
+# Garbage collection log.
+IS_JAVA_8=`java -version 2>&1 |grep version|grep '"1\.8'`
+# java version has space, use [[ -n $PARAM ]] to judge if variable exists
+if [[ -n $IS_JAVA_8 ]]; then
+  PULSAR_GC_LOG=${PULSAR_GC_LOG:-"-Xloggc:logs/pulsar_gc_%p.log -XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=10 -XX:GCLogFileSize=20M"}
+else
+# After jdk 9, gc log param should config like this. Ignoring version less than jdk 8
+  PULSAR_GC_LOG=${PULSAR_GC_LOG:-"-Xlog:gc:logs/pulsar_gc_%p.log:time,uptime:filecount=10,filesize=20M"}
+fi
+
+# Extra options to be passed to the jvm
+PULSAR_EXTRA_OPTS=${PULSAR_EXTRA_OPTS:-" -Dpulsar.allocator.exit_on_oom=true -Dio.netty.recycler.maxCapacity.default=1000 -Dio.netty.recycler.linkCapacity=1024"}
+
+# Check for the java to use
+if [[ -z $JAVA_HOME ]]; then
+    JAVA=$(which java)
+    if [ $? != 0 ]; then
+        echo "Error: JAVA_HOME not set, and no java executable found in $PATH." 1>&2
+        exit 1
+    fi
+else
+    JAVA=$JAVA_HOME/bin/java
+fi
+
+if [ -z "$PULSAR_LOG_CONF" ]; then
+    PULSAR_LOG_CONF=$DEFAULT_LOG_CONF
+fi
+
+add_maven_deps_to_classpath() {
+    MVN="mvn"
+    if [ "$MAVEN_HOME" != "" ]; then
+	    MVN=${MAVEN_HOME}/bin/mvn
+    fi
+
+    # Need to generate classpath from maven pom. This is costly so generate it
+    # and cache it. Save the file into our target dir so a mvn clean will get
+    # clean it up and force us create a new one.
+    f="${PULSAR_HOME}/distribution/server/target/classpath.txt"
+    if [ ! -f "${f}" ]
+    then
+    (
+      cd "${PULSAR_HOME}"
+      ${MVN} -pl distribution/server generate-sources &> /dev/null
+    )
+    fi
+    PULSAR_CLASSPATH=${CLASSPATH}:`cat "${f}"`
+}
+
+if [ -d "$PULSAR_HOME/lib" ]; then
+    PULSAR_CLASSPATH="$PULSAR_CLASSPATH:$PULSAR_HOME/lib/*"
+else
+    add_maven_deps_to_classpath
+fi
+
+PULSAR_CLASSPATH="$PULSAR_JAR:$PULSAR_CLASSPATH:$PULSAR_EXTRA_CLASSPATH"
+PULSAR_CLASSPATH="`dirname $PULSAR_LOG_CONF`:$PULSAR_CLASSPATH"
+OPTS="$OPTS -Dlog4j.configurationFile=`basename $PULSAR_LOG_CONF`"
+
+# Ensure we can read bigger content from ZK. (It might be
+# rarely needed when trying to list many z-nodes under a
+# directory)
+OPTS="$OPTS -Djute.maxbuffer=10485760 -Djava.net.preferIPv4Stack=true"
+
+OPTS="-cp $PULSAR_CLASSPATH $OPTS"
+
+# we should exit on OOM for localrun especially when using ThreadRuntime
+PULSAR_EXTRA_OPTS="$PULSAR_EXTRA_OPTS -XX:+ExitOnOutOfMemoryError"
+
+OPTS="$OPTS $PULSAR_EXTRA_OPTS $PULSAR_MEM $PULSAR_GC"
 
 # functions related variables
 FUNCTIONS_HOME=$PULSAR_HOME/pulsar-functions
@@ -63,4 +139,5 @@ MAINCLASS="org.apache.pulsar.functions.LocalRunner"
 
 #Change to PULSAR_HOME to support relative paths
 cd "$PULSAR_HOME"
+
 exec $JAVA $OPTS $MAINCLASS "$@"

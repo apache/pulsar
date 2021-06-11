@@ -28,17 +28,21 @@ import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
 
 import com.beust.jcommander.ParameterException;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
-
+import java.io.Closeable;
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
+import java.util.Map;
 
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.Sources;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
-import org.apache.pulsar.common.functions.UpdateOptions;
+import org.apache.pulsar.common.functions.UpdateOptionsImpl;
+import org.apache.pulsar.common.io.BatchSourceConfig;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.powermock.api.mockito.PowerMockito;
@@ -46,6 +50,7 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.testng.Assert;
 import org.testng.IObjectFactory;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
@@ -72,7 +77,10 @@ public class TestCmdSources {
     private static final Double CPU = 100.0;
     private static final Long RAM = 1024L * 1024L;
     private static final Long DISK = 1024L * 1024L * 1024L;
-    private static final String SINK_CONFIG_STRING = "{\"created_at\":\"Mon Jul 02 00:33:15 +0000 2018\"}";
+    private static final String SINK_CONFIG_STRING =
+            "{\"created_at\":\"Mon Jul 02 00:33:15 +0000 2018\",\"int\":1000,\"int_string\":\"1000\",\"float\":1000.0,\"float_string\":\"1000.0\"}";
+    private static final String BATCH_SOURCE_CONFIG_STRING = "{ \"discoveryTriggererClassName\" : \"org.apache.pulsar.io.batchdiscovery.CronTriggerer\","
+			+ "\"discoveryTriggererConfig\": {\"cron\": \"5 0 0 0 0 *\"} }";
 
     private PulsarAdmin pulsarAdmin;
     private Sources source;
@@ -81,6 +89,8 @@ public class TestCmdSources {
     private CmdSources.UpdateSource updateSource;
     private CmdSources.LocalSourceRunner localSourceRunner;
     private CmdSources.DeleteSource deleteSource;
+    private ClassLoader oldContextClassLoader;
+    private ClassLoader jarClassLoader;
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -98,10 +108,24 @@ public class TestCmdSources {
         mockStatic(CmdFunctions.class);
         PowerMockito.doNothing().when(localSourceRunner).runCmd();
         JAR_FILE_PATH = Thread.currentThread().getContextClassLoader().getResource(JAR_FILE_NAME).getFile();
-        Thread.currentThread().setContextClassLoader(ClassLoaderUtils.loadJar(new File(JAR_FILE_PATH)));
+        jarClassLoader = ClassLoaderUtils.loadJar(new File(JAR_FILE_PATH));
+        oldContextClassLoader = Thread.currentThread().getContextClassLoader();
+        Thread.currentThread().setContextClassLoader(jarClassLoader);
     }
 
-    public SourceConfig getSourceConfig() {
+    @AfterMethod(alwaysRun = true)
+    public void cleanup() throws IOException {
+        if (jarClassLoader != null && jarClassLoader instanceof Closeable) {
+            ((Closeable) jarClassLoader).close();
+            jarClassLoader = null;
+        }
+        if (oldContextClassLoader != null) {
+            Thread.currentThread().setContextClassLoader(oldContextClassLoader);
+            oldContextClassLoader = null;
+        }
+    }
+
+    public SourceConfig getSourceConfig() throws JsonProcessingException {
         SourceConfig sourceConfig = new SourceConfig();
         sourceConfig.setTenant(TENANT);
         sourceConfig.setNamespace(NAMESPACE);
@@ -115,6 +139,10 @@ public class TestCmdSources {
         sourceConfig.setResources(new Resources(CPU, RAM, DISK));
         sourceConfig.setConfigs(createSource.parseConfigs(SINK_CONFIG_STRING));
         return sourceConfig;
+    }
+    
+    public BatchSourceConfig getBatchSourceConfig() {
+    	return createSource.parseBatchSourceConfigs(BATCH_SOURCE_CONFIG_STRING);
     }
 
     @Test
@@ -373,6 +401,61 @@ public class TestCmdSources {
         testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
     }
 
+    @Test
+    public void testBatchSourceConfigCorrect() throws Exception {
+    	SourceConfig testSourceConfig = getSourceConfig();
+    	testSourceConfig.setBatchSourceConfig(getBatchSourceConfig());
+    	
+    	SourceConfig expectedSourceConfig = getSourceConfig();
+        expectedSourceConfig.setBatchSourceConfig(getBatchSourceConfig());
+        testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
+    }
+    
+    /*
+     * Test where the DiscoveryTriggererClassName is null
+     */
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Discovery Triggerer not specified")
+    public void testBatchSourceConfigMissingDiscoveryTriggererClassName() throws Exception {
+    	SourceConfig testSourceConfig = getSourceConfig();
+    	BatchSourceConfig batchSourceConfig = getBatchSourceConfig();
+    	batchSourceConfig.setDiscoveryTriggererClassName(null);
+    	testSourceConfig.setBatchSourceConfig(batchSourceConfig);
+    	
+    	SourceConfig expectedSourceConfig = getSourceConfig();
+        expectedSourceConfig.setBatchSourceConfig(batchSourceConfig);
+        testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
+    }
+    
+    /*
+     * Test where the class name does not implement the BatchSourceTriggerer interface
+     */
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Invalid Discovery Triggerer specified")
+    public void testBatchSourceConfigInvalidDiscoveryTriggererClassName() throws Exception {
+    	SourceConfig testSourceConfig = getSourceConfig();
+    	BatchSourceConfig batchSourceConfig = getBatchSourceConfig();
+    	batchSourceConfig.setDiscoveryTriggererClassName("java.lang.String");
+    	testSourceConfig.setBatchSourceConfig(batchSourceConfig);
+    	
+    	SourceConfig expectedSourceConfig = getSourceConfig();
+        expectedSourceConfig.setBatchSourceConfig(batchSourceConfig);
+        testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
+    }
+    
+    /*
+     * Test where the class name provided doesn't exist
+     */
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Invalid Discovery Triggerer specified")
+    public void testBatchSourceConfigDiscoveryTriggererClassNotFound() throws Exception {
+    	SourceConfig testSourceConfig = getSourceConfig();
+    	BatchSourceConfig batchSourceConfig = getBatchSourceConfig();
+    	batchSourceConfig.setDiscoveryTriggererClassName("com.foo.Bar");
+    	testSourceConfig.setBatchSourceConfig(batchSourceConfig);
+    	
+    	SourceConfig expectedSourceConfig = getSourceConfig();
+        expectedSourceConfig.setBatchSourceConfig(batchSourceConfig);
+        testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
+    }
+    
     public void testCmdSourceConfigFile(SourceConfig testSourceConfig, SourceConfig expectedSourceConfig) throws Exception {
 
         File file = Files.createTempFile("", "").toFile();
@@ -584,7 +667,7 @@ public class TestCmdSources {
                 .namespace(DEFAULT_NAMESPACE)
                 .name(updateSource.name)
                 .archive(updateSource.archive)
-                .build()), eq(updateSource.archive), eq(new UpdateOptions()));
+                .build()), eq(updateSource.archive), eq(new UpdateOptionsImpl()));
 
 
         updateSource.archive = null;
@@ -595,7 +678,7 @@ public class TestCmdSources {
 
         updateSource.updateAuthData = true;
 
-        UpdateOptions updateOptions = new UpdateOptions();
+        UpdateOptionsImpl updateOptions = new UpdateOptionsImpl();
         updateOptions.setUpdateAuthData(true);
 
         updateSource.runCmd();
@@ -609,5 +692,16 @@ public class TestCmdSources {
 
 
 
+    }
+
+    @Test
+    public void testParseConfigs() throws Exception {
+        SourceConfig testSourceConfig = getSourceConfig();
+        Map<String, Object> config = testSourceConfig.getConfigs();
+        Assert.assertEquals(config.get("int"), 1000);
+        Assert.assertEquals(config.get("int_string"), "1000");
+        Assert.assertEquals(config.get("float"), 1000.0);
+        Assert.assertEquals(config.get("float_string"), "1000.0");
+        Assert.assertEquals(config.get("created_at"), "Mon Jul 02 00:33:15 +0000 2018");
     }
 }

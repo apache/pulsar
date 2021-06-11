@@ -36,6 +36,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
@@ -98,6 +99,11 @@ public class ProtobufNativeSchema<T extends GeneratedMessageV3> extends Abstract
 
     public Descriptors.Descriptor getProtobufNativeSchema() {
         return ProtobufNativeSchemaUtils.deserialize(this.schemaInfo.getSchema());
+    }
+
+    @Override
+    public Optional<Object> getNativeSchema() {
+        return Optional.of(getProtobufNativeSchema());
     }
 
     public static <T extends GeneratedMessageV3> ProtobufNativeSchema<T> of(Class<T> pojo) {

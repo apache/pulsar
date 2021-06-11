@@ -19,10 +19,11 @@
 package org.apache.pulsar.client.cli;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-
+import static org.apache.pulsar.client.internal.DefaultImplementation.getBytes;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -31,9 +32,11 @@ import com.google.gson.JsonPrimitive;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
@@ -47,8 +50,10 @@ import org.apache.commons.io.HexDump;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.api.schema.Field;
+import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.websocket.api.RemoteEndpoint;
@@ -108,7 +113,7 @@ public class CmdConsume {
     private int receiverQueueSize = 0;
 
     @Parameter(names = { "-mc", "--max_chunked_msg" }, description = "Max pending chunk messages")
-    private int maxPendingChuckedMessage = 0;
+    private int maxPendingChunkedMessage = 0;
 
     @Parameter(names = { "-ac",
             "--auto_ack_chunk_q_full" }, description = "Auto ack for oldest message on queue is full")
@@ -122,7 +127,9 @@ public class CmdConsume {
     @Parameter(names = { "-st", "--schema-type"}, description = "Set a schema type on the consumer, it can be 'bytes' or 'auto_consume'")
     private String schematype = "bytes";
 
-    
+    @Parameter(names = { "-pm", "--pool-messages" }, description = "Use the pooled message")
+    private boolean poolMessages = true;
+
     private ClientBuilder clientBuilder;
     private Authentication authentication;
     private String serviceURL;
@@ -161,16 +168,12 @@ public class CmdConsume {
             data = "null";
         } else if (value instanceof byte[]) {
             byte[] msgData = (byte[]) value;
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            if (!displayHex) {
-                data = new String(msgData);
-            } else {
-                HexDump.dump(msgData, 0, out, 0);
-                data = new String(out.toByteArray());
-            }
-        } else if (value instanceof GenericRecord) {
-            Map<String, Object> asMap = genericRecordToMap((GenericRecord) value);
+            data = interpretByteArray(displayHex, msgData);
+        } else if (value instanceof GenericObject) {
+            Map<String, Object> asMap = genericObjectToMap((GenericObject) value, displayHex);
             data = asMap.toString();
+        } else if (value instanceof ByteBuffer) {
+            data = new String(getBytes((ByteBuffer) value));
         } else {
             data = value.toString();
         }
@@ -189,19 +192,65 @@ public class CmdConsume {
         return sb.toString();
     }
 
-    private static Map<String, Object> genericRecordToMap(GenericRecord value) {
-        return value.getFields()
-                .stream()
-                .collect(Collectors.toMap(Field::getName, f -> {
-                    Object fieldValue = value.getField(f);
-                    if (fieldValue instanceof GenericRecord) {
-                        return genericRecordToMap((GenericRecord) fieldValue);
-                    } else if (fieldValue == null) {
-                        return "null";
-                    } else {
-                        return fieldValue;
-                    }
-                }));
+    private static String interpretByteArray(boolean displayHex, byte[] msgData) throws IOException {
+        String data;
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        if (!displayHex) {
+            return new String(msgData);
+        } else {
+            HexDump.dump(msgData, 0, out, 0);
+            return  new String(out.toByteArray());
+        }
+    }
+
+    private static Map<String, Object> genericObjectToMap(GenericObject value, boolean displayHex) throws IOException {
+        switch (value.getSchemaType()) {
+            case AVRO:
+            case JSON:
+            case PROTOBUF_NATIVE:
+                    return genericRecordToMap((GenericRecord) value, displayHex);
+            case KEY_VALUE:
+                    return keyValueToMap((KeyValue) value.getNativeObject(), displayHex);
+            default:
+                return primitiveValueToMap(value.getNativeObject(), displayHex);
+        }
+    }
+
+    private static Map<String, Object> keyValueToMap(KeyValue value, boolean displayHex) throws IOException {
+        if (value == null) {
+            return ImmutableMap.of("value", "NULL");
+        }
+        return ImmutableMap.of("key", primitiveValueToMap(value.getKey(), displayHex),
+                "value", primitiveValueToMap(value.getValue(), displayHex));
+    }
+
+    private static Map<String, Object> primitiveValueToMap(Object value, boolean displayHex) throws IOException {
+        if (value == null) {
+            return ImmutableMap.of("value", "NULL");
+        }
+        if (value instanceof GenericObject) {
+            return genericObjectToMap((GenericObject) value, displayHex);
+        }
+        if (value instanceof byte[]) {
+            value = interpretByteArray(displayHex, (byte[]) value);
+        }
+        return ImmutableMap.of("value", value.toString(), "type", value.getClass());
+    }
+
+    private static Map<String, Object> genericRecordToMap(GenericRecord value, boolean displayHex) throws IOException {
+        Map<String, Object> res = new HashMap<>();
+        for (Field f : value.getFields()) {
+            Object fieldValue = value.getField(f);
+            if (fieldValue instanceof GenericRecord) {
+                fieldValue = genericRecordToMap((GenericRecord) fieldValue, displayHex);
+            } else if (fieldValue == null) {
+                fieldValue =  "NULL";
+            } else if (fieldValue instanceof byte[]) {
+                fieldValue = interpretByteArray(displayHex, (byte[]) fieldValue);
+            }
+            res.put(f.getName(), fieldValue);
+        }
+        return res;
     }
 
     /**
@@ -233,7 +282,7 @@ public class CmdConsume {
         try {
             ConsumerBuilder<?> builder;
             PulsarClient client = clientBuilder.build();
-            Schema<?> schema = Schema.BYTES;
+            Schema<?> schema = poolMessages ? Schema.BYTEBUFFER : Schema.BYTES;
             if ("auto_consume".equals(schematype)) {
                 schema = Schema.AUTO_CONSUME();
             } else if (!"bytes".equals(schematype)) {
@@ -243,7 +292,8 @@ public class CmdConsume {
                     .subscriptionName(this.subscriptionName)
                     .subscriptionType(subscriptionType)
                     .subscriptionMode(subscriptionMode)
-                    .subscriptionInitialPosition(subscriptionInitialPosition);
+                    .subscriptionInitialPosition(subscriptionInitialPosition)
+                    .poolMessages(poolMessages);
 
             if (isRegex) {
                 builder.topicsPattern(Pattern.compile(topic));
@@ -251,8 +301,8 @@ public class CmdConsume {
                 builder.topic(topic);
             }
 
-            if (this.maxPendingChuckedMessage > 0) {
-                builder.maxPendingChuckedMessage(this.maxPendingChuckedMessage);
+            if (this.maxPendingChunkedMessage > 0) {
+                builder.maxPendingChunkedMessage(this.maxPendingChunkedMessage);
             }
             if (this.receiverQueueSize > 0) {
                 builder.receiverQueueSize(this.receiverQueueSize);
@@ -275,15 +325,19 @@ public class CmdConsume {
                 if (msg == null) {
                     LOG.debug("No message to consume after waiting for 5 seconds.");
                 } else {
-                    numMessagesConsumed += 1;
-                    if (!hideContent) {
-                        System.out.println(MESSAGE_BOUNDARY);
-                        String output = this.interpretMessage(msg, displayHex);
-                        System.out.println(output);
-                    } else if (numMessagesConsumed % 1000 == 0) {
-                        System.out.println("Received " + numMessagesConsumed + " messages");
+                    try {
+                        numMessagesConsumed += 1;
+                        if (!hideContent) {
+                            System.out.println(MESSAGE_BOUNDARY);
+                            String output = this.interpretMessage(msg, displayHex);
+                            System.out.println(output);
+                        } else if (numMessagesConsumed % 1000 == 0) {
+                            System.out.println("Received " + numMessagesConsumed + " messages");
+                        }  
+                        consumer.acknowledge(msg);
+                    } finally {
+                        msg.release();
                     }
-                    consumer.acknowledge(msg);
                 }
             }
             client.close();

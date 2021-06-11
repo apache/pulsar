@@ -454,7 +454,7 @@ void PartitionedConsumerImpl::internalListener(Consumer consumer) {
 void PartitionedConsumerImpl::receiveMessages() {
     for (ConsumerList::const_iterator i = consumers_.begin(); i != consumers_.end(); i++) {
         ConsumerImplPtr consumer = *i;
-        consumer->receiveMessages(consumer->getCnx().lock(), conf_.getReceiverQueueSize());
+        consumer->sendFlowPermitsToBroker(consumer->getCnx().lock(), conf_.getReceiverQueueSize());
         LOG_DEBUG("Sending FLOW command for consumer - " << consumer->getConsumerId());
     }
 }
@@ -615,6 +615,24 @@ void PartitionedConsumerImpl::setNegativeAcknowledgeEnabledForTesting(bool enabl
     for (auto&& c : consumers_) {
         c->setNegativeAcknowledgeEnabledForTesting(enabled);
     }
+}
+
+bool PartitionedConsumerImpl::isConnected() const {
+    Lock stateLock(mutex_);
+    if (state_ != Ready) {
+        return false;
+    }
+    stateLock.unlock();
+
+    Lock consumersLock(consumersMutex_);
+    const auto consumers = consumers_;
+    consumersLock.unlock();
+    for (const auto& consumer : consumers_) {
+        if (!consumer->isConnected()) {
+            return false;
+        }
+    }
+    return true;
 }
 
 }  // namespace pulsar

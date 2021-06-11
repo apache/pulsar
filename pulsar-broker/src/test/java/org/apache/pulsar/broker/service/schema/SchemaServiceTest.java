@@ -55,24 +55,24 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
     private static final Clock MockClock = Clock.fixed(Instant.EPOCH, ZoneId.systemDefault());
 
     private final String schemaId1 = "1/2/3/4";
-    private final static String userId = "user";
+    private static final String userId = "user";
 
-    private final static String schemaJson1 =
+    private static final String schemaJson1 =
             "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema" +
                     ".AvroSchemaCompatibilityCheckTest\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}]}";
-    private final static SchemaData schemaData1 = getSchemaData(schemaJson1);
+    private static final SchemaData schemaData1 = getSchemaData(schemaJson1);
 
-    private final static String schemaJson2 =
+    private static final String schemaJson2 =
             "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema" +
                     ".AvroSchemaCompatibilityCheckTest\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}," +
                     "{\"name\":\"field2\",\"type\":\"string\",\"default\":\"foo\"}]}";
-    private final static SchemaData schemaData2 = getSchemaData(schemaJson2);
+    private static final SchemaData schemaData2 = getSchemaData(schemaJson2);
 
-    private final static String schemaJson3 =
+    private static final String schemaJson3 =
             "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema" +
                     ".AvroSchemaCompatibilityCheckTest\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}," +
                     "{\"name\":\"field2\",\"type\":\"string\"}]}";
-    private final static SchemaData schemaData3 = getSchemaData(schemaJson3);
+    private static final SchemaData schemaData3 = getSchemaData(schemaJson3);
 
     private SchemaRegistryServiceImpl schemaRegistryService;
 
@@ -82,7 +82,6 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         conf.setSchemaRegistryStorageClassName("org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory");
         super.internalSetup();
         BookkeeperSchemaStorage storage = new BookkeeperSchemaStorage(pulsar);
-        storage.init();
         storage.start();
         Map<SchemaType, SchemaCompatibilityCheck> checkMap = new HashMap<>();
         checkMap.put(SchemaType.AVRO, new AvroSchemaCompatibilityCheck());

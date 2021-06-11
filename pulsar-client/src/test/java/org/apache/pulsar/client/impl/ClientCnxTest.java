@@ -24,14 +24,16 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.EventLoopGroup;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Field;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadFactory;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.Channel;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.BrokerMetadataException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -42,28 +44,25 @@ import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.testng.annotations.Test;
 
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.EventLoopGroup;
-import io.netty.util.concurrent.DefaultThreadFactory;
-
 public class ClientCnxTest {
 
     @Test
     public void testClientCnxTimeout() throws Exception {
-        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, new DefaultThreadFactory("testClientCnxTimeout"));
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("testClientCnxTimeout"));
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setOperationTimeoutMs(10);
+        conf.setKeepAliveIntervalSeconds(0);
         ClientCnx cnx = new ClientCnx(conf, eventLoop);
 
         ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
+        Channel channel = mock(Channel.class);
+        when(ctx.channel()).thenReturn(channel);
         ChannelFuture listenerFuture = mock(ChannelFuture.class);
         when(listenerFuture.addListener(any())).thenReturn(listenerFuture);
         when(ctx.writeAndFlush(any())).thenReturn(listenerFuture);
 
-        Field ctxField = PulsarHandler.class.getDeclaredField("ctx");
-        ctxField.setAccessible(true);
-        ctxField.set(cnx, ctx);
+        cnx.channelActive(ctx);
+
         try {
             cnx.newLookup(null, 123).get();
         } catch (Exception e) {
@@ -76,7 +75,7 @@ public class ClientCnxTest {
     @Test
     public void testReceiveErrorAtSendConnectFrameState() throws Exception {
         ThreadFactory threadFactory = new DefaultThreadFactory("testReceiveErrorAtSendConnectFrameState");
-        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, threadFactory);
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, threadFactory);
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setOperationTimeoutMs(10);
         ClientCnx cnx = new ClientCnx(conf, eventLoop);
@@ -111,7 +110,7 @@ public class ClientCnxTest {
     @Test
     public void testGetLastMessageIdWithError() throws Exception {
         ThreadFactory threadFactory = new DefaultThreadFactory("testReceiveErrorAtSendConnectFrameState");
-        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, threadFactory);
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, threadFactory);
         ClientConfigurationData conf = new ClientConfigurationData();
         ClientCnx cnx = new ClientCnx(conf, eventLoop);
 

@@ -137,15 +137,15 @@ You can configure the broker (and proxy) to require specific TLS protocol versio
 Both the TLS protocol versions and cipher properties can take multiple values, separated by commas. The possible values for protocol version and ciphers depend on the TLS provider that you are using. Pulsar uses OpenSSL if the OpenSSL is available, but if the OpenSSL is not available, Pulsar defaults back to the JDK implementation.
 
 ```properties
-tlsProtocols=TLSv1.2,TLSv1.1
+tlsProtocols=TLSv1.3,TLSv1.2
 tlsCiphers=TLS_DH_RSA_WITH_AES_256_GCM_SHA384,TLS_DH_RSA_WITH_AES_256_CBC_SHA
 ```
 
-OpenSSL currently supports ```SSL2```, ```SSL3```, ```TLSv1```, ```TLSv1.1``` and ```TLSv1.2``` for the protocol version. You can acquire a list of supported cipher from the openssl ciphers command, i.e. ```openssl ciphers -tls_v2```.
+OpenSSL currently supports ```TLSv1.1```, ```TLSv1.2``` and ```TLSv1.3``` for the protocol version. You can acquire a list of supported cipher from the openssl ciphers command, i.e. ```openssl ciphers -tls1_3```.
 
-For JDK 8, you can obtain a list of supported values from the documentation:
-- [TLS protocol](https://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#SSLContext)
-- [Ciphers](https://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#ciphersuites)
+For JDK 11, you can obtain a list of supported values from the documentation:
+- [TLS protocol](https://docs.oracle.com/en/java/javase/11/security/oracle-providers.html#GUID-7093246A-31A3-4304-AC5F-5FB6400405E2__SUNJSSEPROVIDERPROTOCOLPARAMETERS-BBF75009)
+- [Ciphers](https://docs.oracle.com/en/java/javase/11/security/oracle-providers.html#GUID-7093246A-31A3-4304-AC5F-5FB6400405E2__SUNJSSE_CIPHER_SUITES)
 
 ## Proxy Configuration
 

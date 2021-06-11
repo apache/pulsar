@@ -35,11 +35,11 @@ public class CmdResourceQuotas extends CmdBase {
     private class GetResourceQuota extends CliCommand {
 
         @Parameter(names = { "--namespace",
-                "-n" }, description = "property/cluster/namespace, must be specified together with '--bundle'\n")
+                "-n" }, description = "property/cluster/namespace, must be specified together with '--bundle'")
         private java.util.List<String> names;
 
         @Parameter(names = { "--bundle",
-                "-b" }, description = "{start-boundary}_{end-boundary}, must be specified together with '--namespace'\n")
+                "-b" }, description = "{start-boundary}_{end-boundary}, must be specified together with '--namespace'")
         private String bundle;
 
         @Override
@@ -59,34 +59,34 @@ public class CmdResourceQuotas extends CmdBase {
     private class SetResourceQuota extends CliCommand {
 
         @Parameter(names = { "--namespace",
-                "-n" }, description = "property/cluster/namespace, must be specified together with '--bundle'\n")
+                "-n" }, description = "property/cluster/namespace, must be specified together with '--bundle'")
         private java.util.List<String> names;
 
         @Parameter(names = { "--bundle",
-                "-b" }, description = "{start-boundary}_{end-boundary}, must be specified together with '--namespace'\n")
+                "-b" }, description = "{start-boundary}_{end-boundary}, must be specified together with '--namespace'")
         private String bundle;
 
         @Parameter(names = { "--msgRateIn",
-                "-mi" }, description = "expected incoming messages per second\n", required = true)
+                "-mi" }, description = "expected incoming messages per second", required = true)
         private long msgRateIn = 0;
 
         @Parameter(names = { "--msgRateOut",
-                "-mo" }, description = "expected outgoing messages per second\n", required = true)
+                "-mo" }, description = "expected outgoing messages per second", required = true)
         private long msgRateOut = 0;
 
         @Parameter(names = { "--bandwidthIn",
-                "-bi" }, description = "expected inbound bandwidth (bytes/second)\n", required = true)
+                "-bi" }, description = "expected inbound bandwidth (bytes/second)", required = true)
         private long bandwidthIn = 0;
 
         @Parameter(names = { "--bandwidthOut",
-                "-bo" }, description = "expected outbound bandwidth (bytes/second)\n", required = true)
+                "-bo" }, description = "expected outbound bandwidth (bytes/second)", required = true)
         private long bandwidthOut = 0;
 
-        @Parameter(names = { "--memory", "-mem" }, description = "expected memory usage (Mbytes)\n", required = true)
+        @Parameter(names = { "--memory", "-mem" }, description = "expected memory usage (Mbytes)", required = true)
         private long memory = 0;
 
         @Parameter(names = { "--dynamic",
-                "-d" }, description = "dynamic (allow to be dynamically re-calculated) or not\n")
+                "-d" }, description = "dynamic (allow to be dynamically re-calculated) or not")
         private boolean dynamic = false;
 
         @Override
@@ -113,10 +113,10 @@ public class CmdResourceQuotas extends CmdBase {
     @Parameters(commandDescription = "Reset the specified namespace bundle's resource quota to default value.")
     private class ResetNamespaceBundleResourceQuota extends CliCommand {
 
-        @Parameter(names = { "--namespace", "-n" }, description = "property/cluster/namespace\n", required = true)
+        @Parameter(names = { "--namespace", "-n" }, description = "property/cluster/namespace", required = true)
         private java.util.List<String> names;
 
-        @Parameter(names = { "--bundle", "-b" }, description = "{start-boundary}_{end-boundary}\n", required = true)
+        @Parameter(names = { "--bundle", "-b" }, description = "{start-boundary}_{end-boundary}", required = true)
         private String bundle;
 
         @Override

@@ -27,7 +27,6 @@ import com.google.common.base.Splitter;
 import java.io.IOException;
 import java.util.Base64;
 import java.util.List;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -35,11 +34,10 @@ import java.util.concurrent.atomic.LongAdder;
 
 import javax.servlet.http.HttpServletRequest;
 
-import io.netty.util.concurrent.CompleteFuture;
-import org.apache.bookkeeper.util.SafeRunnable;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -219,6 +217,8 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                 handlePermit(command);
             } else if ("unsubscribe".equals(command.type)) {
                 handleUnsubscribe(command);
+            } else if ("negativeAcknowledge".equals(command.type)) {
+                handleNack(command);
             } else if ("isEndOfTopic".equals(command.type)) {
                 handleEndOfTopic();
             } else {
@@ -262,11 +262,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         consumer.unsubscribe();
     }
 
-    private void handleAck(ConsumerCommand command) throws IOException {
-        // We should have received an ack
-        MessageId msgId = MessageId.fromByteArrayWithTopic(Base64.getDecoder().decode(command.messageId),
-                topic.toString());
-        consumer.acknowledgeAsync(msgId).thenAccept(consumer -> numMsgsAcked.increment());
+    private void checkResumeReceive() {
         if (!this.pullMode) {
             int pending = pendingMessages.getAndDecrement();
             if (pending >= maxPendingMessages) {
@@ -274,6 +270,22 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                 receiveMessage();
             }
         }
+    }
+
+    private void handleAck(ConsumerCommand command) throws IOException {
+        // We should have received an ack
+        MessageId msgId = MessageId.fromByteArrayWithTopic(Base64.getDecoder().decode(command.messageId),
+                topic.toString());
+        consumer.acknowledgeAsync(msgId).thenAccept(consumer -> numMsgsAcked.increment());
+        checkResumeReceive();
+    }
+
+    private void handleNack(ConsumerCommand command) throws IOException {
+        MessageId msgId = MessageId.fromByteArrayWithTopic(Base64.getDecoder().decode(command.messageId),
+            topic.toString());
+        System.out.println(msgId);
+        consumer.negativeAcknowledge(msgId);
+        checkResumeReceive();
     }
 
     private void handlePermit(ConsumerCommand command) throws IOException {
@@ -385,7 +397,19 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             if (queryParams.containsKey("deadLetterTopic")) {
                 dlpBuilder.deadLetterTopic(queryParams.get("deadLetterTopic"));
             }
+            if (queryParams.containsKey("negativeAckRedeliveryDelay")) {
+                builder.negativeAckRedeliveryDelay(Integer.parseInt(queryParams.get("negativeAckRedeliveryDelay")), TimeUnit.MILLISECONDS);
+            }
             builder.deadLetterPolicy(dlpBuilder.build());
+        }
+
+        if (queryParams.containsKey("cryptoFailureAction")) {
+            String action = queryParams.get("cryptoFailureAction");
+            try {
+                builder.cryptoFailureAction(ConsumerCryptoFailureAction.valueOf(action));
+            } catch (Exception e) {
+                log.warn("Failed to configure cryptoFailureAction {} , {}", action, e.getMessage());
+            }
         }
 
         return builder;
@@ -419,5 +443,4 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     }
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerHandler.class);
-
 }

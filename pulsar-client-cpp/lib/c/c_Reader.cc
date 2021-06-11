@@ -59,3 +59,5 @@ pulsar_result pulsar_reader_has_message_available(pulsar_reader_t *reader, int *
     *available = isAvailable;
     return result;
 }
+
+int pulsar_reader_is_connected(pulsar_reader_t *reader) { return reader->reader.isConnected(); }

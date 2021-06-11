@@ -24,12 +24,17 @@ import java.util.Map;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 
 @Getter
 @Setter
 @ToString
 public class CommandGenerator {
+    private static final long MB = 1048576L;
+    private static final long JAVA_RUNTIME_RAM_BYTES = 128 * MB;
+
     public enum Runtime {
         JAVA,
         PYTHON,
@@ -54,6 +59,9 @@ public class CommandGenerator {
     private Long windowLengthDurationMs;
     private Integer slidingIntervalCount;
     private Long slidingIntervalDurationMs;
+    private String customSchemaInputs;
+    private String schemaType;
+    private SubscriptionInitialPosition subscriptionInitialPosition;
 
     private Map<String, String> userConfig = new HashMap<>();
     public static final String JAVAJAR = "/pulsar/examples/java-test-functions.jar";
@@ -94,11 +102,20 @@ public class CommandGenerator {
         if(runtime != Runtime.GO){
             commandBuilder.append(" --className " + functionClassName);
         }
-        if (sourceTopic != null) {
+        if (StringUtils.isNotEmpty(sourceTopic)) {
             commandBuilder.append(" --inputs " + sourceTopic);
         }
         if (sinkTopic != null) {
             commandBuilder.append(" --output " + sinkTopic);
+        }
+        if (customSchemaInputs != null) {
+            commandBuilder.append(" --custom-schema-inputs \'" + customSchemaInputs + "\'");
+        }
+        if (schemaType != null) {
+            commandBuilder.append(" --schema-type " + schemaType);
+        }
+        if (subscriptionInitialPosition != null) {
+            commandBuilder.append(" --subs-position " + subscriptionInitialPosition.name());
         }
         switch (runtime){
             case JAVA:
@@ -119,7 +136,6 @@ public class CommandGenerator {
                 }
                 break;
         }
-
         return commandBuilder.toString();
     }
 
@@ -146,7 +162,7 @@ public class CommandGenerator {
         if (runtime != Runtime.GO){
             commandBuilder.append(" --className " + functionClassName);
         }
-        if (sourceTopic != null) {
+        if (StringUtils.isNotEmpty(sourceTopic)) {
             commandBuilder.append(" --inputs " + sourceTopic);
         }
         if (sourceTopicPattern != null) {
@@ -188,10 +204,20 @@ public class CommandGenerator {
         if (slidingIntervalDurationMs != null)  {
             commandBuilder.append(" --slidingIntervalDurationMs " + slidingIntervalDurationMs);
         }
+        if (customSchemaInputs != null) {
+            commandBuilder.append(" --custom-schema-inputs \'" + customSchemaInputs + "\'");
+        }
+        if (schemaType != null) {
+            commandBuilder.append(" --schema-type " + schemaType);
+        }
+        if (subscriptionInitialPosition != null) {
+            commandBuilder.append(" --subs-position " + subscriptionInitialPosition.name());
+        }
 
         switch (runtime){
             case JAVA:
                 commandBuilder.append(" --jar " + JAVAJAR);
+                commandBuilder.append(" --ram " + JAVA_RUNTIME_RAM_BYTES);
                 break;
             case PYTHON:
                 if (codeFile != null) {
@@ -237,7 +263,7 @@ public class CommandGenerator {
         if (functionClassName != null) {
             commandBuilder.append(" --className " + functionClassName);
         }
-        if (sourceTopic != null) {
+        if (StringUtils.isNotEmpty(sourceTopic)) {
             commandBuilder.append(" --inputs " + sourceTopic);
         }
         if (customSereSourceTopics != null && !customSereSourceTopics.isEmpty()) {
@@ -276,11 +302,21 @@ public class CommandGenerator {
         if (slidingIntervalDurationMs != null)  {
             commandBuilder.append(" --slidingIntervalDurationMs " + slidingIntervalDurationMs);
         }
+        if (customSchemaInputs != null) {
+            commandBuilder.append(" --custom-schema-inputs \'" + customSchemaInputs + "\'");
+        }
+        if (schemaType != null) {
+            commandBuilder.append(" --schema-type " + schemaType);
+        }
+        if (subscriptionInitialPosition != null) {
+            commandBuilder.append(" --subs-position " + subscriptionInitialPosition.name());
+        }
 
         if (codeFile != null) {
             switch (runtime) {
                 case JAVA:
                     commandBuilder.append(" --jar " + JAVAJAR);
+                    commandBuilder.append(" --ram " + JAVA_RUNTIME_RAM_BYTES);
                     break;
                 case PYTHON:
                     if (codeFile != null) {

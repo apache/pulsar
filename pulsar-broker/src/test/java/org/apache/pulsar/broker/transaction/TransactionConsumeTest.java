@@ -43,8 +43,10 @@ import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.protocol.Commands;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -57,20 +59,20 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class TransactionConsumeTest extends TransactionTestBase {
 
-    private final static String CONSUME_TOPIC = "persistent://public/txn/txn-consume-test";
-    private final static String NORMAL_MSG_CONTENT = "Normal - ";
-    private final static String TXN_MSG_CONTENT = "Txn - ";
+    private static final String CONSUME_TOPIC = "persistent://public/txn/txn-consume-test";
+    private static final String NORMAL_MSG_CONTENT = "Normal - ";
+    private static final String TXN_MSG_CONTENT = "Txn - ";
 
-    @BeforeMethod(groups = "broker")
+    @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
         setBrokerCount(1);
         super.internalSetup();
 
         String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
         String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length -1];
-        admin.clusters().createCluster(CLUSTER_NAME, new ClusterData("http://localhost:" + webServicePort));
+        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl("http://localhost:" + webServicePort).build());
         admin.tenants().createTenant("public",
-                new TenantInfo(Sets.newHashSet(), Sets.newHashSet(CLUSTER_NAME)));
+                new TenantInfoImpl(Sets.newHashSet(), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace("public/txn", 10);
         admin.topics().createNonPartitionedTopic(CONSUME_TOPIC);
     }
@@ -104,6 +106,9 @@ public class TransactionConsumeTest extends TransactionTestBase {
                 .subscriptionName("shared-test")
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
+
+        Awaitility.await().until(exclusiveConsumer::isConnected);
+        Awaitility.await().until(sharedConsumer::isConnected);
 
         long mostSigBits = 2L;
         long leastSigBits = 5L;
@@ -180,6 +185,8 @@ public class TransactionConsumeTest extends TransactionTestBase {
                 .subscriptionName("shared-test")
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
+        Awaitility.await().until(exclusiveConsumer::isConnected);
+        Awaitility.await().until(sharedConsumer::isConnected);
 
         long mostSigBits = 2L;
         long leastSigBits = 5L;

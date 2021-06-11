@@ -34,6 +34,7 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import java.security.Key;
+import java.util.Arrays;
 import java.util.List;
 import lombok.Cleanup;
 
@@ -86,8 +87,9 @@ public class AuthenticationProviderTokenTest {
                 .compact();
 
         @SuppressWarnings("unchecked")
-        Jwt<?, Claims> jwt = Jwts.parser()
+        Jwt<?, Claims> jwt = Jwts.parserBuilder()
                 .setSigningKey(AuthTokenUtils.decodeSecretKey(secretKey.getEncoded()))
+                .build()
                 .parse(token);
 
         assertNotNull(jwt);
@@ -107,8 +109,9 @@ public class AuthenticationProviderTokenTest {
                 Optional.empty());
 
         @SuppressWarnings("unchecked")
-        Jwt<?, Claims> jwt = Jwts.parser()
+        Jwt<?, Claims> jwt = Jwts.parserBuilder()
                 .setSigningKey(AuthTokenUtils.decodePublicKey(Decoders.BASE64.decode(publicKey), SignatureAlgorithm.RS256))
+                .build()
                 .parse(token);
 
         assertNotNull(jwt);
@@ -748,6 +751,54 @@ public class AuthenticationProviderTokenTest {
         properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_AUDIENCE, brokerAudience);
         properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_AUDIENCE_CLAIM, audienceClaim);
         testTokenAudienceWithDifferentConfig(properties, audienceClaim, audiences);
+    }
+
+    @Test
+    public void testArrayTypeRoleClaim() throws Exception {
+        String authRoleClaim = "customClaim";
+        String authRole = "my-test-role";
+
+        KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
+
+        String privateKeyStr = AuthTokenUtils.encodeKeyBase64(keyPair.getPrivate());
+        String publicKeyStr = AuthTokenUtils.encodeKeyBase64(keyPair.getPublic());
+
+        AuthenticationProviderToken provider = new AuthenticationProviderToken();
+
+        Properties properties = new Properties();
+        // Use public key for validation
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_PUBLIC_KEY, publicKeyStr);
+        // Set custom claim field
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_AUTH_CLAIM, authRoleClaim);
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+        provider.initialize(conf);
+
+        // Use private key to generate token
+        PrivateKey privateKey = AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKeyStr), SignatureAlgorithm.RS256);
+        String token = Jwts.builder()
+                .setClaims(new HashMap<String, Object>() {{
+                    put(authRoleClaim, Arrays.asList(authRole, "other-role"));
+                }})
+                .signWith(privateKey)
+                .compact();
+
+        // Pulsar protocol auth
+        String role = provider.authenticate(new AuthenticationDataSource() {
+            @Override
+            public boolean hasDataFromCommand() {
+                return true;
+            }
+
+            @Override
+            public String getCommandData() {
+                return token;
+            }
+        });
+        assertEquals(role, authRole);
+
+        provider.close();
     }
 
     private static String createTokenWithAudience(Key signingKey, String audienceClaim, List<String> audience) {

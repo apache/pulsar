@@ -187,7 +187,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
 
         WebServer webServer = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
-                new BrokerDiscoveryProvider(proxyConfig, mockZooKeeperClientFactory, resource));
+                new BrokerDiscoveryProvider(proxyConfig, resource));
         webServer.start();
         try {
             Response r = client.target(webServer.getServiceUri()).path("/ui/foobar").request().get();
@@ -216,7 +216,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
 
         WebServer webServer = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
-                new BrokerDiscoveryProvider(proxyConfig, mockZooKeeperClientFactory, resource));
+                new BrokerDiscoveryProvider(proxyConfig, resource));
         webServer.start();
         try {
             Response r1 = client.target(webServer.getServiceUri()).path("/server1/foobar").request().get();
@@ -247,7 +247,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
 
         WebServer webServer = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
-                new BrokerDiscoveryProvider(proxyConfig, mockZooKeeperClientFactory, resource));
+                new BrokerDiscoveryProvider(proxyConfig, resource));
 
     }
 
@@ -266,7 +266,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
 
         WebServer webServer = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
-                new BrokerDiscoveryProvider(proxyConfig, mockZooKeeperClientFactory, resource));
+                new BrokerDiscoveryProvider(proxyConfig, resource));
         webServer.start();
         try {
             Response r = client.target(webServer.getServiceUri()).path("/ui/foobar").request().get();
@@ -293,7 +293,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
 
         WebServer webServer = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
-                new BrokerDiscoveryProvider(proxyConfig, mockZooKeeperClientFactory, resource));
+                new BrokerDiscoveryProvider(proxyConfig, resource));
         webServer.start();
         try {
             Response r = client.target(webServer.getServiceUri()).path("/ui/foobar").request().get();
@@ -319,7 +319,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
 
         WebServer webServer = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
-                new BrokerDiscoveryProvider(proxyConfig, mockZooKeeperClientFactory, resource));
+                new BrokerDiscoveryProvider(proxyConfig, resource));
         webServer.start();
         try {
             Response r = client.target(webServer.getServiceUri()).path("/foo/bar/blah/foobar").request().get();
@@ -344,7 +344,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
 
         WebServer webServer = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
-                new BrokerDiscoveryProvider(proxyConfig, mockZooKeeperClientFactory, resource));
+                new BrokerDiscoveryProvider(proxyConfig, resource));
         webServer.start();
         try {
             Response r = client.target(webServer.getServiceUri()).path("/ui/foobar").request().get();
@@ -376,7 +376,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
 
         WebServer webServer = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
-                new BrokerDiscoveryProvider(proxyConfig, mockZooKeeperClientFactory, resource));
+                new BrokerDiscoveryProvider(proxyConfig, resource));
         webServer.start();
 
         HttpClient httpClient = new HttpClient();

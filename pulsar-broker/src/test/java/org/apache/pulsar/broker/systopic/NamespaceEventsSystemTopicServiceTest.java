@@ -24,11 +24,14 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.common.events.ActionType;
 import org.apache.pulsar.common.events.EventType;
+import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.events.PulsarEvent;
 import org.apache.pulsar.common.events.TopicPoliciesEvent;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -108,10 +111,22 @@ public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBa
         Assert.assertEquals(systemTopicClientForNamespace1.getReaders().size(), 0);
     }
 
+    @Test(timeOut = 30000)
+    public void checkSystemTopic() throws PulsarAdminException {
+        final String systemTopic = "persistent://" + NAMESPACE1 + "/" + EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME;
+        final String normalTopic = "persistent://" + NAMESPACE1 + "/normal_topic";
+        admin.topics().createPartitionedTopic(normalTopic, 3);
+        TopicName systemTopicName = TopicName.get(systemTopic);
+        TopicName normalTopicName = TopicName.get(normalTopic);
+
+        Assert.assertEquals(SystemTopicClient.isSystemTopic(systemTopicName), true);
+        Assert.assertEquals(SystemTopicClient.isSystemTopic(normalTopicName), false);
+    }
+
     private void prepareData() throws PulsarAdminException {
-        admin.clusters().createCluster("test", new ClusterData(pulsar.getBrokerServiceUrl()));
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         admin.tenants().createTenant("system-topic",
-            new TenantInfo(Sets.newHashSet(), Sets.newHashSet("test")));
+            new TenantInfoImpl(Sets.newHashSet(), Sets.newHashSet("test")));
         admin.namespaces().createNamespace(NAMESPACE1);
         admin.namespaces().createNamespace(NAMESPACE2);
         admin.namespaces().createNamespace(NAMESPACE3);

@@ -141,3 +141,5 @@ void pulsar_consumer_seek_async(pulsar_consumer_t *consumer, pulsar_message_id_t
 pulsar_result pulsar_consumer_seek(pulsar_consumer_t *consumer, pulsar_message_id_t *messageId) {
     return (pulsar_result)consumer->consumer.seek(messageId->messageId);
 }
+
+int pulsar_consumer_is_connected(pulsar_consumer_t *consumer) { return consumer->consumer.isConnected(); }

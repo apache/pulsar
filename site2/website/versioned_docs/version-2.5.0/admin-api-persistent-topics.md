@@ -25,13 +25,13 @@ It provides a list of persistent topics exist under a given namespace.
 List of topics can be fetched using [`list`](../../reference/CliTools#list) command.
 
 ```shell
-$ pulsar-admin persistent list \
+$ pulsar-admin topics list \
   my-tenant/my-namespace
 ```
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace|operation/getList?version=[[pulsar:version_number]]}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace|operation/getList?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -49,7 +49,7 @@ It grants permissions on a client role to perform specific actions on a given to
 Permission can be granted using [`grant-permission`](../../reference/CliTools#grant-permission) command.
 
 ```shell
-$ pulsar-admin persistent grant-permission \
+$ pulsar-admin topics grant-permission \
   --actions produce,consume --role application1 \
   persistent://test-tenant/ns1/tp1 \
 
@@ -57,7 +57,7 @@ $ pulsar-admin persistent grant-permission \
 
 #### REST API
 
-{@inject: endpoint|POST|/admin/v2/persistent/:tenant/:namespace/:topic/permissions/:role|operation/grantPermissionsOnTopic?version=[[pulsar:version_number]]}
+{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic/permissions/:role|operation/grantPermissionsOnTopic?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -75,7 +75,7 @@ Permission can be fetched using [`permissions`](../../reference/CliTools#permiss
 #### pulsar-admin
 
 ```shell
-$ pulsar-admin persistent permissions \
+$ pulsar-admin topics permissions \
   persistent://test-tenant/ns1/tp1 \
 
 {
@@ -88,7 +88,7 @@ $ pulsar-admin persistent permissions \
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace/:topic/permissions|operation/getPermissionsOnTopic?version=[[pulsar:version_number]]}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/permissions|operation/getPermissionsOnTopic?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -106,7 +106,7 @@ It revokes a permission which was granted on a client role.
 Permission can be revoked using [`revoke-permission`](../../reference/CliTools#revoke-permission) command.
 
 ```shell
-$ pulsar-admin persistent revoke-permission \
+$ pulsar-admin topics revoke-permission \
   --role application1 \
   persistent://test-tenant/ns1/tp1 \
 
@@ -120,7 +120,7 @@ $ pulsar-admin persistent revoke-permission \
 
 #### REST API
 
-{@inject: endpoint|DELETE|/admin/v2/persistent/:tenant/:namespace/:topic/permissions/:role|operation/revokePermissionsOnTopic?version=[[pulsar:version_number]]}
+{@inject: endpoint|DELETE|/admin/v2/:schema/:tenant/:namespace/:topic/permissions/:role|operation/revokePermissionsOnTopic?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -139,13 +139,13 @@ It deletes a topic. The topic cannot be deleted if there's any active subscripti
 Topic can be deleted using [`delete`](../../reference/CliTools#delete) command.
 
 ```shell
-$ pulsar-admin persistent delete \
+$ pulsar-admin topics delete \
   persistent://test-tenant/ns1/tp1 \
 ```
 
 #### REST API
 
-{@inject: endpoint|DELETE|/admin/v2/persistent/:tenant/:namespace/:topic|operation/deleteTopic?version=[[pulsar:version_number]]}
+{@inject: endpoint|DELETE|/admin/v2/:schema/:tenant/:namespace/:topic|operation/deleteTopic?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -163,13 +163,13 @@ It unloads a topic.
 Topic can be unloaded using [`unload`](../../reference/CliTools#unload) command.
 
 ```shell
-$ pulsar-admin persistent unload \
+$ pulsar-admin topics unload \
   persistent://test-tenant/ns1/tp1 \
 ```
 
 #### REST API
 
-{@inject: endpoint|PUT|/admin/v2/persistent/:tenant/:namespace/:topic/unload|operation/unloadTopic?version=[[pulsar:version_number]]}
+{@inject: endpoint|PUT|/admin/v2/:schema/:tenant/:namespace/:topic/unload|operation/unloadTopic?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -302,13 +302,13 @@ It shows current statistics of a given non-partitioned topic.
 Topic stats can be fetched using [`stats`](../../reference/CliTools#stats) command.
 
 ```shell
-$ pulsar-admin persistent stats \
+$ pulsar-admin topics stats \
   persistent://test-tenant/ns1/tp1 \
 ```
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace/:topic/stats|operation/getStats?version=[[pulsar:version_number]]}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/stats|operation/getStats?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -418,13 +418,13 @@ It shows detailed statistics of a topic.
 Topic internal-stats can be fetched using [`stats-internal`](../../reference/CliTools#stats-internal) command.
 
 ```shell
-$ pulsar-admin persistent stats-internal \
+$ pulsar-admin topics stats-internal \
   persistent://test-tenant/ns1/tp1 \
 ```
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace/:topic/internalStats|operation/getInternalStats?version=[[pulsar:version_number]]}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/internalStats|operation/getInternalStats?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -441,7 +441,7 @@ It peeks N messages for a specific subscription of a given topic.
 
 
 ```shell
-$ pulsar-admin persistent peek-messages \
+$ pulsar-admin topics peek-messages \
   --count 10 --subscription my-subscription \
   persistent://test-tenant/ns1/tp1 \
 
@@ -452,7 +452,7 @@ msg-payload
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace/:topic/subscription/:subName/position/:messagePosition|operation/peekNthMessage?version=[[pulsar:version_number]]}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/position/:messagePosition|operation/peekNthMessage?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -471,14 +471,14 @@ It skips N messages for a specific subscription of a given topic.
 
 
 ```shell
-$ pulsar-admin persistent skip \
+$ pulsar-admin topics skip \
   --count 10 --subscription my-subscription \
   persistent://test-tenant/ns1/tp1 \
 ```
 
 #### REST API
 
-{@inject: endpoint|POST|/admin/v2/persistent/:tenant/:namespace/:topic/subscription/:subName/skip/:numMessages|operation/skipMessages?version=[[pulsar:version_number]]}
+{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/skip/:numMessages|operation/skipMessages?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -497,14 +497,14 @@ It skips all old messages for a specific subscription of a given topic.
 
 
 ```shell
-$ pulsar-admin persistent skip-all \
+$ pulsar-admin topics skip-all \
   --subscription my-subscription \
   persistent://test-tenant/ns1/tp1 \
 ```
 
 #### REST API
 
-{@inject: endpoint|POST|/admin/v2/persistent/:tenant/:namespace/:topic/subscription/:subName/skip_all|operation/skipAllMessages?version=[[pulsar:version_number]]}
+{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/skip_all|operation/skipAllMessages?version=[[pulsar:version_number]]}
 
 [More info](../../reference/RestApi#/admin/persistent/:tenant/:namespace/:topic/subscription/:subName/skip_all)
 
@@ -524,14 +524,14 @@ It resets a subscription’s cursor position back to the position which was reco
 
 
 ```shell
-$ pulsar-admin persistent reset-cursor \
+$ pulsar-admin topics reset-cursor \
   --subscription my-subscription --time 10 \
   persistent://test-tenant/ns1/tp1 \
 ```
 
 #### REST API
 
-{@inject: endpoint|POST|/admin/v2/persistent/:tenant/:namespace/:topic/subscription/:subName/resetcursor/:timestamp|operation/resetCursor?version=[[pulsar:version_number]]}
+{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/resetcursor/:timestamp|operation/resetCursor?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -550,7 +550,7 @@ It locates broker url which is serving the given topic.
 
 
 ```shell
-$ pulsar-admin persistent lookup \
+$ pulsar-admin topics lookup \
   persistent://test-tenant/ns1/tp1 \
 
  "pulsar://broker1.org.com:4480"
@@ -575,7 +575,7 @@ It gives range of the bundle which contains given topic
 
 
 ```shell
-$ pulsar-admin persistent bundle-range \
+$ pulsar-admin topics bundle-range \
   persistent://test-tenant/ns1/tp1 \
 
  "0x00000000_0xffffffff"
@@ -600,7 +600,7 @@ It shows all subscription names for a given topic.
 #### pulsar-admin
 
 ```shell
-$ pulsar-admin persistent subscriptions \
+$ pulsar-admin topics subscriptions \
   persistent://test-tenant/ns1/tp1 \
 
  my-subscription
@@ -608,7 +608,7 @@ $ pulsar-admin persistent subscriptions \
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace/:topic/subscriptions|operation/getSubscriptions?version=[[pulsar:version_number]]}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/subscriptions|operation/getSubscriptions?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -625,7 +625,7 @@ It can also help to unsubscribe a subscription which is no more processing furth
 
 
 ```shell
-$ pulsar-admin persistent unsubscribe \
+$ pulsar-admin topics unsubscribe \
   --subscription my-subscription \
   persistent://test-tenant/ns1/tp1 \
 ```
@@ -651,7 +651,7 @@ pulsar-admin topics last-message-id topic-name
 ```
 
 #### REST API
-{% endpoint Get /admin/v2/persistent/:tenant/:namespace/:topic/lastMessageId %}
+{% endpoint Get /admin/v2/:schema/:tenant/:namespace/:topic/lastMessageId %}
 
 #### Java
 

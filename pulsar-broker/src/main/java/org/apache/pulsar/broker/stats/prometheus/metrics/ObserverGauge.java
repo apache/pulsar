@@ -32,6 +32,8 @@ public class ObserverGauge extends SimpleCollector<ObserverGauge.Child> implemen
     public static class Builder extends SimpleCollector.Builder<Builder, ObserverGauge> {
         private Supplier<Number> supplier;
 
+        public Builder() {}
+
         public Builder supplier(Supplier<Number> supplier) {
             this.supplier = supplier;
             return this;

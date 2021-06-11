@@ -59,7 +59,7 @@ import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.nar.NarClassLoader;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
@@ -81,6 +81,7 @@ import org.apache.pulsar.functions.worker.LeaderService;
 import org.apache.pulsar.functions.worker.PulsarWorkerService;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerUtils;
+import org.apache.pulsar.functions.worker.rest.api.PulsarFunctionTestTemporaryDirectory;
 import org.apache.pulsar.functions.worker.rest.api.SourcesImpl;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.mockito.Mockito;
@@ -89,6 +90,7 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.testng.IObjectFactory;
 import org.testng.annotations.AfterClass;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.ObjectFactory;
@@ -120,7 +122,7 @@ public class SourceApiV3ResourceTest {
     private Tenants mockedTenants;
     private Namespaces mockedNamespaces;
     private Functions mockedFunctions;
-    private TenantInfo mockedTenantInfo;
+    private TenantInfoImpl mockedTenantInfo;
     private List<String> namespaceList = new LinkedList<>();
     private FunctionMetaDataManager mockedManager;
     private FunctionRuntimeManager mockedFunctionRunTimeManager;
@@ -132,6 +134,7 @@ public class SourceApiV3ResourceTest {
     private FunctionMetaData mockedFunctionMetaData;
     private LeaderService mockedLeaderService;
     private Packages mockedPackages;
+    private PulsarFunctionTestTemporaryDirectory tempDirectory;
 
     private static NarClassLoader narClassLoader;
 
@@ -157,7 +160,7 @@ public class SourceApiV3ResourceTest {
         this.mockedNamespace = mock(Namespace.class);
         this.mockedFormData = mock(FormDataContentDisposition.class);
         when(mockedFormData.getFileName()).thenReturn("test");
-        this.mockedTenantInfo = mock(TenantInfo.class);
+        this.mockedTenantInfo = mock(TenantInfoImpl.class);
         this.mockedPulsarAdmin = mock(PulsarAdmin.class);
         this.mockedTenants = mock(Tenants.class);
         this.mockedNamespaces = mock(Namespaces.class);
@@ -192,15 +195,23 @@ public class SourceApiV3ResourceTest {
         WorkerConfig workerConfig = new WorkerConfig()
                 .setWorkerId("test")
                 .setWorkerPort(8080)
-                .setDownloadDirectory("/tmp/pulsar/functions")
                 .setFunctionMetadataTopicName("pulsar/functions")
                 .setNumFunctionPackageReplicas(3)
                 .setPulsarServiceUrl("pulsar://localhost:6650/");
+        tempDirectory = PulsarFunctionTestTemporaryDirectory.create(getClass().getSimpleName());
+        tempDirectory.useTemporaryDirectoriesForWorkerConfig(workerConfig);
         when(mockedWorkerService.getWorkerConfig()).thenReturn(workerConfig);
 
         this.resource = spy(new SourcesImpl(() -> mockedWorkerService));
         mockStatic(InstanceUtils.class);
         PowerMockito.when(InstanceUtils.calculateSubjectType(any())).thenReturn(FunctionDetails.ComponentType.SOURCE);
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void cleanup() {
+        if (tempDirectory != null) {
+            tempDirectory.delete();
+        }
     }
 
     //
