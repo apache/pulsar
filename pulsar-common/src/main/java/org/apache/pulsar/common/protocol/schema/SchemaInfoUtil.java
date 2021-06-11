@@ -20,6 +20,7 @@ package org.apache.pulsar.common.protocol.schema;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+import java.util.Map;
 import java.util.TreeMap;
 import lombok.experimental.UtilityClass;
 
@@ -35,37 +36,39 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 public class SchemaInfoUtil {
 
     public static SchemaInfo newSchemaInfo(String name, SchemaData data) {
-        SchemaInfo si = new SchemaInfo();
-        si.setName(name);
-        si.setSchema(data.getData());
-        si.setType(data.getType());
-        si.setProperties(data.getProps());
-        return si;
+        return SchemaInfo.builder()
+                .name(name)
+                .schema(data.getData())
+                .type(data.getType())
+                .properties(data.getProps())
+                .build();
     }
 
     public static SchemaInfo newSchemaInfo(Schema schema) {
-        SchemaInfo si = new SchemaInfo();
-        si.setName(schema.getName());
-        si.setSchema(schema.getSchemaData());
-        si.setType(Commands.getSchemaType(schema.getType()));
+        SchemaInfo.Builder si = SchemaInfo.builder()
+                .name(schema.getName())
+                .schema(schema.getSchemaData())
+                .type(Commands.getSchemaType(schema.getType()));
         if (schema.getPropertiesCount() == 0) {
-            si.setProperties(Collections.emptyMap());
+            si.properties(Collections.emptyMap());
         } else {
-            si.setProperties(new TreeMap<>());
+            Map<String, String> properties = new TreeMap<>();
             for (int i = 0; i < schema.getPropertiesCount(); i++) {
                 KeyValue kv = schema.getPropertyAt(i);
-                si.getProperties().put(kv.getKey(), kv.getValue());
+                properties.put(kv.getKey(), kv.getValue());
             }
+
+            si.properties(properties);
         }
-        return si;
+        return si.build();
     }
 
     public static SchemaInfo newSchemaInfo(String name, GetSchemaResponse schema) {
-        SchemaInfo si = new SchemaInfo();
-        si.setName(name);
-        si.setSchema(schema.getData().getBytes(StandardCharsets.UTF_8));
-        si.setType(schema.getType());
-        si.setProperties(schema.getProperties());
-        return si;
+        return SchemaInfo.builder()
+                .name(name)
+                .schema(schema.getData().getBytes(StandardCharsets.UTF_8))
+                .type(schema.getType())
+                .properties(schema.getProperties())
+                .build();
     }
 }

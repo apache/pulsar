@@ -87,7 +87,7 @@ public class StringSchemaTest {
 
     @Test
     public void testSchemaInfoWithoutCharset() {
-        SchemaInfo si = new SchemaInfo()
+        SchemaInfo si = new SchemaInfoImpl()
             .setName("test-schema-info-without-charset")
             .setType(SchemaType.STRING)
             .setSchema(new byte[0])
@@ -122,7 +122,7 @@ public class StringSchemaTest {
     public void testSchemaInfoWithCharset(Charset charset) {
         Map<String, String> properties = new HashMap<>();
         properties.put(StringSchema.CHARSET_KEY, charset.name());
-        SchemaInfo si = new SchemaInfo()
+        SchemaInfo si = new SchemaInfoImpl()
             .setName("test-schema-info-without-charset")
             .setType(SchemaType.STRING)
             .setSchema(new byte[0])

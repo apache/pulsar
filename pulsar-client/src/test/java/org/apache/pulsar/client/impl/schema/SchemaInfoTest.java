@@ -322,10 +322,16 @@ public class SchemaInfoTest {
         public void testNullPropertyValue() {
             final Map<String, String> map = new HashMap<>();
             map.put("key", null);
-            final IntSchema schema = new IntSchema();
-            schema.getSchemaInfo().setProperties(map);
+
+            SchemaInfo si = SchemaInfo.builder()
+                    .name("INT32")
+                    .schema(new byte[0])
+                    .type(SchemaType.INT32)
+                    .properties(map)
+                    .build();
+
             // null key will be skipped by Gson when serializing JSON to String
-            assertEquals(schema.getSchemaInfo().toString(), INT32_SCHEMA_INFO);
+            assertEquals(si.toString(), INT32_SCHEMA_INFO);
         }
     }
 }

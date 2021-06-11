@@ -65,15 +65,12 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> ex
     }
 
     private ProtobufSchema(SchemaInfo schemaInfo, T protoMessageInstance) {
-        super(schemaInfo);
+        super(schemaInfo.toBuilder().properties(new HashMap<>(schemaInfo.getProperties())).build());
         setReader(new ProtobufReader<>(protoMessageInstance));
         setWriter(new ProtobufWriter<>());
         // update properties with protobuf related properties
-        Map<String, String> allProperties = new HashMap<>();
-        allProperties.putAll(schemaInfo.getProperties());
         // set protobuf parsing info
-        allProperties.put(PARSING_INFO_PROPERTY, getParsingInfo(protoMessageInstance));
-        schemaInfo.setProperties(allProperties);
+        schemaInfo.getProperties().put(PARSING_INFO_PROPERTY, getParsingInfo(protoMessageInstance));
     }
 
     private String getParsingInfo(T protoMessageInstance) {
