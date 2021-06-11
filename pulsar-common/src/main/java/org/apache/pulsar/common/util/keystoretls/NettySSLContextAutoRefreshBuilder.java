@@ -20,10 +20,15 @@ package org.apache.pulsar.common.util.keystoretls;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.security.PrivateKey;
+import java.security.cert.Certificate;
 import java.util.Set;
+
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.KeyStoreParams;
 import org.apache.pulsar.common.util.FileModifiedTimeUpdater;
+import org.apache.pulsar.common.util.KeyStoreHolder;
 import org.apache.pulsar.common.util.SslContextAutoRefreshBuilder;
 
 /**
@@ -46,6 +51,7 @@ public class NettySSLContextAutoRefreshBuilder extends SslContextAutoRefreshBuil
     protected String tlsKeyStoreType;
     protected String tlsKeyStorePassword;
     protected FileModifiedTimeUpdater tlsKeyStore;
+    protected KeyStoreHolder keyStoreHolder;
 
     protected AuthenticationDataProvider authData;
     protected final boolean isServer;
@@ -55,6 +61,7 @@ public class NettySSLContextAutoRefreshBuilder extends SslContextAutoRefreshBuil
                                              String keyStoreTypeString,
                                              String keyStore,
                                              String keyStorePassword,
+                                             KeyStoreHolder keyStoreHolder,
                                              boolean allowInsecureConnection,
                                              String trustStoreTypeString,
                                              String trustStore,
@@ -71,6 +78,7 @@ public class NettySSLContextAutoRefreshBuilder extends SslContextAutoRefreshBuil
         this.tlsKeyStoreType = keyStoreTypeString;
         this.tlsKeyStore = new FileModifiedTimeUpdater(keyStore);
         this.tlsKeyStorePassword = keyStorePassword;
+        this.keyStoreHolder = keyStoreHolder;
 
         this.tlsTrustStoreType = trustStoreTypeString;
         this.tlsTrustStore = new FileModifiedTimeUpdater(trustStore);
@@ -113,19 +121,31 @@ public class NettySSLContextAutoRefreshBuilder extends SslContextAutoRefreshBuil
     @Override
     public synchronized KeyStoreSSLContext update() throws GeneralSecurityException, IOException {
         if (isServer) {
+            KeyStoreHolder serverKeyStoreHolder = (StringUtils.isNotBlank(tlsKeyStore.getFileName())
+                    || keyStoreHolder == null)
+                            ? new KeyStoreHolder(tlsKeyStoreType, tlsKeyStore.getFileName(), tlsKeyStorePassword)
+                            : keyStoreHolder;
             this.keyStoreSSLContext = KeyStoreSSLContext.createServerKeyStoreSslContext(tlsProvider,
-                    tlsKeyStoreType, tlsKeyStore.getFileName(), tlsKeyStorePassword,
+                    serverKeyStoreHolder,
                     tlsAllowInsecureConnection,
                     tlsTrustStoreType, tlsTrustStore.getFileName(), tlsTrustStorePassword,
                     tlsRequireTrustedClientCertOnConnect, tlsCiphers, tlsProtocols);
         } else {
             KeyStoreParams authParams = authData.getTlsKeyStoreParams();
-            this.keyStoreSSLContext = KeyStoreSSLContext.createClientKeyStoreSslContext(tlsProvider,
-                    authParams != null ? authParams.getKeyStoreType() : null,
-                    authParams != null ? authParams.getKeyStorePath() : null,
-                    authParams != null ? authParams.getKeyStorePassword() : null,
-                    tlsAllowInsecureConnection,
-                    tlsTrustStoreType, tlsTrustStore.getFileName(), tlsTrustStorePassword,
+            KeyStoreHolder keyStoreHolder = null;
+            if (authParams != null) {
+                keyStoreHolder = new KeyStoreHolder(authParams.getKeyStoreType(), authParams.getKeyStorePath(),
+                        authParams.getKeyStorePassword());
+            }
+            if (keyStoreHolder == null || keyStoreHolder.getKeyStore() == null) {
+                Certificate[] certs = authData.getTlsCertificates();
+                PrivateKey privateKey = authData.getTlsPrivateKey();
+                if (certs != null && privateKey != null) {
+                    keyStoreHolder = new KeyStoreHolder(privateKey, certs);
+                }
+            }
+            this.keyStoreSSLContext = KeyStoreSSLContext.createClientKeyStoreSslContext(tlsProvider, keyStoreHolder,
+                    tlsAllowInsecureConnection, tlsTrustStoreType, tlsTrustStore.getFileName(), tlsTrustStorePassword,
                     tlsCiphers, tlsProtocols);
         }
         return this.keyStoreSSLContext;

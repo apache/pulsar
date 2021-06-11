@@ -26,6 +26,7 @@ import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.OptionalProxyProtocolDecoder;
+import org.apache.pulsar.common.util.KeyStoreHolder;
 import org.apache.pulsar.common.util.NettyClientSslContextRefresher;
 import org.apache.pulsar.common.util.NettyServerSslContextBuilder;
 
@@ -66,6 +67,8 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
                         serviceConfig.getTlsKeyStoreType(),
                         serviceConfig.getTlsKeyStore(),
                         serviceConfig.getTlsKeyStorePassword(),
+                        new KeyStoreHolder(serviceConfig.getTlsKeyFilePath(),
+                                serviceConfig.getTlsCertificateFilePath()),
                         serviceConfig.isTlsAllowInsecureConnection(),
                         serviceConfig.getTlsTrustStoreType(),
                         serviceConfig.getTlsTrustStore(),

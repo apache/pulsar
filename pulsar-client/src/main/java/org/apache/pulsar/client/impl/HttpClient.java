@@ -43,6 +43,7 @@ import org.apache.pulsar.client.api.KeyStoreParams;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.NotFoundException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.common.util.KeyStoreHolder;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
@@ -98,9 +99,9 @@ public class HttpClient implements Closeable {
 
                     sslCtx = KeyStoreSSLContext.createClientSslContext(
                             conf.getSslProvider(),
-                            params != null ? params.getKeyStoreType() : null,
+                            new KeyStoreHolder(params != null ? params.getKeyStoreType() : null,
                             params != null ? params.getKeyStorePath() : null,
-                            params != null ? params.getKeyStorePassword() : null,
+                            params != null ? params.getKeyStorePassword() : null),
                             conf.isTlsAllowInsecureConnection(),
                             conf.getTlsTrustStoreType(),
                             conf.getTlsTrustStorePath(),

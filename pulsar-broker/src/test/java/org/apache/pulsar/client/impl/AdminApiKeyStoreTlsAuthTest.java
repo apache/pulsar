@@ -50,6 +50,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.tls.NoopHostnameVerifier;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.util.KeyStoreHolder;
 import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
@@ -147,9 +148,9 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
             .register(JacksonConfigurator.class).register(JacksonFeature.class);
 
         SSLContext sslCtx = KeyStoreSSLContext.createClientSslContext(
-                KEYSTORE_TYPE,
+                new KeyStoreHolder(KEYSTORE_TYPE,
                 CLIENT_KEYSTORE_FILE_PATH,
-                CLIENT_KEYSTORE_PW,
+                CLIENT_KEYSTORE_PW),
                 KEYSTORE_TYPE,
                 BROKER_TRUSTSTORE_FILE_PATH,
                 BROKER_TRUSTSTORE_PW);

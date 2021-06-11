@@ -51,6 +51,7 @@ import org.apache.pulsar.client.api.KeyStoreParams;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.KeyStoreHolder;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
 import org.asynchttpclient.AsyncHttpClient;
@@ -124,9 +125,9 @@ public class AsyncHttpConnector implements Connector {
 
                     final SSLContext sslCtx = KeyStoreSSLContext.createClientSslContext(
                             conf.getSslProvider(),
-                            params != null ? params.getKeyStoreType() : null,
+                            new KeyStoreHolder(params != null ? params.getKeyStoreType() : null,
                             params != null ? params.getKeyStorePath() : null,
-                            params != null ? params.getKeyStorePassword() : null,
+                            params != null ? params.getKeyStorePassword() : null),
                             conf.isTlsAllowInsecureConnection() || !conf.isTlsHostnameVerificationEnable(),
                             conf.getTlsTrustStoreType(),
                             conf.getTlsTrustStorePath(),

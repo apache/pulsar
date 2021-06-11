@@ -21,6 +21,8 @@ package org.apache.pulsar.client.impl;
 import static org.apache.pulsar.common.util.SecurityUtility.getProvider;
 import java.security.Provider;
 import java.util.Collections;
+
+import org.apache.pulsar.common.util.KeyStoreHolder;
 import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
 import org.apache.pulsar.common.util.keystoretls.SSLContextValidatorEngine;
 import org.testng.annotations.Test;
@@ -49,9 +51,9 @@ public class KeyStoreTlsTest {
     public void testValidate() throws Exception {
         KeyStoreSSLContext serverSSLContext = new KeyStoreSSLContext(KeyStoreSSLContext.Mode.SERVER,
                 null,
-                KEYSTORE_TYPE,
+                new KeyStoreHolder(KEYSTORE_TYPE,
                 BROKER_KEYSTORE_FILE_PATH,
-                BROKER_KEYSTORE_PW,
+                BROKER_KEYSTORE_PW),
                 false,
                 KEYSTORE_TYPE,
                 BROKER_TRUSTSTORE_FILE_PATH,
@@ -63,9 +65,9 @@ public class KeyStoreTlsTest {
 
         KeyStoreSSLContext clientSSLContext = new KeyStoreSSLContext(KeyStoreSSLContext.Mode.CLIENT,
                 null,
-                KEYSTORE_TYPE,
+                new KeyStoreHolder(KEYSTORE_TYPE,
                 CLIENT_KEYSTORE_FILE_PATH,
-                CLIENT_KEYSTORE_PW,
+                CLIENT_KEYSTORE_PW),
                 false,
                 KEYSTORE_TYPE,
                 CLIENT_TRUSTSTORE_FILE_PATH,

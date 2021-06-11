@@ -20,6 +20,7 @@ package org.apache.pulsar.discovery.service;
 
 import io.netty.handler.ssl.SslHandler;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.util.KeyStoreHolder;
 import org.apache.pulsar.common.util.NettyServerSslContextBuilder;
 import org.apache.pulsar.common.util.SslContextAutoRefreshBuilder;
 import org.apache.pulsar.common.util.keystoretls.NettySSLContextAutoRefreshBuilder;
@@ -56,6 +57,8 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
                         serviceConfig.getTlsKeyStoreType(),
                         serviceConfig.getTlsKeyStore(),
                         serviceConfig.getTlsKeyStorePassword(),
+                        new KeyStoreHolder(serviceConfig.getTlsKeyFilePath(),
+                                serviceConfig.getTlsCertificateFilePath()),
                         serviceConfig.isTlsAllowInsecureConnection(),
                         serviceConfig.getTlsTrustStoreType(),
                         serviceConfig.getTlsTrustStore(),
