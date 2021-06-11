@@ -1148,9 +1148,7 @@ public abstract class PulsarWebResource {
     protected List<String> getListOfResourcegroups(String property) throws Exception {
         List<String> resourcegroups = Lists.newArrayList();
 
-        for (String resourcegroup : resourceGroupResources().getChildren(path(RESOURCEGROUPS))) {
-            resourcegroups.add(resourcegroup);
-        }
+        resourcegroups.addAll(resourceGroupResources().getChildren(path(RESOURCEGROUPS)));
 
         resourcegroups.sort(null);
         return resourcegroups;

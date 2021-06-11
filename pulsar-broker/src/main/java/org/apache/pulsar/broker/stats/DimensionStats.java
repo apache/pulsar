@@ -39,7 +39,7 @@ public class DimensionStats {
     private final String dimensionCountLabel;
     private final Summary summary;
     private static final double[] QUANTILES = {0.50, 0.75, 0.95, 0.99, 0.999, 0.9999};
-    private static final List<String> QUANTILE_LABEL = Collections.unmodifiableList(Arrays.asList("quantile"));
+    private static final List<String> QUANTILE_LABEL = Collections.singletonList("quantile");
     private static final List<List<String>> QUANTILE_LABEL_VALUES = Collections.unmodifiableList(
             Arrays.stream(QUANTILES).mapToObj(Collector::doubleToGoString)
                     .map(Collections::singletonList)
