@@ -60,41 +60,44 @@ public class GenericRecordSourceTest extends PulsarStandaloneTestSuite {
         String outputTopicName = "test-state-source-output-" + randomName(8);
         String sourceName = "test-state-source-" + randomName(8);
         int numMessages = 10;
+        try {
+            submitSourceConnector(
+                    sourceName,
+                    outputTopicName,
+                    "org.apache.pulsar.tests.integration.io.GenericRecordSource", JAVAJAR);
 
-        submitSourceConnector(
-            sourceName,
-            outputTopicName,
-            "org.apache.pulsar.tests.integration.io.GenericRecordSource", JAVAJAR);
+            // get source info
+            getSourceInfoSuccess(container, sourceName);
 
-        // get source info
-        getSourceInfoSuccess(container, sourceName);
+            // get source status
+            getSourceStatus(container, sourceName);
 
-        // get source status
-        getSourceStatus(container, sourceName);
+            try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(container.getHttpServiceUrl()).build()) {
 
-        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(container.getHttpServiceUrl()).build()) {
+                retryStrategically((test) -> {
+                    try {
+                        SourceStatus status = admin.sources().getSourceStatus("public", "default", sourceName);
+                        return status.getInstances().size() > 0
+                                && status.getInstances().get(0).getStatus().numWritten >= 10;
+                    } catch (PulsarAdminException e) {
+                        return false;
+                    }
+                }, 10, 200);
 
-            retryStrategically((test) -> {
-                try {
-                    SourceStatus status = admin.sources().getSourceStatus("public", "default", sourceName);
-                    return status.getInstances().size() > 0
-                        && status.getInstances().get(0).getStatus().numWritten >= 10;
-                } catch (PulsarAdminException e) {
-                    return false;
-                }
-            }, 10, 200);
+                SourceStatus status = admin.sources().getSourceStatus("public", "default", sourceName);
+                assertEquals(status.getInstances().size(), 1);
+                assertTrue(status.getInstances().get(0).getStatus().numWritten >= 10);
+            }
 
-            SourceStatus status = admin.sources().getSourceStatus("public", "default", sourceName);
-            assertEquals(status.getInstances().size(), 1);
-            assertTrue(status.getInstances().get(0).getStatus().numWritten >= 10);
+            consumeMessages(container, outputTopicName, numMessages);
+
+            // delete source
+            deleteSource(container, sourceName);
+
+            getSourceInfoNotFound(container, sourceName);
+        } finally {
+            dumpFunctionLogs(sourceName);
         }
-
-        consumeMessages(container, outputTopicName, numMessages);
-
-        // delete source
-        deleteSource(container, sourceName);
-
-        getSourceInfoNotFound(container, sourceName);
 
     }
 
