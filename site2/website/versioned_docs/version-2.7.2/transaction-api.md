@@ -109,6 +109,7 @@ Consumer<String> sourceConsumer = pulsarClient
 Producer<String> sinkProducer = pulsarClient
         .newProducer(Schema.STRING)
         .topic(sinkTopic)
+        .sendTimeout(0, TimeUnit.MILLISECONDS)
         .create();
 
 Transaction txn = pulsarClient
