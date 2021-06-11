@@ -48,18 +48,4 @@ public interface SchemaInfo {
     Map<String, String> getProperties();
 
     String getSchemaDefinition();
-
-    interface Builder {
-        Builder name(String name);
-        Builder schema(byte[] schema);
-        Builder type(SchemaType type);
-        Builder properties(Map<String, String> properties);
-        SchemaInfo build();
-    }
-
-    static Builder builder() {
-        return DefaultImplementation.newSchemaInfoBuilder();
-    }
-
-    Builder toBuilder();
 }

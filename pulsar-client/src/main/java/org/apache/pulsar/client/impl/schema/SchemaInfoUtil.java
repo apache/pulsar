@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.protocol.schema;
+package org.apache.pulsar.client.impl.schema;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
@@ -24,9 +24,12 @@ import java.util.Map;
 import java.util.TreeMap;
 import lombok.experimental.UtilityClass;
 
+import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.api.proto.Schema;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.schema.GetSchemaResponse;
+import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 /**
@@ -36,7 +39,7 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 public class SchemaInfoUtil {
 
     public static SchemaInfo newSchemaInfo(String name, SchemaData data) {
-        return SchemaInfo.builder()
+        return SchemaInfoImpl.builder()
                 .name(name)
                 .schema(data.getData())
                 .type(data.getType())
@@ -45,7 +48,7 @@ public class SchemaInfoUtil {
     }
 
     public static SchemaInfo newSchemaInfo(Schema schema) {
-        SchemaInfo.Builder si = SchemaInfo.builder()
+        SchemaInfoImpl.SchemaInfoImplBuilder si = SchemaInfoImpl.builder()
                 .name(schema.getName())
                 .schema(schema.getSchemaData())
                 .type(Commands.getSchemaType(schema.getType()));
@@ -64,7 +67,7 @@ public class SchemaInfoUtil {
     }
 
     public static SchemaInfo newSchemaInfo(String name, GetSchemaResponse schema) {
-        return SchemaInfo.builder()
+        return SchemaInfoImpl.builder()
                 .name(name)
                 .schema(schema.getData().getBytes(StandardCharsets.UTF_8))
                 .type(schema.getType())

@@ -202,13 +202,6 @@ public class DefaultImplementation {
                         .newInstance());
     }
 
-    public static SchemaInfo.Builder newSchemaInfoBuilder() {
-        return catchExceptions(
-                () -> (SchemaInfo.Builder) getStaticMethod(
-                        "org.apache.pulsar.client.impl.schema.SchemaInfoImpl", "builder", null)
-                        .invoke(null, null));
-    }
-
     public static Schema<Date> newDateSchema() {
         return catchExceptions(
                 () -> (Schema<Date>) getStaticMethod(

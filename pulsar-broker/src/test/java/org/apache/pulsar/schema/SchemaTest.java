@@ -438,7 +438,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         admin.topics().createPartitionedTopic(topic, 2);
 
         // set schema
-        SchemaInfo schemaInfo = SchemaInfo
+        SchemaInfo schemaInfo = SchemaInfoImpl
                 .builder()
                 .schema(new byte[0])
                 .name("dummySchema")

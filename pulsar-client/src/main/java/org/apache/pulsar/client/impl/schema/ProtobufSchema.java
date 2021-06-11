@@ -110,7 +110,7 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> ex
                     + " is not assignable from " + pojo.getName());
         }
 
-            SchemaInfo schemaInfo = SchemaInfo.builder()
+            SchemaInfo schemaInfo = SchemaInfoImpl.builder()
                     .schema(createProtobufAvroSchema(schemaDefinition.getPojo()).toString().getBytes(UTF_8))
                     .type(SchemaType.PROTOBUF)
                     .name("")

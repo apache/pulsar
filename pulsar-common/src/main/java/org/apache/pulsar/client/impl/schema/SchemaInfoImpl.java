@@ -23,6 +23,7 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.Map;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
@@ -42,6 +43,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 @AllArgsConstructor
 @NoArgsConstructor
 @Accessors(chain = true)
+@Builder
 public class SchemaInfoImpl implements SchemaInfo {
 
     @EqualsAndHashCode.Exclude
@@ -62,19 +64,6 @@ public class SchemaInfoImpl implements SchemaInfo {
      */
     private Map<String, String> properties = Collections.emptyMap();
 
-    public static SchemaInfoImplBuilder builder() {
-        return new SchemaInfoImplBuilder();
-    }
-
-    @Override
-    public Builder toBuilder() {
-        return builder()
-                .name(name)
-                .schema(schema)
-                .type(type)
-                .properties(properties);
-    }
-
     public String getSchemaDefinition() {
         if (null == schema) {
             return "";
@@ -91,42 +80,6 @@ public class SchemaInfoImpl implements SchemaInfo {
                 return SchemaUtils.jsonifyKeyValueSchemaInfo(schemaInfoKeyValue);
             default:
                 return Base64.getEncoder().encodeToString(schema);
-        }
-    }
-
-    @Override
-    public String toString(){
-        return SchemaUtils.jsonifySchemaInfo(this);
-    }
-
-    public static class SchemaInfoImplBuilder implements SchemaInfo.Builder {
-        private String name;
-        private byte[] schema;
-        private SchemaType type;
-        private Map<String, String> properties = Collections.emptyMap();
-
-        public SchemaInfoImplBuilder name(String name) {
-            this.name = name;
-            return this;
-        }
-
-        public SchemaInfoImplBuilder schema(byte[] schema) {
-            this.schema = schema;
-            return this;
-        }
-
-        public SchemaInfoImplBuilder type(SchemaType type) {
-            this.type = type;
-            return this;
-        }
-
-        public SchemaInfoImplBuilder properties(Map<String, String> properties) {
-            this.properties = properties;
-            return this;
-        }
-
-        public SchemaInfoImpl build() {
-            return new SchemaInfoImpl(name, schema, type, properties);
         }
     }
 }

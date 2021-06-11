@@ -46,7 +46,7 @@ public final class KeyValueSchemaInfo {
 
         @Override
         public SchemaInfo getSchemaInfo() {
-            return BytesSchema.BYTES.getSchemaInfo();
+            return Schema.BYTES.getSchemaInfo();
         }
 
         @Override
@@ -238,7 +238,7 @@ public final class KeyValueSchemaInfo {
         } else {
             schemaProps = SchemaUtils.deserializeSchemaProperties(schemaPropsStr);
         }
-        return SchemaInfo.builder()
+        return SchemaInfoImpl.builder()
             .name(schemaName)
             .type(schemaType)
             .schema(schemaData)
