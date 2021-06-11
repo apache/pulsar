@@ -118,11 +118,12 @@ public class JsonSchemaCompatibilityCheckTest extends BaseAvroSchemaCompatibilit
             JsonSchemaGenerator schemaGen = new JsonSchemaGenerator(mapper);
             JsonSchema schema = schemaGen.generateSchema(pojo);
 
-            SchemaInfo info = new SchemaInfo();
-            info.setName("");
-            info.setProperties(properties);
-            info.setType(SchemaType.JSON);
-            info.setSchema(mapper.writeValueAsBytes(schema));
+            SchemaInfo info = SchemaInfo.builder()
+                    .name("")
+                    .properties(properties)
+                    .type(SchemaType.JSON)
+                    .schema(mapper.writeValueAsBytes(schema))
+                    .build();
             return new OldJSONSchema<>(info, pojo, mapper);
         }
 
