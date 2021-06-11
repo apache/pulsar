@@ -720,7 +720,6 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 |servicePort| The port to use for server binary Protobuf requests |6650|
 |servicePortTls|  The port to use to server binary Protobuf TLS requests  |6651|
 |statusFilePath|  Path for the file used to determine the rotation status for the proxy instance when responding to service discovery health checks ||
-|advertisedAddress|Hostname or IP address the service advertises to the outside world.|`InetAddress.getLocalHost().getHostname()`|
 | proxyLogLevel | Proxy log level <li>0: Do not log any TCP channel information. <li>1: Parse and log any TCP channel information and command information without message body. <li>2: Parse and log channel information, command information and message body.| 0 |
 |authenticationEnabled| Whether authentication is enabled for the Pulsar proxy  |false|
 |authenticateMetricsEndpoint| Whether the '/metrics' endpoint requires authentication. Defaults to true. 'authenticationEnabled' must also be set for this to take effect. |true|
