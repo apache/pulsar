@@ -45,6 +45,7 @@ import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.suites.PulsarStandaloneTestSuite;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 /**
@@ -129,15 +130,35 @@ public class GenericRecordSourceTest extends PulsarStandaloneTestSuite {
     }
 
     private static void getSourceStatus(StandaloneContainer container,String sourceName) throws Exception {
+        retryStrategically((test) -> {
+                    try {
+                        ContainerExecResult result = container.execCmd(
+                                PulsarCluster.ADMIN_SCRIPT,
+                                "sources",
+                                "status",
+                                "--tenant", "public",
+                                "--namespace", "default",
+                                "--name", sourceName);
+
+                        if (result.getStdout().contains("\"running\" : true")) {
+                            return true;
+                        }
+                        return false;
+                    } catch (Exception e) {
+                        log.error("Encountered error when getting source status", e);
+                        return false;
+                    }
+                }, 10, 200);
+
         ContainerExecResult result = container.execCmd(
-            PulsarCluster.ADMIN_SCRIPT,
-            "sources",
-            "status",
-            "--tenant", "public",
-            "--namespace", "default",
-            "--name", sourceName
-        );
-        assertTrue(result.getStdout().contains("\"running\" : true"));
+                PulsarCluster.ADMIN_SCRIPT,
+                "sources",
+                "status",
+                "--tenant", "public",
+                "--namespace", "default",
+                "--name", sourceName);
+
+        Assert.assertTrue(result.getStdout().contains("\"running\" : true"));
     }
 
     private static void consumeMessages(StandaloneContainer container, String outputTopic,
