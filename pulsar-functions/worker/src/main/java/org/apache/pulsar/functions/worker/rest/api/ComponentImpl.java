@@ -375,7 +375,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
                 log.warn("{}/{}/{} Client [{}] is not authorized to deregister {}", tenant, namespace,
                         componentName, clientRole, ComponentTypeUtils.toString(componentType));
-                throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+                throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
             }
         } catch (PulsarAdminException e) {
             log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, componentName, e);
@@ -441,7 +441,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
                 log.warn("{}/{}/{} Client [{}] is not authorized to get {}", tenant, namespace,
                         componentName, clientRole, ComponentTypeUtils.toString(componentType));
-                throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+                throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
             }
         } catch (PulsarAdminException e) {
             log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, componentName, e);
@@ -509,7 +509,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
                 log.warn("{}/{}/{} Client [{}] is not authorized to start/stop {}", tenant, namespace,
                         componentName, clientRole, ComponentTypeUtils.toString(componentType));
-                throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+                throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
             }
         } catch (PulsarAdminException e) {
             log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, componentName, e);
@@ -563,7 +563,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
                 log.warn("{}/{}/{} Client [{}] is not authorized to restart {}", tenant, namespace,
                         componentName, clientRole, ComponentTypeUtils.toString(componentType));
-                throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+                throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
             }
         } catch (PulsarAdminException e) {
             log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, componentName, e);
@@ -635,7 +635,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
                 log.warn("{}/{}/{} Client [{}] is not authorized to start/stop {}", tenant, namespace,
                         componentName, clientRole, ComponentTypeUtils.toString(componentType));
-                throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+                throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
             }
         } catch (PulsarAdminException e) {
             log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, componentName, e);
@@ -685,7 +685,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
                 log.warn("{}/{}/{} Client [{}] is not authorized to restart {}", tenant, namespace,
                         componentName, clientRole, ComponentTypeUtils.toString(componentType));
-                throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+                throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
             }
         } catch (PulsarAdminException e) {
             log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, componentName, e);
@@ -737,7 +737,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
                 log.warn("{}/{}/{} Client [{}] is not authorized to get stats for {}", tenant, namespace,
                         componentName, clientRole, ComponentTypeUtils.toString(componentType));
-                throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+                throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
             }
         } catch (PulsarAdminException e) {
             log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, componentName, e);
@@ -794,7 +794,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
                 log.warn("{}/{}/{} Client [{}] is not authorized to get stats for {}", tenant, namespace,
                         componentName, clientRole, ComponentTypeUtils.toString(componentType));
-                throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+                throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
             }
         } catch (PulsarAdminException e) {
             log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, componentName, e);
@@ -855,7 +855,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         try {
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
                 log.warn("{}/{} Client [{}] is not authorized to list {}", tenant, namespace, clientRole, ComponentTypeUtils.toString(componentType));
-                throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+                throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
             }
         } catch (PulsarAdminException e) {
             log.error("{}/{} Failed to authorize [{}]", tenant, namespace, e);
@@ -935,7 +935,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
                 log.warn("{}/{}/{} Client [{}] is not authorized to trigger {}", tenant, namespace,
                         functionName, clientRole, ComponentTypeUtils.toString(componentType));
-                throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+                throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
             }
         } catch (PulsarAdminException e) {
             log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, functionName, e);
@@ -1058,7 +1058,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
                 log.warn("{}/{}/{} Client [{}] is not authorized to get state for {}", tenant, namespace,
                         functionName, clientRole, ComponentTypeUtils.toString(componentType));
-                throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+                throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
             }
         } catch (PulsarAdminException e) {
             log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, functionName, e);
@@ -1145,7 +1145,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
                 log.warn("{}/{}/{} Client [{}] is not authorized to put state for {}", tenant, namespace,
                         functionName, clientRole, ComponentTypeUtils.toString(componentType));
-                throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+                throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
             }
         } catch (PulsarAdminException e) {
             log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, functionName, e);
@@ -1212,7 +1212,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         }
 
         if (worker().getWorkerConfig().isAuthorizationEnabled() && !isSuperUser(clientRole, authenticationData)) {
-            throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+            throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
         }
 
         // validate parameters
@@ -1246,7 +1246,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
                 log.warn("{}/{}/{} Client [{}] is not admin and authorized to download package for {} ", tenant, namespace,
                         componentName, clientRole, ComponentTypeUtils.toString(componentType));
-                throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+                throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
             }
         } catch (PulsarAdminException e) {
             log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, componentName, e);
@@ -1302,7 +1302,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                     if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
                         log.warn("{}/{}/{} Client [{}] is not admin and authorized to download package for {} ", tenant, namespace,
                                 componentName, clientRole, ComponentTypeUtils.toString(componentType));
-                        throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+                        throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
                     }
                 } catch (PulsarAdminException e) {
                     log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, componentName, e);
@@ -1310,7 +1310,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                 }
             } else {
                 if (!isSuperUser(clientRole, clientAuthenticationDataHttps)) {
-                    throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+                    throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
                 }
             }
         }
@@ -1478,7 +1478,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
                 log.warn("{}/{}/{} Client [{}] is not authorized get status for {}", tenant, namespace,
                         componentName, clientRole, ComponentTypeUtils.toString(componentType));
-                throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+                throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
             }
         } catch (PulsarAdminException e) {
             log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, componentName, e);

@@ -87,7 +87,7 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
         }
 
         if (worker().getWorkerConfig().isAuthorizationEnabled() && !isSuperUser(clientRole)) {
-            throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+            throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
         }
 
         List<WorkerInfo> workers = worker().getMembershipManager().getCurrentMembership();
@@ -102,7 +102,7 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
 
         if (worker().getWorkerConfig().isAuthorizationEnabled() && !isSuperUser(clientRole)) {
             log.error("Client [{}] is not authorized to get cluster leader", clientRole);
-            throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+            throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
         }
 
         MembershipManager membershipManager = worker().getMembershipManager();
@@ -123,7 +123,7 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
 
         if (worker().getWorkerConfig().isAuthorizationEnabled() && !isSuperUser(clientRole)) {
             log.error("Client [{}] is not authorized to get cluster assignments", clientRole);
-            throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+            throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
         }
 
         FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
@@ -147,7 +147,7 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
 
         if (worker().getWorkerConfig().isAuthorizationEnabled() && !isSuperUser(clientRole)) {
             log.error("Client [{}] is not authorized to get worker stats", clientRole);
-            throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+            throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
         }
         return worker().getMetricsGenerator().generate();
     }
@@ -160,7 +160,7 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
 
         if (worker().getWorkerConfig().isAuthorizationEnabled() && !isSuperUser(clientRole)) {
             log.error("Client [{}] is not authorized to get function stats", clientRole);
-            throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+            throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
         }
 
         Map<String, FunctionRuntimeInfo> functionRuntimes = worker().getFunctionRuntimeManager()
@@ -205,7 +205,7 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
         }
 
         if (worker().getWorkerConfig().isAuthorizationEnabled() && !isSuperUser(clientRole)) {
-            throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+            throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
         }
 
         return this.worker().getConnectorsManager().getConnectorDefinitions();
@@ -218,7 +218,7 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
 
         if (worker().getWorkerConfig().isAuthorizationEnabled() && !isSuperUser(clientRole)) {
             log.error("Client [{}] is not authorized rebalance cluster", clientRole);
-            throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+            throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
         }
 
         if (worker().getLeaderService().isLeader()) {
