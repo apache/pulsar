@@ -272,7 +272,13 @@ public class TopicName implements ServiceUnitId {
         int partitionIndex = -1;
         if (topic.contains(PARTITIONED_TOPIC_SUFFIX)) {
             try {
-                partitionIndex = Integer.parseInt(topic.substring(topic.lastIndexOf('-') + 1));
+                String idx = StringUtils.substringAfterLast(topic, PARTITIONED_TOPIC_SUFFIX);
+                partitionIndex = Integer.parseInt(idx);
+                // for the "topic-partition-01"
+                if (StringUtils.length(idx) != String.valueOf(partitionIndex).length()) {
+                    partitionIndex = -1;
+                    log.warn("Partition index cannot start with a prefix of `0` unless it is 0!");
+                }
             } catch (NumberFormatException nfe) {
                 log.warn("Could not get the partition index from the topic {}", topic);
             }
