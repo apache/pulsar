@@ -104,7 +104,8 @@ flexible messaging model and an intuitive client API.</description>
     <!-- apache commons -->
     <commons-compress.version>1.21</commons-compress.version>
 
-    <bookkeeper.version>4.14.4</bookkeeper.version>
+    <!-- Use Luna Streaming BookKeeper custom version -->
+    <bookkeeper.version>4.14.1.1.0.0-SNAPSHOT</bookkeeper.version>
     <zookeeper.version>3.6.3</zookeeper.version>
     <commons-cli.version>1.5.0</commons-cli.version>
     <snappy.version>1.1.7</snappy.version> <!-- ZooKeeper server -->
@@ -2414,6 +2415,16 @@ flexible messaging model and an intuitive client API.</description>
       <snapshots>
         <enabled>false</enabled>
       </snapshots>
+    </repository>
+    <repository>
+      <id>datastax-snapshots-local</id>
+      <url>https://repo.sjc.dsinternal.org/artifactory/datastax-snapshots-local</url>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+      <releases>
+        <enabled>false</enabled>
+      </releases>
     </repository>
   </repositories>
 
