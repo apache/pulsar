@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.functions.instance;
 
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -49,6 +50,8 @@ public class JavaInstanceDepsTest {
     @Test
     public void testInstanceJarDeps() throws IOException {
         File jar = new File("target/java-instance.jar");
+        
+        @Cleanup
         ZipInputStream zip = new ZipInputStream(jar.toURI().toURL().openStream());
 
         List<String> notAllowedClasses = new LinkedList<>();
