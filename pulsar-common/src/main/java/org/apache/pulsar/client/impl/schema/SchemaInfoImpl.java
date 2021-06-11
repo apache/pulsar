@@ -62,6 +62,7 @@ public class SchemaInfoImpl implements SchemaInfo {
     /**
      * Additional properties of the schema definition (implementation defined).
      */
+    @Builder.Default
     private Map<String, String> properties = Collections.emptyMap();
 
     public String getSchemaDefinition() {
@@ -81,5 +82,10 @@ public class SchemaInfoImpl implements SchemaInfo {
             default:
                 return Base64.getEncoder().encodeToString(schema);
         }
+    }
+
+    @Override
+    public String toString() {
+        return SchemaUtils.jsonifySchemaInfo(this);
     }
 }
