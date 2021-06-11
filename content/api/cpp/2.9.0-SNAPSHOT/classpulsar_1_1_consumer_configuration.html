@@ -689,7 +689,9 @@ false if the property is not defined </dd></dl>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Set the time duration for which the broker side consumer stats will be cached in the client. </p><dl class="params"><dt>Parameters</dt><dd>
+<p>Set the time duration for which the broker side consumer stats will be cached in the client.</p>
+<p>Default: 30000, which means 30 seconds.</p>
+<dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">cacheTimeInMs</td><td>in milliseconds </td></tr>
   </table>
@@ -1100,7 +1102,9 @@ false if the property is not defined </dd></dl>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Set the timeout in milliseconds for unacknowledged messages, the timeout needs to be greater than 10 seconds. An Exception is thrown if the given value is less than 10000 (10 seconds). If a successful acknowledgement is not sent within the timeout all the unacknowledged messages are redelivered. </p><dl class="params"><dt>Parameters</dt><dd>
+<p>Set the timeout in milliseconds for unacknowledged messages, the timeout needs to be greater than 10 seconds. An Exception is thrown if the given value is less than 10000 (10 seconds). If a successful acknowledgement is not sent within the timeout all the unacknowledged messages are redelivered.</p>
+<p>Default: 0, which means the the tracker for unacknowledged messages is disabled.</p>
+<dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">timeout</td><td>in milliseconds </td></tr>
   </table>
