@@ -110,12 +110,12 @@
 <tr><td>LOCAL_SSD_COUNT</td><td>The number of local SSD counts</td><td>Defaults to 4</td></tr>
 <tr><td>MACHINE_TYPE</td><td>The type of machine to use for nodes</td><td><code>n1-standard-4</code></td></tr>
 <tr><td>NUM_NODES</td><td>The number of nodes to be created in each of the cluster's zones</td><td>4</td></tr>
-<tr><td>PREEMPTIBLE</td><td>Create nodes using preemptible VM instances in the new cluster.</td><td>false</td></tr>
-<tr><td>REGION</td><td>Compute region for the cluster</td><td><code>us-east1</code></td></tr>
-<tr><td>USE_LOCAL_SSD</td><td>Flag to create a cluster with local SSDs</td><td>Defaults to false</td></tr>
-<tr><td>ZONE</td><td>Compute zone for the cluster</td><td><code>us-east1-b</code></td></tr>
-<tr><td>ZONE_EXTENSION</td><td>The extension (<code>a</code>, <code>b</code>, <code>c</code>) of the zone name of the cluster</td><td><code>b</code></td></tr>
-<tr><td>EXTRA_CREATE_ARGS</td><td>Extra arguments passed to create command</td><td></td></tr>
+<tr><td>PREEMPTIBLE</td><td>在新集群中使用抢占式虚拟机实例创建节点。</td><td>false</td></tr>
+<tr><td>REGION</td><td>集群的计算区域</td><td><code>us-east1</code></td></tr>
+<tr><td>USE_LOCAL_SSD</td><td>使用本地SSD创建集群的标记</td><td>Defaults to false</td></tr>
+<tr><td>ZONE</td><td>集群计算区域的空间</td><td><code>us-east1-b</code></td></tr>
+<tr><td>ZONE_EXTENSION</td><td>集群空间名称的扩展名 (<code>a</code>, <code>b</code>, <code>c</code>)</td><td><code>b</code></td></tr>
+<tr><td>EXTRA_CREATE_ARGS</td><td>传递给 create 命令的额外参数</td><td></td></tr>
 </tbody>
 </table>
 <p>通过传递你所需的参数来运行脚本。 需要额外指定<code>PROJECT</code>参数，其它参数使用默认值，该脚本就可以运行了。</p>
