@@ -104,7 +104,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
                 log.warn("{}/{}/{} Client [{}] is not authorized to register {}", tenant, namespace,
                         sinkName, clientRole, ComponentTypeUtils.toString(componentType));
-                throw new RestException(Response.Status.UNAUTHORIZED, "client is not authorize to perform operation");
+                throw new RestException(Response.Status.UNAUTHORIZED, "Client is not authorized to perform operation");
             }
         } catch (PulsarAdminException e) {
             log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, sinkName, e);
@@ -128,7 +128,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
         } catch (PulsarAdminException.NotAuthorizedException e) {
             log.error("{}/{}/{} Client [{}] is not authorized to operate {} on tenant", tenant, namespace,
                     sinkName, clientRole, ComponentTypeUtils.toString(componentType));
-            throw new RestException(Response.Status.UNAUTHORIZED, "client is not authorize to perform operation");
+            throw new RestException(Response.Status.UNAUTHORIZED, "Client is not authorized to perform operation");
         } catch (PulsarAdminException.NotFoundException e) {
             log.error("{}/{}/{} Tenant {} does not exist", tenant, namespace, sinkName, tenant);
             throw new RestException(Response.Status.BAD_REQUEST, "Tenant does not exist");
@@ -275,7 +275,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
                 log.warn("{}/{}/{} Client [{}] is not authorized to update {}", tenant, namespace,
                         sinkName, clientRole, ComponentTypeUtils.toString(componentType));
-                throw new RestException(Response.Status.UNAUTHORIZED, "client is not authorize to perform operation");
+                throw new RestException(Response.Status.UNAUTHORIZED, "Client is not authorized to perform operation");
 
             }
         } catch (PulsarAdminException e) {
