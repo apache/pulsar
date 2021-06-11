@@ -69,6 +69,22 @@
         <Class name="org.apache.pulsar.client.impl.schema.BooleanSchema"/>
         <Bug pattern="NP_BOOLEAN_RETURN_NULL"/>
     </Match>
+    
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.SchemaInfoImpl"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.SchemaInfoImpl"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+
+    <Match>
+      <Class name="org.apache.pulsar.client.impl.schema.SchemaInfoImpl$SchemaInfoImplBuilder"/>
+      <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    
 
     <Match>
         <Class name="~org.apache.pulsar.client.impl.ConsumerImpl.*"/>
