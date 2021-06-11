@@ -267,7 +267,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 stats.processTimeStart();
 
                 // process the message
-                Thread.currentThread().setContextClassLoader(functionClassLoader);
+
+                Thread.currentThread().setContextClassLoader(instanceClassLoader);
                 result = javaInstance.handleMessage(
                     currentRecord, currentRecord.getValue(), this::handleResult,
                     cause -> currentThread.interrupt());
@@ -348,9 +349,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     private void sendOutputMessage(Record srcRecord, Object output) {
-        if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SINK) {
-            Thread.currentThread().setContextClassLoader(functionClassLoader);
-        }
+        Thread.currentThread().setContextClassLoader(instanceClassLoader);
         try {
             this.sink.write(new SinkRecord<>(srcRecord, output));
         } catch (Exception e) {
@@ -365,9 +364,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private Record readInput() throws Exception {
         Record record;
-        if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SOURCE) {
-            Thread.currentThread().setContextClassLoader(functionClassLoader);
-        }
+        Thread.currentThread().setContextClassLoader(instanceClassLoader);
         try {
             record = this.source.read();
         } catch (Exception e) {
@@ -404,9 +401,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
 
         if (source != null) {
-            if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SOURCE) {
-                Thread.currentThread().setContextClassLoader(functionClassLoader);
-            }
+            Thread.currentThread().setContextClassLoader(instanceClassLoader);
             try {
                 source.close();
             } catch (Throwable e) {
@@ -418,9 +413,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
 
         if (sink != null) {
-            if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SINK) {
-                Thread.currentThread().setContextClassLoader(functionClassLoader);
-            }
+            Thread.currentThread().setContextClassLoader(instanceClassLoader);
             try {
                 sink.close();
             } catch (Throwable e) {
@@ -724,9 +717,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
         this.source = (Source<?>) object;
 
-        if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SOURCE) {
-            Thread.currentThread().setContextClassLoader(this.functionClassLoader);
-        }
         try {
             if (sourceSpec.getConfigs().isEmpty()) {
                 this.source.open(new HashMap<>(), contextImpl);
@@ -794,9 +784,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             throw new RuntimeException("Sink does not implement correct interface");
         }
 
-        if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SINK) {
-            Thread.currentThread().setContextClassLoader(this.functionClassLoader);
-        }
         try {
             if (sinkSpec.getConfigs().isEmpty()) {
                 if (log.isDebugEnabled()){
