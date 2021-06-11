@@ -274,8 +274,12 @@ public class TopicName implements ServiceUnitId {
             try {
                 String idx = StringUtils.substringAfterLast(topic, PARTITIONED_TOPIC_SUFFIX);
                 partitionIndex = Integer.parseInt(idx);
-                // for the "topic-partition-01"
-                if (StringUtils.length(idx) != String.valueOf(partitionIndex).length()) {
+                if (partitionIndex < 0) {
+                    // for the "topic-partition--1"
+                    partitionIndex = -1;
+                    log.warn("Partition index should >=0!");
+                } else if (StringUtils.length(idx) != String.valueOf(partitionIndex).length()) {
+                    // for the "topic-partition-01"
                     partitionIndex = -1;
                     log.warn("Partition index cannot start with a prefix of `0` unless it is 0!");
                 }

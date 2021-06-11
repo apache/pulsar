@@ -207,6 +207,7 @@ public class TopicNameTest {
         assertEquals(TopicName.getPartitionIndex("mytopic-partition-012"), -1);
 
         assertFalse(TopicName.get("mytopic-partition--1").isPartitioned());
+        assertFalse(TopicName.get("mytopic-partition--2").isPartitioned());
         assertFalse(TopicName.get("mytopic-partition-01").isPartitioned());
         assertFalse(TopicName.get("mytopic-partition-012").isPartitioned());
         assertFalse(TopicName.get("mytopic-partition- 12").isPartitioned());
