@@ -410,7 +410,6 @@ void ConsumerImpl::notifyPendingReceivedCallback(Result result, Message& msg,
                                                  const ReceiveCallback& callback) {
     if (result == ResultOk && config_.getReceiverQueueSize() != 0) {
         messageProcessed(msg);
-        unAckedMessageTrackerPtr_->add(msg.getMessageId());
     }
     callback(result, msg);
 }
