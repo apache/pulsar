@@ -31,6 +31,7 @@ import javax.ws.rs.client.WebTarget;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Schemas;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.schema.DeleteSchemaResponse;
@@ -434,7 +435,7 @@ public class SchemasImpl extends BaseResource implements Schemas {
     // the util function converts `GetSchemaResponse` to `SchemaInfo`
     static SchemaInfo convertGetSchemaResponseToSchemaInfo(TopicName tn,
                                                            GetSchemaResponse response) {
-        SchemaInfo info = new SchemaInfo();
+
         byte[] schema;
         if (response.getType() == SchemaType.KEY_VALUE) {
             schema = DefaultImplementation.convertKeyValueDataStringToSchemaInfoSchema(
@@ -442,11 +443,13 @@ public class SchemasImpl extends BaseResource implements Schemas {
         } else {
             schema = response.getData().getBytes(UTF_8);
         }
-        info.setSchema(schema);
-        info.setType(response.getType());
-        info.setProperties(response.getProperties());
-        info.setName(tn.getLocalName());
-        return info;
+
+        return SchemaInfoImpl.builder()
+                .schema(schema)
+                .type(response.getType())
+                .properties(response.getProperties())
+                .name(tn.getLocalName())
+                .build();
     }
 
     static SchemaInfoWithVersion convertGetSchemaResponseToSchemaInfoWithVersion(TopicName tn,

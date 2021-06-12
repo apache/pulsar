@@ -25,7 +25,6 @@ import java.util.TreeMap;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.Value;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AuthPolicies;
 
@@ -47,15 +46,17 @@ public final class AuthPoliciesImpl implements AuthPolicies {
         return new AuthPoliciesImplBuilder();
     }
 
-    private static class AuthPoliciesImplBuilder implements AuthPolicies.Builder {
+
+    public static class AuthPoliciesImplBuilder implements AuthPolicies.Builder {
         private Map<String, Set<AuthAction>> namespaceAuthentication = new TreeMap<>();
-        private Map<String, Map<String, Set<AuthAction>>> topicAuthentication = new TreeMap<>();
-        private Map<String, Set<String>> subscriptionAuthentication = new TreeMap<>();
+        private Map<String, Map<String, Set<AuthAction>>> topicAuthentication = new TreeMap<>();;
+        private Map<String, Set<String>> subscriptionAuthentication= new TreeMap<>();;
 
         AuthPoliciesImplBuilder() {
         }
 
-        public AuthPoliciesImplBuilder namespaceAuthentication(Map<String, Set<AuthAction>> namespaceAuthentication) {
+        public AuthPoliciesImplBuilder namespaceAuthentication(
+                Map<String, Set<AuthAction>> namespaceAuthentication) {
             this.namespaceAuthentication = namespaceAuthentication;
             return this;
         }
@@ -66,13 +67,20 @@ public final class AuthPoliciesImpl implements AuthPolicies {
             return this;
         }
 
-        public AuthPoliciesImplBuilder subscriptionAuthentication(Map<String, Set<String>> subscriptionAuthentication) {
+        public AuthPoliciesImplBuilder subscriptionAuthentication(
+                Map<String, Set<String>> subscriptionAuthentication) {
             this.subscriptionAuthentication = subscriptionAuthentication;
             return this;
         }
 
         public AuthPoliciesImpl build() {
             return new AuthPoliciesImpl(namespaceAuthentication, topicAuthentication, subscriptionAuthentication);
+        }
+
+        public String toString() {
+            return "AuthPoliciesImpl.AuthPoliciesImplBuilder(namespaceAuthentication=" + this.namespaceAuthentication
+                    + ", topicAuthentication=" + this.topicAuthentication + ", subscriptionAuthentication="
+                    + this.subscriptionAuthentication + ")";
         }
     }
 }

@@ -61,6 +61,7 @@ import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
+import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecord;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
@@ -437,7 +438,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         admin.topics().createPartitionedTopic(topic, 2);
 
         // set schema
-        SchemaInfo schemaInfo = SchemaInfo
+        SchemaInfo schemaInfo = SchemaInfoImpl
                 .builder()
                 .schema(new byte[0])
                 .name("dummySchema")
@@ -653,7 +654,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         final Map<String, String> map = new HashMap<>();
         map.put("key", null);
         map.put(null, "value"); // null key is not allowed for JSON, it's only for test here
-        Schema.INT32.getSchemaInfo().setProperties(map);
+        ((SchemaInfoImpl)Schema.INT32.getSchemaInfo()).setProperties(map);
 
         final Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32).topic(topic)
                 .subscriptionName("sub")

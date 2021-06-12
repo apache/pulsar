@@ -32,7 +32,7 @@ public class LocalTimeSchema extends AbstractSchema<LocalTime> {
    private static final SchemaInfo SCHEMA_INFO;
 
    static {
-       SCHEMA_INFO = new SchemaInfo()
+       SCHEMA_INFO = new SchemaInfoImpl()
              .setName("LocalTime")
              .setType(SchemaType.LOCAL_TIME)
              .setSchema(new byte[0]);

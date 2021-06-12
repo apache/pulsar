@@ -46,7 +46,7 @@ public final class KeyValueSchemaInfo {
 
         @Override
         public SchemaInfo getSchemaInfo() {
-            return BytesSchema.BYTES.getSchemaInfo();
+            return Schema.BYTES.getSchemaInfo();
         }
 
         @Override
@@ -169,11 +169,12 @@ public final class KeyValueSchemaInfo {
         properties.put(KV_ENCODING_TYPE, String.valueOf(keyValueEncodingType));
 
         // generate the final schema info
-        return new SchemaInfo()
-            .setName(schemaName)
-            .setType(SchemaType.KEY_VALUE)
-            .setSchema(schemaData)
-            .setProperties(properties);
+        return SchemaInfoImpl.builder()
+                .name(schemaName)
+                .type(SchemaType.KEY_VALUE)
+                .schema(schemaData)
+                .properties(properties)
+                .build();
     }
 
     private static void encodeSubSchemaInfoToParentSchemaProperties(SchemaInfo schemaInfo,
@@ -237,7 +238,7 @@ public final class KeyValueSchemaInfo {
         } else {
             schemaProps = SchemaUtils.deserializeSchemaProperties(schemaPropsStr);
         }
-        return SchemaInfo.builder()
+        return SchemaInfoImpl.builder()
             .name(schemaName)
             .type(schemaType)
             .schema(schemaData)
