@@ -105,7 +105,7 @@ public class RecordSchemaBuilderImpl implements RecordSchemaBuilder {
         }
 
         baseSchema.setFields(avroFields);
-        return new SchemaInfo(
+        return new SchemaInfoImpl(
             name,
             baseSchema.toString().getBytes(UTF_8),
             schemaType,

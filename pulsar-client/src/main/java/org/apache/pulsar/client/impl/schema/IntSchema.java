@@ -32,7 +32,7 @@ public class IntSchema extends AbstractSchema<Integer> {
     private static final SchemaInfo SCHEMA_INFO;
 
     static {
-        SCHEMA_INFO = new SchemaInfo()
+        SCHEMA_INFO = new SchemaInfoImpl()
             .setName("INT32")
             .setType(SchemaType.INT32)
             .setSchema(new byte[0]);

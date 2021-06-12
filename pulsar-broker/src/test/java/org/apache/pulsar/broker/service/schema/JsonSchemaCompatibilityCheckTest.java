@@ -33,6 +33,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
+import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -118,11 +119,12 @@ public class JsonSchemaCompatibilityCheckTest extends BaseAvroSchemaCompatibilit
             JsonSchemaGenerator schemaGen = new JsonSchemaGenerator(mapper);
             JsonSchema schema = schemaGen.generateSchema(pojo);
 
-            SchemaInfo info = new SchemaInfo();
-            info.setName("");
-            info.setProperties(properties);
-            info.setType(SchemaType.JSON);
-            info.setSchema(mapper.writeValueAsBytes(schema));
+            SchemaInfo info = SchemaInfoImpl.builder()
+                    .name("")
+                    .properties(properties)
+                    .type(SchemaType.JSON)
+                    .schema(mapper.writeValueAsBytes(schema))
+                    .build();
             return new OldJSONSchema<>(info, pojo, mapper);
         }
 
