@@ -30,6 +30,7 @@ import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Color;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Foo;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -67,28 +68,32 @@ public class KeyValueSchemaTest {
 
     @Test
     public void testFillParametersToSchemainfo() {
-        AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
-        AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
-
-        fooSchema.getSchemaInfo().setName("foo");
-        fooSchema.getSchemaInfo().setType(SchemaType.AVRO);
         Map<String, String> keyProperties = Maps.newTreeMap();
         keyProperties.put("foo.key1", "value");
         keyProperties.put("foo.key2", "value");
-        fooSchema.getSchemaInfo().setProperties(keyProperties);
-        barSchema.getSchemaInfo().setName("bar");
-        barSchema.getSchemaInfo().setType(SchemaType.AVRO);
+
         Map<String, String> valueProperties = Maps.newTreeMap();
         valueProperties.put("bar.key", "key");
-        barSchema.getSchemaInfo().setProperties(valueProperties);
+
+        AvroSchema<Foo> fooSchema = AvroSchema.of(
+                SchemaDefinition.<Foo>builder()
+                        .withPojo(Foo.class)
+                        .withProperties(keyProperties)
+                        .build());
+        AvroSchema<Bar> barSchema = AvroSchema.of(
+                SchemaDefinition.<Bar>builder()
+                        .withPojo(Bar.class)
+                        .withProperties(valueProperties)
+                        .build());
+
         Schema<KeyValue<Foo, Bar>> keyValueSchema1 = Schema.KeyValue(fooSchema, barSchema);
 
-        assertEquals(keyValueSchema1.getSchemaInfo().getProperties().get("key.schema.name"), "foo");
         assertEquals(keyValueSchema1.getSchemaInfo().getProperties().get("key.schema.type"), String.valueOf(SchemaType.AVRO));
-        assertEquals(keyValueSchema1.getSchemaInfo().getProperties().get("key.schema.properties"), "{\"foo.key1\":\"value\",\"foo.key2\":\"value\"}");
-        assertEquals(keyValueSchema1.getSchemaInfo().getProperties().get("value.schema.name"), "bar");
+        assertEquals(keyValueSchema1.getSchemaInfo().getProperties().get("key.schema.properties"),
+                "{\"__alwaysAllowNull\":\"true\",\"__jsr310ConversionEnabled\":\"false\",\"foo.key1\":\"value\",\"foo.key2\":\"value\"}");
         assertEquals(keyValueSchema1.getSchemaInfo().getProperties().get("value.schema.type"), String.valueOf(SchemaType.AVRO));
-        assertEquals(keyValueSchema1.getSchemaInfo().getProperties().get("value.schema.properties"), "{\"bar.key\":\"key\"}");
+        assertEquals(keyValueSchema1.getSchemaInfo().getProperties().get("value.schema.properties"),
+                "{\"__alwaysAllowNull\":\"true\",\"__jsr310ConversionEnabled\":\"false\",\"bar.key\":\"key\"}");
     }
 
     @Test

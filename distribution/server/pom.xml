@@ -65,6 +65,12 @@
     </dependency>
 
     <dependency>
+      <groupId>org.apache.zookeeper</groupId>
+      <artifactId>zookeeper-prometheus-metrics</artifactId>
+      <version>${zookeeper.version}</version>
+    </dependency>
+
+    <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-package-bookkeeper-storage</artifactId>
       <version>${project.version}</version>
