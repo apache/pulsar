@@ -83,6 +83,7 @@
                             <artifactSet>
                                 <includes>
                                     <include>org.apache.pulsar:pulsar-client</include>
+                                    <include>org.apache.pulsar:pulsar-functions-api-examples</include>
                                 </includes>
                             </artifactSet>
                         </configuration>
