@@ -36,6 +36,7 @@ import java.lang.reflect.Method;
 import java.util.List;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -801,6 +802,32 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         p1.close();
         reader2.closeAsync().get();
+    }
+
+    @Test
+    public void testReplicatorWithPartitionedTopic() throws Exception {
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String persistentTopicName = "persistent://" + namespace + "/partTopic" + UUID.randomUUID();
+
+        admin1.namespaces().createNamespace(namespace);
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"));
+        // Create partitioned-topic from R1
+        admin1.topics().createPartitionedTopic(persistentTopicName, 3);
+        // List partitioned topics from R2
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin2.topics().getPartitionedTopicList(namespace)));
+        Awaitility.await().untilAsserted(() -> assertEquals(
+                admin2.topics().getPartitionedTopicList(namespace).get(0), persistentTopicName));
+        assertEquals(admin1.topics().getList(namespace).size(), 3);
+        // Update partitioned topic from R2
+        admin2.topics().updatePartitionedTopic(persistentTopicName, 5);
+        assertEquals(admin2.topics().getPartitionedTopicMetadata(persistentTopicName).partitions, 5);
+        assertEquals(admin2.topics().getList(namespace).size(), 5);
+        // Update partitioned topic from R1
+        admin1.topics().updatePartitionedTopic(persistentTopicName, 6);
+        assertEquals(admin1.topics().getPartitionedTopicMetadata(persistentTopicName).partitions, 6);
+        assertEquals(admin2.topics().getPartitionedTopicMetadata(persistentTopicName).partitions, 6);
+        assertEquals(admin1.topics().getList(namespace).size(), 6);
+        assertEquals(admin2.topics().getList(namespace).size(), 6);
     }
 
     /**
