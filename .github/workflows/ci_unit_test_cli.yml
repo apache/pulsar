@@ -62,7 +62,7 @@ jobs:
             rm wagon-http-*-shaded.jar
             curl -O https://repo1.maven.org/maven2/org/apache/maven/wagon/wagon-http/3.4.3/wagon-http-3.4.3-shaded.jar
           fi
-      - name: run unit test 'OTHER'
+      - name: run unit tests
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         run: 
           mvn -B -fn clean test  # -Dgroups='quarantine'
