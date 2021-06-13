@@ -72,7 +72,7 @@ jobs:
           #$MVN_TEST_COMMAN -Dgroups='quarantine,flaky' -DexcludedGroups='' -DtestForkCount=2
 
       - name: package surefire artifacts
-        if: failure()
+        #if: failure()
         run: |
           rm -rf artifacts
           mkdir artifacts
@@ -80,7 +80,14 @@ jobs:
           zip -r artifacts.zip artifacts
       - uses: actions/upload-artifact@master
         name: upload surefire-artifacts
-        if: failure()
+        #if: failure()
+        with:
+          name: surefire-artifacts
+          path: artifacts.zip
+          
+      - uses: actions/download-artifact@v2
+        name: download surefire-artifacts
+        #if: failure()
         with:
           name: surefire-artifacts
           path: artifacts.zip
