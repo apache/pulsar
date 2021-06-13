@@ -85,9 +85,9 @@ jobs:
           name: surefire-artifacts
           path: artifacts.zip
           
-      - uses: actions/download-artifact@v2
-        name: download surefire-artifacts
+     # - uses: actions/download-artifact@v2
+     #   name: download surefire-artifacts
         #if: failure()
-        with:
-          name: surefire-artifacts
-          path: artifacts.zip
+     #   with:
+     #     name: surefire-artifacts
+     #     path: artifacts.zip
