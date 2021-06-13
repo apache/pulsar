@@ -65,7 +65,7 @@ jobs:
       - name: run unit tests
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         run: 
-          mvn -B -fn clean install test  # -Dgroups='quarantine' test
+          mvn -B -fn clean install test  # -Dgroups='quarantine'
           
           
           # echo -n "Test Group : $TEST_GROUP"
