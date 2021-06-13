@@ -76,15 +76,15 @@
             });
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Apache Pulsar Helm Chart</h1></header><article><div><span><p>这是官方支持的用于在云原生环境中安装 Apache Pulsar 的 Helm chart。 它是基于 StreamNative 的 <a href="https://github.com/streamnative/charts">Helm Chart</a> 并做了增强。</p>
 <h2><a class="anchor" aria-hidden="true" id="简介"></a><a href="#简介" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>简介</h2>
-<p>使用 Apache Pulsar Helm chart 是在 Kubernetes 环境中管理 Pulsar 最方便的方式之一。 这个 Pulsar Helm chart 包含了在 Kubernetes 中启动 Pulsar 以及弹性扩缩容所需的所有组件。</p>
+<p>使用 Apache Pulsar Helm chart 是在 Kubernetes 环境中管理 Pulsar 最方便的方式之一。 这个 Pulsar Helm chart 包含了所有启动 Pulsar 必要的组件，并可扩容到大型部署。</p>
 <p>这个 chart 包含了 Pulsar 完整体验的所有组件，而且每个部分都可以通过配置独立部署使用。</p>
 <ul>
-<li>Pulsar 核心组件
+<li>Pulsar 核心组件：
 <ul>
 <li>ZooKeeper</li>
-<li>Bookies</li>
+<li>Bookie</li>
 <li>Brokers</li>
-<li>Function workers</li>
+<li>Function worker</li>
 <li>代理服务</li>
 </ul></li>
 <li>控制中心
@@ -136,40 +136,40 @@
 </ul></li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="pulsar-helm-chart-快速入门"></a><a href="#pulsar-helm-chart-快速入门" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar Helm chart 快速入门</h2>
-<p>To get up and run with these charts as fast as possible, in a <strong>non-production</strong> use case, we provide a <a href="/docs/zh-CN/2.6.2/kubernetes-helm">quick start guide</a> for Proof of Concept (PoC) deployments.</p>
-<p>This guide walks the user through deploying these charts with default values and features, but <em>does not</em> meet production ready requirements. To deploy these charts into production under sustained load, follow the complete <a href="/docs/zh-CN/2.6.2/helm-install">Installation Guide</a>.</p>
+<p>如果你只是想在非生产环境中尽快运行起 Pulsar Helm charts，我们提供了用于的 PoC （Proof of Concept ）环境的<a href="/docs/zh-CN/2.6.2/kubernetes-helm">Helm 快速入门</a>。</p>
+<p>本指南用于引导用户使用默认值和默认特性部署 Helm charts，但<em>并不</em>满足生产环境的使用要求。 如果需要在生产环境下部署 Pulsar Helm charts，请参考完整的<a href="/docs/zh-CN/2.6.2/helm-install">安装指南</a>。</p>
 <h2><a class="anchor" aria-hidden="true" id="故障排除"></a><a href="#故障排除" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>故障排除</h2>
-<p>We have done our best to make these charts as seamless as possible. Occasionally, troubles do go outside of our control. We have collected tips and tricks for troubleshooting common issues. Please check them first before raising an <a href="https://github.com/apache/pulsar/issues/new/choose">issue</a>, and feel free to add to them by raising a <a href="https://github.com/apache/pulsar/compare">Pull Request</a>.</p>
+<p>我们已尽我们所能来确保这些 charts 没有错误。 但还是不可避免会有一些我们预期之外的错误发生。 我们已经收集了针对常见问题的排错建议和技巧。 你可以在提交<a href="https://github.com/apache/pulsar/issues/new/choose"> issue </a>之前先确认下这些排错建议，当然我们也很欢迎你尝试修复他们并给我们提交<a href="https://github.com/apache/pulsar/compare"> Pull Request </a>。</p>
 <h2><a class="anchor" aria-hidden="true" id="安装"></a><a href="#安装" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>安装</h2>
-<p>The Apache Pulsar Helm chart contains all required dependencies.</p>
-<p>If you deploy a PoC for testing, we strongly suggest you follow our <a href="/docs/zh-CN/2.6.2/kubernetes-helm">Quick Start Guide</a> for your first iteration.</p>
+<p>Apache Pulsar Helm chart 包含所有必须的依赖项。</p>
+<p>如果你只是想在 PoC 环境下测试下部署，我们强烈建议你遵循<a href="/docs/zh-CN/2.6.2/kubernetes-helm"> 快速开始指引 </a> 来进行。</p>
 <ol>
 <li><a href="/docs/zh-CN/2.6.2/helm-prepare">准备工作</a></li>
 <li><a href="/docs/zh-CN/2.6.2/helm-deploy">部署</a></li>
 </ol>
-<h2><a class="anchor" aria-hidden="true" id="upgrading"></a><a href="#upgrading" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Upgrading</h2>
-<p>Once the Pulsar Helm chart is installed, use the <code>helm upgrade</code> to complete configuration changes and chart updates.</p>
+<h2><a class="anchor" aria-hidden="true" id="升级"></a><a href="#升级" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>升级</h2>
+<p>一旦 Pulsar Helm chart 被安装好，请使用<code>helm upgrade</code>来完成完成完整的配置变更和 chart 升级。</p>
 <pre><code class="hljs css language-bash">git <span class="hljs-built_in">clone</span> https://github.com/apache/pulsar
 <span class="hljs-built_in">cd</span> deployment/kubernetes/helm
 helm get values &lt;pulsar-release-name&gt; &gt; pulsar.yaml
 helm upgrade &lt;pulsar-release-name&gt; pulsar -f pulsar.yaml
 </code></pre>
-<p>For more detailed information, see <a href="/docs/zh-CN/2.6.2/helm-upgrade">Upgrading</a>.</p>
-<h2><a class="anchor" aria-hidden="true" id="uninstallation"></a><a href="#uninstallation" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Uninstallation</h2>
-<p>To uninstall the Pulsar Helm chart, run the following command:</p>
+<p>更多详细的信息，请参考<a href="/docs/zh-CN/2.6.2/helm-upgrade">升级</a>。</p>
+<h2><a class="anchor" aria-hidden="true" id="卸载"></a><a href="#卸载" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>卸载</h2>
+<p>如果需要卸载 Pulsar Helm chart，请执行以下命令：</p>
 <pre><code class="hljs css language-bash">helm delete &lt;pulsar-release-name&gt;
 </code></pre>
-<p>For the purposes of continuity, these charts have some Kubernetes objects that cannot be removed when performing <code>helm delete</code>. It is recommended to <em>conciously</em> remove these items, as they affect re-deployment.</p>
+<p>为了保持连续性，有些包含了 Kubernetes 对象的 charts 在执行<code>helm delete</code> 命令后无法被清除。 我们还是推荐你<em>主动</em>去移除这些组件，因为它们会影响重新部署。</p>
 <ul>
-<li>PVCs for stateful data: <em>consciously</em> remove these items.
+<li>有状态服务的 PVC：<em>主动地</em>去移除。
 <ul>
-<li>ZooKeeper: This is your metadata.</li>
-<li>BookKeeper: This is your data.</li>
-<li>Prometheus: This is your metrics data, which can be safely removed.</li>
+<li>ZooKeeper：这是 Pulsar 的元数据管理中心。</li>
+<li>BookKeeper：这是 Pulsar 消息数据的存储中心。</li>
+<li>Prometheus：这是 Pulsar 的监控计量数据，可以被安全清除。</li>
 </ul></li>
 <li>Secrets: if the secrets are generated by the <a href="https://github.com/apache/pulsar/blob/master/deployment/kubernetes/helm/scripts/pulsar/prepare_helm_release.sh">prepare release script</a>, they contain secret keys and tokens. You can use the <a href="https://github.com/apache/pulsar/blob/master/deployment/kubernetes/helm/scripts/pulsar/cleanup_helm_release.sh">cleanup release script</a> to remove these secrets and tokens as needed.</li>
 </ul>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.6.2/sql-rest-api"><span class="arrow-prev">← </span><span>REST API</span></a><a class="docs-next button" href="/docs/zh-CN/2.6.2/helm-prepare"><span>准备</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#简介">简介</a></li><li><a href="#pulsar-helm-chart-快速入门">Pulsar Helm chart 快速入门</a></li><li><a href="#故障排除">故障排除</a></li><li><a href="#安装">安装</a></li><li><a href="#upgrading">Upgrading</a></li><li><a href="#uninstallation">Uninstallation</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.6.2/sql-rest-api"><span class="arrow-prev">← </span><span>REST API</span></a><a class="docs-next button" href="/docs/zh-CN/2.6.2/helm-prepare"><span>准备</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#简介">简介</a></li><li><a href="#pulsar-helm-chart-快速入门">Pulsar Helm chart 快速入门</a></li><li><a href="#故障排除">故障排除</a></li><li><a href="#安装">安装</a></li><li><a href="#升级">升级</a></li><li><a href="#卸载">卸载</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
