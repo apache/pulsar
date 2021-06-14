@@ -277,14 +277,12 @@ public class TopicName implements ServiceUnitId {
                 if (partitionIndex < 0) {
                     // for the "topic-partition--1"
                     partitionIndex = -1;
-                    log.warn("Partition index should >=0!");
                 } else if (StringUtils.length(idx) != String.valueOf(partitionIndex).length()) {
                     // for the "topic-partition-01"
                     partitionIndex = -1;
-                    log.warn("Partition index cannot start with a prefix of `0` unless it is 0!");
                 }
             } catch (NumberFormatException nfe) {
-                log.warn("Could not get the partition index from the topic {}", topic);
+                // ignore exception
             }
         }
 
