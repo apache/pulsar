@@ -91,8 +91,9 @@ public class SchemaUtil {
         try {
             return parseAvroSchema(pojo.getDeclaredField("SCHEMA$").get(null).toString());
         } catch (NoSuchFieldException | IllegalAccessException | IllegalArgumentException ignored) {
-            ReflectData reflectData = schemaDefinition.getAlwaysAllowNull() ? ReflectData.AllowNull.get()
-                    : ReflectData.get();
+            ReflectData reflectData = schemaDefinition.getAlwaysAllowNull()
+                     ? new ReflectData.AllowNull()
+                     : new ReflectData();
             AvroSchema.addLogicalTypeConversions(reflectData, schemaDefinition.isJsr310ConversionEnabled());
             return reflectData.getSchema(pojo);
         }
