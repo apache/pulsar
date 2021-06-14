@@ -19,7 +19,7 @@
 package org.apache.pulsar.common.policies.data;
 
 import java.util.List;
-import org.apache.pulsar.client.admin.utils.ReflectionUtils;
+import org.apache.pulsar.client.internal.ReflectionUtils;
 
 public interface NamespaceIsolationData {
 

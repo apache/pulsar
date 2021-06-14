@@ -89,4 +89,11 @@ public class ReflectionUtils {
             throw new RuntimeException(e);
         }
     }
+
+    public static <T> T newBuilder(String className) {
+        return catchExceptions(
+                () -> (T) ReflectionUtils.getStaticMethod(
+                        className, "builder", null)
+                        .invoke(null, null));
+    }
 }
