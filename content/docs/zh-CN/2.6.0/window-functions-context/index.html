@@ -76,41 +76,41 @@
             });
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Window Functions Context</h1></header><article><div><span><p>Java SDK 提供了对可用于窗口函数中的窗口上下文对象的访问。 该上下文对象为 Pulsar 窗口函数提供了各种各样的信息和功能，如下所示。</p>
 <ul>
-<li><p><a href="#spec">Spec</a></p>
+<li><p><a href="#spec">规格说明</a></p>
 <ul>
-<li>Names of all input topics and the output topic associated with the function.</li>
-<li>Tenant and namespace associated with the function.</li>
-<li>Pulsar window function name, ID, and version.</li>
-<li>ID of the Pulsar function instance running the window function.</li>
-<li>Number of instances that invoke the window function.</li>
-<li>Built-in type or custom class name of the output schema.</li>
+<li>和函数有关的所有的输入主题和输出主题名称。</li>
+<li>与该函数相关联的租户和命名空间。</li>
+<li>Pulsar 窗口函数的名称、ID 和版本。</li>
+<li>运行窗口函数的 Pulsar 函数实例 ID。</li>
+<li>调用窗口函数的实例数量。</li>
+<li>输出 Schema 的内置类型或自定义类名称。</li>
 </ul></li>
 <li><p><a href="#logger">Logger</a></p>
 <ul>
-<li>Logger object used by the window function, which can be used to create window function log messages.</li>
+<li>窗口函数使用 Logger 对象来创建窗口函数的日志信息。</li>
 </ul></li>
 <li><p><a href="#user-config">User config</a></p>
 <ul>
-<li>Access to arbitrary user configuration values.</li>
+<li>访问任意的用户配置信息。</li>
 </ul></li>
-<li><p><a href="#routing">Routing</a></p>
+<li><p><a href="#routing">路由</a></p>
 <ul>
-<li>Routing is supported in Pulsar window functions. Pulsar window functions send messages to arbitrary topics as per the <code>publish</code> interface.</li>
+<li>Pulsar 的窗口函数支持路由功能。 Pulsar 的窗口函数可以通过 <code>publish</code> 接口向任意主题发送消息。</li>
 </ul></li>
 <li><p><a href="#metrics">Metrics</a></p>
 <ul>
-<li>Interface for recording metrics.</li>
+<li>记录量测信息的接口。</li>
 </ul></li>
 <li><p><a href="#state-storage">State storage</a></p>
 <ul>
-<li>Interface for storing and retrieving state in <a href="#state-storage">state storage</a>.</li>
+<li>存储和检索状态的接口：<a href="#state-storage">state storage</a>。</li>
 </ul></li>
 </ul>
-<h2><a class="anchor" aria-hidden="true" id="spec"></a><a href="#spec" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Spec</h2>
-<p>Spec contains the basic information of a function.</p>
-<h3><a class="anchor" aria-hidden="true" id="get-input-topics"></a><a href="#get-input-topics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Get input topics</h3>
-<p>The <code>getInputTopics</code> method gets the <strong>name list</strong> of all input topics.</p>
-<p>This example demonstrates how to get the name list of all input topics in a Java window function.</p>
+<h2><a class="anchor" aria-hidden="true" id="规格说明"></a><a href="#规格说明" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>规格说明</h2>
+<p>细则描述包含了函数的基本信息。</p>
+<h3><a class="anchor" aria-hidden="true" id="获取输入主题"></a><a href="#获取输入主题" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取输入主题</h3>
+<p>通过方法 <code>getInputTopics</code> 获取所有输入主题的<strong>名称清单</strong>。</p>
+<p>此示例演示如何在 Java 窗口函数中获取所有输入主题的名称列表。</p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">GetInputTopicsWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
     <span class="hljs-meta">@Override</span>
     <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; inputs, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
@@ -122,9 +122,9 @@
 
 }
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="get-output-topic"></a><a href="#get-output-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Get output topic</h3>
-<p>The <code>getOutputTopic</code> method gets the <strong>name of a topic</strong> to which the message is sent.</p>
-<p>This example demonstrates how to get the name of an output topic in a Java window function.</p>
+<h3><a class="anchor" aria-hidden="true" id="获取输出主题"></a><a href="#获取输出主题" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取输出主题</h3>
+<p>通过 <code>getOutputTopic</code> 方法获得消息发送的目标 <strong>主题名称</strong>。</p>
+<p>此示例演示如何在 Java 窗口函数中获取输出主题的名称。</p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">GetOutputTopicWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
     <span class="hljs-meta">@Override</span>
     <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; inputs, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
@@ -135,9 +135,9 @@
     }
 }
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="get-tenant"></a><a href="#get-tenant" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Get tenant</h3>
-<p>The <code>getTenant</code> method gets the tenant name associated with the window function.</p>
-<p>This example demonstrates how to get the tenant name in a Java window function.</p>
+<h3><a class="anchor" aria-hidden="true" id="获取租户"></a><a href="#获取租户" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取租户</h3>
+<p>通过 <code>getTenant</code> 方法可以获取窗口函数关联的租户名称。</p>
+<p>此示例演示如何在 Java 窗口函数中获取租户的名称。</p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">GetTenantWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
     <span class="hljs-meta">@Override</span>
     <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; inputs, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
@@ -149,9 +149,9 @@
 
 }
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="get-namespace"></a><a href="#get-namespace" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Get namespace</h3>
-<p>The <code>getNamespace</code> method gets the namespace associated with the window function.</p>
-<p>This example demonstrates how to get the namespace in a Java window function.</p>
+<h3><a class="anchor" aria-hidden="true" id="获取命名空间"></a><a href="#获取命名空间" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取命名空间</h3>
+<p>通过 <code>getNamespace</code> 方法获取窗口函数关联的命名空间名称。</p>
+<p>此示例演示如何在 Java 窗口函数中获取命名空间名称。</p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">GetNamespaceWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
     <span class="hljs-meta">@Override</span>
     <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; inputs, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
@@ -163,9 +163,9 @@
 
 }
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="get-function-name"></a><a href="#get-function-name" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Get function name</h3>
-<p>The <code>getFunctionName</code> method gets the window function name.</p>
-<p>This example demonstrates how to get the function name in a Java window function.</p>
+<h3><a class="anchor" aria-hidden="true" id="获取函数名称"></a><a href="#获取函数名称" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取函数名称</h3>
+<p>通过 <code>getFunctionName</code> 方法获取窗口函数的名称。</p>
+<p>此示例演示如何在 Java 窗口函数中获取函数的名称。</p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">GetNameOfWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
     <span class="hljs-meta">@Override</span>
     <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; inputs, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
@@ -177,9 +177,9 @@
 
 }
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="get-function-id"></a><a href="#get-function-id" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Get function ID</h3>
-<p>The <code>getFunctionId</code> method gets the window function ID.</p>
-<p>This example demonstrates how to get the function ID in a Java window function.</p>
+<h3><a class="anchor" aria-hidden="true" id="获取函数-id"></a><a href="#获取函数-id" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取函数 ID</h3>
+<p>通过 <code>getFunctionId</code> 方法获取窗口函数 ID。</p>
+<p>此示例演示如何在 Java 窗口函数中获取函数的 ID。</p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">GetFunctionIDWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
     <span class="hljs-meta">@Override</span>
     <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; inputs, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
@@ -191,9 +191,9 @@
 
 }
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="get-function-version"></a><a href="#get-function-version" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Get function version</h3>
-<p>The <code>getFunctionVersion</code> method gets the window function version.</p>
-<p>This example demonstrates how to get the function version of a Java window function.</p>
+<h3><a class="anchor" aria-hidden="true" id="获取函数版本"></a><a href="#获取函数版本" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取函数版本</h3>
+<p>通过 <code>getFunctionVersion</code> 方法获取窗口函数的版本。</p>
+<p>此示例演示如何在 Java 窗口函数中获取函数的版本。</p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">GetVersionOfWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
     <span class="hljs-meta">@Override</span>
     <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; inputs, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
@@ -205,9 +205,9 @@
 
 }
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="get-instance-id"></a><a href="#get-instance-id" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Get instance ID</h3>
-<p>The <code>getInstanceId</code> method gets the instance ID of a window function.</p>
-<p>This example demonstrates how to get the instance ID in a Java window function.</p>
+<h3><a class="anchor" aria-hidden="true" id="获取实例-id"></a><a href="#获取实例-id" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取实例 ID</h3>
+<p>通过 <code>getInstanceId</code> 方法获取窗口函数的实例 ID。</p>
+<p>此示例演示如何在 Java 窗口函数中获取实例 ID。</p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">GetInstanceIDWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
     <span class="hljs-meta">@Override</span>
     <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; inputs, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
@@ -219,9 +219,9 @@
 
 }
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="get-num-instances"></a><a href="#get-num-instances" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Get num instances</h3>
-<p>The <code>getNumInstances</code> method gets the number of instances that invoke the window function.</p>
-<p>This example demonstrates how to get the number of instances in a Java window function.</p>
+<h3><a class="anchor" aria-hidden="true" id="获取实例个数"></a><a href="#获取实例个数" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取实例个数</h3>
+<p>通过 <code>getNumInstances</code> 方法获取某窗口函数调用生成的实例数。</p>
+<p>此示例演示如何在 Java 窗口函数中获取该函数的实例数。</p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">GetNumInstancesWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
     <span class="hljs-meta">@Override</span>
     <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; inputs, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
@@ -233,9 +233,9 @@
 
 }
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="get-output-schema-type"></a><a href="#get-output-schema-type" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Get output schema type</h3>
-<p>The <code>getOutputSchemaType</code> method gets the built-in type or custom class name of the output schema.</p>
-<p>This example demonstrates how to get the output schema type of a Java window function.</p>
+<h3><a class="anchor" aria-hidden="true" id="获取输出-schema-类型"></a><a href="#获取输出-schema-类型" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取输出 Schema 类型</h3>
+<p>通过 <code>getOutputSchemaType</code> 方法获取输出 Schema 的内置类型或自定义类名称。</p>
+<p>此示例演示如何在 Java 窗口函数中获取输出 Schema 的类型。</p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">GetOutputSchemaTypeWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
 
     <span class="hljs-meta">@Override</span>
@@ -387,7 +387,7 @@ Map&lt;String, String&gt; allConfigs = context.getUserConfigMap();
 <span class="hljs-comment">// Get value or resort to default</span>
 String wotd = context.getUserConfigValueOrDefault(<span class="hljs-string">"word-of-the-day"</span>, <span class="hljs-string">"perspicacious"</span>);
 </code></pre>
-<h2><a class="anchor" aria-hidden="true" id="routing"></a><a href="#routing" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Routing</h2>
+<h2><a class="anchor" aria-hidden="true" id="路由"></a><a href="#路由" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>路由</h2>
 <p>You can use the <code>context.publish()</code> interface to publish as many results as you want.</p>
 <p>This example shows that the <code>PublishFunction</code> class uses the built-in function in the context to publish messages to the <code>publishTopic</code> in a Java function.</p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">PublishWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
@@ -472,7 +472,7 @@ String wotd = context.getUserConfigValueOrDefault(<span class="hljs-string">"wor
     }
 }
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.6.0/functions-cli"><span class="arrow-prev">← </span><span>参考：命令</span></a><a class="docs-next button" href="/docs/zh-CN/2.6.0/io-overview"><span>概述</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#spec">Spec</a><ul class="toc-headings"><li><a href="#get-input-topics">Get input topics</a></li><li><a href="#get-output-topic">Get output topic</a></li><li><a href="#get-tenant">Get tenant</a></li><li><a href="#get-namespace">Get namespace</a></li><li><a href="#get-function-name">Get function name</a></li><li><a href="#get-function-id">Get function ID</a></li><li><a href="#get-function-version">Get function version</a></li><li><a href="#get-instance-id">Get instance ID</a></li><li><a href="#get-num-instances">Get num instances</a></li><li><a href="#get-output-schema-type">Get output schema type</a></li></ul></li><li><a href="#logger">Logger</a></li><li><a href="#metrics">Metrics</a></li><li><a href="#user-config">User config</a><ul class="toc-headings"><li><a href="#api">API</a></li></ul></li><li><a href="#routing">Routing</a></li><li><a href="#state-storage">State storage</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.6.0/functions-cli"><span class="arrow-prev">← </span><span>参考：命令</span></a><a class="docs-next button" href="/docs/zh-CN/2.6.0/io-overview"><span>概述</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#规格说明">规格说明</a><ul class="toc-headings"><li><a href="#获取输入主题">获取输入主题</a></li><li><a href="#获取输出主题">获取输出主题</a></li><li><a href="#获取租户">获取租户</a></li><li><a href="#获取命名空间">获取命名空间</a></li><li><a href="#获取函数名称">获取函数名称</a></li><li><a href="#获取函数-id">获取函数 ID</a></li><li><a href="#获取函数版本">获取函数版本</a></li><li><a href="#获取实例-id">获取实例 ID</a></li><li><a href="#获取实例个数">获取实例个数</a></li><li><a href="#获取输出-schema-类型">获取输出 Schema 类型</a></li></ul></li><li><a href="#logger">Logger</a></li><li><a href="#metrics">Metrics</a></li><li><a href="#user-config">User config</a><ul class="toc-headings"><li><a href="#api">API</a></li></ul></li><li><a href="#路由">路由</a></li><li><a href="#state-storage">State storage</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
