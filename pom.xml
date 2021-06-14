@@ -84,7 +84,7 @@ flexible messaging model and an intuitive client API.</description>
     <include>**/Test*.java,**/*Test.java,**/*Tests.java,**/*TestCase.java</include>
     <exclude/>
     <groups/>
-    <excludedGroups></excludedGroups> <!-- quarantine -->
+    <excludedGroups>quarantine</excludedGroups> <!-- quarantine -->
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -99,6 +99,7 @@ flexible messaging model and an intuitive client API.</description>
     <skipBuildDistribution>false</skipBuildDistribution>
     <shadePluginPhase>package</shadePluginPhase>
     <narPluginPhase>package</narPluginPhase>
+    <runQuarantinedTests>true</runQuarantinedTests>
 
     <!-- apache commons -->
     <commons-compress.version>1.19</commons-compress.version>
