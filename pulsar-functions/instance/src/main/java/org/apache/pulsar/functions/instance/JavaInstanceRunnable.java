@@ -42,6 +42,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.internal.ReflectionUtils;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.ProducerConfig;
@@ -168,6 +169,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         this.collectorRegistry = collectorRegistry;
 
         this.instanceClassLoader = Thread.currentThread().getContextClassLoader();
+        ReflectionUtils.setClassLoader(instanceClassLoader);
     }
 
     /**

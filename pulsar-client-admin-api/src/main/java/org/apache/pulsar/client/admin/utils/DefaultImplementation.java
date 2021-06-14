@@ -24,6 +24,7 @@ import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.internal.ReflectionUtils;
 
 /**
  * Helper class for class instantiations and it also contains methods to work with schemas.
