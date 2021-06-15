@@ -818,16 +818,26 @@ public class ReplicatorTest extends ReplicatorTestBase {
         Awaitility.await().untilAsserted(() -> assertEquals(
                 admin2.topics().getPartitionedTopicList(namespace).get(0), persistentTopicName));
         assertEquals(admin1.topics().getList(namespace).size(), 3);
+        // List partitioned topics from R3
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin3.topics().getPartitionedTopicList(namespace)));
+        Awaitility.await().untilAsserted(() -> assertEquals(
+                admin3.topics().getPartitionedTopicList(namespace).get(0), persistentTopicName));
         // Update partitioned topic from R2
         admin2.topics().updatePartitionedTopic(persistentTopicName, 5);
         assertEquals(admin2.topics().getPartitionedTopicMetadata(persistentTopicName).partitions, 5);
         assertEquals(admin2.topics().getList(namespace).size(), 5);
+        // Update partitioned topic from R3
+        admin3.topics().updatePartitionedTopic(persistentTopicName, 5);
+        assertEquals(admin3.topics().getPartitionedTopicMetadata(persistentTopicName).partitions, 5);
+        assertEquals(admin3.topics().getList(namespace).size(), 5);
         // Update partitioned topic from R1
         admin1.topics().updatePartitionedTopic(persistentTopicName, 6);
         assertEquals(admin1.topics().getPartitionedTopicMetadata(persistentTopicName).partitions, 6);
         assertEquals(admin2.topics().getPartitionedTopicMetadata(persistentTopicName).partitions, 6);
+        assertEquals(admin3.topics().getPartitionedTopicMetadata(persistentTopicName).partitions, 6);
         assertEquals(admin1.topics().getList(namespace).size(), 6);
         assertEquals(admin2.topics().getList(namespace).size(), 6);
+        assertEquals(admin3.topics().getList(namespace).size(), 6);
     }
 
     /**
