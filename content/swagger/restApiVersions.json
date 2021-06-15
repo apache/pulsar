@@ -239,6 +239,23 @@
             ]
         }
     ],
+    "2.8.0": [
+        {
+            "version": "v2",
+            "fileName": [
+                "swagger"
+            ]
+        },
+        {
+            "version": "v3",
+            "fileName": [
+                "swaggerfunctions",
+                "swaggerpackages",
+                "swaggersink",
+                "swaggersource"
+            ]
+        }
+    ],
     "2.9.0-SNAPSHOT": [
         {
             "version": "v2",

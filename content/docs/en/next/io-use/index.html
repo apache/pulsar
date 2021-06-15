@@ -181,7 +181,7 @@ configs:
 <div class="tabs"><div class="nav-tabs"><div id="tab-group-2650-tab-2651" class="nav-link active" data-group="group_2650" data-tab="tab-group-2650-content-2651">Admin CLI</div><div id="tab-group-2650-tab-2652" class="nav-link" data-group="group_2650" data-tab="tab-group-2650-content-2652">REST API</div><div id="tab-group-2650-tab-2653" class="nav-link" data-group="group_2650" data-tab="tab-group-2650-content-2653">Java Admin API</div></div><div class="tab-content"><div id="tab-group-2650-content-2651" class="tab-pane active" data-group="group_2650" tabindex="-1"><div><span><p>Use the <code>create</code> subcommand.</p>
 <pre><code class="hljs">$ pulsar-<span class="hljs-keyword">admin</span> sources <span class="hljs-keyword">create</span> <span class="hljs-keyword">options</span><br /></code></pre>
 <p>For more information, see <a href="/docs/en/next/io-cli#create">here</a>.</p>
-</span></div></div><div id="tab-group-2650-content-2652" class="tab-pane" data-group="group_2650" tabindex="-1"><div><span><p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/registerSource?version=2.7.2&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
+</span></div></div><div id="tab-group-2650-content-2652" class="tab-pane" data-group="group_2650" tabindex="-1"><div><span><p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/registerSource?version=2.8.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
 </p>
 </span></div></div><div id="tab-group-2650-content-2653" class="tab-pane" data-group="group_2650" tabindex="-1"><div><span><ul>
 <li><p>Create a source connector with a <strong>local file</strong>.</p>
@@ -204,7 +204,7 @@ configs:
 <tr><td><code>PulsarAdminException</code></td><td>Unexpected error</td></tr>
 </tbody>
 </table>
-<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.7.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#createSource-SourceConfig-java.lang.String-"><code>createSource</code></a>.</p></li>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#createSource-SourceConfig-java.lang.String-"><code>createSource</code></a>.</p></li>
 <li><p>Create a source connector using a <strong>remote file</strong> with a URL from which fun-pkg can be downloaded.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">createSourceWithUrl</span><span class="hljs-params">(SourceConfig sourceConfig,<br />                         String pkgUrl)</span><br />                  <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
 <p>Supported URLs are <code>http</code> and <code>file</code>.</p>
@@ -232,7 +232,7 @@ configs:
 <tr><td><code>PulsarAdminException</code></td><td>Unexpected error</td></tr>
 </tbody>
 </table>
-<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.7.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#createSourceWithUrl-SourceConfig-java.lang.String-"><code>createSourceWithUrl</code></a>.</p></li>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#createSourceWithUrl-SourceConfig-java.lang.String-"><code>createSourceWithUrl</code></a>.</p></li>
 </ul>
 </span></div></div></div></div>
 <h4><a class="anchor" aria-hidden="true" id="sink-2"></a><a href="#sink-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sink</h4>
@@ -240,7 +240,7 @@ configs:
 <div class="tabs"><div class="nav-tabs"><div id="tab-group-2654-tab-2655" class="nav-link active" data-group="group_2654" data-tab="tab-group-2654-content-2655">Admin CLI</div><div id="tab-group-2654-tab-2656" class="nav-link" data-group="group_2654" data-tab="tab-group-2654-content-2656">REST API</div><div id="tab-group-2654-tab-2657" class="nav-link" data-group="group_2654" data-tab="tab-group-2654-content-2657">Java Admin API</div></div><div class="tab-content"><div id="tab-group-2654-content-2655" class="tab-pane active" data-group="group_2654" tabindex="-1"><div><span><p>Use the <code>create</code> subcommand.</p>
 <pre><code class="hljs">$ pulsar-<span class="hljs-keyword">admin</span> sinks <span class="hljs-keyword">create</span> <span class="hljs-keyword">options</span><br /></code></pre>
 <p>For more information, see <a href="/docs/en/next/io-cli#create-1">here</a>.</p>
-</span></div></div><div id="tab-group-2654-content-2656" class="tab-pane" data-group="group_2654" tabindex="-1"><div><span><p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/registerSink?version=2.7.2&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName</i></a>
+</span></div></div><div id="tab-group-2654-content-2656" class="tab-pane" data-group="group_2654" tabindex="-1"><div><span><p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/registerSink?version=2.8.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName</i></a>
 </p>
 </span></div></div><div id="tab-group-2654-content-2657" class="tab-pane" data-group="group_2654" tabindex="-1"><div><span><ul>
 <li><p>Create a sink connector with a <strong>local file</strong>.</p>
@@ -263,7 +263,7 @@ configs:
 <tr><td><code>PulsarAdminException</code></td><td>Unexpected error</td></tr>
 </tbody>
 </table>
-<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.7.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#createSink-SinkConfig-java.lang.String-"><code>createSink</code></a>.</p></li>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#createSink-SinkConfig-java.lang.String-"><code>createSink</code></a>.</p></li>
 <li><p>Create a sink connector using a <strong>remote file</strong> with a URL from which fun-pkg can be downloaded.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">createSinkWithUrl</span><span class="hljs-params">(SinkConfig sinkConfig,<br />                    String pkgUrl)</span><br />                <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
 <p>Supported URLs are <code>http</code> and <code>file</code>.</p>
@@ -291,7 +291,7 @@ configs:
 <tr><td><code>PulsarAdminException</code></td><td>Unexpected error</td></tr>
 </tbody>
 </table>
-<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.7.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#createSinkWithUrl-SinkConfig-java.lang.String-"><code>createSinkWithUrl</code></a>.</p></li>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#createSinkWithUrl-SinkConfig-java.lang.String-"><code>createSinkWithUrl</code></a>.</p></li>
 </ul>
 </span></div></div></div></div>
 <h3><a class="anchor" aria-hidden="true" id="start"></a><a href="#start" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>start</code></h3>
@@ -303,10 +303,10 @@ configs:
 <p>For more information, see <a href="/docs/en/next/io-cli#start">here</a>.</p>
 </span></div></div><div id="tab-group-2658-content-2660" class="tab-pane" data-group="group_2658" tabindex="-1"><div><span><ul>
 <li><p>Start <strong>all</strong> source connectors.</p>
-<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/startSource?version=2.7.2&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/start</i></a>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/startSource?version=2.8.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/start</i></a>
 </p></li>
 <li><p>Start a <strong>specified</strong> source connector.</p>
-<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/startSource?version=2.7.2&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId/start</i></a>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/startSource?version=2.8.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId/start</i></a>
 </p></li>
 </ul>
 </span></div></div></div></div>
@@ -317,10 +317,10 @@ configs:
 <p>For more information, see <a href="/docs/en/next/io-cli#start-1">here</a>.</p>
 </span></div></div><div id="tab-group-2661-content-2663" class="tab-pane" data-group="group_2661" tabindex="-1"><div><span><ul>
 <li><p>Start <strong>all</strong> sink connectors.</p>
-<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/startSink?version=2.7.2&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sinkName/start</i></a>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/startSink?version=2.8.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sinkName/start</i></a>
 </p></li>
 <li><p>Start a <strong>specified</strong> sink connector.</p>
-<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/startSink?version=2.7.2&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sinks/:tenant/:namespace/:sourceName/:instanceId/start</i></a>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/startSink?version=2.8.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sinks/:tenant/:namespace/:sourceName/:instanceId/start</i></a>
 </p></li>
 </ul>
 </span></div></div></div></div>
@@ -352,7 +352,7 @@ configs:
 <div class="tabs"><div class="nav-tabs"><div id="tab-group-2668-tab-2669" class="nav-link active" data-group="group_2668" data-tab="tab-group-2668-content-2669">Admin CLI</div><div id="tab-group-2668-tab-2670" class="nav-link" data-group="group_2668" data-tab="tab-group-2668-content-2670">REST API</div><div id="tab-group-2668-tab-2671" class="nav-link" data-group="group_2668" data-tab="tab-group-2668-content-2671">Java Admin API</div></div><div class="tab-content"><div id="tab-group-2668-content-2669" class="tab-pane active" data-group="group_2668" tabindex="-1"><div><span><p>Use the <code>get</code> subcommand.</p>
 <pre><code class="hljs">$ pulsar-<span class="hljs-keyword">admin</span> sources <span class="hljs-keyword">get</span> <span class="hljs-keyword">options</span><br /></code></pre>
 <p>For more information, see <a href="/docs/en/next/io-cli#get">here</a>.</p>
-</span></div></div><div id="tab-group-2668-content-2670" class="tab-pane" data-group="group_2668" tabindex="-1"><div><span><p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/getSourceInfo?version=2.7.2&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
+</span></div></div><div id="tab-group-2668-content-2670" class="tab-pane" data-group="group_2668" tabindex="-1"><div><span><p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/getSourceInfo?version=2.8.0&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
 </p>
 </span></div></div><div id="tab-group-2668-content-2671" class="tab-pane" data-group="group_2668" tabindex="-1"><div><span><pre><code class="hljs css language-java"><span class="hljs-function">SourceConfig <span class="hljs-title">getSource</span><span class="hljs-params">(String tenant,<br />                       String namespace,<br />                       String source)</span><br />                <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
 <p><strong>Example</strong></p>
@@ -371,14 +371,14 @@ configs:
 <tr><td><code>PulsarAdminException</code></td><td>Unexpected error</td></tr>
 </tbody>
 </table>
-<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.7.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#getSource-java.lang.String-java.lang.String-java.lang.String-"><code>getSource</code></a>.</p>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#getSource-java.lang.String-java.lang.String-java.lang.String-"><code>getSource</code></a>.</p>
 </span></div></div></div></div>
 <h4><a class="anchor" aria-hidden="true" id="sink-5"></a><a href="#sink-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sink</h4>
 <p>Get the information of a sink connector.</p>
 <div class="tabs"><div class="nav-tabs"><div id="tab-group-2672-tab-2673" class="nav-link active" data-group="group_2672" data-tab="tab-group-2672-content-2673">Admin CLI</div><div id="tab-group-2672-tab-2674" class="nav-link" data-group="group_2672" data-tab="tab-group-2672-content-2674">REST API</div><div id="tab-group-2672-tab-2675" class="nav-link" data-group="group_2672" data-tab="tab-group-2672-content-2675">Java Admin API</div></div><div class="tab-content"><div id="tab-group-2672-content-2673" class="tab-pane active" data-group="group_2672" tabindex="-1"><div><span><p>Use the <code>get</code> subcommand.</p>
 <pre><code class="hljs">$ pulsar-<span class="hljs-keyword">admin</span> sinks <span class="hljs-keyword">get</span> <span class="hljs-keyword">options</span><br /></code></pre>
 <p>For more information, see <a href="/docs/en/next/io-cli#get-1">here</a>.</p>
-</span></div></div><div id="tab-group-2672-content-2674" class="tab-pane" data-group="group_2672" tabindex="-1"><div><span><p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/getSinkInfo?version=2.7.2&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName</i></a>
+</span></div></div><div id="tab-group-2672-content-2674" class="tab-pane" data-group="group_2672" tabindex="-1"><div><span><p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/getSinkInfo?version=2.8.0&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName</i></a>
 </p>
 </span></div></div><div id="tab-group-2672-content-2675" class="tab-pane" data-group="group_2672" tabindex="-1"><div><span><pre><code class="hljs css language-java"><span class="hljs-function">SinkConfig <span class="hljs-title">getSink</span><span class="hljs-params">(String tenant,<br />                   String namespace,<br />                   String sink)</span><br />            <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
 <p><strong>Example</strong></p>
@@ -397,7 +397,7 @@ configs:
 <tr><td><code>sink</code></td><td>Sink name</td></tr>
 </tbody>
 </table>
-<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.7.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#getSink-java.lang.String-java.lang.String-java.lang.String-"><code>getSink</code></a>.</p>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#getSink-java.lang.String-java.lang.String-java.lang.String-"><code>getSink</code></a>.</p>
 </span></div></div></div></div>
 <h3><a class="anchor" aria-hidden="true" id="list"></a><a href="#list" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>list</code></h3>
 <p>You can get the list of all running connectors using <strong>Admin CLI</strong>, <strong>REST API</strong> or <strong>JAVA admin API</strong>.</p>
@@ -406,7 +406,7 @@ configs:
 <div class="tabs"><div class="nav-tabs"><div id="tab-group-2676-tab-2677" class="nav-link active" data-group="group_2676" data-tab="tab-group-2676-content-2677">Admin CLI</div><div id="tab-group-2676-tab-2678" class="nav-link" data-group="group_2676" data-tab="tab-group-2676-content-2678">REST API</div><div id="tab-group-2676-tab-2679" class="nav-link" data-group="group_2676" data-tab="tab-group-2676-content-2679">Java Admin API</div></div><div class="tab-content"><div id="tab-group-2676-content-2677" class="tab-pane active" data-group="group_2676" tabindex="-1"><div><span><p>Use the <code>list</code> subcommand.</p>
 <pre><code class="hljs"><span class="hljs-symbol">$</span> pulsar-admin sources list <span class="hljs-keyword">options</span><br /></code></pre>
 <p>For more information, see <a href="/docs/en/next/io-cli#list">here</a>.</p>
-</span></div></div><div id="tab-group-2676-content-2678" class="tab-pane" data-group="group_2676" tabindex="-1"><div><span><p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/listSources?version=2.7.2&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sources/:tenant/:namespace/</i></a>
+</span></div></div><div id="tab-group-2676-content-2678" class="tab-pane" data-group="group_2676" tabindex="-1"><div><span><p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/listSources?version=2.8.0&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sources/:tenant/:namespace/</i></a>
 </p>
 </span></div></div><div id="tab-group-2676-content-2679" class="tab-pane" data-group="group_2676" tabindex="-1"><div><span><pre><code class="hljs css language-java"><span class="hljs-function">List&lt;String&gt; <span class="hljs-title">listSources</span><span class="hljs-params">(String tenant,<br />                         String namespace)</span><br />                  <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
 <p><strong>Response example</strong></p>
@@ -421,14 +421,14 @@ configs:
 <tr><td><code>PulsarAdminException</code></td><td>Unexpected error</td></tr>
 </tbody>
 </table>
-<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.7.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#listSources-java.lang.String-java.lang.String-"><code>listSource</code></a>.</p>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#listSources-java.lang.String-java.lang.String-"><code>listSource</code></a>.</p>
 </span></div></div></div></div>
 <h4><a class="anchor" aria-hidden="true" id="sink-6"></a><a href="#sink-6" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sink</h4>
 <p>Get the list of all running sink connectors.</p>
 <div class="tabs"><div class="nav-tabs"><div id="tab-group-2680-tab-2681" class="nav-link active" data-group="group_2680" data-tab="tab-group-2680-content-2681">Admin CLI</div><div id="tab-group-2680-tab-2682" class="nav-link" data-group="group_2680" data-tab="tab-group-2680-content-2682">REST API</div><div id="tab-group-2680-tab-2683" class="nav-link" data-group="group_2680" data-tab="tab-group-2680-content-2683">Java Admin API</div></div><div class="tab-content"><div id="tab-group-2680-content-2681" class="tab-pane active" data-group="group_2680" tabindex="-1"><div><span><p>Use the <code>list</code> subcommand.</p>
 <pre><code class="hljs"><span class="hljs-symbol">$</span> pulsar-admin sinks list <span class="hljs-keyword">options</span><br /></code></pre>
 <p>For more information, see <a href="/docs/en/next/io-cli#list-1">here</a>.</p>
-</span></div></div><div id="tab-group-2680-content-2682" class="tab-pane" data-group="group_2680" tabindex="-1"><div><span><p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/listSinks?version=2.7.2&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sinks/:tenant/:namespace/</i></a>
+</span></div></div><div id="tab-group-2680-content-2682" class="tab-pane" data-group="group_2680" tabindex="-1"><div><span><p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/listSinks?version=2.8.0&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sinks/:tenant/:namespace/</i></a>
 </p>
 </span></div></div><div id="tab-group-2680-content-2683" class="tab-pane" data-group="group_2680" tabindex="-1"><div><span><pre><code class="hljs css language-java"><span class="hljs-function">List&lt;String&gt; <span class="hljs-title">listSinks</span><span class="hljs-params">(String tenant,<br />                       String namespace)</span><br />                <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
 <p><strong>Response example</strong></p>
@@ -443,7 +443,7 @@ configs:
 <tr><td><code>PulsarAdminException</code></td><td>Unexpected error</td></tr>
 </tbody>
 </table>
-<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.7.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#listSinks-java.lang.String-java.lang.String-"><code>listSource</code></a>.</p>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#listSinks-java.lang.String-java.lang.String-"><code>listSource</code></a>.</p>
 </span></div></div></div></div>
 <h3><a class="anchor" aria-hidden="true" id="status"></a><a href="#status" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>status</code></h3>
 <p>You can get the current status of a connector using <strong>Admin CLI</strong>, <strong>REST API</strong> or <strong>JAVA admin API</strong>.</p>
@@ -454,10 +454,10 @@ configs:
 <p>For more information, see <a href="/docs/en/next/io-cli#status">here</a>.</p>
 </span></div></div><div id="tab-group-2684-content-2686" class="tab-pane" data-group="group_2684" tabindex="-1"><div><span><ul>
 <li><p>Get the current status of <strong>all</strong> source connectors.</p>
-<p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/getSourceStatus?version=2.7.2&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/status</i></a>
+<p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/getSourceStatus?version=2.8.0&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/status</i></a>
 </p></li>
 <li><p>Gets the current status of a <strong>specified</strong> source connector.</p>
-<p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/getSourceStatus?version=2.7.2&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId/status</i></a>
+<p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/getSourceStatus?version=2.8.0&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId/status</i></a>
 </p></li>
 </ul>
 </span></div></div><div id="tab-group-2684-content-2687" class="tab-pane" data-group="group_2684" tabindex="-1"><div><span><ul>
@@ -483,7 +483,7 @@ configs:
 <tr><td><code>PulsarAdminException</code></td><td>Unexpected error</td></tr>
 </tbody>
 </table>
-<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.7.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#getSource-java.lang.String-java.lang.String-java.lang.String-"><code>getSourceStatus</code></a>.</p></li>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#getSource-java.lang.String-java.lang.String-java.lang.String-"><code>getSourceStatus</code></a>.</p></li>
 <li><p>Gets the current status of a <strong>specified</strong> source connector.</p>
 <pre><code class="hljs css language-java">SourceStatus.SourceInstanceStatus.<span class="hljs-function">SourceInstanceStatusData <span class="hljs-title">getSourceStatus</span><span class="hljs-params">(String tenant,<br />                                                                           String namespace,<br />                                                                           String source,<br />                                                                           <span class="hljs-keyword">int</span> id)</span><br />                                                                    <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
 <p><strong>Parameter</strong></p>
@@ -507,7 +507,7 @@ configs:
 <tr><td><code>PulsarAdminException</code></td><td>Unexpected error</td></tr>
 </tbody>
 </table>
-<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.7.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#getSourceStatus-java.lang.String-java.lang.String-java.lang.String-int-"><code>getSourceStatus</code></a>.</p></li>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#getSourceStatus-java.lang.String-java.lang.String-java.lang.String-int-"><code>getSourceStatus</code></a>.</p></li>
 </ul>
 </span></div></div></div></div>
 <h4><a class="anchor" aria-hidden="true" id="sink-7"></a><a href="#sink-7" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sink</h4>
@@ -517,10 +517,10 @@ configs:
 <p>For more information, see <a href="/docs/en/next/io-cli#status-1">here</a>.</p>
 </span></div></div><div id="tab-group-2688-content-2690" class="tab-pane" data-group="group_2688" tabindex="-1"><div><span><ul>
 <li><p>Get the current status of <strong>all</strong> sink connectors.</p>
-<p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/getSinkStatus?version=2.7.2&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName/status</i></a>
+<p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/getSinkStatus?version=2.8.0&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName/status</i></a>
 </p></li>
 <li><p>Gets the current status of a <strong>specified</strong> sink connector.</p>
-<p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/getSinkInstanceStatus?version=2.7.2&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sinks/:tenant/:namespace/:sourceName/:instanceId/status</i></a>
+<p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/getSinkInstanceStatus?version=2.8.0&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sinks/:tenant/:namespace/:sourceName/:instanceId/status</i></a>
 </p></li>
 </ul>
 </span></div></div><div id="tab-group-2688-content-2691" class="tab-pane" data-group="group_2688" tabindex="-1"><div><span><ul>
@@ -546,7 +546,7 @@ configs:
 <tr><td><code>PulsarAdminException</code></td><td>Unexpected error</td></tr>
 </tbody>
 </table>
-<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.7.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#getSinkStatus-java.lang.String-java.lang.String-java.lang.String-"><code>getSinkStatus</code></a>.</p></li>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#getSinkStatus-java.lang.String-java.lang.String-java.lang.String-"><code>getSinkStatus</code></a>.</p></li>
 <li><p>Gets the current status of a <strong>specified</strong> source connector.</p>
 <pre><code class="hljs css language-java">SinkStatus.SinkInstanceStatus.<span class="hljs-function">SinkInstanceStatusData <span class="hljs-title">getSinkStatus</span><span class="hljs-params">(String tenant,<br />                                                                   String namespace,<br />                                                                   String sink,<br />                                                                   <span class="hljs-keyword">int</span> id)</span><br />                                                            <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
 <p><strong>Parameter</strong></p>
@@ -570,7 +570,7 @@ configs:
 <tr><td><code>PulsarAdminException</code></td><td>Unexpected error</td></tr>
 </tbody>
 </table>
-<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.7.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#getSinkStatus-java.lang.String-java.lang.String-java.lang.String-int-"><code>getSinkStatusWithInstanceID</code></a>.</p></li>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#getSinkStatus-java.lang.String-java.lang.String-java.lang.String-int-"><code>getSinkStatusWithInstanceID</code></a>.</p></li>
 </ul>
 </span></div></div></div></div>
 <h2><a class="anchor" aria-hidden="true" id="update-a-connector"></a><a href="#update-a-connector" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Update a connector</h2>
@@ -581,7 +581,7 @@ configs:
 <div class="tabs"><div class="nav-tabs"><div id="tab-group-2692-tab-2693" class="nav-link active" data-group="group_2692" data-tab="tab-group-2692-content-2693">Admin CLI</div><div id="tab-group-2692-tab-2694" class="nav-link" data-group="group_2692" data-tab="tab-group-2692-content-2694">REST API</div><div id="tab-group-2692-tab-2695" class="nav-link" data-group="group_2692" data-tab="tab-group-2692-content-2695">Java Admin API</div></div><div class="tab-content"><div id="tab-group-2692-content-2693" class="tab-pane active" data-group="group_2692" tabindex="-1"><div><span><p>Use the <code>update</code> subcommand.</p>
 <pre><code class="hljs">$ pulsar-<span class="hljs-keyword">admin</span> sources <span class="hljs-keyword">update</span> <span class="hljs-keyword">options</span><br /></code></pre>
 <p>For more information, see <a href="/docs/en/next/io-cli#update">here</a>.</p>
-</span></div></div><div id="tab-group-2692-content-2694" class="tab-pane" data-group="group_2692" tabindex="-1"><div><span><p>Send a <code>PUT</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/updateSource?version=2.7.2&amp;apiVersion=v3"><b>PUT</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
+</span></div></div><div id="tab-group-2692-content-2694" class="tab-pane" data-group="group_2692" tabindex="-1"><div><span><p>Send a <code>PUT</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/updateSource?version=2.8.0&amp;apiVersion=v3"><b>PUT</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
 </p>
 </span></div></div><div id="tab-group-2692-content-2695" class="tab-pane" data-group="group_2692" tabindex="-1"><div><span><ul>
 <li><p>Update a running source connector with a <strong>local file</strong>.</p>
@@ -606,7 +606,7 @@ configs:
 <tr><td><code>PulsarAdminException</code></td><td>Unexpected error</td></tr>
 </tbody>
 </table>
-<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.7.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#updateSource-SourceConfig-java.lang.String-"><code>updateSource</code></a>.</p></li>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#updateSource-SourceConfig-java.lang.String-"><code>updateSource</code></a>.</p></li>
 <li><p>Update a source connector using a <strong>remote file</strong> with a URL from which fun-pkg can be downloaded.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">updateSourceWithUrl</span><span class="hljs-params">(SourceConfig sourceConfig,<br />                     String pkgUrl)</span><br />              <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
 <p>Supported URLs are <code>http</code> and <code>file</code>.</p>
@@ -638,14 +638,14 @@ configs:
 </table>
 </li>
 </ul>
-<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.7.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#updateSourceWithUrl-SourceConfig-java.lang.String-"><code>createSourceWithUrl</code></a>.</p>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#updateSourceWithUrl-SourceConfig-java.lang.String-"><code>createSourceWithUrl</code></a>.</p>
 </span></div></div></div></div>
 <h4><a class="anchor" aria-hidden="true" id="sink-8"></a><a href="#sink-8" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sink</h4>
 <p>Update a running Pulsar sink connector.</p>
 <div class="tabs"><div class="nav-tabs"><div id="tab-group-2696-tab-2697" class="nav-link active" data-group="group_2696" data-tab="tab-group-2696-content-2697">Admin CLI</div><div id="tab-group-2696-tab-2698" class="nav-link" data-group="group_2696" data-tab="tab-group-2696-content-2698">REST API</div><div id="tab-group-2696-tab-2699" class="nav-link" data-group="group_2696" data-tab="tab-group-2696-content-2699">Java Admin API</div></div><div class="tab-content"><div id="tab-group-2696-content-2697" class="tab-pane active" data-group="group_2696" tabindex="-1"><div><span><p>Use the <code>update</code> subcommand.</p>
 <pre><code class="hljs">$ pulsar-<span class="hljs-keyword">admin</span> sinks <span class="hljs-keyword">update</span> <span class="hljs-keyword">options</span><br /></code></pre>
 <p>For more information, see <a href="/docs/en/next/io-cli#update-1">here</a>.</p>
-</span></div></div><div id="tab-group-2696-content-2698" class="tab-pane" data-group="group_2696" tabindex="-1"><div><span><p>Send a <code>PUT</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/updateSink?version=2.7.2&amp;apiVersion=v3"><b>PUT</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName</i></a>
+</span></div></div><div id="tab-group-2696-content-2698" class="tab-pane" data-group="group_2696" tabindex="-1"><div><span><p>Send a <code>PUT</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/updateSink?version=2.8.0&amp;apiVersion=v3"><b>PUT</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName</i></a>
 </p>
 </span></div></div><div id="tab-group-2696-content-2699" class="tab-pane" data-group="group_2696" tabindex="-1"><div><span><ul>
 <li><p>Update a running sink connector with a <strong>local file</strong>.</p>
@@ -670,7 +670,7 @@ configs:
 <tr><td><code>PulsarAdminException</code></td><td>Unexpected error</td></tr>
 </tbody>
 </table>
-<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.7.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#updateSink-SinkConfig-java.lang.String-"><code>updateSink</code></a>.</p></li>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#updateSink-SinkConfig-java.lang.String-"><code>updateSink</code></a>.</p></li>
 <li><p>Update a sink connector using a <strong>remote file</strong> with a URL from which fun-pkg can be downloaded.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">updateSinkWithUrl</span><span class="hljs-params">(SinkConfig sinkConfig,<br />                       String pkgUrl)</span><br />                <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
 <p>Supported URLs are <code>http</code> and <code>file</code>.</p>
@@ -702,7 +702,7 @@ configs:
 </table>
 </li>
 </ul>
-<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.7.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#updateSinkWithUrl-SinkConfig-java.lang.String-"><code>updateSinkWithUrl</code></a>.</p>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#updateSinkWithUrl-SinkConfig-java.lang.String-"><code>updateSinkWithUrl</code></a>.</p>
 </span></div></div></div></div>
 <h2><a class="anchor" aria-hidden="true" id="stop-a-connector"></a><a href="#stop-a-connector" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Stop a connector</h2>
 <h3><a class="anchor" aria-hidden="true" id="stop"></a><a href="#stop" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>stop</code></h3>
@@ -714,10 +714,10 @@ configs:
 <p>For more information, see <a href="/docs/en/next/io-cli#stop">here</a>.</p>
 </span></div></div><div id="tab-group-2700-content-2702" class="tab-pane" data-group="group_2700" tabindex="-1"><div><span><ul>
 <li><p>Stop <strong>all</strong> source connectors.</p>
-<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/stopSource?version=2.7.2&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/stopSource?version=2.8.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
 </p></li>
 <li><p>Stop a <strong>specified</strong> source connector.</p>
-<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/stopSource?version=2.7.2&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId</i></a>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/stopSource?version=2.8.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId</i></a>
 </p></li>
 </ul>
 </span></div></div><div id="tab-group-2700-content-2703" class="tab-pane" data-group="group_2700" tabindex="-1"><div><span><ul>
@@ -743,7 +743,7 @@ configs:
 <tr><td><code>PulsarAdminException</code></td><td>Unexpected error</td></tr>
 </tbody>
 </table>
-<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.7.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#stopSource-java.lang.String-java.lang.String-java.lang.String-"><code>stopSource</code></a>.</p></li>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#stopSource-java.lang.String-java.lang.String-java.lang.String-"><code>stopSource</code></a>.</p></li>
 <li><p>Stop a <strong>specified</strong> source connector.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">stopSource</span><span class="hljs-params">(String tenant,<br />                String namespace,<br />                String source,<br />                <span class="hljs-keyword">int</span> instanceId)</span><br />         <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
 <p><strong>Parameter</strong></p>
@@ -767,7 +767,7 @@ configs:
 <tr><td><code>PulsarAdminException</code></td><td>Unexpected error</td></tr>
 </tbody>
 </table>
-<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.7.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#stopSource-java.lang.String-java.lang.String-java.lang.String-int-"><code>stopSource</code></a>.</p></li>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#stopSource-java.lang.String-java.lang.String-java.lang.String-int-"><code>stopSource</code></a>.</p></li>
 </ul>
 </span></div></div></div></div>
 <h4><a class="anchor" aria-hidden="true" id="sink-9"></a><a href="#sink-9" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sink</h4>
@@ -777,10 +777,10 @@ configs:
 <p>For more information, see <a href="/docs/en/next/io-cli#stop-1">here</a>.</p>
 </span></div></div><div id="tab-group-2704-content-2706" class="tab-pane" data-group="group_2704" tabindex="-1"><div><span><ul>
 <li><p>Stop <strong>all</strong> sink connectors.</p>
-<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/stopSink?version=2.7.2&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName/stop</i></a>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/stopSink?version=2.8.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName/stop</i></a>
 </p></li>
 <li><p>Stop a <strong>specified</strong> sink connector.</p>
-<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/stopSink?version=2.7.2&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sinkeName/:instanceId/stop</i></a>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/stopSink?version=2.8.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sinkeName/:instanceId/stop</i></a>
 </p></li>
 </ul>
 </span></div></div><div id="tab-group-2704-content-2707" class="tab-pane" data-group="group_2704" tabindex="-1"><div><span><ul>
@@ -806,7 +806,7 @@ configs:
 <tr><td><code>PulsarAdminException</code></td><td>Unexpected error</td></tr>
 </tbody>
 </table>
-<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.7.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#stopSink-java.lang.String-java.lang.String-java.lang.String-"><code>stopSink</code></a>.</p></li>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#stopSink-java.lang.String-java.lang.String-java.lang.String-"><code>stopSink</code></a>.</p></li>
 <li><p>Stop a <strong>specified</strong> sink connector.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">stopSink</span><span class="hljs-params">(String tenant,<br />              String namespace,<br />              String sink,<br />              <span class="hljs-keyword">int</span> instanceId)</span><br />       <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
 <p><strong>Parameter</strong></p>
@@ -830,7 +830,7 @@ configs:
 <tr><td><code>PulsarAdminException</code></td><td>Unexpected error</td></tr>
 </tbody>
 </table>
-<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.7.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#stopSink-java.lang.String-java.lang.String-java.lang.String-int-"><code>stopSink</code></a>.</p></li>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#stopSink-java.lang.String-java.lang.String-java.lang.String-int-"><code>stopSink</code></a>.</p></li>
 </ul>
 </span></div></div></div></div>
 <h2><a class="anchor" aria-hidden="true" id="restart-a-connector"></a><a href="#restart-a-connector" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Restart a connector</h2>
@@ -843,10 +843,10 @@ configs:
 <p>For more information, see <a href="/docs/en/next/io-cli#restart">here</a>.</p>
 </span></div></div><div id="tab-group-2708-content-2710" class="tab-pane" data-group="group_2708" tabindex="-1"><div><span><ul>
 <li><p>Restart <strong>all</strong> source connectors.</p>
-<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/restartSource?version=2.7.2&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/restart</i></a>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/restartSource?version=2.8.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/restart</i></a>
 </p></li>
 <li><p>Restart a <strong>specified</strong> source connector.</p>
-<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/restartSource?version=2.7.2&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId/restart</i></a>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/restartSource?version=2.8.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId/restart</i></a>
 </p></li>
 </ul>
 </span></div></div><div id="tab-group-2708-content-2711" class="tab-pane" data-group="group_2708" tabindex="-1"><div><span><ul>
@@ -872,7 +872,7 @@ configs:
 <tr><td><code>PulsarAdminException</code></td><td>Unexpected error</td></tr>
 </tbody>
 </table>
-<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.7.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#restartSource-java.lang.String-java.lang.String-java.lang.String-"><code>restartSource</code></a>.</p></li>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#restartSource-java.lang.String-java.lang.String-java.lang.String-"><code>restartSource</code></a>.</p></li>
 <li><p>Restart a <strong>specified</strong> source connector.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">restartSource</span><span class="hljs-params">(String tenant,<br />                   String namespace,<br />                   String source,<br />                   <span class="hljs-keyword">int</span> instanceId)</span><br />            <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
 <p><strong>Parameter</strong></p>
@@ -896,7 +896,7 @@ configs:
 <tr><td><code>PulsarAdminException</code></td><td>Unexpected error</td></tr>
 </tbody>
 </table>
-<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.7.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#restartSource-java.lang.String-java.lang.String-java.lang.String-int-"><code>restartSource</code></a>.</p></li>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#restartSource-java.lang.String-java.lang.String-java.lang.String-int-"><code>restartSource</code></a>.</p></li>
 </ul>
 </span></div></div></div></div>
 <h4><a class="anchor" aria-hidden="true" id="sink-10"></a><a href="#sink-10" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sink</h4>
@@ -906,10 +906,10 @@ configs:
 <p>For more information, see <a href="/docs/en/next/io-cli#restart-1">here</a>.</p>
 </span></div></div><div id="tab-group-2712-content-2714" class="tab-pane" data-group="group_2712" tabindex="-1"><div><span><ul>
 <li><p>Restart <strong>all</strong> sink connectors.</p>
-<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/restartSource?version=2.7.2&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sinkName/restart</i></a>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/restartSource?version=2.8.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sinkName/restart</i></a>
 </p></li>
 <li><p>Restart a <strong>specified</strong> sink connector.</p>
-<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/restartSource?version=2.7.2&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sinkName/:instanceId/restart</i></a>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/restartSource?version=2.8.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sinkName/:instanceId/restart</i></a>
 </p></li>
 </ul>
 </span></div></div><div id="tab-group-2712-content-2715" class="tab-pane" data-group="group_2712" tabindex="-1"><div><span><ul>
@@ -935,7 +935,7 @@ configs:
 <tr><td><code>PulsarAdminException</code></td><td>Unexpected error</td></tr>
 </tbody>
 </table>
-<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.7.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#restartSink-java.lang.String-java.lang.String-java.lang.String-"><code>restartSink</code></a>.</p></li>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#restartSink-java.lang.String-java.lang.String-java.lang.String-"><code>restartSink</code></a>.</p></li>
 <li><p>Restart a <strong>specified</strong> sink connector.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">restartSink</span><span class="hljs-params">(String tenant,<br />                 String namespace,<br />                 String sink,<br />                 <span class="hljs-keyword">int</span> instanceId)</span><br />          <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
 <p><strong>Parameter</strong></p>
@@ -959,7 +959,7 @@ configs:
 <tr><td><code>PulsarAdminException</code></td><td>Unexpected error</td></tr>
 </tbody>
 </table>
-<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.7.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#restartSink-java.lang.String-java.lang.String-java.lang.String-int-"><code>restartSink</code></a>.</p></li>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#restartSink-java.lang.String-java.lang.String-java.lang.String-int-"><code>restartSink</code></a>.</p></li>
 </ul>
 </span></div></div></div></div>
 <h2><a class="anchor" aria-hidden="true" id="delete-a-connector"></a><a href="#delete-a-connector" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Delete a connector</h2>
@@ -971,7 +971,7 @@ configs:
 <pre><code class="hljs">$ pulsar-<span class="hljs-keyword">admin</span> sources <span class="hljs-keyword">delete</span> <span class="hljs-keyword">options</span><br /></code></pre>
 <p>For more information, see <a href="/docs/en/next/io-cli#delete">here</a>.</p>
 </span></div></div><div id="tab-group-2716-content-2718" class="tab-pane" data-group="group_2716" tabindex="-1"><div><span><p>Delete al Pulsar source connector.</p>
-<p>Send a <code>DELETE</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/deregisterSource?version=2.7.2&amp;apiVersion=v3"><b>DELETE</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
+<p>Send a <code>DELETE</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/deregisterSource?version=2.8.0&amp;apiVersion=v3"><b>DELETE</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
 </p>
 </span></div></div><div id="tab-group-2716-content-2719" class="tab-pane" data-group="group_2716" tabindex="-1"><div><span><p>Delete a source connector.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">deleteSource</span><span class="hljs-params">(String tenant,<br />                  String namespace,<br />                  String source)</span><br />           <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
@@ -998,7 +998,7 @@ configs:
 <tr><td><code>PulsarAdminException</code></td><td>Unexpected error</td></tr>
 </tbody>
 </table>
-<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.7.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#deleteSource-java.lang.String-java.lang.String-java.lang.String-"><code>deleteSource</code></a>.</p>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#deleteSource-java.lang.String-java.lang.String-java.lang.String-"><code>deleteSource</code></a>.</p>
 </span></div></div></div></div>
 <h4><a class="anchor" aria-hidden="true" id="sink-11"></a><a href="#sink-11" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sink</h4>
 <p>Delete a sink connector.</p>
@@ -1006,7 +1006,7 @@ configs:
 <pre><code class="hljs">$ pulsar-<span class="hljs-keyword">admin</span> sinks <span class="hljs-keyword">delete</span> <span class="hljs-keyword">options</span><br /></code></pre>
 <p>For more information, see <a href="/docs/en/next/io-cli#delete-1">here</a>.</p>
 </span></div></div><div id="tab-group-2720-content-2722" class="tab-pane" data-group="group_2720" tabindex="-1"><div><span><p>Delete a sink connector.</p>
-<p>Send a <code>DELETE</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/deregisterSink?version=2.7.2&amp;apiVersion=v3"><b>DELETE</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName</i></a>
+<p>Send a <code>DELETE</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/deregisterSink?version=2.8.0&amp;apiVersion=v3"><b>DELETE</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName</i></a>
 </p>
 </span></div></div><div id="tab-group-2720-content-2723" class="tab-pane" data-group="group_2720" tabindex="-1"><div><span><p>Delete a Pulsar sink connector.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">deleteSink</span><span class="hljs-params">(String tenant,<br />                String namespace,<br />                String source)</span><br />         <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
@@ -1033,7 +1033,7 @@ configs:
 <tr><td><code>PulsarAdminException</code></td><td>Unexpected error</td></tr>
 </tbody>
 </table>
-<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.7.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#deleteSink-java.lang.String-java.lang.String-java.lang.String-"><code>deleteSource</code></a>.</p>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#deleteSink-java.lang.String-java.lang.String-java.lang.String-"><code>deleteSource</code></a>.</p>
 </span></div></div></div></div>
 </span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/en/next/io-quickstart"><span class="arrow-prev">← </span><span>Get started</span></a><a class="docs-next button" href="/docs/en/next/io-debug"><span>Debug</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#install-a-connector">Install a connector</a></li><li><a href="#configure-a-connector">Configure a connector</a><ul class="toc-headings"><li><a href="#configure-a-default-storage-location-for-a-connector">Configure a default storage location for a connector</a></li><li><a href="#configure-a-connector-with-a-yaml-file">Configure a connector with a YAML file</a></li></ul></li><li><a href="#get-available-connectors">Get available connectors</a><ul class="toc-headings"><li><a href="#reload"><code>reload</code></a></li><li><a href="#available"><code>available</code></a></li></ul></li><li><a href="#run-a-connector">Run a connector</a><ul class="toc-headings"><li><a href="#create"><code>create</code></a></li><li><a href="#start"><code>start</code></a></li><li><a href="#localrun"><code>localrun</code></a></li></ul></li><li><a href="#monitor-a-connector">Monitor a connector</a><ul class="toc-headings"><li><a href="#get"><code>get</code></a></li><li><a href="#list"><code>list</code></a></li><li><a href="#status"><code>status</code></a></li></ul></li><li><a href="#update-a-connector">Update a connector</a><ul class="toc-headings"><li><a href="#update"><code>update</code></a></li></ul></li><li><a href="#stop-a-connector">Stop a connector</a><ul class="toc-headings"><li><a href="#stop"><code>stop</code></a></li></ul></li><li><a href="#restart-a-connector">Restart a connector</a><ul class="toc-headings"><li><a href="#restart"><code>restart</code></a></li></ul></li><li><a href="#delete-a-connector">Delete a connector</a><ul class="toc-headings"><li><a href="#delete"><code>delete</code></a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;

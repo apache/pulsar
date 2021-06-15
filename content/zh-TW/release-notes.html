@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-TW"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-TW/versions"><h3>2.7.2</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/zh-TW/standalone" target="_self">Docs</a></li><li class=""><a href="/zh-TW/download" target="_self">Download</a></li><li class=""><a href="/docs/zh-TW/client-libraries" target="_self">客戶端</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>繁體中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/en/release-notes">English</a></li><li><a href="/ja/release-notes">日本語</a></li><li><a href="/fr/release-notes">Français</a></li><li><a href="/ko/release-notes">한국어</a></li><li><a href="/zh-CN/release-notes">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-TW"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-TW/versions"><h3>2.8.0</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/zh-TW/standalone" target="_self">Docs</a></li><li class=""><a href="/zh-TW/download" target="_self">Download</a></li><li class=""><a href="/docs/zh-TW/client-libraries" target="_self">客戶端</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>繁體中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/en/release-notes">English</a></li><li><a href="/ja/release-notes">日本語</a></li><li><a href="/fr/release-notes">Français</a></li><li><a href="/ko/release-notes">한국어</a></li><li><a href="/zh-CN/release-notes">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -19,8 +19,441 @@
           }
         });
       </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="pageContainer"><div class="container mainContainer documentContainer postContainer"><div class="wrapper"><div class="post"><header class="postHeader"><h1>Apache Pulsar Release Notes</h1><hr/></header><div><span><h2><a class="anchor" aria-hidden="true" id="apache-pulsar-release-notes"></a><a href="#apache-pulsar-release-notes" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Apache Pulsar Release Notes</h2>
-<h3><a class="anchor" aria-hidden="true" id="264-mdash-2021-06-02-a-id264a"></a><a href="#264-mdash-2021-06-02-a-id264a" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>2.6.4 — 2021-06-02 <a id=“2.6.4”></a></h3>
+<h3><a class="anchor" aria-hidden="true" id="280-mdash-2021-06-12-a-id280a"></a><a href="#280-mdash-2021-06-12-a-id280a" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>2.8.0 — 2021-06-12 <a id=“2.8.0”></a></h3>
+<h4><a class="anchor" aria-hidden="true" id="pips"></a><a href="#pips" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>PIPs</h4>
+<ul>
+<li>[PIP 45] Pluggable metadata interface <a href="https://github.com/apache/pulsar/pull/9148">#9148</a> <a href="https://github.com/apache/pulsar/pull/9221">#9221</a> <a href="https://github.com/apache/pulsar/pull/9240">#9240</a> <a href="https://github.com/apache/pulsar/pull/9273">#9273</a> <a href="https://github.com/apache/pulsar/pull/9274">#9274</a> <a href="https://github.com/apache/pulsar/pull/9338">#9338</a> <a href="https://github.com/apache/pulsar/pull/9346">#9346</a> <a href="https://github.com/apache/pulsar/pull/9351">#9351</a> <a href="https://github.com/apache/pulsar/pull/9412">#9412</a> <a href="https://github.com/apache/pulsar/pull/9485">#9485</a> <a href="https://github.com/apache/pulsar/pull/9586">#9586</a> <a href="https://github.com/apache/pulsar/pull/9967">#9967</a> <a href="https://github.com/apache/pulsar/pull/9973">#9973</a> <a href="https://github.com/apache/pulsar/pull/10391">#10391</a> <a href="https://github.com/apache/pulsar/pull/10457">#10457</a> <a href="https://github.com/apache/pulsar/pull/10532">#10532</a> <a href="https://github.com/apache/pulsar/pull/10545">#10545</a> <a href="https://github.com/apache/pulsar/pull/10647">#10647</a></li>
+<li>[PIP 50] Package management service <a href="https://github.com/apache/pulsar/pull/8637">#8637</a> <a href="https://github.com/apache/pulsar/pull/8680">#8680</a> <a href="https://github.com/apache/pulsar/pull/8744">#8744</a> <a href="https://github.com/apache/pulsar/pull/8764">#8764</a> <a href="https://github.com/apache/pulsar/pull/8816">#8816</a> <a href="https://github.com/apache/pulsar/pull/8817">#8817</a> <a href="https://github.com/apache/pulsar/pull/8858">#8858</a> <a href="https://github.com/apache/pulsar/pull/8861">#8861</a> <a href="https://github.com/apache/pulsar/pull/8893">#8893</a> <a href="https://github.com/apache/pulsar/pull/8907">#8907</a></li>
+<li>[PIP 68] Exclusive producer <a href="https://github.com/apache/pulsar/pull/8685">#8685</a> <a href="https://github.com/apache/pulsar/pull/8992">#8992</a> <a href="https://github.com/apache/pulsar/pull/9554">#9554</a> <a href="https://github.com/apache/pulsar/pull/9600">#9600</a></li>
+<li>[PIP 70] Lightweight broker entry metadata <a href="https://github.com/apache/pulsar/pull/8618">#8618</a> <a href="https://github.com/apache/pulsar/pull/9067">#9067</a> <a href="https://github.com/apache/pulsar/pull/9088">#9088</a> <a href="https://github.com/apache/pulsar/pull/9091">#9091</a></li>
+<li>[PIP 71] Pulsar SQL migrate SchemaHandle to Presto decoder <a href="https://github.com/apache/pulsar/pull/8422">#8422</a></li>
+<li>[PIP 74] Client memory limits <a href="https://github.com/apache/pulsar/pull/8965">#8965</a> <a href="https://github.com/apache/pulsar/pull/9676">#9676</a></li>
+<li>[PIP 75] Perform serialization/deserialization with LightProto <a href="https://github.com/apache/pulsar/pull/9046">#9046</a></li>
+<li>[PIP 76] Streaming offloader <a href="https://github.com/apache/pulsar/pull/9096">#9096</a></li>
+<li>[PIP 82] Tenant and namespace level rate limiting <a href="https://github.com/apache/pulsar/pull/10008">#10008</a> <a href="https://github.com/apache/pulsar/pull/10201">#10201</a> <a href="https://github.com/apache/pulsar/pull/10204">#10204</a> <a href="https://github.com/apache/pulsar/pull/10218">#10218</a></li>
+<li>[PIP 83] Message consumption with pooled buffer <a href="https://github.com/apache/pulsar/pull/10184">#10184</a></li>
+<li>[PIP 85] Support get reader schema for a message in Java Client <a href="https://github.com/apache/pulsar/pull/10476">#10476</a></li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="transactions"></a><a href="#transactions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Transactions</h4>
+<ul>
+<li>Support pending ack state persistence <a href="https://github.com/apache/pulsar/pull/8881">#8881</a></li>
+<li>Stable position and low watermark for the transaction buffer <a href="https://github.com/apache/pulsar/pull/9195">#9195</a></li>
+<li>Transaction timeout support <a href="https://github.com/apache/pulsar/pull/9229">#9229</a></li>
+<li>Transaction coordinator retry to complete the transaction <a href="https://github.com/apache/pulsar/pull/9236">#9236</a></li>
+<li>Fix race condition when appending transaction log <a href="https://github.com/apache/pulsar/pull/9238">#9238</a></li>
+<li>Transaction buffer snapshot <a href="https://github.com/apache/pulsar/pull/9490">#9490</a></li>
+<li>Add metrics for transaction coordinator <a href="https://github.com/apache/pulsar/pull/9706">#9706</a></li>
+<li>Clean the useless transaction individual acknowledgements based on low watermark <a href="https://github.com/apache/pulsar/pull/9722">#9722</a></li>
+<li>Fix memory leak when deleting transaction marker <a href="https://github.com/apache/pulsar/pull/9751">#9751</a></li>
+<li>Check the transaction state at the client side <a href="https://github.com/apache/pulsar/pull/9776">#9776</a></li>
+<li>Clean aborted transactions for the transaction buffer <a href="https://github.com/apache/pulsar/pull/9974">#9974</a></li>
+<li>Fix transaction coordinator retry to end transaction <a href="https://github.com/apache/pulsar/pull/10131">#10131</a></li>
+<li>Fix NPE when opening a new transaction <a href="https://github.com/apache/pulsar/pull/10139">#10139</a></li>
+<li>Fix transaction log failed to recover <a href="https://github.com/apache/pulsar/pull/10146">#10146</a></li>
+<li>Fix transaction coordinator recover timeout <a href="https://github.com/apache/pulsar/pull/10162">#10162</a></li>
+<li>Handling committing and aborting state when recovering transaction coordinator <a href="https://github.com/apache/pulsar/pull/10179">#10179</a></li>
+<li>Fix NPE in case of enableTransactionCoordinator=false <a href="https://github.com/apache/pulsar/pull/10182">#10182</a></li>
+<li>Fix transaction buffer client timeout <a href="https://github.com/apache/pulsar/pull/10206">#10206</a></li>
+<li>Fix recover max local id issue for the transaction coordinator <a href="https://github.com/apache/pulsar/pull/10224">#10224</a></li>
+<li>Support using transactions on standalone <a href="https://github.com/apache/pulsar/pull/10238">#10238</a></li>
+<li>Fix transaction buffer lookup issue <a href="https://github.com/apache/pulsar/pull/10257">#10257</a></li>
+<li>Fix transaction timeout issue at the client side <a href="https://github.com/apache/pulsar/pull/10323">#10323</a></li>
+<li>Fix transaction client reconnect issue after transaction coordinator unloaded <a href="https://github.com/apache/pulsar/pull/10327">#10327</a></li>
+<li>Fix transaction timeout not canceled after expired <a href="https://github.com/apache/pulsar/pull/10366">#10366</a></li>
+<li>Transaction log low watermark optimization <a href="https://github.com/apache/pulsar/pull/10422">#10422</a></li>
+<li>Fix the issue of transaction buffer client channel is inactive <a href="https://github.com/apache/pulsar/pull/10407">#10407</a></li>
+<li>Add Admin API for getting transaction coordinator stats <a href="https://github.com/apache/pulsar/pull/10639">#10639</a></li>
+<li>Add Admin API for getting transaction in transaction buffer stats <a href="https://github.com/apache/pulsar/pull/10642">#10642</a></li>
+<li>Add Admin API for getting transaction in pending ack stats <a href="https://github.com/apache/pulsar/pull/10648">#10648</a></li>
+<li>Add Admin API for getting transaction buffer stats and pending ack stats <a href="https://github.com/apache/pulsar/pull/10650">#10650</a></li>
+<li>Add Admin API for getting transaction coordinator internal stats <a href="https://github.com/apache/pulsar/pull/10653">#10653</a></li>
+<li>Setup transaction metadata with metadata store <a href="https://github.com/apache/pulsar/pull/10677">#10677</a></li>
+<li>Fix issue with acknowledge messages from multiple subscriptions of a topic <a href="https://github.com/apache/pulsar/pull/10689">#10689</a></li>
+<li>Admin API for getting transaction metadata <a href="https://github.com/apache/pulsar/pull/10690">#10690</a></li>
+<li>Admin API for getting slow transactions <a href="https://github.com/apache/pulsar/pull/10701">#10701</a></li>
+<li>Fix transaction log handle managed ledger WriteFail state <a href="https://github.com/apache/pulsar/pull/10711">#10711</a></li>
+<li>Admin API for getting pending ack internal stats <a href="https://github.com/apache/pulsar/pull/10725">#10725</a></li>
+<li>Fix transaction ack delete marker position when don't have transaction ack <a href="https://github.com/apache/pulsar/pull/10741">#10741</a></li>
+<li>Fix transaction pending ack generate managedLedgerStats fail exception <a href="https://github.com/apache/pulsar/pull/10797">#10797</a></li>
+<li>Use Zookeeper Prometheus metric provider to export Zookeeper metrics <a href="https://github.com/apache/pulsar/pull/10803">#10803</a></li>
+<li>Always allow system topic for transaction buffer snapshot auto create <a href="https://github.com/apache/pulsar/pull/10876">#10876</a></li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="security"></a><a href="#security" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Security</h4>
+<ul>
+<li>Optional auth method name header in HTTP authentication <a href="https://github.com/apache/pulsar/pull/6799">#6799</a></li>
+<li>Topics level authorization support <a href="https://github.com/apache/pulsar/pull/7523">#7523</a></li>
+<li>Authorization for setting topic/subscription auto-creation and subscription expire time on namespace <a href="https://github.com/apache/pulsar/pull/7900">#7900</a></li>
+<li>Allow serializable stream-provider field into AuthenticationTls <a href="https://github.com/apache/pulsar/pull/10020">#10020</a></li>
+<li>Add configuration for running OWASP Dependency Check for all modules <a href="https://github.com/apache/pulsar/pull/10288">#10288</a></li>
+<li>Update default TLS protocols to TLSv1.3 and TLSv1.2 for the broker and proxy <a href="https://github.com/apache/pulsar/pull/10598">#10598</a></li>
+</ul>
 <h4><a class="anchor" aria-hidden="true" id="broker"></a><a href="#broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker</h4>
+<ul>
+<li>Share EventLoopGroup between broker and BookKeeper client <a href="https://github.com/apache/pulsar/pull/2603">#2603</a></li>
+<li>Dispatch batch messages according to consumer permits <a href="https://github.com/apache/pulsar/pull/7266">7266</a></li>
+<li>Improve the max pending publish buffer mechanism <a href="https://github.com/apache/pulsar/pull/7406">7406</a></li>
+<li>Allow disabling HTTP TRACE/TRACK verbs <a href="https://github.com/apache/pulsar/pull/7907">#7907</a></li>
+<li>Fix DispatchRateLimiter does not take effect <a href="https://github.com/apache/pulsar/pull/8611">#8611</a></li>
+<li>Validate namespace isolation policy regex before updating <a href="https://github.com/apache/pulsar/pull/8804">#8804</a></li>
+<li>Perform automatically cert refresh for pulsar-admin <a href="https://github.com/apache/pulsar/pull/8831">#8831</a></li>
+<li>Fix updating rack info dynamically <a href="https://github.com/apache/pulsar/pull/8844">#8844</a></li>
+<li>Fix deadlock when checking message expiration <a href="https://github.com/apache/pulsar/pull/8877">#8877</a></li>
+<li>Support limit max topics per namespace <a href="https://github.com/apache/pulsar/pull/8942">#8942</a></li>
+<li>Make ledger rollover check task internally <a href="https://github.com/apache/pulsar/pull/8946">#8946</a></li>
+<li>Clean up topic that failed to unload from the cache <a href="https://github.com/apache/pulsar/pull/8968">#8968</a></li>
+<li>Support get broker response for the message acknowledgement <a href="https://github.com/apache/pulsar/pull/8996">#8996</a></li>
+<li>Support message index for a topic <a href="https://github.com/apache/pulsar/pull/9039">#9039</a></li>
+<li>Supporting limit max topics per namespace by namespace policy <a href="https://github.com/apache/pulsar/pull/9042">#9042</a></li>
+<li>Streaming dipsatcher support <a href="https://github.com/apache/pulsar/pull/9056">#9056</a></li>
+<li>Make Netty acceptor threadPool size configurable <a href="https://github.com/apache/pulsar/pull/9061">#9061</a></li>
+<li>Fix deadlock when unloading namespace bundles <a href="https://github.com/apache/pulsar/pull/9116">#9116</a></li>
+<li>Fixed checking for maxTopicsPerNamespace <a href="https://github.com/apache/pulsar/pull/9121">#9121</a></li>
+<li>Change the service URL to a not required param when creating a cluster <a href="https://github.com/apache/pulsar/pull/9127">#9127</a></li>
+<li>Support setting replicator dispatch rate policy at the topic level <a href="https://github.com/apache/pulsar/pull/9175">#9175</a></li>
+<li>Fix max topic for namespace does not work <a href="https://github.com/apache/pulsar/pull/9193">#9193</a></li>
+<li>Fix memory leak of the managed ledger interceptor <a href="https://github.com/apache/pulsar/pull/9194">#9194</a></li>
+<li>Fix max consumers per topic cannot be disabled at the namespace level <a href="https://github.com/apache/pulsar/pull/9214">#9214</a></li>
+<li>Support schema REST API for V1 topics <a href="https://github.com/apache/pulsar/pull/9218">#9218</a></li>
+<li>Fix peek message metadata while enabling broker entry metadata <a href="https://github.com/apache/pulsar/pull/9255">#9255</a></li>
+<li>Support fetching metadata from entry data in publish callback <a href="https://github.com/apache/pulsar/pull/9257">#9257</a></li>
+<li>Wait for the async broker port listener close operations to complete at shutdown <a href="https://github.com/apache/pulsar/pull/9308">#9308</a></li>
+<li>Support script based mapping network topology <a href="https://github.com/apache/pulsar/pull/9363">#9363</a></li>
+<li>Make managed ledger storage configurable <a href="https://github.com/apache/pulsar/pull/9397">#9397</a></li>
+<li>Support setting enabled subscription types <a href="https://github.com/apache/pulsar/pull/9401">#9401</a></li>
+<li>Fixed NPE and cache invalidation in leader election <a href="https://github.com/apache/pulsar/pull/9460">#9460</a></li>
+<li>Fix exception when get an optional field for Protobuf message <a href="https://github.com/apache/pulsar/pull/9468">#9468</a></li>
+<li>Ignore replicated subscription configurations from the client when disabled by broker <a href="https://github.com/apache/pulsar/pull/9523">#9523</a></li>
+<li>Support expose producer metrics through Prometheus endpoint <a href="https://github.com/apache/pulsar/pull/9541">#9541</a></li>
+<li>Fix NPE that occurs in PersistentStickyKeyDispatcherMultipleConsumers when debug log enabled <a href="https://github.com/apache/pulsar/pull/9587">#9587</a></li>
+<li>Make LocalPolicies immutable to avoid concurrent modify inconsistent <a href="https://github.com/apache/pulsar/pull/9598">#9598</a></li>
+<li>Fix writing/encoding issue of GenericJsonRecord <a href="https://github.com/apache/pulsar/pull/9608">#9608</a></li>
+<li>Expose the native record for struct schema <a href="https://github.com/apache/pulsar/pull/9614">#9614</a></li>
+<li>Add metrics for producer throttling <a href="https://github.com/apache/pulsar/pull/9649">#9649</a></li>
+<li>Fix MaxUnackedMessagesPerConsumer cannot be changed dynamically and cannot be disabled <a href="https://github.com/apache/pulsar/pull/9657">#9657</a></li>
+<li>Added support for force deleting tenant <a href="https://github.com/apache/pulsar/pull/9677">#9677</a></li>
+<li>Fix managed ledger not found exception when force delete namespace <a href="https://github.com/apache/pulsar/pull/9691">#9691</a></li>
+<li>Reduce CPU consumption of metrics creation <a href="https://github.com/apache/pulsar/pull/9735">#9735</a></li>
+<li>Ensure read-lock is not continuously held on a section while iterating over concurrent maps <a href="https://github.com/apache/pulsar/pull/9787">#9787</a></li>
+<li>Add pending read subscription metrics to stats-internal <a href="https://github.com/apache/pulsar/pull/9788">#9788</a></li>
+<li>Allow broker to discover and unblock stuck subscription <a href="https://github.com/apache/pulsar/pull/9789">#9789</a></li>
+<li>Disabled the tenants/namespaces force deletion by default <a href="https://github.com/apache/pulsar/pull/9819">#9819</a></li>
+<li>Add metrics for the connections of the broker <a href="https://github.com/apache/pulsar/pull/9876">#9876</a></li>
+<li>Make readModifyUpdate in MetadataCacheImpl thread-safe <a href="https://github.com/apache/pulsar/pull/9900">#9900</a></li>
+<li>Optimize NamespaceBundle.toString() which is on the hot path <a href="https://github.com/apache/pulsar/pull/9976">#9976</a></li>
+<li>Support set compaction threshold in broker.conf <a href="https://github.com/apache/pulsar/pull/9989">#9989</a></li>
+<li>Support set properties for a namespace <a href="https://github.com/apache/pulsar/pull/10015">#10015</a></li>
+<li>Fix cannot cleanup expired data after managed-ledger restart <a href="https://github.com/apache/pulsar/pull/10087">#10087</a></li>
+<li>[Default configuration] Enable sticky read by default <a href="https://github.com/apache/pulsar/pull/10090">#10090</a></li>
+<li>Add time based backlog quota <a href="https://github.com/apache/pulsar/pull/10093">#10093</a></li>
+<li>Fix IllegalStateException in PersistentReplicator <a href="https://github.com/apache/pulsar/pull/10098">#10098</a></li>
+<li>Support set max consumers per subscription for non-persistent dispatcher <a href="https://github.com/apache/pulsar/pull/10121">#10121</a></li>
+<li>Limit the number of producers/consumers that can connect per topic for each IP address <a href="https://github.com/apache/pulsar/pull/10188">#10188</a></li>
+<li>Close namespace clients when PulsarService is closed <a href="https://github.com/apache/pulsar/pull/10196">#10196</a></li>
+<li>Shutdown Broker gracefully, but forcefully after brokerShutdownTimeoutMs <a href="https://github.com/apache/pulsar/pull/10199">#10199</a></li>
+<li>Update the authentication data when an authentication refresh happens <a href="https://github.com/apache/pulsar/pull/10203">#10203</a></li>
+<li>Add preciseTopicPublishRateLimiterEnable to broker.conf <a href="https://github.com/apache/pulsar/pull/10216">#10216</a></li>
+<li>Fix the typo in the chunkedMessageRate stats and metrics <a href="https://github.com/apache/pulsar/pull/10223">#10223</a></li>
+<li>Fix entry cache size to be a negative value <a href="https://github.com/apache/pulsar/pull/10225">#10225</a></li>
+<li>Fix replicated subscriptions related LightProto issues <a href="https://github.com/apache/pulsar/pull/10247">#10247</a></li>
+<li>Pause the replicated subscriptions snapshots when there is no real traffic <a href="https://github.com/apache/pulsar/pull/10292">#10292</a></li>
+<li>Fix the inconsistency of advertised address <a href="https://github.com/apache/pulsar/pull/10312">#10312</a></li>
+<li>Support listenerName for HttpLookupService <a href="https://github.com/apache/pulsar/pull/10319">#10319</a></li>
+<li>Support truncate topic <a href="https://github.com/apache/pulsar/pull/10326">#10326</a></li>
+<li>Fix authorization error if partition number of partitioned topic is updated <a href="https://github.com/apache/pulsar/pull/10333">10333</a></li>
+<li>Fix managed ledger name that transaction log used <a href="https://github.com/apache/pulsar/pull/10334">#10334</a></li>
+<li>Catch topic policy not hit exception in handleSubscribe <a href="https://github.com/apache/pulsar/pull/10341">#10341</a></li>
+<li>Fix ConcurrentModificationException when attempting to update local broker data <a href="https://github.com/apache/pulsar/pull/10347">#10347</a></li>
+<li>Support seek to separate messageId/time for multiple topic reader <a href="https://github.com/apache/pulsar/pull/10348">#10348</a></li>
+<li>Resource locks should automatically revalidate after a metadata session is re-established <a href="https://github.com/apache/pulsar/pull/10351">#10351</a></li>
+<li>Add authentication data for the remote cluster <a href="https://github.com/apache/pulsar/pull/10357">#10357</a></li>
+<li>Support array type claims in JWT <a href="https://github.com/apache/pulsar/pull/10375">#10375</a></li>
+<li>Optimize locks in AuthenticationAthenz <a href="https://github.com/apache/pulsar/pull/10381">#10381</a></li>
+<li>Prevent carrying state of PositionImplRecyclable when recycled <a href="https://github.com/apache/pulsar/pull/10404">#10404</a></li>
+<li>Dispatch messages to consumer with permits <a href="https://github.com/apache/pulsar/pull/10417">#10417</a></li>
+<li>Fix NPE in unblock stuck subscription task when dispatcher has not created <a href="https://github.com/apache/pulsar/pull/10430">#10430</a></li>
+<li>Fix topic loading fails without any error when replicator init fails <a href="https://github.com/apache/pulsar/pull/10432">#10432</a></li>
+<li>Set timeout to unblock web-threads on update partition API <a href="https://github.com/apache/pulsar/pull/10447">#10447</a></li>
+<li>Fix CPU 100% when deleting namespace <a href="https://github.com/apache/pulsar/pull/10454">#10454</a></li>
+<li>Remove residual info after forcibly deleting the namespace <a href="https://github.com/apache/pulsar/pull/10465">#10465</a></li>
+<li>Fix potential memory leak of TopicPolicies <a href="https://github.com/apache/pulsar/pull/10466">#10466</a></li>
+<li>Fix publish callback's entry data is null during ledger rollover <a href="https://github.com/apache/pulsar/pull/10467">#10467</a></li>
+<li>Fix readModifyUpdate should return the new value in the future for metadata cache <a href="https://github.com/apache/pulsar/pull/10474">#10474</a></li>
+<li>Fix partitioned system topic check issue <a href="https://github.com/apache/pulsar/pull/10529">#10529</a></li>
+<li>Removed AspectJ based metrics for ZooKeeper <a href="https://github.com/apache/pulsar/pull/10533">#10533</a></li>
+<li>Allow creating MetadataCache with custom serde <a href="https://github.com/apache/pulsar/pull/10543">#10543</a></li>
+<li>Fix ack receipt version check issue <a href="https://github.com/apache/pulsar/pull/10551">#10551</a></li>
+<li>Expose average message size metrics for a topic <a href="https://github.com/apache/pulsar/pull/10553">#10553</a></li>
+<li>Fixed missed ZK caching when fetching list of namespaces for a tenant <a href="https://github.com/apache/pulsar/pull/10594">#10594</a></li>
+<li>Setup pulsar cluster with MetadataStore <a href="https://github.com/apache/pulsar/pull/10600">#10600</a></li>
+<li>Setup initial namespaces with MetadataStore <a href="https://github.com/apache/pulsar/pull/10612">#10612</a></li>
+<li>Convert bundle split into an HTTP async operation <a href="https://github.com/apache/pulsar/pull/10619">#10619</a></li>
+<li>Add metrics for non-contiguous deleted messages range <a href="https://github.com/apache/pulsar/pull/10638">#10638</a></li>
+<li>Fix consumer related topic stats only available while consumer or reader are connected <a href="https://github.com/apache/pulsar/pull/10644">#10644</a></li>
+<li>Allow configuring the number of BK client worker threads <a href="https://github.com/apache/pulsar/pull/10649">#10649</a></li>
+<li>Fix ConcurrentOpenLongPairRangeSet remove all ranges <a href="https://github.com/apache/pulsar/pull/10656">#10656</a></li>
+<li>Ensure all the ReadHandle gets properly closed on cache invalidation <a href="https://github.com/apache/pulsar/pull/10659">#10659</a></li>
+<li>Avoid the context switch when managedLedgerNewEntriesCheckDelayInMillis=0 <a href="https://github.com/apache/pulsar/pull/10660">#10660</a></li>
+<li>Allow configuring busy-wait in broker and client <a href="https://github.com/apache/pulsar/pull/10661">#10661</a></li>
+<li>Use a single JWT parser instance <a href="https://github.com/apache/pulsar/pull/10664">#10664</a></li>
+<li>Fix issues in advanceNonDurableCursors <a href="https://github.com/apache/pulsar/pull/10667">#10667</a></li>
+<li>LockManager use a concurrent hash map to handle locks notifications <a href="https://github.com/apache/pulsar/pull/10680">#10680</a></li>
+<li>Avoid making copies of internal maps when iterating <a href="https://github.com/apache/pulsar/pull/10691">#10691</a></li>
+<li>Fix issue where StackOverflowError occurs when trying to redeliver a large number of already acked messages <a href="https://github.com/apache/pulsar/pull/10696">#10696</a></li>
+<li>Fix NPE when filtering read entries <a href="https://github.com/apache/pulsar/pull/10704">#10704</a></li>
+<li>Fix deadlock when enabling managed ledger interceptor <a href="https://github.com/apache/pulsar/pull/10706">#10706</a></li>
+<li>Fix inconsistent behavior in LongPairRangeSet <a href="https://github.com/apache/pulsar/pull/10713">#10713</a></li>
+<li>Fix repeated iterator generation of LongPairRangeSet <a href="https://github.com/apache/pulsar/pull/10722">#10722</a></li>
+<li>Cancel scheduled tasks as the first step in closing for the managed ledger <a href="https://github.com/apache/pulsar/pull/10739">#10739</a></li>
+<li>Prevent race conditions between timeout and completion of managed ledger <a href="https://github.com/apache/pulsar/pull/10740">#10740</a></li>
+<li>Add advertised listener name for geo-replicator <a href="https://github.com/apache/pulsar/pull/10751">#10751</a></li>
+<li>Add a read lock when traversing batchDeletedIndexes <a href="https://github.com/apache/pulsar/pull/10763">#10763</a></li>
+<li>Replace use of Prometheus client CollectorRegistry.getSampleValue <a href="https://github.com/apache/pulsar/pull/10764">#10764</a></li>
+<li>Release OpAddEntry.data when entry is copied and discarded for the managed ledger <a href="https://github.com/apache/pulsar/pull/10773">#10773</a></li>
+<li>Avoid warning logs on topic policies not present <a href="https://github.com/apache/pulsar/pull/10785">#10785</a></li>
+<li>Remove pulsar-zookeeper module and call zookeeper quorumPeerMain to start zookeeper <a href="https://github.com/apache/pulsar/pull/10823">#10823</a></li>
+<li>Fix consumer stuck issue due to reuse entry wrapper <a href="https://github.com/apache/pulsar/pull/10824">#10824</a></li>
+<li>Fix possible data race in getFirstAvailableConsumerPermits <a href="https://github.com/apache/pulsar/pull/10831">#10831</a></li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="functions"></a><a href="#functions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Functions</h4>
+<ul>
+<li>Update default function log location in function_worker.yaml <a href="https://github.com/apache/pulsar/pull/8470">#8470</a></li>
+<li>Optimize batch source discovery and task ack <a href="https://github.com/apache/pulsar/pull/8498">#8498</a></li>
+<li>Provide an interface for functions worker service <a href="https://github.com/apache/pulsar/pull/8560">#8560</a></li>
+<li>Improve naming of threads used in batch source <a href="https://github.com/apache/pulsar/pull/8608">#8608</a></li>
+<li>Fix the reader used to read the metadata topic during worker service initialization not been closed <a href="https://github.com/apache/pulsar/pull/8637">#8637</a></li>
+<li>Add timeout to hasMessageAvailable to leader election process <a href="https://github.com/apache/pulsar/pull/8687">#8687</a></li>
+<li>Support key based batch builder for Go Functions <a href="https://github.com/apache/pulsar/pull/8761">#8761</a></li>
+<li>Fix panic when discarding message for Go Functions <a href="https://github.com/apache/pulsar/pull/8776">#8776</a></li>
+<li>Move initialize dlog namespace metadata to bin/pulsar <a href="https://github.com/apache/pulsar/pull/8781">#8781</a></li>
+<li>Support URL fetching for Go/Python Functions <a href="https://github.com/apache/pulsar/pull/8808">#8808</a></li>
+<li>Add cmd flag for retaining key ordering <a href="https://github.com/apache/pulsar/pull/8886">#8886</a></li>
+<li>Supports to use package command <a href="https://github.com/apache/pulsar/pull/8973">#8973</a></li>
+<li>Support create and update sink with package name <a href="https://github.com/apache/pulsar/pull/8987">#8987</a></li>
+<li>Support create and update source with package name <a href="https://github.com/apache/pulsar/pull/8988">#8988</a></li>
+<li>Allow stats operations not to be blocked in functions <a href="https://github.com/apache/pulsar/pull/9005">#9005</a></li>
+<li>Adding timeout to open table call for function state <a href="https://github.com/apache/pulsar/pull/9006">#9006</a></li>
+<li>Fix get function info error of REST API <a href="https://github.com/apache/pulsar/pull/9115">#9115</a></li>
+<li>Improve the error message when creating sinks <a href="https://github.com/apache/pulsar/pull/9131">#9131</a></li>
+<li>Expose Pulsar Admin through Function context <a href="https://github.com/apache/pulsar/pull/9246">#9246</a></li>
+<li>Enable Function Workers to use exclusive producer to write to internal topics <a href="https://github.com/apache/pulsar/pull/9275">#9275</a></li>
+<li>Add additional logging when setting up state table for function instance <a href="https://github.com/apache/pulsar/pull/9304">#9304</a></li>
+<li>Allow memory limit to be set for the pulsar client used in the ThreadRuntime in Pulsar Function <a href="https://github.com/apache/pulsar/pull/9320">#9320</a></li>
+<li>Make admin operations on Statestore non blocking <a href="https://github.com/apache/pulsar/pull/9348">#9348</a></li>
+<li>Fix maxPendingAsyncRequests not affect Kubernetes Runtime <a href="https://github.com/apache/pulsar/pull/9349">#9349</a></li>
+<li>Add download directory support to function Kubernetes Runtime <a href="https://github.com/apache/pulsar/pull/9377">#9377</a></li>
+<li>Optimize built-in source/sink startup by eliminating redundant NAR unpacking and checksum calculation <a href="https://github.com/apache/pulsar/pull/9413">#9413</a> <a href="https://github.com/apache/pulsar/pull/9500">#9500</a></li>
+<li>Enhance Kubernetes manifest customizer with default options <a href="https://github.com/apache/pulsar/pull/9445">#9445</a></li>
+<li>Fix possible deadlock on broker-function service startup <a href="https://github.com/apache/pulsar/pull/9499">#9499</a></li>
+<li>Close InputStreams properly <a href="https://github.com/apache/pulsar/pull/9568">#9568</a></li>
+<li>Add maximum allowed amount of resources setting for functions <a href="https://github.com/apache/pulsar/pull/9584">#9584</a></li>
+<li>Support writing general records to Pulsar sink <a href="https://github.com/apache/pulsar/pull/9590">#9590</a></li>
+<li>Move metrics port configuration to InstanceConfig <a href="https://github.com/apache/pulsar/pull/9610">#9610</a></li>
+<li>Add resource granularity settings for functions <a href="https://github.com/apache/pulsar/pull/9736">#9736</a></li>
+<li>Prevent invalid broker or proxy configuration for authorization <a href="https://github.com/apache/pulsar/pull/9746">#9746</a></li>
+<li>Log stacktraces of threads that failed to terminate on shutdown within timeout in ExecutorProvider <a href="https://github.com/apache/pulsar/pull/9840">#9840</a></li>
+<li>Support get partition index for a Record <a href="https://github.com/apache/pulsar/pull/9947">#9947</a></li>
+<li>Deleting a Pulsar Function with a name that includes a colon character crashes the pulsar broker <a href="https://github.com/apache/pulsar/issues/9946">#9946</a></li>
+<li>Exposing Prometheus metrics for Pulsar function local run mode <a href="https://github.com/apache/pulsar/pull/10156">#10156</a></li>
+<li>Expose local run config metrics-port-start to CLI <a href="https://github.com/apache/pulsar/pull/10185">#10185</a></li>
+<li>Fix Pulsar Function localrun with multiple instances and metrics server is enabled <a href="https://github.com/apache/pulsar/pull/10208">#10208</a></li>
+<li>Improve localrun performance by using JVM options <a href="https://github.com/apache/pulsar/pull/10273">#10273</a></li>
+<li>Fix function API can not use authdata to check superuser <a href="https://github.com/apache/pulsar/pull/10364">#10364</a></li>
+<li>Fix potential bug getting stats and remove unnecessary error log <a href="https://github.com/apache/pulsar/pull/10500">#10500</a></li>
+<li>Fix deadlock on Monitoring thread blocked by LeaderService.isLeader() <a href="https://github.com/apache/pulsar/pull/10502">#10502</a></li>
+<li>Allow user to set custom configs to plugin worker service <a href="https://github.com/apache/pulsar/pull/10504">#10504</a></li>
+<li>K8s Function Name Length Check Allows Invalid StatefulSet <a href="https://github.com/apache/pulsar/pull/10531">#10531</a></li>
+<li>Get function cluster from broker config when start function worker with broker <a href="https://github.com/apache/pulsar/pull/10552">#10552</a></li>
+<li>Process async results in the same Java runnable thread <a href="https://github.com/apache/pulsar/pull/10618">#10618</a></li>
+<li>Support using AutoProduceBytesSchema as the function output schema <a href="https://github.com/apache/pulsar/pull/10716">#10716</a></li>
+<li>ReflectionUtils use Class.forName in order to properly discover classes in Functions Runtime while using DefaultImplementation <a href="https://github.com/apache/pulsar/pull/10827">#10827</a></li>
+<li>Fix the out of index issue when dispatch messages based on the avgBatchSizePerMsg <a href="https://github.com/apache/pulsar/pull/10828">#10828</a></li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="io-connectors"></a><a href="#io-connectors" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>IO Connectors</h4>
+<ul>
+<li>[Kafka Source Connector] Fix invalid topic name generation <a href="https://github.com/apache/pulsar/pull/9035">#9035</a></li>
+<li>[Kafka Source Connector] Allow managing Avro encoded messages <a href="https://github.com/apache/pulsar/pull/9448">#9448</a></li>
+<li>Configure Pulsar IO connector YAML file generator for all connectors <a href="https://github.com/apache/pulsar/pull/9629">#9629</a></li>
+<li>[Kafka Source Connector] KeyValue schema support for KafkaBytesSource <a href="https://github.com/apache/pulsar/pull/10002">#10002</a></li>
+<li>Allow using GenericObject for developing a Sink connector <a href="https://github.com/apache/pulsar/pull/10034">#10034</a></li>
+<li>Sink<GenericObject> unwrap internal AutoConsumeSchema and allow to handle topics with KeyValue schema <a href="https://github.com/apache/pulsar/pull/10211">#10211</a></li>
+<li>Using ObjectMapper instead of Gson to parse Source/SInk configuration <a href="https://github.com/apache/pulsar/pull/10441">#10441</a></li>
+<li>Expose subscription type in the SinkContext <a href="https://github.com/apache/pulsar/pull/10446">#10446</a></li>
+<li>Add the ability to seek/pause/resume for a topic to the SinkContext <a href="https://github.com/apache/pulsar/pull/10498">#10498</a></li>
+<li>Use Message.getReaderSchema() in Pulsar IO Sinks when possible <a href="https://github.com/apache/pulsar/pull/10557">#10557</a></li>
+<li>[Kinesis Sink Connector] Fix backoff class not found <a href="https://github.com/apache/pulsar/pull/10744">#10744</a></li>
+<li>[Kinesis Sink Connector] Fix does not acknowledge messages <a href="https://github.com/apache/pulsar/pull/10769">#10769</a></li>
+<li>[Kafka Sink Adaptor] Support non-primitive schemas <a href="https://github.com/apache/pulsar/pull/10410">#10410</a></li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="pulsar-sql"></a><a href="#pulsar-sql" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar SQL</h4>
+<ul>
+<li>Fix the misleading setting in presto configuration <a href="https://github.com/apache/pulsar/pull/8549">#8549</a></li>
+<li>Fix injection factory cast error <a href="https://github.com/apache/pulsar/pull/9472">#9472</a></li>
+<li>Add max split entry queue size bytes limitation <a href="https://github.com/apache/pulsar/pull/9628">#9628</a></li>
+<li>Fix Pulsar SQL query bytes schema data error <a href="https://github.com/apache/pulsar/pull/9631">#9631</a></li>
+<li>Fix Pulsar SQL query compression data <a href="https://github.com/apache/pulsar/pull/9663">#9663</a></li>
+<li>Support native Protobuf decoder <a href="https://github.com/apache/pulsar/pull/9841">#9841</a></li>
+<li>Support query uppercase topic name <a href="https://github.com/apache/pulsar/pull/9980">#9980</a></li>
+<li>Only return persistent topic when list tables <a href="https://github.com/apache/pulsar/pull/10368">#10368</a></li>
+<li>Fix Presto startup on JDK11 <a href="https://github.com/apache/pulsar/pull/10559">#10559</a></li>
+<li>Fix pulsar sql issues when run select count(*) for the table with primary schema <a href="https://github.com/apache/pulsar/pull/10840">#10840</a></li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="tiered-storage"></a><a href="#tiered-storage" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tiered Storage</h4>
+<ul>
+<li>Fix AWS credentials usages <a href="https://github.com/apache/pulsar/pull/8950">#8950</a></li>
+<li>Support ALI OSS tiered storage <a href="https://github.com/apache/pulsar/pull/8985">#8985</a></li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="proxy"></a><a href="#proxy" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Proxy</h4>
+<ul>
+<li>Fix the proxy does not support partitioned topic auto-creation type <a href="https://github.com/apache/pulsar/issues/7903">#7903</a></li>
+<li>Enable Conscrypt for Jetty in the Broker and in the Proxy <a href="https://github.com/apache/pulsar/pull/10541">#10541</a></li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="java-client"></a><a href="#java-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java Client</h4>
+<ul>
+<li>Fix warn log on the producer side when duplicated messages have been dropped <a href="https://github.com/apache/pulsar/pull/8729">#8729</a></li>
+<li>Allow setting subscription name for Reader <a href="https://github.com/apache/pulsar/pull/8801">#8801</a></li>
+<li>Fix authParams showing in log with secret string(*****) <a href="https://github.com/apache/pulsar/pull/8910">#8910</a></li>
+<li>Avoid enabling DLQ on Key_Shared subscription <a href="https://github.com/apache/pulsar/pull/9163">#9163</a></li>
+<li>Add support for the JSON format token <a href="https://github.com/apache/pulsar/pull/9313">#9313</a></li>
+<li>Expose reached end of topic API for Reader/Consumer <a href="https://github.com/apache/pulsar/pull/9381">#9381</a></li>
+<li>Fix returned a completed future when acknowledging a batch message before complete the individual acknowledgments <a href="https://github.com/apache/pulsar/pull/9383">#9383</a></li>
+<li>Fix NPE when strip checksum for the producer <a href="https://github.com/apache/pulsar/pull/9400">#9400</a></li>
+<li>Fix inconsistent equals and hashCode for MessageIds <a href="https://github.com/apache/pulsar/pull/9440">#9440</a></li>
+<li>Allow disabling producer max queue size <a href="https://github.com/apache/pulsar/pull/9650">#9650</a></li>
+<li>Include pulsar-client-admin-api in the shaded version of pulsar-client-admin <a href="https://github.com/apache/pulsar/pull/9689">#9689</a></li>
+<li>Fix NPE in the ClientCnx <a href="https://github.com/apache/pulsar/pull/9761">#9761</a></li>
+<li>Fix DLQ can't work with AUTO_CONSUME schema <a href="https://github.com/apache/pulsar/issues/9935">#9935</a></li>
+<li>Fix NPE caused by null value of SchemaInfo's properties <a href="https://github.com/apache/pulsar/pull/9985">#9985</a></li>
+<li>Support multi-topic reader <a href="https://github.com/apache/pulsar/pull/9995">#9995</a></li>
+<li>Process messages from different partitions on different listener threads <a href="https://github.com/apache/pulsar/pull/10017">#10017</a></li>
+<li>Ensure close resource to avoid memory leak <a href="https://github.com/apache/pulsar/pull/10028">#10028</a></li>
+<li>Support set start message ID for each topic/partition on Reader <a href="https://github.com/apache/pulsar/pull/10033">#10033</a></li>
+<li>Add a JSON RecordBuilder to the GenericJsonSchema <a href="https://github.com/apache/pulsar/pull/10052">#10052</a></li>
+<li>Allow GenericRecord to wrap any Java Object <a href="https://github.com/apache/pulsar/pull/10057">#10057</a></li>
+<li>Fix NPE while configuring consumer builder <a href="https://github.com/apache/pulsar/pull/10063">#10063</a></li>
+<li>Support get native schema <a href="https://github.com/apache/pulsar/pull/10076">#10076</a></li>
+<li>Support KeyValue on Message.getValue() when using AutoConsumeSchema <a href="https://github.com/apache/pulsar/pull/10107">#10107</a></li>
+<li>Change the default retry topic name and dead letter topic name <a href="https://github.com/apache/pulsar/pull/10129">#10129</a></li>
+<li>Fix KeyValue with SEPARATED encoding for the GenericObject <a href="https://github.com/apache/pulsar/pull/10186">#10186</a></li>
+<li>Ensure download schema before decoding the payload for the AUTO_CONSUME schema <a href="https://github.com/apache/pulsar/pull/10248">#10248</a></li>
+<li>Fix typo of the maxPendingChunkedMessage method <a href="https://github.com/apache/pulsar/pull/10223">#10223</a></li>
+<li>Trait NONE schema as BYTE schema for AUTO_CONSUME schema <a href="https://github.com/apache/pulsar/pull/10277">#10277</a></li>
+<li>Fix pause consume issue with MultiTopicsConsumerImpl <a href="https://github.com/apache/pulsar/pull/10305">#10305</a></li>
+<li>Make message consumption thread safe and lock-free <a href="https://github.com/apache/pulsar/pull/10352">#10352</a></li>
+<li>Reset state before recycling OpSendMsg instance <a href="https://github.com/apache/pulsar/pull/10405">#10405</a></li>
+<li>Fix hasMessageAvailable return true but can't read message <a href="https://github.com/apache/pulsar/pull/10414">#10414</a></li>
+<li>Fix NPE in GenericJsonRecord <a href="https://github.com/apache/pulsar/pull/10482">#10482</a></li>
+<li>Fix behaviour of Schema.AUTO_CONSUME() with KeyValueSchema and multi versions <a href="https://github.com/apache/pulsar/pull/10492">#10492</a></li>
+<li>Avoid sending flow requests with zero permits <a href="https://github.com/apache/pulsar/pull/10507">#10507</a></li>
+<li>Make failPendingMessages called from within the ProducerImpl object mutex <a href="https://github.com/apache/pulsar/pull/10528">#10528</a></li>
+<li>Add schemaType field in SchemaHash <a href="https://github.com/apache/pulsar/pull/10573">#10573</a></li>
+<li>Fix NPE when ACK grouping tracker checks duplicated message id <a href="https://github.com/apache/pulsar/pull/10586">#10586</a></li>
+<li>Support consume multiple schema types messages by AutoConsumeSchema <a href="https://github.com/apache/pulsar/pull/10604">#10604</a></li>
+<li>Fixed issues in pulsar-client shading configuration <a href="https://github.com/apache/pulsar/pull/10614">#10614</a></li>
+<li>MessageCrypto interface should not expose Netty ByteBuf class in the API <a href="https://github.com/apache/pulsar/pull/10616">#10616</a></li>
+<li>Added org.apache.bookkeeper:cpu-affinity to shaded profile <a href="https://github.com/apache/pulsar/pull/10681">#10681</a></li>
+<li>Skip the periodic re-check of the partitions count on non-partitioned topic <a href="https://github.com/apache/pulsar/pull/10708">#10708</a></li>
+<li>Unlock the write lock of the UnAckedMessageTracker before call redeliverUnacknowledgedMessages <a href="https://github.com/apache/pulsar/pull/10768">#10768</a></li>
+<li>Fix AutoConsumeSchema decode data without schema version <a href="https://github.com/apache/pulsar/pull/10811">#10811</a></li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="c-client"></a><a href="#c-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>C++ Client</h4>
+<ul>
+<li>Fix dangling reference bug in getRandomName <a href="https://github.com/apache/pulsar/pull/8596">#8596</a></li>
+<li>Optimize batch message buffer allocation <a href="https://github.com/apache/pulsar/pull/8749">#8749</a></li>
+<li>Make pool connections configurable in perf tools <a href="https://github.com/apache/pulsar/pull/8913">#8913</a></li>
+<li>Support setting listener name <a href="https://github.com/apache/pulsar/pull/9119">#9119</a></li>
+<li>Fix batch message handling of the UnAckedMessageTracker <a href="https://github.com/apache/pulsar/pull/9170">#9170</a></li>
+<li>Fix ServerError is not converted to string in log <a href="https://github.com/apache/pulsar/pull/9277">#9277</a></li>
+<li>Remove Boost::System runtime dependency <a href="https://github.com/apache/pulsar/pull/9498">#9498</a></li>
+<li>Removed usages of boost::regex <a href="https://github.com/apache/pulsar/pull/9533">#9533</a></li>
+<li>Account for different variables names on different CMake versions <a href="https://github.com/apache/pulsar/pull/9559">#9559</a></li>
+<li>Allow to disable static or dynamic lib at build time <a href="https://github.com/apache/pulsar/pull/9570">#9570</a></li>
+<li>Avoid multiple compilations of same source files <a href="https://github.com/apache/pulsar/pull/9675">#9675</a></li>
+<li>Support configure debug level logs simply <a href="https://github.com/apache/pulsar/pull/10031">#10031</a></li>
+<li>Add /opt/homebrew/ as a possible path for OpenSSL on Mac <a href="https://github.com/apache/pulsar/pull/10141">#10141</a></li>
+<li>Fix race condition in MemoryLimitController <a href="https://github.com/apache/pulsar/pull/10142">#10142</a></li>
+<li>Fix releasing semaphore and memory quota after send timeout <a href="https://github.com/apache/pulsar/pull/10144">#10144</a></li>
+<li>Allow configuring memory limit from C API <a href="https://github.com/apache/pulsar/pull/10145">#10145</a></li>
+<li>Fix use-after-free undefined behavior due to object lifetime problem <a href="https://github.com/apache/pulsar/pull/10220">#10220</a></li>
+<li>Support enable replicate subscription <a href="https://github.com/apache/pulsar/pull/10243">#10243</a></li>
+<li>Fix C++ client cannot be built with Boost &lt;=1.53 <a href="https://github.com/apache/pulsar/pull/10307">#10307</a></li>
+<li>Support check connect state <a href="https://github.com/apache/pulsar/pull/10349">#10349</a></li>
+<li>Avoid sending flow requests with zero permits <a href="https://github.com/apache/pulsar/pull/10506">#10506</a></li>
+<li>Add single file logger factory <a href="https://github.com/apache/pulsar/pull/10712">#10712</a></li>
+<li>Reduce redeliverMessages when message listener is enabled <a href="https://github.com/apache/pulsar/pull/10726">#10726</a></li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="python-client"></a><a href="#python-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python Client</h4>
+<ul>
+<li>Replace Exceptions with PulsarExceptions <a href="https://github.com/apache/pulsar/pull/7600">#7600</a></li>
+<li>Added logger wrapper support to make logging configurable <a href="https://github.com/apache/pulsar/pull/7713">#7713</a></li>
+<li>Initial python 3.9 client wheel build support <a href="https://github.com/apache/pulsar/pull/9389">#9389</a></li>
+<li>Support enable replicate subscription <a href="https://github.com/apache/pulsar/pull/10243">#10243</a></li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="websocket"></a><a href="#websocket" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>WebSocket</h4>
+<ul>
+<li>Negative acknowledge support <a href="https://github.com/apache/pulsar/pull/8249">#8249</a></li>
+<li>Support deliverAt and deliverAfter attribute <a href="https://github.com/apache/pulsar/pull/8945">#8945</a></li>
+<li>Fix returned status code does not depend on the exception type <a href="https://github.com/apache/pulsar/pull/9031">#9031</a></li>
+<li>Allow to consume and pass message to client without decryption <a href="https://github.com/apache/pulsar/pull/10026">#10026</a></li>
+<li>Support pong command <a href="https://github.com/apache/pulsar/pull/10035">#10035</a></li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="pulsar-admin"></a><a href="#pulsar-admin" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar Admin</h4>
+<ul>
+<li>Support get applied message TTL policy for a topic <a href="https://github.com/apache/pulsar/pull/9225">#9225</a></li>
+<li>Support get applied inactive topic policy for a topic <a href="https://github.com/apache/pulsar/pull/9230">#9230</a></li>
+<li>Support get applied delayed delivery policy for a topic <a href="https://github.com/apache/pulsar/pull/9245">#9245</a></li>
+<li>Support get applied max unacked message per subscription policy for a topic <a href="https://github.com/apache/pulsar/pull/9290">#9290</a></li>
+<li>Support get applied max producer for a topic <a href="https://github.com/apache/pulsar/pull/9293">#9293</a></li>
+<li>Support get applied max consumer for a topic <a href="https://github.com/apache/pulsar/pull/9296">#9296</a></li>
+<li>Support get applied deduplication status policy for a topic <a href="https://github.com/apache/pulsar/pull/9339">#9339</a></li>
+<li>Support get applied retention policy for a topic <a href="https://github.com/apache/pulsar/pull/9362">#9362</a></li>
+<li>Support get applied offloader policy for a topic <a href="https://github.com/apache/pulsar/pull/9505">#9505</a></li>
+<li>Support get applied max unacked messages per consumer for a topic <a href="https://github.com/apache/pulsar/pull/9694">#9694</a></li>
+<li>Support get applied dispatch rate policy for a topic <a href="https://github.com/apache/pulsar/pull/9824">#9824</a></li>
+<li>Support get applied subscription dispatch rate policy for a topic <a href="https://github.com/apache/pulsar/pull/9827">#9827</a></li>
+<li>Support get applied backlog quota policy for a topic <a href="https://github.com/apache/pulsar/pull/9828">#9828</a></li>
+<li>Support get applied persistence policy for a topic <a href="https://github.com/apache/pulsar/pull/9831">#9831</a></li>
+<li>Support get applied cluster subscribe rate for a topic <a href="https://github.com/apache/pulsar/pull/9832">#9832</a></li>
+<li>Support get applied replicator dispatch rate for a topic <a href="https://github.com/apache/pulsar/pull/9833">#9833</a></li>
+<li>Support get applied compaction threshold <a href="https://github.com/apache/pulsar/pull/10038">#10038</a></li>
+<li>Lazily init PulsarAdmin in PulsarAdminTool <a href="https://github.com/apache/pulsar/pull/9312">#9312</a></li>
+<li>Fix create partition of existing topic does not throw RestException <a href="https://github.com/apache/pulsar/pull/9342">#9342</a></li>
+<li>Support get service URL of the leader broker <a href="https://github.com/apache/pulsar/pull/9799">#9799</a></li>
+<li>Support get persistent topics or non-persistent topics for pulsar admin client <a href="https://github.com/apache/pulsar/pull/9877">#9877</a></li>
+<li>Fix can not disable and remove max consumer per subscription <a href="https://github.com/apache/pulsar/pull/10070">#10070</a></li>
+<li>Add support for setting time based limit on backlog quota <a href="https://github.com/apache/pulsar/pull/10401">#10401</a></li>
+<li>Make client-admin-api to use interfaces with builders instead of POJOs <a href="https://github.com/apache/pulsar/pull/10818">#10818</a></li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="tools"></a><a href="#tools" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tools</h4>
+<ul>
+<li>[Pulsar Perf] Support load WebSocket service URL from config file <a href="https://github.com/apache/pulsar/pull/9000">#9000)</a></li>
+<li>[BookKeeper Shell] Make bookkeeper shell more user friendly <a href="https://github.com/apache/pulsar/pull/9281">#9281</a></li>
+<li>[Client Tools] Supports end-to-end encryption <a href="https://github.com/apache/pulsar/pull/9615">#9615</a></li>
+<li>[Pulsar Perf] Support specify topics and subscriptions <a href="https://github.com/apache/pulsar/pull/9716">#9716</a></li>
+<li>[Client Tools] Allow printing GenericRecord contents <a href="https://github.com/apache/pulsar/pull/9785">#9785</a></li>
+<li>[Pulsar Perf] Fix compatibility issues with previous version <a href="https://github.com/apache/pulsar/pull/9838">#9838</a></li>
+<li>[Pulsar Perf] Add ability to create partitioned topics <a href="https://github.com/apache/pulsar/pull/9859">#9859</a></li>
+<li>[Client Tools] handle data with different schemas when consuming messages <a href="https://github.com/apache/pulsar/pull/10301">#10301</a></li>
+<li>[Client Tools] Fix NoClassDefFoundError when running pulsar cli tools in dev directory <a href="https://github.com/apache/pulsar/pull/10807">#10807</a></li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="dependencies"></a><a href="#dependencies" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Dependencies</h4>
+<ul>
+<li>Upgrade Kubernetes client and remove sundr-codegen <a href="https://github.com/apache/pulsar/pull/8576">#8576</a></li>
+<li>Upgrade ZooKeeper to 3.6.2 and Curator to 5.1.0 <a href="https://github.com/apache/pulsar/pull/8549">#8549</a></li>
+<li>[CVE-2020-26238] Upgrade cron-utils to 9.1.3 and sprint-context to 5.3.1 <a href="https://github.com/apache/pulsar/pull/8822">#8822</a></li>
+<li>Upgrade Swagger to 1.6.2 and Maven Swagger Plugin to 3.1.7 <a href="https://github.com/apache/pulsar/pull/8845">#8845</a></li>
+<li>Upgrade to Apache Avro 1.10.2 <a href="https://github.com/apache/pulsar/pull/9898">#9898</a></li>
+<li>Add jersey-client as dependency of pulsar-client-auth-sasl <a href="https://github.com/apache/pulsar/pull/10055">#10055</a></li>
+<li>Upgrade Athenz version to 1.10.9 and remove yahoo.bintray.com repository <a href="https://github.com/apache/pulsar/pull/10079">#10079</a></li>
+<li>[CVE-2020-15250] Upgrade junit version to 4.13.1 <a href="https://github.com/apache/pulsar/pull/10147">#10147</a></li>
+<li>[CVE-2020-8908,CVE-2018-10237] Upgrade jclouds to 2.3.0 <a href="https://github.com/apache/pulsar/pull/10149">#10149</a></li>
+<li>Remove jackson-mapper-asl dependency to resolve multiple CVEs <a href="https://github.com/apache/pulsar/pull/10262">#10262</a></li>
+<li>[CVE-2021-21409] Upgrade Netty to 4.1.63.Final <a href="https://github.com/apache/pulsar/pull/10266">#10266</a></li>
+<li>[CVE-2018-12541] Upgrade vertx to 3.9.7 <a href="https://github.com/apache/pulsar/pull/10261">#10261</a></li>
+<li>Upgrade BookKeeper to 4.14.1 <a href="https://github.com/apache/pulsar/pull/10686">#10686</a></li>
+<li>[CVE-2021-28169] Upgrade Jetty to 9.4.42.v20210604 <a href="https://github.com/apache/pulsar/pull/10907">#10907</a></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="264-mdash-2021-06-02-a-id264a"></a><a href="#264-mdash-2021-06-02-a-id264a" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>2.6.4 — 2021-06-02 <a id=“2.6.4”></a></h3>
+<h4><a class="anchor" aria-hidden="true" id="broker-1"></a><a href="#broker-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker</h4>
 <ul>
 <li>Disallow parsing of token with none signature in authenticateToken <a href="https://github.com/apache/pulsar/pull/9172">#9172</a></li>
 <li>Fix marking individual deletes as dirty <a href="https://github.com/apache/pulsar/pull/9732">#9732</a></li>
@@ -34,20 +467,20 @@
 <li>fix the closed ledger did not delete after expired <a href="https://github.com/apache/pulsar/pull/9136">#9136</a></li>
 <li>Fix testBrokerSelectionForAntiAffinityGroup by increasing OverloadedThreshold <a href="https://github.com/apache/pulsar/pull/9393">#9393</a></li>
 </ul>
-<h3><a class="anchor" aria-hidden="true" id="tiered-storage"></a><a href="#tiered-storage" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tiered storage</h3>
+<h3><a class="anchor" aria-hidden="true" id="tiered-storage-1"></a><a href="#tiered-storage-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tiered storage</h3>
 <ul>
 <li>[tiered-storage] Allow AWS credentials to be refreshed <a href="https://github.com/apache/pulsar/pull/9387">#9387</a></li>
 </ul>
-<h3><a class="anchor" aria-hidden="true" id="java-client"></a><a href="#java-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java client</h3>
+<h3><a class="anchor" aria-hidden="true" id="java-client-1"></a><a href="#java-client-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java client</h3>
 <ul>
 <li>Compression must be applied during deferred schema preparation and enableBatching is enabled <a href="https://github.com/apache/pulsar/pull/9396">#9396</a></li>
 </ul>
-<h3><a class="anchor" aria-hidden="true" id="c-client"></a><a href="#c-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>C++ client</h3>
+<h3><a class="anchor" aria-hidden="true" id="c-client-1"></a><a href="#c-client-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>C++ client</h3>
 <ul>
 <li>[C++] Remove namespace check for MultiTopicsConsumerImpl <a href="https://github.com/apache/pulsar/pull/9520">#9520</a></li>
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="272-mdash-2021-05-11-a-id272a"></a><a href="#272-mdash-2021-05-11-a-id272a" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>2.7.2 — 2021-05-11 <a id=“2.7.2”></a></h3>
-<h4><a class="anchor" aria-hidden="true" id="broker-1"></a><a href="#broker-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker</h4>
+<h4><a class="anchor" aria-hidden="true" id="broker-2"></a><a href="#broker-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker</h4>
 <ul>
 <li>Fix the useless retry when the maximum number of subscriptions is reached <a href="https://github.com/apache/pulsar/pull/9991">#9991</a></li>
 <li>wrong timeunit in updating lastLedgerCreationInitiationTimestamp <a href="https://github.com/apache/pulsar/pull/10049">#10049</a></li>
@@ -88,15 +521,15 @@
 <li>Upgrade commons-io to address CVE-2021-29425 <a href="https://github.com/apache/pulsar/pull/10287">#10287</a></li>
 <li>Upgrade Jetty libraries to 9.4.39.v20210325 <a href="https://github.com/apache/pulsar/pull/10177">#10177</a></li>
 </ul>
-<h4><a class="anchor" aria-hidden="true" id="proxy"></a><a href="#proxy" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Proxy</h4>
+<h4><a class="anchor" aria-hidden="true" id="proxy-1"></a><a href="#proxy-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Proxy</h4>
 <ul>
 <li>Issue 10221: Fix authorization error while using proxy and <code>Prefix</code> subscription authentication mode <a href="https://github.com/apache/pulsar/pull/10226">#10226</a></li>
 </ul>
-<h4><a class="anchor" aria-hidden="true" id="pulsar-admin"></a><a href="#pulsar-admin" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar Admin</h4>
+<h4><a class="anchor" aria-hidden="true" id="pulsar-admin-1"></a><a href="#pulsar-admin-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar Admin</h4>
 <ul>
 <li>Add get version command for pulsar rest api, pulsar-admin, pulsar-client <a href="https://github.com/apache/pulsar/pull/9975">#9975</a></li>
 </ul>
-<h4><a class="anchor" aria-hidden="true" id="pulsar-sql"></a><a href="#pulsar-sql" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar SQL</h4>
+<h4><a class="anchor" aria-hidden="true" id="pulsar-sql-1"></a><a href="#pulsar-sql-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar SQL</h4>
 <ul>
 <li>Using pulsar SQL query messages will appear NoSuchLedger… <a href="https://github.com/apache/pulsar/pull/9910">#9910</a></li>
 </ul>
@@ -137,13 +570,13 @@
 <li>Kinesis Connector: Fix kinesis sink can not retry to send messages <a href="https://github.com/apache/pulsar/pull/10420">#10420</a></li>
 <li>Kinesis Connector: Fix null error messages in onFailure exception in KinesisSink. <a href="https://github.com/apache/pulsar/pull/10416">#10416</a></li>
 </ul>
-<h4><a class="anchor" aria-hidden="true" id="tiered-storage-1"></a><a href="#tiered-storage-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tiered Storage</h4>
+<h4><a class="anchor" aria-hidden="true" id="tiered-storage-2"></a><a href="#tiered-storage-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tiered Storage</h4>
 <ul>
 <li>Prevent Class Loader Leak; Restore Offloader Directory Override <a href="https://github.com/apache/pulsar/pull/9878">#9878</a></li>
 <li>Add logs for cleanup offloaded data operation <a href="https://github.com/apache/pulsar/pull/9852">#9852</a></li>
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="271-mdash-2021-03-18-a-id271a"></a><a href="#271-mdash-2021-03-18-a-id271a" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>2.7.1 — 2021-03-18 <a id=“2.7.1”></a></h3>
-<h4><a class="anchor" aria-hidden="true" id="broker-2"></a><a href="#broker-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker</h4>
+<h4><a class="anchor" aria-hidden="true" id="broker-3"></a><a href="#broker-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker</h4>
 <ul>
 <li>Fix topic ownership is not checked when getting topic policy <a href="https://github.com/apache/pulsar/pull/9781">#9781</a></li>
 <li>Fix the issue of consumers cannot be created for older subscriptions if the limit of <code>maxSubscriptionsPerTopic</code> is reached <a href="https://github.com/apache/pulsar/pull/9758">#9758</a></li>
@@ -217,7 +650,7 @@
 <li>Clear delayed messages when clear backlog <a href="https://github.com/apache/pulsar/pull/8691">#8691</a></li>
 <li>Fixes first automatic compaction issue <a href="https://github.com/apache/pulsar/pull/8209">#8209</a></li>
 </ul>
-<h4><a class="anchor" aria-hidden="true" id="proxy-1"></a><a href="#proxy-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Proxy</h4>
+<h4><a class="anchor" aria-hidden="true" id="proxy-2"></a><a href="#proxy-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Proxy</h4>
 <ul>
 <li>Fix Proxy Config bindAddress does not working for servicePort <a href="https://github.com/apache/pulsar/pull/9068">#9068</a></li>
 <li>Return correct authz and auth errors from proxy to client <a href="https://github.com/apache/pulsar/pull/9055">#9055</a></li>
@@ -236,7 +669,7 @@
 <li>Fix transaction messages order error and deduplication error <a href="https://github.com/apache/pulsar/pull/9024">#9024</a></li>
 <li>Fix transaction log replay not handle right <a href="https://github.com/apache/pulsar/pull/8723">#8723</a></li>
 </ul>
-<h4><a class="anchor" aria-hidden="true" id="pulsar-admin-1"></a><a href="#pulsar-admin-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar Admin</h4>
+<h4><a class="anchor" aria-hidden="true" id="pulsar-admin-2"></a><a href="#pulsar-admin-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar Admin</h4>
 <ul>
 <li>Validate offload param <a href="https://github.com/apache/pulsar/pull/9737">#9737</a></li>
 <li>Inform user when expiring message request is not executed. <a href="https://github.com/apache/pulsar/pull/9561">#9561</a></li>
@@ -250,7 +683,7 @@
 <li>Change method <code>getWebServiceUrl</code> into async <a href="https://github.com/apache/pulsar/pull/8746">#8746</a></li>
 <li>Fix cannot get lastMessageId for an empty topic due to message retention <a href="https://github.com/apache/pulsar/pull/8725">#8725</a></li>
 </ul>
-<h4><a class="anchor" aria-hidden="true" id="pulsar-sql-1"></a><a href="#pulsar-sql-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar SQL</h4>
+<h4><a class="anchor" aria-hidden="true" id="pulsar-sql-2"></a><a href="#pulsar-sql-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar SQL</h4>
 <ul>
 <li>Duplicate key <code>__pfn_input_topic__</code> in presto server <a href="https://github.com/apache/pulsar/pull/9686">#9686</a></li>
 <li>Pulsar sql key-value schema separated model support <a href="https://github.com/apache/pulsar/pull/9685">#9685</a></li>
@@ -310,14 +743,14 @@
 <li>Fix NSQ source META-INF file name and sourceConfigClass <a href="https://github.com/apache/pulsar/pull/8941">#8941</a></li>
 <li>Make Source topic Schema information available to downstream Sinks <a href="https://github.com/apache/pulsar/pull/8854">#8854</a></li>
 </ul>
-<h4><a class="anchor" aria-hidden="true" id="tiered-storage-2"></a><a href="#tiered-storage-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tiered Storage</h4>
+<h4><a class="anchor" aria-hidden="true" id="tiered-storage-3"></a><a href="#tiered-storage-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tiered Storage</h4>
 <ul>
 <li>Allow AWS credentials to be refreshed <a href="https://github.com/apache/pulsar/pull/9387">#9387</a></li>
 <li>Offload manager initialization once <a href="https://github.com/apache/pulsar/pull/8739">#8739</a></li>
 <li>Configurable data source for offloaded messages <a href="https://github.com/apache/pulsar/pull/8717">#8717</a></li>
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="263-mdash-2021-01-26-a-id263a"></a><a href="#263-mdash-2021-01-26-a-id263a" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>2.6.3 — 2021-01-26 <a id=“2.6.3”></a></h3>
-<h4><a class="anchor" aria-hidden="true" id="broker-3"></a><a href="#broker-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker</h4>
+<h4><a class="anchor" aria-hidden="true" id="broker-4"></a><a href="#broker-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker</h4>
 <ul>
 <li>Update the BookKeeper to version 4.11.1 <a href="https://github.com/apache/pulsar/pull/8604">#8604</a></li>
 <li>Use the correct configuration for the expiration time of the ZooKeeper cache <a href="https://github.com/apache/pulsar/pull/8302">#8302</a></li>
@@ -350,14 +783,14 @@
 <li>Support chained authentication with same authentication method name <a href="https://github.com/apache/pulsar/pull/9094">#9094</a></li>
 <li>Fix regression in apply-config-from-env.py <a href="https://github.com/apache/pulsar/pull/9097">#9097</a></li>
 </ul>
-<h4><a class="anchor" aria-hidden="true" id="proxy-2"></a><a href="#proxy-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Proxy</h4>
+<h4><a class="anchor" aria-hidden="true" id="proxy-3"></a><a href="#proxy-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Proxy</h4>
 <ul>
 <li>Fix the <code>request.getContentLength()</code> to return 0 if it is less than 0 <a href="https://github.com/apache/pulsar/pull/8448">#8448</a></li>
 <li>Add the error log for the Pulsar Proxy starter <a href="https://github.com/apache/pulsar/pull/8451">#8451</a></li>
 <li>Support enabling WebSocket on Pulsar Proxy <a href="https://github.com/apache/pulsar/pull/8613">#8613</a></li>
 <li>Fix the issue that the Proxy <code>bindAddress</code> configuration does not work for the <code>servicePort</code> <a href="https://github.com/apache/pulsar/pull/9068">#9068</a></li>
 </ul>
-<h4><a class="anchor" aria-hidden="true" id="java-client-1"></a><a href="#java-client-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java Client</h4>
+<h4><a class="anchor" aria-hidden="true" id="java-client-2"></a><a href="#java-client-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java Client</h4>
 <ul>
 <li>Fix the connection leak <a href="https://github.com/apache/pulsar/pull/6524">#6524</a></li>
 <li>Cancel the sendtimeout task for the producer after creation failure <a href="https://github.com/apache/pulsar/pull/8497">#8497</a></li>
@@ -367,7 +800,7 @@
 <li>Fix NPE when <code>MultiTopicsConsumerImpl</code> receives null-value messages <a href="https://github.com/apache/pulsar/pull/9113">#9113</a></li>
 <li>Fix the issue with the incoming message size that is introduced by issue #9113 <a href="https://github.com/apache/pulsar/pull/9182">#9182</a></li>
 </ul>
-<h4><a class="anchor" aria-hidden="true" id="c-client-1"></a><a href="#c-client-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>C++ Client</h4>
+<h4><a class="anchor" aria-hidden="true" id="c-client-2"></a><a href="#c-client-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>C++ Client</h4>
 <ul>
 <li>Catch the exception thrown by the remote_endpoint <a href="https://github.com/apache/pulsar/pull/8486">#8486</a></li>
 <li>Fix the potential crash caused by the AckGroupTracker's timer <a href="https://github.com/apache/pulsar/pull/8519">#8519</a></li>
@@ -375,7 +808,7 @@
 <li>Add the reader internal subscription name setter <a href="https://github.com/apache/pulsar/pull/8823">#8823</a></li>
 <li>Add consumer's configurations for the reader <a href="https://github.com/apache/pulsar/pull/8905">#8905</a></li>
 </ul>
-<h4><a class="anchor" aria-hidden="true" id="python-client"></a><a href="#python-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python Client</h4>
+<h4><a class="anchor" aria-hidden="true" id="python-client-1"></a><a href="#python-client-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python Client</h4>
 <ul>
 <li>Add Oauth2 client wrapper for the python client <a href="https://github.com/apache/pulsar/pull/7813">#7813</a></li>
 </ul>
@@ -388,14 +821,14 @@
 <li>Make Schema information of Source topic available to downstream Sinks <a href="https://github.com/apache/pulsar/pull/8854">#8854</a></li>
 <li>Fix the error log of the Debezium connector <a href="https://github.com/apache/pulsar/pull/9063">#9063</a></li>
 </ul>
-<h4><a class="anchor" aria-hidden="true" id="functions"></a><a href="#functions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Functions</h4>
+<h4><a class="anchor" aria-hidden="true" id="functions-1"></a><a href="#functions-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Functions</h4>
 <ul>
 <li>Propagate user-defined parameter into instances of Golang Pulsar Functions <a href="https://github.com/apache/pulsar/pull/8132">#8132</a></li>
 <li>Go functions supports Kubernetes runtime <a href="https://github.com/apache/pulsar/pull/8352">#8352</a></li>
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="270-mdash-2020-11-25-a-id270a"></a><a href="#270-mdash-2020-11-25-a-id270a" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>2.7.0 — 2020-11-25 <a id=“2.7.0”></a></h3>
 <p>The following lists fixes and enhancements in the 2.7.0 release.</p>
-<h4><a class="anchor" aria-hidden="true" id="transactions"></a><a href="#transactions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Transactions</h4>
+<h4><a class="anchor" aria-hidden="true" id="transactions-1"></a><a href="#transactions-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Transactions</h4>
 <ul>
 <li>Implement the Transaction Buffer Client <a href="https://github.com/apache/pulsar/pull/6544">#6544</a></li>
 <li>Support produce messages with transaction and commit transaction <a href="https://github.com/apache/pulsar/pull/7552">#7552</a></li>
@@ -436,7 +869,7 @@
 <li>Support setting subscription dispatch rate on topic level <a href="https://github.com/apache/pulsar/pull/8087">#8087</a></li>
 <li>Support setting deduplication snapshot interval on topic level <a href="https://github.com/apache/pulsar/pull/8552">#8552</a></li>
 </ul>
-<h4><a class="anchor" aria-hidden="true" id="broker-4"></a><a href="#broker-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker</h4>
+<h4><a class="anchor" aria-hidden="true" id="broker-5"></a><a href="#broker-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker</h4>
 <ul>
 <li>Upgrade BookKeeper version to 4.12.0 <a href="https://github.com/apache/pulsar/pull/8447">#8447</a></li>
 <li>Capture the add entry latency of managed-ledger <a href="https://github.com/apache/pulsar/pull/4419">#4419</a></li>
@@ -465,7 +898,7 @@
 <li>Expose consumer names after the mark delete position for the Key_Shared subscription <a href="https://github.com/apache/pulsar/pull/8545">#8545</a></li>
 <li>Close topics that remain fenced forcefully <a href="https://github.com/apache/pulsar/pull/8561">#8561</a></li>
 </ul>
-<h4><a class="anchor" aria-hidden="true" id="functions-1"></a><a href="#functions-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Functions</h4>
+<h4><a class="anchor" aria-hidden="true" id="functions-2"></a><a href="#functions-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Functions</h4>
 <ul>
 <li>Separate out FunctionMetadata related helper functions <a href="https://github.com/apache/pulsar/pull/7146">#7146</a></li>
 <li>Attach names for all producers/readers in worker service <a href="https://github.com/apache/pulsar/pull/7165">#7165</a></li>
@@ -503,7 +936,7 @@
 <li>Support key_based batch builder for functions and sources <a href="https://github.com/apache/pulsar/pull/8523">#8523</a></li>
 <li>Refactor Context and State API to allow plugging different state store implementations <a href="https://github.com/apache/pulsar/pull/8537">#8537</a></li>
 </ul>
-<h4><a class="anchor" aria-hidden="true" id="io-connectors"></a><a href="#io-connectors" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>IO connectors</h4>
+<h4><a class="anchor" aria-hidden="true" id="io-connectors-1"></a><a href="#io-connectors-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>IO connectors</h4>
 <ul>
 <li>[HDFS] Add config to create sub directory from current time <a href="https://github.com/apache/pulsar/pull/7771">#7771</a></li>
 <li>[NSQ] Add NSQ Source <a href="https://github.com/apache/pulsar/pull/8372">#8372</a></li>
@@ -514,7 +947,7 @@
 <li>Native protobuf schema support <a href="https://github.com/apache/pulsar/pull/7874">#7874</a></li>
 <li>Refactor multi-version schema reader <a href="https://github.com/apache/pulsar/pull/8464">#8464</a></li>
 </ul>
-<h4><a class="anchor" aria-hidden="true" id="tiered-storage-3"></a><a href="#tiered-storage-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tiered storage</h4>
+<h4><a class="anchor" aria-hidden="true" id="tiered-storage-4"></a><a href="#tiered-storage-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tiered storage</h4>
 <ul>
 <li>Support Azure BlobStore offload <a href="https://github.com/apache/pulsar/pull/8436">#8436</a></li>
 </ul>
@@ -568,7 +1001,7 @@
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="262-mdash-2020-11-09-a-id262a"></a><a href="#262-mdash-2020-11-09-a-id262a" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>2.6.2 — 2020-11-09 <a id=“2.6.2”></a></h3>
 <p>The following lists fixes and enhancements in the 2.6.2 release.</p>
-<h4><a class="anchor" aria-hidden="true" id="broker-5"></a><a href="#broker-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker</h4>
+<h4><a class="anchor" aria-hidden="true" id="broker-6"></a><a href="#broker-6" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker</h4>
 <ul>
 <li>[Broker] Catch throwable when start pulsar <a href="https://github.com/apache/pulsar/pull/7221">7221</a></li>
 <li>[Broker] Protobuf-shaded package can not update version <a href="https://github.com/apache/pulsar/pull/7228">7228</a></li>
@@ -626,7 +1059,7 @@
 <li>[Broker] Upgrade solr version to 8.6.3 <a href="https://github.com/apache/pulsar/pull/8328">8328</a></li>
 <li>[Broker] Fix deadlock that occurred during topic ownership check <a href="https://github.com/apache/pulsar/pull/8406">8406</a></li>
 </ul>
-<h4><a class="anchor" aria-hidden="true" id="proxy-3"></a><a href="#proxy-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Proxy</h4>
+<h4><a class="anchor" aria-hidden="true" id="proxy-4"></a><a href="#proxy-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Proxy</h4>
 <ul>
 <li>[Proxy] Add advertisedAddress config field to ProxyConfiguration <a href="https://github.com/apache/pulsar/pull/7542">7542</a></li>
 <li>[Proxy] Fix deadlock in pulsar proxy <a href="https://github.com/apache/pulsar/pull/7690">7690</a></li>
@@ -634,12 +1067,12 @@
 <li>[Proxy] Fix the null exception when starting the proxy service <a href="https://github.com/apache/pulsar/pull/8019">8019</a></li>
 <li>[Proxy] Add proxy plugin interface to support user defined additional servlet <a href="https://github.com/apache/pulsar/pull/8067">8067</a></li>
 </ul>
-<h4><a class="anchor" aria-hidden="true" id="pulsar-sql-2"></a><a href="#pulsar-sql-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar SQL</h4>
+<h4><a class="anchor" aria-hidden="true" id="pulsar-sql-3"></a><a href="#pulsar-sql-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar SQL</h4>
 <ul>
 <li>[Pulsar SQL] Upgrade Presto version to 332 <a href="https://github.com/apache/pulsar/pull/7194">7194</a></li>
 <li>[Pulsar SQL] Replace com.ning.asynchttpclient with org.asynchttpclient <a href="https://github.com/apache/pulsar/pull/8099">8099</a></li>
 </ul>
-<h4><a class="anchor" aria-hidden="true" id="java-client-2"></a><a href="#java-client-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java Client</h4>
+<h4><a class="anchor" aria-hidden="true" id="java-client-3"></a><a href="#java-client-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java Client</h4>
 <ul>
 <li>[Java Client] Support input-stream for trustStore cert <a href="https://github.com/apache/pulsar/pull/7442">7442</a></li>
 <li>[Java Client] Avoid subscribing the same topic again <a href="https://github.com/apache/pulsar/pull/7823">7823</a></li>
@@ -677,7 +1110,7 @@
 <li>[CPP Client] Client back-pressure is done on batches rather than number of messages <a href="https://github.com/apache/pulsar/pull/8331">8331</a></li>
 <li>[CPP Client] Fix message id error when subscribing a single partition <a href="https://github.com/apache/pulsar/pull/8341">8341</a></li>
 </ul>
-<h4><a class="anchor" aria-hidden="true" id="python-client-1"></a><a href="#python-client-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python Client</h4>
+<h4><a class="anchor" aria-hidden="true" id="python-client-2"></a><a href="#python-client-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python Client</h4>
 <ul>
 <li>[Python Client] Add python schema field default value <a href="https://github.com/apache/pulsar/pull/8122">8122</a></li>
 <li>[Python Client] Expose schema version (of writerSchema) in Message <a href="https://github.com/apache/pulsar/pull/8173">8173</a></li>
@@ -697,7 +1130,7 @@
 <li>[Pulsar Perf] Support setting message key <a href="https://github.com/apache/pulsar/pull/7989">7989</a></li>
 <li>[Pulsar Perf] Make pulsar-perf ioThread number configurable <a href="https://github.com/apache/pulsar/pull/8090">8090</a></li>
 </ul>
-<h4><a class="anchor" aria-hidden="true" id="pulsar-admin-2"></a><a href="#pulsar-admin-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar Admin</h4>
+<h4><a class="anchor" aria-hidden="true" id="pulsar-admin-3"></a><a href="#pulsar-admin-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar Admin</h4>
 <ul>
 <li>[Pulsar Admin] Support initial namespace of the cluster without startup the broker <a href="https://github.com/apache/pulsar/pull/7434">7434</a></li>
 <li>[Pulsar Admin] Fix some params on consumer broken by #4400 (regex, initialSouscriptionPosition) <a href="https://github.com/apache/pulsar/pull/7795">7795</a></li>
@@ -708,7 +1141,7 @@
 <li>[Pulsar Admin] Add command to delete a cluster's metadata from ZK <a href="https://github.com/apache/pulsar/pull/8169">8169</a></li>
 <li>[Pulsar Admin] Support reset cursor to a batch index for Pulsar Admin <a href="https://github.com/apache/pulsar/pull/8329">8329</a></li>
 </ul>
-<h4><a class="anchor" aria-hidden="true" id="tiered-storage-4"></a><a href="#tiered-storage-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tiered Storage</h4>
+<h4><a class="anchor" aria-hidden="true" id="tiered-storage-5"></a><a href="#tiered-storage-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tiered Storage</h4>
 <ul>
 <li>[Tiered Storage] Refactored JCloud Tiered Storage <a href="https://github.com/apache/pulsar/pull/6335">6335</a></li>
 <li>[Tiered Storage] Remove duplicate updates <a href="https://github.com/apache/pulsar/pull/8198">8198</a></li>
@@ -716,7 +1149,7 @@
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="261-mdash-2020-08-21-a-id261a"></a><a href="#261-mdash-2020-08-21-a-id261a" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>2.6.1 — 2020-08-21 <a id=“2.6.1”></a></h3>
 <p>The following lists fixes and enhancements in 2.6.1 release.</p>
-<h4><a class="anchor" aria-hidden="true" id="broker-6"></a><a href="#broker-6" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker</h4>
+<h4><a class="anchor" aria-hidden="true" id="broker-7"></a><a href="#broker-7" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker</h4>
 <ul>
 <li>[Broker] Limit batch size to the minimum of the <code>maxNumberOfMessages</code> and <code>maxSizeOfMessages</code> <a href="https://github.com/apache/pulsar/pull/6865">#6865</a></li>
 <li>[Broker] Fix hash range conflict issue in Key_Shared with sticky hash range <a href="https://github.com/apache/pulsar/pull/7231">#7231</a></li>
@@ -765,7 +1198,7 @@
 <ul>
 <li>[Zookeeper] Use hostname for bookie rackawareness mapping <a href="https://github.com/apache/pulsar/pull/7361">#7361</a></li>
 </ul>
-<h4><a class="anchor" aria-hidden="true" id="pulsar-sql-3"></a><a href="#pulsar-sql-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar SQL</h4>
+<h4><a class="anchor" aria-hidden="true" id="pulsar-sql-4"></a><a href="#pulsar-sql-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar SQL</h4>
 <ul>
 <li>[Pulsar SQL] Make Pulsar SQL get correct offload configurations <a href="https://github.com/apache/pulsar/pull/7701">#7701</a></li>
 </ul>
@@ -773,7 +1206,7 @@
 <ul>
 <li>[Schema] Fix the error that occurs when getting schemaName by partitioned topic name <a href="https://github.com/apache/pulsar/pull/7708">#7708</a></li>
 </ul>
-<h4><a class="anchor" aria-hidden="true" id="java-client-3"></a><a href="#java-client-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java Client</h4>
+<h4><a class="anchor" aria-hidden="true" id="java-client-4"></a><a href="#java-client-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java Client</h4>
 <ul>
 <li>[Java Client] Fix the issue that the HTTP header used in Athenz authentication can not be renamed <a href="https://github.com/apache/pulsar/pull/7311">#7311</a></li>
 <li>[Java Client] Add more detail information of retry errors <a href="https://github.com/apache/pulsar/pull/7341">#7341</a></li>
@@ -820,7 +1253,7 @@
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="260-mdash-2020-06-17-a-id260a"></a><a href="#260-mdash-2020-06-17-a-id260a" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>2.6.0 — 2020-06-17 <a id=“2.6.0”></a></h3>
 <h4><a class="anchor" aria-hidden="true" id="features"></a><a href="#features" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Features</h4>
-<h5><a class="anchor" aria-hidden="true" id="pips"></a><a href="#pips" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>PIPs</h5>
+<h5><a class="anchor" aria-hidden="true" id="pips-1"></a><a href="#pips-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>PIPs</h5>
 <ul>
 <li>[PIP-37] Large message size support <a href="https://github.com/apache/pulsar/pull/4400">#4400</a></li>
 <li>[PIP-39] Namespace change events (System Topic) <a href="https://github.com/apache/pulsar/pull/4955">#4955</a></li>
@@ -832,7 +1265,7 @@
 <li>[PIP-61] Advertise multiple addresses <a href="https://github.com/apache/pulsar/pull/6903">#6903</a></li>
 <li>[PIP-65] Adapting Pulsar IO Sources to support Batch Sources <a href="https://github.com/apache/pulsar/pull/7090">#7090</a></li>
 </ul>
-<h5><a class="anchor" aria-hidden="true" id="broker-7"></a><a href="#broker-7" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker</h5>
+<h5><a class="anchor" aria-hidden="true" id="broker-8"></a><a href="#broker-8" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker</h5>
 <ul>
 <li>[Broker] Add threshold shedder strategy and metrics exporter for loadbalancer <a href="https://github.com/apache/pulsar/pull/6772">#6772</a></li>
 <li>[Broker] Add consistent hashing in the Key_Shared distribution <a href="https://github.com/apache/pulsar/pull/6791">#6791</a></li>
@@ -870,7 +1303,7 @@
 <li>[Function] Added ability to build consumers in functions and sources <a href="https://github.com/apache/pulsar/pull/6954">#6954</a></li>
 <li>[Function] Support DLQ on sources and sinks <a href="https://github.com/apache/pulsar/pull/7032">#7032</a></li>
 </ul>
-<h5><a class="anchor" aria-hidden="true" id="pulsar-sql-4"></a><a href="#pulsar-sql-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar SQL</h5>
+<h5><a class="anchor" aria-hidden="true" id="pulsar-sql-5"></a><a href="#pulsar-sql-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar SQL</h5>
 <ul>
 <li>[SQL] KeyValue schema support <a href="https://github.com/apache/pulsar/pull/6325">#6325</a></li>
 <li>[SQL] Multiple version schema support <a href="https://github.com/apache/pulsar/pull/4847">#4847</a></li>
@@ -939,7 +1372,7 @@
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="252-mdash-2020-05-19-a-id252a"></a><a href="#252-mdash-2020-05-19-a-id252a" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>2.5.2 — 2020-05-19 <a id=“2.5.2”></a></h3>
 <h4><a class="anchor" aria-hidden="true" id="fixes-and-enhancements"></a><a href="#fixes-and-enhancements" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Fixes and Enhancements</h4>
-<h5><a class="anchor" aria-hidden="true" id="broker-8"></a><a href="#broker-8" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker</h5>
+<h5><a class="anchor" aria-hidden="true" id="broker-9"></a><a href="#broker-9" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker</h5>
 <ul>
 <li>[Broker] Implement AutoTopicCreation by namespace level override <a href="https://github.com/apache/pulsar/pull/6471">#6471</a></li>
 <li>[Broker] Add custom deletionLag and threshold for offload policies per namespace  <a href="https://github.com/apache/pulsar/pull/6422">#6422</a></li>
@@ -982,7 +1415,7 @@
 <li>[CPP Client] Fix message id is always the default value in send callback <a href="https://github.com/apache/pulsar/pull/6812">#6812</a></li>
 <li>[CPP Client] Fix message id error if messages were sent to a partitioned topic <a href="https://github.com/apache/pulsar/pull/6938">#6938</a></li>
 </ul>
-<h5><a class="anchor" aria-hidden="true" id="python-client-2"></a><a href="#python-client-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python Client</h5>
+<h5><a class="anchor" aria-hidden="true" id="python-client-3"></a><a href="#python-client-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python Client</h5>
 <ul>
 <li>[Python Client] Fix Python function protobuf missing field<a href="https://github.com/apache/pulsar/pull/6641">#6641</a></li>
 </ul>
@@ -994,7 +1427,7 @@
 <li>[Functions] Fix localrunner netty dependency issue <a href="https://github.com/apache/pulsar/pull/6779">#6779</a></li>
 <li>[Functions] Fix SerDe validation of function's update <a href="https://github.com/apache/pulsar/pull/6888">#6888</a></li>
 </ul>
-<h5><a class="anchor" aria-hidden="true" id="tiered-storage-5"></a><a href="#tiered-storage-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tiered Storage</h5>
+<h5><a class="anchor" aria-hidden="true" id="tiered-storage-6"></a><a href="#tiered-storage-6" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tiered Storage</h5>
 <ul>
 <li>[Tiered Storage]  Extract common SerDe method in tiered storage to managed-ledger module <a href="https://github.com/apache/pulsar/pull/6533">#6533</a></li>
 <li>[Tiered Storage]  Make SchemaStorage accessible in Offloader <a href="https://github.com/apache/pulsar/pull/6567">#6567</a></li>
@@ -1023,7 +1456,7 @@
 <li>Introduce maxMessagePublishBufferSizeInMB configuration to avoid broker OOM <a href="https://github.com/apache/pulsar/pull/6178">#6178</a></li>
 </ul>
 <h4><a class="anchor" aria-hidden="true" id="fixes-2"></a><a href="#fixes-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Fixes</h4>
-<h5><a class="anchor" aria-hidden="true" id="broker-9"></a><a href="#broker-9" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker</h5>
+<h5><a class="anchor" aria-hidden="true" id="broker-10"></a><a href="#broker-10" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker</h5>
 <ul>
 <li>[Broker] Fixed NPE occurs when getting partitioned topic stats <a href="https://github.com/apache/pulsar/pull/6060">#6060</a></li>
 <li>[Broker] Fixed zero queue consumer message redelivery <a href="https://github.com/apache/pulsar/pull/6076">#6076</a></li>
@@ -1063,11 +1496,11 @@
 <ul>
 <li>[Function] remove future.join() from PulsarSinkEffectivelyOnceProcessor <a href="https://github.com/apache/pulsar/pull/6361">#6361</a></li>
 </ul>
-<h5><a class="anchor" aria-hidden="true" id="pulsar-sql-5"></a><a href="#pulsar-sql-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar SQL</h5>
+<h5><a class="anchor" aria-hidden="true" id="pulsar-sql-6"></a><a href="#pulsar-sql-6" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar SQL</h5>
 <ul>
 <li>[SQL] Fixed integration Pulsar SQL test failed <a href="https://github.com/apache/pulsar/pull/6279">#6279</a></li>
 </ul>
-<h5><a class="anchor" aria-hidden="true" id="security"></a><a href="#security" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Security</h5>
+<h5><a class="anchor" aria-hidden="true" id="security-1"></a><a href="#security-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Security</h5>
 <ul>
 <li>Fixed publish buffer limit does not take effect <a href="https://github.com/apache/pulsar/pull/6431">#6431</a></li>
 <li>Fixed the bug of authenticationData is't initialized. <a href="https://github.com/apache/pulsar/pull/6440">#6440</a></li>
@@ -1078,7 +1511,7 @@
 <li>[Schema] Fixed avro schema decode error <code>ClassCastException</code> in Pulsar Function <a href="https://github.com/apache/pulsar/pull/6662">#6662</a></li>
 <li>[Schema] Fixed channel write error handling for send get raw schema request <a href="https://github.com/apache/pulsar/pull/6650">#6650</a></li>
 </ul>
-<h5><a class="anchor" aria-hidden="true" id="java-client-4"></a><a href="#java-client-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java client</h5>
+<h5><a class="anchor" aria-hidden="true" id="java-client-5"></a><a href="#java-client-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java client</h5>
 <ul>
 <li>[Client] Fixed available permits may be greater than 1 even though queue size is 0. <a href="https://github.com/apache/pulsar/pull/6106">#6106</a></li>
 <li>[Client] Fixed broker client tls settings error <a href="https://github.com/apache/pulsar/pull/6128">#6128</a></li>
@@ -1088,7 +1521,7 @@
 <li>[Client] Fixed NPE while call getLastMessageId <a href="https://github.com/apache/pulsar/pull/6562">#6562</a></li>
 <li>[Client] Fixed the max backoff configuration for lookups <a href="https://github.com/apache/pulsar/pull/6444">#6444</a></li>
 </ul>
-<h5><a class="anchor" aria-hidden="true" id="c-client-2"></a><a href="#c-client-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>C++ client</h5>
+<h5><a class="anchor" aria-hidden="true" id="c-client-3"></a><a href="#c-client-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>C++ client</h5>
 <ul>
 <li>[C++] Fixed static linking on C++ lib on MacOS <a href="https://github.com/apache/pulsar/pull/5581">#5581</a></li>
 <li>[C++] Fixed memory corruption on ExecutorService destructor <a href="https://github.com/apache/pulsar/pull/6270">#6270</a></li>
@@ -1097,7 +1530,7 @@
 <li>[C++] Fixed Unacked Message Tracker by Using Time Partition on C++ <a href="https://github.com/apache/pulsar/pull/6391">#6391</a></li>
 <li>[C++] Fixed Redelivery of Messages on UnackedMessageTracker When Ack Messages . <a href="https://github.com/apache/pulsar/pull/6498">#6498</a></li>
 </ul>
-<h5><a class="anchor" aria-hidden="true" id="python-client-3"></a><a href="#python-client-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python Client</h5>
+<h5><a class="anchor" aria-hidden="true" id="python-client-4"></a><a href="#python-client-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python Client</h5>
 <ul>
 <li>[Python Client]Fixed the enum34 package not found <a href="https://github.com/apache/pulsar/pull/6401">#6401</a></li>
 </ul>
@@ -1159,7 +1592,7 @@
 <li>[Broker] Expose lastConsumedTimestamp and lastAckedTimestamp to consumer stats <a href="https://github.com/apache/pulsar/pull/6051">#6051</a></li>
 <li>Improve backlogSize stats in the topic. <a href="https://github.com/apache/pulsar/pull/6700">#6700</a></li>
 </ul>
-<h5><a class="anchor" aria-hidden="true" id="security-1"></a><a href="#security-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Security</h5>
+<h5><a class="anchor" aria-hidden="true" id="security-2"></a><a href="#security-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Security</h5>
 <ul>
 <li>Validate tokens for binary connections <a href="https://github.com/apache/pulsar/pull/6233">#6233</a></li>
 <li>Create namespace failed when TLS is enabled in PulsarStandalone <a href="https://github.com/apache/pulsar/pull/6457">#6457</a></li>
@@ -1171,7 +1604,7 @@
 <li>[Schema] Extract an original avro schema from the &quot;$SCHEMA&quot; field using reflection. If it doesn't work, the process falls back generation of the schema from POJO.<a href="https://github.com/apache/pulsar/pull/6406">#6406</a></li>
 <li>[Schema] Add verification for SchemaDefinitionBuilderImpl.java <a href="https://github.com/apache/pulsar/pull/6405">#6405</a></li>
 </ul>
-<h5><a class="anchor" aria-hidden="true" id="java-client-5"></a><a href="#java-client-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java client</h5>
+<h5><a class="anchor" aria-hidden="true" id="java-client-6"></a><a href="#java-client-6" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java client</h5>
 <ul>
 <li>[Client] Start reader inside batch result in read first message in batch. <a href="https://github.com/apache/pulsar/pull/6345">#6345</a></li>
 <li>[Client] Stop shade snappy-java in pulsar-client-shaded <a href="https://github.com/apache/pulsar/pull/6375">#6375</a></li>
@@ -1184,13 +1617,13 @@
 <li>[Client] Make tests more stable by using JSONAssert equals <a href="https://github.com/apache/pulsar/pull/6247">#6247</a></li>
 <li>[Client] make acker in BatchMessageIdImpl transient <a href="https://github.com/apache/pulsar/pull/6064">#6064</a></li>
 </ul>
-<h5><a class="anchor" aria-hidden="true" id="c-client-3"></a><a href="#c-client-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>C++ client</h5>
+<h5><a class="anchor" aria-hidden="true" id="c-client-4"></a><a href="#c-client-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>C++ client</h5>
 <ul>
 <li>[C++] Windows CMake corrections <a href="https://github.com/apache/pulsar/pull/6336">#6336</a></li>
 <li>[C++] Avoid calling redeliverMessages() when message list is empty <a href="https://github.com/apache/pulsar/pull/6480">#6480</a></li>
 <li>[C++] Improve cpp-client-lib: provide another <code>libpulsarwithdeps.a</code> in dep/rpm <a href="https://github.com/apache/pulsar/pull/6458">#6458</a></li>
 </ul>
-<h5><a class="anchor" aria-hidden="true" id="python-client-4"></a><a href="#python-client-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python Client</h5>
+<h5><a class="anchor" aria-hidden="true" id="python-client-5"></a><a href="#python-client-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python Client</h5>
 <ul>
 <li>[Python Client] Support generate pulsar-client for python3.8<a href="https://github.com/apache/pulsar/pull/6741">#6741</a></li>
 </ul>
@@ -1208,7 +1641,7 @@
 <li>[Flink-Connector] Get PulsarClient from cache should always return an open instance <a href="https://github.com/apache/pulsar/pull/6436">#6436</a></li>
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="250-mdash-2019-12-06-a-id250a"></a><a href="#250-mdash-2019-12-06-a-id250a" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>2.5.0 — 2019-12-06 <a id="2.5.0"></a></h3>
-<h4><a class="anchor" aria-hidden="true" id="pips-1"></a><a href="#pips-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>PIPs</h4>
+<h4><a class="anchor" aria-hidden="true" id="pips-2"></a><a href="#pips-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>PIPs</h4>
 <ul>
 <li>[PIP-41] Introduce Protocol Handler API <a href="https://github.com/apache/pulsar/pull/5130">#5130</a> <a href="https://github.com/apache/pulsar/pull/5473">#5743</a></li>
 <li>[PIP-45] Pluggable metadata interface <a href="https://github.com/apache/pulsar/pull/5330">#5330</a></li>
@@ -1260,11 +1693,11 @@
 <li>[Dashboard] integrate peek into messages page <a href="https://github.com/apache/pulsar/pull/4966">#4966</a></li>
 <li>[Dashboard] Support parse batch entry <a href="https://github.com/apache/pulsar/pull/4992">#4992</a></li>
 </ul>
-<h4><a class="anchor" aria-hidden="true" id="security-2"></a><a href="#security-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Security</h4>
+<h4><a class="anchor" aria-hidden="true" id="security-3"></a><a href="#security-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Security</h4>
 <ul>
 <li>[Broker] Add broker-bookie mTLS support <a href="https://github.com/apache/pulsar/pull/5042">#5042</a></li>
 </ul>
-<h4><a class="anchor" aria-hidden="true" id="tiered-storage-6"></a><a href="#tiered-storage-6" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tiered Storage</h4>
+<h4><a class="anchor" aria-hidden="true" id="tiered-storage-7"></a><a href="#tiered-storage-7" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tiered Storage</h4>
 <ul>
 <li>HDFS Offloader <a href="https://github.com/apache/pulsar/pull/4403">#4403</a></li>
 <li>Fix the problem of repeated storage of offload driver metadata <a href="https://github.com/apache/pulsar/pull/5834">#5834</a></li>
@@ -1295,13 +1728,13 @@
 <li>[Function Runtime] Function runtime pluggable <a href="https://github.com/apache/pulsar/pull/5463">#5463</a></li>
 <li>[Function Runtime] Allow functions to pass runtime specific options <a href="https://github.com/apache/pulsar/pull/5400">#5400</a></li>
 </ul>
-<h4><a class="anchor" aria-hidden="true" id="pulsar-sql-6"></a><a href="#pulsar-sql-6" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar SQL</h4>
+<h4><a class="anchor" aria-hidden="true" id="pulsar-sql-7"></a><a href="#pulsar-sql-7" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar SQL</h4>
 <ul>
 <li>Support for other schema name separators in pulsar SQL <a href="https://github.com/apache/pulsar/issues/4732">4732</a></li>
 <li>Reuse ManagedLedgerFactory instances across SQL queries <a href="https://github.com/apache/pulsar/pull/4813">4813</a></li>
 <li>Using pulsar SQL query messages will appear <code>NoSuchLedger</code> when zk root directory changed <a href="https://github.com/apache/pulsar/pull/5001">#5001</a></li>
 </ul>
-<h4><a class="anchor" aria-hidden="true" id="java-client-6"></a><a href="#java-client-6" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java client</h4>
+<h4><a class="anchor" aria-hidden="true" id="java-client-7"></a><a href="#java-client-7" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java client</h4>
 <ul>
 <li>Not allow use acknowledgeCumulative on Key_shared subscription <a href="https://github.com/apache/pulsar/pull/5339">#5339</a></li>
 <li>Fix bug that beforeConsume() of interceptor is not called when receiver queue size is 0 <a href="https://github.com/apache/pulsar/pull/5777">#5777</a></li>
@@ -1310,7 +1743,7 @@
 <ul>
 <li>Use buffered channels to avoid blocking on callback  <a href="https://github.com/apache/pulsar/pull/5336">#5336</a></li>
 </ul>
-<h4><a class="anchor" aria-hidden="true" id="c-client-4"></a><a href="#c-client-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>C++ client</h4>
+<h4><a class="anchor" aria-hidden="true" id="c-client-5"></a><a href="#c-client-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>C++ client</h4>
 <ul>
 <li>Change state_ to closed when resultOk is returned <a href="https://github.com/apache/pulsar/pull/5446">#5446</a></li>
 <li>Expose redelivery count <a href="https://github.com/apache/pulsar/pull/5677">#5677</a></li>
@@ -1529,7 +1962,7 @@
 <li>Added option to disable authentication for proxy /metrics <a href="https://github.com/apache/pulsar/pull/4921">#4921</a></li>
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="240-mdash-2019-06-30-a-id240a"></a><a href="#240-mdash-2019-06-30-a-id240a" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>2.4.0 — 2019-06-30 <a id="2.4.0"></a></h3>
-<h4><a class="anchor" aria-hidden="true" id="pips-2"></a><a href="#pips-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>PIPs</h4>
+<h4><a class="anchor" aria-hidden="true" id="pips-3"></a><a href="#pips-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>PIPs</h4>
 <ul>
 <li>PIP-26: <a href="https://github.com/apache/pulsar/wiki/PIP-26%3A-Delayed-Message-Delivery">Added support for delayed message delivery</a>
 <a href="https://github.com/apache/pulsar/pull/4062">#4062</a>, note that messages are only delayed on shared subscriptions.</li>
@@ -1571,7 +2004,7 @@
 <li>Create non-persistent topic by pulsar-admin/rest api <a href="https://github.com/apache/pulsar/pull/3625">#3625</a></li>
 <li>Consumer priority-level in Failover subscription <a href="https://github.com/apache/pulsar/pull/2954">#2954</a></li>
 </ul>
-<h4><a class="anchor" aria-hidden="true" id="security-3"></a><a href="#security-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Security</h4>
+<h4><a class="anchor" aria-hidden="true" id="security-4"></a><a href="#security-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Security</h4>
 <ul>
 <li>Added support for other algorithms in token auth <a href="https://github.com/apache/pulsar/pull/4528">#4528</a></li>
 </ul>
@@ -1583,7 +2016,7 @@
 <li>Added support for replicator rate limit between clusters <a href="https://github.com/apache/pulsar/pull/4273">#4273</a></li>
 <li>Disable backlog quota check by default <a href="https://github.com/apache/pulsar/pull/4320">#4320</a></li>
 </ul>
-<h4><a class="anchor" aria-hidden="true" id="tiered-storage-7"></a><a href="#tiered-storage-7" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tiered Storage</h4>
+<h4><a class="anchor" aria-hidden="true" id="tiered-storage-8"></a><a href="#tiered-storage-8" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tiered Storage</h4>
 <ul>
 <li>Added support for Pulsar SQL to read data from tiered storage <a href="https://github.com/apache/pulsar/pull/4045">#4045</a></li>
 </ul>
@@ -1617,7 +2050,7 @@
 <li>Use negative acknowledge to instead ackTimeout <a href="https://github.com/apache/pulsar/pull/4103">#4103</a></li>
 <li>Fix backward compatibility with 2.2 auth not working <a href="https://github.com/apache/pulsar/pull/4241">#4241</a></li>
 </ul>
-<h4><a class="anchor" aria-hidden="true" id="java-client-7"></a><a href="#java-client-7" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java client</h4>
+<h4><a class="anchor" aria-hidden="true" id="java-client-8"></a><a href="#java-client-8" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java client</h4>
 <ul>
 <li>Added negative acks <a href="https://github.com/apache/pulsar/pull/3703">#3703</a></li>
 <li>Added support for backoff strategy configuration <a href="https://github.com/apache/pulsar/pull/3848">#3848</a></li>
@@ -1629,7 +2062,7 @@
 <li>Added support for snappy compression <a href="https://github.com/apache/pulsar/pull/4259">#4259</a></li>
 <li>Added support for key based batcher <a href="https://github.com/apache/pulsar/pull/4435">#4435</a></li>
 </ul>
-<h4><a class="anchor" aria-hidden="true" id="python-client-5"></a><a href="#python-client-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python client</h4>
+<h4><a class="anchor" aria-hidden="true" id="python-client-6"></a><a href="#python-client-6" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python client</h4>
 <ul>
 <li>Added negative acks <a href="https://github.com/apache/pulsar/pull/3816">#3816</a></li>
 <li>Added support for snappy compression <a href="https://github.com/apache/pulsar/pull/4319">#4319</a></li>
@@ -1641,7 +2074,7 @@
 <li>Added support for snappy compression <a href="https://github.com/apache/pulsar/pull/4319">#4319</a></li>
 <li>Added support for Key_Shared subscription <a href="https://github.com/apache/pulsar/pull/4465">#4465</a></li>
 </ul>
-<h4><a class="anchor" aria-hidden="true" id="c-client-5"></a><a href="#c-client-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>C++ client</h4>
+<h4><a class="anchor" aria-hidden="true" id="c-client-6"></a><a href="#c-client-6" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>C++ client</h4>
 <ul>
 <li>Added negative acks <a href="https://github.com/apache/pulsar/pull/3750">#3750</a></li>
 <li>Fix ack timeout when subscribing to regex topic <a href="https://github.com/apache/pulsar/pull/3879">#3897</a></li>
@@ -1789,7 +2222,7 @@ topic schema <a href="https://github.com/apache/pulsar/pull/2685">#2685</a></li>
 <li>Add minimum amount of resources to run setting for functions <a href="https://github.com/apache/pulsar/pull/3536">#3536</a></li>
 <li>Fixed the behavior of Function start/stop <a href="https://github.com/apache/pulsar/pull/3477">#3477</a></li>
 </ul>
-<h4><a class="anchor" aria-hidden="true" id="java-client-8"></a><a href="#java-client-8" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java client</h4>
+<h4><a class="anchor" aria-hidden="true" id="java-client-9"></a><a href="#java-client-9" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java client</h4>
 <ul>
 <li>Moved Pulsar v1 client API into separate artifact <a href="https://github.com/apache/pulsar/pull/3228">#3228</a>.<br />
 Applications that are using the Pulsar v1 API, deprecated since 2.0 release, need to update the
@@ -1811,7 +2244,7 @@ Maven module <a href="https://github.com/apache/pulsar/pull/3309">#3309</a></li>
 <li>Removed shading relocations for Circe-checksum and lz4 libraries, to ensure native libraries
 are correctly loaded when using shaded client lib. <a href="https://github.com/apache/pulsar/pull/2191">#2191</a></li>
 </ul>
-<h4><a class="anchor" aria-hidden="true" id="python-client-6"></a><a href="#python-client-6" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python client</h4>
+<h4><a class="anchor" aria-hidden="true" id="python-client-7"></a><a href="#python-client-7" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python client</h4>
 <ul>
 <li>Fixed <code>Message.properties()</code> <a href="https://github.com/apache/pulsar/pull/3595">#3595</a></li>
 </ul>
@@ -1825,7 +2258,7 @@ are correctly loaded when using shaded client lib. <a href="https://github.com/a
 <li>Allow to link statically against <code>libpulsar.a</code><a href="https://github.com/apache/pulsar/pull/3488">#3488</a></li>
 <li>Expose <code>Producer.LastSequenceID()</code> and <code>Message.SequenceID()</code> <a href="https://github.com/apache/pulsar/pull/3416">#3416</a></li>
 </ul>
-<h4><a class="anchor" aria-hidden="true" id="c-client-6"></a><a href="#c-client-6" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>C++ client</h4>
+<h4><a class="anchor" aria-hidden="true" id="c-client-7"></a><a href="#c-client-7" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>C++ client</h4>
 <ul>
 <li>Enable batching by default when using <code>sendAsync()</code> <a href="https://github.com/apache/pulsar/pull/2949">#2949</a></li>
 <li>Allow to specify schema info in Avro format <a href="https://github.com/apache/pulsar/pull/3354">#3354</a></li>
@@ -2311,6 +2744,6 @@ environment with 1.14 and 1.15 brokers</li>
                 apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
                 indexName: 'apache_pulsar',
                 inputSelector: '#search_input_react',
-                algoliaOptions: {"facetFilters":["language:zh-TW","version:2.7.2"]}
+                algoliaOptions: {"facetFilters":["language:zh-TW","version:2.8.0"]}
               });
             </script></body></html>
