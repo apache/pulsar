@@ -26,6 +26,8 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -68,7 +70,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     protected final Backoff readFailureBackoff = new Backoff(15, TimeUnit.SECONDS,
             1, TimeUnit.MINUTES, 0, TimeUnit.MILLISECONDS);
     protected final ServiceConfiguration serviceConfig;
-    private volatile ScheduledFuture<?> readOnActiveConsumerTask = null;
+    private final AtomicReference<ScheduledFuture<?>> readOnActiveConsumerTask = new AtomicReference<>();
 
     private final RedeliveryTracker redeliveryTracker;
 
@@ -110,11 +112,11 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         // If subscription type is Failover, delay rewinding cursor and
         // reading more entries in order to prevent message duplication
 
-        if (readOnActiveConsumerTask != null) {
+        if (readOnActiveConsumerTask.get() != null) {
             return;
         }
 
-        readOnActiveConsumerTask = topic.getBrokerService().executor().schedule(() -> {
+        readOnActiveConsumerTask.compareAndSet(readOnActiveConsumerTask.get(),topic.getBrokerService().executor().schedule(() -> {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Rewind cursor and read more entries after {} ms delay", name,
                         serviceConfig.getActiveConsumerFailoverDelayTimeMillis());
@@ -124,8 +126,8 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             Consumer activeConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
             notifyActiveConsumerChanged(activeConsumer);
             readMoreEntries(activeConsumer);
-            readOnActiveConsumerTask = null;
-        }, serviceConfig.getActiveConsumerFailoverDelayTimeMillis(), TimeUnit.MILLISECONDS);
+            readOnActiveConsumerTask.compareAndSet(readOnActiveConsumerTask.get(),null);
+        }, serviceConfig.getActiveConsumerFailoverDelayTimeMillis(), TimeUnit.MILLISECONDS));
     }
 
     @Override
@@ -260,7 +262,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                 log.debug("[{}-{}] Ignoring flow control message since consumer is not active partition consumer", name,
                         consumer);
             }
-        } else if (readOnActiveConsumerTask != null) {
+        } else if (readOnActiveConsumerTask.get() != null) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}-{}] Ignoring flow control message since consumer is waiting for cursor to be rewinded",
                         name, consumer);
@@ -287,7 +289,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             return;
         }
 
-        if (readOnActiveConsumerTask != null) {
+        if (readOnActiveConsumerTask.get() != null) {
             log.info("[{}-{}] Ignoring reDeliverUnAcknowledgedMessages: consumer is waiting for cursor to be rewinded",
                     name, consumer);
             return;
