@@ -40,7 +40,6 @@ import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -126,7 +125,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                             PulsarServerException ex = new PulsarServerException(
                                     String.format("%s is not authorized to access subscription %s on topic %s", role,
                                             subscription, topicName));
-                            permissionFuture.complete(false);
+                            permissionFuture.completeExceptionally(ex);
                             return;
                         }
 
