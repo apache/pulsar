@@ -29,15 +29,11 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.util.Codec;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Encapsulate the parsing of the completeTopicName name.
  */
 public class TopicName implements ServiceUnitId {
-
-    private static final Logger log = LoggerFactory.getLogger(TopicName.class);
 
     public static final String PUBLIC_TENANT = "public";
     public static final String DEFAULT_NAMESPACE = "default";
