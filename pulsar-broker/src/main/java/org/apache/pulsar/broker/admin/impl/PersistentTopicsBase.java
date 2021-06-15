@@ -2450,6 +2450,7 @@ public class PersistentTopicsBase extends AdminResource {
         ByteBuf metadataAndPayload = entry.getDataBuffer();
 
         // moves the readerIndex to the payload
+        Commands.skipBrokerEntryMetadataIfExist(metadataAndPayload);
         MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
 
         ResponseBuilder responseBuilder = Response.ok();
