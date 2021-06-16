@@ -335,3 +335,7 @@ new committers or PMC members to the project. PMC members also have
 binding votes on any project matters. Refer to
 [ASF PMCs governance](http://www.apache.org/foundation/governance/pmcs.html)
 for a more detailed explanation of the duties and roles of the PMC.
+
+## Contributor over time
+
+[![Contributor over time](https://contributor-graph-api.apiseven.com/contributors-svg?chart=contributorOverTime&repo=apache/pulsar)](https://www.apiseven.com/en/contributor-graph?chart=contributorOverTime&repo=apache/pulsar)
