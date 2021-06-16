@@ -191,7 +191,7 @@ You can check the following statistics of a given non-partitioned topic.
 
   -   **msgInCounter**: Total messages published to the topic.
 
-  -   **bytesOutCounter**: Total bytes delivered to consumers (bytes).
+  -   **bytesOutCounter**: Total bytes delivered to consumers.
 
   -   **msgOutCounter**: Total messages delivered to consumers.
 
@@ -199,7 +199,7 @@ You can check the following statistics of a given non-partitioned topic.
 
   -   **backlogSize**: Estimated total unconsumed or backlog size (in bytes).
 
-  -   **offloadedStorageSize**: Space used to store the offloaded messages for the topic.
+  -   **offloadedStorageSize**: Space used to store the offloaded messages for the topic (in bytes).
   
   -   **waitingPublishers**: The number of publishers waiting in a queue in exclusive access mode.
   
