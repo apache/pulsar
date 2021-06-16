@@ -122,10 +122,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                                 .getSubscriptionAuthentication().get(subscription);
                         if (roles != null && !roles.isEmpty() && !roles.contains(role)) {
                             log.warn("[{}] is not authorized to subscribe on {}-{}", role, topicName, subscription);
-                            PulsarServerException ex = new PulsarServerException(
-                                    String.format("%s is not authorized to access subscription %s on topic %s", role,
-                                            subscription, topicName));
-                            permissionFuture.completeExceptionally(ex);
+                            permissionFuture.complete(false);
                             return;
                         }
 
