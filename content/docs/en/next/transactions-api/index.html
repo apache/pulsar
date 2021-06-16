@@ -147,6 +147,7 @@ Consumer&lt;String&gt; sourceConsumer = pulsarClient
 Producer&lt;String&gt; sinkProducer = pulsarClient
         .<span class="hljs-keyword">new</span><span class="hljs-constructor">Producer(Schema.STRING)</span>
         .topic(sinkTopic)
+        .send<span class="hljs-constructor">Timeout(0, TimeUnit.MILLISECONDS)</span>
         .create<span class="hljs-literal">()</span>;
 
 Transaction txn = pulsarClient
