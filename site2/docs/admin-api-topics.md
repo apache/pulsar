@@ -221,7 +221,7 @@ You can check the following statistics of a given non-partitioned topic.
 
       -   **averageMsgSize**: The average message size in bytes from this publisher within the last interval.
 
-      -   **chunkedMessageRate**: Total chunked message count received.
+      -   **chunkedMessageRate**: Total chunked message count received for this producer on this topic.
 
       -   **producerId**: The internal identifier for this producer on this topic.
 
