@@ -126,7 +126,7 @@ ls offloaders
 <li><p>以下为<strong>必选</strong> 配置。</p>
 <p>必选配置|说明|示例值 <code>managedLedgerOffloadDriver</code> | Offloader 驱动程序名称 | azureblob <code>offloadersDirectory</code> | Offloader 目录 | offloaders <code>managedLedgerOffloadBucket</code> | Bucket | pulsar-topic-offload</p></li>
 <li><p>以下为<strong>可选</strong> 配置。</p>
-<p>可选 | 描述 | 示例值 |---|---|--- <code>managedLedgerOffloadReadBufferSizeInBytes</code>|读取数据块的大小|1 MB <code>managedLedgerOffloadMaxBlockSizeInBytes</code>|写数据块的大小|64 MB <code>managedLedgerMinLedgerRolloverTimeMinutes</code>|一个 Topic 的 Ledger 翻转之间的最小时间<br><br><strong>注意</strong>: 不建议你在生产环境中设置此配置。 <code>managedLedgerMaxEntriesPerLedger</code>|在触发翻转之前追加到 Topic ledger 的最大条目数。<br><br><strong>注意</strong>：不建议你在生产环境中设置此配置。</p></li>
+<p>可选 | 描述 | 示例值 |---|---|--- <code>managedLedgerOffloadReadBufferSizeInBytes</code>|读取数据块的大小|1 MB <code>managedLedgerOffloadMaxBlockSizeInBytes</code>|写数据块的大小|64 MB <code>managedLedgerMinLedgerRolloverTimeMinutes</code>|一个 Topic 的 Ledger 翻转之间的最小时间<br><br><strong>注意</strong>: 不建议你在生产环境中设置此配置。 <code>managedLedgerMaxEntriesPerLedger</code>|在触发翻转之前追加到 Topic ledger 的最大条目数。<br><br><strong>注意</strong>：不建议你在生产环境中设置此配置。|5000</p></li>
 </ul>
 <h4><a class="anchor" aria-hidden="true" id="bucket-必选"></a><a href="#bucket-必选" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Bucket (必选)</h4>
 <p>一个 bucket 就是一个存储数据的基本容器。 你在 Azure BlobStore 中存储的所有东西都必须包含在一个 bucket 里。 您可以使用 bucket 来管理数据并控制对数据的访问，但与目录和文件夹不同，你不能嵌套 bucket。</p>
@@ -145,7 +145,7 @@ ls offloaders
 </ul>
 <h4><a class="anchor" aria-hidden="true" id="读取写入的数据块大小"></a><a href="#读取写入的数据块大小" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>读取/写入的数据块大小</h4>
 <p>你可以在配置文件<code>broker.conf</code>或<code>standalone.conf</code>中配置发送到 Azure BlobStore 或从 Azure BlobStore 读取的请求大小。</p>
-<p>配置 | 描述 | 默认值 <code>managedLedgerOffloadReadBufferSizeInBytes</code> | 从 Azure BlobStore 读回数据时，每个单独读的块大小。 <code>managedLedgerOffloadMaxBlockSizeInBytes</code> | 在多部分上传至 Azure BlobStore 存储时，每一部分的最大尺寸。 它<strong>不能</strong>小于5MB。 |64 MB</p>
+<p>配置 | 描述 | 默认值 |---|---|-- <code>managedLedgerOffloadReadBufferSizeInBytes</code> | 从 Azure BlobStore 读回数据时，每个单独读的块大小。|1 MB <code>managedLedgerOffloadMaxBlockSizeInBytes</code> | 在多部分上传至 Azure BlobStore 存储时，每一部分的最大尺寸。 它<strong>不能</strong>小于5MB。 |64 MB</p>
 <h3><a class="anchor" aria-hidden="true" id="配置-azure-blobstore-自动运行"></a><a href="#配置-azure-blobstore-自动运行" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置 Azure BlobStore 自动运行</h3>
 <p>命名空间策略可以配置成一旦到达阈值就自动卸载数据。 该阈值基于一个 topic 在 Pulsar 集群的数据存储大小而定。 一旦 topic 到达阈值，就自动触发卸载操作。</p>
 <p>阈值|动作 |---|---</p>
@@ -164,7 +164,7 @@ ls offloaders
 <p>关于<code>pulsar-admin namespaces set-offload-threshold options</code> 命令的更多信息，包括参数、描述和默认值等，可参见<a href="http://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-set-offload-threshold-em-">此处</a>。</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="配置-azure-blobstore-手动运行"></a><a href="#配置-azure-blobstore-手动运行" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置 Azure BlobStore 手动运行</h3>
-<p>对于每一个 topic，你可以使用下列方法来手动触发 Azure BlobStore S3 offloader：</p>
+<p>对于每一个 topic，你可以使用下列方法来手动触发 Azure BlobStore offloader：</p>
 <ul>
 <li><p>使用 REST endpoint。</p></li>
 <li><p>使用命令行工具(例如 pulsar-admin)。</p>
