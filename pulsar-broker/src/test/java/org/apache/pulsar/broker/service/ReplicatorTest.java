@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -35,6 +36,7 @@ import java.lang.reflect.Method;
 import java.util.List;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -162,12 +164,12 @@ public class ReplicatorTest extends ReplicatorTestBase {
         ConcurrentOpenHashMap<String, PulsarClient> replicationClients2 = ns2.getReplicationClients();
         ConcurrentOpenHashMap<String, PulsarClient> replicationClients3 = ns3.getReplicationClients();
 
-        Assert.assertNotNull(replicationClients1.get("r2"));
-        Assert.assertNotNull(replicationClients1.get("r3"));
-        Assert.assertNotNull(replicationClients2.get("r1"));
-        Assert.assertNotNull(replicationClients2.get("r3"));
-        Assert.assertNotNull(replicationClients3.get("r1"));
-        Assert.assertNotNull(replicationClients3.get("r2"));
+        assertNotNull(replicationClients1.get("r2"));
+        assertNotNull(replicationClients1.get("r3"));
+        assertNotNull(replicationClients2.get("r1"));
+        assertNotNull(replicationClients2.get("r3"));
+        assertNotNull(replicationClients3.get("r1"));
+        assertNotNull(replicationClients3.get("r2"));
 
         // Case 1: Update the global namespace replication configuration to only contains the local cluster itself
         admin1.namespaces().setNamespaceReplicationClusters("pulsar/ns", Sets.newHashSet("r1"));
@@ -176,12 +178,12 @@ public class ReplicatorTest extends ReplicatorTestBase {
         Thread.sleep(1000L);
 
         // Make sure that the internal replicators map still contains remote cluster info
-        Assert.assertNotNull(replicationClients1.get("r2"));
-        Assert.assertNotNull(replicationClients1.get("r3"));
-        Assert.assertNotNull(replicationClients2.get("r1"));
-        Assert.assertNotNull(replicationClients2.get("r3"));
-        Assert.assertNotNull(replicationClients3.get("r1"));
-        Assert.assertNotNull(replicationClients3.get("r2"));
+        assertNotNull(replicationClients1.get("r2"));
+        assertNotNull(replicationClients1.get("r3"));
+        assertNotNull(replicationClients2.get("r1"));
+        assertNotNull(replicationClients2.get("r3"));
+        assertNotNull(replicationClients3.get("r1"));
+        assertNotNull(replicationClients3.get("r2"));
 
         // Case 2: Update the configuration back
         admin1.namespaces().setNamespaceReplicationClusters("pulsar/ns", Sets.newHashSet("r1", "r2", "r3"));
@@ -190,12 +192,12 @@ public class ReplicatorTest extends ReplicatorTestBase {
         Thread.sleep(1000L);
 
         // Make sure that the internal replicators map still contains remote cluster info
-        Assert.assertNotNull(replicationClients1.get("r2"));
-        Assert.assertNotNull(replicationClients1.get("r3"));
-        Assert.assertNotNull(replicationClients2.get("r1"));
-        Assert.assertNotNull(replicationClients2.get("r3"));
-        Assert.assertNotNull(replicationClients3.get("r1"));
-        Assert.assertNotNull(replicationClients3.get("r2"));
+        assertNotNull(replicationClients1.get("r2"));
+        assertNotNull(replicationClients1.get("r3"));
+        assertNotNull(replicationClients2.get("r1"));
+        assertNotNull(replicationClients2.get("r3"));
+        assertNotNull(replicationClients3.get("r1"));
+        assertNotNull(replicationClients3.get("r2"));
 
         // Case 3: TODO: Once automatic cleanup is implemented, add tests case to verify auto removal of clusters
     }
@@ -791,6 +793,42 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         p1.close();
         reader2.closeAsync().get();
+    }
+
+    @Test
+    public void testReplicatorWithPartitionedTopic() throws Exception {
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String persistentTopicName = "persistent://" + namespace + "/partTopic" + UUID.randomUUID();
+
+        admin1.namespaces().createNamespace(namespace);
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"));
+        // Create partitioned-topic from R1
+        admin1.topics().createPartitionedTopic(persistentTopicName, 3);
+        // List partitioned topics from R2
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin2.topics().getPartitionedTopicList(namespace)));
+        Awaitility.await().untilAsserted(() -> assertEquals(
+                admin2.topics().getPartitionedTopicList(namespace).get(0), persistentTopicName));
+        assertEquals(admin1.topics().getList(namespace).size(), 3);
+        // List partitioned topics from R3
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin3.topics().getPartitionedTopicList(namespace)));
+        Awaitility.await().untilAsserted(() -> assertEquals(
+                admin3.topics().getPartitionedTopicList(namespace).get(0), persistentTopicName));
+        // Update partitioned topic from R2
+        admin2.topics().updatePartitionedTopic(persistentTopicName, 5);
+        assertEquals(admin2.topics().getPartitionedTopicMetadata(persistentTopicName).partitions, 5);
+        assertEquals(admin2.topics().getList(namespace).size(), 5);
+        // Update partitioned topic from R3
+        admin3.topics().updatePartitionedTopic(persistentTopicName, 5);
+        assertEquals(admin3.topics().getPartitionedTopicMetadata(persistentTopicName).partitions, 5);
+        assertEquals(admin3.topics().getList(namespace).size(), 5);
+        // Update partitioned topic from R1
+        admin1.topics().updatePartitionedTopic(persistentTopicName, 6);
+        assertEquals(admin1.topics().getPartitionedTopicMetadata(persistentTopicName).partitions, 6);
+        assertEquals(admin2.topics().getPartitionedTopicMetadata(persistentTopicName).partitions, 6);
+        assertEquals(admin3.topics().getPartitionedTopicMetadata(persistentTopicName).partitions, 6);
+        assertEquals(admin1.topics().getList(namespace).size(), 6);
+        assertEquals(admin2.topics().getList(namespace).size(), 6);
+        assertEquals(admin3.topics().getList(namespace).size(), 6);
     }
 
     /**

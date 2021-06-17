@@ -507,6 +507,7 @@ public class PersistentTopicsBase extends AdminResource {
                 throw new RestException(Status.FORBIDDEN, "Local cluster is not part of replicate cluster list");
             }
             try {
+                tryCreatePartitionsAsync(numPartitions).get();
                 createSubscriptions(topicName, numPartitions).get();
             } catch (Exception e) {
                 if (e.getCause() instanceof RestException) {
@@ -520,7 +521,7 @@ public class PersistentTopicsBase extends AdminResource {
             if (!updateLocalTopicOnly) {
                 CompletableFuture<Void> updatePartition = new CompletableFuture<>();
                 final String path = ZkAdminPaths.partitionedTopicPath(topicName);
-                updatePartitionInOtherCluster(numPartitions, clusters).thenAccept((res) -> {
+                updatePartitionInOtherCluster(numPartitions, clusters).thenRun(() -> {
                     try {
                         byte[] data = jsonMapper().writeValueAsBytes(new PartitionedTopicMetadata(numPartitions));
                         globalZk().setData(path, data, -1, (rc, path1, ctx, stat) -> {
