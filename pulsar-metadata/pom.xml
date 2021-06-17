@@ -31,7 +31,6 @@
 
   <artifactId>pulsar-metadata</artifactId>
   <name>Pulsar Metadata</name>
-
   <dependencies>
     <dependency>
       <groupId>org.apache.pulsar</groupId>
@@ -55,6 +54,12 @@
     <dependency>
       <groupId>org.xerial.snappy</groupId>
       <artifactId>snappy-java</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.awaitility</groupId>
+      <artifactId>awaitility</artifactId>
       <scope>test</scope>
     </dependency>
 
