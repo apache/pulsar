@@ -315,5 +315,5 @@ functionsDirectory: ./functions
 validateConnectorConfig: false
 
 # Whether to initialize distributed log metadata by runtime.
-# If it is set to true, you must ensure that it has been initialized by "bin/pulsarinitialize-cluster-metadata" command.
+# If it is set to true, you must ensure that it has been initialized by "bin/pulsar initialize-cluster-metadata" command.
 initializedDlogMetadata: false
