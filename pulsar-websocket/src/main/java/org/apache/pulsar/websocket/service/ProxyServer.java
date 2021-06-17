@@ -120,7 +120,7 @@ public class ProxyServer {
     }
 
     public void start() throws PulsarServerException {
-        log.info("Starting web socket proxy at port {}", conf.getWebServicePort().get());
+        conf.getWebServicePort().ifPresent(port-> log.info("Starting web socket proxy at port {}", port));
         RequestLogHandler requestLogHandler = new RequestLogHandler();
         Slf4jRequestLog requestLog = new Slf4jRequestLog();
         requestLog.setExtended(true);
