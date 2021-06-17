@@ -207,7 +207,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void internalConfiguration() throws Exception {
+    public void internalConfiguration() {
         InternalConfigurationData expectedData = new InternalConfigurationData(
             pulsar.getConfiguration().getZookeeperServers(),
             pulsar.getConfiguration().getConfigurationStoreServers(),

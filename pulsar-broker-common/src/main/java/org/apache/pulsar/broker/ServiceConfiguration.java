@@ -1860,7 +1860,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_SERVER,
         doc = "A comma-separated list of namespaces to bootstrap"
     )
-    private List<String> bootstrapNamespaces = new ArrayList<String>();
+    private List<String> bootstrapNamespaces = new ArrayList<>();
     private Properties properties = new Properties();
     @FieldContext(
         dynamic = true,

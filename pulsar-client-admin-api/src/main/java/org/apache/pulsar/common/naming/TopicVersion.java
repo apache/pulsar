@@ -16,17 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.admin.v2;
+package org.apache.pulsar.common.naming;
 
-import io.swagger.annotations.Api;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
-import org.apache.pulsar.broker.admin.impl.BrokersBase;
-
-@Path("/brokers")
-@Api(value = "/brokers", description = "BrokersBase admin apis", tags = "brokers")
-@Produces(MediaType.APPLICATION_JSON)
-public class Brokers extends BrokersBase {
-
+public enum TopicVersion {
+    V1,
+    V2,
 }

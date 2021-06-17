@@ -245,6 +245,7 @@ public class ClustersBase extends PulsarWebResource {
             @ApiResponse(code = 412, message = "Peer cluster doesn't exist."),
             @ApiResponse(code = 500, message = "Internal server error.")
     })
+
     public void setPeerClusterNames(
         @ApiParam(
             value = "The cluster name",

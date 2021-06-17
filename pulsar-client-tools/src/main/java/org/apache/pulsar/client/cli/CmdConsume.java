@@ -414,7 +414,7 @@ public class CmdConsume {
                     LOG.debug("No message to consume after waiting for 5 seconds.");
                 } else {
                     try {
-                        System.out.println(Base64.getDecoder().decode(msg));
+                        System.out.println(Arrays.toString(Base64.getDecoder().decode(msg)));
                     }catch(Exception e) {
                         System.out.println(msg);
                     }
