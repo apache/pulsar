@@ -48,6 +48,7 @@ import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -78,6 +79,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     private final String testTopic = "persistent://" + myNamespace + "/test-set-backlog-quota";
 
     private final String persistenceTopic = "persistent://" + myNamespace + "/test-set-persistence";
+
+    private final String topicPolicyEventsTopic = "persistent://" + myNamespace + "/__change_events";
 
     @BeforeMethod
     @Override
@@ -1506,5 +1509,29 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         for (Consumer<String> c : consumerList) {
             c.close();
         }
+    }
+
+    @Test
+    public void testSystemTopicShouldBeCompacted() throws Exception {
+        BacklogQuota backlogQuota = new BacklogQuota(1024, BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
+        log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
+
+        Awaitility.await()
+                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(testTopic)));
+
+        admin.topics().setBacklogQuota(testTopic, backlogQuota);
+        log.info("Backlog quota set success on topic: {}", testTopic);
+
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertEquals(admin.topics().getBacklogQuotaMap(testTopic)
+                        .get(BacklogQuota.BacklogQuotaType.destination_storage), backlogQuota));
+
+        pulsar.getBrokerService().checkCompaction();
+
+        Awaitility.await()
+                .untilAsserted(() -> {
+                    TopicStats stats = admin.topics().getStats(topicPolicyEventsTopic);
+                    Assert.assertTrue(stats.subscriptions.containsKey("__compaction"));
+                });
     }
 }
