@@ -184,7 +184,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 readerCaches.put(namespace, readerCompletableFuture);
                 readerCompletableFuture.whenComplete((reader, ex) -> {
                     if (ex != null) {
-                        log.error("[{}] Failed to create read on __change_events topic", namespace, ex);
+                        log.error("[{}] Failed to create reader on __change_events topic", namespace, ex);
                         result.completeExceptionally(ex);
                     } else {
                         initPolicesCache(reader, result);
