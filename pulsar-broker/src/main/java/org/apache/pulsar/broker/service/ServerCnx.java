@@ -1686,7 +1686,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }, null);
 
         CompletableFuture<Integer> batchSizeFuture = entryFuture.thenApply(entry -> {
-            MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+            ByteBuf headersAndPayload = entry.getDataBuffer();
+            // skip broker entry metadata that is only used on the broker side
+            Commands.skipBrokerEntryMetadataIfExist(headersAndPayload);
+            MessageMetadata metadata = Commands.parseMessageMetadata(headersAndPayload);
             int batchSize = metadata.getNumMessagesInBatch();
             entry.release();
             return metadata.hasNumMessagesInBatch() ? batchSize : -1;
