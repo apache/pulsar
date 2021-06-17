@@ -169,7 +169,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         // 3) Create the partitioned topic
         response = mock(AsyncResponse.class);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
-        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, testLocalTopicName, 3);
+        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, testLocalTopicName, 3, false);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
 
@@ -289,7 +289,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         // 3) Create the partitioned topic
         AsyncResponse response  = mock(AsyncResponse.class);
-        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, testLocalTopicName, 1);
+        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, testLocalTopicName, 1, false);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
@@ -375,7 +375,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         doReturn(new Policies()).when(persistentTopics).getNamespacePolicies(any());
         AsyncResponse response = mock(AsyncResponse.class);
         ArgumentCaptor<RestException> errCaptor = ArgumentCaptor.forClass(RestException.class);
-        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, partitionedTopicName, 5);
+        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, partitionedTopicName, 5, false);
         verify(response, timeout(5000).times(1)).resume(errCaptor.capture());
         Assert.assertEquals(errCaptor.getValue().getResponse().getStatus(), Response.Status.CONFLICT.getStatusCode());
     }
@@ -399,7 +399,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         doNothing().when(persistentTopics).validateAdminAccessForTenant(anyString());
         AsyncResponse response = mock(AsyncResponse.class);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
-        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, partitionedTopicName, 5);
+        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, partitionedTopicName, 5, false);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
         persistentTopics.updatePartitionedTopic(testTenant, testNamespace, partitionedTopicName, true, false, 10);
@@ -428,7 +428,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         // 3) create partitioned topic and unload
         response = mock(AsyncResponse.class);
         responseCaptor = ArgumentCaptor.forClass(Response.class);
-        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, partitionTopicName, 6);
+        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, partitionTopicName, 6, false);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
         response = mock(AsyncResponse.class);
@@ -458,13 +458,13 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     public void testGetPartitionedTopicsList() throws KeeperException, InterruptedException, PulsarAdminException {
         AsyncResponse response = mock(AsyncResponse.class);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
-        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, "test-topic1", 3);
+        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, "test-topic1", 3, false);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
 
         response = mock(AsyncResponse.class);
         responseCaptor = ArgumentCaptor.forClass(Response.class);
-        nonPersistentTopic.createPartitionedTopic(response, testTenant, testNamespace, "test-topic2", 3);
+        nonPersistentTopic.createPartitionedTopic(response, testTenant, testNamespace, "test-topic2", 3, false);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
 
@@ -494,7 +494,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     public void testCreateExistedPartition() {
         final AsyncResponse response = mock(AsyncResponse.class);
         final String topicName = "test-create-existed-partition";
-        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, topicName, 3);
+        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, topicName, 3, false);
 
         final String partitionName = TopicName.get(topicName).getPartition(0).getLocalName();
         try {
@@ -513,7 +513,8 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         final int numPartitions = 5;
         AsyncResponse response = mock(AsyncResponse.class);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
-        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, partitionedTopicName, numPartitions);
+        persistentTopics.createPartitionedTopic(
+                response, testTenant, testNamespace, partitionedTopicName, numPartitions, false);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
 
@@ -553,7 +554,8 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         final int numPartitions = 5;
         AsyncResponse response = mock(AsyncResponse.class);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
-        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, partitionedTopicName, numPartitions);
+        persistentTopics.createPartitionedTopic(
+                response, testTenant, testNamespace, partitionedTopicName, numPartitions, false);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
         String role = "role";
@@ -596,7 +598,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         // create partitioned topic and compaction on it
         response = mock(AsyncResponse.class);
-        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, partitionTopicName, 2);
+        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, partitionTopicName, 2, false);
         persistentTopics.compact(response, testTenant, testNamespace, partitionTopicName, true);
         responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());

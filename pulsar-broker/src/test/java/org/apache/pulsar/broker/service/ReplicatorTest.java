@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
+import static org.apache.pulsar.broker.BrokerTestUtil.randomSuffixString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
@@ -79,7 +80,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
@@ -1121,6 +1121,61 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         consumer.close();
     }
+
+
+    @Test
+    public void createPartitionedTopicTest() throws Exception {
+        final String cluster1 = pulsar1.getConfig().getClusterName();
+        final String cluster2 = pulsar2.getConfig().getClusterName();
+        final String cluster3 = pulsar3.getConfig().getClusterName();
+        final String namespace = randomSuffixString("pulsar/ns", 5);
+
+        final String persistentPartitionedTopic =
+                randomSuffixString("persistent://" + namespace + "/partitioned", 5);
+        final String persistentNonPartitionedTopic =
+                randomSuffixString("persistent://" + namespace + "/non-partitioned", 5);
+        final String nonPersistentPartitionedTopic =
+                randomSuffixString("non-persistent://" + namespace + "/partitioned", 5);
+        final String nonPersistentNonPartitionedTopic =
+                randomSuffixString("non-persistent://" + namespace + "/non-partitioned", 5);
+        final int numPartitions = 3;
+
+        admin1.namespaces().createNamespace(namespace, Sets.newHashSet(cluster1, cluster2, cluster3));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"));
+
+        admin1.topics().createPartitionedTopic(persistentPartitionedTopic, numPartitions);
+        admin1.topics().createPartitionedTopic(nonPersistentPartitionedTopic, numPartitions);
+        admin1.topics().createNonPartitionedTopic(persistentNonPartitionedTopic);
+        admin1.topics().createNonPartitionedTopic(nonPersistentNonPartitionedTopic);
+
+        List<String> partitionedTopicList = admin1.topics().getPartitionedTopicList(namespace);
+        Assert.assertTrue(partitionedTopicList.contains(persistentPartitionedTopic));
+        Assert.assertTrue(partitionedTopicList.contains(nonPersistentPartitionedTopic));
+
+        // wait non-partitioned topics replicators created finished
+        Thread.sleep(1000);
+
+        // expected topic list didn't contain non-persistent-non-partitioned topic,
+        // because this model topic didn't create path in local metadata store.
+        List<String> expectedTopicList = Lists.newArrayList(
+                persistentNonPartitionedTopic, nonPersistentNonPartitionedTopic);
+        TopicName pt = TopicName.get(persistentPartitionedTopic);
+        for (int i = 0; i < numPartitions; i++) {
+            expectedTopicList.add(pt.getPartition(i).toString());
+        }
+
+        checkListContainExpectedTopic(admin1.topics().getList(namespace), expectedTopicList);
+        checkListContainExpectedTopic(admin2.topics().getList(namespace), expectedTopicList);
+        checkListContainExpectedTopic(admin3.topics().getList(namespace), expectedTopicList);
+    }
+
+    private void checkListContainExpectedTopic(List<String> list, List<String> expectedTopicList) {
+        Assert.assertEquals(list.size(), expectedTopicList.size());
+        for (String expectTopic : expectedTopicList) {
+            Assert.assertTrue(list.contains(expectTopic));
+        }
+    }
+
     private static final Logger log = LoggerFactory.getLogger(ReplicatorTest.class);
 
 }

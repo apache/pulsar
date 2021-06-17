@@ -374,7 +374,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            getTopics().createPartitionedTopic(topic, numPartitions);
+            getTopics().createPartitionedTopic(topic, numPartitions, false);
         }
     }
 

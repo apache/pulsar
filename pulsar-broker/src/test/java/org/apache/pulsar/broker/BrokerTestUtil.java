@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker;
 
+import org.apache.commons.lang3.RandomStringUtils;
+
 import java.util.UUID;
 
 /**
@@ -27,6 +29,10 @@ public class BrokerTestUtil {
     // Generate unique name for different test run.
     public static String newUniqueName(String prefix) {
         return prefix + "-" + UUID.randomUUID();
+    }
+
+    public static String randomSuffixString(String content, int numSuffix) {
+        return content + "-" + RandomStringUtils.randomAlphabetic(numSuffix).toLowerCase();
     }
 
 }
