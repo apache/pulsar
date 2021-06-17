@@ -165,26 +165,39 @@ class AdminProxyHandler extends ProxyServlet {
     // This class allows the request body to be replayed, the default implementation
     // does not
     protected class ReplayableProxyContentProvider extends ProxyInputStreamContentProvider {
-        private Boolean firstIteratorCalled = false;
+        static final int MIN_REPLAY_BODY_BUFFER_SIZE = 64;
+        static final int MAX_REPLAY_BODY_BUFFER_SIZE = 1 * 1024 * 1024; // 1MB
+        private boolean bodyBufferAvailable = false;
+        private boolean bodyBufferMaxSizeReached = false;
         private final ByteArrayOutputStream bodyBuffer;
         protected ReplayableProxyContentProvider(HttpServletRequest request, HttpServletResponse response, Request proxyRequest, InputStream input) {
             super(request, response, proxyRequest, input);
-            bodyBuffer = new ByteArrayOutputStream(Math.max(request.getContentLength(), 0));
+            bodyBuffer = new ByteArrayOutputStream(
+                    Math.min(Math.max(request.getContentLength(), MIN_REPLAY_BODY_BUFFER_SIZE),
+                            MAX_REPLAY_BODY_BUFFER_SIZE));
         }
 
         @Override
         public Iterator<ByteBuffer> iterator() {
-            if (firstIteratorCalled) {
+            if (bodyBufferAvailable) {
                 return Collections.singleton(ByteBuffer.wrap(bodyBuffer.toByteArray())).iterator();
             } else {
-                firstIteratorCalled = true;
+                bodyBufferAvailable = true;
                 return super.iterator();
             }
         }
 
         @Override
         protected ByteBuffer onRead(byte[] buffer, int offset, int length) {
-            bodyBuffer.write(buffer, offset, length);
+            if (!bodyBufferMaxSizeReached) {
+                if (bodyBuffer.size() + length < MAX_REPLAY_BODY_BUFFER_SIZE) {
+                    bodyBuffer.write(buffer, offset, length);
+                } else {
+                    bodyBufferMaxSizeReached = true;
+                    bodyBufferAvailable = false;
+                    bodyBuffer.reset();
+                }
+            }
             return super.onRead(buffer, offset, length);
         }
     }
