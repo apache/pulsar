@@ -1940,15 +1940,15 @@ public class PersistentTopic extends AbstractTopic
                         ledgers.forEach(ledgerId -> {
                             CompletableFuture<Void> completableFuture = new CompletableFuture<>();
                             getLedgerMetadataFutures.add(completableFuture);
-                            CompletableFuture<LedgerMetadata> metadataFuture =
-                                    null;
+                            CompletableFuture<LedgerMetadata> metadataFuture = null;
                             try {
                                 metadataFuture = brokerService.getPulsar().getBookKeeperClient()
-                                .getLedgerMetadata(ledgerId);
-                            } catch (Exception e) {
+                                    .getLedgerMetadata(ledgerId);
+                            } catch (NullPointerException e) {
+                                // related to bookkeeper issue https://github.com/apache/bookkeeper/issues/2741
                                 if (log.isDebugEnabled()) {
                                     log.debug("{{}} Failed to get ledger metadata for the schema ledger {}",
-                                            topic, ledgerId);
+                                            topic, ledgerId, e);
                                 }
                             }
                             if (metadataFuture != null) {
