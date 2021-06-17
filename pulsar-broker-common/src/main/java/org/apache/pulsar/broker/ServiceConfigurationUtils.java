@@ -50,6 +50,22 @@ public class ServiceConfigurationUtils {
         }
     }
 
+    public static int getAppliedPort(ServiceConfiguration configuration, int port) {
+        Map<String, AdvertisedListener> result = MultipleListenerValidator
+                .validateAndAnalysisAdvertisedListener(configuration);
+        if (configuration.getAdvertisedAddress() != null) {
+            return port;
+        }
+        AdvertisedListener advertisedListener = result.get(configuration.getInternalListenerName());
+        if (advertisedListener != null) {
+            int advertisedListenerPort = advertisedListener.getBrokerServiceUrl().getPort();
+            // AdvertisedListener has its own port.
+            if (advertisedListenerPort != 0) {
+                return advertisedListenerPort;
+            }
+        }
+        return port;
+    }
     /**
      * Get the address of Broker, first try to get it from AdvertisedAddress.
      * If it is not set, try to get the address set by advertisedListener.

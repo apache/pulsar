@@ -1363,7 +1363,7 @@ public class PulsarService implements AutoCloseable {
     protected String brokerUrl(ServiceConfiguration config) {
         if (config.getBrokerServicePort().isPresent()) {
             return brokerUrl(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config),
-                    getBrokerListenPort().get());
+                    ServiceConfigurationUtils.getAppliedPort(config, getBrokerListenPort().get()));
         } else {
             return null;
         }
@@ -1376,7 +1376,7 @@ public class PulsarService implements AutoCloseable {
     public String brokerUrlTls(ServiceConfiguration config) {
         if (config.getBrokerServicePortTls().isPresent()) {
             return brokerUrlTls(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config),
-                    getBrokerListenPortTls().get());
+                    ServiceConfigurationUtils.getAppliedPort(config, getBrokerListenPortTls().get()));
         } else {
             return null;
         }
@@ -1389,7 +1389,7 @@ public class PulsarService implements AutoCloseable {
     public String webAddress(ServiceConfiguration config) {
         if (config.getWebServicePort().isPresent()) {
             return webAddress(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config),
-                    getListenPortHTTP().get());
+                    ServiceConfigurationUtils.getAppliedPort(config, getListenPortHTTP().get()));
         } else {
             return null;
         }
@@ -1402,7 +1402,7 @@ public class PulsarService implements AutoCloseable {
     public String webAddressTls(ServiceConfiguration config) {
         if (config.getWebServicePortTls().isPresent()) {
             return webAddressTls(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config),
-                    getListenPortHTTPS().get());
+                    ServiceConfigurationUtils.getAppliedPort(config, getListenPortHTTPS().get()));
         } else {
             return null;
         }
