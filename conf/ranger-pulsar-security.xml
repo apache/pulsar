@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -21,7 +21,7 @@
 -->
 
 <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
-<configuration xmlns:xi="http://www.w3.org/2001/XInclude">
+<configuration>
 
 	<property>
 		<name>ranger.plugin.pulsar.service.name</name>
