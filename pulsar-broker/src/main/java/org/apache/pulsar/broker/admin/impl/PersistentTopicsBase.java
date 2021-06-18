@@ -1100,7 +1100,9 @@ public class PersistentTopicsBase extends AdminResource {
             boolean includeMetadata = metadata && hasSuperUserAccess();
             return topic.getInternalStats(includeMetadata).get();
         } catch (Exception e) {
-            throw new RestException(Status.INTERNAL_SERVER_ERROR, (e instanceof ExecutionException) ? e.getCause().getMessage() : e.getMessage());
+            log.error("[{}] Failed to get internal stats for {}", clientAppId(), topicName, e);
+            throw new RestException(Status.INTERNAL_SERVER_ERROR,
+                    (e instanceof ExecutionException) ? e.getCause().getMessage() : e.getMessage());
         }
     }
 

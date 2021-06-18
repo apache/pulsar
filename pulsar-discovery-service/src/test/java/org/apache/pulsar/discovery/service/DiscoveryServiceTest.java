@@ -33,6 +33,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.bookkeeper.bookie.BookieException;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
@@ -139,7 +140,7 @@ public class DiscoveryServiceTest extends BaseDiscoveryTestSetup {
             future.get();
             fail("Partition metadata lookup should have failed");
         } catch (ExecutionException e) {
-            assertEquals(e.getCause().getClass(), MetadataStoreException.class);
+            assertEquals(e.getCause().getClass(), BookieException.MetadataStoreException.class);
         }
     }
 

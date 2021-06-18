@@ -1583,8 +1583,20 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         batchSizeFuture.whenComplete((batchSize, e) -> {
             if (e != null) {
-                ctx.writeAndFlush(Commands.newError(
-                        requestId, ServerError.MetadataError, "Failed to get batch size for entry " + e.getMessage()));
+                if (e.getCause() instanceof ManagedLedgerException.NonRecoverableLedgerException) {
+                    // in this case, the ledgers been removed except the current ledger
+                    // and current ledger without any data
+                    ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId,
+                            MessageIdData.newBuilder().setLedgerId(-1).setEntryId(-1).build(),
+                            MessageIdData.newBuilder()
+                                    .setLedgerId(markDeletePosition != null ? markDeletePosition.getLedgerId() : -1)
+                                    .setEntryId(markDeletePosition != null ? markDeletePosition.getEntryId() : -1)
+                                    .build()));
+                } else {
+                    ctx.writeAndFlush(Commands.newError(
+                            requestId, ServerError.MetadataError,
+                            "Failed to get batch size for entry " + e.getMessage()));
+                }
             } else {
                 int largestBatchIndex = batchSize > 0 ? batchSize - 1 : -1;
 
