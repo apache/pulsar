@@ -82,7 +82,6 @@ import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
-import org.apache.pulsar.common.util.SimpleTextOutputStream;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -1001,12 +1000,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
     @Test
     public void testMetricsProvider() throws IOException {
-        PrometheusRawMetricsProvider rawMetricsProvider = new PrometheusRawMetricsProvider() {
-            @Override
-            public void generate(SimpleTextOutputStream stream) {
-                stream.write("test_metrics{label1=\"xyz\"} 10 \n");
-            }
-        };
+        PrometheusRawMetricsProvider rawMetricsProvider = stream -> stream.write("test_metrics{label1=\"xyz\"} 10 \n");
         getPulsar().addPrometheusRawMetricsProvider(rawMetricsProvider);
         HttpClient httpClient = HttpClientBuilder.create().build();
         final String metricsEndPoint = getPulsar().getWebServiceAddress() + "/metrics";
