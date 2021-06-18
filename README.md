@@ -116,7 +116,7 @@ $ mvn test -Dtest=unit-test-name (e.g: ConsumerBuilderImplTest)
 Run Selected Test packages:
 
 ```bash
-$ mvn test -pl module-name (e.g: pulsar-broker) -Dinclude=org/apache/pulsar/**/*.java
+$ mvn test -pl module-name (for example, pulsar-broker) -Dinclude=org/apache/pulsar/**/*.java
 ```
 
 Start standalone Pulsar service:
