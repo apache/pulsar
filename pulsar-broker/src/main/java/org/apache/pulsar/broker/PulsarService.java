@@ -1360,6 +1360,11 @@ public class PulsarService implements AutoCloseable {
         return shutdownService;
     }
 
+    /**
+     * Advertised service address.
+     * The order of obtaining addresses is advertisedAddress, then hostname.
+     * @return Hostname or IP address the service advertises to the outside world.
+     */
     public static String advertisedAddress(ServiceConfiguration config) {
         return ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getAdvertisedAddress());
     }
