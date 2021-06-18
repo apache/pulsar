@@ -37,7 +37,7 @@ docker build -t $IMAGE_NAME ./docker/manylinux2014 \
 
 
 # Build wheel file
-BUILD_IMAGE_NAME="${BUILD_IMAGE_NAME:-apachepulsar/pulsar-build}"
+BUILD_IMAGE_NAME="${BUILD_IMAGE_NAME:-pulsar-build}"
 IMAGE=$BUILD_IMAGE_NAME:manylinux-$PYTHON_SPEC
 
 VOLUME_OPTION=${VOLUME_OPTION:-"-v $ROOT_DIR:/pulsar"}

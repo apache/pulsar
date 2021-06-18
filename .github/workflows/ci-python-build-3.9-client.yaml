@@ -17,7 +17,7 @@
 # under the License.
 #
 
-name: CI - Python3.9 client build
+name: CI - Python - Build 3.9 client
 on:
   pull_request:
     branches:
@@ -33,7 +33,7 @@ on:
       - 'pulsar-client-cpp/**'
 jobs:
 
-  cpp-build-manylinux2014:
+  build-wheel:
     name:
     runs-on: ubuntu-latest
     timeout-minutes: 120
