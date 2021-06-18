@@ -127,6 +127,6 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
                 .subscriptionType(SubscriptionType.Exclusive)
                 .subscriptionName(subscription)
                 .subscribe();
-        System.out.println(consumer.getLastMessageId());
+        consumer.getLastMessageId();
     }
 }

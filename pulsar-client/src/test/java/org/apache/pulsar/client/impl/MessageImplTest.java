@@ -518,13 +518,13 @@ public class MessageImplTest {
         dupCompositeByteBuf.addComponents(true, brokerMeta, byteBuf);
 
         //second, parse message metadata without skip broker entry metadata
+        Commands.skipChecksumIfPresent(compositeByteBuf);
+        int metadataSize = (int) compositeByteBuf.readUnsignedInt();
+        MessageMetadata md = new MessageMetadata();
         try {
-            Commands.skipChecksumIfPresent(compositeByteBuf);
-            int metadataSize = (int) compositeByteBuf.readUnsignedInt();
-            MessageMetadata md = new MessageMetadata();
             md.parseFrom(compositeByteBuf, metadataSize);
             Assert.fail("Parse operation should be failed.");
-        } catch (Exception e) {
+        } catch (IllegalArgumentException e) {
             // expected
         }
 
