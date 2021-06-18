@@ -19,10 +19,11 @@
 package org.apache.pulsar.common.naming;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import org.apache.pulsar.common.util.Codec;
 import org.testng.annotations.Test;
 
@@ -200,10 +201,24 @@ public class TopicNameTest {
 
         assertEquals(TopicName.getPartitionIndex("persistent://myprop/mycolo/myns/mytopic-partition-4"), 4);
 
-        // NOTE: Following behavior is not right actually, but for the backward compatibility, it shouldn't be changed
-        assertEquals(TopicName.getPartitionIndex("mytopic-partition--1"), 1);
-        assertEquals(TopicName.getPartitionIndex("mytopic-partition-00"), 0);
-        assertEquals(TopicName.getPartitionIndex("mytopic-partition-012"), 12);
+        // Following behavior is not right actually, none partitioned topic, partition index is -1
+        assertEquals(TopicName.getPartitionIndex("mytopic-partition--1"), -1);
+        assertEquals(TopicName.getPartitionIndex("mytopic-partition-00"), -1);
+        assertEquals(TopicName.getPartitionIndex("mytopic-partition-012"), -1);
+
+        assertFalse(TopicName.get("mytopic-partition--1").isPartitioned());
+        assertFalse(TopicName.get("mytopic-partition--2").isPartitioned());
+        assertFalse(TopicName.get("mytopic-partition-01").isPartitioned());
+        assertFalse(TopicName.get("mytopic-partition-012").isPartitioned());
+        assertFalse(TopicName.get("mytopic-partition- 12").isPartitioned());
+        assertFalse(TopicName.get("mytopic-partition-12 ").isPartitioned());
+        assertFalse(TopicName.get("mytopic-partition- 12 ").isPartitioned());
+        assertFalse(TopicName.get("mytopic-partition-1&").isPartitioned());
+        assertFalse(TopicName.get("mytopic-partition-1!").isPartitioned());
+
+        assertTrue(TopicName.get("mytopic-partition-0").isPartitioned());
+        assertTrue(TopicName.get("mytopic-partition-1").isPartitioned());
+        assertTrue(TopicName.get("mytopic-partition-12").isPartitioned());
     }
 
     @Test
