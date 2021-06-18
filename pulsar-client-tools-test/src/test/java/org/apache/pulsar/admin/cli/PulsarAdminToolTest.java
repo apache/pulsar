@@ -951,7 +951,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).createSubscription("persistent://myprop/clust/ns1/ds1", "sub1", MessageId.earliest);
 
         cmdTopics.run(split("create-partitioned-topic persistent://myprop/clust/ns1/ds1 --partitions 32"));
-        verify(mockTopics).createPartitionedTopic("persistent://myprop/clust/ns1/ds1", 32);
+        verify(mockTopics).createPartitionedTopic("persistent://myprop/clust/ns1/ds1", 32, false);
 
         cmdTopics.run(split("create-missed-partitions persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).createMissedPartitions("persistent://myprop/clust/ns1/ds1");

@@ -36,6 +36,7 @@ import io.netty.buffer.ByteBuf;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.SortedSet;
@@ -63,6 +64,7 @@ import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRoutingMode;
@@ -1152,9 +1154,6 @@ public class ReplicatorTest extends ReplicatorTestBase {
         Assert.assertTrue(partitionedTopicList.contains(persistentPartitionedTopic));
         Assert.assertTrue(partitionedTopicList.contains(nonPersistentPartitionedTopic));
 
-        // wait non-partitioned topics replicators created finished
-        Thread.sleep(1000);
-
         // expected topic list didn't contain non-persistent-non-partitioned topic,
         // because this model topic didn't create path in local metadata store.
         List<String> expectedTopicList = Lists.newArrayList(
@@ -1164,13 +1163,19 @@ public class ReplicatorTest extends ReplicatorTestBase {
             expectedTopicList.add(pt.getPartition(i).toString());
         }
 
-        checkListContainExpectedTopic(admin1.topics().getList(namespace), expectedTopicList);
-        checkListContainExpectedTopic(admin2.topics().getList(namespace), expectedTopicList);
-        checkListContainExpectedTopic(admin3.topics().getList(namespace), expectedTopicList);
+        checkListContainExpectedTopic(admin1, namespace, expectedTopicList);
+        checkListContainExpectedTopic(admin2, namespace, expectedTopicList);
+        checkListContainExpectedTopic(admin3, namespace, expectedTopicList);
     }
 
-    private void checkListContainExpectedTopic(List<String> list, List<String> expectedTopicList) {
-        Assert.assertEquals(list.size(), expectedTopicList.size());
+    private void checkListContainExpectedTopic(PulsarAdmin admin, String namespace, List<String> expectedTopicList) {
+        // wait non-partitioned topics replicators created finished
+        final List<String> list = new ArrayList<>();
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> {
+            list.clear();
+            list.addAll(admin.topics().getList(namespace));
+            return list.size() == expectedTopicList.size();
+        });
         for (String expectTopic : expectedTopicList) {
             Assert.assertTrue(list.contains(expectTopic));
         }
