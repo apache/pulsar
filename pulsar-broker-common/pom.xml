@@ -69,5 +69,11 @@
       <groupId>io.jsonwebtoken</groupId>
       <artifactId>jjwt-jackson</artifactId>
     </dependency>
+
+    <dependency>
+      <groupId>org.apache.ranger</groupId>
+      <artifactId>ranger-plugin-classloader</artifactId>
+      <version>1.2.0</version>
+    </dependency>
   </dependencies>
 </project>

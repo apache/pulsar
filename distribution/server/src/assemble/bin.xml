@@ -76,6 +76,10 @@
       </includes>
       <fileMode>755</fileMode>
     </fileSet>
+    <fileSet>
+      <directory>${basedir}/../../pulsar-broker-authz-ranger/target/ranger-pulsar-plugin-impl</directory>
+      <outputDirectory>lib/ranger-pulsar-plugin-impl</outputDirectory>
+    </fileSet>
   </fileSets>
   <files>
     <file>

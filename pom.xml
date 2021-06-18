@@ -1910,6 +1910,7 @@ flexible messaging model and an intuitive client API.</description>
         <module>dashboard</module>
         <module>pulsar-broker-auth-sasl</module>
         <module>pulsar-client-auth-sasl</module>
+        <module>pulsar-broker-authz-ranger</module>
         <module>pulsar-config-validation</module>
 
         <!-- transaction related modules -->

@@ -88,6 +88,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @Category
     private static final String CATEGORY_SASL_AUTH = "SASL Authentication Provider";
     @Category
+    private static final String CATEGORY_RANGER_AUTHORI = "Ranger Authorization Provider";
+    @Category
     private static final String CATEGORY_HTTP = "HTTP";
     @Category
     private static final String CATEGORY_TRANSACTION = "Transaction";
@@ -1167,6 +1169,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "kerberos kinit command."
     )
     private String kinitCommand = "/usr/bin/kinit";
+
+    /**** --- Ranger Authorization Provider --- ****/
+    @FieldContext(
+            category = CATEGORY_RANGER_AUTHORI,
+            doc = "Ranger Service Target"
+    )
+    private String rangerServiceTarget = null;
 
     /**** --- BookKeeper Client --- ****/
     @FieldContext(
