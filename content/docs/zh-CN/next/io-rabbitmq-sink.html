@@ -34,8 +34,8 @@
 <tr><td><code>username</code></td><td>String</td><td>false</td><td>guest</td><td>用于验证 RabbitMQ 的用户名。</td></tr>
 <tr><td><code>password</code></td><td>String</td><td>false</td><td>guest</td><td>用于验证 RabbitMQ 的密码。</td></tr>
 <tr><td><code>queueName</code></td><td>String</td><td>true</td><td>&quot; &quot;（空字符串）</td><td>RabbitMQ 队列名称，应该读取或写入的消息</td></tr>
-<tr><td><code>requestedChannelMax</code></td><td>int</td><td>false</td><td>0</td><td>初始请求的最大频道号码。 <br><br>0 意味着无限制。</td></tr>
-<tr><td><code>requestedFrameMax</code></td><td>int</td><td>false</td><td>0</td><td>最初请求的最大帧大小，以十点计。 <br><br>0 意味着无限制。</td></tr>
+<tr><td><code>requestedChannelMax</code></td><td>int</td><td>false</td><td>0</td><td>初始请求的最大信道数。 <br><br>0 意味着无限制。</td></tr>
+<tr><td><code>requestedFrameMax</code></td><td>int</td><td>false</td><td>0</td><td>最初请求的最大通信帧大小，以字节为单位。 <br><br>0 意味着无限制。</td></tr>
 <tr><td><code>connectionTimeout</code></td><td>int</td><td>false</td><td>60000</td><td>TCP 连接的超时时间（毫秒）。 <br><br>0 意味着无限值。</td></tr>
 <tr><td><code>handshakeTimeout</code></td><td>int</td><td>false</td><td>10000</td><td>AMQP0-9-1 协议握手超时(毫秒)。</td></tr>
 <tr><td><code>requestedHeartbeat</code></td><td>int</td><td>false</td><td>60</td><td>要发布消息的交换。</td></tr>

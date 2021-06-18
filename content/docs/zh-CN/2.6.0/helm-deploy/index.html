@@ -76,7 +76,7 @@
             });
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Deploy Pulsar cluster using Helm</h1></header><article><div><span><p>在运行 <code>helm install</code>之前, 你需要决定如何运行 Pulsar。 可以使用 Helm 的 <code>--set option.name=value</code> 命令行参数配置选项。</p>
 <h2><a class="anchor" aria-hidden="true" id="选择配置选项"></a><a href="#选择配置选项" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>选择配置选项</h2>
-<p>In each section, collect the options that are combined to use with the <code>helm install</code> command.</p>
+<p><code>helm install</code> 命令会合并所有的配置选项。</p>
 <h3><a class="anchor" aria-hidden="true" id="kubernetes命名空间"></a><a href="#kubernetes命名空间" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Kubernetes命名空间</h3>
 <p>默认情况下，Pulsar Helm chart 安装到 <code>pulsar</code> 命名空间。</p>
 <pre><code class="hljs css language-yaml"><span class="hljs-attr">namespace:</span> <span class="hljs-string">pulsar</span>
@@ -98,7 +98,7 @@
   <span class="hljs-comment"># 启用本地持久卷之前应当要安装 local provisioner</span>
   <span class="hljs-attr">local_storage:</span> <span class="hljs-literal">false</span>
 </code></pre>
-<p>要使用本地持久卷作为 Helm 的持久化存储，可以安装 <a href="#install-local-storage-provisioner">local storage provisioner</a> ，并在 <code>helm install</code> 命令中添加以下选项。</p>
+<p>要使用本地持久卷作为 Helm 的持久化存储，你可以安装 <a href="#install-local-storage-provisioner">local storage provisioner</a> ，并在 <code>helm install</code> 命令中添加以下选项。</p>
 <pre><code class="hljs css language-bash">--<span class="hljs-built_in">set</span> volumes.local_storage=<span class="hljs-literal">true</span>
 </code></pre>
 <blockquote>
@@ -119,9 +119,9 @@
 <h3><a class="anchor" aria-hidden="true" id="组件"></a><a href="#组件" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>组件</h3>
 <p>Pulsar Helm chart 是为生产用途设计的。 它部署了一个生产就绪的 Pulsar 集群，集群包括 Pulsar 核心组件和监控组件。</p>
 <p>通过打开 / 关闭操作可以自定义组件的部署。</p>
-<pre><code class="hljs css language-yaml"><span class="hljs-comment">## Components</span>
+<pre><code class="hljs css language-yaml"><span class="hljs-comment">## 组件</span>
 <span class="hljs-comment">##</span>
-<span class="hljs-comment">## Control what components of Apache Pulsar to deploy for the cluster</span>
+<span class="hljs-comment">## 控制集群要部署哪些 Apache Pulsar 组件</span>
 <span class="hljs-attr">components:</span>
   <span class="hljs-comment"># zookeeper</span>
   <span class="hljs-attr">zookeeper:</span> <span class="hljs-literal">true</span>
@@ -140,9 +140,9 @@
   <span class="hljs-comment"># pulsar manager</span>
   <span class="hljs-attr">pulsar_manager:</span> <span class="hljs-literal">true</span>
 
-<span class="hljs-comment">## Monitoring Components</span>
+<span class="hljs-comment">## 监控组件</span>
 <span class="hljs-comment">##</span>
-<span class="hljs-comment">## Control what components of the monitoring stack to deploy for the cluster</span>
+<span class="hljs-comment">## 控制集群要部署哪些监控组件</span>
 <span class="hljs-attr">monitoring:</span>
   <span class="hljs-comment"># monitoring - prometheus</span>
   <span class="hljs-attr">prometheus:</span> <span class="hljs-literal">true</span>
@@ -151,9 +151,9 @@
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="docker镜像"></a><a href="#docker镜像" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Docker镜像</h3>
 <p>Pulsar Helm chart 旨在实现受控升级。 所以它可以为不同组件配置独立的镜像版本。 可以设置各个组件来自定义设置镜像。</p>
-<pre><code class="hljs css language-yaml"><span class="hljs-comment">## Images</span>
+<pre><code class="hljs css language-yaml"><span class="hljs-comment">## 镜像</span>
 <span class="hljs-comment">##</span>
-<span class="hljs-comment">## Control what images to use for each component</span>
+<span class="hljs-comment">## 控制每个组件要使用什么镜像</span>
 <span class="hljs-attr">images:</span>
   <span class="hljs-attr">zookeeper:</span>
     <span class="hljs-attr">repository:</span> <span class="hljs-string">apachepulsar/pulsar-all</span>
@@ -223,26 +223,26 @@
 </code></pre>
 <p>也可以配置是否为各个组件启用 TLS 加密。</p>
 <pre><code class="hljs css language-yaml"><span class="hljs-attr">tls:</span>
-  <span class="hljs-comment"># settings for generating certs for proxy</span>
+  <span class="hljs-comment"># proxy 的证书生成设置</span>
   <span class="hljs-attr">proxy:</span>
     <span class="hljs-attr">enabled:</span> <span class="hljs-literal">false</span>
     <span class="hljs-attr">cert_name:</span> <span class="hljs-string">tls-proxy</span>
-  <span class="hljs-comment"># settings for generating certs for broker</span>
+  <span class="hljs-comment"># broker 的证书生成设置</span>
   <span class="hljs-attr">broker:</span>
     <span class="hljs-attr">enabled:</span> <span class="hljs-literal">false</span>
     <span class="hljs-attr">cert_name:</span> <span class="hljs-string">tls-broker</span>
-  <span class="hljs-comment"># settings for generating certs for bookies</span>
+  <span class="hljs-comment"># bookie 的证书生成设置</span>
   <span class="hljs-attr">bookie:</span>
     <span class="hljs-attr">enabled:</span> <span class="hljs-literal">false</span>
     <span class="hljs-attr">cert_name:</span> <span class="hljs-string">tls-bookie</span>
-  <span class="hljs-comment"># settings for generating certs for zookeeper</span>
+  <span class="hljs-comment"># zookeeper 的证书生成设置</span>
   <span class="hljs-attr">zookeeper:</span>
     <span class="hljs-attr">enabled:</span> <span class="hljs-literal">false</span>
     <span class="hljs-attr">cert_name:</span> <span class="hljs-string">tls-zookeeper</span>
-  <span class="hljs-comment"># settings for generating certs for recovery</span>
+  <span class="hljs-comment"># 自动恢复功能的证书生成设置</span>
   <span class="hljs-attr">autorecovery:</span>
     <span class="hljs-attr">cert_name:</span> <span class="hljs-string">tls-recovery</span>
-  <span class="hljs-comment"># settings for generating certs for toolset</span>
+  <span class="hljs-comment"># toolset 的证书生成设置</span>
   <span class="hljs-attr">toolset:</span>
     <span class="hljs-attr">cert_name:</span> <span class="hljs-string">tls-toolset</span>
 </code></pre>
@@ -289,7 +289,7 @@
 helm repo <span class="hljs-keyword">update</span>
 helm install pulsar-<span class="hljs-keyword">storage</span>-provisioner streamnative/<span class="hljs-keyword">local</span>-<span class="hljs-keyword">storage</span>-provisioner
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="安装证书管理器"></a><a href="#安装证书管理器" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>安装证书管理器</h3>
+<h3><a class="anchor" aria-hidden="true" id="安装证书管理器（cert-manager）"></a><a href="#安装证书管理器（cert-manager）" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>安装证书管理器（cert-manager）</h3>
 <p>Pulsar Helm chart 使用 <a href="https://github.com/jetstack/cert-manager">证书管理器</a> 来自动提供和管理 TLS 证书。 需要先安装 cert-manager 才能为 broker 和 proxy 启用 TLS 加密。</p>
 <p>关于安装 cert-manager 的细节，参考 <a href="https://cert-manager.io/docs/installation/kubernetes/#installing-with-helm"> 官方说明 </a>。</p>
 <p>我们还提供了 bash 脚本 <a href="https://github.com/apache/pulsar-helm-chart/blob/master/scripts/cert-manager/install-cert-manager.sh">install-cert-manager.sh</a> 来安装 cert-manager 到命名空间 <code>cert-manager</code>中。</p>
@@ -298,15 +298,15 @@ helm install pulsar-<span class="hljs-keyword">storage</span>-provisioner stream
 ./scripts/cert-manager/install-cert-manager.sh
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="准备-helm"></a><a href="#准备-helm" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>准备 Helm</h2>
-<p>Once you have install all the dependent charts and collected all of your configuration options, you can run <a href="https://github.com/apache/pulsar-helm-chart/blob/master/scripts/pulsar/prepare_helm_release.sh">prepare_helm_release.sh</a> to prepare the Helm release.</p>
+<p>在安装所有依赖的 chart 并收集了所有的配置选项后，便可以运行 <a href="https://github.com/apache/pulsar-helm-chart/blob/master/scripts/pulsar/prepare_helm_release.sh">prepare_helm_release.sh</a> 来准备 Helm。</p>
 <pre><code class="hljs css language-bash">git <span class="hljs-built_in">clone</span> https://github.com/apache/pulsar-helm-chart
 <span class="hljs-built_in">cd</span> pulsar-helm-chart 
 ./scripts/pulsar/prepare_helm_release.sh -n &lt;k8s-namespace&gt; -k &lt;helm-release-name&gt;
 </code></pre>
-<p>The <code>prepare_helm_release</code> creates the following resources:</p>
+<p><code>prepare_helm_release</code> 创建了下列资源：</p>
 <ul>
-<li>A Kubernetes namespace for installing the Pulsar release</li>
-<li>JWT secret keys and tokens for three super users: <code>broker-admin</code>, <code>proxy-admin</code>, and <code>admin</code>. By default, it generates an asymmetric pubic/private key pair. You can choose to generate a symmetric secret key by specifying <code>--symmetric</code>.
+<li>用于安装 Pulsar 的 Kubernetes 命名空间。</li>
+<li>三个超级用户： <code>broker-admin</code>、<code>proxy-admin</code>、 <code>admin</code> 的 JWT 密钥和令牌。 默认情况下，会生成一个非对称的公钥 / 私钥对。 也可以指定 <code>--symmetric</code> 来生成对称的密钥。
 <ul>
 <li><code>proxy-admin</code> role is used for proxies to communicate to brokers.</li>
 <li><code>broker-admin</code> role is used for inter-broker communications.</li>
@@ -314,13 +314,13 @@ helm install pulsar-<span class="hljs-keyword">storage</span>-provisioner stream
 </ul></li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="使用-helm-来部署-pulsar-集群"></a><a href="#使用-helm-来部署-pulsar-集群" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>使用 Helm 来部署 Pulsar 集群</h2>
-<p>Once you have finished the following three things, you can install a Helm release.</p>
+<p>完成下列三个步骤后，便可安装 Helm。</p>
 <ul>
-<li>Collect all of your configuration options.</li>
-<li>Install dependent charts.</li>
-<li>Prepare the Helm release.</li>
+<li>收集所有的配置选项。</li>
+<li>安装依赖的 chart。</li>
+<li>准备 Helm。</li>
 </ul>
-<p>In this example, we name our Helm release <code>pulsar</code>.</p>
+<p>在本例中，我们将 Helm 命名为 <code>pulsar</code>。</p>
 <pre><code class="hljs css language-bash">helm repo add apache https://pulsar.apache.org/charts
 helm repo update
 helm upgrade --install pulsar apache/pulsar \
@@ -329,23 +329,23 @@ helm upgrade --install pulsar apache/pulsar \
 </code></pre>
 <blockquote>
 <p><strong>Note</strong></p>
-<p>For the first deployment, add <code>--set initialize=true</code> option to initialize bookie and Pulsar cluster metadata.</p>
+<p>第一次部署需要添加 <code>--set initialize=true</code> 选项来初始化 bookie 和 Pulsar 集群元数据。</p>
 </blockquote>
-<p>You can also use the <code>--version &lt;installation version&gt;</code> option if you want to install a specific version of Pulsar Helm chart.</p>
-<h2><a class="anchor" aria-hidden="true" id="monitor-deployment"></a><a href="#monitor-deployment" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Monitor deployment</h2>
-<p>A list of installed resources are output once the Pulsar cluster is deployed. This may take 5-10 minutes.</p>
-<p>The status of the deployment can be checked by running the <code>helm status pulsar</code> command, which can also be done while the deployment is taking place if you run the command in another terminal.</p>
+<p>也可以使用 <code>--version &lt;installation version&gt;</code> 选项指定安装的 Pulsar Helm chart 版本。</p>
+<h2><a class="anchor" aria-hidden="true" id="监控部署"></a><a href="#监控部署" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>监控部署</h2>
+<p>部署 Pulsar 集群后将输出已安装的资源。 该可能需要 5-10 分钟的时间。</p>
+<p>可以运行 <code>helm status pulsar</code> 命令来查看部署的状态，若部署正在进行，也可以在另一个终端执行该命令查看状态。</p>
 <h2><a class="anchor" aria-hidden="true" id="访问-pulsar-集群"></a><a href="#访问-pulsar-集群" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>访问 Pulsar 集群</h2>
-<p>The default values will create a <code>ClusterIP</code> for the following resources, which you can use to interact with the cluster.</p>
+<p>默认值将为下列资源创建 <code>ClusterIP</code>，可以用来和集群交互。</p>
 <ul>
 <li>Proxy: You can use the IP address to produce and consume messages to the installed Pulsar cluster.</li>
-<li>Pulsar Manager: You can access the Pulsar Manager UI at <code>http://&lt;pulsar-manager-ip&gt;:9527</code>.</li>
+<li>Pulsar Manager：可以通过链接 <code>http://&lt;pulsar-manager-ip&gt;:9527</code> 访问 Pulsar Manager UI。</li>
 <li>Grafana Dashboard: You can access the Grafana dashboard at <code>http://&lt;grafana-dashboard-ip&gt;:3000</code>.</li>
 </ul>
-<p>To find the IP addresses of those components, run the following command:</p>
+<p>运行下面的命令查询这些组件的 IP 地址。</p>
 <pre><code class="hljs css language-bash">kubectl get service -n &lt;k8s-namespace&gt;
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.6.0/helm-install"><span class="arrow-prev">← </span><span>安装</span></a><a class="docs-next button" href="/docs/zh-CN/2.6.0/helm-upgrade"><span>升级</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#选择配置选项">选择配置选项</a><ul class="toc-headings"><li><a href="#kubernetes命名空间">Kubernetes命名空间</a></li><li><a href="#持久化">持久化</a></li><li><a href="#亲和性">亲和性</a></li><li><a href="#组件">组件</a></li><li><a href="#docker镜像">Docker镜像</a></li><li><a href="#tls">TLS</a></li><li><a href="#认证">认证</a></li><li><a href="#授权">授权</a></li><li><a href="#cpu-和-ram-资源要求">CPU 和 RAM 资源要求</a></li></ul></li><li><a href="#install-dependent-charts">Install dependent charts</a><ul class="toc-headings"><li><a href="#安装本地存储配置器">安装本地存储配置器</a></li><li><a href="#安装证书管理器">安装证书管理器</a></li></ul></li><li><a href="#准备-helm">准备 Helm</a></li><li><a href="#使用-helm-来部署-pulsar-集群">使用 Helm 来部署 Pulsar 集群</a></li><li><a href="#monitor-deployment">Monitor deployment</a></li><li><a href="#访问-pulsar-集群">访问 Pulsar 集群</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.6.0/helm-install"><span class="arrow-prev">← </span><span>安装</span></a><a class="docs-next button" href="/docs/zh-CN/2.6.0/helm-upgrade"><span>升级</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#选择配置选项">选择配置选项</a><ul class="toc-headings"><li><a href="#kubernetes命名空间">Kubernetes命名空间</a></li><li><a href="#持久化">持久化</a></li><li><a href="#亲和性">亲和性</a></li><li><a href="#组件">组件</a></li><li><a href="#docker镜像">Docker镜像</a></li><li><a href="#tls">TLS</a></li><li><a href="#认证">认证</a></li><li><a href="#授权">授权</a></li><li><a href="#cpu-和-ram-资源要求">CPU 和 RAM 资源要求</a></li></ul></li><li><a href="#install-dependent-charts">Install dependent charts</a><ul class="toc-headings"><li><a href="#安装本地存储配置器">安装本地存储配置器</a></li><li><a href="#安装证书管理器（cert-manager）">安装证书管理器（cert-manager）</a></li></ul></li><li><a href="#准备-helm">准备 Helm</a></li><li><a href="#使用-helm-来部署-pulsar-集群">使用 Helm 来部署 Pulsar 集群</a></li><li><a href="#监控部署">监控部署</a></li><li><a href="#访问-pulsar-集群">访问 Pulsar 集群</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

@@ -118,9 +118,9 @@
 <h3><a class="anchor" aria-hidden="true" id="组件"></a><a href="#组件" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>组件</h3>
 <p>This chart is designed for production usage. It deploys a production-ready Pulsar cluster including Pulsar core components and monitoring components.</p>
 <p>You can customize the components to deploy by turning on/off individual components.</p>
-<pre><code class="hljs css language-yaml"><span class="hljs-comment">## Components</span>
+<pre><code class="hljs css language-yaml"><span class="hljs-comment">## 组件</span>
 <span class="hljs-comment">##</span>
-<span class="hljs-comment">## Control what components of Apache Pulsar to deploy for the cluster</span>
+<span class="hljs-comment">## 控制集群要部署哪些 Apache Pulsar 组件</span>
 <span class="hljs-attr">components:</span>
   <span class="hljs-comment"># zookeeper</span>
   <span class="hljs-attr">zookeeper:</span> <span class="hljs-literal">true</span>
@@ -139,9 +139,9 @@
   <span class="hljs-comment"># pulsar manager</span>
   <span class="hljs-attr">pulsar_manager:</span> <span class="hljs-literal">true</span>
 
-<span class="hljs-comment">## Monitoring Components</span>
+<span class="hljs-comment">## 监控组件</span>
 <span class="hljs-comment">##</span>
-<span class="hljs-comment">## Control what components of the monitoring stack to deploy for the cluster</span>
+<span class="hljs-comment">## 控制集群要部署哪些监控组件</span>
 <span class="hljs-attr">monitoring:</span>
   <span class="hljs-comment"># monitoring - prometheus</span>
   <span class="hljs-attr">prometheus:</span> <span class="hljs-literal">true</span>
@@ -150,9 +150,9 @@
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="docker-images"></a><a href="#docker-images" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Docker Images</h3>
 <p>This chart is designed to enable controlled upgrades. So it provides the capability to configure independent image versions for components. 可以设置各个组件来自定义设置镜像。</p>
-<pre><code class="hljs css language-yaml"><span class="hljs-comment">## Images</span>
+<pre><code class="hljs css language-yaml"><span class="hljs-comment">## 镜像</span>
 <span class="hljs-comment">##</span>
-<span class="hljs-comment">## Control what images to use for each component</span>
+<span class="hljs-comment">## 控制每个组件要使用什么镜像</span>
 <span class="hljs-attr">images:</span>
   <span class="hljs-attr">zookeeper:</span>
     <span class="hljs-attr">repository:</span> <span class="hljs-string">apachepulsar/pulsar-all</span>
@@ -225,26 +225,26 @@
 </code></pre>
 <p>You can also control whether to enable TLS encryption for individual component.</p>
 <pre><code class="hljs css language-yaml"><span class="hljs-attr">tls:</span>
-  <span class="hljs-comment"># settings for generating certs for proxy</span>
+  <span class="hljs-comment"># proxy 的证书生成设置</span>
   <span class="hljs-attr">proxy:</span>
     <span class="hljs-attr">enabled:</span> <span class="hljs-literal">false</span>
     <span class="hljs-attr">cert_name:</span> <span class="hljs-string">tls-proxy</span>
-  <span class="hljs-comment"># settings for generating certs for broker</span>
+  <span class="hljs-comment"># broker 的证书生成设置</span>
   <span class="hljs-attr">broker:</span>
     <span class="hljs-attr">enabled:</span> <span class="hljs-literal">false</span>
     <span class="hljs-attr">cert_name:</span> <span class="hljs-string">tls-broker</span>
-  <span class="hljs-comment"># settings for generating certs for bookies</span>
+  <span class="hljs-comment"># bookie 的证书生成设置</span>
   <span class="hljs-attr">bookie:</span>
     <span class="hljs-attr">enabled:</span> <span class="hljs-literal">false</span>
     <span class="hljs-attr">cert_name:</span> <span class="hljs-string">tls-bookie</span>
-  <span class="hljs-comment"># settings for generating certs for zookeeper</span>
+  <span class="hljs-comment"># zookeeper 的证书生成设置</span>
   <span class="hljs-attr">zookeeper:</span>
     <span class="hljs-attr">enabled:</span> <span class="hljs-literal">false</span>
     <span class="hljs-attr">cert_name:</span> <span class="hljs-string">tls-zookeeper</span>
-  <span class="hljs-comment"># settings for generating certs for recovery</span>
+  <span class="hljs-comment"># 自动恢复功能的证书生成设置</span>
   <span class="hljs-attr">autorecovery:</span>
     <span class="hljs-attr">cert_name:</span> <span class="hljs-string">tls-recovery</span>
-  <span class="hljs-comment"># settings for generating certs for toolset</span>
+  <span class="hljs-comment"># toolset 的证书生成设置</span>
   <span class="hljs-attr">toolset:</span>
     <span class="hljs-attr">cert_name:</span> <span class="hljs-string">tls-toolset</span>
 </code></pre>
@@ -332,7 +332,7 @@ helm upgrade --install pulsar charts/pulsar \
 </code></pre>
 <blockquote>
 <p><strong>Note</strong></p>
-<p>For the first deployment, add <code>--set initialize=true</code> option to initialize bookie and Pulsar cluster metadata.</p>
+<p>第一次部署需要添加 <code>--set initialize=true</code> 选项来初始化 bookie 和 Pulsar 集群元数据。</p>
 </blockquote>
 <p>You can also use <code>--version &lt;installation version&gt;</code> option if you would like to install a specific version of Pulsar Helm chart.</p>
 <h2><a class="anchor" aria-hidden="true" id="monitoring-the-deployment"></a><a href="#monitoring-the-deployment" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Monitoring the Deployment</h2>
