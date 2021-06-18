@@ -486,8 +486,6 @@ The Apache Software License, Version 2.0
     - org.apache.curator-curator-recipes-5.1.0.jar
   * Apache Yetus
     - org.apache.yetus-audience-annotations-0.5.0.jar
-  * @FreeBuilder
-    - org.inferred-freebuilder-1.14.9.jar
   * Kubernetes Client
     - io.kubernetes-client-java-12.0.1.jar
     - io.kubernetes-client-java-api-12.0.1.jar
