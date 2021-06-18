@@ -418,6 +418,9 @@ public class Commands {
     }
 
     public static void parseMessageMetadata(ByteBuf buffer, MessageMetadata msgMetadata) {
+        // initially reader-index may point to start of broker entry metadata :
+        // increment reader-index to start_of_headAndPayload to parse metadata
+        skipBrokerEntryMetadataIfExist(buffer);
         // initially reader-index may point to start_of_checksum : increment reader-index to start_of_metadata
         // to parse metadata
         skipChecksumIfPresent(buffer);
