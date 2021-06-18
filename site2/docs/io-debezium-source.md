@@ -248,6 +248,8 @@ You can use one of the following methods to create a configuration file.
         ## PULSAR_SERVICE_URL_CONFIG
         pulsar.service.url: "pulsar://127.0.0.1:6650"
     ```
+    
+Notice that `pgoutput` is a standard plugin of Postgres introduced in version 10 - [see Postgres arichtecture docu](https://www.postgresql.org/docs/10/logical-replication-architecture.html). You don't need to install anything, just make sure the WAL level is set to `logical` (see docker command below and [Postgres docu](https://www.postgresql.org/docs/current/runtime-config-wal.html)).
 
 ### Usage
 
