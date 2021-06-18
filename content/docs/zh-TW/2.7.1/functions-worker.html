@@ -98,7 +98,7 @@ The <code>--- Service Urls---</code> lines in the following diagrams represent P
 <ul>
 <li><code>numFunctionPackageReplicas</code>: 存儲 function packages 的副本數。 預設值為 <code>1</code>，這對於單機模式部署非常有用。 For production deployment, to ensure high availability, set it to be larger than <code>2</code>.</li>
 <li><code>pulsarFunctionsCluster</code>: 將值設定為你的 Pulsar群集名稱（與 broker 配置中的 <code>clusterName</code> 設定相同）。</li>
-<li><code>initializedDlogMetadata</code>: Whether to initialize distributed log metadata in runtime. If it is set to <code>true</code>, you must ensure that it has been initialized by <code>bin/pulsarinitialize-cluster-metadata</code> command.</li>
+<li><code>initializedDlogMetadata</code>: Whether to initialize distributed log metadata in runtime. If it is set to <code>true</code>, you must ensure that it has been initialized by <code>bin/pulsar initialize-cluster-metadata</code> command.</li>
 </ul>
 <p>If authentication is enabled on the BookKeeper cluster, configure the following BookKeeper authentication settings.</p>
 <ul>
