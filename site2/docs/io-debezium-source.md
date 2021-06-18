@@ -243,7 +243,7 @@ You can use one of the following methods to create a configuration file.
         database.server.name: "dbserver1"
         plugin.name: "pgoutput"
         schema.whitelist: "public"
-        table.whitelist: "public.book"
+        table.whitelist: "public.users"
 
         ## PULSAR_SERVICE_URL_CONFIG
         pulsar.service.url: "pulsar://127.0.0.1:6650"
@@ -259,7 +259,11 @@ This example shows how to change the data of a PostgreSQL table using the Pulsar
 1. Start a PostgreSQL server with a database from which Debezium can capture changes.
 
     ```bash
-    $ docker run -d -it --rm --name pulsar-postgres -p 5432:5432 -e POSTGRES_PASSWORD=changeme postgres:13.3 -c wal_level=logical
+    $ docker run -d -it --rm \
+    --name pulsar-postgres \
+    -p 5432:5432 \
+    -e POSTGRES_PASSWORD=changeme \
+    postgres:13.3 -c wal_level=logical
     ```
 
 2. Start a Pulsar service locally in standalone mode.
