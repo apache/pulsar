@@ -970,7 +970,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     private CompletableFuture<Optional<Topic>> createNonPersistentTopic(String topic) {
-        CompletableFuture<Optional<Topic>> topicFuture = FutureUtil.futureWithDeadline(executor());
+        CompletableFuture<Optional<Topic>> topicFuture = futureWithDeadline();
 
         if (!pulsar.getConfiguration().isEnableNonPersistentTopics()) {
             if (log.isDebugEnabled()) {

@@ -165,22 +165,6 @@ public class FutureUtil {
         }
     }
 
-    public static <T> CompletableFuture<T> futureWithDeadline(ScheduledExecutorService executor, Long delay,
-            TimeUnit unit, Exception exp) {
-        CompletableFuture<T> future = new CompletableFuture<T>();
-        executor.schedule(() -> {
-            if (!future.isDone()) {
-                future.completeExceptionally(exp);
-            }
-        }, delay, unit);
-        return future;
-    }
-
-    public static <T> CompletableFuture<T> futureWithDeadline(ScheduledExecutorService executor) {
-        return futureWithDeadline(executor, 60000L, TimeUnit.MILLISECONDS,
-                new TimeoutException("Future didn't finish within deadline"));
-    }
-
     public static <T> Optional<Throwable> getException(CompletableFuture<T> future) {
         if (future != null && future.isCompletedExceptionally()) {
             try {
