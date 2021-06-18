@@ -2027,6 +2027,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         String.format("The command `GetLastMessageId` is not supported for the protocol version %d. " +
                                 "The consumer is %s, topic %s, subscription %s", cnx.getRemoteEndpointProtocolVersion(),
                             consumerName, topicName.toString(), subscription)));
+                return;
             }
 
             long requestId = client.newRequestId();
