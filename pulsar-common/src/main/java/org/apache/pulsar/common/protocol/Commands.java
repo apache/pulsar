@@ -418,6 +418,9 @@ public class Commands {
     }
 
     public static void parseMessageMetadata(ByteBuf buffer, MessageMetadata msgMetadata) {
+        // initially reader-index may point to start of broker entry metadata :
+        // increment reader-index to start_of_headAndPayload to parse metadata
+        skipBrokerEntryMetadataIfExist(buffer);
         // initially reader-index may point to start_of_checksum : increment reader-index to start_of_metadata
         // to parse metadata
         skipChecksumIfPresent(buffer);
@@ -1667,7 +1670,6 @@ public class Commands {
         try {
             // save the reader index and restore after parsing
             int readerIdx = metadataAndPayload.readerIndex();
-            skipBrokerEntryMetadataIfExist(metadataAndPayload);
             MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
             metadataAndPayload.readerIndex(readerIdx);
 
@@ -1682,7 +1684,6 @@ public class Commands {
     public static byte[] peekStickyKey(ByteBuf metadataAndPayload, String topic, String subscription) {
         try {
             int readerIdx = metadataAndPayload.readerIndex();
-            skipBrokerEntryMetadataIfExist(metadataAndPayload);
             MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
             metadataAndPayload.readerIndex(readerIdx);
             if (metadata.hasOrderingKey()) {

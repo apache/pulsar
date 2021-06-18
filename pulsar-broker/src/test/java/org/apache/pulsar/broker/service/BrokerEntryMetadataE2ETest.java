@@ -109,4 +109,24 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
         Assert.assertEquals(messages.size(), 1);
         Assert.assertEquals(messages.get(0).getData(), "hello".getBytes());
     }
+
+    @Test(timeOut = 20000)
+    public void testGetLastMessageId() throws Exception {
+        final String topic = "persistent://prop/ns-abc/topic-test";
+        final String subscription = "my-sub";
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .create();
+        producer.newMessage().value("hello".getBytes()).send();
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionName(subscription)
+                .subscribe();
+        consumer.getLastMessageId();
+    }
 }
