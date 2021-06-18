@@ -76,7 +76,6 @@ import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.data.Stat;
-import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -281,13 +280,10 @@ public class NamespaceServiceTest extends BrokerTestBase {
         CompletableFuture<Optional<Topic>> topicFuture = CompletableFuture.completedFuture(Optional.of(spyTopic));
         // add mock topic
         topics.put(topicName, topicFuture);
-        doAnswer(new Answer<CompletableFuture<Void>>() {
-            @Override
-            public CompletableFuture<Void> answer(InvocationOnMock invocation) {
-                CompletableFuture<Void> result = new CompletableFuture<>();
-                result.completeExceptionally(new RuntimeException("first time failed"));
-                return result;
-            }
+        doAnswer((Answer<CompletableFuture<Void>>) invocation -> {
+            CompletableFuture<Void> result = new CompletableFuture<>();
+            result.completeExceptionally(new RuntimeException("first time failed"));
+            return result;
         }).when(spyTopic).close(false);
         NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
 
@@ -319,12 +315,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         // add mock topic
         topics.put(topicName, topicFuture);
         // return uncompleted future as close-topic result.
-        doAnswer(new Answer<CompletableFuture<Void>>() {
-            @Override
-            public CompletableFuture<Void> answer(InvocationOnMock invocation) throws Throwable {
-                return new CompletableFuture<Void>();
-            }
-        }).when(spyTopic).close(false);
+        doAnswer((Answer<CompletableFuture<Void>>) invocation -> new CompletableFuture<Void>()).when(spyTopic).close(false);
         NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
 
         // try to unload bundle whose topic will be stuck

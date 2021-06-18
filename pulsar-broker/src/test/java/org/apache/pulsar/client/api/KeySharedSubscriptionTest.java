@@ -906,14 +906,11 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 .topic(topic)
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Key_Shared)
-                .messageListener(new MessageListener<Integer>() {
-                    @Override
-                    public void received(Consumer<Integer> consumer, Message<Integer> msg) {
-                        try {
-                            Thread.sleep(random.nextInt(5));
-                            received.add(msg);
-                        } catch (InterruptedException ignore) {
-                        }
+                .messageListener((MessageListener<Integer>) (consumer1, msg) -> {
+                    try {
+                        Thread.sleep(random.nextInt(5));
+                        received.add(msg);
+                    } catch (InterruptedException ignore) {
                     }
                 })
                 .subscribe();
