@@ -1127,6 +1127,7 @@ public class PersistentTopicsBase extends AdminResource {
             }
             return topic.getInternalStats(metadata).get();
         } catch (Exception e) {
+            log.error("[{}] Failed to get internal stats for {}", clientAppId(), topicName, e);
             throw new RestException(Status.INTERNAL_SERVER_ERROR,
                     (e instanceof ExecutionException) ? e.getCause().getMessage() : e.getMessage());
         }
