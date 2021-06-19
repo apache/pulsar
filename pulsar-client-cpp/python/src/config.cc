@@ -147,7 +147,7 @@ class LoggerWrapper: public Logger {
     }
 
     void log(Level level, int line, const std::string& message) {
-        if (_Py_IsFinalizing() == true) {
+        if (Py_IsInitialized() != true) {
             // Python logger is unavailable - fallback to console logger
             fallbackLogger->log(level, line, message);
         } else {
