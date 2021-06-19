@@ -90,7 +90,7 @@ jobs:
         #if: failure()
         with:
           name: log
-          path: https://github.com/mostafij-rahman/pulsar_current/suites/*/logs    
+          path: https://github.com/mostafij-rahman/pulsar_current/suites/${GITHUB_RUN_ID}/logs    
           
           
      # - uses: actions/download-artifact@v2
