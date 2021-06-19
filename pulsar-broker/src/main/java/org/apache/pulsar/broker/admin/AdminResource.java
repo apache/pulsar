@@ -42,6 +42,7 @@ import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.admin.internal.TopicsImpl;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -705,8 +706,8 @@ public abstract class AdminResource extends PulsarWebResource {
                     .stream()
                     .filter(cluster -> !cluster.equals(pulsar().getConfiguration().getClusterName()))
                     .forEach(cluster -> createFutureList.add(
-                            pulsar().getBrokerService().getClusterPulsarAdmin(cluster)
-                                    .topics().createPartitionedTopicAsync(
+                            ((TopicsImpl) pulsar().getBrokerService().getClusterPulsarAdmin(cluster).topics())
+                                    .createPartitionedTopicAsync(
                                             topicName.getPartitionedTopicName(), numPartitions, true)));
         }
 

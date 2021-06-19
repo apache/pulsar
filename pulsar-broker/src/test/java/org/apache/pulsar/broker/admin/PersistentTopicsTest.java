@@ -53,6 +53,7 @@ import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.internal.TopicsImpl;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -615,7 +616,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
                 topicName).toString();
         final String subscriptionName = "sub";
 
-        admin.topics().createPartitionedTopic(topic, 3, true);
+        ((TopicsImpl) admin.topics()).createPartitionedTopicAsync(topic, 3, true).get();
 
         final String partitionedTopic = topic + "-partition-0";
 

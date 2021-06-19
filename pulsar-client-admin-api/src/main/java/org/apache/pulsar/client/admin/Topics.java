@@ -362,42 +362,6 @@ public interface Topics {
     CompletableFuture<Void> createPartitionedTopicAsync(String topic, int numPartitions);
 
     /**
-     * Create a partitioned topic.
-     * <p/>
-     * Create a partitioned topic. It needs to be called before creating a producer for a partitioned topic.
-     * <p/>
-     *
-     * @param topic
-     *            Topic name
-     * @param numPartitions
-     *            Number of partitions to create of the topic
-     * @param createLocalTopicOnly
-     *            False indicate create topic in all replicate clusters,
-     *            true indicate only create topic in local cluster.
-     * @throws PulsarAdminException
-     */
-    void createPartitionedTopic(
-            String topic, int numPartitions, boolean createLocalTopicOnly) throws PulsarAdminException;
-
-    /**
-     * Create a partitioned topic asynchronously.
-     * <p/>
-     * Create a partitioned topic asynchronously. It needs to be called before creating a producer for a partitioned
-     * topic.
-     * <p/>
-     *
-     * @param topic
-     *            Topic name
-     * @param numPartitions
-     *            Number of partitions to create of the topic
-     * @param createLocalTopicOnly
-     *            False indicate create topic in all replicate clusters,
-     *            true indicate only create topic in local cluster.
-     * @return a future that can be used to track when the partitioned topic is created
-     */
-    CompletableFuture<Void> createPartitionedTopicAsync(String topic, int numPartitions, boolean createLocalTopicOnly);
-
-    /**
      * Create a non-partitioned topic.
      * <p/>
      * Create a non-partitioned topic.
