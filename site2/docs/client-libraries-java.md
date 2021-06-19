@@ -243,16 +243,14 @@ Once you've instantiated a {@inject: javadoc:PulsarClient:/client/org/apache/pul
 Consumer consumer = client.newConsumer()
         .topic("my-topic")
         .subscriptionName("my-subscription")
+        .messageListener(myMessageListener)
         .subscribe();
 ```
 
 The `subscribe` method will auto subscribe the consumer to the specified topic and subscription. One way to make the consumer listen on the topic is to set up a `while` loop. In this example loop, the consumer listens for messages, prints the contents of any received message, and then [acknowledges](reference-terminology.md#acknowledgment-ack) that the message has been processed. If the processing logic fails, you can use [negative acknowledgement](reference-terminology.md#acknowledgment-ack) to redeliver the message later.
 
 ```java
-while (true) {
-  // Wait for a message
-  Message msg = consumer.receive();
-
+MessageListener myMessageListener = (consumer, msg) -> {
   try {
       // Do something with the message
       System.out.println("Message received: " + new String(msg.getData()));
