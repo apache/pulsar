@@ -42,14 +42,14 @@
       <groupId>org.apache.zookeeper</groupId>
       <artifactId>zookeeper</artifactId>
     </dependency>
-    
+
     <!-- zookeeper server -->
     <dependency>
       <groupId>io.dropwizard.metrics</groupId>
       <artifactId>metrics-core</artifactId>
       <scope>test</scope>
     </dependency>
-    
+
     <!-- zookeeper server -->
     <dependency>
       <groupId>org.xerial.snappy</groupId>
@@ -73,11 +73,6 @@
       <artifactId>caffeine</artifactId>
     </dependency>
 
-    <dependency>
-      <groupId>org.awaitility</groupId>
-      <artifactId>awaitility</artifactId>
-      <scope>test</scope>
-    </dependency>
   </dependencies>
 
   <build>
