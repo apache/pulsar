@@ -90,8 +90,8 @@ jobs:
         #if: failure()
         with:
           name: log
-          path: https://github.com/mostafij-rahman/pulsar_current/suites/${GITHUB_RUN_ID}/logs    
-          
+          #path: https://github.com/mostafij-rahman/pulsar_current/suites/${GITHUB_RUN_ID}/logs    
+          path: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/logs
           
      # - uses: actions/download-artifact@v2
      #   name: download surefire-artifacts
