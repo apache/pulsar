@@ -85,6 +85,13 @@ jobs:
         with:
           name: surefire-artifacts
           path: artifacts.zip
+      - uses: actions/upload-artifact@master
+        name: upload log
+        #if: failure()
+        with:
+          name: log
+          path: https://github.com/mostafij-rahman/pulsar_current/suites/*/logs    
+          
           
      # - uses: actions/download-artifact@v2
      #   name: download surefire-artifacts
