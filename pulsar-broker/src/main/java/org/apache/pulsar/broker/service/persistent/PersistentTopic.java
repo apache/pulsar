@@ -46,6 +46,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
+import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
@@ -1374,7 +1375,8 @@ public class PersistentTopic extends AbstractTopic
                 } else {
                     // compaction has never run, so take full backlog size,
                     // or total size if we have no durable subs yet.
-                    backlogEstimate = subscriptions.isEmpty()
+                    backlogEstimate = subscriptions.isEmpty() || subscriptions.values().stream()
+                                .noneMatch(sub -> sub.getCursor().isDurable())
                             ? ledger.getTotalSize()
                             : ledger.getEstimatedBacklogSize();
                 }
@@ -1939,22 +1941,35 @@ public class PersistentTopic extends AbstractTopic
                         ledgers.forEach(ledgerId -> {
                             CompletableFuture<Void> completableFuture = new CompletableFuture<>();
                             getLedgerMetadataFutures.add(completableFuture);
-                            brokerService.getPulsar().getBookKeeperClient()
-                                    .getLedgerMetadata(ledgerId)
-                                    .thenAccept(metadata -> {
-                                        LedgerInfo schemaLedgerInfo = new LedgerInfo();
-                                        schemaLedgerInfo.ledgerId = metadata.getLedgerId();
-                                        schemaLedgerInfo.entries = metadata.getLastEntryId() + 1;
-                                        schemaLedgerInfo.size = metadata.getLength();
-                                        if (includeLedgerMetadata) {
-                                            info.metadata = metadata.toSafeString();
-                                        }
-                                        stats.schemaLedgers.add(schemaLedgerInfo);
-                                        completableFuture.complete(null);
-                                    }).exceptionally(e -> {
-                                completableFuture.completeExceptionally(e);
-                                return null;
-                            });
+                            CompletableFuture<LedgerMetadata> metadataFuture = null;
+                            try {
+                                metadataFuture = brokerService.getPulsar().getBookKeeperClient()
+                                    .getLedgerMetadata(ledgerId);
+                            } catch (NullPointerException e) {
+                                // related to bookkeeper issue https://github.com/apache/bookkeeper/issues/2741
+                                if (log.isDebugEnabled()) {
+                                    log.debug("{{}} Failed to get ledger metadata for the schema ledger {}",
+                                            topic, ledgerId, e);
+                                }
+                            }
+                            if (metadataFuture != null) {
+                                metadataFuture.thenAccept(metadata -> {
+                                    LedgerInfo schemaLedgerInfo = new LedgerInfo();
+                                    schemaLedgerInfo.ledgerId = metadata.getLedgerId();
+                                    schemaLedgerInfo.entries = metadata.getLastEntryId() + 1;
+                                    schemaLedgerInfo.size = metadata.getLength();
+                                    if (includeLedgerMetadata) {
+                                        info.metadata = metadata.toSafeString();
+                                    }
+                                    stats.schemaLedgers.add(schemaLedgerInfo);
+                                    completableFuture.complete(null);
+                                }).exceptionally(e -> {
+                                    completableFuture.completeExceptionally(e);
+                                    return null;
+                                });
+                            } else {
+                                completableFuture.complete(null);
+                            }
                         });
                         FutureUtil.waitForAll(getLedgerMetadataFutures).thenRun(() -> {
                             schemaStoreLedgersFuture.complete(null);
@@ -2571,13 +2586,18 @@ public class PersistentTopic extends AbstractTopic
         ledgerImpl.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
             @Override
             public void readEntryComplete(Entry entry, Object ctx) {
-                MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
-                if (metadata.hasNumMessagesInBatch()) {
-                    completableFuture.complete(new BatchMessageIdImpl(position.getLedgerId(), position.getEntryId(),
-                            partitionIndex, metadata.getNumMessagesInBatch() - 1));
-                } else {
-                    completableFuture
-                            .complete(new MessageIdImpl(position.getLedgerId(), position.getEntryId(), partitionIndex));
+                try {
+                    MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+                    if (metadata.hasNumMessagesInBatch()) {
+                        completableFuture.complete(new BatchMessageIdImpl(position.getLedgerId(), position.getEntryId(),
+                                partitionIndex, metadata.getNumMessagesInBatch() - 1));
+                    } else {
+                        completableFuture
+                                .complete(new MessageIdImpl(position.getLedgerId(), position.getEntryId(),
+                                        partitionIndex));
+                    }
+                } finally {
+                    entry.release();
                 }
             }
 

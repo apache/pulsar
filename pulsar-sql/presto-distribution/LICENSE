@@ -274,7 +274,7 @@ The Apache Software License, Version 2.0
   * CGLIB Nodep
     - cglib-nodep-3.3.0.jar
   * Airlift
-    - aircompressor-0.16.jar
+    - aircompressor-0.19.jar
     - airline-0.8.jar
     - bootstrap-0.199.jar
     - bootstrap-0.195.jar
@@ -362,7 +362,7 @@ The Apache Software License, Version 2.0
     - avro-1.10.2.jar
     - avro-protobuf-1.10.2.jar
   * Caffeine
-    - caffeine-2.6.2.jar
+    - caffeine-2.9.1.jar
   * Javax
     - javax.inject-1.jar
     - javax.servlet-api-3.1.0.jar
@@ -556,6 +556,7 @@ Creative Commons Attribution License
 
 Bouncy Castle License
  * Bouncy Castle -- licenses/LICENSE-bouncycastle.txt
--    - bcpkix-jdk15on-1.68.jar
--    - bcprov-ext-jdk15on-1.68.jar
--    - bcprov-jdk15on-1.68.jar
+   - bcpkix-jdk15on-1.69.jar
+   - bcprov-ext-jdk15on-1.69.jar
+   - bcprov-jdk15on-1.69.jar
+   - bcutil-jdk15on-1.69.jar

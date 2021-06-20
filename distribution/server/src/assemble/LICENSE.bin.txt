@@ -320,7 +320,7 @@ The Apache Software License, Version 2.0
      - com.fasterxml.jackson.jaxrs-jackson-jaxrs-json-provider-2.12.3.jar
      - com.fasterxml.jackson.module-jackson-module-jaxb-annotations-2.12.3.jar
      - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.12.3.jar
- * Caffeine -- com.github.ben-manes.caffeine-caffeine-2.6.2.jar
+ * Caffeine -- com.github.ben-manes.caffeine-caffeine-2.9.1.jar
  * Conscrypt -- org.conscrypt-conscrypt-openjdk-uber-2.5.2.jar
  * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-1.17.0.jar
  * Bitbucket -- org.bitbucket.b_c-jose4j-0.7.6.jar
@@ -419,7 +419,7 @@ The Apache Software License, Version 2.0
     - org.apache.httpcomponents-httpclient-4.5.13.jar
     - org.apache.httpcomponents-httpcore-4.4.13.jar
  * AirCompressor
-    - io.airlift-aircompressor-0.16.jar
+    - io.airlift-aircompressor-0.19.jar
  * AsyncHttpClient
     - org.asynchttpclient-async-http-client-2.12.1.jar
     - org.asynchttpclient-async-http-client-netty-utils-2.12.1.jar
@@ -486,12 +486,10 @@ The Apache Software License, Version 2.0
     - org.apache.curator-curator-recipes-5.1.0.jar
   * Apache Yetus
     - org.apache.yetus-audience-annotations-0.5.0.jar
-  * @FreeBuilder
-    - org.inferred-freebuilder-1.14.9.jar
   * Kubernetes Client
-    - io.kubernetes-client-java-12.0.0.jar
-    - io.kubernetes-client-java-api-12.0.0.jar
-    - io.kubernetes-client-java-proto-12.0.0.jar
+    - io.kubernetes-client-java-12.0.1.jar
+    - io.kubernetes-client-java-api-12.0.1.jar
+    - io.kubernetes-client-java-proto-12.0.1.jar
   * Dropwizard
     - io.dropwizard.metrics-metrics-core-3.2.5.jar
     - io.dropwizard.metrics-metrics-graphite-3.2.5.jar
@@ -590,9 +588,10 @@ Creative Commons Attribution License
 
 Bouncy Castle License
  * Bouncy Castle -- licenses/LICENSE-bouncycastle.txt
-    - org.bouncycastle-bcpkix-jdk15on-1.68.jar
-    - org.bouncycastle-bcprov-ext-jdk15on-1.68.jar
-    - org.bouncycastle-bcprov-jdk15on-1.68.jar
+    - org.bouncycastle-bcpkix-jdk15on-1.69.jar
+    - org.bouncycastle-bcprov-ext-jdk15on-1.69.jar
+    - org.bouncycastle-bcprov-jdk15on-1.69.jar
+    - org.bouncycastle-bcutil-jdk15on-1.69.jar
 
 ------------------------
 

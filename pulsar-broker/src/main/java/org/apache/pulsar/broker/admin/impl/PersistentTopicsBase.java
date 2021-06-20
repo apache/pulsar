@@ -422,6 +422,7 @@ public class PersistentTopicsBase extends AdminResource {
                 throw new RestException(Status.FORBIDDEN, "Local cluster is not part of replicate cluster list");
             }
             try {
+                tryCreatePartitionsAsync(numPartitions).get(DEFAULT_OPERATION_TIMEOUT_SEC, TimeUnit.SECONDS);
                 createSubscriptions(topicName, numPartitions).get(DEFAULT_OPERATION_TIMEOUT_SEC, TimeUnit.SECONDS);
             } catch (Exception e) {
                 if (e.getCause() instanceof RestException) {
@@ -435,7 +436,7 @@ public class PersistentTopicsBase extends AdminResource {
             if (!updateLocalTopicOnly) {
                 CompletableFuture<Void> updatePartition = new CompletableFuture<>();
                 final String path = ZkAdminPaths.partitionedTopicPath(topicName);
-                updatePartitionInOtherCluster(numPartitions, clusters).thenAccept((res) -> {
+                updatePartitionInOtherCluster(numPartitions, clusters).thenRun(() -> {
                     try {
                         namespaceResources().getPartitionedTopicResources().setAsync(path, (p) -> {
                             return new PartitionedTopicMetadata(numPartitions);
@@ -1126,6 +1127,7 @@ public class PersistentTopicsBase extends AdminResource {
             }
             return topic.getInternalStats(metadata).get();
         } catch (Exception e) {
+            log.error("[{}] Failed to get internal stats for {}", clientAppId(), topicName, e);
             throw new RestException(Status.INTERNAL_SERVER_ERROR,
                     (e instanceof ExecutionException) ? e.getCause().getMessage() : e.getMessage());
         }
@@ -2449,7 +2451,6 @@ public class PersistentTopicsBase extends AdminResource {
         PositionImpl pos = (PositionImpl) entry.getPosition();
         ByteBuf metadataAndPayload = entry.getDataBuffer();
 
-        // moves the readerIndex to the payload
         MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
 
         ResponseBuilder responseBuilder = Response.ok();

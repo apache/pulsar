@@ -20,8 +20,10 @@ package org.apache.pulsar.common.util;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -161,5 +163,18 @@ public class FutureUtil {
         public synchronized Throwable fillInStackTrace() {
             return this;
         }
+    }
+
+    public static <T> Optional<Throwable> getException(CompletableFuture<T> future) {
+        if (future != null && future.isCompletedExceptionally()) {
+            try {
+                future.get();
+            } catch (InterruptedException e) {
+                return Optional.ofNullable(e);
+            } catch (ExecutionException e) {
+                return Optional.ofNullable(e.getCause());
+            }
+        }
+        return Optional.empty();
     }
 }

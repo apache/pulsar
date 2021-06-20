@@ -114,6 +114,27 @@ public class DiscoveryServiceTest extends BaseDiscoveryTestSetup {
         }
     }
 
+    @Test
+    public void testGetPartitionsMetadataForNonPersistentTopic() throws Exception {
+        TopicName topic1 = TopicName.get("non-persistent://test/local/ns/my-topic-1");
+
+        PartitionedTopicMetadata m = service.getDiscoveryProvider().getPartitionedTopicMetadata(service, topic1, "role", null)
+                .get();
+        assertEquals(m.partitions, 0);
+
+        // Simulate ZK error
+        simulateStoreErrorForNonPersistentTopic("/admin/partitioned-topics/test/local/ns/non-persistent/my-topic-2", Code.SESSIONEXPIRED);
+        TopicName topic2 = TopicName.get("non-persistent://test/local/ns/my-topic-2");
+        CompletableFuture<PartitionedTopicMetadata> future = service.getDiscoveryProvider()
+                .getPartitionedTopicMetadata(service, topic2, "role", null);
+        try {
+            future.get();
+            fail("Partition metadata lookup should have failed");
+        } catch (ExecutionException e) {
+            assertEquals(e.getCause().getClass(), MetadataStoreException.class);
+        }
+    }
+
     /**
      * It verifies: client connects to Discovery-service and receives discovery response successfully.
      *
