@@ -234,7 +234,7 @@ You can use one of the following methods to create a configuration file.
 
     configs:
 
-        ## config for postgres version 10+, official postgres docker image: postgress:<10+>
+        ## config for postgres version 10+, official docker image: postgres:<10+>
         database.hostname: "localhost"
         database.port: "5432"
         database.user: "postgres"
