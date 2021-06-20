@@ -76,23 +76,16 @@ jobs:
         #if: failure()
         run: |
           rm -rf artifacts
-          mkdir artifacts
-          find . -type d -name "*surefire*" -exec cp --parents -R {} artifacts/ \;
-          cp -r https://github.com/mostafij-rahman/pulsar_current/suites/${github.run_id}/logs artifacts/;  
-          zip -r artifacts.zip artifacts
+          mkdir artifacts_${{github.run_id}}
+          find . -type d -name "*surefire*" -exec cp --parents -R {} artifacts_${{github.run_id}}/ \;
+          # cp -r https://github.com/mostafij-rahman/pulsar_current/suites/${github.run_id}/logs artifacts/;  
+          zip -r artifacts_${{github.run_id}}.zip artifacts_${{github.run_id}}
       - uses: actions/upload-artifact@master
         name: upload surefire-artifacts
         #if: failure()
         with:
           name: surefire-artifacts
-          path: artifacts.zip
-      - uses: actions/upload-artifact@master
-        name: upload log
-        #if: failure()
-        with:
-          name: log
-          path: https://github.com/mostafij-rahman/pulsar_current/suites/${github.run_id}/logs    
-          #path: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/logs
+          path: artifacts_${{github.run_id}}.zip
           
           
      # - uses: actions/download-artifact@v2
