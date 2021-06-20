@@ -239,7 +239,7 @@ You can use one of the following methods to create a configuration file.
         database.hostname: "localhost"
         database.port: "5432"
         database.user: "postgres"
-        database.password: "postgres"
+        database.password: "changeme"
         database.dbname: "postgres"
         database.server.name: "dbserver1"
         plugin.name: "pgoutput"
