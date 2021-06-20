@@ -77,8 +77,8 @@
             });
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">使用 Helm 来部署 Pulsar 集群</h1></header><article><div><span><p>在运行 <code>helm install</code>之前, 你需要决定如何运行 Pulsar。 可以使用 Helm 的 <code>--set option.name=value</code> 命令行参数配置选项。</p>
 <h2><a class="anchor" aria-hidden="true" id="选择配置选项"></a><a href="#选择配置选项" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>选择配置选项</h2>
-<p><code>helm install</code> 命令会合并所有的配置选项。</p>
-<h3><a class="anchor" aria-hidden="true" id="kubernetes命名空间"></a><a href="#kubernetes命名空间" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Kubernetes命名空间</h3>
+<p>在每个部分，收集与 <code>helm install</code> 命令合并使用的选项。</p>
+<h3><a class="anchor" aria-hidden="true" id="kubernetes-命名空间"></a><a href="#kubernetes-命名空间" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Kubernetes 命名空间</h3>
 <p>默认情况下，Pulsar Helm chart 安装到 <code>pulsar</code> 命名空间。</p>
 <pre><code class="hljs css language-yaml"><span class="hljs-attr">namespace:</span> <span class="hljs-string">pulsar</span>
 </code></pre>
@@ -150,7 +150,7 @@
   <span class="hljs-comment"># monitoring - grafana</span>
   <span class="hljs-attr">grafana:</span> <span class="hljs-literal">true</span>
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="docker镜像"></a><a href="#docker镜像" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Docker镜像</h3>
+<h3><a class="anchor" aria-hidden="true" id="docker-镜像"></a><a href="#docker-镜像" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Docker 镜像</h3>
 <p>Pulsar Helm chart 旨在实现受控升级。 所以它可以为不同组件配置独立的镜像版本。 可以设置各个组件来自定义设置镜像。</p>
 <pre><code class="hljs css language-yaml"><span class="hljs-comment">## 镜像</span>
 <span class="hljs-comment">##</span>
@@ -291,7 +291,7 @@ helm repo <span class="hljs-keyword">update</span>
 helm install pulsar-<span class="hljs-keyword">storage</span>-provisioner streamnative/<span class="hljs-keyword">local</span>-<span class="hljs-keyword">storage</span>-provisioner
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="安装证书管理器（cert-manager）"></a><a href="#安装证书管理器（cert-manager）" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>安装证书管理器（cert-manager）</h3>
-<p>Pulsar Helm chart 使用 <a href="https://github.com/jetstack/cert-manager">证书管理器</a> 来自动提供和管理 TLS 证书。 需要先安装 cert-manager 才能为 broker 和 proxy 启用 TLS 加密。</p>
+<p>Pulsar Helm chart 使用 <a href="https://github.com/jetstack/cert-manager">cert-manager</a> 来自动提供和管理 TLS 证书。 需要先安装 cert-manager 才能为 broker 和 proxy 启用 TLS 加密。</p>
 <p>关于安装 cert-manager 的细节，参考 <a href="https://cert-manager.io/docs/installation/kubernetes/#installing-with-helm"> 官方说明 </a>。</p>
 <p>我们还提供了 bash 脚本 <a href="https://github.com/apache/pulsar-helm-chart/blob/master/scripts/cert-manager/install-cert-manager.sh">install-cert-manager.sh</a> 来安装 cert-manager 到命名空间 <code>cert-manager</code>中。</p>
 <pre><code class="hljs css language-bash">git <span class="hljs-built_in">clone</span> https://github.com/apache/pulsar-helm-chart
@@ -309,9 +309,9 @@ helm install pulsar-<span class="hljs-keyword">storage</span>-provisioner stream
 <li>用于安装 Pulsar 的 Kubernetes 命名空间。</li>
 <li>三个超级用户： <code>broker-admin</code>、<code>proxy-admin</code>、 <code>admin</code> 的 JWT 密钥和令牌。 默认情况下，会生成一个非对称的公钥 / 私钥对。 也可以指定 <code>--symmetric</code> 来生成对称的密钥。
 <ul>
-<li><code>proxy-admin</code> role is used for proxies to communicate to brokers.</li>
-<li><code>broker-admin</code> role is used for inter-broker communications.</li>
-<li><code>admin</code> role is used by the admin tools.</li>
+<li><code>proxy-admin</code> 用于代理与 broker 间通信。</li>
+<li><code>broker-admin</code> 用于 broker 间通信。</li>
+<li><code>admin</code> 用于管理员工具。</li>
 </ul></li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="使用-helm-来部署-pulsar-集群"></a><a href="#使用-helm-来部署-pulsar-集群" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>使用 Helm 来部署 Pulsar 集群</h2>
@@ -329,7 +329,7 @@ helm upgrade --install pulsar apache/pulsar \
     --<span class="hljs-built_in">set</span> [your configuration options]
 </code></pre>
 <blockquote>
-<p><strong>Note</strong></p>
+<p><strong>备注</strong></p>
 <p>第一次部署需要添加 <code>--set initialize=true</code> 选项来初始化 bookie 和 Pulsar 集群元数据。</p>
 </blockquote>
 <p>也可以使用 <code>--version &lt;installation version&gt;</code> 选项指定安装的 Pulsar Helm chart 版本。</p>
@@ -339,14 +339,14 @@ helm upgrade --install pulsar apache/pulsar \
 <h2><a class="anchor" aria-hidden="true" id="访问-pulsar-集群"></a><a href="#访问-pulsar-集群" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>访问 Pulsar 集群</h2>
 <p>默认值将为下列资源创建 <code>ClusterIP</code>，可以用来和集群交互。</p>
 <ul>
-<li>Proxy: You can use the IP address to produce and consume messages to the installed Pulsar cluster.</li>
+<li>代理：可以通过 IP 地址对已安装的 Pulsar 集群生产和消费消息。</li>
 <li>Pulsar Manager：可以通过链接 <code>http://&lt;pulsar-manager-ip&gt;:9527</code> 访问 Pulsar Manager UI。</li>
-<li>Grafana Dashboard: You can access the Grafana dashboard at <code>http://&lt;grafana-dashboard-ip&gt;:3000</code>.</li>
+<li>Grafana 仪表盘：可以通过<code>http://&lt;grafana-dashboard-ip&gt;:3000</code>访问 Grafana 仪表盘。</li>
 </ul>
-<p>运行下面的命令查询这些组件的 IP 地址。</p>
+<p>运行下面的命令查询这些组件的 IP 地址：</p>
 <pre><code class="hljs css language-bash">kubectl get service -n &lt;k8s-namespace&gt;
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/helm-install"><span class="arrow-prev">← </span><span>安装</span></a><a class="docs-next button" href="/docs/zh-CN/next/helm-upgrade"><span>升级</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#选择配置选项">选择配置选项</a><ul class="toc-headings"><li><a href="#kubernetes命名空间">Kubernetes命名空间</a></li><li><a href="#持久化">持久化</a></li><li><a href="#亲和性">亲和性</a></li><li><a href="#组件">组件</a></li><li><a href="#docker镜像">Docker镜像</a></li><li><a href="#tls">TLS</a></li><li><a href="#认证">认证</a></li><li><a href="#授权">授权</a></li><li><a href="#cpu-和-ram-资源要求">CPU 和 RAM 资源要求</a></li></ul></li><li><a href="#安装依赖-chart">安装依赖 chart</a><ul class="toc-headings"><li><a href="#安装本地存储配置器">安装本地存储配置器</a></li><li><a href="#安装证书管理器（cert-manager）">安装证书管理器（cert-manager）</a></li></ul></li><li><a href="#准备-helm">准备 Helm</a></li><li><a href="#使用-helm-来部署-pulsar-集群">使用 Helm 来部署 Pulsar 集群</a></li><li><a href="#监控部署">监控部署</a></li><li><a href="#访问-pulsar-集群">访问 Pulsar 集群</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/helm-install"><span class="arrow-prev">← </span><span>安装</span></a><a class="docs-next button" href="/docs/zh-CN/next/helm-upgrade"><span>升级</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#选择配置选项">选择配置选项</a><ul class="toc-headings"><li><a href="#kubernetes-命名空间">Kubernetes 命名空间</a></li><li><a href="#持久化">持久化</a></li><li><a href="#亲和性">亲和性</a></li><li><a href="#组件">组件</a></li><li><a href="#docker-镜像">Docker 镜像</a></li><li><a href="#tls">TLS</a></li><li><a href="#认证">认证</a></li><li><a href="#授权">授权</a></li><li><a href="#cpu-和-ram-资源要求">CPU 和 RAM 资源要求</a></li></ul></li><li><a href="#安装依赖-chart">安装依赖 chart</a><ul class="toc-headings"><li><a href="#安装本地存储配置器">安装本地存储配置器</a></li><li><a href="#安装证书管理器（cert-manager）">安装证书管理器（cert-manager）</a></li></ul></li><li><a href="#准备-helm">准备 Helm</a></li><li><a href="#使用-helm-来部署-pulsar-集群">使用 Helm 来部署 Pulsar 集群</a></li><li><a href="#监控部署">监控部署</a></li><li><a href="#访问-pulsar-集群">访问 Pulsar 集群</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
