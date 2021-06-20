@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.proxy.server;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -74,9 +75,11 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
 
         if (messages != null) {
             // lag
-            for (int i=0; i<messages.size(); i++) {
-                info = info + "["+ (System.currentTimeMillis() - messages.get(i).getPublishTime()) + "] " + new String(ByteBufUtil.getBytes((messages.get(i)).getData()), "UTF8");
+            StringBuilder infoBuilder = new StringBuilder(info);
+            for (RawMessage message : messages) {
+                infoBuilder.append("[").append(System.currentTimeMillis() - message.getPublishTime()).append("] ").append(new String(ByteBufUtil.getBytes(message.getData()), StandardCharsets.UTF_8));
             }
+            info = infoBuilder.toString();
         }
         // log conn format is like from source to target
         switch (this.connType) {
