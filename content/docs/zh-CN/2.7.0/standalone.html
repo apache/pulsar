@@ -112,7 +112,7 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.8.0
 <tr><td style="text-align:left"><code>conf</code></td><td style="text-align:left">Pulsar 的配置文件，包含 <a href="/docs/zh-CN/2.7.0/reference-configuration#broker">broker 配置</a>、<a href="/docs/zh-CN/2.7.0/reference-configuration#zookeeper">ZooKeeper 配置</a>等。</td></tr>
 <tr><td style="text-align:left"><code>examples</code></td><td style="text-align:left">Java JAR 包，包含 <a href="/docs/zh-CN/2.7.0/functions-overview">Pulsar Functions</a> 的示例。</td></tr>
 <tr><td style="text-align:left"><code>lib</code></td><td style="text-align:left">Pulsar使用到的<a href="https://en.wikipedia.org/wiki/JAR_(file_format)"> JAR </a>文件</td></tr>
-<tr><td style="text-align:left"><code>licenses</code></td><td style="text-align:left">开源许可文件，<code>.txt</code> 格式，Pulsar <a href="https://github.com/apache/pulsar">代码库</a>的各个组件。</td></tr>
+<tr><td style="text-align:left"><code>licenses</code></td><td style="text-align:left">开源许可文件，<code>.txt</code> 格式，用于规范 Pulsar <a href="https://github.com/apache/pulsar">代码库</a>的各个组件。</td></tr>
 </tbody>
 </table>
 <p>运行 Pulsar 会立即生成以下目录。</p>
@@ -128,12 +128,12 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.8.0
 </table>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="提示-1"></a><a href="#提示-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
-<p>If you want to use builtin connectors and tiered storage offloaders, you can install them according to the following instructions：</p>
+<p>想要使用内置连接器和分层存储卸载程序，可以按照以下说明进行安装：</p>
 <ul>
 <li><a href="#install-builtin-connectors-optional">安装内置连接器（可选）</a></li>
 <li><a href="#install-tiered-storage-offloaders-optional">安装分层存储卸载程序（可选）</a></li>
 </ul>
-<p>Otherwise, skip this step and perform the next step <a href="#start-pulsar-standalone">Start Pulsar standalone</a>. Pulsar can be successfully installed without installing bulitin connectors and tiered storage offloaders.</p>
+<p>不安装上述程序，则跳至下一步<a href="#start-pulsar-standalone">启动单机 Pulsar</a>。 Pulsar can be successfully installed without installing bulitin connectors and tiered storage offloaders.</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="安装内置连接器（可选）"></a><a href="#安装内置连接器（可选）" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>安装内置连接器（可选）</h3>
 <p>在 <code>2.1.0-孵化</code> 发布以后，Pulsar 发布了一个单独的二进制分布，其中包含所有的<code>内置</code>连接器。 要启用这些<code>内置</code>连接器，可以通过以下方式下载连接器安装包：</p>
