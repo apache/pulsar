@@ -170,12 +170,14 @@ public interface SystemTopicClient<T> {
     }
 
     static boolean isSystemTopic(TopicName topicName) {
+        TopicName nonePartitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
+
         // event topic
-        if (EventsTopicNames.checkTopicIsEventsNames(topicName)) {
+        if (EventsTopicNames.checkTopicIsEventsNames(nonePartitionedTopicName)) {
             return true;
         }
 
-        String localName = TopicName.get(topicName.getPartitionedTopicName()).getLocalName();
+        String localName = nonePartitionedTopicName.getLocalName();
         // transaction pending ack topic
         if (StringUtils.endsWith(localName, MLPendingAckStore.PENDING_ACK_STORE_SUFFIX)) {
             return true;
