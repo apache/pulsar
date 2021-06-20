@@ -62,7 +62,7 @@ RUN curl -O -L https://github.com/openssl/openssl/archive/OpenSSL_1_1_0j.tar.gz 
     rm -rf /OpenSSL_1_1_0j.tar.gz /openssl-OpenSSL_1_1_0j
 
 # Download and compile boost
-RUN curl -O -L https://dl.bintray.com/boostorg/release/1.68.0/source/boost_1_68_0.tar.gz && \
+RUN curl -O -L https://boostorg.jfrog.io/artifactory/main/release/1.68.0/source/boost_1_68_0.tar.gz && \
     tar xvfz boost_1_68_0.tar.gz && \
     cd /boost_1_68_0 && \
     ./bootstrap.sh --with-libraries=program_options,filesystem,regex,thread,system,python && \
@@ -126,14 +126,6 @@ RUN curl -O -L https://github.com/Kitware/CMake/archive/v3.12.1.tar.gz && \
     make && make install && \
     rm -rf /v3.12.1.tar.gz /CMake-3.12.1
 
-# LibCurl
-RUN curl -O -L  https://github.com/curl/curl/releases/download/curl-7_61_0/curl-7.61.0.tar.gz && \
-    tar xvfz curl-7.61.0.tar.gz && \
-    cd curl-7.61.0 && \
-    CFLAGS=-fPIC ./configure --with-ssl=/usr/local/ssl/ && \
-    make && make install && \
-    rm -rf /curl-7.61.0.tar.gz /curl-7.61.0
-
 # Zstandard
 RUN curl -O -L https://github.com/facebook/zstd/releases/download/v1.3.7/zstd-1.3.7.tar.gz && \
     tar xvfz zstd-1.3.7.tar.gz && \
@@ -150,6 +142,14 @@ RUN curl -O -L https://github.com/google/snappy/releases/download/1.1.3/snappy-1
     make && make install && \
     rm -rf /snappy-1.1.3 /snappy-1.1.3.tar.gz
 
+# LibCurl
+RUN curl -O -L  https://github.com/curl/curl/releases/download/curl-7_61_0/curl-7.61.0.tar.gz && \
+    tar xvfz curl-7.61.0.tar.gz && \
+    cd curl-7.61.0 && \
+    CFLAGS=-fPIC ./configure --with-ssl=/usr/local/ssl/ && \
+    make && make install && \
+    rm -rf /curl-7.61.0.tar.gz /curl-7.61.0
+
 RUN pip install twine
 RUN pip install fastavro
 RUN pip install six
@@ -159,6 +159,3 @@ RUN pip install enum34
 ENV PYTHON_INCLUDE_DIR /opt/python/${PYTHON_SPEC}/include
 ENV PYTHON_LIBRARIES   /opt/python/${PYTHON_SPEC}/lib/python${PYTHON_VERSION}
 ENV OPENSSL_ROOT_DIR   /usr/local/ssl/
-
-COPY build-wheel-file-within-docker.sh /
-COPY build-client-lib-within-docker.sh /
