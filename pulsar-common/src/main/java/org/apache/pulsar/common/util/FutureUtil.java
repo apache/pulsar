@@ -19,10 +19,7 @@
 package org.apache.pulsar.common.util;
 
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.function.Supplier;
 /**
  * This class is aimed at simplifying work with {@code CompletableFuture}.
@@ -40,7 +37,7 @@ public class FutureUtil {
     }
 
     /**
-     * Return a futrue, which can be scheduled regularly
+     * Return a futrue, which can be scheduled regularly.
      * @param executor Periodic execution method
      * @param command This is a functional interface and can therefore be used as the assignment
      * target for a lambda expression or method reference.
@@ -55,7 +52,7 @@ public class FutureUtil {
             TimeUnit unit
     ) {
         CompletableFuture<T> completableFuture = new CompletableFuture<>();
-        executor.schedule(
+        ScheduledFuture timeout =  executor.schedule(
                 (() -> {
                     try {
                         return completableFuture.complete(command.get());
@@ -66,6 +63,11 @@ public class FutureUtil {
                 delay,
                 unit
         );
+        //When the captured futrue throws an exception, the worker thread clears the interruption status in time
+        completableFuture.whenComplete((igrone ,exception1) -> {
+            timeout.cancel(true);
+        });
+
         return completableFuture;
     }
 

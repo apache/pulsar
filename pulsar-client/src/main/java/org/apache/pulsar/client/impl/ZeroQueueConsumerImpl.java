@@ -52,6 +52,8 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
     private volatile boolean waitingOnReceiveForZeroQueueSize = false;
     private volatile boolean waitingOnListenerForZeroQueueSize = false;
 
+    private volatile boolean zeroQueuePreInterruptStatus = false;
+
     protected static ScheduledExecutorService messageScheduledFuture;
 
     public ZeroQueueConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
@@ -78,27 +80,29 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
             );
         }
 
-        long time1 = System.nanoTime();
+        long beginTime = System.nanoTime();
 
         Supplier<Message<T>> asyncTask = this::doZeroQueue;
         CompletableFuture<Message<T>> future = new CompletableFuture<>();
          try {
              future = FutureUtil.schedule(messageScheduledFuture, asyncTask,
                      conf.getReceiveInterval(), TimeUnit.SECONDS);
+             //The current thread is performing an asynchronous call
+             zeroQueuePreInterruptStatus = true;
              //Determine whether the task is over, and then get the result
-             if (future.isDone()) {
 
+             if (future.isDone()) {
                  tMessage = future.get();
              }
          }catch (ExecutionException | InterruptedException ignore){
-             long time2 = System.nanoTime();
+             Thread currentThread = Thread.currentThread();
+             if (zeroQueuePreInterruptStatus){
+                 currentThread.interrupt();
+             }
+             long endTime =  System.nanoTime();
              System.out.println("No timeout after " +
-                     (time2-time1)/1000000000.0 + " seconds");
-         }finally {
-             //When the captured futrue throws an exception, the worker thread clears the interruption status in time
-             future.cancel(true);
+                     (endTime - beginTime)/1000000000.0 + " seconds");
          }
-
 
         return tMessage;
     }
