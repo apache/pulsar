@@ -134,26 +134,26 @@ ls offloaders
 <li><p>以下为<strong>必选</strong> 配置。</p>
 <p>所需配置 | 说明 | 示例值 |---|---|--- <code>managedLedgerOffloadDriver</code> | Offloader driver 名称，不区分大小写。 | filesystem <code>fileSystemURI</code> | Connection address | <a href="hdfs://127.0.0.1:9000">hdfs://127.0.0.1:9000</a> <code>offloadersDirectory</code> | Hadoop profile path | ../conf/filesystem_offload_core_site.xml</p></li>
 <li><p>以下为<strong>可选</strong> 配置。</p>
-<p>Optional configuration| Description | Example value |---|---|--- <code>managedLedgerMinLedgerRolloverTimeMinutes</code>|Minimum time between ledger rollover for a topic<br><br><strong>Note</strong>: it is not recommended that you set this configuration in the production environment.|2 <code>managedLedgerMaxEntriesPerLedger</code>|Maximum number of entries to append to a ledger before triggering a rollover.<br><br><strong>Note</strong>: it is not recommended that you set this configuration in the production environment.|5000</p></li>
+<p>可选配置 | 描述 | 示例值 |---|---|--- <code>&lt;code&gt;managedLedgerMinLedgerRolloverTimeMinutes</code> | 一个 Topic 的 Ledger 翻转之间的最小时间<br><br><strong>注意</strong>: 不建议你在生产环境中设置此配置。|2 <code>managedLedgerMaxEntriesPerLedger</code> | 在触发翻转之前追加到 Topic ledger 的最大条目数。<br><br><strong>注意</strong>：不建议你在生产环境中设置此配置。|5000</p></li>
 </ul>
-<h4><a class="anchor" aria-hidden="true" id="offloader-driver-required"></a><a href="#offloader-driver-required" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Offloader driver (required)</h4>
-<p>Offloader driver name, which is case-insensitive.</p>
-<p>This example sets the offloader driver name as <em>filesystem</em>.</p>
+<h4><a class="anchor" aria-hidden="true" id="offloader-driver-必填"></a><a href="#offloader-driver-必填" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Offloader driver (必填)</h4>
+<p>Offloader driver 名称，不区分大小写</p>
+<p>下面的例子将 offloader driver 的名称设置为 <em>filesystem</em>。</p>
 <pre><code class="hljs css language-conf"><span class="hljs-attr">managedLedgerOffloadDriver</span>=filesystem
 </code></pre>
-<h4><a class="anchor" aria-hidden="true" id="connection-address-required"></a><a href="#connection-address-required" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Connection address (required)</h4>
-<p>Connection address is the URI to access the default Hadoop distributed file system.</p>
+<h4><a class="anchor" aria-hidden="true" id="连接地址-必填"></a><a href="#连接地址-必填" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>连接地址 (必填)</h4>
+<p>连接地址是访问默认 Hadoop 分布式文件系统的 URI。</p>
 <h5><a class="anchor" aria-hidden="true" id="示例"></a><a href="#示例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>示例</h5>
-<p>This example sets the connection address as <em><a href="hdfs://127.0.0.1:9000">hdfs://127.0.0.1:9000</a></em>.</p>
+<p>这个例子将连接地址设置为 <em>hdfs:/127.0.0.1:9000</em>。</p>
 <pre><code class="hljs css language-conf">fileSystemURI=<span class="hljs-string">hdfs:</span><span class="hljs-comment">//127.0.0.1:9000</span>
 </code></pre>
-<h4><a class="anchor" aria-hidden="true" id="hadoop-profile-path-required"></a><a href="#hadoop-profile-path-required" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Hadoop profile path (required)</h4>
-<p>The configuration file is stored in the Hadoop profile path. It contains various settings for Hadoop performance tuning.</p>
+<h4><a class="anchor" aria-hidden="true" id="hadoop配置文件路径-必填"></a><a href="#hadoop配置文件路径-必填" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Hadoop配置文件路径 (必填)</h4>
+<p>The configuration file is stored in the Hadoop profile path. 它包含了一些 Hadoop 性能调整的配置。</p>
 <h5><a class="anchor" aria-hidden="true" id="示例-1"></a><a href="#示例-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>示例</h5>
-<p>This example sets the Hadoop profile path as <em>../conf/filesystem_offload_core_site.xml</em>.</p>
+<p>本例将 Hadoop 配置文件路径设置为<em>./conf/filesystem_offload_core_site.xml</em>。</p>
 <pre><code class="hljs css language-conf"><span class="hljs-attr">fileSystemProfilePath</span>=../conf/filesystem_<span class="hljs-literal">off</span>load_core_site.xml
 </code></pre>
-<p>You can set the following configurations in the <em>filesystem_offload_core_site.xml</em> file.</p>
+<p>你可以在 <em>filesystem_offload_core_site.xml</em> 文件中设置以下配置。</p>
 <pre><code class="hljs"><span class="hljs-tag">&lt;<span class="hljs-name">property</span>&gt;</span>
     <span class="hljs-tag">&lt;<span class="hljs-name">name</span>&gt;</span>fs.defaultFS<span class="hljs-tag">&lt;/<span class="hljs-name">name</span>&gt;</span>
     <span class="hljs-tag">&lt;<span class="hljs-name">value</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-name">value</span>&gt;</span>
@@ -210,10 +210,10 @@ ls offloaders
 <li><p>使用 REST endpoint。</p></li>
 <li><p>使用命令行工具(例如 pulsar-admin)。</p></li>
 </ul>
-<p>要想用命令行工具触发，你要指定一个主题应该保留在 Pulsar 集群中的最大数据量 (阈值)。 If the size of the topic data on the Pulsar cluster exceeds this threshold, segments from the topic are offloaded to the filesystem until the threshold is no longer exceeded. Older segments are offloaded first.</p>
+<p>要想用命令行工具触发，你要指定一个主题应该保留在 Pulsar 集群中的最大数据量 (阈值)。 如果 Pulsar 集群上 topic 的数据大小超过了这个阈值，那么该 topic 下的 segment 就会被陆续卸载到 filesystem 上，直到不再超过这个阈值。 优先卸载旧的 segment。</p>
 <h4><a class="anchor" aria-hidden="true" id="示例-3"></a><a href="#示例-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>示例</h4>
 <ul>
-<li><p>This example triggers the filesystem offloader to run manually using pulsar-admin.</p>
+<li><p>该示例使用 pulsar-admin 手动触发了 filesystem offloader 的运行。</p>
 <pre><code class="hljs css language-bash">pulsar-admin topics offload --size-threshold 10M persistent://my-tenant/my-namespace/topic1
 </code></pre>
 <p><strong>输出</strong></p>
@@ -221,15 +221,15 @@ ls offloaders
 </code></pre>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="提示-2"></a><a href="#提示-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
-<p>For more information about the <code>pulsar-admin topics offload options</code> command, including flags, descriptions, default values, and shorthands, see <a href="/docs/zh-CN/2.7.2/pulsar-admin#offload">here</a>.</p>
+<p>关于<code>pulsar-admin topics offload-status options</code>命令的更多信息，包括标志、描述、默认值和速记方法，见<a href="/docs/zh-CN/2.7.2/pulsar-admin#offload">这里</a>。</p>
 </blockquote></li>
-<li><p>This example checks filesystem offloader status using pulsar-admin.</p>
+<li><p>该示例使用 pulsar-admin 检查 filesystem offloader 的状态。</p>
 <pre><code class="hljs css language-bash">pulsar-admin topics offload-status persistent://my-tenant/my-namespace/topic1
 </code></pre>
 <p><strong>输出</strong></p>
 <pre><code class="hljs css language-bash">Offload is currently running
 </code></pre>
-<p>To wait for the filesystem to complete the job, add the <code>-w</code> flag.</p>
+<p>要等待 filesystem offloader 完成任务，请添加 <code>-w</code> 参数。</p>
 <pre><code class="hljs css language-bash">pulsar-admin topics offload-status -w persistent://my-tenant/my-namespace/topic1
 </code></pre>
 <p><strong>输出</strong></p>
