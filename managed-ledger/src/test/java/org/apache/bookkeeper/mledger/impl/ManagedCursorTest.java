@@ -3529,24 +3529,32 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     }
 
 
-    @Test // (timeOut = 20000)
+    @Test
     public void testCursorGetBacklog() throws Exception {
         ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
-        managedLedgerConfig.setMaxEntriesPerLedger(1);
+        managedLedgerConfig.setMaxEntriesPerLedger(2);
         managedLedgerConfig.setMinimumRolloverTime(0, TimeUnit.MILLISECONDS);
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("get-backlog", managedLedgerConfig);
         ManagedCursor managedCursor = ledger.openCursor("test");
 
         Position position = ledger.addEntry("test".getBytes(Encoding));
         ledger.addEntry("test".getBytes(Encoding));
+        Position position1 = ledger.addEntry("test".getBytes(Encoding));
+        ledger.addEntry("test".getBytes(Encoding));
 
-        Assert.assertEquals(managedCursor.getNumberOfEntriesInBacklog(true), 2);
+        Assert.assertEquals(managedCursor.getNumberOfEntriesInBacklog(true), 4);
+        Assert.assertEquals(managedCursor.getNumberOfEntriesInBacklog(false), 4);
         Field field = ManagedLedgerImpl.class.getDeclaredField("ledgers");
         field.setAccessible(true);
 
         ((ConcurrentSkipListMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo>) field.get(ledger)).remove(position.getLedgerId());
+        field = ManagedCursorImpl.class.getDeclaredField("markDeletePosition");
+        field.setAccessible(true);
+        field.set(managedCursor, PositionImpl.get(position1.getLedgerId(), -1));
 
-        Assert.assertEquals(managedCursor.getNumberOfEntriesInBacklog(true), 1);
+
+        Assert.assertEquals(managedCursor.getNumberOfEntriesInBacklog(true), 2);
+        Assert.assertEquals(managedCursor.getNumberOfEntriesInBacklog(false), 4);
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorTest.class);
