@@ -66,7 +66,8 @@ public class AdminProxyHandlerTest {
         try {
             AdminProxyHandler.ReplayableProxyContentProvider replayableProxyContentProvider =
                     adminProxyHandler.new ReplayableProxyContentProvider(
-                            request, mock(HttpServletResponse.class), mock(Request.class), mock(InputStream.class));
+                            request, mock(HttpServletResponse.class), mock(Request.class), mock(InputStream.class),
+                            1024);
             Field field = replayableProxyContentProvider.getClass().getDeclaredField("bodyBuffer");
             field.setAccessible(true);
             Assert.assertEquals(((ByteArrayOutputStream) field.get(replayableProxyContentProvider)).size(), 0);
@@ -79,13 +80,15 @@ public class AdminProxyHandlerTest {
     @Test
     public void shouldLimitReplayBodyBufferSize() throws Exception {
         HttpServletRequest request = mock(HttpServletRequest.class);
-        int requestBodySize = AdminProxyHandler.ReplayableProxyContentProvider.MAX_REPLAY_BODY_BUFFER_SIZE + 1;
+        int maxRequestBodySize = 1024 * 1024;
+        int requestBodySize = maxRequestBodySize + 1;
         doReturn(requestBodySize).when(request).getContentLength();
         byte[] inputBuffer = new byte[requestBodySize];
 
         AdminProxyHandler.ReplayableProxyContentProvider replayableProxyContentProvider =
                 adminProxyHandler.new ReplayableProxyContentProvider(request, mock(HttpServletResponse.class),
-                        mock(Request.class), new ByteArrayInputStream(inputBuffer));
+                        mock(Request.class), new ByteArrayInputStream(inputBuffer),
+                        maxRequestBodySize);
 
         // when
 
@@ -108,7 +111,8 @@ public class AdminProxyHandlerTest {
     public void shouldReplayBodyBuffer() {
         // given
         HttpServletRequest request = mock(HttpServletRequest.class);
-        byte[] inputBuffer = new byte[AdminProxyHandler.ReplayableProxyContentProvider.MAX_REPLAY_BODY_BUFFER_SIZE - 1];
+        int maxRequestBodySize = 1024 * 1024;
+        byte[] inputBuffer = new byte[maxRequestBodySize - 1];
         for (int i = 0; i < inputBuffer.length; i++) {
             inputBuffer[i] = (byte) (i & 0xff);
         }
@@ -116,10 +120,10 @@ public class AdminProxyHandlerTest {
 
         AdminProxyHandler.ReplayableProxyContentProvider replayableProxyContentProvider =
                 adminProxyHandler.new ReplayableProxyContentProvider(request, mock(HttpServletResponse.class),
-                        mock(Request.class), new ByteArrayInputStream(inputBuffer));
+                        mock(Request.class), new ByteArrayInputStream(inputBuffer),
+                        maxRequestBodySize);
 
-        ByteBuffer consumeBuffer = ByteBuffer.allocate(
-                AdminProxyHandler.ReplayableProxyContentProvider.MAX_REPLAY_BODY_BUFFER_SIZE);
+        ByteBuffer consumeBuffer = ByteBuffer.allocate(maxRequestBodySize);
         // content can be consumed multiple times
         for (int i = 0; i < 3; i++) {
             // when

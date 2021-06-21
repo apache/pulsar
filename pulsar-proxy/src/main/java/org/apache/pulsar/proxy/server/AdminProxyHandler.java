@@ -166,15 +166,19 @@ class AdminProxyHandler extends ProxyServlet {
     // does not
     protected class ReplayableProxyContentProvider extends ProxyInputStreamContentProvider {
         static final int MIN_REPLAY_BODY_BUFFER_SIZE = 64;
-        static final int MAX_REPLAY_BODY_BUFFER_SIZE = 1 * 1024 * 1024; // 1MB
         private boolean bodyBufferAvailable = false;
         private boolean bodyBufferMaxSizeReached = false;
         private final ByteArrayOutputStream bodyBuffer;
-        protected ReplayableProxyContentProvider(HttpServletRequest request, HttpServletResponse response, Request proxyRequest, InputStream input) {
+        private final long httpInputMaxReplayBufferSize;
+
+        protected ReplayableProxyContentProvider(HttpServletRequest request, HttpServletResponse response,
+                                                 Request proxyRequest, InputStream input,
+                                                 int httpInputMaxReplayBufferSize) {
             super(request, response, proxyRequest, input);
             bodyBuffer = new ByteArrayOutputStream(
                     Math.min(Math.max(request.getContentLength(), MIN_REPLAY_BODY_BUFFER_SIZE),
-                            MAX_REPLAY_BODY_BUFFER_SIZE));
+                            httpInputMaxReplayBufferSize));
+            this.httpInputMaxReplayBufferSize = httpInputMaxReplayBufferSize;
         }
 
         @Override
@@ -190,7 +194,7 @@ class AdminProxyHandler extends ProxyServlet {
         @Override
         protected ByteBuffer onRead(byte[] buffer, int offset, int length) {
             if (!bodyBufferMaxSizeReached) {
-                if (bodyBuffer.size() + length < MAX_REPLAY_BODY_BUFFER_SIZE) {
+                if (bodyBuffer.size() + length < httpInputMaxReplayBufferSize) {
                     bodyBuffer.write(buffer, offset, length);
                 } else {
                     bodyBufferMaxSizeReached = true;
@@ -230,8 +234,10 @@ class AdminProxyHandler extends ProxyServlet {
 
     @Override
     protected ContentProvider proxyRequestContent(HttpServletRequest request,
-                                                  HttpServletResponse response, Request proxyRequest) throws IOException {
-        return new ReplayableProxyContentProvider(request, response, proxyRequest, request.getInputStream());
+                                                  HttpServletResponse response, Request proxyRequest)
+            throws IOException {
+        return new ReplayableProxyContentProvider(request, response, proxyRequest, request.getInputStream(),
+                config.getHttpInputMaxReplayBufferSize());
     }
 
     @Override
