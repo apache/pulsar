@@ -562,7 +562,7 @@ public class PulsarFunctionPublishTest {
 
         Map<String, Object> newUserConfig = new HashMap<>();
         newUserConfig.put("publish-topic", publishTopic);
-        newUserConfig.put("max", 60);
+        newUserConfig.put("test", "test");
         updatefunctionConfig1.setUserConfig(newUserConfig);
         admin.functions().updateFunctionWithUrl(updatefunctionConfig1, jarFilePathUrl);
         FunctionConfig updatefunctionConfig2 = admin.functions().getFunction(tenant, namespacePortion, functionName);
