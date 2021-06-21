@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
-import static org.apache.pulsar.broker.BrokerTestUtil.randomSuffixString;
+import static org.apache.pulsar.broker.BrokerTestUtil.newUniqueName;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
@@ -1130,16 +1130,16 @@ public class ReplicatorTest extends ReplicatorTestBase {
         final String cluster1 = pulsar1.getConfig().getClusterName();
         final String cluster2 = pulsar2.getConfig().getClusterName();
         final String cluster3 = pulsar3.getConfig().getClusterName();
-        final String namespace = randomSuffixString("pulsar/ns", 5);
+        final String namespace = newUniqueName("pulsar/ns");
 
         final String persistentPartitionedTopic =
-                randomSuffixString("persistent://" + namespace + "/partitioned", 5);
+                newUniqueName("persistent://" + namespace + "/partitioned");
         final String persistentNonPartitionedTopic =
-                randomSuffixString("persistent://" + namespace + "/non-partitioned", 5);
+                newUniqueName("persistent://" + namespace + "/non-partitioned");
         final String nonPersistentPartitionedTopic =
-                randomSuffixString("non-persistent://" + namespace + "/partitioned", 5);
+                newUniqueName("non-persistent://" + namespace + "/partitioned");
         final String nonPersistentNonPartitionedTopic =
-                randomSuffixString("non-persistent://" + namespace + "/non-partitioned", 5);
+                newUniqueName("non-persistent://" + namespace + "/non-partitioned");
         final int numPartitions = 3;
 
         admin1.namespaces().createNamespace(namespace, Sets.newHashSet(cluster1, cluster2, cluster3));
