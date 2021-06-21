@@ -46,6 +46,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
@@ -82,6 +83,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
@@ -3524,6 +3526,35 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertTrue(c2.checkAndUpdateReadPositionChanged());
 
         ledger.close();
+    }
+
+
+    @Test
+    public void testCursorGetBacklog() throws Exception {
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        managedLedgerConfig.setMaxEntriesPerLedger(2);
+        managedLedgerConfig.setMinimumRolloverTime(0, TimeUnit.MILLISECONDS);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("get-backlog", managedLedgerConfig);
+        ManagedCursor managedCursor = ledger.openCursor("test");
+
+        Position position = ledger.addEntry("test".getBytes(Encoding));
+        ledger.addEntry("test".getBytes(Encoding));
+        Position position1 = ledger.addEntry("test".getBytes(Encoding));
+        ledger.addEntry("test".getBytes(Encoding));
+
+        Assert.assertEquals(managedCursor.getNumberOfEntriesInBacklog(true), 4);
+        Assert.assertEquals(managedCursor.getNumberOfEntriesInBacklog(false), 4);
+        Field field = ManagedLedgerImpl.class.getDeclaredField("ledgers");
+        field.setAccessible(true);
+
+        ((ConcurrentSkipListMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo>) field.get(ledger)).remove(position.getLedgerId());
+        field = ManagedCursorImpl.class.getDeclaredField("markDeletePosition");
+        field.setAccessible(true);
+        field.set(managedCursor, PositionImpl.get(position1.getLedgerId(), -1));
+
+
+        Assert.assertEquals(managedCursor.getNumberOfEntriesInBacklog(true), 2);
+        Assert.assertEquals(managedCursor.getNumberOfEntriesInBacklog(false), 4);
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorTest.class);
