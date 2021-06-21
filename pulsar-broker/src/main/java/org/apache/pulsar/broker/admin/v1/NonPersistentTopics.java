@@ -142,14 +142,17 @@ public class NonPersistentTopics extends PersistentTopics {
             @ApiResponse(code = 406, message = "The number of partitions should be more than 0 and less than or equal"
                     + " to maxNumPartitionsPerPartitionedTopic"),
             @ApiResponse(code = 409, message = "Partitioned topic already exist")})
-    public void createPartitionedTopic(@Suspended final AsyncResponse asyncResponse,
-                                       @PathParam("property") String property, @PathParam("cluster") String cluster,
-                                       @PathParam("namespace") String namespace, @PathParam("topic") @Encoded
-                                               String encodedTopic,
-                                       int numPartitions) {
+    public void createPartitionedTopic(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("property") String property,
+            @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            int numPartitions,
+            @QueryParam("createLocalTopicOnly") @DefaultValue("false") boolean createLocalTopicOnly) {
         try {
             validateTopicName(property, cluster, namespace, encodedTopic);
-            internalCreatePartitionedTopic(asyncResponse, numPartitions);
+            internalCreatePartitionedTopic(asyncResponse, numPartitions, createLocalTopicOnly);
         } catch (Exception e) {
             log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
             resumeAsyncResponseExceptionally(asyncResponse, e);
