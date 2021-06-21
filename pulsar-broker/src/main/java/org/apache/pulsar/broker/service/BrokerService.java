@@ -1221,7 +1221,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                         public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
                             try {
                                 PersistentTopic persistentTopic = isSystemTopic(topic)
-                                        ? new SystemTopic(topic, ledger, BrokerService.this)
+                                        ? new SystemTopic(topic, ledger, BrokerService.this, true)
                                         : new PersistentTopic(topic, ledger, BrokerService.this);
                                 CompletableFuture<Void> replicationFuture = persistentTopic.checkReplication();
                                 replicationFuture.thenCompose(v -> {
@@ -1255,7 +1255,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
                                     return null;
                                 });
-                            } catch (NamingException e) {
+                            } catch (NamingException | PulsarServerException e) {
                                 log.warn("Failed to create topic {}-{}", topic, e.getMessage());
                                 pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
                                 topicFuture.completeExceptionally(e);

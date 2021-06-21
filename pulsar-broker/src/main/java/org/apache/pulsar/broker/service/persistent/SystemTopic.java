@@ -20,14 +20,30 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 
 public class SystemTopic extends PersistentTopic {
 
-    public SystemTopic(String topic, ManagedLedger ledger, BrokerService brokerService)
-            throws BrokerServiceException.NamingException {
+    public SystemTopic(String topic, ManagedLedger ledger, BrokerService brokerService, boolean triggerCompaction)
+            throws BrokerServiceException.NamingException, PulsarServerException {
         super(topic, ledger, brokerService);
+        if (triggerCompaction && !super.hasCompactionTriggered()) {
+            try {
+                // To trigger the system topic compaction to avoid lost any data since we are using reader for reading
+                // data from the __change_events topic, if no durable subscription on the topic, the data might be lost.
+                // Since we are using the topic compaction on the __change_events topic to reduce the topic policy
+                // cache recovery time, so we can leverage the topic compaction cursor for retaining the data.
+
+                // We can trigger the compaction directly here since for the first time we create the system topic,
+                // The system topic does not have any data, the operation just pre-create the subscription for the
+                // topic compaction.
+                super.triggerCompaction();
+            } catch (BrokerServiceException.AlreadyRunningException ignore) {
+                // it's ok here
+            }
+        }
     }
 
     @Override
