@@ -555,7 +555,16 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                 Schema.AVRO(V1Data.class),
                 KeyValueEncodingType.SEPARATED);
 
-        try (Producer<KeyValue<V1Data, V1Data>> p = pulsarClient.newProducer(pojoSchema)
+        try (Consumer<KeyValue<GenericRecord, V1Data>> c3before = pulsarClient.newConsumer(
+                Schema.KeyValue(
+                        Schema.AUTO_CONSUME(),
+                        Schema.AVRO(V1Data.class),
+                        KeyValueEncodingType.SEPARATED))
+                .topic(topic)
+                .subscriptionName("sub3b")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+                Producer<KeyValue<V1Data, V1Data>> p = pulsarClient.newProducer(pojoSchema)
                 .topic(topic)
                 .enableBatching(batching)
                 .create();
@@ -659,6 +668,18 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                 assertNotNull(keyValueSchema.getValueSchema());
             }
 
+            // verify c3before
+            for (int i = 0; i < numMessages; i++) {
+                Message<KeyValue<GenericRecord, V1Data>> data = c3before.receive();
+                assertNotNull(data.getSchemaVersion());
+                assertEquals(data.getValue().getKey().getField("i"), i * 100);
+                assertEquals(data.getValue().getValue().i, i * 1000);
+                c3before.acknowledge(data);
+                KeyValueSchemaImpl keyValueSchema = (KeyValueSchemaImpl) data.getReaderSchema().get();
+                assertNotNull(keyValueSchema.getKeySchema());
+                assertNotNull(keyValueSchema.getValueSchema());
+            }
+
             // verify c4
             for (int i = 0; i < numMessages; i++) {
                 Message<KeyValue<V1Data, GenericRecord>> data = c4.receive();
@@ -676,7 +697,15 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                 Schema.AVRO(V2Data.class),
                 KeyValueEncodingType.SEPARATED);
 
-        try (Producer<KeyValue<V2Data, V2Data>> p = pulsarClient.newProducer(pojoSchemaV2)
+        try (Consumer<KeyValue<GenericRecord, V2Data>> c3before = pulsarClient.newConsumer(
+                Schema.KeyValue(
+                        Schema.AUTO_CONSUME(),
+                        Schema.AVRO(V2Data.class),
+                        KeyValueEncodingType.SEPARATED))
+                .topic(topic)
+                .subscriptionName("sub3b")
+                .subscribe();
+                Producer<KeyValue<V2Data, V2Data>> p = pulsarClient.newProducer(pojoSchemaV2)
                 .topic(topic)
                 .enableBatching(batching)
                 .create();
@@ -758,6 +787,16 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
             // verify c3
             for (int i = 0; i < numMessages; i++) {
                 Message<KeyValue<GenericRecord, V2Data>> data = c3.receive();
+                assertNotNull(data.getSchemaVersion());
+                assertEquals(data.getValue().getKey().getField("i"), i * 100);
+                assertEquals(data.getValue().getValue().i, i * 1000);
+                assertEquals(data.getValue().getKey().getField("j"), (Integer) i);
+                assertEquals(data.getValue().getValue().j, (Integer) (i * 20));
+            }
+
+            // verify c3before
+            for (int i = 0; i < numMessages; i++) {
+                Message<KeyValue<GenericRecord, V2Data>> data = c3before.receive();
                 assertNotNull(data.getSchemaVersion());
                 assertEquals(data.getValue().getKey().getField("i"), i * 100);
                 assertEquals(data.getValue().getValue().i, i * 1000);
