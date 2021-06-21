@@ -20,6 +20,7 @@ package org.apache.pulsar.client.api;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -897,6 +898,63 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         admin.topics().deletePartitionedTopic(topicName);
 
         log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test(timeOut = 90000 /* 1.5mn */)
+    public void testPersistentPartitionsAreNotAutoCreatedWhenThePartitionedTopicDoesNotExist() throws Exception {
+        final boolean defaultAllowAutoTopicCreation = conf.isAllowAutoTopicCreation();
+        try {
+            // Given the auto topic creation is disabled
+            cleanup();
+            conf.setAllowAutoTopicCreation(false);
+            setup();
+
+            final String topicPartitionName = "persistent://public/default/issue-9173-partition-0";
+
+            // Then error when subscribe to a partition of a persistent topic that does not exist
+            assertThrows(PulsarClientException.TopicDoesNotExistException.class,
+                    () -> pulsarClient.newConsumer().topic(topicPartitionName).subscriptionName("sub-issue-9173").subscribe());
+
+            // Then error when produce to a partition of a persistent topic that does not exist
+            assertThrows(PulsarClientException.TopicDoesNotExistException.class,
+                    () -> pulsarClient.newProducer().topic(topicPartitionName).create());
+        } finally {
+            conf.setAllowAutoTopicCreation(defaultAllowAutoTopicCreation);
+        }
+    }
+
+    @Test(timeOut = 90000 /* 1.5mn */)
+    public void testAutoCreatePersistentPartitionsWhenThePartitionedTopicExists() throws Exception {
+        final boolean defaultAllowAutoTopicCreation = conf.isAllowAutoTopicCreation();
+        try {
+            // Given the auto topic creation is disabled
+            cleanup();
+            conf.setAllowAutoTopicCreation(false);
+            setup();
+
+            // Given the persistent partitioned topic exists
+            final String topic = "persistent://public/default/issue-9173";
+            admin.topics().createPartitionedTopic(topic, 3);
+
+            // Manually delete one partition created in partitioned topic creation
+            // Partitions maybe deleted due to inactivity policies.
+            admin.topics().delete("persistent://public/default/issue-9173-partition-0");
+
+            // When subscribe, then a sub-consumer is created for each partition which means the partitions are created
+            final MultiTopicsConsumerImpl<byte[]> consumer = (MultiTopicsConsumerImpl<byte[]>) pulsarClient.newConsumer()
+                    .topic(topic).subscriptionName("sub-issue-9173").subscribe();
+            assertEquals(consumer.getConsumers().size(), 3);
+
+            // When produce, a sub-producer is created for each partition which means the partitions are created
+            PartitionedProducerImpl<byte[]> producer = (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer().topic(topic).create();
+            assertEquals(producer.getProducers().size(), 3);
+
+            consumer.close();
+            producer.close();
+
+        } finally {
+            conf.setAllowAutoTopicCreation(defaultAllowAutoTopicCreation);
+        }
     }
 
 

@@ -863,8 +863,19 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             }
             final boolean isPersistentTopic = TopicName.get(topic).getDomain().equals(TopicDomain.persistent);
             if (isPersistentTopic) {
-                return topics.computeIfAbsent(topic, (topicName) -> {
-                    return this.loadOrCreatePersistentTopic(topicName, createIfMissing);
+                return topics.computeIfAbsent(topic, (name) -> {
+                    final TopicName topicName = TopicName.get(name);
+                    if (!createIfMissing && topicName.isPartitioned()) {
+                        final TopicName partitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
+                        return this.fetchPartitionedTopicMetadataAsync(partitionedTopicName).thenCompose((metadata) -> {
+                            if (topicName.getPartitionIndex() < metadata.partitions) {
+                                return this.loadOrCreatePersistentTopic(name, true);
+                            }
+                            return this.loadOrCreatePersistentTopic(name, createIfMissing);
+                        });
+                    } else {
+                        return this.loadOrCreatePersistentTopic(name, createIfMissing);
+                    }
                 });
             } else {
                 return topics.computeIfAbsent(topic, (name) -> {
