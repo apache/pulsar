@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.io.core;
 
+import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 import org.apache.pulsar.functions.api.BaseContext;
@@ -42,4 +46,25 @@ public interface SourceContext extends BaseContext {
      * @return output topic name
      */
     String getOutputTopic();
+
+    /**
+     * New output message using schema for serializing to the topic
+     *
+     * @param topicName The name of the topic for output message
+     * @param schema provide a way to convert between serialized data and domain objects
+     * @param <O>
+     * @return the message builder instance
+     * @throws PulsarClientException
+     */
+    <O> TypedMessageBuilder<O> newOutputMessage(String topicName, Schema<O> schema) throws PulsarClientException;
+
+    /**
+     * Create a ConsumerBuilder with the schema.
+     *
+     * @param schema provide a way to convert between serialized data and domain objects
+     * @param <O>
+     * @return the consumer builder instance
+     * @throws PulsarClientException
+     */
+    <O> ConsumerBuilder<O> newConsumerBuilder(Schema<O> schema) throws PulsarClientException;
 }
