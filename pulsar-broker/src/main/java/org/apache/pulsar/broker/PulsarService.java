@@ -1361,8 +1361,9 @@ public class PulsarService implements AutoCloseable {
     }
 
     /**
-     * Advertised service address.
      * The order of obtaining addresses is advertisedAddress, then hostname.
+     * The result is not affected by advertisedListeners.
+     * When we don’t know the key of advertisedListeners, we can use this method.
      * @return Hostname or IP address the service advertises to the outside world.
      */
     public static String advertisedAddress(ServiceConfiguration config) {
