@@ -84,7 +84,7 @@ BookKeeper is a replicated log storage system that Pulsar uses for durable stora
 |zkRetryBackoffMaxMs|The maximum time that the Zookeeper client backoff retries in milliseconds.|10000|
 |zkEnableSecurity|Set ACLs on every node written on ZooKeeper, allowing users to read and write BookKeeper metadata stored on ZooKeeper. In order to make ACLs work you need to setup ZooKeeper JAAS authentication. All the bookies and Client need to share the same user, and this is usually done using Kerberos authentication. See ZooKeeper documentation.|false|
 |httpServerEnabled|The flag enables/disables starting the admin http server.|false|
-|httpServerPort|The http server port to listen on. By default, the value is 8080. Use `8000` as the port to keep it consistent with prometheus stats provider.|8000
+|httpServerPort|The HTTP server port to listen on. By default, the value is `8080`. If you want to keep it consistent with the Prometheus stats provider, you can set it to `8000`.|8080
 |httpServerClass|The http server class.|org.apache.bookkeeper.http.vertx.VertxHttpServer|
 |serverTcpNoDelay|This settings is used to enabled/disabled Nagle’s algorithm, which is a means of improving the efficiency of TCP/IP networks by reducing the number of packets that need to be sent over the network. If you are sending many small messages, such that more than one can fit in a single IP packet, setting server.tcpnodelay to false to enable Nagle algorithm can provide better performance.|true|
 |serverSockKeepalive|This setting is used to send keep-alive messages on connection-oriented sockets.|true|
