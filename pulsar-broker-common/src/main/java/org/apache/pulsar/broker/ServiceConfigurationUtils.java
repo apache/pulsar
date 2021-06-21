@@ -56,7 +56,8 @@ public class ServiceConfigurationUtils {
      * If it is still not set, get it through InetAddress.getLocalHost().
      * @return
      */
-    public static String getAppliedAdvertisedAddress(ServiceConfiguration configuration) {
+    public static String getAppliedAdvertisedAddress(ServiceConfiguration configuration,
+                                                     boolean ignoreAdvertisedListener) {
         Map<String, AdvertisedListener> result = MultipleListenerValidator
                 .validateAndAnalysisAdvertisedListener(configuration);
 
@@ -66,7 +67,7 @@ public class ServiceConfigurationUtils {
         }
 
         AdvertisedListener advertisedListener = result.get(configuration.getInternalListenerName());
-        if (advertisedListener != null) {
+        if (advertisedListener != null && !ignoreAdvertisedListener) {
             String address = advertisedListener.getBrokerServiceUrl().getHost();
             if (address != null) {
                 return address;
