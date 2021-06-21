@@ -210,7 +210,6 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
                 .get(subName).getConsumers().get(0)));
         if (node.fieldNames().hasNext()) {
             String field = node.fieldNames().next();
-            System.out.println(field);
             Assert.assertTrue(allowedFields.contains(field));
         }
 
