@@ -18,14 +18,13 @@
  */
 package org.apache.pulsar.broker;
 
+import static org.testng.Assert.*;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
-import org.junit.Test;
-import org.testng.Assert;
-
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import org.testng.annotations.Test;
 
 
 public class TimeAverageBrokerDataTest {
@@ -33,7 +32,7 @@ public class TimeAverageBrokerDataTest {
     @Test
     public void testIllegalArg() {
         TimeAverageBrokerData timeAverageBrokerData = new TimeAverageBrokerData();
-        Assert.assertThrows(NullPointerException.class, () -> timeAverageBrokerData.reset(null, null, null));
+        assertThrows(NullPointerException.class, () -> timeAverageBrokerData.reset(null, null, null));
     }
 
     @Test
@@ -48,14 +47,14 @@ public class TimeAverageBrokerDataTest {
         namespaceBundleStats.msgRateIn = 3;
         namespaceBundleStats.msgRateOut = 4;
         timeAverageBrokerData.reset(bundles, emptyMap, namespaceBundleStats);
-        Assert.assertEquals(timeAverageBrokerData.getShortTermMsgThroughputIn(), 1);
-        Assert.assertEquals(timeAverageBrokerData.getShortTermMsgThroughputOut(), 2);
-        Assert.assertEquals(timeAverageBrokerData.getShortTermMsgRateIn(), 3);
-        Assert.assertEquals(timeAverageBrokerData.getShortTermMsgRateOut(), 4);
-        Assert.assertEquals(timeAverageBrokerData.getLongTermMsgThroughputIn(), 1);
-        Assert.assertEquals(timeAverageBrokerData.getLongTermMsgThroughputOut(), 2);
-        Assert.assertEquals(timeAverageBrokerData.getLongTermMsgRateIn(), 3);
-        Assert.assertEquals(timeAverageBrokerData.getLongTermMsgRateOut(), 4);
+        assertEquals(timeAverageBrokerData.getShortTermMsgThroughputIn(), 1);
+        assertEquals(timeAverageBrokerData.getShortTermMsgThroughputOut(), 2);
+        assertEquals(timeAverageBrokerData.getShortTermMsgRateIn(), 3);
+        assertEquals(timeAverageBrokerData.getShortTermMsgRateOut(), 4);
+        assertEquals(timeAverageBrokerData.getLongTermMsgThroughputIn(), 1);
+        assertEquals(timeAverageBrokerData.getLongTermMsgThroughputOut(), 2);
+        assertEquals(timeAverageBrokerData.getLongTermMsgRateIn(), 3);
+        assertEquals(timeAverageBrokerData.getLongTermMsgRateOut(), 4);
     }
 
     @Test
@@ -71,14 +70,14 @@ public class TimeAverageBrokerDataTest {
         namespaceBundleStats.msgRateIn = 3;
         namespaceBundleStats.msgRateOut = 4;
         timeAverageBrokerData.reset(bundles, emptyMap, namespaceBundleStats);
-        Assert.assertEquals(timeAverageBrokerData.getShortTermMsgThroughputIn(), 2);
-        Assert.assertEquals(timeAverageBrokerData.getShortTermMsgThroughputOut(), 4);
-        Assert.assertEquals(timeAverageBrokerData.getShortTermMsgRateIn(), 6);
-        Assert.assertEquals(timeAverageBrokerData.getShortTermMsgRateOut(), 8);
-        Assert.assertEquals(timeAverageBrokerData.getLongTermMsgThroughputIn(), 2);
-        Assert.assertEquals(timeAverageBrokerData.getLongTermMsgThroughputOut(), 4);
-        Assert.assertEquals(timeAverageBrokerData.getLongTermMsgRateIn(), 6);
-        Assert.assertEquals(timeAverageBrokerData.getLongTermMsgRateOut(), 8);
+        assertEquals(timeAverageBrokerData.getShortTermMsgThroughputIn(), 2);
+        assertEquals(timeAverageBrokerData.getShortTermMsgThroughputOut(), 4);
+        assertEquals(timeAverageBrokerData.getShortTermMsgRateIn(), 6);
+        assertEquals(timeAverageBrokerData.getShortTermMsgRateOut(), 8);
+        assertEquals(timeAverageBrokerData.getLongTermMsgThroughputIn(), 2);
+        assertEquals(timeAverageBrokerData.getLongTermMsgThroughputOut(), 4);
+        assertEquals(timeAverageBrokerData.getLongTermMsgRateIn(), 6);
+        assertEquals(timeAverageBrokerData.getLongTermMsgRateOut(), 8);
     }
 
     @Test
@@ -97,14 +96,14 @@ public class TimeAverageBrokerDataTest {
         bundleData.setShortTermData(timeAverageMessageData);
         data.put("a", bundleData);
         timeAverageBrokerData.reset(bundles, data, null);
-        Assert.assertEquals(timeAverageBrokerData.getShortTermMsgThroughputIn(), 1);
-        Assert.assertEquals(timeAverageBrokerData.getShortTermMsgThroughputOut(), 2);
-        Assert.assertEquals(timeAverageBrokerData.getShortTermMsgRateIn(), 3);
-        Assert.assertEquals(timeAverageBrokerData.getShortTermMsgRateOut(), 4);
-        Assert.assertEquals(timeAverageBrokerData.getLongTermMsgThroughputIn(), 1);
-        Assert.assertEquals(timeAverageBrokerData.getLongTermMsgThroughputOut(), 2);
-        Assert.assertEquals(timeAverageBrokerData.getLongTermMsgRateIn(), 3);
-        Assert.assertEquals(timeAverageBrokerData.getLongTermMsgRateOut(), 4);
+        assertEquals(timeAverageBrokerData.getShortTermMsgThroughputIn(), 1);
+        assertEquals(timeAverageBrokerData.getShortTermMsgThroughputOut(), 2);
+        assertEquals(timeAverageBrokerData.getShortTermMsgRateIn(), 3);
+        assertEquals(timeAverageBrokerData.getShortTermMsgRateOut(), 4);
+        assertEquals(timeAverageBrokerData.getLongTermMsgThroughputIn(), 1);
+        assertEquals(timeAverageBrokerData.getLongTermMsgThroughputOut(), 2);
+        assertEquals(timeAverageBrokerData.getLongTermMsgRateIn(), 3);
+        assertEquals(timeAverageBrokerData.getLongTermMsgRateOut(), 4);
     }
 
     @Test
@@ -125,14 +124,14 @@ public class TimeAverageBrokerDataTest {
         data.put("a", bundleData);
         data.put("b", bundleData);
         timeAverageBrokerData.reset(bundles, data, null);
-        Assert.assertEquals(timeAverageBrokerData.getShortTermMsgThroughputIn(), 2);
-        Assert.assertEquals(timeAverageBrokerData.getShortTermMsgThroughputOut(), 4);
-        Assert.assertEquals(timeAverageBrokerData.getShortTermMsgRateIn(), 6);
-        Assert.assertEquals(timeAverageBrokerData.getShortTermMsgRateOut(), 8);
-        Assert.assertEquals(timeAverageBrokerData.getLongTermMsgThroughputIn(), 2);
-        Assert.assertEquals(timeAverageBrokerData.getLongTermMsgThroughputOut(), 4);
-        Assert.assertEquals(timeAverageBrokerData.getLongTermMsgRateIn(), 6);
-        Assert.assertEquals(timeAverageBrokerData.getLongTermMsgRateOut(), 8);
+        assertEquals(timeAverageBrokerData.getShortTermMsgThroughputIn(), 2);
+        assertEquals(timeAverageBrokerData.getShortTermMsgThroughputOut(), 4);
+        assertEquals(timeAverageBrokerData.getShortTermMsgRateIn(), 6);
+        assertEquals(timeAverageBrokerData.getShortTermMsgRateOut(), 8);
+        assertEquals(timeAverageBrokerData.getLongTermMsgThroughputIn(), 2);
+        assertEquals(timeAverageBrokerData.getLongTermMsgThroughputOut(), 4);
+        assertEquals(timeAverageBrokerData.getLongTermMsgRateIn(), 6);
+        assertEquals(timeAverageBrokerData.getLongTermMsgRateOut(), 8);
     }
 
 }
