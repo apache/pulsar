@@ -1221,7 +1221,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                         public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
                             try {
                                 PersistentTopic persistentTopic = isSystemTopic(topic)
-                                        ? new SystemTopic(topic, ledger, BrokerService.this, true)
+                                        ? new SystemTopic(topic, ledger, BrokerService.this)
                                         : new PersistentTopic(topic, ledger, BrokerService.this);
                                 CompletableFuture<Void> preCreateSubForCompaction =
                                         CompletableFuture.completedFuture(null);

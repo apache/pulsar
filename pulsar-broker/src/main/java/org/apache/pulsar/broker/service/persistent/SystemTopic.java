@@ -31,7 +31,7 @@ import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
 
 public class SystemTopic extends PersistentTopic {
 
-    public SystemTopic(String topic, ManagedLedger ledger, BrokerService brokerService, boolean triggerCompaction)
+    public SystemTopic(String topic, ManagedLedger ledger, BrokerService brokerService)
             throws BrokerServiceException.NamingException, PulsarServerException {
         super(topic, ledger, brokerService);
     }
