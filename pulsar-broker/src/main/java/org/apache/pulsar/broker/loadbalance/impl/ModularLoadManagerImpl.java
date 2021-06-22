@@ -931,7 +931,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
         List<Metrics> metrics = Lists.newArrayList();
         Map<String, String> dimensions = new HashMap<>();
 
-        dimensions.put("broker", ServiceConfigurationUtils.getAppliedAdvertisedAddress(conf));
+        dimensions.put("broker", ServiceConfigurationUtils.getAppliedAdvertisedAddress(conf, true));
         dimensions.put("metric", "loadBalancing");
 
         Metrics m = Metrics.create(dimensions);
