@@ -20,11 +20,10 @@ package org.apache.pulsar.common.naming;
 
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
-import org.junit.Test;
+import java.util.concurrent.CompletableFuture;
 import org.mockito.Mockito;
 import org.testng.Assert;
-
-import java.util.concurrent.CompletableFuture;
+import org.testng.annotations.Test;
 
 public class RangeEquallyDivideBundleSplitAlgorithmTest {
 
