@@ -4,7 +4,7 @@ title: Pulsar Python client
 sidebar_label: Python
 ---
 
-Pulsar Python client library is a wrapper over the existing [C++ client library](client-libraries-cpp.md) and exposes all of the [same features](/api/cpp). You can find the code in the [`python` ](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/python)subdirectory of the C++ client code.
+Pulsar Python client library is a wrapper over the existing [C++ client library](client-libraries-cpp.md) and exposes all of the [same features](/api/cpp). You can find the code in the [Python subdirectory](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/python)subdirectory of the C++ client code.
 
 All the methods in producer, consumer, and reader of a Python client are thread-safe.
 
