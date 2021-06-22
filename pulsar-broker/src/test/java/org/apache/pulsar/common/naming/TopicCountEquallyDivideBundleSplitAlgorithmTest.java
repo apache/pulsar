@@ -50,44 +50,45 @@ public class TopicCountEquallyDivideBundleSplitAlgorithmTest {
                 .when(mockNamespaceService).getOwnedTopicListForNamespaceBundle(mockNamespaceBundle);
         Assert.assertNull(algorithm.getSplitBoundary(mockNamespaceService, mockNamespaceBundle).join());
     }
+
+    @SuppressWarnings("UnstableApiUsage")
     @Test
     public void testAlgorithmReturnCorrectResult() {
+        // -- algorithm
         TopicCountEquallyDivideBundleSplitAlgorithm algorithm = new TopicCountEquallyDivideBundleSplitAlgorithm();
         List<String> mockTopics = Lists.newArrayList("a", "b", "c");
-        long correctResult = getCorrectResult(mockTopics);
-        NamespaceService mockNamespaceService1 = Mockito.mock(NamespaceService.class);
-        NamespaceBundle mockNamespaceBundle1 = Mockito.mock(NamespaceBundle.class);
+        // -- calculate the mock result
+        NamespaceService namespaceServiceForMockResult = Mockito.mock(NamespaceService.class);
+        NamespaceBundle namespaceBundleForMockResult = Mockito.mock(NamespaceBundle.class);
         Mockito.doReturn(CompletableFuture.completedFuture(mockTopics))
-                .when(mockNamespaceService1).getOwnedTopicListForNamespaceBundle(mockNamespaceBundle1);
-        NamespaceBundleFactory mockNamespaceBundleFactory = Mockito.mock(NamespaceBundleFactory.class);
-        mockTopics.forEach((topic)->{
-            Mockito.doReturn(mockNamespaceBundleFactory)
-                    .when(mockNamespaceBundle1).getNamespaceBundleFactory();
-            long hashValue = Hashing.crc32().hashString(topic, Charsets.UTF_8).padToLong();
-            Mockito.doReturn(hashValue)
-                    .when(mockNamespaceBundleFactory).getLongHashCode(topic);
-        });
-        Assert.assertEquals((long)algorithm.getSplitBoundary(mockNamespaceService1, mockNamespaceBundle1).join(),correctResult);
-    }
-
-    private long getCorrectResult(List<String> mockTopics){
-        NamespaceService mockNamespaceService = Mockito.mock(NamespaceService.class);
-        NamespaceBundle mockNamespaceBundle = Mockito.mock(NamespaceBundle.class);
-        Mockito.doReturn(CompletableFuture.completedFuture(mockTopics))
-                .when(mockNamespaceService).getOwnedTopicListForNamespaceBundle(mockNamespaceBundle);
+                .when(namespaceServiceForMockResult).getOwnedTopicListForNamespaceBundle(namespaceBundleForMockResult);
         List<Long> hashList = new ArrayList<>();
-        mockTopics.forEach((topic)->{
+        NamespaceBundleFactory namespaceBundleFactoryForMockResult = Mockito.mock(NamespaceBundleFactory.class);
+        mockTopics.forEach((topic) -> {
             long hashValue = Hashing.crc32().hashString(topic, Charsets.UTF_8).padToLong();
-            NamespaceBundleFactory mockNamespaceBundleFactory = Mockito.mock(NamespaceBundleFactory.class);
-            Mockito.doReturn(mockNamespaceBundleFactory)
-                    .when(mockNamespaceBundle).getNamespaceBundleFactory();
+            Mockito.doReturn(namespaceBundleFactoryForMockResult)
+                    .when(namespaceBundleForMockResult).getNamespaceBundleFactory();
             Mockito.doReturn(hashValue)
-                    .when(mockNamespaceBundleFactory).getLongHashCode(topic);
+                    .when(namespaceBundleFactoryForMockResult).getLongHashCode(topic);
             hashList.add(hashValue);
         });
         Collections.sort(hashList);
         long splitStart = hashList.get(Math.max((hashList.size() / 2) - 1, 0));
         long splitEnd = hashList.get(hashList.size() / 2);
-        return splitStart + (splitEnd - splitStart) / 2;
+        long splitMiddleForMockResult = splitStart + (splitEnd - splitStart) / 2;
+        // -- do test
+        NamespaceService mockNamespaceService = Mockito.mock(NamespaceService.class);
+        NamespaceBundle mockNamespaceBundle = Mockito.mock(NamespaceBundle.class);
+        Mockito.doReturn(CompletableFuture.completedFuture(mockTopics))
+                .when(mockNamespaceService).getOwnedTopicListForNamespaceBundle(mockNamespaceBundle);
+        NamespaceBundleFactory mockNamespaceBundleFactory = Mockito.mock(NamespaceBundleFactory.class);
+        mockTopics.forEach((topic) -> {
+            Mockito.doReturn(mockNamespaceBundleFactory)
+                    .when(mockNamespaceBundle).getNamespaceBundleFactory();
+            long hashValue = Hashing.crc32().hashString(topic, Charsets.UTF_8).padToLong();
+            Mockito.doReturn(hashValue)
+                    .when(mockNamespaceBundleFactory).getLongHashCode(topic);
+        });
+        Assert.assertEquals((long) algorithm.getSplitBoundary(mockNamespaceService, mockNamespaceBundle).join(), splitMiddleForMockResult);
     }
 }
