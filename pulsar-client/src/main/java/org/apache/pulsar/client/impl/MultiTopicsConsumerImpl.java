@@ -518,16 +518,18 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
         CompletableFuture<Void> unsubscribeFuture = new CompletableFuture<>();
         List<CompletableFuture<Void>> futureList = consumers.values().stream()
-            .map(c -> c.unsubscribeAsync()).collect(Collectors.toList());
+            .map(ConsumerImpl::unsubscribeAsync).collect(Collectors.toList());
 
         FutureUtil.waitForAll(futureList)
             .whenComplete((r, ex) -> {
                 if (ex == null) {
                     setState(State.Closed);
-                    unAckedMessageTracker.close();
+                    cleanupMultiConsumer();
                     unsubscribeFuture.complete(null);
                     log.info("[{}] [{}] [{}] Unsubscribed Topics Consumer",
                         topic, subscription, consumerName);
+                    // fail all pending-receive futures to notify application
+                    failPendingReceive();
                 } else {
                     setState(State.Failed);
                     unsubscribeFuture.completeExceptionally(ex);
@@ -554,16 +556,15 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
         List<CompletableFuture<Void>> futureList = consumers.values().stream()
-            .map(c -> c.closeAsync()).collect(Collectors.toList());
+            .map(ConsumerImpl::closeAsync).collect(Collectors.toList());
 
         FutureUtil.waitForAll(futureList)
             .whenComplete((r, ex) -> {
                 if (ex == null) {
                     setState(State.Closed);
-                    unAckedMessageTracker.close();
+                    cleanupMultiConsumer();
                     closeFuture.complete(null);
                     log.info("[{}] [{}] Closed Topics Consumer", topic, subscription);
-                    client.cleanupConsumer(this);
                     // fail all pending-receive futures to notify application
                     failPendingReceive();
                 } else {
@@ -575,6 +576,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             });
 
         return closeFuture;
+    }
+
+    private void cleanupMultiConsumer() {
+        unAckedMessageTracker.close();
+        client.cleanupConsumer(this);
     }
 
     private void failPendingReceive() {
