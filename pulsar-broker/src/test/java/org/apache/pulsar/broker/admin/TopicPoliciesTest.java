@@ -2281,7 +2281,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 30000)
     public void testSystemTopicShouldBeCompacted() throws Exception {
         BacklogQuota backlogQuota = BacklogQuota.builder()
                 .limitSize(1024)
@@ -2315,6 +2315,27 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                     PersistentTopicInternalStats iStats = admin.topics().getInternalStats(topicPolicyEventsTopic);
                     Assert.assertTrue(iStats.compactedLedger.ledgerId != previousCompactedLedgerId);
                 });
+    }
+
+    @Test(timeOut = 30000)
+    public void testTopicRetentionPolicySetInManagedLedgerConfig() throws Exception {
+        RetentionPolicies nsRetentionPolicies = new RetentionPolicies(1, -1);
+        TopicName topicName = TopicName.get(testTopic);
+
+        // set and check retention policy on namespace level
+        admin.namespaces().setRetention(myNamespace, nsRetentionPolicies);
+        ManagedLedgerConfig managedLedgerConfig = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
+        Assert.assertEquals(managedLedgerConfig.getRetentionTimeMillis(),
+                TimeUnit.MINUTES.toMillis(nsRetentionPolicies.getRetentionTimeInMinutes()));
+        Assert.assertEquals(managedLedgerConfig.getRetentionSizeInMB(), nsRetentionPolicies.getRetentionSizeInMB());
+
+        // set and check retention policy on topic level
+        RetentionPolicies topicRetentionPolicies = new RetentionPolicies(2, -1);
+        admin.topics().setRetention(testTopic, topicRetentionPolicies);
+        managedLedgerConfig = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
+        Assert.assertEquals(managedLedgerConfig.getRetentionTimeMillis(),
+                TimeUnit.MINUTES.toMillis(topicRetentionPolicies.getRetentionTimeInMinutes()));
+        Assert.assertEquals(managedLedgerConfig.getRetentionSizeInMB(), topicRetentionPolicies.getRetentionSizeInMB());
     }
 
 }
