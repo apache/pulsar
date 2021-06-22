@@ -371,6 +371,9 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         final String topicName = "persistent://public/default/test" + UUID.randomUUID().toString();
 
         admin.topics().createPartitionedTopic(topicName, 3);
+        pulsarClient.newProducer().topic(topicName).create().close();
+        Awaitility.await().untilAsserted(() -> pulsar.getTopicPoliciesService()
+                .cacheIsInitialized(TopicName.get(topicName)));
         assertNull(admin.topics().getDelayedDeliveryPolicy(topicName));
         //1 Set topic policy
         DelayedDeliveryPolicies delayedDeliveryPolicies = DelayedDeliveryPolicies.builder()
