@@ -47,7 +47,7 @@ void PeriodicTask::handleTimeout(const ErrorCode& ec) {
         return;
     }
 
-    callback(ec);
+    callback_(ec);
 
     // state_ may be changed in handleTimeout, so we check state_ again
     if (state_ == Ready) {

@@ -28,45 +28,32 @@ DECLARE_LOG_OBJECT()
 
 using namespace pulsar;
 
-class CountdownTask : public PeriodicTask {
-   public:
-    CountdownTask(boost::asio::io_service& ioService, int periodMs, int initialCount)
-        : PeriodicTask(ioService, periodMs), count_(initialCount) {}
-
-    void callback(const ErrorCode& ec) override {
-        if (--count_ <= 0) {
-            stop();
-        }
-        LOG_INFO("Now count is " << count_ << ", error code: " << ec.message());
-    }
-
-    int getCount() const noexcept { return count_; }
-
-    void setCount(int count) noexcept { count_ = count; }
-
-   private:
-    std::atomic_int count_;
-};
-
 TEST(PeriodicTaskTest, testCountdownTask) {
     ExecutorService executor;
 
-    auto task = std::make_shared<CountdownTask>(executor.getIOService(), 200, 5);
+    std::atomic_int count{5};
 
-    // Wait for 3 seconds to verify callback won't be triggered after 1 second (200 ms * 5)
+    auto task = std::make_shared<PeriodicTask>(executor.getIOService(), 200);
+    task->setCallback([task, &count](const PeriodicTask::ErrorCode& ec) {
+        if (--count <= 0) {
+            task->stop();
+        }
+        LOG_INFO("Now count is " << count << ", error code: " << ec.message());
+    });
+
+    // Wait for 2 seconds to verify callback won't be triggered after 1 second (200 ms * 5)
     task->start();
-    std::this_thread::sleep_for(std::chrono::seconds(3));
-    LOG_INFO("Now count is " << task->getCount());
-    ASSERT_EQ(task->getCount(), 0);
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+    LOG_INFO("Now count is " << count);
+    ASSERT_EQ(count.load(), 0);
     task->stop();  // it's redundant, just to verify multiple stop() is idempotent
 
     // Test start again
-    task->setCount(1);
-    ASSERT_EQ(task->getCount(), 1);
+    count = 1;
     task->start();
     std::this_thread::sleep_for(std::chrono::milliseconds(800));
-    LOG_INFO("Now count is " << task->getCount());
-    ASSERT_EQ(task->getCount(), 0);
+    LOG_INFO("Now count is " << count);
+    ASSERT_EQ(count.load(), 0);
     task->stop();
 
     executor.close();
@@ -75,10 +62,13 @@ TEST(PeriodicTaskTest, testCountdownTask) {
 TEST(PeriodicTaskTest, testNegativePeriod) {
     ExecutorService executor;
 
-    auto task = std::make_shared<CountdownTask>(executor.getIOService(), -1, 5);
+    auto task = std::make_shared<PeriodicTask>(executor.getIOService(), -1);
+    std::atomic_bool callbackTriggered{false};
+    task->setCallback([&callbackTriggered](const PeriodicTask::ErrorCode& ec) { callbackTriggered = true; });
+
     task->start();
     std::this_thread::sleep_for(std::chrono::seconds(1));
-    ASSERT_EQ(task->getCount(), 5);  // the callback is never called
+    ASSERT_EQ(callbackTriggered.load(), false);
     task->stop();
 
     executor.close();

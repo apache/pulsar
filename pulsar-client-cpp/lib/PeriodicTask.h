@@ -20,6 +20,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <functional>
 #include <memory>
 
 #include <boost/asio.hpp>
@@ -29,7 +30,7 @@ namespace pulsar {
 /**
  * A task that is executed periodically.
  *
- * After the `start()` method is called, it will trigger `callback()` method periodically whose interval is
+ * After the `start()` method is called, it will trigger `callback_` method periodically whose interval is
  * `periodMs` in the constructor. After the `stop()` method is called, the timer will be cancelled and
  * `callback()` will never be called again unless `start()` was called again.
  *
@@ -41,6 +42,7 @@ namespace pulsar {
 class PeriodicTask : public std::enable_shared_from_this<PeriodicTask> {
    public:
     using ErrorCode = boost::system::error_code;
+    using CallbackType = std::function<void(const ErrorCode&)>;
 
     enum State : std::uint8_t
     {
@@ -55,7 +57,7 @@ class PeriodicTask : public std::enable_shared_from_this<PeriodicTask> {
 
     void stop();
 
-    virtual void callback(const ErrorCode& ec) = 0;
+    void setCallback(CallbackType callback) noexcept { callback_ = callback; }
 
     State getState() const noexcept { return state_; }
 
@@ -63,8 +65,11 @@ class PeriodicTask : public std::enable_shared_from_this<PeriodicTask> {
     std::atomic<State> state_{Pending};
     boost::asio::deadline_timer timer_;
     const int periodMs_;
+    CallbackType callback_{trivialCallback};
 
     void handleTimeout(const ErrorCode& ec);
+
+    static void trivialCallback(const ErrorCode&) {}
 };
 
 }  // namespace pulsar
