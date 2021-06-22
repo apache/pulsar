@@ -19,15 +19,13 @@
 
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
+import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
-
-import java.util.concurrent.CompletableFuture;
-
-import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
 
 public class SystemTopic extends PersistentTopic {
 
