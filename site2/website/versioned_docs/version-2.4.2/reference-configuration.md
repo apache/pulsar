@@ -134,7 +134,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |allowAutoTopicCreation| Enable topic auto creation if a new producer or consumer connected |true|
 |allowAutoTopicCreationType| The topic type (partitioned or non-partitioned) that is allowed to be automatically created. |Partitioned|
 |defaultNumPartitions| The number of partitioned topics that is allowed to be automatically created if `allowAutoTopicCreationType` is partitioned |1|
-|brokerDeleteInactiveTopicsEnabled| Enable the deletion of inactive topics  |true|
+|brokerDeleteInactiveTopicsEnabled| Enable the deletion of inactive topics. If topics are not consumed for some while, these inactive topics might be cleaned up. Deleting inactive topics is enabled by default. The default period is 1 minute.  |true|
 |brokerDeleteInactiveTopicsFrequencySeconds|  How often to check for inactive topics  |60|
 |messageExpiryCheckIntervalInMinutes| How frequently to proactively check and purge expired messages  |5|
 |brokerServiceCompactionMonitorIntervalInSeconds| Interval between checks to see if topics with compaction policies need to be compacted  |60|
@@ -336,7 +336,7 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |backlogQuotaCheckIntervalInSeconds|  How often to check for topics that have reached the backlog quota.  |60|
 |backlogQuotaDefaultLimitGB|  The default per-topic backlog quota limit.  |10|
 |ttlDurationDefaultInSeconds|  The default Time to Live (TTL) for namespaces if the TTL is not configured at namespace policies. When the value is set to `0`, TTL is disabled. By default, TTL is disabled. |0|
-|brokerDeleteInactiveTopicsEnabled| Enable the deletion of inactive topics. |true|
+|brokerDeleteInactiveTopicsEnabled| Enable the deletion of inactive topics. If topics are not consumed for some while, these inactive topics might be cleaned up. Deleting inactive topics is enabled by default. The default period is 1 minute. |true|
 |brokerDeleteInactiveTopicsFrequencySeconds|  How often to check for inactive topics, in seconds. |60|
 |messageExpiryCheckIntervalInMinutes| How often to proactively check and purged expired messages. |5|
 |activeConsumerFailoverDelayTimeMillis| How long to delay rewinding cursor and dispatching messages when active consumer is changed.  |1000|
