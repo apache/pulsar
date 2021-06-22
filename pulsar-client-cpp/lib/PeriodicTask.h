@@ -60,6 +60,7 @@ class PeriodicTask : public std::enable_shared_from_this<PeriodicTask> {
     void setCallback(CallbackType callback) noexcept { callback_ = callback; }
 
     State getState() const noexcept { return state_; }
+    int getPeriodMs() const noexcept { return periodMs_; }
 
    private:
     std::atomic<State> state_{Pending};

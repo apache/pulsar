@@ -175,6 +175,8 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
       error_(boost::system::error_code()),
       incomingBuffer_(SharedBuffer::allocate(DefaultBufferSize)),
       incomingCmd_(),
+      connectTimeoutTask_(std::make_shared<PeriodicTask>(executor_->getIOService(),
+                                                         clientConfiguration.getConnectionTimeout())),
       pendingWriteBuffers_(),
       pendingWriteOperations_(0),
       outgoingBuffer_(SharedBuffer::allocate(DefaultBufferSize)),
@@ -374,6 +376,7 @@ void ClientConnection::handleTcpConnected(const boost::system::error_code& err,
             LOG_INFO(cnxString_ << "Connected to broker through proxy. Logical broker: " << logicalAddress_);
         }
         state_ = TcpConnected;
+        connectTimeoutTask_->stop();
         socket_->set_option(tcp::no_delay(true));
 
         socket_->set_option(tcp::socket::keep_alive(true));
@@ -500,6 +503,18 @@ void ClientConnection::handleResolve(const boost::system::error_code& err,
         return;
     }
 
+    auto self = shared_from_this();
+    connectTimeoutTask_->setCallback([this, self](const PeriodicTask::ErrorCode& ec) {
+        if (state_ != TcpConnected) {
+            LOG_ERROR(cnxString_ << "Connection was not established in " << connectTimeoutTask_->getPeriodMs()
+                                 << " ms, close the socket");
+            PeriodicTask::ErrorCode ignoredError;
+            socket_->close(ignoredError);
+        }
+        connectTimeoutTask_->stop();
+    });
+
+    connectTimeoutTask_->start();
     if (endpointIterator != tcp::resolver::iterator()) {
         LOG_DEBUG(cnxString_ << "Resolved hostname " << endpointIterator->host_name()  //
                              << " to " << endpointIterator->endpoint());
@@ -1441,6 +1456,8 @@ void ClientConnection::close() {
         consumerStatsRequestTimer_->cancel();
         consumerStatsRequestTimer_.reset();
     }
+
+    connectTimeoutTask_->stop();
 
     lock.unlock();
     LOG_INFO(cnxString_ << "Connection closed");
