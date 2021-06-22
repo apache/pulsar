@@ -21,9 +21,6 @@
 
 namespace pulsar {
 
-PeriodicTask::PeriodicTask(boost::asio::io_service& ioService, int periodMs)
-    : timer_(ioService), periodMs_(periodMs) {}
-
 void PeriodicTask::start() {
     if (state_ != Pending) {
         return;

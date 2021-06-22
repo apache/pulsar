@@ -42,6 +42,8 @@ class CountdownTask : public PeriodicTask {
 
     int getCount() const noexcept { return count_; }
 
+    void setCount(int count) noexcept { count_ = count; }
+
    private:
     std::atomic_int count_;
 };
@@ -56,8 +58,28 @@ TEST(PeriodicTaskTest, testCountdownTask) {
     std::this_thread::sleep_for(std::chrono::seconds(3));
     LOG_INFO("Now count is " << task->getCount());
     ASSERT_EQ(task->getCount(), 0);
-
     task->stop();  // it's redundant, just to verify multiple stop() is idempotent
+
+    // Test start again
+    task->setCount(1);
+    ASSERT_EQ(task->getCount(), 1);
+    task->start();
+    std::this_thread::sleep_for(std::chrono::milliseconds(800));
+    LOG_INFO("Now count is " << task->getCount());
+    ASSERT_EQ(task->getCount(), 0);
+    task->stop();
+
+    executor.close();
+}
+
+TEST(PeriodicTaskTest, testNegativePeriod) {
+    ExecutorService executor;
+
+    auto task = std::make_shared<CountdownTask>(executor.getIOService(), -1, 5);
+    task->start();
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    ASSERT_EQ(task->getCount(), 5);  // the callback is never called
+    task->stop();
 
     executor.close();
 }

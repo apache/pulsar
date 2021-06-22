@@ -28,6 +28,15 @@ namespace pulsar {
 
 /**
  * A task that is executed periodically.
+ *
+ * After the `start()` method is called, it will trigger `callback()` method periodically whose interval is
+ * `periodMs` in the constructor. After the `stop()` method is called, the timer will be cancelled and
+ * `callback()` will never be called again unless `start()` was called again.
+ *
+ * If you don't want to execute the task infinitely, you can call `stop()` in the implementation of
+ * `callback()` method.
+ *
+ * NOTE: If the `periodMs` is negative, the `callback()` will never be called.
  */
 class PeriodicTask : public std::enable_shared_from_this<PeriodicTask> {
    public:
@@ -40,7 +49,7 @@ class PeriodicTask : public std::enable_shared_from_this<PeriodicTask> {
         Closing
     };
 
-    PeriodicTask(boost::asio::io_service& ioService, int periodMs);
+    PeriodicTask(boost::asio::io_service& ioService, int periodMs) : timer_(ioService), periodMs_(periodMs) {}
 
     void start();
 
