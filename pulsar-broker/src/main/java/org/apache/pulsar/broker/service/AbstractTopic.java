@@ -35,10 +35,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import lombok.Getter;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.resourcegroup.ResourceGroup;
+import org.apache.pulsar.broker.resourcegroup.ResourceGroupPublishLimiter;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ProducerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ProducerFencedException;
@@ -103,7 +106,12 @@ public abstract class AbstractTopic implements Topic {
 
     protected volatile PublishRateLimiter topicPublishRateLimiter;
 
+    protected volatile ResourceGroupPublishLimiter resourceGroupPublishLimiter;
+
     protected boolean preciseTopicPublishRateLimitingEnable;
+
+    @Getter
+    protected boolean resourceGroupRateLimitingEnabled;
 
     private LongAdder bytesInCounter = new LongAdder();
     private LongAdder msgInCounter = new LongAdder();
@@ -746,6 +754,17 @@ public abstract class AbstractTopic implements Topic {
     }
 
     @Override
+    public boolean isResourceGroupPublishRateExceeded(int numMessages, int bytes) {
+        return this.resourceGroupRateLimitingEnabled
+            && !this.resourceGroupPublishLimiter.tryAcquire(numMessages, bytes);
+    }
+
+    @Override
+    public boolean isResourceGroupRateLimitingEnabled() {
+        return this.resourceGroupRateLimitingEnabled;
+    }
+
+    @Override
     public boolean isTopicPublishRateExceeded(int numberMessages, int bytes) {
         // whether topic publish rate exceed if precise rate limit is enable
         return preciseTopicPublishRateLimitingEnable && !this.topicPublishRateLimiter.tryAcquire(numberMessages, bytes);
@@ -787,14 +806,39 @@ public abstract class AbstractTopic implements Topic {
 
         //both namespace-level and topic-level policy are not set, try to use broker-level policy
         ServiceConfiguration serviceConfiguration = brokerService.pulsar().getConfiguration();
-        if (publishRate == null) {
+        if (publishRate != null) {
+            //publishRate is not null , use namespace-level policy
+            updatePublishDispatcher(publishRate);
+        } else {
             PublishRate brokerPublishRate = new PublishRate(serviceConfiguration.getMaxPublishRatePerTopicInMessages()
-                    , serviceConfiguration.getMaxPublishRatePerTopicInBytes());
+              , serviceConfiguration.getMaxPublishRatePerTopicInBytes());
             updatePublishDispatcher(brokerPublishRate);
-            return;
         }
-        //publishRate is not null , use namespace-level policy
-        updatePublishDispatcher(publishRate);
+
+        // attach the resource-group level rate limiters, if set
+        String rgName = policies != null && policies.resource_group_name != null
+          ? policies.resource_group_name
+          : null;
+        if (rgName != null) {
+            final ResourceGroup resourceGroup =
+              brokerService.getPulsar().getResourceGroupServiceManager().resourceGroupGet(rgName);
+            if (resourceGroup != null) {
+                this.resourceGroupRateLimitingEnabled = true;
+                this.resourceGroupPublishLimiter = resourceGroup.getResourceGroupPublishLimiter();
+                this.resourceGroupPublishLimiter.registerRateLimitFunction(this.getName(),
+                  () -> this.enableCnxAutoRead());
+                log.info("Using resource group {} rate limiter for topic {}", rgName, topic);
+                return;
+            }
+        } else {
+            if (this.resourceGroupRateLimitingEnabled) {
+                this.resourceGroupPublishLimiter.unregisterRateLimitFunction(this.getName());
+                this.resourceGroupPublishLimiter = null;
+                this.resourceGroupRateLimitingEnabled = false;
+            }
+            /* Namespace detached from resource group. Enable the producer read */
+            enableProducerReadForPublishRateLimiting();
+        }
     }
 
     public long getMsgInCounter() {
