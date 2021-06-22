@@ -31,6 +31,15 @@ import org.apache.pulsar.metadata.api.NotificationType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Resource Group Namespace Config Listener
+ *
+ * <P>Meta data store listener of updates to namespace attachment to resource groups.
+ * <P>Listens to namespace(policy) config changes and updates internal data structures.
+ *
+ * @see <a href="https://github.com/apache/pulsar/wiki/PIP-82%3A-Tenant-and-namespace-level-rate-limiting">Global-quotas</a>
+ *
+ */
 public class ResourceGroupNamespaceConfigListener implements Consumer<Notification> {
 
     private static final Logger LOG = LoggerFactory.getLogger(ResourceGroupNamespaceConfigListener.class);

@@ -33,6 +33,15 @@ import org.apache.pulsar.metadata.api.NotificationType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Resource Group Config Listener
+ *
+ * <P>Meta data store listener of updates to resource group config.
+ * <P>Listens to resource group configuration changes and updates internal datastructures.
+ *
+ * @see <a href="https://github.com/apache/pulsar/wiki/PIP-82%3A-Tenant-and-namespace-level-rate-limiting">Global-quotas</a>
+ *
+ */
 public class ResourceGroupConfigListener implements Consumer<Notification> {
 
     private static final Logger LOG = LoggerFactory.getLogger(ResourceGroupConfigListener.class);
