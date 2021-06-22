@@ -64,7 +64,7 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class OwnershipCacheTest {
     private static final Logger log = LoggerFactory.getLogger(OwnershipCacheTest.class);
-    LocalZooKeeperCacheService
+
     private PulsarService pulsar;
     private ServiceConfiguration config;
     private String selfBrokerUrl;
