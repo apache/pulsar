@@ -128,7 +128,7 @@ tiered-storage-jcloud-2.5.1.nar
 <p>你可以在配置文件 <code>broker.conf</code> 或 <code>standalone.conf</code> 中配置 GCS offloader driver。</p>
 <ul>
 <li><p>以下为<strong>必选</strong> 配置。</p>
-<p><strong>必填</strong>配置|描述|示例值 <code>managedLedgerOffloadDriver</code>|Offloader driver 名称，不区分大小写。 <code>offloadersDirectory</code>|Offloader directory|offloaders <code>gcsManagedLedgerOffloadBucket</code>|Bucket|pulsar-topic-offload <code>gcsManagedLedgerOffloadRegion</code>|Bucket region|europe-west3 <code>gcsManagedLedgerOffloadServiceAccountKeyFile</code>|Authentication |/Users/user-name/Downloads/project-804d5e6a6f33.json</p></li>
+<p><strong>必填</strong> 配置 | 描述 | 示例值 |---|---|--- <code>managedLedgerOffloadDriver</code>|Offloader driver 名称，不区分大小写|google-cloud-storage <code>offloadersDirectory</code>|Offloader 目录|offloaders <code>gcsManagedLedgerOffloadBucket</code>|Bucket|pulsar-topic-offload <code>gcsManagedLedgerOffloadRegion</code>|Bucket 区域|europe-west3 <code>gcsManagedLedgerOffloadServiceAccountKeyFile</code>|认证 |/Users/user-name/Downloads/project-804d5e6a6f33.json</p></li>
 <li><p>以下为<strong>可选</strong> 配置。</p>
 <p>可选配置|描述|示例值 |---|---|--- <code>gcsManagedLedgerOffloadReadBufferSizeInBytes</code>|读取数据块的大小|1 MB <code>gcsManagedLedgerOffloadMaxBlockSizeInBytes</code>|写数据块的大小|64 MB <code>managedLedgerMinLedgerRolloverTimeMinutes</code>|一个 Topic 的 Ledger 翻转之间的最小时间|2 <code>managedLedgerMaxEntriesPerLedger</code>|在触发翻转之前追加到 Topic ledger 的最大条目数。|5000</p></li>
 </ul>
@@ -139,7 +139,7 @@ tiered-storage-jcloud-2.5.1.nar
 <pre><code class="hljs css language-conf"><span class="hljs-attr">gcsManagedLedgerOffloadBucket</span>=pulsar-topic-<span class="hljs-literal">off</span>load
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="bucket-区域-必填"></a><a href="#bucket-区域-必填" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Bucket 区域 (必填)</h4>
-<p>Bucket 区域是指 Bucket 所处的区域。 如果没有指定 Bucket 区域，则使用<strong>默认</strong>区域 (<code>美国的多区域位置</code>)</p>
+<p>Bucket 区域是指 Bucket 所处的区域。 如果没有指定 Bucket 区域，则使用<strong>默认</strong>区域 (<code>us multi-regional location</code>)。</p>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="提示"></a><a href="#提示" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
 <p>关于 Bucket 位置的更多信息，见<a href="https://cloud.google.com/storage/docs/bucket-locations">这里</a>。</p>
@@ -156,12 +156,12 @@ tiered-storage-jcloud-2.5.1.nar
 <ol>
 <li><p>打开 <a href="https://console.developers.google.com/iam-admin/serviceaccounts">服务账户页面</a>。</p></li>
 <li><p>选择一个项目或创建一个新项目。</p></li>
-<li><p>Click <strong>Create service account</strong>.</p></li>
+<li><p>点击<strong>创建服务账户</strong>（Create service account）。</p></li>
 <li><p>在 <strong>Create service account</strong> 窗口中，输入服务账户的名称并选择 <strong>Furnish a new private key</strong>。</p>
 <p>如果你想给服务账号 <a href="https://developers.google.com/identity/protocols/OAuth2ServiceAccount#delegatingauthority">授予 G Suire domain-wide 权限</a> ，选择 <strong>Enable G Suite Domain-wide Delegation</strong>。</p></li>
-<li><p>Click <strong>Create</strong>.</p>
+<li><p>点击 <strong>Create</strong>。</p>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="note"></a><a href="#note" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Note</h4>
+<h4><a class="anchor" aria-hidden="true" id="备注-1"></a><a href="#备注-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>备注</h4>
 <p>确保你创建的服务账号拥有操作 GCS 的权限，你需要在 <a href="https://cloud.google.com/storage/docs/access-control/iam">这里</a>给你的服务账号指定<strong>Storage Admin</strong> 权限。</p>
 </blockquote></li>
 <li><p>你可以获得以下信息，并在<code>broker.conf</code>中设置。</p>
@@ -176,8 +176,8 @@ tiered-storage-jcloud-2.5.1.nar
 </blockquote></li>
 </ol>
 <h4><a class="anchor" aria-hidden="true" id="读取写入的数据块大小"></a><a href="#读取写入的数据块大小" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>读取/写入的数据块大小</h4>
-<p>你可以在配置文件 broker.conf 或<code></code>中配置发送到 GCS 或从 GCS 读取的请求大小。</p>
-<p>配置|描述 |---|--- <code>gcsManagedLedgerOffloadReadBufferSizeInBytes</code>| 当从GCS读回数据时，每个数据块大小。<br><br><strong>默认</strong>值是1 MB。 <code>gcsManagedLedgerOffloadMaxBlockSizeInBytes</code>|在向GCS上传多部分时，&quot;部分 &quot;的最大尺寸。 <br><br>它<strong>不能</strong>小于5MB。 <br><br><strong>x-id=&quot;1&quot;&gt;默认</strong>值为64MB。</p>
+<p>你可以在配置文件 <code>broker.conf</code> 中配置发送到 GCS 或从 GCS 读取的请求大小。</p>
+<p>配置|描述 |---|--- <code>gcsManagedLedgerOffloadReadBufferSizeInBytes</code>| 当从GCS读回数据时，每个数据块大小。<br><br><strong>默认</strong>值是1 MB。 <code>gcsManagedLedgerOffloadMaxBlockSizeInBytes</code>|在向GCS上传多部分时，&quot;部分 &quot;的最大尺寸。 <br><br>它<strong>不能</strong>小于5MB。 <br><br><strong>默认</strong>值为64MB。</p>
 <h3><a class="anchor" aria-hidden="true" id="配置-gcs-offloader-自动运行"></a><a href="#配置-gcs-offloader-自动运行" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置 GCS offloader 自动运行</h3>
 <p>命名空间策略可以配置成一旦到达阈值就自动卸载数据。 该阈值基于一个 topic 在 Pulsar 集群的数据存储大小而定。 一旦 topic 到达阈值，就自动触发卸载操作。</p>
 <p>阈值|动作 |---|---</p>
@@ -193,7 +193,7 @@ tiered-storage-jcloud-2.5.1.nar
 </code></pre>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="提示-2"></a><a href="#提示-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
-<p>关于<code>pulsar-admin topics offload-status options</code>命令的更多信息，包括标志、描述、默认值和速记方法，见<a href="/docs/zh-CN/next/pulsar-admin#set-offload-threshold">这里</a>。</p>
+<p>关于 <code>pulsar-admin namespaces set-offload-threshold options</code> 命令的更多信息，包括标志、描述、默认值和速记方法，见<a href="/docs/zh-CN/next/pulsar-admin#set-offload-threshold">这里</a>。</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="配置-gcs-offloader-手动运行"></a><a href="#配置-gcs-offloader-手动运行" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置 GCS offloader 手动运行</h3>
 <p>对于每一个 topic，你可以使用下列方法来手动触发 GCS offloader：</p>
@@ -204,7 +204,7 @@ tiered-storage-jcloud-2.5.1.nar
 </ul>
 <h4><a class="anchor" aria-hidden="true" id="示例-4"></a><a href="#示例-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>示例</h4>
 <ul>
-<li><p>此示例触发了GCS卸载程序，使用pulsar-admin的命令 <code>pulsar-admin topics offload (topic-name) (threshold)</code> 手动运行。</p>
+<li><p>此示例使用 pulsar-admin 命令 <code>pulsar-admin topics offload (topic-name) (threshold)</code> 手动触发了 GCS offloader 运行。</p>
 <pre><code class="hljs css language-bash">pulsar-admin topics offload persistent://my-tenant/my-namespace/topic1 10M
 </code></pre>
 <p><strong>输出</strong></p>
