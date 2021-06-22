@@ -116,7 +116,9 @@ class LoggerWrapper: public Logger {
         _pyLogger = pyLogger;
         Py_XINCREF(_pyLogger);
 
-        fallbackLogger = (new ConsoleLoggerFactory())->getLogger(filename);
+        std::unique_ptr<LoggerFactory> factory(new ConsoleLoggerFactory());
+        fallbackLogger = factory->getLogger(filename);
+
         _updateCurrentPythonLogLevel();
     }
 
@@ -140,6 +142,7 @@ class LoggerWrapper: public Logger {
 
     virtual ~LoggerWrapper() {
         Py_XDECREF(_pyLogger);
+        delete fallbackLogger;
     }
 
     bool isEnabled(Level level) {
