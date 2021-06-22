@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.functions.utils;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
-
-import org.junit.Test;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.fail;
+import org.testng.annotations.Test;
 
 /**
  * Unit test of {@link FunctionInstanceId}.
@@ -30,33 +29,33 @@ public class FunctionInstanceIdTest {
 
     @Test
     public void testThrowsExceptionWhenTenantNamespaceFunctionNameNotProperlyDelimited() {
-	try {
-	    FunctionInstanceId id = new FunctionInstanceId("tenant/namespace:function");
-	    
-	    fail("Expected exception!");
-	} catch (IllegalArgumentException e) {
-	    //pass
-	}
+        try {
+            FunctionInstanceId id = new FunctionInstanceId("tenant/namespace:function");
+
+            fail("Expected exception!");
+        } catch (IllegalArgumentException e) {
+            //pass
+        }
     }
-    
+
     @Test
     public void testThrowsExceptionWhenFunctionInstanceIdNotPropertyDelimited() {
-	try {
-	    FunctionInstanceId id = new FunctionInstanceId("tenant/namespace/function-1");
-	    
-	    fail("Expected exception!");
-	} catch (IllegalArgumentException e) {
-	    //pass
-	}	
+        try {
+            FunctionInstanceId id = new FunctionInstanceId("tenant/namespace/function-1");
+
+            fail("Expected exception!");
+        } catch (IllegalArgumentException e) {
+            //pass
+        }
     }
-    
+
     @Test
     public void testAllowsColonsInFunctionName() {
         FunctionInstanceId id = new FunctionInstanceId("tenant/namespace/my:function:name:-1");
-        
-        assertEquals("tenant", id.getTenant());
-        assertEquals("namespace", id.getNamespace());
-        assertEquals("my:function:name", id.getName());
-        assertEquals(-1, id.getInstanceId());
+
+        assertEquals(id.getTenant(), "tenant");
+        assertEquals(id.getNamespace(), "namespace");
+        assertEquals(id.getName(), "my:function:name");
+        assertEquals(id.getInstanceId(), -1);
     }
 }

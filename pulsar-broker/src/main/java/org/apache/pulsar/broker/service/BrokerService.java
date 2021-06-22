@@ -1223,8 +1223,15 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                                 PersistentTopic persistentTopic = isSystemTopic(topic)
                                         ? new SystemTopic(topic, ledger, BrokerService.this)
                                         : new PersistentTopic(topic, ledger, BrokerService.this);
+                                CompletableFuture<Void> preCreateSubForCompaction =
+                                        CompletableFuture.completedFuture(null);
+                                if (persistentTopic instanceof SystemTopic) {
+                                    preCreateSubForCompaction = ((SystemTopic) persistentTopic)
+                                            .preCreateSubForCompactionIfNeeded();
+                                }
                                 CompletableFuture<Void> replicationFuture = persistentTopic.checkReplication();
-                                replicationFuture.thenCompose(v -> {
+                                FutureUtil.waitForAll(Lists.newArrayList(preCreateSubForCompaction, replicationFuture))
+                                .thenCompose(v -> {
                                     // Also check dedup status
                                     return persistentTopic.checkDeduplicationStatus();
                                 }).thenRun(() -> {
@@ -1255,7 +1262,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
                                     return null;
                                 });
-                            } catch (NamingException e) {
+                            } catch (NamingException | PulsarServerException e) {
                                 log.warn("Failed to create topic {}-{}", topic, e.getMessage());
                                 pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
                                 topicFuture.completeExceptionally(e);
@@ -2611,12 +2618,16 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 maxTopicsPerNamespace = pulsar.getConfig().getMaxTopicsPerNamespace();
             }
 
-            if (maxTopicsPerNamespace > 0) {
+            // new create check
+            if (maxTopicsPerNamespace > 0 && !SystemTopicClient.isSystemTopic(topicName)) {
                 String partitionedTopicPath = PulsarWebResource.joinPath(MANAGED_LEDGER_PATH_ZNODE,
                         topicName.getNamespace(), topicName.getDomain().value());
                 List<String> topics = pulsar().getLocalZkCache().getZooKeeper()
                         .getChildren(partitionedTopicPath, false);
-                if (topics.size() + numPartitions > maxTopicsPerNamespace) {
+                // exclude created system topic
+                long topicsCount =
+                        topics.stream().filter(t -> !SystemTopicClient.isSystemTopic(TopicName.get(t))).count();
+                if (topicsCount + numPartitions > maxTopicsPerNamespace) {
                     log.error("Failed to create persistent topic {}, "
                             + "exceed maximum number of topics in namespace", topicName);
                     topicFuture.completeExceptionally(new RestException(Response.Status.PRECONDITION_FAILED,
