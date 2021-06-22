@@ -19,12 +19,11 @@
 package org.apache.pulsar.admin.cli;
 
 import com.google.common.collect.Lists;
-import org.junit.Test;
-import org.testng.Assert;
-
 import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.List;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
 
 public class TestCmdNamespaceIsolationPolicy {
@@ -41,8 +40,9 @@ public class TestCmdNamespaceIsolationPolicy {
                 innerMethod.setAccessible(true);
                 List<String> calculatedList = (List<String>) innerMethod.invoke(cmdNamespaceIsolationPolicy, mockList);
                 Assert.assertEquals(calculatedList.size(), resultList.size());
-                for (int i = 0; i < resultList.size(); i++)
+                for (int i = 0; i < resultList.size(); i++) {
                     Assert.assertEquals(resultList.get(i), calculatedList.get(i));
+                }
             } catch (IllegalAccessException | InvocationTargetException e) {
                 e.printStackTrace();
             }
