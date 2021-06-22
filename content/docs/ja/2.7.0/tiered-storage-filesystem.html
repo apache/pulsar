@@ -132,7 +132,7 @@ ls offloaders
 <p>You can configure filesystem offloader driver in the configuration file <code>broker.conf</code> or <code>standalone.conf</code>.</p>
 <ul>
 <li><p><strong>Required</strong> configurations are as below.</p>
-<p>Required configuration | Description | Example value |---|---|--- <code>managedLedgerOffloadDriver</code> | Offloader driver name, which is case-insensitive. | filesystem <code>fileSystemURI</code> | Connection address | <a href="hdfs://127.0.0.1:9000">hdfs://127.0.0.1:9000</a> <code>offloadersDirectory</code> | Hadoop profile path | ../conf/filesystem_offload_core_site.xml</p></li>
+<p>Required configuration | Description | Example value |---|---|--- <code>managedLedgerOffloadDriver</code> | Offloader driver name, which is case-insensitive. | filesystem <code>fileSystemURI</code> | Connection address | <a href="hdfs://127.0.0.1:9000">hdfs://127.0.0.1:9000</a> <code>fileSystemProfilePath</code> | Hadoop profile path | ../conf/filesystem_offload_core_site.xml</p></li>
 <li><p><strong>Optional</strong> configurations are as below.</p>
 <p>Optional configuration| Description | Example value |---|---|--- <code>managedLedgerMinLedgerRolloverTimeMinutes</code>|Minimum time between ledger rollover for a topic<br><br><strong>Note</strong>: it is not recommended that you set this configuration in the production environment.|2 <code>managedLedgerMaxEntriesPerLedger</code>|Maximum number of entries to append to a ledger before triggering a rollover.<br><br><strong>Note</strong>: it is not recommended that you set this configuration in the production environment.|5000</p></li>
 </ul>
