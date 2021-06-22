@@ -80,6 +80,17 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         };
     }
 
+    @DataProvider(name = "batchingModesAndValueEncodingType")
+    public static Object[][] batchingModesAndValueEncodingType() {
+        return new Object[][] {
+                { true, KeyValueEncodingType.INLINE },
+                { true, KeyValueEncodingType.SEPARATED },
+                { false, KeyValueEncodingType.INLINE },
+                { false, KeyValueEncodingType.SEPARATED }
+        };
+    }
+
+
     @DataProvider(name = "schemaValidationModes")
     public static Object[][] schemaValidationModes() {
         return new Object[][] {
@@ -546,14 +557,14 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(dataProvider = "batchingModes")
-    public void testAutoKeyValueConsume(boolean batching) throws Exception {
-        String topic = "my-property/my-ns/schema-test-auto-keyvalue-consume-" + batching;
+    @Test(dataProvider = "batchingModesAndValueEncodingType")
+    public void testAutoKeyValueConsume(boolean batching, KeyValueEncodingType keyValueEncodingType) throws Exception {
+        String topic = "my-property/my-ns/schema-test-auto-keyvalue-consume-" + batching+"-"+keyValueEncodingType;
 
         Schema<KeyValue<V1Data, V1Data>> pojoSchema = Schema.KeyValue(
                 Schema.AVRO(V1Data.class),
                 Schema.AVRO(V1Data.class),
-                KeyValueEncodingType.SEPARATED);
+                keyValueEncodingType);
 
         try (Consumer<KeyValue<GenericRecord, V1Data>> c3before = pulsarClient.newConsumer(
                 // this consumer is the same as 'c3' Consumer below, but it subscribes to the
@@ -566,7 +577,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                 Schema.KeyValue(
                         Schema.AUTO_CONSUME(),
                         Schema.AVRO(V1Data.class),
-                        KeyValueEncodingType.SEPARATED))
+                        keyValueEncodingType))
                 .topic(topic)
                 .subscriptionName("sub3b")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
@@ -589,7 +600,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                          Schema.KeyValue(
                                  Schema.AUTO_CONSUME(),
                                  Schema.AUTO_CONSUME(),
-                                 KeyValueEncodingType.SEPARATED))
+                                 keyValueEncodingType))
                          .topic(topic)
                          .subscriptionName("sub1")
                          .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
@@ -598,7 +609,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                          Schema.KeyValue(
                                  Schema.AVRO(V1Data.class),
                                  Schema.AVRO(V1Data.class),
-                                 KeyValueEncodingType.SEPARATED))
+                                 keyValueEncodingType))
                          .topic(topic)
                          .subscriptionName("sub2")
                          .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
@@ -607,7 +618,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                          Schema.KeyValue(
                                  Schema.AUTO_CONSUME(),
                                  Schema.AVRO(V1Data.class),
-                                 KeyValueEncodingType.SEPARATED))
+                                 keyValueEncodingType))
                          .topic(topic)
                          .subscriptionName("sub3")
                          .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
@@ -616,7 +627,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                          Schema.KeyValue(
                                  Schema.AVRO(V1Data.class),
                                  Schema.AUTO_CONSUME(),
-                                 KeyValueEncodingType.SEPARATED))
+                                 keyValueEncodingType))
                          .topic(topic)
                          .subscriptionName("sub4")
                          .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
@@ -708,13 +719,13 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         Schema<KeyValue<V2Data, V2Data>> pojoSchemaV2 = Schema.KeyValue(
                 Schema.AVRO(V2Data.class),
                 Schema.AVRO(V2Data.class),
-                KeyValueEncodingType.SEPARATED);
+                keyValueEncodingType);
 
         try (Consumer<KeyValue<GenericRecord, V2Data>> c3before = pulsarClient.newConsumer(
                 Schema.KeyValue(
                         Schema.AUTO_CONSUME(),
                         Schema.AVRO(V2Data.class),
-                        KeyValueEncodingType.SEPARATED))
+                        keyValueEncodingType))
                 .topic(topic)
                 .subscriptionName("sub3b")
                 .subscribe();
@@ -730,7 +741,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                      Schema.KeyValue(
                              Schema.AUTO_CONSUME(),
                              Schema.AUTO_CONSUME(),
-                             KeyValueEncodingType.SEPARATED))
+                             keyValueEncodingType))
                      .topic(topic)
                      .subscriptionName("sub1")
                      .subscribe();
@@ -738,7 +749,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                      Schema.KeyValue(
                              Schema.AVRO(V2Data.class),
                              Schema.AVRO(V2Data.class),
-                             KeyValueEncodingType.SEPARATED))
+                             keyValueEncodingType))
                      .topic(topic)
                      .subscriptionName("sub2")
                      .subscribe();
@@ -746,7 +757,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                      Schema.KeyValue(
                              Schema.AUTO_CONSUME(),
                              Schema.AVRO(V2Data.class),
-                             KeyValueEncodingType.SEPARATED))
+                             keyValueEncodingType))
                      .topic(topic)
                      .subscriptionName("sub3")
                      .subscribe();
@@ -754,7 +765,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                      Schema.KeyValue(
                              Schema.AVRO(V2Data.class),
                              Schema.AUTO_CONSUME(),
-                             KeyValueEncodingType.SEPARATED))
+                             keyValueEncodingType))
                      .topic(topic)
                      .subscriptionName("sub4")
                      .subscribe()
