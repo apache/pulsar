@@ -44,6 +44,7 @@ import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
+import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
@@ -1523,6 +1524,15 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         log.info("Backlog quota set success on topic: {}", testTopic);
 
         Awaitility.await()
+                .untilAsserted(() -> {
+                    TopicStats stats = admin.topics().getStats(topicPolicyEventsTopic);
+                    Assert.assertTrue(stats.subscriptions.containsKey("__compaction"));
+                });
+
+        PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topicPolicyEventsTopic);
+        long previousCompactedLedgerId = internalStats.compactedLedger.ledgerId;
+
+        Awaitility.await()
                 .untilAsserted(() -> Assert.assertEquals(admin.topics().getBacklogQuotaMap(testTopic)
                         .get(BacklogQuota.BacklogQuotaType.destination_storage), backlogQuota));
 
@@ -1530,8 +1540,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         Awaitility.await()
                 .untilAsserted(() -> {
-                    TopicStats stats = admin.topics().getStats(topicPolicyEventsTopic);
-                    Assert.assertTrue(stats.subscriptions.containsKey("__compaction"));
+                    PersistentTopicInternalStats iStats = admin.topics().getInternalStats(topicPolicyEventsTopic);
+                    Assert.assertTrue(iStats.compactedLedger.ledgerId != previousCompactedLedgerId);
                 });
     }
 }
