@@ -241,7 +241,7 @@ public class ResourceGroupService {
         ResourceGroupOpStatus status = rg.registerUsage(namespaceName, ResourceGroupRefTypes.Namespaces, true,
                                                         this.resourceUsageTransportManagerMgr);
         if (status == ResourceGroupOpStatus.Exists) {
-            String errMesg = String.format("Namespace {} already references the target resource group {}",
+            String errMesg = String.format("Namespace %s already references the target resource group %s",
                     namespaceName, resourceGroupName);
             throw new PulsarAdminException(errMesg);
         }
@@ -273,7 +273,7 @@ public class ResourceGroupService {
         ResourceGroupOpStatus status = rg.registerUsage(namespaceName, ResourceGroupRefTypes.Namespaces, false,
                                                         this.resourceUsageTransportManagerMgr);
         if (status == ResourceGroupOpStatus.DoesNotExist) {
-            String errMesg = String.format("Namespace {} does not yet reference resource group {}",
+            String errMesg = String.format("Namespace %s does not yet reference resource group %s",
                 namespaceName, resourceGroupName);
             throw new PulsarAdminException(errMesg);
         }
