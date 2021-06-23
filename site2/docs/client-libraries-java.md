@@ -29,11 +29,11 @@ If you use Maven, add the following information to the `pom.xml` file.
 <!-- in your <properties> block -->
 <pulsar.version>{{pulsar:version}}</pulsar.version>
 
-<!-- in your <dependencies> block -->
+        <!-- in your <dependencies> block -->
 <dependency>
-  <groupId>org.apache.pulsar</groupId>
-  <artifactId>pulsar-client</artifactId>
-  <version>${pulsar.version}</version>
+<groupId>org.apache.pulsar</groupId>
+<artifactId>pulsar-client</artifactId>
+<version>${pulsar.version}</version>
 </dependency>
 ```
 
@@ -45,7 +45,7 @@ If you use Gradle, add the following information to the `build.gradle` file.
 def pulsarVersion = '{{pulsar:version}}'
 
 dependencies {
-    compile group: 'org.apache.pulsar', name: 'pulsar-client', version: pulsarVersion
+  compile group: 'org.apache.pulsar', name: 'pulsar-client', version: pulsarVersion
 }
 ```
 
@@ -71,13 +71,13 @@ A URL for a production Pulsar cluster is as follows.
 pulsar://pulsar.us-west.example.com:6650
 ```
 
-If you use [TLS](security-tls-authentication.md) authentication, the URL is as follows. 
+If you use [TLS](security-tls-authentication.md) authentication, the URL is as follows.
 
 ```http
 pulsar+ssl://pulsar.us-west.example.com:6651
 ```
 
-## Client 
+## Client
 
 You can instantiate a {@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient} object using just a URL for the target Pulsar [cluster](reference-terminology.md#cluster) like this:
 
@@ -106,8 +106,8 @@ String | `authPluginClassName` | Name of the authentication plugin | None
 String | `authParams` | String represents parameters for the authentication plugin <br/><br/>**Example**<br/> key1:val1,key2:val2|None
 long|`operationTimeoutMs`|Operation timeout |30000
 long|`statsIntervalSeconds`|Interval between each stats info<br/><br/>Stats is activated with positive `statsInterval`<br/><br/>Set `statsIntervalSeconds` to 1 second at least |60
-int|`numIoThreads`| The number of threads used for handling connections to brokers | 1 
-int|`numListenerThreads`|The number of threads used for handling message listeners. The listener thread pool is shared across all the consumers and readers using the "listener" model to get messages. For a given consumer, the listener is always invoked from the same thread to ensure ordering. If you want multiple threads to process a single topic, you need to create a [`shared`](https://pulsar.apache.org/docs/en/next/concepts-messaging/#shared) subscription and multiple consumers for this subscription. This does not ensure ordering.| 1 
+int|`numIoThreads`| The number of threads used for handling connections to brokers | 1
+int|`numListenerThreads`|The number of threads used for handling message listeners. The listener thread pool is shared across all the consumers and readers using the "listener" model to get messages. For a given consumer, the listener is always invoked from the same thread to ensure ordering. If you want multiple threads to process a single topic, you need to create a [`shared`](https://pulsar.apache.org/docs/en/next/concepts-messaging/#shared) subscription and multiple consumers for this subscription. This does not ensure ordering.| 1
 boolean|`useTcpNoDelay`|Whether to use TCP no-delay flag on the connection to disable Nagle algorithm |true
 boolean |`useTls` |Whether to use TLS encryption on the connection| false
 string | `tlsTrustCertsFilePath` |Path to the trusted TLS certificate file|None
@@ -136,7 +136,7 @@ Producer<byte[]> producer = client.newProducer()
         .create();
 
 // You can then send messages to the broker and topic you specified:
-producer.send("My message".getBytes());
+        producer.send("My message".getBytes());
 ```
 
 By default, producers produce messages that consist of byte arrays. You can produce different types by specifying a message [schema](#schemas).
@@ -145,7 +145,7 @@ By default, producers produce messages that consist of byte arrays. You can prod
 Producer<String> stringProducer = client.newProducer(Schema.STRING)
         .topic("my-topic")
         .create();
-stringProducer.send("My message");
+        stringProducer.send("My message");
 ```
 
 > Make sure that you close your producers, consumers, and clients when you do not need them.
@@ -167,7 +167,7 @@ stringProducer.send("My message");
 
 ### Configure producer
 
-If you instantiate a `Producer` object by specifying only a topic name as the example above, use the default configuration for producer. 
+If you instantiate a `Producer` object by specifying only a topic name as the example above, use the default configuration for producer.
 
 If you create a producer, you can use the `loadConf` configuration. The following parameters are available in `loadConf`.
 
@@ -193,11 +193,11 @@ For a full list, see the Javadoc for the {@inject: javadoc:ProducerBuilder:/clie
 
 ```java
 Producer<byte[]> producer = client.newProducer()
-    .topic("my-topic")
-    .batchingMaxPublishDelay(10, TimeUnit.MILLISECONDS)
-    .sendTimeout(10, TimeUnit.SECONDS)
-    .blockIfQueueFull(true)
-    .create();
+        .topic("my-topic")
+        .batchingMaxPublishDelay(10, TimeUnit.MILLISECONDS)
+        .sendTimeout(10, TimeUnit.SECONDS)
+        .blockIfQueueFull(true)
+        .create();
 ```
 
 ### Message routing
@@ -212,8 +212,8 @@ The following is an example.
 
 ```java
 producer.sendAsync("my-async-message".getBytes()).thenAccept(msgId -> {
-    System.out.println("Message with ID " + msgId + " successfully sent");
-});
+        System.out.printf("Message with ID %s successfully sent", msgId);
+        });
 ```
 
 As you can see from the example above, async send operations return a {@inject: javadoc:MessageId:/client/org/apache/pulsar/client/api/MessageId} wrapped in a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture).
@@ -243,17 +243,19 @@ Once you've instantiated a {@inject: javadoc:PulsarClient:/client/org/apache/pul
 Consumer consumer = client.newConsumer()
         .topic("my-topic")
         .subscriptionName("my-subscription")
-        .messageListener(myMessageListener)
         .subscribe();
 ```
 
-The `subscribe` method will auto subscribe the consumer to the specified topic and subscription. One way to make the consumer listen on the topic is to add a `MessageListener`. In this example, the consumer listens for messages, prints the contents of any received message, and then [acknowledges](reference-terminology.md#acknowledgment-ack) that the message has been processed. If the processing logic fails, you can use [negative acknowledgement](reference-terminology.md#acknowledgment-ack) to redeliver the message later.
+The `subscribe` method will auto subscribe the consumer to the specified topic and subscription. One way to make the consumer listen on the topic is to set up a `while` loop. In this example loop, the consumer listens for messages, prints the contents of any received message, and then [acknowledges](reference-terminology.md#acknowledgment-ack) that the message has been processed. If the processing logic fails, you can use [negative acknowledgement](reference-terminology.md#acknowledgment-ack) to redeliver the message later.
 
 ```java
-MessageListener myMessageListener = (consumer, msg) -> {
+while (true) {
+  // Wait for a message
+  Message msg = consumer.receive();
+
   try {
       // Do something with the message
-      System.out.println("Message received: " + new String(msg.getData()));
+      System.out.printf("Message received: %s", new String(msg.getData()));
 
       // Acknowledge the message so that it can be deleted by the message broker
       consumer.acknowledge(msg);
@@ -264,9 +266,28 @@ MessageListener myMessageListener = (consumer, msg) -> {
 }
 ```
 
+If you don't want to block your main thread and rather listen constantly for new messages, consider using a `MessageListener`.
+
+```java
+MessageListener myMessageListener = (consumer, msg) -> {
+  try {
+      System.out.println("Message received: " + new String(msg.getData()));
+      consumer.acknowledge(msg);
+  } catch (Exception e) {
+      consumer.negativeAcknowledge(msg);
+  }
+}
+
+Consumer consumer = client.newConsumer()
+     .topic("my-topic")
+     .subscriptionName("my-subscription")
+     .messageListener(myMessageListener)
+     .subscribe();
+```
+
 ### Configure consumer
 
-If you instantiate a `Consumer` object by specifying only a topic and subscription name as in the example above, the consumer uses the default configuration. 
+If you instantiate a `Consumer` object by specifying only a topic and subscription name as in the example above, the consumer uses the default configuration.
 
 When you create a consumer, you can use the `loadConf` configuration. The following parameters are available in `loadConf`.
 
@@ -294,7 +315,7 @@ DeadLetterPolicy|`deadLetterPolicy`|Dead letter policy for consumers.<br/><br/>B
 boolean|`autoUpdatePartitions`|If `autoUpdatePartitions` is enabled, a consumer subscribes to partition increasement automatically.<br/><br/>**Note**: this is only for partitioned consumers.|true
 boolean|`replicateSubscriptionState`|If `replicateSubscriptionState` is enabled, a subscription state is replicated to geo-replicated clusters.|false
 
-You can configure parameters if you do not want to use the default configuration. For a full list, see the Javadoc for the {@inject: javadoc:ConsumerBuilder:/client/org/apache/pulsar/client/api/ConsumerBuilder} class. 
+You can configure parameters if you do not want to use the default configuration. For a full list, see the Javadoc for the {@inject: javadoc:ConsumerBuilder:/client/org/apache/pulsar/client/api/ConsumerBuilder} class.
 
 The following is an example.
 
@@ -321,7 +342,7 @@ Async receive operations return a {@inject: javadoc:Message:/client/org/apache/p
 
 ### Batch receive
 
-Use `batchReceive` to receive multiple messages for each call. 
+Use `batchReceive` to receive multiple messages for each call.
 
 The following is an example.
 
@@ -401,7 +422,7 @@ pulsarClient.newConsumer()
 ```
 
 > #### Note
-> 
+>
 > By default, the `subscriptionTopicsMode` of the consumer is `PersistentOnly`. Available options of `subscriptionTopicsMode` are `PersistentOnly`, `NonPersistentOnly`, and `AllTopics`.
 
 You can also subscribe to an explicit list of topics (across namespaces if you wish):
@@ -488,7 +509,7 @@ Only the first consumer is allowed to the subscription, other consumers receive 
 
 > Note:
 >
-> If topic is a partitioned topic, the first consumer subscribes to all partitioned topics, other consumers are not assigned with partitions and receive an error. 
+> If topic is a partitioned topic, the first consumer subscribes to all partitioned topics, other consumers are not assigned with partitions and receive an error.
 
 #### Failover
 
@@ -511,7 +532,7 @@ Consumer consumer2 = client.newConsumer()
   
 ```
 
-Multiple consumers can attach to the same subscription, yet only the first consumer is active, and others are standby. When the active consumer is disconnected, messages will be dispatched to one of standby consumers, and the standby consumer then becomes active consumer. 
+Multiple consumers can attach to the same subscription, yet only the first consumer is active, and others are standby. When the active consumer is disconnected, messages will be dispatched to one of standby consumers, and the standby consumer then becomes active consumer.
 
 If the first active consumer is disconnected after receiving 5 messages, the standby consumer becomes active consumer. Consumer1 will receive:
 
@@ -535,7 +556,7 @@ consumer2 will receive:
 
 > Note:
 >
-> If a topic is a partitioned topic, each partition has only one active consumer, messages of one partition are distributed to only one consumer, and messages of multiple partitions are distributed to multiple consumers. 
+> If a topic is a partitioned topic, each partition has only one active consumer, messages of one partition are distributed to only one consumer, and messages of multiple partitions are distributed to multiple consumers.
 
 #### Shared
 
@@ -641,7 +662,7 @@ Producer producer = client.newProducer()
 >
 > If the message key is not specified, messages without key are dispatched to one consumer in order by default.
 
-## Reader 
+## Reader
 
 With the [reader interface](concepts-clients.md#reader-interface), Pulsar clients can "manually position" themselves within a topic and reading all messages from a specified message onward. The Pulsar API for Java enables you to create {@inject: javadoc:Reader:/client/org/apache/pulsar/client/api/Reader} objects by specifying a topic and a {@inject: javadoc:MessageId:/client/org/apache/pulsar/client/api/MessageId}.
 
@@ -716,23 +737,23 @@ Let's say that you have a `SensorReading` class that you'd like to transmit over
 
 ```java
 public class SensorReading {
-    public float temperature;
+  public float temperature;
 
-    public SensorReading(float temperature) {
-        this.temperature = temperature;
-    }
+  public SensorReading(float temperature) {
+    this.temperature = temperature;
+  }
 
-    // A no-arg constructor is required
-    public SensorReading() {
-    }
+  // A no-arg constructor is required
+  public SensorReading() {
+  }
 
-    public float getTemperature() {
-        return temperature;
-    }
+  public float getTemperature() {
+    return temperature;
+  }
 
-    public void setTemperature(float temperature) {
-        this.temperature = temperature;
-    }
+  public void setTemperature(float temperature) {
+    this.temperature = temperature;
+  }
 }
 ```
 
@@ -787,7 +808,7 @@ The following schema formats are currently available for Java:
   ```
 
 * Define Avro schemas with `Schema.AVRO`. The following code snippet demonstrates how to create and use Avro schema.
-  
+
   ```java
   Producer<MyAvro> avroProducer = client.newProducer(Schema.AVRO(MyAvro.class))
         .topic("some-avro-topic")
@@ -806,13 +827,13 @@ The following is an example.
 
 ```java
 Map<String, String> authParams = new HashMap<>();
-authParams.put("tlsCertFile", "/path/to/client-cert.pem");
-authParams.put("tlsKeyFile", "/path/to/client-key.pem");
+        authParams.put("tlsCertFile", "/path/to/client-cert.pem");
+        authParams.put("tlsKeyFile", "/path/to/client-key.pem");
 
-Authentication tlsAuth = AuthenticationFactory
+        Authentication tlsAuth = AuthenticationFactory
         .create(AuthenticationTls.class.getName(), authParams);
 
-PulsarClient client = PulsarClient.builder()
+        PulsarClient client = PulsarClient.builder()
         .serviceUrl("pulsar+ssl://my-broker.com:6651")
         .enableTls(true)
         .tlsTrustCertsFilePath("/path/to/cacert.pem")
@@ -833,16 +854,16 @@ You can also set an optional `keyId`. The following is an example.
 
 ```java
 Map<String, String> authParams = new HashMap<>();
-authParams.put("tenantDomain", "shopping"); // Tenant domain name
-authParams.put("tenantService", "some_app"); // Tenant service name
-authParams.put("providerDomain", "pulsar"); // Provider domain name
-authParams.put("privateKey", "file:///path/to/private.pem"); // Tenant private key path
-authParams.put("keyId", "v1"); // Key id for the tenant private key (optional, default: "0")
+        authParams.put("tenantDomain", "shopping"); // Tenant domain name
+        authParams.put("tenantService", "some_app"); // Tenant service name
+        authParams.put("providerDomain", "pulsar"); // Provider domain name
+        authParams.put("privateKey", "file:///path/to/private.pem"); // Tenant private key path
+        authParams.put("keyId", "v1"); // Key id for the tenant private key (optional, default: "0")
 
-Authentication athenzAuth = AuthenticationFactory
+        Authentication athenzAuth = AuthenticationFactory
         .create(AuthenticationAthenz.class.getName(), authParams);
 
-PulsarClient client = PulsarClient.builder()
+        PulsarClient client = PulsarClient.builder()
         .serviceUrl("pulsar+ssl://my-broker.com:6651")
         .enableTls(true)
         .tlsTrustCertsFilePath("/path/to/cacert.pem")
@@ -864,19 +885,19 @@ You can use the factory method to configure authentication for Pulsar Java clien
 
 ```java
 PulsarClient client = PulsarClient.builder()
-    .serviceUrl("pulsar://broker.example.com:6650/")
-    .authentication(
+        .serviceUrl("pulsar://broker.example.com:6650/")
+        .authentication(
         AuthenticationFactoryOAuth2.clientCredentials(this.issuerUrl, this.credentialsUrl, this.audience))
-    .build();
+        .build();
 ```
 
 In addition, you can also use the encoded parameters to configure authentication for Pulsar Java client.
 
 ```java
 Authentication auth = AuthenticationFactory
-    .create(AuthenticationOAuth2.class.getName(), "{"type":"client_credentials","privateKey":"...","issuerUrl":"...","audience":"..."}");
-PulsarClient client = PulsarClient.builder()
-    .serviceUrl("pulsar://broker.example.com:6650/")
-    .authentication(auth)
-    .build();
+        .create(AuthenticationOAuth2.class.getName(), "{"type":"client_credentials","privateKey":"...","issuerUrl":"...","audience":"..."}");
+        PulsarClient client = PulsarClient.builder()
+        .serviceUrl("pulsar://broker.example.com:6650/")
+        .authentication(auth)
+        .build();
 ```
