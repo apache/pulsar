@@ -1219,7 +1219,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // delete tenant forcefully
         admin.tenants().deleteTenant(tenant, true);
-        assertFalse(admin.tenants().getTenants().contains(tenant));
+        Awaitility.await().untilAsserted(() -> {
+                    assertFalse(admin.tenants().getTenants().contains(tenant));
+                });
 
         admin.tenants().createTenant(tenant,
                 new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test")));
