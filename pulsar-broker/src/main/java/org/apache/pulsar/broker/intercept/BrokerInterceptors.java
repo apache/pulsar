@@ -24,6 +24,7 @@ import java.util.Map;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.PulsarService;
@@ -40,6 +41,7 @@ import org.apache.pulsar.common.intercept.InterceptException;
 @Slf4j
 public class BrokerInterceptors implements BrokerInterceptor {
 
+    @Getter
     private final Map<String, BrokerInterceptorWithClassLoader> interceptors;
 
     public BrokerInterceptors(Map<String, BrokerInterceptorWithClassLoader> interceptors) {

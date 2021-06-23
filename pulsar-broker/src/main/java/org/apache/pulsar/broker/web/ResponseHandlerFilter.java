@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.web;
 
 import java.io.IOException;
+import javax.servlet.AsyncEvent;
+import javax.servlet.AsyncListener;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
@@ -32,6 +34,7 @@ import javax.ws.rs.core.Response.Status;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.intercept.BrokerInterceptors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,7 +52,7 @@ public class ResponseHandlerFilter implements Filter {
     public ResponseHandlerFilter(PulsarService pulsar) {
         this.brokerAddress = pulsar.getAdvertisedAddress();
         this.interceptor = pulsar.getBrokerInterceptor();
-        this.interceptorEnabled = !pulsar.getConfig().getBrokerInterceptors().isEmpty();
+        this.interceptorEnabled = isInterceptorEnabled(pulsar);
     }
 
     @Override
@@ -71,10 +74,45 @@ public class ResponseHandlerFilter implements Filter {
                 /* connection is already invalidated */
             }
         }
+
+        if (request.isAsyncSupported() && request.isAsyncStarted()) {
+            request.getAsyncContext().addListener(new AsyncListener() {
+                @Override
+                public void onComplete(AsyncEvent asyncEvent) throws IOException {
+                    handleInterceptor(request, response);
+                }
+
+                @Override
+                public void onTimeout(AsyncEvent asyncEvent) throws IOException {
+                    LOG.warn("Http request {} async context timeout.", request);
+                    handleInterceptor(request, response);
+                }
+
+                @Override
+                public void onError(AsyncEvent asyncEvent) throws IOException {
+                    LOG.warn("Http request {} async context error.", request, asyncEvent.getThrowable());
+                    handleInterceptor(request, response);
+                }
+
+                @Override
+                public void onStartAsync(AsyncEvent asyncEvent) throws IOException {
+                    // nothing to do
+                }
+            });
+        } else {
+            handleInterceptor(request, response);
+        }
+    }
+
+    private void handleInterceptor(ServletRequest request, ServletResponse response) {
         if (interceptorEnabled
                 && !StringUtils.containsIgnoreCase(request.getContentType(), MediaType.MULTIPART_FORM_DATA)
                 && !StringUtils.containsIgnoreCase(request.getContentType(), MediaType.APPLICATION_OCTET_STREAM)) {
-            interceptor.onWebserviceResponse(request, response);
+            try {
+                interceptor.onWebserviceResponse(request, response);
+            } catch (Exception e) {
+                LOG.error("Failed to handle interceptor on web service response.", e);
+            }
         }
     }
 
@@ -86,5 +124,16 @@ public class ResponseHandlerFilter implements Filter {
     @Override
     public void destroy() {
         // No state to clean up.
+    }
+
+    private boolean isInterceptorEnabled(PulsarService pulsar) {
+        if (pulsar.getBrokerInterceptor() == null) {
+            return false;
+        }
+        if (pulsar.getBrokerInterceptor() instanceof BrokerInterceptors) {
+            return !((BrokerInterceptors) pulsar.getBrokerInterceptor()).getInterceptors().isEmpty();
+        }
+        // broker interceptor is not null and it's not BrokerInterceptors
+        return true;
     }
 }
