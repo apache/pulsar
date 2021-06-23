@@ -54,7 +54,7 @@ import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.io.core.SourceContext;
-import org.junit.Assert;
+import org.testng.Assert;
 import org.mockito.ArgumentMatcher;
 import static org.testng.Assert.assertSame;
 

@@ -21,7 +21,7 @@ package org.apache.pulsar.websocket;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
 import org.eclipse.jetty.websocket.servlet.UpgradeHttpServletRequest;
-import org.junit.Assert;
+import org.testng.Assert;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
