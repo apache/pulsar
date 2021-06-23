@@ -59,11 +59,26 @@ public class FunctionConfigUtils {
 	static final Integer MAX_PENDING_ASYNC_REQUESTS_DEFAULT = 1000;
 	static final Boolean FORWARD_SOURCE_MESSAGE_PROPERTY_DEFAULT = Boolean.TRUE;
 
+    /*
+    Enable Function subscription naming workaround when activated
+
+    The Pulsar Function will use the function name as the subscription name when this workaround
+    is activated. This workaround is activated when -DdsPatchFunctionNameAsSubscriptionName=true
+    system property or dsPatchFunctionNameAsSubscriptionName=true environment variable is passed
+    to the Functions Worker (or to the Pulsar Broker when there isn't a separate Functions Worker).
+    */
+    private static final String FLAG_NAME_DS_PATCH_FUNCTION_NAME_AS_SUBSCRIPTION_NAME =
+            "dsPatchFunctionNameAsSubscriptionName";
+    static final boolean DS_PATCH_FUNCTION_NAME_AS_SUBSCRIPTION_NAME = Boolean.valueOf(System.getProperty(
+            FLAG_NAME_DS_PATCH_FUNCTION_NAME_AS_SUBSCRIPTION_NAME, Boolean.FALSE.toString()))
+            || Boolean.valueOf(System.getenv().getOrDefault(FLAG_NAME_DS_PATCH_FUNCTION_NAME_AS_SUBSCRIPTION_NAME,
+            Boolean.FALSE.toString()));
+
     private static final ObjectMapper OBJECT_MAPPER = ObjectMapperFactory.create();
 
     public static FunctionDetails convert(FunctionConfig functionConfig, ClassLoader classLoader)
             throws IllegalArgumentException {
-        
+
         boolean isBuiltin = !org.apache.commons.lang3.StringUtils.isEmpty(functionConfig.getJar()) && functionConfig.getJar().startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN);
 
         Class<?>[] typeArgs = null;
@@ -161,6 +176,8 @@ public class FunctionConfigUtils {
         // Set subscription name
         if (isNotBlank(functionConfig.getSubName())) {
             sourceSpecBuilder.setSubscriptionName(functionConfig.getSubName());
+        } else if (DS_PATCH_FUNCTION_NAME_AS_SUBSCRIPTION_NAME) {
+            sourceSpecBuilder.setSubscriptionName(functionConfig.getName());
         }
 
         // Set subscription position
@@ -369,6 +386,8 @@ public class FunctionConfigUtils {
         functionConfig.setInputSpecs(consumerConfigMap);
         if (!isEmpty(functionDetails.getSource().getSubscriptionName())) {
             functionConfig.setSubName(functionDetails.getSource().getSubscriptionName());
+        } else if (DS_PATCH_FUNCTION_NAME_AS_SUBSCRIPTION_NAME) {
+            functionConfig.setSubName(functionDetails.getName());
         }
         functionConfig.setRetainOrdering(functionDetails.getRetainOrdering());
         functionConfig.setRetainKeyOrdering(functionDetails.getRetainKeyOrdering());
