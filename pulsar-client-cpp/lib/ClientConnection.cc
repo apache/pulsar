@@ -417,7 +417,11 @@ void ClientConnection::handleTcpConnected(const boost::system::error_code& err,
         }
     } else if (endpointIterator != tcp::resolver::iterator()) {
         // The connection failed. Try the next endpoint in the list.
-        socket_->close();
+        boost::system::error_code err;
+        socket_->close(err);  // ignore the error of close
+        if (err) {
+            LOG_WARN(cnxString_ << "Failed to close socket: " << err.message());
+        }
         connectTimeoutTask_->stop();
         connectTimeoutTask_->start();
         tcp::endpoint endpoint = *endpointIterator;
@@ -1429,6 +1433,9 @@ void ClientConnection::close() {
     state_ = Disconnected;
     boost::system::error_code err;
     socket_->close(err);
+    if (err) {
+        LOG_WARN(cnxString_ << "Failed to close socket: " << err.message());
+    }
 
     if (tlsSocket_) {
         tlsSocket_->lowest_layer().close();
