@@ -19,17 +19,26 @@
 #if BOOST_VERSION >= 105500
 #include <boost/predef.h>
 #else
+#if _MSC_VER
+#pragma message("Boost version is < 1.55, disable CRC32C")
+#else
 #warning "Boost version is < 1.55, disable CRC32C"
+#endif
 #endif
 
 #include <assert.h>
 #include <stdlib.h>
+#include "lib/checksum/crc32c_sw.h"
 
 #if BOOST_ARCH_X86_64
 #include <nmmintrin.h>  // SSE4.2
 #include <wmmintrin.h>  // PCLMUL
 #else
+#ifdef _MSC_VER
+#pragma message("BOOST_ARCH_X86_64 is not defined, CRC32C will be disabled")
+#else
 #warning "BOOST_ARCH_X86_64 is not defined, CRC32C will be disabled"
+#endif
 #endif
 
 #ifdef _MSC_VER
@@ -82,6 +91,7 @@ bool crc32c_initialize() {
         DEBUG_PRINTF1("has_pclmulqdq = %d\n", has_pclmulqdq);
         initialized = true;
     }
+
     return has_sse42;
 }
 
@@ -251,7 +261,7 @@ uint32_t crc32c(uint32_t init, const void *buf, size_t len, const chunk_config *
 
 uint32_t crc32c(uint32_t init, const void *buf, size_t len, const chunk_config *config) {
     // SSE 4.2 extension for hw implementation are not present
-    abort();
+    return crc32c_sw(init, buf, len);  // fallback to the software implementation
 }
 
 #endif
