@@ -355,6 +355,7 @@ class Client:
     def __init__(self, service_url,
                  authentication=None,
                  operation_timeout_seconds=30,
+                 connection_timeout_ms=10000,
                  io_threads=1,
                  message_listener_threads=1,
                  concurrent_lookup_requests=50000,
@@ -380,6 +381,8 @@ class Client:
         * `operation_timeout_seconds`:
           Set timeout on client operations (subscribe, create producer, close,
           unsubscribe).
+        * `connection_timeout_ms`:
+          Set timeout in milliseconds on TCP connections.
         * `io_threads`:
           Set the number of IO threads to be used by the Pulsar client.
         * `message_listener_threads`:
@@ -413,6 +416,7 @@ class Client:
         _check_type(str, service_url, 'service_url')
         _check_type_or_none(Authentication, authentication, 'authentication')
         _check_type(int, operation_timeout_seconds, 'operation_timeout_seconds')
+        _check_type(int, connection_timeout_ms, 'connection_timeout_ms')
         _check_type(int, io_threads, 'io_threads')
         _check_type(int, message_listener_threads, 'message_listener_threads')
         _check_type(int, concurrent_lookup_requests, 'concurrent_lookup_requests')
@@ -427,6 +431,7 @@ class Client:
         if authentication:
             conf.authentication(authentication.auth)
         conf.operation_timeout_seconds(operation_timeout_seconds)
+        conf.connection_timeout(connection_timeout_ms)
         conf.io_threads(io_threads)
         conf.message_listener_threads(message_listener_threads)
         conf.concurrent_lookup_requests(concurrent_lookup_requests)
