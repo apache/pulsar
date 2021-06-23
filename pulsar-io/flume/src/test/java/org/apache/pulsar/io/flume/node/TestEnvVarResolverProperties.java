@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.io.flume.node;
 
+import org.junit.Rule;
 import org.junit.contrib.java.lang.system.EnvironmentVariables;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
@@ -30,6 +31,7 @@ public final class TestEnvVarResolverProperties {
             TestEnvVarResolverProperties.class.getClassLoader()
                     .getResource("flume-conf-with-envvars.properties").getFile());
 
+    @Rule
     public final EnvironmentVariables environmentVariables = new EnvironmentVariables();
     private PropertiesFileConfigurationProvider provider;
 
