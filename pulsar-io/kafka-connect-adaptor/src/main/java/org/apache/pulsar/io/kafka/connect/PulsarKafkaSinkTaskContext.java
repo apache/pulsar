@@ -69,7 +69,7 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
 
         offsetStore = new PulsarOffsetBackingStore();
         PulsarKafkaWorkerConfig pulsarKafkaWorkerConfig = new PulsarKafkaWorkerConfig(config);
-        offsetStore.configure(pulsarKafkaWorkerConfig);
+        offsetStore.configure(pulsarKafkaWorkerConfig, ctx.getPulsarClient());
         offsetStore.start();
 
         this.onPartitionChange = onPartitionChange;

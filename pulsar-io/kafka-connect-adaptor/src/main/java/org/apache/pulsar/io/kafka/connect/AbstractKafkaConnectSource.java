@@ -117,7 +117,7 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
 
         offsetStore = new PulsarOffsetBackingStore();
         PulsarKafkaWorkerConfig pulsarKafkaWorkerConfig = new PulsarKafkaWorkerConfig(stringConfig);
-        offsetStore.configure(pulsarKafkaWorkerConfig);
+        offsetStore.configure(pulsarKafkaWorkerConfig, sourceContext.getPulsarClient());
         offsetStore.start();
 
         offsetReader = new OffsetStorageReaderImpl(

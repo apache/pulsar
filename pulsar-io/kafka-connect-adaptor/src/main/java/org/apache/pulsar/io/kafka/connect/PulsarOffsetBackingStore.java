@@ -58,13 +58,15 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
     private volatile CompletableFuture<Void> outstandingReadToEnd = null;
 
     @Override
-    public void configure(WorkerConfig workerConfig) {
+    public void configure(WorkerConfig workerConfig, PulsarClient client) {
         this.topic = workerConfig.getString(PulsarKafkaWorkerConfig.OFFSET_STORAGE_TOPIC_CONFIG);
         checkArgument(!isBlank(topic), "Offset storage topic must be specified");
         this.serviceUrl = workerConfig.getString(PulsarKafkaWorkerConfig.PULSAR_SERVICE_URL_CONFIG);
         checkArgument(!isBlank(serviceUrl), "Pulsar service url must be specified at `"
             + WorkerConfig.BOOTSTRAP_SERVERS_CONFIG + "`");
         this.data = new HashMap<>();
+
+        this.client = client;
 
         log.info("Configure offset backing store on pulsar topic {} at cluster {}",
             topic, serviceUrl);
@@ -136,9 +138,6 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
     @Override
     public void start() {
         try {
-            client = PulsarClient.builder()
-                .serviceUrl(serviceUrl)
-                .build();
             log.info("Successfully created pulsar client to {}", serviceUrl);
             producer = client.newProducer(Schema.BYTES)
                 .topic(topic)
