@@ -628,12 +628,12 @@ public class PersistentTopic extends AbstractTopic
                                                  long startMessageRollbackDurationSec,
                                                  boolean replicatedSubscriptionStateArg,
                                                  KeySharedMeta keySharedMeta) {
-        return brokerService.checkTopicNsOwnership(getName()).thenCompose(__ -> {
-            if (readCompacted && !(subType == SubType.Failover || subType == SubType.Exclusive)) {
-                return FutureUtil.failedFuture(new NotAllowedException(
-                        "readCompacted only allowed on failover or exclusive subscriptions"));
-            }
+        if (readCompacted && !(subType == SubType.Failover || subType == SubType.Exclusive)) {
+            return FutureUtil.failedFuture(new NotAllowedException(
+                    "readCompacted only allowed on failover or exclusive subscriptions"));
+        }
 
+        return brokerService.checkTopicNsOwnership(getName()).thenCompose(__ -> {
             boolean replicatedSubscriptionState = replicatedSubscriptionStateArg;
 
             if (replicatedSubscriptionState
