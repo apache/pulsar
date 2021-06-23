@@ -18,13 +18,12 @@
  */
 package org.apache.pulsar.io.flume.node;
 
+import java.io.File;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.contrib.java.lang.system.EnvironmentVariables;
-
-import java.io.File;
 
 public final class TestEnvVarResolverProperties {
     private static final File TESTFILE = new File(
