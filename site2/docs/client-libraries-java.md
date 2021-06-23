@@ -185,6 +185,7 @@ ProducerCryptoFailureAction|`cryptoFailureAction`|Producer should take action wh
 long|`batchingMaxPublishDelayMicros`|Batching time period of sending messages.|TimeUnit.MILLISECONDS.toMicros(1)
 int|batchingMaxMessages|The maximum number of messages permitted in a batch.|1000
 boolean|`batchingEnabled`|Enable batching of messages. |true
+BatcherBuilderType| `batcherBuilderType`| BatcherBuilder type <br/><br/>Two types are available:<li>Default</li><li>Key_Based</li>|BatcherBuilderType.Default
 CompressionType|`compressionType`|Message data compression type used by a producer. <br/><br/>Available options:<li>[`LZ4`](https://github.com/lz4/lz4)<br/><li>[`ZLIB`](https://zlib.net/)<br/><li>[`ZSTD`](https://facebook.github.io/zstd/)<br/><li>[`SNAPPY`](https://google.github.io/snappy/)| No compression
 
 You can configure parameters if you do not want to use the default configuration.
