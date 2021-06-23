@@ -138,12 +138,12 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         sink.write(record);
         sink.flush();
 
-        assertEquals(1, status.get());
+        assertEquals(status.get(), 1);
 
         sink.close();
 
         List<String> lines = Files.readAllLines(file, StandardCharsets.US_ASCII);
-        assertEquals("value", lines.get(0));
+        assertEquals(lines.get(0), "value");
     }
 
     @Test
@@ -169,15 +169,15 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         sink.write(record);
         sink.flush();
 
-        assertEquals(1, status.get());
+        assertEquals(status.get(), 1);
 
         final TopicPartition tp = new TopicPartition("fake-topic", 0);
-        assertNotEquals(0, MessageIdUtils.getOffset(msgId));
-        assertEquals(MessageIdUtils.getOffset(msgId), sink.currentOffset(tp.topic(), tp.partition()));
+        assertNotEquals(MessageIdUtils.getOffset(msgId), 0);
+        assertEquals(sink.currentOffset(tp.topic(), tp.partition()), MessageIdUtils.getOffset(msgId));
 
         sink.taskContext.offset(tp, 0);
         verify(context, times(1)).seek(Mockito.anyString(), Mockito.anyInt(), any());
-        assertEquals(0, sink.currentOffset(tp.topic(), tp.partition()));
+        assertEquals(sink.currentOffset(tp.topic(), tp.partition()), 0);
 
         sink.taskContext.pause(tp);
         verify(context, times(1)).pause(tp.topic(), tp.partition());
@@ -260,7 +260,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         sink.write(record);
         sink.flush();
 
-        assertEquals(1, status.get());
+        assertEquals(status.get(), 1);
 
         sink.close();
 
@@ -268,10 +268,10 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         ObjectMapper om = new ObjectMapper();
         Map<String, Object> result = om.readValue(lines.get(0), new TypeReference<Map<String, Object>>(){});
 
-        assertEquals(expectedKey, result.get("key"));
-        assertEquals(expected, result.get("value"));
-        assertEquals(expectedKeySchema, result.get("keySchema"));
-        assertEquals(expectedSchema, result.get("valueSchema"));
+        assertEquals(result.get("key"), expectedKey);
+        assertEquals(result.get("value"), expected);
+        assertEquals(result.get("keySchema"), expectedKeySchema);
+        assertEquals(result.get("valueSchema"), expectedSchema);
     }
 
     private GenericRecord getGenericRecord(Object value, Schema schema) {
@@ -418,18 +418,18 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         sink.open(props, context);
 
         // offset is -1 before any data is written (aka no offset)
-        assertEquals(-1L, sink.currentOffset(topicName, partition));
+        assertEquals(sink.currentOffset(topicName, partition), -1L);
 
         sink.write(record);
         sink.flush();
 
         // offset is 0 for the first written record
-        assertEquals(0, sink.currentOffset(topicName, partition));
+        assertEquals(sink.currentOffset(topicName, partition), 0);
 
         sink.write(record);
         sink.flush();
         // offset is 1 for the second written record
-        assertEquals(1, sink.currentOffset(topicName, partition));
+        assertEquals(sink.currentOffset(topicName, partition), 1);
 
         sink.close();
 
@@ -441,12 +441,12 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         sink.open(props, context);
 
         // offset is 1 after reopening the producer
-        assertEquals(1, sink.currentOffset(topicName, partition));
+        assertEquals(sink.currentOffset(topicName, partition), 1);
 
         sink.write(record);
         sink.flush();
         // offset is 2 for the next written record
-        assertEquals(2, sink.currentOffset(topicName, partition));
+        assertEquals(sink.currentOffset(topicName, partition), 2);
 
         sink.close();
     }
