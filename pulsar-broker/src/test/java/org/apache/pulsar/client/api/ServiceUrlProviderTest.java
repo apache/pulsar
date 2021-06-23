@@ -80,7 +80,7 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
             System.out.println(message.getValue());
             received++;
         } while (received < 200);
-        Assert.assertEquals(200, received);
+        Assert.assertEquals(received, 200);
         producer.close();
         consumer.close();
     }
