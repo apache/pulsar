@@ -18,11 +18,11 @@
  */
 package org.apache.pulsar.common.naming;
 
-import org.junit.Assert;
-import org.junit.Test;
 
 import static org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_NAME;
 import static org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm.TOPIC_COUNT_EQUALLY_DIVIDE;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
 
 public class NamespaceBundleSplitAlgorithmTest {

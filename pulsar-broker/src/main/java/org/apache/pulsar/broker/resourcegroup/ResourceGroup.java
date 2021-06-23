@@ -70,9 +70,10 @@ public class ResourceGroup {
 
     // Default ctor: it is not expected that anything outside of this package will need to directly
     // construct a ResourceGroup (i.e., without going through ResourceGroupService).
-    protected ResourceGroup(ResourceGroupService rgs, ResourceGroupConfigInfo rgConfig) {
+    protected ResourceGroup(ResourceGroupService rgs, String name,
+                            org.apache.pulsar.common.policies.data.ResourceGroup rgConfig) {
         this.rgs = rgs;
-        this.resourceGroupName = rgConfig.getName();
+        this.resourceGroupName = name;
         this.setResourceGroupMonitoringClassFields();
         this.setResourceGroupConfigParameters(rgConfig);
         this.setDefaultResourceUsageTransportHandlers();
@@ -81,10 +82,11 @@ public class ResourceGroup {
     // ctor for overriding the transport-manager fill/set buffer.
     // It is not expected that anything outside of this package will need to directly
     // construct a ResourceGroup (i.e., without going through ResourceGroupService).
-    protected ResourceGroup(ResourceGroupService rgs, ResourceGroupConfigInfo rgConfig,
+    protected ResourceGroup(ResourceGroupService rgs, String rgName,
+                            org.apache.pulsar.common.policies.data.ResourceGroup rgConfig,
                             ResourceUsagePublisher rgPublisher, ResourceUsageConsumer rgConsumer) {
         this.rgs = rgs;
-        this.resourceGroupName = rgConfig.getName();
+        this.resourceGroupName = rgName;
         this.setResourceGroupMonitoringClassFields();
         this.setResourceGroupConfigParameters(rgConfig);
         this.ruPublisher = rgPublisher;
@@ -128,7 +130,7 @@ public class ResourceGroup {
         }
     }
 
-    protected void updateResourceGroup(ResourceGroupConfigInfo rgConfig) {
+    protected void updateResourceGroup(org.apache.pulsar.common.policies.data.ResourceGroup rgConfig) {
         this.setResourceGroupConfigParameters(rgConfig);
     }
 
@@ -179,7 +181,7 @@ public class ResourceGroup {
             if (this.resourceGroupTenantRefs.size() + this.resourceGroupNamespaceRefs.size() == 0) {
                 log.info("unRegisterUsage for RG={}: un-registering from transport-mgr", this.resourceGroupName);
                 transportManager.unregisterResourceUsageConsumer(this.ruConsumer);
-                // ToDo: call the unregister for publisher after typo is fixed in transport manager
+                transportManager.unregisterResourceUsagePublisher(this.ruPublisher);
             }
         }
 
@@ -293,8 +295,6 @@ public class ResourceGroup {
         } finally {
             monEntity.localUsageStatsLock.unlock();
         }
-        log.info("updateLocalQuota for RG={}: set local {} quota to bytes={}, messages={}",
-                this.resourceGroupName, monClass, newQuota.bytes, newQuota.messages);
     }
 
     private void checkMonitoringClass(ResourceGroupMonitoringClass monClass) throws PulsarAdminException {
@@ -420,16 +420,16 @@ public class ResourceGroup {
         }
     }
 
-    private void setResourceGroupConfigParameters(ResourceGroupConfigInfo rgConfig) {
+    private void setResourceGroupConfigParameters(org.apache.pulsar.common.policies.data.ResourceGroup rgConfig) {
         int idx;
 
         idx = ResourceGroupMonitoringClass.Publish.ordinal();
-        this.monitoringClassFields[idx].configValuesPerPeriod.bytes = rgConfig.getPublishBytesPerPeriod();
-        this.monitoringClassFields[idx].configValuesPerPeriod.messages = rgConfig.getPublishMessagesPerPeriod();
+        this.monitoringClassFields[idx].configValuesPerPeriod.bytes = rgConfig.getPublishRateInBytes();
+        this.monitoringClassFields[idx].configValuesPerPeriod.messages = rgConfig.getPublishRateInMsgs();
 
         idx = ResourceGroupMonitoringClass.Dispatch.ordinal();
-        this.monitoringClassFields[idx].configValuesPerPeriod.bytes = rgConfig.getDispatchBytesPerPeriod();
-        this.monitoringClassFields[idx].configValuesPerPeriod.messages = rgConfig.getDispatchMessagesPerPeriod();
+        this.monitoringClassFields[idx].configValuesPerPeriod.bytes = rgConfig.getDispatchRateInBytes();
+        this.monitoringClassFields[idx].configValuesPerPeriod.messages = rgConfig.getDispatchRateInMsgs();
     }
 
     private void setDefaultResourceUsageTransportHandlers() {
