@@ -30,6 +30,7 @@ import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -56,8 +57,7 @@ public class TransactionTest extends TransactionTestBase {
     @BeforeMethod
     protected void setup() throws Exception {
         this.setBrokerCount(1);
-        this.
-        internalSetup();
+        this.internalSetup();
 
         String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
         String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length - 1];
@@ -70,7 +70,7 @@ public class TransactionTest extends TransactionTestBase {
                 new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
         admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), 1);
-
+        pulsarClient.close();
         pulsarClient = PulsarClient.builder()
                 .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
                 .statsInterval(0, TimeUnit.SECONDS)
@@ -84,14 +84,9 @@ public class TransactionTest extends TransactionTestBase {
 
         String topicName = TopicName.get(NAMESPACE1 + "/test").toString();
 
-        ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
-                .topic(topicName)
-                .subscriptionName(subName)
-                .subscriptionType(SubscriptionType.Shared)
-                .enableBatchIndexAcknowledgment(true);
 
         @Cleanup
-        Consumer<byte[]> consumer = consumerBuilder.subscribe();
+        Consumer<byte[]> consumer = getConsumer(topicName, subName);
 
         consumer.close();
 
@@ -108,7 +103,8 @@ public class TransactionTest extends TransactionTestBase {
         admin.namespaces().unload(NamespaceName.SYSTEM_NAMESPACE.toString());
         admin.namespaces().unload(NAMESPACE1);
 
-        consumerBuilder.subscribe();
+        @Cleanup
+        Consumer<byte[]> consumer1 = getConsumer(topicName, subName);
 
         Awaitility.await().until(() -> {
             try {
@@ -133,5 +129,14 @@ public class TransactionTest extends TransactionTestBase {
     @AfterMethod(alwaysRun = true)
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    public Consumer<byte[]> getConsumer(String topicName, String subName) throws PulsarClientException {
+        return pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared)
+                .enableBatchIndexAcknowledgment(true)
+                .subscribe();
     }
 }

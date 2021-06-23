@@ -994,11 +994,7 @@ public class PulsarService implements AutoCloseable {
             for (String topic : getNamespaceService().getListOfPersistentTopics(nsName).join()) {
                 try {
                     TopicName topicName = TopicName.get(topic);
-                    if (bundle.includes(topicName)
-                            && !topic.startsWith(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString())
-                            && !topic.startsWith(TopicName.get(TopicDomain.persistent.value(),
-                            NamespaceName.SYSTEM_NAMESPACE, TRANSACTION_LOG_PREFIX).toString())
-                            && !topic.endsWith(MLPendingAckStore.PENDING_ACK_STORE_SUFFIX)) {
+                    if (bundle.includes(topicName) && !isTransactionSystemTopic(topicName)) {
                         CompletableFuture<Topic> future = brokerService.getOrCreateTopic(topic);
                         if (future != null) {
                             persistentTopics.add(future);
@@ -1590,6 +1586,15 @@ public class PulsarService implements AutoCloseable {
                         + "-" + (workerConfig.getTlsEnabled()
                         ? workerConfig.getWorkerPortTls() : workerConfig.getWorkerPort()));
         return workerConfig;
+    }
+
+
+    private static boolean isTransactionSystemTopic(TopicName topicName) {
+        String topic = topicName.toString();
+        return topic.startsWith(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString())
+                || topic.startsWith(TopicName.get(TopicDomain.persistent.value(),
+                NamespaceName.SYSTEM_NAMESPACE, TRANSACTION_LOG_PREFIX).toString())
+                || topic.endsWith(MLPendingAckStore.PENDING_ACK_STORE_SUFFIX);
     }
 
 }
