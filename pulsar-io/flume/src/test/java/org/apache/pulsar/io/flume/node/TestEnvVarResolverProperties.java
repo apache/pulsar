@@ -18,11 +18,11 @@
  */
 package org.apache.pulsar.io.flume.node;
 
+import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Rule;
+import org.junit.Test;
 import org.junit.contrib.java.lang.system.EnvironmentVariables;
-import org.testng.Assert;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import java.io.File;
 
@@ -35,7 +35,7 @@ public final class TestEnvVarResolverProperties {
     public final EnvironmentVariables environmentVariables = new EnvironmentVariables();
     private PropertiesFileConfigurationProvider provider;
 
-    @BeforeMethod
+    @Before
     public void setUp() {
         provider = new PropertiesFileConfigurationProvider("a1", TESTFILE);
     }
@@ -44,7 +44,7 @@ public final class TestEnvVarResolverProperties {
     public void resolveEnvVar() {
         environmentVariables.set("VARNAME", "varvalue");
         String resolved = EnvVarResolverProperties.resolveEnvVars("padding ${VARNAME} padding");
-        Assert.assertEquals(resolved, "padding varvalue padding");
+        Assert.assertEquals( "padding varvalue padding", resolved);
     }
 
     @Test
@@ -53,7 +53,7 @@ public final class TestEnvVarResolverProperties {
         environmentVariables.set("VARNAME2", "varvalue2");
         String resolved = EnvVarResolverProperties
                 .resolveEnvVars("padding ${VARNAME1} ${VARNAME2} padding");
-        Assert.assertEquals(resolved, "padding varvalue1 varvalue2 padding");
+        Assert.assertEquals( "padding varvalue1 varvalue2 padding", resolved);
     }
 
     @Test
@@ -63,8 +63,8 @@ public final class TestEnvVarResolverProperties {
         System.setProperty("propertiesImplementation",
                 "org.apache.pulsar.io.flume.node.EnvVarResolverProperties");
 
-        Assert.assertEquals(provider.getFlumeConfiguration()
+        Assert.assertEquals(NC_PORT, provider.getFlumeConfiguration()
                 .getConfigurationFor("a1")
-                .getSourceContext().get("r1").getParameters().get("port"), NC_PORT);
+                .getSourceContext().get("r1").getParameters().get("port"));
     }
 }
