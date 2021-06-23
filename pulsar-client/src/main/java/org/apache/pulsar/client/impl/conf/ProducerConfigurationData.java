@@ -19,12 +19,12 @@
 package org.apache.pulsar.client.impl.conf;
 
 import java.io.Serializable;
-import java.util.Set;
-import java.util.SortedMap;
-import java.util.TreeMap;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
+import com.fasterxml.jackson.annotation.JsonGetter;
+import com.fasterxml.jackson.annotation.JsonSetter;
+import com.google.common.collect.ImmutableList;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
@@ -149,6 +149,16 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
         this.batchingMaxBytes = batchingMaxBytes;
     }
 
+    @JsonSetter
+    public void setBatcherBuilderType(BatcherBuilderType batcherBuilderType) {
+        this.batcherBuilder = batcherBuilderType.batcherBuilder;
+    }
+
+    @JsonGetter
+    public BatcherBuilderType getBatcherBuilderType() {
+        return BatcherBuilderType.fromBatcherBuilder(this.batcherBuilder);
+    }
+
     public void setSendTimeoutMs(int sendTimeout, TimeUnit timeUnit) {
         checkArgument(sendTimeout >= 0, "sendTimeout needs to be >= 0");
         this.sendTimeoutMs = timeUnit.toMillis(sendTimeout);
@@ -172,5 +182,23 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     public void setAutoUpdatePartitionsIntervalSeconds(int interval, TimeUnit timeUnit) {
         checkArgument(interval > 0, "interval needs to be > 0");
         this.autoUpdatePartitionsIntervalSeconds = timeUnit.toSeconds(interval);
+    }
+
+    public enum BatcherBuilderType {
+        DEFAULT(BatcherBuilder.DEFAULT),
+        KEY_BASED(BatcherBuilder.KEY_BASED);
+
+        private final BatcherBuilder batcherBuilder;
+
+        BatcherBuilderType(BatcherBuilder batcherBuilder) {
+            this.batcherBuilder = batcherBuilder;
+        }
+
+        public static BatcherBuilderType fromBatcherBuilder(BatcherBuilder batcherBuilder) {
+            return Arrays.stream(values())
+                    .filter(t->t.batcherBuilder==batcherBuilder)
+                    .findFirst()
+                    .orElse(null);
+        }
     }
 }
