@@ -18,52 +18,52 @@
  */
 package org.apache.pulsar.io.flume.node;
 
-import java.io.File;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
 import org.junit.contrib.java.lang.system.EnvironmentVariables;
+import org.testng.Assert;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
+
+import java.io.File;
 
 public final class TestEnvVarResolverProperties {
     private static final File TESTFILE = new File(
             TestEnvVarResolverProperties.class.getClassLoader()
                     .getResource("flume-conf-with-envvars.properties").getFile());
 
-    @Rule
     public final EnvironmentVariables environmentVariables = new EnvironmentVariables();
     private PropertiesFileConfigurationProvider provider;
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeMethod
+    public void setUp() {
         provider = new PropertiesFileConfigurationProvider("a1", TESTFILE);
     }
 
     @Test
-    public void resolveEnvVar() throws Exception {
+    public void resolveEnvVar() {
+        System.setProperty("VARNAME", "varvalue");
         environmentVariables.set("VARNAME", "varvalue");
         String resolved = EnvVarResolverProperties.resolveEnvVars("padding ${VARNAME} padding");
-        Assert.assertEquals("padding varvalue padding", resolved);
+        Assert.assertEquals(resolved, "padding varvalue padding");
     }
 
     @Test
-    public void resolveEnvVars() throws Exception {
+    public void resolveEnvVars() {
         environmentVariables.set("VARNAME1", "varvalue1");
         environmentVariables.set("VARNAME2", "varvalue2");
         String resolved = EnvVarResolverProperties
                 .resolveEnvVars("padding ${VARNAME1} ${VARNAME2} padding");
-        Assert.assertEquals("padding varvalue1 varvalue2 padding", resolved);
+        Assert.assertEquals(resolved, "padding varvalue1 varvalue2 padding");
     }
 
     @Test
-    public void getProperty() throws Exception {
+    public void getProperty() {
         String NC_PORT = "6667";
         environmentVariables.set("NC_PORT", NC_PORT);
         System.setProperty("propertiesImplementation",
                 "org.apache.pulsar.io.flume.node.EnvVarResolverProperties");
 
-        Assert.assertEquals(NC_PORT, provider.getFlumeConfiguration()
+        Assert.assertEquals(provider.getFlumeConfiguration()
                 .getConfigurationFor("a1")
-                .getSourceContext().get("r1").getParameters().get("port"));
+                .getSourceContext().get("r1").getParameters().get("port"), NC_PORT);
     }
 }
