@@ -277,6 +277,8 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         Map<NamespaceName, LedgerOffloader> map = new HashMap<>();
         map.put(TopicName.get(topicName).getNamespaceObject(), namespaceOffloader);
         doReturn(map).when(pulsar).getLedgerOffloaderMap();
+        doReturn(namespaceOffloader).when(pulsar)
+                .getManagedLedgerOffloader(TopicName.get(topicName).getNamespaceObject(), null);
 
         admin.topics().removeOffloadPolicies(topicName);
         Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(()
