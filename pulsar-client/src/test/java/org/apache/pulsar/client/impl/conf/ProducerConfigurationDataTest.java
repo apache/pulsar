@@ -1,6 +1,5 @@
 package org.apache.pulsar.client.impl.conf;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeTest;
