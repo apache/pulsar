@@ -418,6 +418,8 @@ void ClientConnection::handleTcpConnected(const boost::system::error_code& err,
     } else if (endpointIterator != tcp::resolver::iterator()) {
         // The connection failed. Try the next endpoint in the list.
         socket_->close();
+        connectTimeoutTask_->stop();
+        connectTimeoutTask_->start();
         tcp::endpoint endpoint = *endpointIterator;
         socket_->async_connect(endpoint, std::bind(&ClientConnection::handleTcpConnected, shared_from_this(),
                                                    std::placeholders::_1, ++endpointIterator));
