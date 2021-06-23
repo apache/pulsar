@@ -194,7 +194,7 @@
 <tr><td>backlogQuotaCheckEnabled</td><td>Enable backlog quota check. Enforces action on topic when the quota is reached</td><td>true</td></tr>
 <tr><td>backlogQuotaCheckIntervalInSeconds</td><td>How often to check for topics that have reached the quota</td><td>60</td></tr>
 <tr><td>backlogQuotaDefaultLimitGB</td><td>Default per-topic backlog quota limit</td><td>10</td></tr>
-<tr><td>brokerDeleteInactiveTopicsEnabled</td><td>Enable the deletion of inactive topics</td><td>true</td></tr>
+<tr><td>brokerDeleteInactiveTopicsEnabled</td><td>Enable the deletion of inactive topics. If topics are not consumed for some while, these inactive topics might be cleaned up. Deleting inactive topics is enabled by default. The default period is 1 minute.</td><td>true</td></tr>
 <tr><td>brokerDeleteInactiveTopicsFrequencySeconds</td><td>How often to check for inactive topics</td><td>60</td></tr>
 <tr><td>messageExpiryCheckIntervalInMinutes</td><td>How frequently to proactively check and purge expired messages</td><td>5</td></tr>
 <tr><td>brokerServiceCompactionMonitorIntervalInSeconds</td><td>Interval between checks to see if topics with compaction policies need to be compacted</td><td>60</td></tr>
@@ -380,7 +380,7 @@
 <tr><td>backlogQuotaCheckEnabled</td><td>Enable the backlog quota check, which enforces a specified action when the quota is reached.</td><td>true</td></tr>
 <tr><td>backlogQuotaCheckIntervalInSeconds</td><td>How often to check for topics that have reached the backlog quota.</td><td>60</td></tr>
 <tr><td>backlogQuotaDefaultLimitGB</td><td>The default per-topic backlog quota limit.</td><td>10</td></tr>
-<tr><td>brokerDeleteInactiveTopicsEnabled</td><td>Enable the deletion of inactive topics.</td><td>true</td></tr>
+<tr><td>brokerDeleteInactiveTopicsEnabled</td><td>Enable the deletion of inactive topics. If topics are not consumed for some while, these inactive topics might be cleaned up. Deleting inactive topics is enabled by default. The default period is 1 minute.</td><td>true</td></tr>
 <tr><td>brokerDeleteInactiveTopicsFrequencySeconds</td><td>How often to check for inactive topics, in seconds.</td><td>60</td></tr>
 <tr><td>messageExpiryCheckIntervalInMinutes</td><td>How often to proactively check and purged expired messages.</td><td>5</td></tr>
 <tr><td>activeConsumerFailoverDelayTimeMillis</td><td>How long to delay rewinding cursor and dispatching messages when active consumer is changed.</td><td>1000</td></tr>
