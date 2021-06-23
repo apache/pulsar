@@ -111,7 +111,7 @@ public class TimeAverageBrokerDataTest {
         TimeAverageBrokerData timeAverageBrokerData = new TimeAverageBrokerData();
         Set<String> bundles = new HashSet<>();
         bundles.add("a");
-        bundles.add("b");
+        bundles.add("c");
         Map<String, BundleData> data = new HashMap<>();
         TimeAverageMessageData timeAverageMessageData = new TimeAverageMessageData();
         timeAverageMessageData.setMsgThroughputIn(1);
@@ -122,7 +122,7 @@ public class TimeAverageBrokerDataTest {
         bundleData.setLongTermData(timeAverageMessageData);
         bundleData.setShortTermData(timeAverageMessageData);
         data.put("a", bundleData);
-        data.put("b", bundleData);
+        data.put("c", bundleData);
         timeAverageBrokerData.reset(bundles, data, null);
         assertEquals(timeAverageBrokerData.getShortTermMsgThroughputIn(), 2);
         assertEquals(timeAverageBrokerData.getShortTermMsgThroughputOut(), 4);
