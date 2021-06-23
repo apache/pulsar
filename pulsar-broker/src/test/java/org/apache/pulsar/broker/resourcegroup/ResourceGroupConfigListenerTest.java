@@ -22,22 +22,17 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
-
 import com.google.common.collect.Sets;
+import java.util.Random;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.ResourceGroup;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Ignore;
 import org.testng.annotations.Test;
-
-import java.util.Random;
-import java.util.concurrent.TimeUnit;
 
 public class ResourceGroupConfigListenerTest extends MockedPulsarServiceBaseTest {
 
@@ -64,7 +59,7 @@ public class ResourceGroupConfigListenerTest extends MockedPulsarServiceBaseTest
     public void createResourceGroup(String rgName, ResourceGroup rg) throws PulsarAdminException {
         admin.resourcegroups().createResourceGroup(rgName, rg);
 
-        Awaitility.await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().untilAsserted(() -> {
             final org.apache.pulsar.broker.resourcegroup.ResourceGroup resourceGroup = pulsar
                     .getResourceGroupServiceManager().resourceGroupGet(rgName);
             assertNotNull(resourceGroup);
@@ -75,14 +70,14 @@ public class ResourceGroupConfigListenerTest extends MockedPulsarServiceBaseTest
 
     public void deleteResourceGroup(String rgName) throws PulsarAdminException {
         admin.resourcegroups().deleteResourceGroup(rgName);
-        Awaitility.await().atMost(1, TimeUnit.SECONDS)
+        Awaitility.await()
                 .untilAsserted(() -> assertNull(pulsar.getResourceGroupServiceManager().resourceGroupGet(rgName)));
     }
 
     public void updateResourceGroup(String rgName, ResourceGroup rg) throws PulsarAdminException {
         testAddRg.setPublishRateInMsgs(200000);
         admin.resourcegroups().updateResourceGroup(rgName, rg);
-        Awaitility.await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().untilAsserted(() -> {
             final org.apache.pulsar.broker.resourcegroup.ResourceGroup resourceGroup = pulsar
                     .getResourceGroupServiceManager().resourceGroupGet(rgName);
             assertNotNull(resourceGroup);
@@ -126,7 +121,7 @@ public class ResourceGroupConfigListenerTest extends MockedPulsarServiceBaseTest
         admin.namespaces().createNamespace(namespaceName);
         admin.namespaces().setNamespaceResourceGroup(namespaceName, rgName);
 
-        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() ->
+        Awaitility.await().untilAsserted(() ->
                         assertNotNull(pulsar
                                 .getResourceGroupServiceManager()
                                 .getNamespaceResourceGroup(namespaceName)));
@@ -150,20 +145,25 @@ public class ResourceGroupConfigListenerTest extends MockedPulsarServiceBaseTest
             admin.resourcegroups().createResourceGroup(rgName, testAddRg);
         }
 
-        Thread.sleep(1000);
+        Awaitility.await().untilAsserted(() -> {
+            for (int i = 0; i < MAX_RGS; i++) {
+                String rgName = String.format("testRg-%d", i);
+                assertNotNull(pulsar.getResourceGroupServiceManager().resourceGroupGet(rgName));
+            }
+        });
+
 
         for (int i = 0; i < MAX_RGS; i++) {
             String rgName = String.format("testRg-%d", i);
-            assertNotNull(pulsar.getResourceGroupServiceManager().resourceGroupGet(rgName));
             admin.resourcegroups().deleteResourceGroup(rgName);
         }
 
-        Thread.sleep(1000);
-
-        for (int i = 0; i < MAX_RGS; i++) {
-            String rgName = String.format("testRg-%d", i);
-            assertNull(pulsar.getResourceGroupServiceManager().resourceGroupGet(rgName));
-        }
+        Awaitility.await().untilAsserted(() -> {
+            for (int i = 0; i < MAX_RGS; i++) {
+                String rgName = String.format("testRg-%d", i);
+                assertNull(pulsar.getResourceGroupServiceManager().resourceGroupGet(rgName));
+            }
+        });
     }
 
     private void prepareData() throws PulsarAdminException {
