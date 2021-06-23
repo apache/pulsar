@@ -122,24 +122,6 @@ class LoggerWrapper: public Logger {
         _updateCurrentPythonLogLevel();
     }
 
-    LoggerWrapper(LoggerWrapper& other) {
-        _pyLogger = other._pyLogger;
-        Py_XINCREF(_pyLogger);
-
-        fallbackLogger = other.fallbackLogger;
-        _currentPythonLogLevel = other._currentPythonLogLevel;
-    }
-
-    LoggerWrapper& operator=(const LoggerWrapper& other) {
-        _pyLogger = other._pyLogger;
-        Py_XINCREF(_pyLogger);
-
-        fallbackLogger = other.fallbackLogger;
-        _currentPythonLogLevel = other._currentPythonLogLevel;
-
-        return *this;
-    }
-
     virtual ~LoggerWrapper() {
         Py_XDECREF(_pyLogger);
         delete fallbackLogger;
