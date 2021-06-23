@@ -29,7 +29,7 @@ public class ProducerConfigurationDataTest {
     }
 
     @Test
-    public void testLoadBatcherBuilderDefaultCase() throws JsonProcessingException {
+    public void testLoadBatcherBuilderDefaultCase() {
         assertEquals(BatcherBuilder.DEFAULT, confData.getBatcherBuilder());
     }
 
@@ -58,7 +58,7 @@ public class ProducerConfigurationDataTest {
     }
 
     @Test
-    public void testLoadBatcherBuilderTypeUnknown() throws JsonProcessingException {
+    public void testLoadBatcherBuilderTypeUnknown() {
         Map<String, Object> config = new HashMap<>();
         config.put("batcherBuilderType", "UNKNOWN");
 
