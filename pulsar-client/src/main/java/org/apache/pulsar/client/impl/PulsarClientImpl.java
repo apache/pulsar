@@ -63,6 +63,7 @@ import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.schema.KeyValueSchema;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.api.transaction.TransactionBuilder;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -1012,7 +1013,8 @@ public class PulsarClientImpl implements PulsarClient {
                 @SuppressWarnings("rawtypes") Schema finalSchema = schema;
                 return schemaInfoProvider.getLatestSchema().thenCompose(schemaInfo -> {
                     if (null == schemaInfo) {
-                        if (!(finalSchema instanceof AutoConsumeSchema)) {
+                        if (!(finalSchema instanceof AutoConsumeSchema)
+                            && !(finalSchema instanceof KeyValueSchema)) {
                             // no schema info is found
                             return FutureUtil.failedFuture(
                                     new PulsarClientException.NotFoundException(
