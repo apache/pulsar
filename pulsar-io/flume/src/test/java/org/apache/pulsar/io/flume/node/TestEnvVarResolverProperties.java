@@ -44,7 +44,7 @@ public final class TestEnvVarResolverProperties {
     public void resolveEnvVar() {
         environmentVariables.set("VARNAME", "varvalue");
         String resolved = EnvVarResolverProperties.resolveEnvVars("padding ${VARNAME} padding");
-        Assert.assertEquals( "padding varvalue padding", resolved);
+        Assert.assertEquals("padding varvalue padding", resolved);
     }
 
     @Test
@@ -53,7 +53,7 @@ public final class TestEnvVarResolverProperties {
         environmentVariables.set("VARNAME2", "varvalue2");
         String resolved = EnvVarResolverProperties
                 .resolveEnvVars("padding ${VARNAME1} ${VARNAME2} padding");
-        Assert.assertEquals( "padding varvalue1 varvalue2 padding", resolved);
+        Assert.assertEquals("padding varvalue1 varvalue2 padding", resolved);
     }
 
     @Test
