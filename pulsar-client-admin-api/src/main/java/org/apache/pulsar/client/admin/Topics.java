@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.admin;
 
-import com.google.gson.JsonObject;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -921,7 +920,7 @@ public interface Topics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    JsonObject getInternalInfo(String topic) throws PulsarAdminException;
+    String getInternalInfo(String topic) throws PulsarAdminException;
 
     /**
      * Get a JSON representation of the topic metadata stored in ZooKeeper.
@@ -936,7 +935,7 @@ public interface Topics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    CompletableFuture<JsonObject> getInternalInfoAsync(String topic);
+    CompletableFuture<String> getInternalInfoAsync(String topic);
 
     /**
      * Get the stats for the partitioned topic

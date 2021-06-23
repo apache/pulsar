@@ -171,7 +171,7 @@ public class KeyValueSchemaInfoTest {
             KeyValueEncodingType.SEPARATED
         );
 
-        SchemaInfo oldSchemaInfo = new SchemaInfo()
+        SchemaInfo oldSchemaInfo = new SchemaInfoImpl()
             .setName("")
             .setType(SchemaType.KEY_VALUE)
             .setSchema(kvSchema.getSchemaInfo().getSchema())

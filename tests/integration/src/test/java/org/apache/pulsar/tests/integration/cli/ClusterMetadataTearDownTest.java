@@ -39,7 +39,6 @@ import org.apache.bookkeeper.meta.LedgerManager;
 import org.apache.bookkeeper.meta.MetadataBookieDriver;
 import org.apache.bookkeeper.meta.MetadataDrivers;
 import org.apache.bookkeeper.stats.NullStatsLogger;
-import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.PulsarClusterMetadataTeardown;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
@@ -49,12 +48,14 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.metadata.api.MetadataStore;
+import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.tests.integration.containers.ChaosContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
-import org.apache.zookeeper.ZooKeeper;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -71,8 +72,8 @@ public class ClusterMetadataTearDownTest extends TestRetrySupport {
 
     private PulsarCluster pulsarCluster;
 
-    private ZooKeeper localZk;
-    private ZooKeeper configStoreZk;
+    private MetadataStore localMetadataStore;
+    private MetadataStore configStore;
 
     private String metadataServiceUri;
     private MetadataBookieDriver driver;
@@ -89,9 +90,10 @@ public class ClusterMetadataTearDownTest extends TestRetrySupport {
         pulsarCluster.start();
         metadataServiceUri = "zk+null://" + pulsarCluster.getZKConnString() + "/ledgers";
 
-        final int sessionTimeoutMs = 30000;
-        localZk = PulsarClusterMetadataTeardown.initZk(pulsarCluster.getZKConnString(), sessionTimeoutMs);
-        configStoreZk = PulsarClusterMetadataTeardown.initZk(pulsarCluster.getCSConnString(), sessionTimeoutMs);
+        localMetadataStore = MetadataStoreFactory.create(pulsarCluster.getZKConnString(),
+                MetadataStoreConfig.builder().build());
+        configStore = MetadataStoreFactory.create(pulsarCluster.getCSConnString(),
+                MetadataStoreConfig.builder().build());
 
         driver = MetadataDrivers.getBookieDriver(URI.create(metadataServiceUri));
         driver.initialize(new ServerConfiguration().setMetadataServiceUri(metadataServiceUri), () -> {}, NullStatsLogger.INSTANCE);
@@ -119,12 +121,12 @@ public class ClusterMetadataTearDownTest extends TestRetrySupport {
         }
         driver.close();
         try {
-            configStoreZk.close();
-        } catch (InterruptedException ignored) {
+            configStore.close();
+        } catch (Exception ignored) {
         }
         try {
-            localZk.close();
-        } catch (InterruptedException ignored) {
+            localMetadataStore.close();
+        } catch (Exception ignored) {
         }
         pulsarCluster.stop();
     }
@@ -136,7 +138,7 @@ public class ClusterMetadataTearDownTest extends TestRetrySupport {
         final String namespace = tenant + "/my-ns";
 
         admin.tenants().createTenant(tenant,
-                new TenantInfo(new HashSet<>(), Collections.singleton(pulsarCluster.getClusterName())));
+                new TenantInfoImpl(new HashSet<>(), Collections.singleton(pulsarCluster.getClusterName())));
         admin.namespaces().createNamespace(namespace);
 
         String[] topics = { "topic-1", "topic-2", namespace + "/topic-1" };
@@ -191,11 +193,11 @@ public class ClusterMetadataTearDownTest extends TestRetrySupport {
 
         // 2. Check ZooKeeper for relative nodes
         final int zkOpTimeoutMs = 10000;
-        List<String> localZkNodes = ZkUtils.getChildrenInSingleNode(localZk, "/", zkOpTimeoutMs);
+        List<String> localNodes = localMetadataStore.getChildren("/").join();
         for (String node : PulsarClusterMetadataTeardown.localZkNodes) {
-            assertFalse(localZkNodes.contains(node));
+            assertFalse(localNodes.contains(node));
         }
-        List<String> clusterNodes = ZkUtils.getChildrenInSingleNode(configStoreZk, "/admin/clusters", zkOpTimeoutMs);
+        List<String> clusterNodes = configStore.getChildren( "/admin/clusters").join();
         assertFalse(clusterNodes.contains(pulsarCluster.getClusterName()));
     }
 

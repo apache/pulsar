@@ -84,7 +84,8 @@ import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.discovery.service.DiscoveryService;
@@ -271,9 +272,12 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         String broker2ServiceUrl = "pulsar://localhost:" + conf2.getBrokerServicePort().get();
 
         admin.clusters().createCluster(newCluster,
-                new ClusterData(pulsar.getWebServiceAddress(), null, broker2ServiceUrl, null));
+                ClusterData.builder()
+                        .serviceUrl(pulsar.getWebServiceAddress())
+                        .brokerServiceUrl(broker2ServiceUrl)
+                        .build());
         admin.tenants().createTenant(property,
-                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(newCluster)));
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(newCluster)));
         admin.namespaces().createNamespace(property + "/" + newCluster + "/my-ns");
 
         @Cleanup
@@ -1085,9 +1089,9 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         final int totalPartitions = 10;
         final TopicName dest = TopicName.get("persistent", property, cluster, namespace, topicName);
         admin.clusters().createCluster(cluster,
-                new ClusterData(pulsar.getWebServiceAddress(), null, null, null));
+                ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         admin.tenants().createTenant(property,
-                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(cluster)));
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(cluster)));
         admin.namespaces().createNamespace(property + "/" + cluster + "/" + namespace);
         admin.topics().createPartitionedTopic(dest.toString(), totalPartitions);
 

@@ -87,9 +87,9 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
                 .subscribe();
 
         TopicStats stats = admin.topics().getStats(topicName);
-        Assert.assertEquals(stats.subscriptions.size(), 1);
-        Assert.assertEquals(stats.subscriptions.entrySet().iterator().next().getValue()
-                .consumersAfterMarkDeletePosition.size(), 1);
+        Assert.assertEquals(stats.getSubscriptions().size(), 1);
+        Assert.assertEquals(stats.getSubscriptions().entrySet().iterator().next().getValue()
+                .getConsumersAfterMarkDeletePosition().size(), 1);
 
         consumer1.close();
         consumer2.close();
@@ -127,12 +127,12 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
 
         Awaitility.await().untilAsserted(() -> {
             TopicStats stats = admin.topics().getStats(topicName);
-            Assert.assertEquals(stats.nonContiguousDeletedMessagesRanges, 1);
-            Assert.assertEquals(stats.subscriptions.size(), 1);
-            Assert.assertEquals(stats.subscriptions.get(subName).nonContiguousDeletedMessagesRanges, 1);
-            Assert.assertTrue(stats.nonContiguousDeletedMessagesRangesSerializedSize > 0);
-            Assert.assertTrue(stats.subscriptions.get(subName)
-                    .nonContiguousDeletedMessagesRangesSerializedSize > 0);
+            Assert.assertEquals(stats.getNonContiguousDeletedMessagesRanges(), 1);
+            Assert.assertEquals(stats.getSubscriptions().size(), 1);
+            Assert.assertEquals(stats.getSubscriptions().get(subName).getNonContiguousDeletedMessagesRanges(), 1);
+            Assert.assertTrue(stats.getNonContiguousDeletedMessagesRangesSerializedSize() > 0);
+            Assert.assertTrue(stats.getSubscriptions().get(subName)
+                    .getNonContiguousDeletedMessagesRangesSerializedSize() > 0);
         });
     }
 }

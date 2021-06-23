@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -39,19 +38,20 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.schema.KeyValueSchema;
 import org.apache.pulsar.client.impl.schema.AbstractSchema;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
-import org.apache.pulsar.client.impl.schema.KeyValueSchema;
+import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -68,7 +68,7 @@ public class MessageImpl<T> implements Message<T> {
     private Optional<EncryptionContext> encryptionCtx = Optional.empty();
 
     private String topic; // only set for incoming messages
-    transient private Map<String, String> properties;
+    private transient Map<String, String> properties;
     private int redeliveryCount;
     private int uncompressedSize;
 
@@ -301,8 +301,6 @@ public class MessageImpl<T> implements Message<T> {
         @SuppressWarnings("unchecked")
         MessageImpl<byte[]> msg = (MessageImpl<byte[]>) RECYCLER.get();
 
-        Commands.skipBrokerEntryMetadataIfExist(headersAndPayloadWithBrokerEntryMetadata);
-
         Commands.parseMessageMetadata(headersAndPayloadWithBrokerEntryMetadata, msg.msgMetadata);
         msg.payload = headersAndPayloadWithBrokerEntryMetadata;
         msg.messageId = null;
@@ -401,7 +399,7 @@ public class MessageImpl<T> implements Message<T> {
                     .atSchemaVersion(schemaVersion));
         } else if (schema instanceof AbstractSchema) {
             byte[] schemaVersion = getSchemaVersion();
-            return Optional.of(((AbstractSchema) schema)
+            return Optional.of(((AbstractSchema<?>) schema)
                     .atSchemaVersion(schemaVersion));
         } else {
             return Optional.of(schema);
@@ -419,11 +417,17 @@ public class MessageImpl<T> implements Message<T> {
 
     private void ensureSchemaIsLoaded() {
         if (schema instanceof AutoConsumeSchema) {
-            ((AutoConsumeSchema) schema).fetchSchemaIfNeeded();
+            ((AutoConsumeSchema) schema).fetchSchemaIfNeeded(BytesSchemaVersion.of(getSchemaVersion()));
+        } else if (schema instanceof KeyValueSchemaImpl) {
+            ((KeyValueSchemaImpl) schema).fetchSchemaIfNeeded(getTopicName(), BytesSchemaVersion.of(getSchemaVersion()));
         }
     }
+
     private SchemaInfo getSchemaInfo() {
         ensureSchemaIsLoaded();
+        if (schema instanceof AutoConsumeSchema) {
+            return ((AutoConsumeSchema) schema).getSchemaInfo(getSchemaVersion());
+        }
         return schema.getSchemaInfo();
     }
 
@@ -447,11 +451,11 @@ public class MessageImpl<T> implements Message<T> {
     }
 
 
-    private KeyValueSchema getKeyValueSchema() {
+    private KeyValueSchemaImpl getKeyValueSchema() {
         if (schema instanceof AutoConsumeSchema) {
-            return (KeyValueSchema) ((AutoConsumeSchema) schema).getInternalSchema();
+            return (KeyValueSchemaImpl) ((AutoConsumeSchema) schema).getInternalSchema(getSchemaVersion());
         } else {
-            return (KeyValueSchema) schema;
+            return (KeyValueSchemaImpl) schema;
         }
     }
 
@@ -469,14 +473,14 @@ public class MessageImpl<T> implements Message<T> {
     }
     
     private T getKeyValueBySchemaVersion() {
-        KeyValueSchema kvSchema = getKeyValueSchema();
+        KeyValueSchemaImpl kvSchema = getKeyValueSchema();
         byte[] schemaVersion = getSchemaVersion();
         if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
             org.apache.pulsar.common.schema.KeyValue keyValue =
                     (org.apache.pulsar.common.schema.KeyValue) kvSchema.decode(getKeyBytes(), getData(), schemaVersion);
             if (schema instanceof AutoConsumeSchema) {
                 return (T) AutoConsumeSchema.wrapPrimitiveObject(keyValue,
-                        schema.getSchemaInfo().getType(), schemaVersion);
+                        ((AutoConsumeSchema) schema).getSchemaInfo(schemaVersion).getType(), schemaVersion);
             } else {
                 return (T) keyValue;
             }
@@ -486,13 +490,13 @@ public class MessageImpl<T> implements Message<T> {
     }
 
     private T getKeyValue() {
-        KeyValueSchema kvSchema = getKeyValueSchema();
+        KeyValueSchemaImpl kvSchema = getKeyValueSchema();
         if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
             org.apache.pulsar.common.schema.KeyValue keyValue =
                     (org.apache.pulsar.common.schema.KeyValue) kvSchema.decode(getKeyBytes(), getData(), null);
             if (schema instanceof AutoConsumeSchema) {
                 return (T) AutoConsumeSchema.wrapPrimitiveObject(keyValue,
-                        schema.getSchemaInfo().getType(), null);
+                        ((AutoConsumeSchema) schema).getSchemaInfo(getSchemaVersion()).getType(), null);
             } else {
                 return (T) keyValue;
             }
@@ -657,7 +661,7 @@ public class MessageImpl<T> implements Message<T> {
 
     private Handle<MessageImpl<?>> recyclerHandle;
 
-    private final static Recycler<MessageImpl<?>> RECYCLER = new Recycler<MessageImpl<?>>() {
+    private static final Recycler<MessageImpl<?>> RECYCLER = new Recycler<MessageImpl<?>>() {
         @Override
         protected MessageImpl<?> newObject(Handle<MessageImpl<?>> handle) {
             return new MessageImpl<>(handle);

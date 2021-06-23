@@ -49,10 +49,12 @@ import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
+import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -90,6 +92,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     private final String persistenceTopic = "persistent://" + myNamespace + "/test-set-persistence";
 
+    private final String topicPolicyEventsTopic = "persistent://" + myNamespace + "/__change_events";
+
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
@@ -98,8 +102,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         this.conf.setDefaultNumberOfNamespaceBundles(1);
         super.internalSetup();
 
-        admin.clusters().createCluster("test", new ClusterData(pulsar.getWebServiceAddress()));
-        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant(this.testTenant, tenantInfo);
         admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Sets.newHashSet("test"));
         admin.topics().createPartitionedTopic(testTopic, 2);
@@ -118,7 +122,10 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testSetBacklogQuota() throws Exception {
 
-        BacklogQuota backlogQuota = new BacklogQuota(1024, BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
+        BacklogQuota backlogQuota = BacklogQuota.builder()
+                .limitSize(1024)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                .build();
         log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
 
         Awaitility.await()
@@ -141,7 +148,10 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testRemoveBacklogQuota() throws Exception {
-        BacklogQuota backlogQuota = new BacklogQuota(1024, BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
+        BacklogQuota backlogQuota = BacklogQuota.builder()
+                .limitSize(1024)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                .build();
         log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
 
         Awaitility.await()
@@ -181,8 +191,10 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Awaitility.await()
                 .untilAsserted(() -> Assert.assertEquals(admin.namespaces().getRetention(namespace), retentionPolicies));
 
-        BacklogQuota backlogQuota =
-                new BacklogQuota(10 * 1024 * 1024, BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
+        BacklogQuota backlogQuota = BacklogQuota.builder()
+                .limitSize(10 * 1024 * 1024)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                .build();
         log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
         try {
             admin.topics().setBacklogQuota(testTopic, backlogQuota);
@@ -191,8 +203,10 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(e.getStatusCode(), 412);
         }
 
-        backlogQuota =
-                new BacklogQuota(10 * 1024 * 1024 + 1, BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
+        backlogQuota = BacklogQuota.builder()
+                .limitSize(10 * 1024 * 1024 + 1)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                .build();
         log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
         try {
             admin.topics().setBacklogQuota(testTopic, backlogQuota);
@@ -201,8 +215,10 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(e.getStatusCode(), 412);
         }
 
-        backlogQuota =
-                new BacklogQuota(10 * 1024 * 1024 - 1, BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
+        backlogQuota = BacklogQuota.builder()
+                .limitSize(10 * 1024 * 1024 - 1)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                .build();
         log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
         admin.topics().setBacklogQuota(testTopic, backlogQuota);
 
@@ -224,7 +240,10 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.namespaces().getBacklogQuotaMap(myNamespace), Maps.newHashMap());
         Map<BacklogQuota.BacklogQuotaType, BacklogQuota> brokerQuotaMap = ConfigHelper.backlogQuotaMap(conf);
         assertEquals(admin.topics().getBacklogQuotaMap(topic, true), brokerQuotaMap);
-        BacklogQuota namespaceQuota = new BacklogQuota(30L, BacklogQuota.RetentionPolicy.producer_exception);
+        BacklogQuota namespaceQuota = BacklogQuota.builder()
+                .limitSize(30)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.producer_exception)
+                .build();
 
         admin.namespaces().setBacklogQuota(myNamespace, namespaceQuota);
         Awaitility.await().untilAsserted(() -> assertFalse(admin.namespaces().getBacklogQuotaMap(myNamespace).isEmpty()));
@@ -232,7 +251,10 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         namespaceQuotaMap.put(BacklogQuota.BacklogQuotaType.destination_storage, namespaceQuota);
         assertEquals(admin.topics().getBacklogQuotaMap(topic, true), namespaceQuotaMap);
 
-        BacklogQuota topicQuota = new BacklogQuota(40L, BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
+        BacklogQuota topicQuota = BacklogQuota.builder()
+                .limitSize(40)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                .build();
         admin.topics().setBacklogQuota(topic, topicQuota);
         Awaitility.await().untilAsserted(() -> assertFalse(admin.topics().getBacklogQuotaMap(topic).isEmpty()));
         Map<BacklogQuota.BacklogQuotaType, BacklogQuota> topicQuotaMap = Maps.newHashMap();
@@ -255,8 +277,10 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Awaitility.await()
                 .untilAsserted(() -> Assert.assertEquals(admin.namespaces().getRetention(namespace), retentionPolicies));
 
-        BacklogQuota backlogQuota =
-                new BacklogQuota(10 * 1024 * 1024, BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
+        BacklogQuota backlogQuota = BacklogQuota.builder()
+                .limitSize(10 * 1024 * 1024)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                .build();
         try {
             admin.topics().setBacklogQuota(testTopic, backlogQuota);
             Assert.fail();
@@ -271,8 +295,10 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testCheckRetention() throws Exception {
-        BacklogQuota backlogQuota =
-                new BacklogQuota(10 * 1024 * 1024, BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
+        BacklogQuota backlogQuota = BacklogQuota.builder()
+                .limitSize(10 * 1024 * 1024)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                .build();
 
         Awaitility.await()
                 .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(testTopic)));
@@ -387,19 +413,28 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
         assertNull(admin.topics().getSubscriptionDispatchRate(topic));
         assertNull(admin.namespaces().getSubscriptionDispatchRate(myNamespace));
-        DispatchRate brokerDispatchRate = new DispatchRate(
-                pulsar.getConfiguration().getDispatchThrottlingRatePerSubscriptionInMsg(),
-                pulsar.getConfiguration().getDispatchThrottlingRatePerSubscriptionInByte(),
-                1
-        );
+
+        DispatchRate brokerDispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(conf.getDispatchThrottlingRatePerSubscriptionInMsg())
+                .dispatchThrottlingRateInByte(conf.getDispatchThrottlingRatePerSubscriptionInByte())
+                .ratePeriodInSecond(1)
+                .build();
         assertEquals(admin.topics().getSubscriptionDispatchRate(topic, true), brokerDispatchRate);
-        DispatchRate namespaceDispatchRate = new DispatchRate(10, 11, 12);
+        DispatchRate namespaceDispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(10)
+                .dispatchThrottlingRateInByte(11)
+                .ratePeriodInSecond(12)
+                .build();
 
         admin.namespaces().setSubscriptionDispatchRate(myNamespace, namespaceDispatchRate);
         Awaitility.await().untilAsserted(() -> assertNotNull(admin.namespaces().getSubscriptionDispatchRate(myNamespace)));
         assertEquals(admin.topics().getSubscriptionDispatchRate(topic, true), namespaceDispatchRate);
 
-        DispatchRate topicDispatchRate = new DispatchRate(20, 21, 22);
+        DispatchRate topicDispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(20)
+                .dispatchThrottlingRateInByte(21)
+                .ratePeriodInSecond(12)
+                .build();
         admin.topics().setSubscriptionDispatchRate(topic, topicDispatchRate);
         Awaitility.await().untilAsserted(() -> assertNotNull(admin.topics().getSubscriptionDispatchRate(topic)));
         assertEquals(admin.topics().getSubscriptionDispatchRate(topic, true), topicDispatchRate);
@@ -584,19 +619,27 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
         assertNull(admin.topics().getDispatchRate(topic));
         assertNull(admin.namespaces().getDispatchRate(myNamespace));
-        DispatchRate brokerDispatchRate = new DispatchRate(
-                pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg(),
-                pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInByte(),
-                1
-        );
+        DispatchRate brokerDispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(conf.getDispatchThrottlingRatePerTopicInMsg())
+                .dispatchThrottlingRateInByte(conf.getDispatchThrottlingRatePerTopicInByte())
+                .ratePeriodInSecond(1)
+                .build();
         assertEquals(admin.topics().getDispatchRate(topic, true), brokerDispatchRate);
-        DispatchRate namespaceDispatchRate = new DispatchRate(10, 11, 12);
+        DispatchRate namespaceDispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(10)
+                .dispatchThrottlingRateInByte(11)
+                .ratePeriodInSecond(12)
+                .build();
 
         admin.namespaces().setDispatchRate(myNamespace, namespaceDispatchRate);
         Awaitility.await().untilAsserted(() -> assertNotNull(admin.namespaces().getDispatchRate(myNamespace)));
         assertEquals(admin.topics().getDispatchRate(topic, true), namespaceDispatchRate);
 
-        DispatchRate topicDispatchRate = new DispatchRate(20, 21, 22);
+        DispatchRate topicDispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(20)
+                .dispatchThrottlingRateInByte(21)
+                .ratePeriodInSecond(22)
+                .build();
         admin.topics().setDispatchRate(topic, topicDispatchRate);
         Awaitility.await().untilAsserted(() -> assertNotNull(admin.topics().getDispatchRate(topic)));
         assertEquals(admin.topics().getDispatchRate(topic, true), topicDispatchRate);
@@ -773,7 +816,12 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testGetSetDispatchRate() throws Exception {
-        DispatchRate dispatchRate = new DispatchRate(100, 10000, 1, true);
+        DispatchRate dispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(100)
+                .dispatchThrottlingRateInByte(1000)
+                .ratePeriodInSecond(1)
+                .relativeToPublishRate(true)
+                .build();
         log.info("Dispatch Rate: {} will set to the topic: {}", dispatchRate, testTopic);
 
         Awaitility.await()
@@ -790,7 +838,12 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testRemoveDispatchRate() throws Exception {
-        DispatchRate dispatchRate = new DispatchRate(100, 10000, 1, true);
+        DispatchRate dispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(100)
+                .dispatchThrottlingRateInByte(1000)
+                .ratePeriodInSecond(1)
+                .relativeToPublishRate(true)
+                .build();
         log.info("Dispatch Rate: {} will set to the topic: {}", dispatchRate, testTopic);
 
         Awaitility.await()
@@ -817,20 +870,35 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Awaitility.await()
                 .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
 
-        DispatchRate dispatchRate = new DispatchRate(200, 20000, 1, true);
+        DispatchRate dispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(200)
+                .dispatchThrottlingRateInByte(20000)
+                .ratePeriodInSecond(1)
+                .relativeToPublishRate(true)
+                .build();
         admin.namespaces().setDispatchRate(myNamespace, dispatchRate);
 
         Awaitility.await()
-                .untilAsserted(() -> Assert.assertEquals(admin.namespaces().getDispatchRate(myNamespace).dispatchThrottlingRateInMsg, 200));
+                .untilAsserted(() -> Assert.assertEquals(admin.namespaces().getDispatchRate(myNamespace).getDispatchThrottlingRateInMsg(), 200));
 
-        dispatchRate = new DispatchRate(100, 10000, 1, true);
+        dispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(100)
+                .dispatchThrottlingRateInByte(10000)
+                .ratePeriodInSecond(1)
+                .relativeToPublishRate(true)
+                .build();
         admin.topics().setDispatchRate(topic, dispatchRate);
 
         Awaitility.await()
                 .untilAsserted(() -> Assert.assertNotNull(admin.topics().getDispatchRate(topic)));
 
         //1 Set ns level policy, topic level should not be overwritten
-        dispatchRate = new DispatchRate(300, 30000, 2, true);
+        dispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(300)
+                .dispatchThrottlingRateInByte(30000)
+                .ratePeriodInSecond(2)
+                .relativeToPublishRate(true)
+                .build();
         admin.namespaces().setDispatchRate(myNamespace, dispatchRate);
 
         Awaitility.await()
@@ -901,8 +969,11 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Awaitility.await()
                 .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
 
-        DispatchRate dispatchRate = new DispatchRate(1000,
-                1024 * 1024, 1);
+        DispatchRate dispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(1000)
+                .dispatchThrottlingRateInByte(1024 * 1024)
+                .ratePeriodInSecond(1)
+                .build();
         log.info("Subscription Dispatch Rate: {} will set to the topic: {}", dispatchRate, topic);
 
         admin.topics().setSubscriptionDispatchRate(topic, dispatchRate);
@@ -917,8 +988,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         DispatchRateLimiter dispatchRateLimiter = pulsar.getBrokerService().getTopicIfExists(topic)
                 .get().get().getSubscription(subscriptionName).getDispatcher().getRateLimiter().get();
         Assert.assertNotNull(dispatchRateLimiter);
-        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnByte(), dispatchRate.dispatchThrottlingRateInByte);
-        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnMsg(), dispatchRate.dispatchThrottlingRateInMsg);
+        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnByte(), dispatchRate.getDispatchThrottlingRateInByte());
+        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnMsg(), dispatchRate.getDispatchThrottlingRateInMsg());
 
         consumer.close();
         admin.topics().delete(topic, true);
@@ -932,8 +1003,11 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Awaitility.await()
                 .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
 
-        DispatchRate dispatchRate = new DispatchRate(1000,
-                1024 * 1024, 1);
+        DispatchRate dispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(1000)
+                .dispatchThrottlingRateInByte(1024 * 1024)
+                .ratePeriodInSecond(1)
+                .build();
         log.info("Subscription Dispatch Rate: {} will set to the topic: {}", dispatchRate, topic);
 
         String subscriptionName = "test_subscription_rate";
@@ -948,8 +1022,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         DispatchRateLimiter dispatchRateLimiter = pulsar.getBrokerService().getTopicIfExists(topic)
                 .get().get().getSubscription(subscriptionName).getDispatcher().getRateLimiter().get();
         Assert.assertNotNull(dispatchRateLimiter);
-        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnByte(), dispatchRate.dispatchThrottlingRateInByte);
-        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnMsg(), dispatchRate.dispatchThrottlingRateInMsg);
+        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnByte(), dispatchRate.getDispatchThrottlingRateInByte());
+        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnMsg(), dispatchRate.getDispatchThrottlingRateInMsg());
 
         consumer.close();
         admin.topics().delete(topic, true);
@@ -963,8 +1037,11 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Awaitility.await()
                 .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
 
-        DispatchRate dispatchRate = new DispatchRate(1000,
-                1024 * 1024, 1);
+        DispatchRate dispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(1000)
+                .dispatchThrottlingRateInByte(1024 * 1024)
+                .ratePeriodInSecond(1)
+                .build();
         log.info("Subscription Dispatch Rate: {} will set to the topic: {}", dispatchRate, topic);
 
         admin.topics().setSubscriptionDispatchRate(topic, dispatchRate);
@@ -979,8 +1056,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         DispatchRateLimiter dispatchRateLimiter = pulsar.getBrokerService().getTopicIfExists(topic)
                 .get().get().getSubscription(subscriptionName).getDispatcher().getRateLimiter().get();
         Assert.assertNotNull(dispatchRateLimiter);
-        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnByte(), dispatchRate.dispatchThrottlingRateInByte);
-        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnMsg(), dispatchRate.dispatchThrottlingRateInMsg);
+        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnByte(), dispatchRate.getDispatchThrottlingRateInByte());
+        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnMsg(), dispatchRate.getDispatchThrottlingRateInMsg());
 
         // remove subscription dispatch rate
         admin.topics().removeSubscriptionDispatchRate(topic);
@@ -990,8 +1067,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         dispatchRateLimiter = pulsar.getBrokerService().getTopicIfExists(topic)
                 .get().get().getSubscription(subscriptionName).getDispatcher().getRateLimiter().get();
-        Assert.assertNotEquals(dispatchRateLimiter.getDispatchRateOnMsg(), dispatchRate.dispatchThrottlingRateInMsg);
-        Assert.assertNotEquals(dispatchRateLimiter.getDispatchRateOnByte(), dispatchRate.dispatchThrottlingRateInByte);
+        Assert.assertNotEquals(dispatchRateLimiter.getDispatchRateOnMsg(), dispatchRate.getDispatchThrottlingRateInByte());
+        Assert.assertNotEquals(dispatchRateLimiter.getDispatchRateOnByte(), dispatchRate.getDispatchThrottlingRateInByte());
 
         consumer.close();
         admin.topics().delete(topic, true);
@@ -1006,7 +1083,11 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
 
         // set namespace level subscription dispatch rate
-        DispatchRate namespaceDispatchRate = new DispatchRate(100, 1024 * 1024, 1);
+        DispatchRate namespaceDispatchRate =                     DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(100)
+                .dispatchThrottlingRateInByte(1024 * 1024)
+                .ratePeriodInSecond(1)
+                .build();;
         admin.namespaces().setSubscriptionDispatchRate(myNamespace, namespaceDispatchRate);
 
         Awaitility.await()
@@ -1018,11 +1099,15 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         // get subscription dispatch Rate limiter
         DispatchRateLimiter dispatchRateLimiter = pulsar.getBrokerService().getTopicIfExists(topic)
                 .get().get().getSubscription(subscriptionName).getDispatcher().getRateLimiter().get();
-        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnMsg(), namespaceDispatchRate.dispatchThrottlingRateInMsg);
-        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnByte(), namespaceDispatchRate.dispatchThrottlingRateInByte);
+        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnMsg(), namespaceDispatchRate.getDispatchThrottlingRateInMsg());
+        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnByte(), namespaceDispatchRate.getDispatchThrottlingRateInByte());
 
         // set topic level subscription dispatch rate
-        DispatchRate topicDispatchRate = new DispatchRate(200, 2 * 1024 * 1024, 1);
+        DispatchRate topicDispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(200)
+                .dispatchThrottlingRateInByte(2 * 1024 * 1024)
+                .ratePeriodInSecond(1)
+                .build();;
         admin.topics().setSubscriptionDispatchRate(topic, topicDispatchRate);
 
         Awaitility.await()
@@ -1031,8 +1116,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         // get subscription dispatch rate limiter
         dispatchRateLimiter = pulsar.getBrokerService().getTopicIfExists(topic).get().get()
                 .getSubscription(subscriptionName).getDispatcher().getRateLimiter().get();
-        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnByte(), topicDispatchRate.dispatchThrottlingRateInByte);
-        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnMsg(), topicDispatchRate.dispatchThrottlingRateInMsg);
+        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnByte(), topicDispatchRate.getDispatchThrottlingRateInByte());
+        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnMsg(), topicDispatchRate.getDispatchThrottlingRateInMsg());
 
         // remove topic level subscription dispatch rate limiter
         admin.topics().removeSubscriptionDispatchRate(topic);
@@ -1043,8 +1128,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         // get subscription dispatch rate limiter
         dispatchRateLimiter = pulsar.getBrokerService().getTopicIfExists(topic).get().get()
                 .getSubscription(subscriptionName).getDispatcher().getRateLimiter().get();
-        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnByte(), namespaceDispatchRate.dispatchThrottlingRateInByte);
-        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnMsg(), namespaceDispatchRate.dispatchThrottlingRateInMsg);
+        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnByte(), namespaceDispatchRate.getDispatchThrottlingRateInByte());
+        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnMsg(), namespaceDispatchRate.getDispatchThrottlingRateInMsg());
 
         consumer.close();
         admin.topics().delete(topic, true);
@@ -1966,7 +2051,11 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         assertNull(admin.topics().getReplicatorDispatchRate(topic));
 
-        DispatchRate dispatchRate = new DispatchRate(100,200L,10);
+        DispatchRate dispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(100)
+                .dispatchThrottlingRateInByte(200)
+                .ratePeriodInSecond(10)
+                .build();
         admin.topics().setReplicatorDispatchRate(topic, dispatchRate);
         Awaitility.await().untilAsserted(()
                 -> assertEquals(admin.topics().getReplicatorDispatchRate(topic), dispatchRate));
@@ -1984,19 +2073,27 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
         assertNull(admin.topics().getReplicatorDispatchRate(topic));
         assertNull(admin.namespaces().getReplicatorDispatchRate(myNamespace));
-        DispatchRate brokerDispatchRate = new DispatchRate(
-                pulsar.getConfiguration().getDispatchThrottlingRatePerReplicatorInMsg(),
-                pulsar.getConfiguration().getDispatchThrottlingRatePerReplicatorInByte(),
-                1
-        );
+        DispatchRate brokerDispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(pulsar.getConfiguration().getDispatchThrottlingRatePerReplicatorInMsg())
+                .dispatchThrottlingRateInByte(pulsar.getConfiguration().getDispatchThrottlingRatePerReplicatorInByte())
+                .ratePeriodInSecond(1)
+                .build();
         assertEquals(admin.topics().getReplicatorDispatchRate(topic, true), brokerDispatchRate);
-        DispatchRate namespaceDispatchRate = new DispatchRate(10, 11, 12);
+        DispatchRate namespaceDispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(10)
+                .dispatchThrottlingRateInByte(11)
+                .ratePeriodInSecond(12)
+                .build();
 
         admin.namespaces().setReplicatorDispatchRate(myNamespace, namespaceDispatchRate);
         Awaitility.await().untilAsserted(() -> assertNotNull(admin.namespaces().getReplicatorDispatchRate(myNamespace)));
         assertEquals(admin.topics().getReplicatorDispatchRate(topic, true), namespaceDispatchRate);
 
-        DispatchRate topicDispatchRate = new DispatchRate(20, 21, 22);
+        DispatchRate topicDispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(20)
+                .dispatchThrottlingRateInByte(21)
+                .ratePeriodInSecond(22)
+                .build();
         admin.topics().setReplicatorDispatchRate(topic, topicDispatchRate);
         Awaitility.await().untilAsserted(() -> assertNotNull(admin.topics().getReplicatorDispatchRate(topic)));
         assertEquals(admin.topics().getReplicatorDispatchRate(topic, true), topicDispatchRate);
@@ -2157,6 +2254,67 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Awaitility.await().untilAsserted(() -> assertNull(admin.namespaces().getCompactionThreshold(myNamespace)));
         Awaitility.await().untilAsserted(() -> assertNull(admin.topics().getCompactionThreshold(topic)));
         assertEquals(admin.topics().getCompactionThreshold(topic, true).longValue(), brokerPolicy);
+    }
+
+    @Test(timeOut = 30000)
+    public void testProduceConsumeOnTopicPolicy() {
+        final String msg = "send message ";
+        int numMsg = 10;
+        try {
+            Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(persistenceTopic)
+                    .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                    .subscriptionName("test").subscribe();
+
+            Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(persistenceTopic).create();
+
+            for (int i = 0; i < numMsg; ++i) {
+                producer.newMessage().value(msg + i).send();
+            }
+
+            for (int i = 0; i < numMsg; ++i) {
+                Message<String> message = consumer.receive(100, TimeUnit.MILLISECONDS);
+                Assert.assertEquals(message.getValue(), msg + i);
+            }
+        } catch (PulsarClientException e) {
+            log.error("Failed to send/produce message, ", e);
+            Assert.fail();
+        }
+    }
+
+    @Test
+    public void testSystemTopicShouldBeCompacted() throws Exception {
+        BacklogQuota backlogQuota = BacklogQuota.builder()
+                .limitSize(1024)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                .build();
+        log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
+
+        Awaitility.await()
+                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(testTopic)));
+
+        admin.topics().setBacklogQuota(testTopic, backlogQuota);
+        log.info("Backlog quota set success on topic: {}", testTopic);
+
+        Awaitility.await()
+                .untilAsserted(() -> {
+                    TopicStats stats = admin.topics().getStats(topicPolicyEventsTopic);
+                    Assert.assertTrue(stats.getSubscriptions().containsKey("__compaction"));
+                });
+
+        PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topicPolicyEventsTopic);
+        long previousCompactedLedgerId = internalStats.compactedLedger.ledgerId;
+
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertEquals(admin.topics().getBacklogQuotaMap(testTopic)
+                        .get(BacklogQuota.BacklogQuotaType.destination_storage), backlogQuota));
+
+        pulsar.getBrokerService().checkCompaction();
+
+        Awaitility.await()
+                .untilAsserted(() -> {
+                    PersistentTopicInternalStats iStats = admin.topics().getInternalStats(topicPolicyEventsTopic);
+                    Assert.assertTrue(iStats.compactedLedger.ledgerId != previousCompactedLedgerId);
+                });
     }
 
 }

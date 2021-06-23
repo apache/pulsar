@@ -40,28 +40,22 @@ import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.namespace.OwnedBundle;
 import org.apache.pulsar.broker.namespace.OwnershipCache;
-import org.apache.pulsar.broker.namespace.ServiceUnitZkUtils;
+import org.apache.pulsar.broker.namespace.ServiceUnitUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
-import org.apache.zookeeper.WatchedEvent;
-import org.apache.zookeeper.Watcher;
-import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
-import org.apache.zookeeper.proto.CreateRequest;
-import org.apache.zookeeper.proto.DeleteRequest;
 import org.apache.zookeeper.proto.ReplyHeader;
-import org.apache.zookeeper.server.ByteBufferInputStream;
 import org.apache.zookeeper.server.Request;
 import org.apache.zookeeper.server.ServerCnxn;
-import org.apache.zookeeper.server.SessionTracker;
 import org.apache.zookeeper.server.ZooKeeperServer;
 import org.mockito.stubbing.Answer;
 import org.powermock.reflect.Whitebox;
@@ -124,9 +118,10 @@ public class TopicOwnerTest {
         leaderAdmin = pulsarAdmins[0];
         Thread.sleep(1000);
 
-        pulsarAdmins[0].clusters().createCluster(testCluster, new ClusterData(pulsarServices[0].getWebServiceAddress()));
-        TenantInfo tenantInfo = new TenantInfo();
-        tenantInfo.setAllowedClusters(Sets.newHashSet(testCluster));
+        pulsarAdmins[0].clusters().createCluster(testCluster, ClusterData.builder().serviceUrl(pulsarServices[0].getWebServiceAddress()).build());
+        TenantInfo tenantInfo = TenantInfo.builder()
+                .allowedClusters(Sets.newHashSet(testCluster))
+                .build();
         pulsarAdmins[0].tenants().createTenant(testTenant, tenantInfo);
         pulsarAdmins[0].namespaces().createNamespace(testNamespace, 16);
     }
@@ -263,7 +258,7 @@ public class TopicOwnerTest {
 
         leaderAuthorizedBroker.setValue(null);
 
-        ownedBundlesCache1.synchronous().invalidate(ServiceUnitZkUtils.path(namespaceBundle));
+        ownedBundlesCache1.synchronous().invalidate(ServiceUnitUtils.path(namespaceBundle));
         Assert.assertNull(ownershipCache1.getOwnedBundle(namespaceBundle));
 
         // pulsar1 is still owner in zk.
@@ -278,18 +273,18 @@ public class TopicOwnerTest {
         Assert.assertNotNull(ownershipCache1.getOwnedBundle(namespaceBundle));
 
         // Reestablish ownership through check ownership.
-        ownedBundlesCache1.synchronous().invalidate(ServiceUnitZkUtils.path(namespaceBundle));
+        ownedBundlesCache1.synchronous().invalidate(ServiceUnitUtils.path(namespaceBundle));
         ownershipCache1.checkOwnership(namespaceBundle).join();
         Assert.assertNotNull(ownershipCache1.getOwnedBundle(namespaceBundle));
 
         // Reestablish ownership through load topic.
-        ownedBundlesCache1.synchronous().invalidate(ServiceUnitZkUtils.path(namespaceBundle));
+        ownedBundlesCache1.synchronous().invalidate(ServiceUnitUtils.path(namespaceBundle));
         pulsar1.getBrokerService().getTopic(topic1, true).join();
         Assert.assertNotNull(ownershipCache1.getOwnedBundle(namespaceBundle));
         pulsar1.getBrokerService().deleteTopic(topic1, true).join();
 
         // Reestablish ownership through web.
-        ownedBundlesCache1.synchronous().invalidate(ServiceUnitZkUtils.path(namespaceBundle));
+        ownedBundlesCache1.synchronous().invalidate(ServiceUnitUtils.path(namespaceBundle));
         pulsarAdmins[0].topics().createNonPartitionedTopic(topic1);
         Assert.assertNotNull(ownershipCache1.getOwnedBundle(namespaceBundle));
     }

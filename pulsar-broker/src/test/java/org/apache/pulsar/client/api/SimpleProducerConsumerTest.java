@@ -42,6 +42,7 @@ import io.netty.buffer.Unpooled;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Clock;
@@ -3069,9 +3070,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         String encAlgo = encryptionCtx.getAlgorithm();
         int batchSize = encryptionCtx.getBatchSize().orElse(0);
 
-        ByteBuf payloadBuf = Unpooled.wrappedBuffer(msg.getData());
+        ByteBuffer payloadBuf = ByteBuffer.wrap(msg.getData());
         // try to decrypt use default MessageCryptoBc
-        @SuppressWarnings("rawtypes") MessageCrypto crypto = new MessageCryptoBc("test", false);
+        MessageCrypto<MessageMetadata, MessageMetadata> crypto =
+                new MessageCryptoBc("test", false);
 
         MessageMetadata messageMetadata = new MessageMetadata()
                 .setEncryptionParam(encrParam)
@@ -3087,11 +3089,12 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             messageMetadata.setEncryptionAlgo(encAlgo);
         }
 
-        ByteBuf decryptedPayload = crypto.decrypt(() -> messageMetadata, payloadBuf, reader);
+        ByteBuffer decryptedPayload = ByteBuffer.allocate(crypto.getMaxOutputSize(payloadBuf.remaining()));
+        crypto.decrypt(() -> messageMetadata, payloadBuf, decryptedPayload, reader);
 
         // try to uncompress
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(compressionType);
-        ByteBuf uncompressedPayload = codec.decode(decryptedPayload, uncompressedSize);
+        ByteBuf uncompressedPayload = codec.decode(Unpooled.wrappedBuffer(decryptedPayload), uncompressedSize);
 
         if (batchSize > 0) {
             SingleMessageMetadata singleMessageMetadata = new SingleMessageMetadata();
@@ -3453,8 +3456,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer2 = consumerBuilder.subscribe();
 
         AtomicInteger consumer1Count = new AtomicInteger(0);
-        admin.topics().getPartitionedStats(topicName, true).partitions.forEach((p, stats) -> {
-            String activeConsumerName = stats.subscriptions.entrySet().iterator().next().getValue().activeConsumerName;
+        admin.topics().getPartitionedStats(topicName, true).getPartitions().forEach((p, stats) -> {
+            String activeConsumerName = stats.getSubscriptions().entrySet().iterator().next().getValue().getActiveConsumerName();
             if (activeConsumerName.equals("aaa")) {
                 consumer1Count.incrementAndGet();
             }
@@ -3473,9 +3476,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         retryStrategically((test) -> {
             try {
                 Map<String, Integer> subsCount = Maps.newHashMap();
-                admin.topics().getPartitionedStats(topicName, true).partitions.forEach((p, stats) -> {
-                    String activeConsumerName = stats.subscriptions.entrySet().iterator().next()
-                            .getValue().activeConsumerName;
+                admin.topics().getPartitionedStats(topicName, true).getPartitions().forEach((p, stats) -> {
+                    String activeConsumerName = stats.getSubscriptions().entrySet().iterator().next()
+                            .getValue().getActiveConsumerName();
                     subsCount.compute(activeConsumerName, (k, v) -> v != null ? v + 1 : 1);
                 });
                 return subsCount.size() == 3 && subsCount.get("bbb1").equals(evenDistributionCount)
@@ -3489,8 +3492,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }, 5, 100);
 
         Map<String, Integer> subsCount = Maps.newHashMap();
-        admin.topics().getPartitionedStats(topicName, true).partitions.forEach((p, stats) -> {
-            String activeConsumerName = stats.subscriptions.entrySet().iterator().next().getValue().activeConsumerName;
+        admin.topics().getPartitionedStats(topicName, true).getPartitions().forEach((p, stats) -> {
+            String activeConsumerName = stats.getSubscriptions().entrySet().iterator().next().getValue().getActiveConsumerName();
             subsCount.compute(activeConsumerName, (k, v) -> v != null ? v + 1 : 1);
         });
         assertEquals(subsCount.size(), 3);
@@ -4046,6 +4049,27 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             }
         }
         assertEquals(1, res.getFields().size());
+    }
+
+    @Test
+    public void testTopicDoesNotExists() throws Exception {
+        cleanup();
+        conf.setAllowAutoTopicCreation(false);
+        setup();
+        String topic = "persistent://my-property/my-ns/none" + UUID.randomUUID();
+        admin.topics().createPartitionedTopic(topic, 3);
+        try {
+            @Cleanup
+            Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                    .enableRetry(true)
+                    .topic(topic).subscriptionName("sub").subscribe();
+            fail("should fail");
+        } catch (Exception e) {
+            String retryTopic = topic + "-sub-RETRY";
+            assertTrue(e.getMessage().contains("Topic " + retryTopic + " does not exist"));
+        } finally {
+            conf.setAllowAutoTopicCreation(true);
+        }
     }
 
     /**

@@ -217,6 +217,8 @@ class PULSAR_PUBLIC ClientConfiguration {
     /**
      * Initialize stats interval in seconds. Stats are printed and reset after every `statsIntervalInSeconds`.
      *
+     * Default: 600
+     *
      * Set to 0 means disabling stats collection.
      */
     ClientConfiguration& setStatsIntervalInSeconds(const unsigned int&);

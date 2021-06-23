@@ -21,13 +21,14 @@ package org.apache.pulsar.common.policies.data;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 
+import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.testng.annotations.Test;
 
 public class ConsumerStatsTest {
 
     @Test
     public void testConsumerStats() {
-        ConsumerStats stats = new ConsumerStats();
+        ConsumerStatsImpl stats = new ConsumerStatsImpl();
         assertNull(stats.getAddress());
         assertNull(stats.getClientVersion());
         assertNull(stats.getConnectedSince());

@@ -19,7 +19,6 @@
 package org.apache.pulsar.functions.worker;
 
 import static org.testng.Assert.assertEquals;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Sets;
@@ -27,6 +26,7 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -42,6 +42,7 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
@@ -121,7 +122,6 @@ public class PulsarFunctionTlsTest {
             tempDirectories[i] = PulsarFunctionTestTemporaryDirectory.create(getClass().getSimpleName());
             tempDirectories[i].useTemporaryDirectoriesForWorkerConfig(workerConfig);
             workerConfig.setPulsarFunctionsNamespace("public/functions");
-            workerConfig.setPulsarFunctionsCluster("my-cluster");
             workerConfig.setSchedulerClassName(
                 org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler.class.getName());
             workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
@@ -167,8 +167,9 @@ public class PulsarFunctionTlsTest {
         leaderAdmin = pulsarAdmins[0];
         Thread.sleep(1000);
 
-        TenantInfo tenantInfo = new TenantInfo();
-        tenantInfo.setAllowedClusters(Sets.newHashSet(testCluster));
+        TenantInfo tenantInfo = TenantInfo.builder()
+                .allowedClusters(Collections.singleton(testCluster))
+                .build();
         pulsarAdmins[0].tenants().createTenant(testTenant, tenantInfo);
         pulsarAdmins[0].namespaces().createNamespace(testNamespace, 16);
     }

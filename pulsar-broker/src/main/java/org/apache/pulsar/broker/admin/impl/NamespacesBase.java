@@ -23,8 +23,8 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.RESOURCEGROUPS;
 import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
-import static org.apache.pulsar.common.policies.data.Policies.defaultBundle;
-import static org.apache.pulsar.common.policies.data.Policies.getBundles;
+import static org.apache.pulsar.common.policies.data.PoliciesUtil.defaultBundle;
+import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.collect.Sets.SetView;
@@ -66,7 +66,6 @@ import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
@@ -88,7 +87,7 @@ import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PolicyName;
@@ -100,6 +99,8 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.TenantOperation;
+import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
+import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
@@ -193,7 +194,8 @@ public abstract class NamespacesBase extends AdminResource {
                         && !policies.replication_clusters.contains(config().getClusterName())) {
                     // the only replication cluster is other cluster, redirect
                     String replCluster = Lists.newArrayList(policies.replication_clusters).get(0);
-                    ClusterData replClusterData = clusterResources().get(AdminResource.path("clusters", replCluster))
+                    ClusterData replClusterData = clusterResources().get(
+                            AdminResource.path("clusters", replCluster))
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                                     "Cluster " + replCluster + " does not exist"));
                     URL replClusterUrl;
@@ -356,7 +358,8 @@ public abstract class NamespacesBase extends AdminResource {
                         && !policies.replication_clusters.contains(config().getClusterName())) {
                     // the only replication cluster is other cluster, redirect
                     String replCluster = Lists.newArrayList(policies.replication_clusters).get(0);
-                    ClusterData replClusterData = clusterResources().get(AdminResource.path("clusters", replCluster))
+                    ClusterData replClusterData =
+                            clusterResources().get(AdminResource.path("clusters", replCluster))
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                                     "Cluster " + replCluster + " does not exist"));
                     URL replClusterUrl;
@@ -508,7 +511,8 @@ public abstract class NamespacesBase extends AdminResource {
                         && !policies.replication_clusters.contains(config().getClusterName())) {
                     // the only replication cluster is other cluster, redirect
                     String replCluster = Lists.newArrayList(policies.replication_clusters).get(0);
-                    ClusterData replClusterData = clusterResources().get(AdminResource.path("clusters", replCluster))
+                    ClusterData replClusterData =
+                            clusterResources().get(AdminResource.path("clusters", replCluster))
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                                     "Cluster " + replCluster + " does not exist"));
                     URL replClusterUrl;
@@ -581,7 +585,8 @@ public abstract class NamespacesBase extends AdminResource {
                         && !policies.replication_clusters.contains(config().getClusterName())) {
                     // the only replication cluster is other cluster, redirect
                     String replCluster = Lists.newArrayList(policies.replication_clusters).get(0);
-                    ClusterData replClusterData = clusterResources().get(AdminResource.path("clusters", replCluster))
+                    ClusterData replClusterData =
+                            clusterResources().get(AdminResource.path("clusters", replCluster))
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                                     "Cluster " + replCluster + " does not exist"));
                     URL replClusterUrl;
@@ -693,7 +698,7 @@ public abstract class NamespacesBase extends AdminResource {
         validatePoliciesReadOnlyAccess();
         checkNotNull(role, "Role should not be null");
         updatePolicies(path(POLICIES, namespaceName.toString()), policies ->{
-            policies.auth_policies.namespace_auth.remove(role);
+            policies.auth_policies.getNamespaceAuthentication().remove(role);
             return policies;
         });
     }
@@ -794,11 +799,11 @@ public abstract class NamespacesBase extends AdminResource {
         validateNamespacePolicyOperation(namespaceName, PolicyName.AUTO_TOPIC_CREATION, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
         if (autoTopicCreationOverride != null) {
-            if (!AutoTopicCreationOverride.isValidOverride(autoTopicCreationOverride)) {
+            if (!AutoTopicCreationOverrideImpl.isValidOverride(autoTopicCreationOverride)) {
                 throw new RestException(Status.PRECONDITION_FAILED,
                         "Invalid configuration for autoTopicCreationOverride");
             }
-            if (maxPartitions > 0 && autoTopicCreationOverride.defaultNumPartitions > maxPartitions) {
+            if (maxPartitions > 0 && autoTopicCreationOverride.getDefaultNumPartitions() > maxPartitions) {
                 throw new RestException(Status.NOT_ACCEPTABLE,
                         "Number of partitions should be less than or equal to " + maxPartitions);
             }
@@ -809,7 +814,7 @@ public abstract class NamespacesBase extends AdminResource {
             return policies;
         }).thenApply(r -> {
             String autoOverride = (autoTopicCreationOverride != null
-                    && autoTopicCreationOverride.allowAutoTopicCreation) ? "enabled" : "disabled";
+                    && autoTopicCreationOverride.isAllowAutoTopicCreation()) ? "enabled" : "disabled";
             log.info("[{}] Successfully {} autoTopicCreation on namespace {}", clientAppId(),
                     autoOverride != null ? autoOverride : "removed", namespaceName);
             asyncResponse.resume(Response.noContent().build());
@@ -841,7 +846,7 @@ public abstract class NamespacesBase extends AdminResource {
             return policies;
         }).thenApply(r -> {
             if (autoSubscriptionCreationOverride != null) {
-                String autoOverride = autoSubscriptionCreationOverride.allowAutoSubscriptionCreation ? "enabled"
+                String autoOverride = autoSubscriptionCreationOverride.isAllowAutoSubscriptionCreation() ? "enabled"
                         : "disabled";
                 log.info("[{}] Successfully {} autoSubscriptionCreation on namespace {}", clientAppId(),
                         autoOverride != null ? autoOverride : "removed", namespaceName);
@@ -1067,7 +1072,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     @SuppressWarnings("deprecation")
-    protected void internalSplitNamespaceBundle(String bundleRange,
+    protected void internalSplitNamespaceBundle(AsyncResponse asyncResponse, String bundleRange,
                                                 boolean authoritative, boolean unload, String splitAlgorithmName) {
         validateSuperUserAccess();
         checkNotNull(bundleRange, "BundleRange should not be null");
@@ -1089,32 +1094,38 @@ public abstract class NamespacesBase extends AdminResource {
                 pulsar().getConfig().getSupportedNamespaceBundleSplitAlgorithms();
         if (StringUtils.isNotBlank(splitAlgorithmName)
                 && !supportedNamespaceBundleSplitAlgorithms.contains(splitAlgorithmName)) {
-            throw new RestException(Status.PRECONDITION_FAILED,
+            asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
                     "Unsupported namespace bundle split algorithm, supported algorithms are "
-                            + supportedNamespaceBundleSplitAlgorithms);
+                            + supportedNamespaceBundleSplitAlgorithms));
         }
 
+        NamespaceBundle nsBundle;
+
         try {
-            NamespaceBundle nsBundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
-                authoritative, true);
-            pulsar().getNamespaceService().splitAndOwnBundle(nsBundle, unload,
-                getNamespaceBundleSplitAlgorithmByName(splitAlgorithmName)).get();
-            log.info("[{}] Successfully split namespace bundle {}", clientAppId(), nsBundle.toString());
-        } catch (WebApplicationException wae) {
-            throw wae;
-        } catch (ExecutionException e) {
-            if (e.getCause() instanceof IllegalArgumentException) {
-                log.error("[{}] Failed to split namespace bundle {}/{} due to {}", clientAppId(), namespaceName,
-                        bundleRange, e.getMessage());
-                throw new RestException(Status.PRECONDITION_FAILED, "Split bundle failed due to invalid request");
-            } else {
-                log.error("[{}] Failed to split namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange, e);
-                throw new RestException(e.getCause());
-            }
+            nsBundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
+                    authoritative, true);
         } catch (Exception e) {
-            log.error("[{}] Failed to split namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange, e);
-            throw new RestException(e);
+            asyncResponse.resume(e);
+            return;
         }
+
+        pulsar().getNamespaceService().splitAndOwnBundle(nsBundle, unload,
+                getNamespaceBundleSplitAlgorithmByName(splitAlgorithmName))
+                .thenRun(() -> {
+                    log.info("[{}] Successfully split namespace bundle {}", clientAppId(), nsBundle.toString());
+                    asyncResponse.resume(Response.noContent().build());
+                }).exceptionally(ex -> {
+            if (ex.getCause() instanceof IllegalArgumentException) {
+                log.error("[{}] Failed to split namespace bundle {}/{} due to {}", clientAppId(), namespaceName,
+                        bundleRange, ex.getMessage());
+                asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
+                        "Split bundle failed due to invalid request"));
+            } else {
+                log.error("[{}] Failed to split namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange, ex);
+                asyncResponse.resume(new RestException(ex.getCause()));
+            }
+            return null;
+        });
     }
 
     private NamespaceBundleSplitAlgorithm getNamespaceBundleSplitAlgorithmByName(String algorithmName) {
@@ -1175,7 +1186,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     @SuppressWarnings("deprecation")
-    protected void internalSetTopicDispatchRate(DispatchRate dispatchRate) {
+    protected void internalSetTopicDispatchRate(DispatchRateImpl dispatchRate) {
         validateSuperUserAccess();
         log.info("[{}] Set namespace dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
 
@@ -1221,7 +1232,7 @@ public abstract class NamespacesBase extends AdminResource {
         return policies.topicDispatchRate.get(pulsar().getConfiguration().getClusterName());
     }
 
-    protected void internalSetSubscriptionDispatchRate(DispatchRate dispatchRate) {
+    protected void internalSetSubscriptionDispatchRate(DispatchRateImpl dispatchRate) {
         validateSuperUserAccess();
         log.info("[{}] Set namespace subscription dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
 
@@ -1323,7 +1334,7 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected void internalSetReplicatorDispatchRate(DispatchRate dispatchRate) {
+    protected void internalSetReplicatorDispatchRate(DispatchRateImpl dispatchRate) {
         validateSuperUserAccess();
         log.info("[{}] Set namespace replicator dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
         try {
@@ -1366,7 +1377,7 @@ public abstract class NamespacesBase extends AdminResource {
                             "[{}] Failed to update backlog configuration"
                                     + " for namespace {}: conflicts with retention quota",
                             clientAppId(), namespaceName);
-                    new RestException(Status.PRECONDITION_FAILED,
+                    throw new RestException(Status.PRECONDITION_FAILED,
                             "Backlog Quota exceeds configured retention quota for namespace."
                                     + " Please increase retention quota and retry");
                 }
@@ -1416,7 +1427,7 @@ public abstract class NamespacesBase extends AdminResource {
                 log.warn("[{}] Failed to update retention configuration"
                                 + " for namespace {}: conflicts with backlog quota",
                         clientAppId(), namespaceName);
-                new RestException(Status.PRECONDITION_FAILED,
+                throw new RestException(Status.PRECONDITION_FAILED,
                         "Retention Quota must exceed configured backlog quota for namespace.");
             }
             policies.retention_policies = retention;
@@ -1971,7 +1982,10 @@ public abstract class NamespacesBase extends AdminResource {
         }
         List<String> bundles = Lists.newArrayList();
         bundles.addAll(partitions);
-        return new BundlesData(bundles);
+        return BundlesData.builder()
+                .boundaries(bundles)
+                .numBundles(bundles.size() - 1)
+                .build();
     }
 
     private void validatePolicies(NamespaceName ns, Policies policies) {
@@ -2255,9 +2269,9 @@ public abstract class NamespacesBase extends AdminResource {
             final String path = path(POLICIES, namespaceName.toString());
             updatePolicies(path, (policies) -> {
                 if (policies.offload_policies == null) {
-                    policies.offload_policies = new OffloadPolicies();
+                    policies.offload_policies = new OffloadPoliciesImpl();
                 }
-                policies.offload_policies.setManagedLedgerOffloadThresholdInBytes(newThreshold);
+                ((OffloadPoliciesImpl) policies.offload_policies).setManagedLedgerOffloadThresholdInBytes(newThreshold);
                 policies.offload_threshold = newThreshold;
                 return policies;
             });
@@ -2290,9 +2304,10 @@ public abstract class NamespacesBase extends AdminResource {
             final String path = path(POLICIES, namespaceName.toString());
             updatePolicies(path, (policies) -> {
                 if (policies.offload_policies == null) {
-                    policies.offload_policies = new OffloadPolicies();
+                    policies.offload_policies = new OffloadPoliciesImpl();
                 }
-                policies.offload_policies.setManagedLedgerOffloadDeletionLagInMillis(newDeletionLagMs);
+                ((OffloadPoliciesImpl) policies.offload_policies)
+                        .setManagedLedgerOffloadDeletionLagInMillis(newDeletionLagMs);
                 policies.offload_deletion_lag_ms = newDeletionLagMs;
                 return policies;
             });
@@ -2392,7 +2407,7 @@ public abstract class NamespacesBase extends AdminResource {
                 PolicyOperation.READ);
         Set<SubscriptionType> subscriptionTypes = new HashSet<>();
         getNamespacePolicies(namespaceName).subscription_types_enabled.forEach(subType ->
-                subscriptionTypes.add(SubscriptionType.valueOf(subType.name())));
+                subscriptionTypes.add(SubscriptionType.valueOf(subType)));
         return subscriptionTypes;
     }
 
@@ -2400,8 +2415,8 @@ public abstract class NamespacesBase extends AdminResource {
         validateNamespacePolicyOperation(namespaceName, PolicyName.SUBSCRIPTION_AUTH_MODE,
                 PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
-        Set<SubType> subTypes = new HashSet<>();
-        subscriptionTypesEnabled.forEach(subscriptionType -> subTypes.add(SubType.valueOf(subscriptionType.name())));
+        Set<String> subTypes = new HashSet<>();
+        subscriptionTypesEnabled.forEach(subscriptionType -> subTypes.add(subscriptionType.name()));
         mutatePolicy((policies) -> {
                     policies.subscription_types_enabled = subTypes;
                     return policies;
@@ -2440,7 +2455,7 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected void internalSetOffloadPolicies(AsyncResponse asyncResponse, OffloadPolicies offloadPolicies) {
+    protected void internalSetOffloadPolicies(AsyncResponse asyncResponse, OffloadPoliciesImpl offloadPolicies) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.OFFLOAD, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
         validateOffloadPolicies(offloadPolicies);
@@ -2449,13 +2464,13 @@ public abstract class NamespacesBase extends AdminResource {
             final String path = path(POLICIES, namespaceName.toString());
             namespaceResources().setAsync(path, (policies) -> {
                 if (Objects.equals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(),
-                        OffloadPolicies.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS)) {
+                        OffloadPoliciesImpl.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS)) {
                     offloadPolicies.setManagedLedgerOffloadDeletionLagInMillis(policies.offload_deletion_lag_ms);
                 } else {
                     policies.offload_deletion_lag_ms = offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis();
                 }
                 if (Objects.equals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(),
-                        OffloadPolicies.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES)) {
+                        OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES)) {
                     offloadPolicies.setManagedLedgerOffloadThresholdInBytes(policies.offload_threshold);
                 } else {
                     policies.offload_threshold = offloadPolicies.getManagedLedgerOffloadThresholdInBytes();
@@ -2507,7 +2522,7 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    private void validateOffloadPolicies(OffloadPolicies offloadPolicies) {
+    private void validateOffloadPolicies(OffloadPoliciesImpl offloadPolicies) {
         if (offloadPolicies == null) {
             log.warn("[{}] Failed to update offload configuration for namespace {}: offloadPolicies is null",
                     clientAppId(), namespaceName);
@@ -2517,9 +2532,9 @@ public abstract class NamespacesBase extends AdminResource {
         if (!offloadPolicies.driverSupported()) {
             log.warn("[{}] Failed to update offload configuration for namespace {}: "
                             + "driver is not supported, support value: {}",
-                    clientAppId(), namespaceName, OffloadPolicies.getSupportedDriverNames());
+                    clientAppId(), namespaceName, OffloadPoliciesImpl.getSupportedDriverNames());
             throw new RestException(Status.PRECONDITION_FAILED,
-                    "The driver is not supported, support value: " + OffloadPolicies.getSupportedDriverNames());
+                    "The driver is not supported, support value: " + OffloadPoliciesImpl.getSupportedDriverNames());
         }
         if (!offloadPolicies.bucketValid()) {
             log.warn("[{}] Failed to update offload configuration for namespace {}: bucket must be specified",
@@ -2529,11 +2544,11 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected OffloadPolicies internalGetOffloadPolicies() {
+    protected OffloadPoliciesImpl internalGetOffloadPolicies() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.OFFLOAD, PolicyOperation.READ);
 
         Policies policies = getNamespacePolicies(namespaceName);
-        return policies.offload_policies;
+        return (OffloadPoliciesImpl) policies.offload_policies;
     }
 
     protected int internalGetMaxTopicsPerNamespace() {

@@ -19,7 +19,6 @@
 package org.apache.pulsar.functions.worker.rest.api;
 
 import org.apache.distributedlog.api.namespace.Namespace;
-import org.apache.pulsar.broker.authentication.AuthenticationDataHttp;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.client.admin.Namespaces;
@@ -27,7 +26,8 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.common.policies.data.FunctionStats;
+import org.apache.pulsar.common.policies.data.FunctionInstanceStatsImpl;
+import org.apache.pulsar.common.policies.data.FunctionStatsImpl;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.instance.InstanceConfig;
@@ -56,7 +56,6 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
 
-import javax.servlet.http.HttpServletRequest;
 import java.io.InputStream;
 import java.util.Collections;
 import java.util.HashMap;
@@ -233,12 +232,12 @@ public class FunctionsImplTest {
         FunctionRuntimeInfo functionRuntimeInfo = mock(FunctionRuntimeInfo.class);
         doReturn(runtimeSpawner).when(functionRuntimeInfo).getRuntimeSpawner();
 
-        FunctionStats.FunctionInstanceStats instanceStats1 = WorkerUtils
+        FunctionInstanceStatsImpl instanceStats1 = WorkerUtils
                 .getFunctionInstanceStats("public/default/test", functionRuntimeInfo, 0);
-        FunctionStats.FunctionInstanceStats instanceStats2 = WorkerUtils
+        FunctionInstanceStatsImpl instanceStats2 = WorkerUtils
                 .getFunctionInstanceStats("public/default/test", functionRuntimeInfo, 1);
 
-        FunctionStats functionStats = new FunctionStats();
+        FunctionStatsImpl functionStats = new FunctionStatsImpl();
         functionStats.addInstance(instanceStats1);
         functionStats.addInstance(instanceStats2);
 
@@ -248,7 +247,7 @@ public class FunctionsImplTest {
     @Test
     public void testIsAuthorizedRole() throws PulsarAdminException, InterruptedException, ExecutionException {
 
-        TenantInfo tenantInfo = new TenantInfo();
+        TenantInfo tenantInfo = TenantInfo.builder().build();
         AuthenticationDataSource authenticationDataSource = mock(AuthenticationDataSource.class);
         FunctionsImpl functionImpl = spy(new FunctionsImpl(() -> mockedWorkerService));
         AuthorizationService authorizationService = mock(AuthorizationService.class);
@@ -284,7 +283,7 @@ public class FunctionsImplTest {
         functionImpl = spy(new FunctionsImpl(() -> mockedWorkerService));
         doReturn(false).when(functionImpl).allowFunctionOps(any(), any(), any());
         tenants = mock(Tenants.class);
-        tenantInfo.setAdminRoles(Collections.singleton("test-user"));
+        tenantInfo = TenantInfo.builder().adminRoles(Collections.singleton("test-user")).build();
         when(tenants.getTenantInfo(any())).thenReturn(tenantInfo);
 
         admin = mock(PulsarAdmin.class);
@@ -298,7 +297,7 @@ public class FunctionsImplTest {
         functionImpl = spy(new FunctionsImpl(() -> mockedWorkerService));
         doReturn(true).when(functionImpl).allowFunctionOps(any(), any(), any());
         tenants = mock(Tenants.class);
-        tenantInfo.setAdminRoles(Collections.emptySet());
+        tenantInfo = TenantInfo.builder().build();
         when(tenants.getTenantInfo(any())).thenReturn(tenantInfo);
 
         admin = mock(PulsarAdmin.class);
@@ -311,7 +310,7 @@ public class FunctionsImplTest {
         functionImpl = spy(new FunctionsImpl(() -> mockedWorkerService));
         doReturn(true).when(functionImpl).allowFunctionOps(any(), any(), any());
         tenants = mock(Tenants.class);
-        when(tenants.getTenantInfo(any())).thenReturn(new TenantInfo());
+        when(tenants.getTenantInfo(any())).thenReturn(TenantInfo.builder().build());
 
         admin = mock(PulsarAdmin.class);
         when(admin.tenants()).thenReturn(tenants);

@@ -34,7 +34,8 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.mockito.Mockito;
@@ -87,8 +88,8 @@ public class LeaderElectionServiceTest {
         final String namespace = "ns";
         @Cleanup
         PulsarAdmin adminClient = PulsarAdmin.builder().serviceHttpUrl(pulsar.getWebServiceAddress()).build();
-        adminClient.clusters().createCluster(clusterName, new ClusterData(pulsar.getWebServiceAddress()));
-        adminClient.tenants().createTenant(tenant, new TenantInfo(Sets.newHashSet("appid1", "appid2"),
+        adminClient.clusters().createCluster(clusterName, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        adminClient.tenants().createTenant(tenant, new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"),
                 Sets.newHashSet(clusterName)));
         adminClient.namespaces().createNamespace(tenant + "/" + namespace, 16);
         @Cleanup

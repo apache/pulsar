@@ -33,12 +33,14 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import io.netty.channel.EventLoopGroup;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
@@ -62,7 +64,7 @@ import org.apache.zookeeper.ZooKeeper;
 @Slf4j
 public abstract class TransactionTestBase extends TestRetrySupport {
 
-    public final static String CLUSTER_NAME = "test";
+    public static final String CLUSTER_NAME = "test";
 
     @Setter
     private int brokerCount = 3;
@@ -77,7 +79,7 @@ public abstract class TransactionTestBase extends TestRetrySupport {
     protected PulsarClient pulsarClient;
 
     private MockZooKeeper mockZooKeeper;
-    private ExecutorService bkExecutor;
+    private OrderedExecutor bkExecutor;
     private NonClosableMockBookKeeper mockBookKeeper;
 
     public void internalSetup() throws Exception {
@@ -98,11 +100,11 @@ public abstract class TransactionTestBase extends TestRetrySupport {
     private void init() throws Exception {
         mockZooKeeper = createMockZooKeeper();
 
-        bkExecutor = Executors.newSingleThreadExecutor(
-                new ThreadFactoryBuilder().setNameFormat("mock-pulsar-bk")
-                        .setUncaughtExceptionHandler((thread, ex) -> log.info("Uncaught exception", ex))
-                        .build());
-        mockBookKeeper = createMockBookKeeper(mockZooKeeper, bkExecutor);
+        bkExecutor = OrderedExecutor.newBuilder()
+                .numThreads(1)
+                .name("mock-pulsar-bk")
+                .build();
+        mockBookKeeper = createMockBookKeeper(bkExecutor);
         startBroker();
     }
 
@@ -172,16 +174,15 @@ public abstract class TransactionTestBase extends TestRetrySupport {
         return zk;
     }
 
-    public static TransactionTestBase.NonClosableMockBookKeeper createMockBookKeeper(ZooKeeper zookeeper,
-                                                                                             ExecutorService executor) throws Exception {
-        return spy(new TransactionTestBase.NonClosableMockBookKeeper(zookeeper, executor));
+    public static TransactionTestBase.NonClosableMockBookKeeper createMockBookKeeper(OrderedExecutor executor) throws Exception {
+        return spy(new TransactionTestBase.NonClosableMockBookKeeper(executor));
     }
 
     // Prevent the MockBookKeeper instance from being closed when the broker is restarted within a test
     public static class NonClosableMockBookKeeper extends PulsarMockBookKeeper {
 
-        public NonClosableMockBookKeeper(ZooKeeper zk, ExecutorService executor) throws Exception {
-            super(zk, executor);
+        public NonClosableMockBookKeeper(OrderedExecutor executor) throws Exception {
+            super(executor);
         }
 
         @Override
@@ -212,7 +213,7 @@ public abstract class TransactionTestBase extends TestRetrySupport {
     private final BookKeeperClientFactory mockBookKeeperClientFactory = new BookKeeperClientFactory() {
 
         @Override
-        public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient,
+        public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient, EventLoopGroup eventLoopGroup,
                                  Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
                                  Map<String, Object> properties) {
             // Always return the same instance (so that we don't loose the mock BK content on broker restart
@@ -220,7 +221,7 @@ public abstract class TransactionTestBase extends TestRetrySupport {
         }
 
         @Override
-        public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient,
+        public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient, EventLoopGroup eventLoopGroup,
                                  Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
                                  Map<String, Object> properties, StatsLogger statsLogger) {
             // Always return the same instance (so that we don't loose the mock BK content on broker restart

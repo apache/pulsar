@@ -187,6 +187,9 @@ class PULSAR_PUBLIC ConsumerConfiguration {
      * 10 seconds. An Exception is thrown if the given value is less than 10000 (10 seconds).
      * If a successful acknowledgement is not sent within the timeout all the unacknowledged messages are
      * redelivered.
+     *
+     * Default: 0, which means the the tracker for unacknowledged messages is disabled.
+     *
      * @param timeout in milliseconds
      */
     void setUnAckedMessagesTimeoutMs(const uint64_t milliSeconds);
@@ -269,6 +272,9 @@ class PULSAR_PUBLIC ConsumerConfiguration {
 
     /**
      * Set the time duration for which the broker side consumer stats will be cached in the client.
+     *
+     * Default: 30000, which means 30 seconds.
+     *
      * @param cacheTimeInMs in milliseconds
      */
     void setBrokerConsumerStatsCacheTimeInMs(const long cacheTimeInMs);
@@ -351,6 +357,19 @@ class PULSAR_PUBLIC ConsumerConfiguration {
      * @return the configured `InitialPosition` for the consumer
      */
     InitialPosition getSubscriptionInitialPosition() const;
+
+    /**
+     * Set whether the subscription status should be replicated.
+     * The default value is `false`.
+     *
+     * @param replicateSubscriptionState whether the subscription status should be replicated
+     */
+    void setReplicateSubscriptionStateEnabled(bool enabled);
+
+    /**
+     * @return whether the subscription status should be replicated
+     */
+    bool isReplicateSubscriptionStateEnabled() const;
 
     /**
      * Check whether the message has a specific property attached.

@@ -30,7 +30,8 @@ import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.nio.NioEventLoopGroup;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -39,10 +40,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -60,7 +59,6 @@ import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Consumer;
-import org.apache.pulsar.broker.service.PersistentTopicTest;
 import org.apache.pulsar.broker.transaction.buffer.impl.InMemTransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
@@ -109,11 +107,13 @@ public class PersistentSubscriptionTest {
 
     private static final Logger log = LoggerFactory.getLogger(PersistentTopicTest.class);
 
-    private ExecutorService executor;
+    private OrderedExecutor executor;
+    private EventLoopGroup eventLoopGroup;
 
     @BeforeMethod
     public void setup() throws Exception {
-        executor = Executors.newSingleThreadExecutor();
+        executor = OrderedExecutor.newBuilder().numThreads(1).name("persistent-subscription-test").build();
+        eventLoopGroup = new NioEventLoopGroup();
 
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
         svcConfig.setBrokerShutdownTimeoutMs(0L);
@@ -170,7 +170,7 @@ public class PersistentSubscriptionTest {
 
         ZooKeeper zkMock = createMockZooKeeper();
         doReturn(zkMock).when(pulsarMock).getZkClient();
-        doReturn(createMockBookKeeper(zkMock, executor))
+        doReturn(createMockBookKeeper(executor))
                 .when(pulsarMock).getBookKeeperClient();
 
         ZooKeeperCache cache = mock(ZooKeeperCache.class);
@@ -192,7 +192,7 @@ public class PersistentSubscriptionTest {
         doReturn(zkPoliciesDataCacheMock).when(zkCacheMock).policiesCache();
         doReturn(zkCacheMock).when(pulsarMock).getLocalZkCacheService();
 
-        brokerMock = spy(new BrokerService(pulsarMock));
+        brokerMock = spy(new BrokerService(pulsarMock, eventLoopGroup));
         doNothing().when(brokerMock).unloadNamespaceBundlesGracefully();
         doReturn(brokerMock).when(pulsarMock).getBrokerService();
 
@@ -224,6 +224,7 @@ public class PersistentSubscriptionTest {
         }
 
         executor.shutdownNow();
+        eventLoopGroup.shutdownGracefully().get();
     }
 
     @Test

@@ -33,6 +33,7 @@ import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.Timeout;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -81,6 +82,7 @@ import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.apache.pulsar.client.util.RetryUtil;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
@@ -165,7 +167,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private final DeadLetterPolicy deadLetterPolicy;
 
-    private volatile CompletableFuture<Producer<T>> deadLetterProducer;
+    private volatile CompletableFuture<Producer<byte[]>> deadLetterProducer;
 
     private volatile Producer<T> retryLetterProducer;
     private final ReadWriteLock createProducerLock = new ReentrantReadWriteLock();
@@ -588,9 +590,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     initDeadLetterProducerIfNeeded();
                     MessageId finalMessageId = messageId;
                     deadLetterProducer.thenAccept(dlqProducer -> {
-                        TypedMessageBuilder<T> typedMessageBuilderNew = dlqProducer.newMessage()
-                                .value(retryMessage.getValue())
-                                .properties(propertiesMap);
+                        TypedMessageBuilder<byte[]> typedMessageBuilderNew =
+                                dlqProducer.newMessage(Schema.AUTO_PRODUCE_BYTES(retryMessage.getReaderSchema().get()))
+                                        .value(retryMessage.getData())
+                                        .properties(propertiesMap);
                         typedMessageBuilderNew.sendAsync().thenAccept(msgId -> {
                             doAcknowledge(finalMessageId, ackType, properties, null).thenAccept(v -> {
                                 result.complete(null);
@@ -1454,10 +1457,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
         }
 
-        ByteBuf decryptedData = this.msgCrypto.decrypt(() -> msgMetadata, payload, conf.getCryptoKeyReader());
-        if (decryptedData != null) {
+
+        int maxDecryptedSize = msgCrypto.getMaxOutputSize(payload.readableBytes());
+        ByteBuf decryptedData = PulsarByteBufAllocator.DEFAULT.buffer(maxDecryptedSize);
+        ByteBuffer nioDecryptedData = decryptedData.nioBuffer(0, maxDecryptedSize);
+        if (msgCrypto.decrypt(() -> msgMetadata, payload.nioBuffer(), nioDecryptedData, conf.getCryptoKeyReader())) {
+            decryptedData.writerIndex(nioDecryptedData.limit());
             return decryptedData;
         }
+
+        decryptedData.release();
 
         switch (conf.getCryptoFailureAction()) {
             case CONSUME:
@@ -1683,12 +1692,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             initDeadLetterProducerIfNeeded();
             List<MessageImpl<T>> finalDeadLetterMessages = deadLetterMessages;
             MessageIdImpl finalMessageId = messageId;
-            deadLetterProducer.thenAccept(producerDLQ -> {
+            deadLetterProducer.thenAcceptAsync(producerDLQ -> {
                 for (MessageImpl<T> message : finalDeadLetterMessages) {
                     String originMessageIdStr = getOriginMessageIdStr(message);
                     String originTopicNameStr = getOriginTopicNameStr(message);
-                    producerDLQ.newMessage()
-                            .value(message.getValue())
+                    producerDLQ.newMessage(Schema.AUTO_PRODUCE_BYTES(message.getReaderSchema().get()))
+                            .value(message.getData())
                             .properties(getPropertiesMap(message, originMessageIdStr, originTopicNameStr))
                             .sendAsync()
                             .thenAccept(messageIdInDLQ -> {
@@ -1725,7 +1734,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             createProducerLock.writeLock().lock();
             try {
                 if (deadLetterProducer == null) {
-                    deadLetterProducer = client.newProducer(schema)
+                    deadLetterProducer = client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema))
                             .topic(this.deadLetterPolicy.getDeadLetterTopic())
                             .blockIfQueueFull(false)
                             .createAsync();
@@ -2018,6 +2027,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         String.format("The command `GetLastMessageId` is not supported for the protocol version %d. " +
                                 "The consumer is %s, topic %s, subscription %s", cnx.getRemoteEndpointProtocolVersion(),
                             consumerName, topicName.toString(), subscription)));
+                return;
             }
 
             long requestId = client.newRequestId();

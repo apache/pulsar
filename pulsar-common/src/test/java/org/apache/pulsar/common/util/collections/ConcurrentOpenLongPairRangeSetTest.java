@@ -115,6 +115,12 @@ public class ConcurrentOpenLongPairRangeSetTest {
     }
 
     @Test
+    public void testNPE() {
+        ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
+        assertNull(set.span());
+    }
+
+    @Test
     public void testDeleteCompareWithGuava() {
 
         ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
@@ -167,6 +173,30 @@ public class ConcurrentOpenLongPairRangeSetTest {
             assertEquals(range, ranges.get(i));
             i++;
         }
+    }
+
+    @Test
+    public void testRemoveRangeInSameKey() {
+        ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
+        set.addOpenClosed(0, 1, 0, 50);
+        set.addOpenClosed(0, 97, 0, 99);
+        set.addOpenClosed(0, 99, 1, 5);
+        set.addOpenClosed(1, 9, 1, 15);
+        set.addOpenClosed(1, 19, 2, 10);
+        set.addOpenClosed(2, 24, 2, 28);
+        set.addOpenClosed(3, 11, 3, 20);
+        set.addOpenClosed(4, 11, 4, 20);
+        // range is [(0:1..0:50],(0:97..0:99],(1:-1..1:5],(1:9..1:15],(2:-1..2:10],(2:24..2:28],(3:11..3:20],(4:11..4:20]]
+        set.remove(Range.closed(new LongPair(0, 0), new LongPair(0, Integer.MAX_VALUE - 1)));
+        // after remove is [(1:-1..1:5],(1:9..1:15],(2:-1..2:10],(2:24..2:28],(3:11..3:20],(4:11..4:20]]
+        int count = 0;
+        List<Range<LongPair>> ranges = set.asRanges();
+        assertEquals(ranges.get(count++), Range.openClosed(new LongPair(1, -1), new LongPair(1, 5)));
+        assertEquals(ranges.get(count++), Range.openClosed(new LongPair(1, 9), new LongPair(1, 15)));
+        assertEquals(ranges.get(count++), Range.openClosed(new LongPair(2, -1), new LongPair(2, 10)));
+        assertEquals(ranges.get(count++), Range.openClosed(new LongPair(2, 24), new LongPair(2, 28)));
+        assertEquals(ranges.get(count++), Range.openClosed(new LongPair(3, 11), new LongPair(3, 20)));
+        assertEquals(ranges.get(count), Range.openClosed(new LongPair(4, 11), new LongPair(4, 20)));
     }
 
     @Test

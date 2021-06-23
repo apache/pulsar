@@ -62,7 +62,7 @@ class Log4CxxLogger : public Logger {
     }
 };
 
-LoggerFactoryPtr Log4CxxLoggerFactory::create() {
+std::unique_ptr<LoggerFactory> Log4CxxLoggerFactory::create() {
     if (!LogManager::getLoggerRepository()->isConfigured()) {
         LogManager::getLoggerRepository()->setConfigured(true);
         LoggerPtr root = log4cxx::Logger::getRootLogger();
@@ -73,10 +73,10 @@ LoggerFactoryPtr Log4CxxLoggerFactory::create() {
         root->addAppender(appender);
     }
 
-    return LoggerFactoryPtr(new Log4CxxLoggerFactory());
+    return std::unique_ptr<LoggerFactory>(new Log4CxxLoggerFactory());
 }
 
-LoggerFactoryPtr Log4CxxLoggerFactory::create(const std::string &log4cxxConfFile) {
+std::unique_ptr<LoggerFactory> Log4CxxLoggerFactory::create(const std::string &log4cxxConfFile) {
     try {
         log4cxx::PropertyConfigurator::configure(log4cxxConfFile);
     } catch (const std::exception &e) {
@@ -87,7 +87,7 @@ LoggerFactoryPtr Log4CxxLoggerFactory::create(const std::string &log4cxxConfFile
                   << std::endl;
     }
 
-    return LoggerFactoryPtr(new Log4CxxLoggerFactory());
+    return std::unique_ptr<LoggerFactory>(new Log4CxxLoggerFactory());
 }
 
 Logger *Log4CxxLoggerFactory::getLogger(const std::string &fileName) { return new Log4CxxLogger(fileName); }

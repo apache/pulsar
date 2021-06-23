@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.common.util.SecurityUtility.getProvider;
 import java.security.Provider;
+import java.util.Collections;
 import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
 import org.apache.pulsar.common.util.keystoretls.SSLContextValidatorEngine;
 import org.testng.annotations.Test;
@@ -71,7 +72,8 @@ public class KeyStoreTlsTest {
                 CLIENT_TRUSTSTORE_PW,
                 false,
                 null,
-                null);
+                // set client's protocol to TLSv1.2 since SSLContextValidatorEngine.validate doesn't handle TLSv1.3
+                Collections.singleton("TLSv1.2"));
         clientSSLContext.createSSLContext();
 
         SSLContextValidatorEngine.validate(clientSSLContext::createSSLEngine, serverSSLContext::createSSLEngine);

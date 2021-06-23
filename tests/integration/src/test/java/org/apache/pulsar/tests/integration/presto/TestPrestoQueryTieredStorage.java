@@ -26,6 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -118,21 +119,22 @@ public class TestPrestoQueryTieredStorage extends TestPulsarSQLBase {
     public void testQueryTieredStorage1() throws Exception {
         TopicName topicName = TopicName.get(
                 TopicDomain.persistent.value(), TENANT, NAMESPACE, "stocks_ts_nons_" + randomName(5));
-        pulsarSQLBasicTest(topicName, false, false, JSONSchema.of(Stock.class));
+        pulsarSQLBasicTest(topicName, false, false, JSONSchema.of(Stock.class), CompressionType.NONE);
     }
 
     @Test
     public void testQueryTieredStorage2() throws Exception {
         TopicName topicName = TopicName.get(
                 TopicDomain.persistent.value(), TENANT, NAMESPACE, "stocks_ts_ns_" + randomName(5));
-        pulsarSQLBasicTest(topicName, false, true, JSONSchema.of(Stock.class));
+        pulsarSQLBasicTest(topicName, false, true, JSONSchema.of(Stock.class), CompressionType.NONE);
     }
 
     @Override
     protected int prepareData(TopicName topicName,
                               boolean isBatch,
                               boolean useNsOffloadPolices,
-                              Schema schema) throws Exception {
+                              Schema schema,
+                              CompressionType compressionType) throws Exception {
         @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder()
                 .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
@@ -148,6 +150,7 @@ public class TestPrestoQueryTieredStorage extends TestPulsarSQLBase {
         @Cleanup
         Producer<Stock> producer = pulsarClient.newProducer(JSONSchema.of(Stock.class))
                 .topic(topicName.toString())
+                .compressionType(compressionType)
                 .create();
 
         long firstLedgerId = -1;

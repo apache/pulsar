@@ -61,21 +61,9 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
     private  Map<String, String> map = new HashMap<>();
 
     public FileSystemManagedLedgerOffloaderTest() throws Exception {
-        this.bk = new PulsarMockBookKeeper(createMockZooKeeper(), scheduler.chooseThread(this));
+        this.bk = new PulsarMockBookKeeper(scheduler);
         this.toWrite = buildReadHandle();
         map.put("ManagedLedgerName", topic);
-    }
-
-    private static MockZooKeeper createMockZooKeeper() throws Exception {
-        MockZooKeeper zk = MockZooKeeper.newInstance(MoreExecutors.newDirectExecutorService());
-        List<ACL> dummyAclList = new ArrayList<ACL>(0);
-
-        ZkUtils.createFullPathOptimistic(zk, "/ledgers/available/192.168.1.1:" + 5000,
-                "".getBytes(UTF_8), dummyAclList, CreateMode.PERSISTENT);
-
-        zk.create("/ledgers/LAYOUT", "1\nflat:1".getBytes(UTF_8), dummyAclList,
-                CreateMode.PERSISTENT);
-        return zk;
     }
 
     private ReadHandle buildReadHandle() throws Exception {

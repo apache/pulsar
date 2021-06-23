@@ -104,14 +104,15 @@ public class BrokerOperabilityMetrics {
     Metrics getDimensionMetrics(String metricsName, String dimensionName, DimensionStats stats) {
         Metrics dMetrics = Metrics.create(getDimensionMap(metricsName));
 
-        dMetrics.put("brk_" + dimensionName + "_time_mean_ms", stats.getMeanDimension());
-        dMetrics.put("brk_" + dimensionName + "_time_median_ms", stats.getMedianDimension());
-        dMetrics.put("brk_" + dimensionName + "_time_75percentile_ms", stats.getDimension75());
-        dMetrics.put("brk_" + dimensionName + "_time_95percentile_ms", stats.getDimension95());
-        dMetrics.put("brk_" + dimensionName + "_time_99_percentile_ms", stats.getDimension99());
-        dMetrics.put("brk_" + dimensionName + "_time_99_9_percentile_ms", stats.getDimension999());
-        dMetrics.put("brk_" + dimensionName + "_time_99_99_percentile_ms", stats.getDimension9999());
-        dMetrics.put("brk_" + dimensionName + "_rate_s", stats.getDimensionCount());
+        DimensionStats.DimensionStatsSnapshot statsSnapshot = stats.getSnapshot();
+        dMetrics.put("brk_" + dimensionName + "_time_mean_ms", statsSnapshot.getMeanDimension());
+        dMetrics.put("brk_" + dimensionName + "_time_median_ms", statsSnapshot.getMedianDimension());
+        dMetrics.put("brk_" + dimensionName + "_time_75percentile_ms", statsSnapshot.getDimension75());
+        dMetrics.put("brk_" + dimensionName + "_time_95percentile_ms", statsSnapshot.getDimension95());
+        dMetrics.put("brk_" + dimensionName + "_time_99_percentile_ms", statsSnapshot.getDimension99());
+        dMetrics.put("brk_" + dimensionName + "_time_99_9_percentile_ms", statsSnapshot.getDimension999());
+        dMetrics.put("brk_" + dimensionName + "_time_99_99_percentile_ms", statsSnapshot.getDimension9999());
+        dMetrics.put("brk_" + dimensionName + "_rate_s", statsSnapshot.getDimensionCount());
 
         return dMetrics;
     }

@@ -44,12 +44,13 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
-import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.aws.AbstractAwsConnector;
 import org.apache.pulsar.io.aws.AwsCredentialProviderPlugin;
+import org.apache.pulsar.io.common.IOConfigUtils;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.annotations.Connector;
@@ -100,7 +101,7 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<byte[]> {
     private static final int maxPartitionedKeyLength = 256;
     private SinkContext sinkContext;
     private ScheduledExecutorService scheduledExecutor;
-    // 
+    //
     private static final int FALSE = 0;
     private static final int TRUE = 1;
     private volatile int previousPublishFailed = FALSE;
@@ -153,12 +154,12 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<byte[]> {
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
         scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
-        kinesisSinkConfig = KinesisSinkConfig.load(config);
+        kinesisSinkConfig = IOConfigUtils.loadWithSecrets(config, KinesisSinkConfig.class, sinkContext);
         this.sinkContext = sinkContext;
 
         checkArgument(isNotBlank(kinesisSinkConfig.getAwsKinesisStreamName()), "empty kinesis-stream name");
-        checkArgument(isNotBlank(kinesisSinkConfig.getAwsEndpoint()) || 
-                      isNotBlank(kinesisSinkConfig.getAwsRegion()), 
+        checkArgument(isNotBlank(kinesisSinkConfig.getAwsEndpoint()) ||
+                      isNotBlank(kinesisSinkConfig.getAwsRegion()),
                       "Either the aws-end-point or aws-region must be set");
         checkArgument(isNotBlank(kinesisSinkConfig.getAwsCredentialPluginParam()), "empty aws-credential param");
 
@@ -237,6 +238,7 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<byte[]> {
                 kinesisSink.sinkContext.recordMetric(METRICS_TOTAL_SUCCESS, 1);
             }
             kinesisSink.previousPublishFailed = FALSE;
+            this.resultContext.ack();
             recycle();
         }
 
@@ -252,8 +254,13 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<byte[]> {
                 LOG.error("[{}] Failed to published message for replicator of {}-{}: Attempts:{}", kinesisSink.streamName,
                         resultContext.getPartitionId(), resultContext.getRecordSequence(), stringBuffer.toString());
             } else {
-                LOG.error("[{}] Failed to published message for replicator of {}-{}, {} ", kinesisSink.streamName,
+                if (StringUtils.isEmpty(exception.getMessage())) {
+                    LOG.error("[{}] Failed to published message for replicator of {}-{}", kinesisSink.streamName,
+                        resultContext.getPartitionId(), resultContext.getRecordSequence(), exception);
+                } else {
+                    LOG.error("[{}] Failed to published message for replicator of {}-{}, {} ", kinesisSink.streamName,
                         resultContext.getPartitionId(), resultContext.getRecordSequence(), exception.getMessage());
+                }
             }
             kinesisSink.previousPublishFailed = TRUE;
             if (kinesisSink.sinkContext != null) {

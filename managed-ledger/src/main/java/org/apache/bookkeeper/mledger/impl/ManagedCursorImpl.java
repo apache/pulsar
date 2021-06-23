@@ -738,52 +738,66 @@ public class ManagedCursorImpl implements ManagedCursor {
                 log.debug("[{}] [{}] Deferring retry of read at position {}", ledger.getName(), name, op.readPosition);
             }
 
-            // Check again for new entries again in 10ms, then if still no entries are available register to be notified
-            ledger.getScheduledExecutor().schedule(safeRun(() -> {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] [{}] Re-trying the read at position {}", ledger.getName(), name, op.readPosition);
-                }
+            // Check again for new entries after the configured time, then if still no entries are available register
+            // to be notified
+            if (config.getNewEntriesCheckDelayInMillis() > 0) {
+                ledger.getScheduledExecutor()
+                        .schedule(() -> checkForNewEntries(op, callback, ctx),
+                                config.getNewEntriesCheckDelayInMillis(), TimeUnit.MILLISECONDS);
+            } else {
+                // If there's no delay, check directly from the same thread
+                checkForNewEntries(op, callback, ctx);
+            }
+        }
+    }
 
-                if (!hasMoreEntries()) {
+    private void checkForNewEntries(OpReadEntry op, ReadEntriesCallback callback, Object ctx) {
+        try {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] [{}] Re-trying the read at position {}", ledger.getName(), name, op.readPosition);
+            }
+
+            if (!hasMoreEntries()) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] [{}] Still no entries available. Register for notification", ledger.getName(),
+                            name);
+                }
+                // Let the managed ledger know we want to be notified whenever a new entry is published
+                ledger.waitingCursors.add(this);
+            } else {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] [{}] Skip notification registering since we do have entries available",
+                            ledger.getName(), name);
+                }
+            }
+
+            // Check again the entries count, since an entry could have been written between the time we
+            // checked and the time we've asked to be notified by managed ledger
+            if (hasMoreEntries()) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] [{}] Found more entries", ledger.getName(), name);
+                }
+                // Try to cancel the notification request
+                if (WAITING_READ_OP_UPDATER.compareAndSet(this, op, null)) {
                     if (log.isDebugEnabled()) {
-                        log.debug("[{}] [{}] Still no entries available. Register for notification", ledger.getName(),
-                                name);
+                        log.debug("[{}] [{}] Cancelled notification and scheduled read at {}", ledger.getName(),
+                                name, op.readPosition);
                     }
-                    // Let the managed ledger know we want to be notified whenever a new entry is published
-                    ledger.waitingCursors.add(this);
+                    PENDING_READ_OPS_UPDATER.incrementAndGet(this);
+                    ledger.asyncReadEntries(op);
                 } else {
                     if (log.isDebugEnabled()) {
-                        log.debug("[{}] [{}] Skip notification registering since we do have entries available",
-                                ledger.getName(), name);
+                        log.debug("[{}] [{}] notification was already cancelled", ledger.getName(), name);
                     }
                 }
-
-                // Check again the entries count, since an entry could have been written between the time we
-                // checked and the time we've asked to be notified by managed ledger
-                if (hasMoreEntries()) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] [{}] Found more entries", ledger.getName(), name);
-                    }
-                    // Try to cancel the notification request
-                    if (WAITING_READ_OP_UPDATER.compareAndSet(this, op, null)) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] [{}] Cancelled notification and scheduled read at {}", ledger.getName(),
-                                    name, op.readPosition);
-                        }
-                        PENDING_READ_OPS_UPDATER.incrementAndGet(this);
-                        ledger.asyncReadEntries(op);
-                    } else {
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] [{}] notification was already cancelled", ledger.getName(), name);
-                        }
-                    }
-                } else if (ledger.isTerminated()) {
-                    // At this point we registered for notification and still there were no more available
-                    // entries.
-                    // If the managed ledger was indeed terminated, we need to notify the cursor
-                    callback.readEntriesFailed(new NoMoreEntriesToReadException("Topic was terminated"), ctx);
-                }
-            }), config.getNewEntriesCheckDelayInMillis(), TimeUnit.MILLISECONDS);
+            } else if (ledger.isTerminated()) {
+                // At this point we registered for notification and still there were no more available
+                // entries.
+                // If the managed ledger was indeed terminated, we need to notify the cursor
+                callback.readEntriesFailed(new NoMoreEntriesToReadException("Topic was terminated"), ctx);
+            }
+        } catch (Throwable t) {
+            callback.readEntriesFailed(new ManagedLedgerException(t), ctx);
         }
     }
 
@@ -869,13 +883,13 @@ public class ManagedCursorImpl implements ManagedCursor {
                     messagesConsumedCounter, markDeletePosition, readPosition);
         }
         if (isPrecise) {
-            return getNumberOfEntries(Range.closed(markDeletePosition, ledger.getLastPosition())) - 1;
+            return getNumberOfEntries(Range.openClosed(markDeletePosition, ledger.getLastPosition()));
         }
 
         long backlog = ManagedLedgerImpl.ENTRIES_ADDED_COUNTER_UPDATER.get(ledger) - messagesConsumedCounter;
         if (backlog < 0) {
             // In some case the counters get incorrect values, fall back to the precise backlog count
-            backlog = getNumberOfEntries(Range.closed(markDeletePosition, ledger.getLastPosition())) - 1;
+            backlog = getNumberOfEntries(Range.openClosed(markDeletePosition, ledger.getLastPosition()));
         }
 
         return backlog;
@@ -1640,13 +1654,28 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
 
         if (((PositionImpl) ledger.getLastConfirmedEntry()).compareTo(newPosition) < 0) {
-            if (log.isDebugEnabled()) {
-                log.debug(
-                        "[{}] Failed mark delete due to invalid markDelete {} is ahead of last-confirmed-entry {} for cursor [{}]",
-                        ledger.getName(), position, ledger.getLastConfirmedEntry(), name);
+            boolean shouldCursorMoveForward = false;
+            try {
+                long ledgerEntries = ledger.getLedgerInfo(markDeletePosition.getLedgerId()).get().getEntries();
+                Long nextValidLedger = ledger.getNextValidLedger(ledger.getLastConfirmedEntry().getLedgerId());
+                shouldCursorMoveForward = (markDeletePosition.getEntryId() + 1 >= ledgerEntries)
+                        && (newPosition.getLedgerId() == nextValidLedger);
+            } catch (Exception e) {
+                log.warn("Failed to get ledger entries while setting mark-delete-position", e);
             }
-            callback.markDeleteFailed(new ManagedLedgerException("Invalid mark deleted position"), ctx);
-            return;
+
+            if (shouldCursorMoveForward) {
+                log.info("[{}] move mark-delete-position from {} to {} since all the entries have been consumed",
+                        ledger.getName(), markDeletePosition, newPosition);
+            } else {
+                if (log.isDebugEnabled()) {
+                    log.debug(
+                            "[{}] Failed mark delete due to invalid markDelete {} is ahead of last-confirmed-entry {} for cursor [{}]",
+                            ledger.getName(), position, ledger.getLastConfirmedEntry(), name);
+                }
+                callback.markDeleteFailed(new ManagedLedgerException("Invalid mark deleted position"), ctx);
+                return;
+            }
         }
 
         lock.writeLock().lock();
@@ -2013,8 +2042,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                 log.debug("[{}] [{}] Filtering entries {} - alreadyDeleted: {}", ledger.getName(), name, entriesRange,
                         individualDeletedMessages);
             }
-
-            if (individualDeletedMessages.isEmpty() || !entriesRange.isConnected(individualDeletedMessages.span())) {
+            if (individualDeletedMessages.isEmpty() || individualDeletedMessages.span() == null ||
+                    !entriesRange.isConnected(individualDeletedMessages.span())) {
                 // There are no individually deleted messages in this entry list, no need to perform filtering
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] [{}] No filtering needed for entries {}", ledger.getName(), name, entriesRange);
@@ -2490,30 +2519,35 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     private List<MLDataFormats.BatchedEntryDeletionIndexInfo> buildBatchEntryDeletionIndexInfoList() {
-        if (!config.isDeletionAtBatchIndexLevelEnabled() || batchDeletedIndexes == null || batchDeletedIndexes.isEmpty()) {
-            return Collections.emptyList();
-        }
-        MLDataFormats.NestedPositionInfo.Builder nestedPositionBuilder = MLDataFormats.NestedPositionInfo
-            .newBuilder();
-        MLDataFormats.BatchedEntryDeletionIndexInfo.Builder batchDeletedIndexInfoBuilder = MLDataFormats.BatchedEntryDeletionIndexInfo
-            .newBuilder();
-        List<MLDataFormats.BatchedEntryDeletionIndexInfo> result = Lists.newArrayList();
-        Iterator<Map.Entry<PositionImpl, BitSetRecyclable>> iterator = batchDeletedIndexes.entrySet().iterator();
-        while (iterator.hasNext() && result.size() < config.getMaxBatchDeletedIndexToPersist()) {
-            Map.Entry<PositionImpl, BitSetRecyclable> entry = iterator.next();
-            nestedPositionBuilder.setLedgerId(entry.getKey().getLedgerId());
-            nestedPositionBuilder.setEntryId(entry.getKey().getEntryId());
-            batchDeletedIndexInfoBuilder.setPosition(nestedPositionBuilder.build());
-            long[] array = entry.getValue().toLongArray();
-            List<Long> deleteSet = new ArrayList<>(array.length);
-            for (long l : array) {
-                deleteSet.add(l);
+        lock.readLock().lock();
+        try {
+            if (!config.isDeletionAtBatchIndexLevelEnabled() || batchDeletedIndexes == null || batchDeletedIndexes.isEmpty()) {
+                return Collections.emptyList();
             }
-            batchDeletedIndexInfoBuilder.clearDeleteSet();
-            batchDeletedIndexInfoBuilder.addAllDeleteSet(deleteSet);
-            result.add(batchDeletedIndexInfoBuilder.build());
+            MLDataFormats.NestedPositionInfo.Builder nestedPositionBuilder = MLDataFormats.NestedPositionInfo
+                    .newBuilder();
+            MLDataFormats.BatchedEntryDeletionIndexInfo.Builder batchDeletedIndexInfoBuilder = MLDataFormats.BatchedEntryDeletionIndexInfo
+                    .newBuilder();
+            List<MLDataFormats.BatchedEntryDeletionIndexInfo> result = Lists.newArrayList();
+            Iterator<Map.Entry<PositionImpl, BitSetRecyclable>> iterator = batchDeletedIndexes.entrySet().iterator();
+            while (iterator.hasNext() && result.size() < config.getMaxBatchDeletedIndexToPersist()) {
+                Map.Entry<PositionImpl, BitSetRecyclable> entry = iterator.next();
+                nestedPositionBuilder.setLedgerId(entry.getKey().getLedgerId());
+                nestedPositionBuilder.setEntryId(entry.getKey().getEntryId());
+                batchDeletedIndexInfoBuilder.setPosition(nestedPositionBuilder.build());
+                long[] array = entry.getValue().toLongArray();
+                List<Long> deleteSet = new ArrayList<>(array.length);
+                for (long l : array) {
+                    deleteSet.add(l);
+                }
+                batchDeletedIndexInfoBuilder.clearDeleteSet();
+                batchDeletedIndexInfoBuilder.addAllDeleteSet(deleteSet);
+                result.add(batchDeletedIndexInfoBuilder.build());
+            }
+            return result;
+        } finally {
+            lock.readLock().unlock();
         }
-        return result;
     }
 
     void persistPositionToLedger(final LedgerHandle lh, MarkDeleteEntry mdEntry, final VoidCallback callback) {

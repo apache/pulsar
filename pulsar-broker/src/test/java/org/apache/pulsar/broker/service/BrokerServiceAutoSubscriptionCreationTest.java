@@ -99,7 +99,9 @@ public class BrokerServiceAutoSubscriptionCreationTest extends BrokerTestBase {
 
         pulsar.getConfiguration().setAllowAutoSubscriptionCreation(false);
         pulsar.getAdminClient().namespaces().setAutoSubscriptionCreation(topicName.getNamespace(),
-                new AutoSubscriptionCreationOverride(true));
+                AutoSubscriptionCreationOverride.builder()
+                        .allowAutoSubscriptionCreation(true)
+                        .build());
 
         // Subscribe operation should be successful
         pulsarClient.newConsumer().topic(topicName.toString()).subscriptionName(subscriptionName).subscribe();
@@ -116,7 +118,9 @@ public class BrokerServiceAutoSubscriptionCreationTest extends BrokerTestBase {
 
         pulsar.getConfiguration().setAllowAutoSubscriptionCreation(true);
         pulsar.getAdminClient().namespaces().setAutoSubscriptionCreation(topicName.getNamespace(),
-                new AutoSubscriptionCreationOverride(false));
+                AutoSubscriptionCreationOverride.builder()
+                        .allowAutoSubscriptionCreation(false)
+                        .build());
 
         try {
             pulsarClient.newConsumer().topic(topicName.toString()).subscriptionName(subscriptionName).subscribe();

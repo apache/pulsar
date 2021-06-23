@@ -26,47 +26,27 @@
 namespace pulsar {
 struct ConsumerConfigurationImpl {
     SchemaInfo schemaInfo;
-    long unAckedMessagesTimeoutMs;
-    long tickDurationInMs;
+    long unAckedMessagesTimeoutMs{0};
+    long tickDurationInMs{1000};
 
-    long negativeAckRedeliveryDelayMs;
-    long ackGroupingTimeMs;
-    long ackGroupingMaxSize;
-    ConsumerType consumerType;
+    long negativeAckRedeliveryDelayMs{60000};
+    long ackGroupingTimeMs{100};
+    long ackGroupingMaxSize{1000};
+    ConsumerType consumerType{ConsumerExclusive};
     MessageListener messageListener;
-    bool hasMessageListener;
-    int receiverQueueSize;
-    int maxTotalReceiverQueueSizeAcrossPartitions;
+    bool hasMessageListener{false};
+    int receiverQueueSize{1000};
+    int maxTotalReceiverQueueSizeAcrossPartitions{50000};
     std::string consumerName;
-    long brokerConsumerStatsCacheTimeInMs;
+    long brokerConsumerStatsCacheTimeInMs{30 * 1000L};  // 30 seconds
     CryptoKeyReaderPtr cryptoKeyReader;
-    ConsumerCryptoFailureAction cryptoFailureAction;
-    bool readCompacted;
-    InitialPosition subscriptionInitialPosition;
-    int patternAutoDiscoveryPeriod;
+    ConsumerCryptoFailureAction cryptoFailureAction{ConsumerCryptoFailureAction::FAIL};
+    bool readCompacted{false};
+    InitialPosition subscriptionInitialPosition{InitialPosition::InitialPositionLatest};
+    int patternAutoDiscoveryPeriod{60};
+    bool replicateSubscriptionStateEnabled{false};
     std::map<std::string, std::string> properties;
     KeySharedPolicy keySharedPolicy;
-
-    ConsumerConfigurationImpl()
-        : schemaInfo(),
-          unAckedMessagesTimeoutMs(0),
-          tickDurationInMs(1000),
-          negativeAckRedeliveryDelayMs(60000),
-          ackGroupingTimeMs(100),
-          ackGroupingMaxSize(1000),
-          consumerType(ConsumerExclusive),
-          messageListener(),
-          hasMessageListener(false),
-          brokerConsumerStatsCacheTimeInMs(30 * 1000),  // 30 seconds
-          receiverQueueSize(1000),
-          maxTotalReceiverQueueSizeAcrossPartitions(50000),
-          cryptoKeyReader(),
-          cryptoFailureAction(ConsumerCryptoFailureAction::FAIL),
-          readCompacted(false),
-          subscriptionInitialPosition(InitialPosition::InitialPositionLatest),
-          patternAutoDiscoveryPeriod(60),
-          properties(),
-          keySharedPolicy() {}
 };
 }  // namespace pulsar
 #endif /* LIB_CONSUMERCONFIGURATIONIMPL_H_ */

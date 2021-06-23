@@ -37,6 +37,7 @@ cd BUILD
 tar xfz $SRC_ROOT_DIR/target/apache-pulsar-$POM_VERSION-src.tar.gz
 pushd $CPP_DIR
 
+chmod +x $(find . -name "*.sh")
 cmake . -DBUILD_TESTS=OFF -DLINK_STATIC=ON
 make pulsarShared pulsarSharedNossl pulsarStatic pulsarStaticWithDeps  -j 3
 popd

@@ -44,7 +44,7 @@ public class ManagedLedgerMBeanTest extends MockedBookKeeperTestCase {
     public void simple() throws Exception {
         ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
         config.setMaxCacheSize(0);
-        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(bkc, zkc, config);
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger");
         ManagedCursor cursor = ledger.openCursor("c1");
         ManagedLedgerMBeanImpl mbean = ledger.mbean;

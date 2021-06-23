@@ -26,9 +26,22 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar-functions</artifactId>
-    <version>2.8.0-SNAPSHOT</version>
+    <version>2.9.0-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
+
+  <!--
+
+    THIS MODULE SHOULD ONLY CONTAIN THE INTERFACES THAT PULSAR FUNCTION'S FRAMEWORK USES TO INTERACT WITH USER CODE.
+    THIS MODULE SHOULD ONLY DEPEND ON:
+    1. pulsar-io-core
+    2. pulsar-functions-api
+    3. pulsar-client-api
+    4. slf4j-api
+    5. log4j-slf4j-impl
+    6. log4j-api
+    7. log4j-core
+  -->
 
   <artifactId>pulsar-functions-runtime-all</artifactId>
   <name>Pulsar Functions :: Runtime All</name>
@@ -77,6 +90,19 @@
 
   <build>
     <plugins>
+      <!--
+      Disable the maven-jar-plugin since we don't need the default jar and it conflicts with the maven-assembly-plugin
+      -->
+      <plugin>
+        <artifactId>maven-jar-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>default-jar</id>
+            <phase/>
+          </execution>
+        </executions>
+      </plugin>
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-assembly-plugin</artifactId>
@@ -92,7 +118,7 @@
           <execution>
             <id>make-assembly</id>
             <!-- bind to the packaging phase -->
-            <phase>package</phase>
+            <phase>compile</phase>
             <goals>
               <goal>single</goal>
             </goals>

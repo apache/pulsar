@@ -20,8 +20,8 @@ package org.apache.pulsar.broker.intercept;
 
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.client.LedgerHandle;
-import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.mledger.impl.OpAddEntry;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
@@ -80,31 +80,47 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
     }
 
     @Override
-    public void onManagedLedgerLastLedgerInitialize(String name, LedgerHandle lh) {
-        LedgerEntries ledgerEntries = null;
-        try {
-            for (BrokerEntryMetadataInterceptor interceptor : brokerEntryMetadataInterceptors) {
-                if (interceptor instanceof AppendIndexMetadataInterceptor && lh.getLastAddConfirmed() >= 0) {
-                    ledgerEntries =
-                            lh.read(lh.getLastAddConfirmed(), lh.getLastAddConfirmed());
-                    for (LedgerEntry entry : ledgerEntries) {
-                        BrokerEntryMetadata brokerEntryMetadata =
-                                Commands.parseBrokerEntryMetadataIfExist(entry.getEntryBuffer());
-                        if (brokerEntryMetadata != null && brokerEntryMetadata.hasIndex()) {
-                            ((AppendIndexMetadataInterceptor) interceptor)
-                                    .recoveryIndexGenerator(brokerEntryMetadata.getIndex());
+    public CompletableFuture<Void> onManagedLedgerLastLedgerInitialize(String name, LedgerHandle lh) {
+        CompletableFuture<Void> promise = new CompletableFuture<>();
+        boolean hasAppendIndexMetadataInterceptor = brokerEntryMetadataInterceptors.stream()
+                .anyMatch(interceptor -> interceptor instanceof AppendIndexMetadataInterceptor);
+        if (hasAppendIndexMetadataInterceptor && lh.getLastAddConfirmed() >= 0) {
+            lh.readAsync(lh.getLastAddConfirmed(), lh.getLastAddConfirmed()).whenComplete((entries, ex) -> {
+                if (ex != null) {
+                    log.error("[{}] Read last entry error.", name, ex);
+                    promise.completeExceptionally(ex);
+                } else {
+                    if (entries != null) {
+                        try {
+                            LedgerEntry ledgerEntry = entries.getEntry(lh.getLastAddConfirmed());
+                            if (ledgerEntry != null) {
+                                BrokerEntryMetadata brokerEntryMetadata =
+                                        Commands.parseBrokerEntryMetadataIfExist(ledgerEntry.getEntryBuffer());
+                                for (BrokerEntryMetadataInterceptor interceptor : brokerEntryMetadataInterceptors) {
+                                    if (interceptor instanceof AppendIndexMetadataInterceptor) {
+                                        if (brokerEntryMetadata != null && brokerEntryMetadata.hasIndex()) {
+                                            ((AppendIndexMetadataInterceptor) interceptor)
+                                                    .recoveryIndexGenerator(brokerEntryMetadata.getIndex());
+                                        }
+                                    }
+                                }
+                            }
+                            entries.close();
+                            promise.complete(null);
+                        } catch (Exception e) {
+                            log.error("[{}] Failed to recover the index generator from the last add confirmed entry.",
+                                    name, e);
+                            promise.completeExceptionally(e);
                         }
+                    } else {
+                        promise.complete(null);
                     }
-
                 }
-            }
-        } catch (org.apache.bookkeeper.client.api.BKException | InterruptedException e) {
-            log.error("[{}] Read last entry error.", name, e);
-        } finally {
-            if (ledgerEntries != null) {
-                ledgerEntries.close();
-            }
+            });
+        } else {
+            promise.complete(null);
         }
+        return promise;
     }
 
     @Override

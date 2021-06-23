@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils;
 import org.apache.pulsar.common.schema.KeyValue;
@@ -224,6 +225,5 @@ public class TypedMessageBuilderImplTest {
             assertTrue(e.getMessage().contains("This method is not allowed to set keys when in encoding type is SEPARATED"));
         }
     }
-
 
 }

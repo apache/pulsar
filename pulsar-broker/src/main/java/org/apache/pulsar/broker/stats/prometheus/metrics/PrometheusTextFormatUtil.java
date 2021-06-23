@@ -141,7 +141,8 @@ public class PrometheusTextFormatUtil {
                 .append(Double.toString(opStat.getSum(success))).append('\n');
     }
 
-    static void writeMetricsCollectedByPrometheusClient(Writer w, CollectorRegistry registry) throws IOException {
+    public static void writeMetricsCollectedByPrometheusClient(Writer w, CollectorRegistry registry)
+            throws IOException {
         Enumeration<MetricFamilySamples> metricFamilySamples = registry.metricFamilySamples();
         while (metricFamilySamples.hasMoreElements()) {
             MetricFamilySamples metricFamily = metricFamilySamples.nextElement();

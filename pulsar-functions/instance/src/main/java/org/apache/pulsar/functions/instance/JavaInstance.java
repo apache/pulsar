@@ -18,19 +18,21 @@
  */
 package org.apache.pulsar.functions.instance;
 
+import com.google.common.annotations.VisibleForTesting;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import lombok.AccessLevel;
+import lombok.Data;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
-
-import java.util.Map;
 
 /**
  * This is the Java Instance. This is started by the runtimeSpawner using the JavaInstanceClient
@@ -39,6 +41,12 @@ import java.util.Map;
  */
 @Slf4j
 public class JavaInstance implements AutoCloseable {
+
+    @Data
+    public static class AsyncFuncRequest {
+        private final Record record;
+        private final CompletableFuture processResult;
+    }
 
     @Getter(AccessLevel.PACKAGE)
     private final ContextImpl context;
@@ -49,7 +57,7 @@ public class JavaInstance implements AutoCloseable {
     private final InstanceConfig instanceConfig;
     private final ExecutorService executor;
     @Getter
-    private final LinkedBlockingQueue<CompletableFuture<Void>> pendingAsyncRequests;
+    private final LinkedBlockingQueue<AsyncFuncRequest> pendingAsyncRequests;
 
     public JavaInstance(ContextImpl contextImpl, Object userClassObject, InstanceConfig instanceConfig) {
 
@@ -66,12 +74,18 @@ public class JavaInstance implements AutoCloseable {
         }
     }
 
-    public CompletableFuture<JavaExecutionResult> handleMessage(Record<?> record, Object input) {
+    @VisibleForTesting
+    public JavaExecutionResult handleMessage(Record<?> record, Object input) {
+        return handleMessage(record, input, (rec, result) -> {}, cause -> {});
+    }
+
+    public JavaExecutionResult handleMessage(Record<?> record, Object input,
+                                             BiConsumer<Record, JavaExecutionResult> asyncResultConsumer,
+                                             Consumer<Throwable> asyncFailureHandler) {
         if (context != null) {
             context.setCurrentMessageContext(record);
         }
 
-        final CompletableFuture<JavaExecutionResult> future = new CompletableFuture<>();
         JavaExecutionResult executionResult = new JavaExecutionResult();
 
         final Object output;
@@ -84,45 +98,63 @@ public class JavaInstance implements AutoCloseable {
             }
         } catch (Exception ex) {
             executionResult.setUserException(ex);
-            future.complete(executionResult);
-            return future;
+            return executionResult;
         }
 
         if (output instanceof CompletableFuture) {
             // Function is in format: Function<I, CompletableFuture<O>>
+            AsyncFuncRequest request = new AsyncFuncRequest(
+                record, (CompletableFuture) output
+            );
             try {
-                pendingAsyncRequests.put((CompletableFuture) output);
+                pendingAsyncRequests.put(request);
+                ((CompletableFuture) output).whenCompleteAsync((res, cause) -> {
+                    try {
+                        processAsyncResults(asyncResultConsumer);
+                    } catch (Throwable innerException) {
+                        // the thread used for processing async results failed
+                        asyncFailureHandler.accept(innerException);
+                    }
+                }, executor);
+                return null;
             } catch (InterruptedException ie) {
                 log.warn("Exception while put Async requests", ie);
                 executionResult.setUserException(ie);
-                future.complete(executionResult);
-                return future;
+                return executionResult;
             }
-
-            ((CompletableFuture) output).whenCompleteAsync((obj, throwable) -> {
-                if (log.isDebugEnabled()) {
-                    log.debug("Got result async: object: {}, throwable: {}", obj, throwable);
-                }
-
-                if (throwable != null) {
-                    executionResult.setUserException(new Exception((Throwable)throwable));
-                    pendingAsyncRequests.remove(output);
-                    future.complete(executionResult);
-                    return;
-                }
-                executionResult.setResult(obj);
-                pendingAsyncRequests.remove(output);
-                future.complete(executionResult);
-            }, executor);
         } else {
             if (log.isDebugEnabled()) {
                 log.debug("Got result: object: {}", output);
             }
             executionResult.setResult(output);
-            future.complete(executionResult);
+            return executionResult;
+        }
+    }
+
+    private void processAsyncResults(BiConsumer<Record, JavaExecutionResult> resultConsumer)
+        throws InterruptedException {
+        AsyncFuncRequest asyncResult = pendingAsyncRequests.peek();
+        while (asyncResult != null && asyncResult.getProcessResult().isDone()) {
+            pendingAsyncRequests.remove(asyncResult);
+            JavaExecutionResult execResult = new JavaExecutionResult();
+
+            try {
+                Object result = asyncResult.getProcessResult().get();
+                execResult.setResult(result);
+            } catch (ExecutionException e) {
+                if (e.getCause() instanceof Exception) {
+                    execResult.setUserException((Exception) e.getCause());
+                } else {
+                    execResult.setUserException(new Exception(e.getCause()));
+                }
+            }
+
+            resultConsumer.accept(asyncResult.getRecord(), execResult);
+
+            // peek the next result
+            asyncResult = pendingAsyncRequests.peek();
         }
 
-        return future;
     }
 
     @Override

@@ -35,6 +35,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.util.concurrent.atomic.LongAdder;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -66,15 +67,17 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
-import org.apache.pulsar.common.policies.data.ConsumerStats;
-import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
-import org.apache.pulsar.common.policies.data.NonPersistentReplicatorStats;
-import org.apache.pulsar.common.policies.data.NonPersistentSubscriptionStats;
-import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.CursorStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
-import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats.CursorStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublisherStats;
+import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.NonPersistentPublisherStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.NonPersistentReplicatorStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.NonPersistentSubscriptionStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.NonPersistentTopicStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.PublisherStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
@@ -95,6 +98,9 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     private static final AtomicLongFieldUpdater<NonPersistentTopic> ENTRIES_ADDED_COUNTER_UPDATER =
             AtomicLongFieldUpdater.newUpdater(NonPersistentTopic.class, "entriesAddedCounter");
     private volatile long entriesAddedCounter = 0;
+
+    private final LongAdder bytesOutFromRemovedSubscriptions = new LongAdder();
+    private final LongAdder msgOutFromRemovedSubscriptions = new LongAdder();
 
     private static final FastThreadLocal<TopicStats> threadLocalTopicStats = new FastThreadLocal<TopicStats>() {
         @Override
@@ -642,7 +648,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         topicStatsStream.startList("publishers");
         producers.values().forEach(producer -> {
             producer.updateRates();
-            PublisherStats publisherStats = producer.getStats();
+            PublisherStatsImpl publisherStats = producer.getStats();
 
             topicStats.aggMsgRateIn += publisherStats.msgRateIn;
             topicStats.aggMsgThroughputIn += publisherStats.msgThroughputIn;
@@ -684,7 +690,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
                     consumer.updateRates();
 
-                    ConsumerStats consumerStats = consumer.getStats();
+                    ConsumerStatsImpl consumerStats = consumer.getStats();
                     subMsgRateOut += consumerStats.msgRateOut;
                     subMsgThroughputOut += consumerStats.msgThroughputOut;
                     subMsgRateRedeliver += consumerStats.msgRateRedeliver;
@@ -756,14 +762,14 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     }
 
     @Override
-    public NonPersistentTopicStats getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize) {
+    public NonPersistentTopicStatsImpl getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize) {
 
-        NonPersistentTopicStats stats = new NonPersistentTopicStats();
+        NonPersistentTopicStatsImpl stats = new NonPersistentTopicStatsImpl();
 
-        ObjectObjectHashMap<String, PublisherStats> remotePublishersStats = new ObjectObjectHashMap<>();
+        ObjectObjectHashMap<String, PublisherStatsImpl> remotePublishersStats = new ObjectObjectHashMap<>();
 
         producers.values().forEach(producer -> {
-            NonPersistentPublisherStats publisherStats = (NonPersistentPublisherStats) producer.getStats();
+            NonPersistentPublisherStatsImpl publisherStats = (NonPersistentPublisherStatsImpl) producer.getStats();
             stats.msgRateIn += publisherStats.msgRateIn;
             stats.msgThroughputIn += publisherStats.msgThroughputIn;
 
@@ -778,9 +784,11 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         stats.msgInCounter = getMsgInCounter();
         stats.bytesInCounter = getBytesInCounter();
         stats.waitingPublishers = getWaitingProducersCount();
+        stats.bytesOutCounter = bytesOutFromRemovedSubscriptions.longValue();
+        stats.msgOutCounter = msgOutFromRemovedSubscriptions.longValue();
 
         subscriptions.forEach((name, subscription) -> {
-            NonPersistentSubscriptionStats subStats = subscription.getStats();
+            NonPersistentSubscriptionStatsImpl subStats = subscription.getStats();
 
             stats.msgRateOut += subStats.msgRateOut;
             stats.msgThroughputOut += subStats.msgThroughputOut;
@@ -790,10 +798,10 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         });
 
         replicators.forEach((cluster, replicator) -> {
-            NonPersistentReplicatorStats replicatorStats = replicator.getStats();
+            NonPersistentReplicatorStatsImpl replicatorStats = replicator.getStats();
 
             // Add incoming msg rates
-            PublisherStats pubStats = remotePublishersStats.get(replicator.getRemoteCluster());
+            PublisherStatsImpl pubStats = remotePublishersStats.get(replicator.getRemoteCluster());
             if (pubStats != null) {
                 replicatorStats.msgRateIn = pubStats.msgRateIn;
                 replicatorStats.msgThroughputIn = pubStats.msgThroughputIn;
@@ -974,7 +982,13 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     public CompletableFuture<Void> unsubscribe(String subscriptionName) {
         // checkInactiveSubscriptions iterates over subscriptions map and removing from the map with the same thread.
         // That creates deadlock. so, execute remove it in different thread.
-        return CompletableFuture.runAsync(() -> subscriptions.remove(subscriptionName), brokerService.executor());
+        return CompletableFuture.runAsync(() -> {
+            NonPersistentSubscription sub = subscriptions.remove(subscriptionName);
+            // preserve accumulative stats form removed subscription
+            SubscriptionStatsImpl stats = sub.getStats();
+            bytesOutFromRemovedSubscriptions.add(stats.bytesOutCounter);
+            msgOutFromRemovedSubscriptions.add(stats.msgOutCounter);
+        }, brokerService.executor());
     }
 
     @Override

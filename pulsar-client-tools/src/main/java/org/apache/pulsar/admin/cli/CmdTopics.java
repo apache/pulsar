@@ -28,7 +28,6 @@ import com.beust.jcommander.converters.CommaParameterSplitter;
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonObject;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
@@ -44,6 +43,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
+import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Topics;
@@ -59,8 +59,8 @@ import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
-import org.apache.pulsar.common.policies.data.OffloadPolicies.OffloadedReadPriority;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
+import org.apache.pulsar.common.policies.data.OffloadedReadPriority;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PublishRate;
@@ -590,7 +590,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
-            JsonObject result = getTopics().getInternalInfo(topic);
+            String result = getTopics().getInternalInfo(topic);
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             System.out.println(gson.toJson(result));
         }
@@ -1035,13 +1035,13 @@ public class CmdTopics extends CmdBase {
             String persistentTopic = validatePersistentTopic(params);
 
             try {
-                LongRunningProcessStatus status = getTopics().offloadStatus(persistentTopic);
-                while (wait && status.status == LongRunningProcessStatus.Status.RUNNING) {
+                OffloadProcessStatus status = getTopics().offloadStatus(persistentTopic);
+                while (wait && status.getStatus() == LongRunningProcessStatus.Status.RUNNING) {
                     Thread.sleep(1000);
                     status = getTopics().offloadStatus(persistentTopic);
                 }
 
-                switch (status.status) {
+                switch (status.getStatus()) {
                 case NOT_RUN:
                     System.out.println("Offload has not been run for " + persistentTopic
                                        + " since broker startup");
@@ -1054,7 +1054,7 @@ public class CmdTopics extends CmdBase {
                     break;
                 case ERROR:
                     System.out.println("Error in offload");
-                    throw new PulsarAdminException("Error offloading: " + status.lastError);
+                    throw new PulsarAdminException("Error offloading: " + status.getLastError());
                 }
             } catch (InterruptedException e) {
                 throw new PulsarAdminException(e);
@@ -1119,7 +1119,11 @@ public class CmdTopics extends CmdBase {
             limit = validateSizeString(limitStr);
 
             String persistentTopic = validatePersistentTopic(params);
-            getTopics().setBacklogQuota(persistentTopic, new BacklogQuota(limit, limitTime, policy));
+            getTopics().setBacklogQuota(persistentTopic, BacklogQuota.builder()
+                    .limitSize(limit)
+                    .limitTime(limitTime)
+                    .retentionPolicy(policy)
+                    .build());
         }
     }
 
@@ -1175,7 +1179,10 @@ public class CmdTopics extends CmdBase {
                 throw new ParameterException("Need to specify either --enable or --disable");
             }
 
-            getTopics().setDelayedDeliveryPolicy(topicName, new DelayedDeliveryPolicies(delayedDeliveryTimeInMills, enable));
+            getTopics().setDelayedDeliveryPolicy(topicName, DelayedDeliveryPolicies.builder()
+                    .tickTime(delayedDeliveryTimeInMills)
+                    .active(enable)
+                    .build());
         }
     }
 
@@ -1523,7 +1530,7 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
 
-            OffloadedReadPriority offloadedReadPriority = OffloadPolicies.DEFAULT_OFFLOADED_READ_PRIORITY;
+            OffloadedReadPriority offloadedReadPriority = OffloadPoliciesImpl.DEFAULT_OFFLOADED_READ_PRIORITY;
 
             if (this.offloadReadPriorityStr != null) {
                 try {
@@ -1537,7 +1544,7 @@ public class CmdTopics extends CmdBase {
                 }
             }
 
-            OffloadPolicies offloadPolicies = OffloadPolicies.create(driver, region, bucket, endpoint,
+            OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create(driver, region, bucket, endpoint,
                     s3Role, s3RoleSessionName,
                     awsId, awsSecret,
                     maxBlockSizeInBytes,
@@ -1628,7 +1635,12 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             getTopics().setDispatchRate(persistentTopic,
-                new DispatchRate(msgDispatchRate, byteDispatchRate, dispatchRatePeriodSec, relativeToPublishRate));
+                    DispatchRate.builder()
+                            .dispatchThrottlingRateInMsg(msgDispatchRate)
+                            .dispatchThrottlingRateInByte(byteDispatchRate)
+                            .ratePeriodInSecond(dispatchRatePeriodSec)
+                            .relativeToPublishRate(relativeToPublishRate)
+                            .build());
         }
     }
 
@@ -1889,7 +1901,12 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             getTopics().setSubscriptionDispatchRate(persistentTopic,
-                    new DispatchRate(msgDispatchRate, byteDispatchRate, dispatchRatePeriodSec, relativeToPublishRate));
+                    DispatchRate.builder()
+                            .dispatchThrottlingRateInMsg(msgDispatchRate)
+                            .dispatchThrottlingRateInByte(byteDispatchRate)
+                            .ratePeriodInSecond(dispatchRatePeriodSec)
+                            .relativeToPublishRate(relativeToPublishRate)
+                            .build());
         }
     }
 
@@ -1945,7 +1962,12 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             getTopics().setReplicatorDispatchRate(persistentTopic,
-                    new DispatchRate(msgDispatchRate, byteDispatchRate, dispatchRatePeriodSec, relativeToPublishRate));
+                    DispatchRate.builder()
+                            .dispatchThrottlingRateInMsg(msgDispatchRate)
+                            .dispatchThrottlingRateInByte(byteDispatchRate)
+                            .ratePeriodInSecond(dispatchRatePeriodSec)
+                            .relativeToPublishRate(relativeToPublishRate)
+                            .build());
         }
     }
 

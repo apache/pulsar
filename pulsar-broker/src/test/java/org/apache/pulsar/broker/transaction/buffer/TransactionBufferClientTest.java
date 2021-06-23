@@ -26,6 +26,8 @@ import static org.mockito.Mockito.doReturn;
 import com.google.common.collect.Sets;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import lombok.Cleanup;
@@ -53,7 +55,8 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
@@ -77,12 +80,14 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
     TopicName partitionedTopicName = TopicName.get("persistent", "public", "test", "tb-client");
     int partitions = 10;
     BrokerService[] brokerServices;
-    private final static String namespace = "public/test";
+    private static final String namespace = "public/test";
+
+    private EventLoopGroup eventLoopGroup;
 
     @Override
     protected void afterSetup() throws Exception {
-        pulsarAdmins[0].clusters().createCluster("my-cluster", new ClusterData(pulsarServices[0].getWebServiceAddress()));
-        pulsarAdmins[0].tenants().createTenant("public", new TenantInfo(Sets.newHashSet(), Sets.newHashSet("my-cluster")));
+        pulsarAdmins[0].clusters().createCluster("my-cluster", ClusterData.builder().serviceUrl(pulsarServices[0].getWebServiceAddress()).build());
+        pulsarAdmins[0].tenants().createTenant("public", new TenantInfoImpl(Sets.newHashSet(), Sets.newHashSet("my-cluster")));
         pulsarAdmins[0].namespaces().createNamespace(namespace, 10);
         pulsarAdmins[0].topics().createPartitionedTopic(partitionedTopicName.getPartitionedTopicName(), partitions);
         pulsarClient.newConsumer()
@@ -105,10 +110,12 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
             brokerServices = null;
         }
         super.cleanup();
+        eventLoopGroup.shutdownGracefully().get();
     }
 
     @Override
     protected void afterPulsarStart() throws Exception {
+        eventLoopGroup = new NioEventLoopGroup();
         brokerServices = new BrokerService[pulsarServices.length];
         AtomicLong atomicLong = new AtomicLong(0);
         for (int i = 0; i < pulsarServices.length; i++) {
@@ -127,7 +134,7 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
             Mockito.when(topicMap.get(Mockito.anyString())).thenReturn(
                     CompletableFuture.completedFuture(Optional.of(mockTopic)));
 
-            BrokerService brokerService = Mockito.spy(new BrokerService(pulsarServices[i]));
+            BrokerService brokerService = Mockito.spy(new BrokerService(pulsarServices[i], eventLoopGroup));
             doReturn(new MockBrokerInterceptor()).when(brokerService).getInterceptor();
             doReturn(atomicLong.getAndIncrement() + "").when(brokerService).generateUniqueProducerName();
             brokerServices[i] = brokerService;

@@ -83,6 +83,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.schema.SchemaInfoUtil;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandAck;
@@ -128,14 +129,13 @@ import org.apache.pulsar.common.naming.Metadata;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
-import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.TopicOperation;
+import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.CommandUtils;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
-import org.apache.pulsar.common.protocol.schema.SchemaInfoUtil;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -268,14 +268,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         cnxsPerThread.get().remove(this);
 
         // Connection is gone, close the producers immediately
-        producers.values().forEach((producerFuture) -> {
+        producers.forEach((__, producerFuture) -> {
             if (producerFuture.isDone() && !producerFuture.isCompletedExceptionally()) {
                 Producer producer = producerFuture.getNow(null);
                 producer.closeNow(true);
             }
         });
 
-        consumers.values().forEach((consumerFuture) -> {
+        consumers.forEach((__, consumerFuture) -> {
             Consumer consumer;
             if (consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally()) {
                 consumer = consumerFuture.getNow(null);
@@ -566,7 +566,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     ByteBuf createConsumerStatsResponse(Consumer consumer, long requestId) {
-        ConsumerStats consumerStats = consumer.getStats();
+        ConsumerStatsImpl consumerStats = consumer.getStats();
         Subscription subscription = consumer.getSubscription();
 
         BaseCommand cmd = Commands.newConsumerStatsResponseCommand(ServerError.UnknownError, null, requestId);
@@ -986,7 +986,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 .thenCompose(optTopic -> {
                                     if (!optTopic.isPresent()) {
                                         return FutureUtil
-                                                .failedFuture(new TopicNotFoundException("Topic does not exist"));
+                                                .failedFuture(new TopicNotFoundException(
+                                                        "Topic " + topicName + " does not exist"));
                                     }
 
                                     Topic topic = optTopic.get();
@@ -1693,9 +1694,18 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         batchSizeFuture.whenComplete((batchSize, e) -> {
             if (e != null) {
-                ctx.writeAndFlush(Commands.newError(
-                        requestId, ServerError.MetadataError,
-                        "Failed to get batch size for entry " + e.getMessage()));
+                if (e.getCause() instanceof ManagedLedgerException.NonRecoverableLedgerException) {
+                    // in this case, the ledgers been removed except the current ledger
+                    // and current ledger without any data
+                    ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId,
+                            -1, -1, partitionIndex, -1,
+                            markDeletePosition != null ? markDeletePosition.getLedgerId() : -1,
+                            markDeletePosition != null ? markDeletePosition.getEntryId() : -1));
+                } else {
+                    ctx.writeAndFlush(Commands.newError(
+                            requestId, ServerError.MetadataError,
+                            "Failed to get batch size for entry " + e.getMessage()));
+                }
             } else {
                 int largestBatchIndex = batchSize > 0 ? batchSize - 1 : -1;
 
@@ -1887,7 +1897,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
 
         service.pulsar().getTransactionMetadataStoreService()
-                .endTransaction(txnID, txnAction)
+                .endTransaction(txnID, txnAction, false)
                 .thenRun(() -> ctx.writeAndFlush(Commands.newEndTxnResponse(requestId,
                         txnID.getLeastSigBits(), txnID.getMostSigBits())))
                 .exceptionally(throwable -> {
