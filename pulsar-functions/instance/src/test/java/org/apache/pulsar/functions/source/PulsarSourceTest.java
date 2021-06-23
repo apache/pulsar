@@ -343,13 +343,13 @@ public class PulsarSourceTest {
 
         if (pulsarSourceConfig instanceof SingleConsumerPulsarSourceConfig) {
             SingleConsumerPulsarSourceConfig cfg = (SingleConsumerPulsarSourceConfig) pulsarSourceConfig;
-            Assert.assertEquals(1, pulsarSource.getInputConsumers().size());
+            Assert.assertEquals(pulsarSource.getInputConsumers().size(), 1);
             return;
         }
 
         if (pulsarSourceConfig instanceof MultiConsumerPulsarSourceConfig) {
             MultiConsumerPulsarSourceConfig cfg = (MultiConsumerPulsarSourceConfig) pulsarSourceConfig;
-            Assert.assertEquals(cfg.getTopicSchema().size(), pulsarSource.getInputConsumers().size());
+            Assert.assertEquals(pulsarSource.getInputConsumers().size(), cfg.getTopicSchema().size());
             return;
         }
 
