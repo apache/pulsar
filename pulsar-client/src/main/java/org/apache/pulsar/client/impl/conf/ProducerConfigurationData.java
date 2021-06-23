@@ -188,8 +188,8 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     }
 
     public enum BatcherBuilderType {
-        DEFAULT(BatcherBuilder.DEFAULT),
-        KEY_BASED(BatcherBuilder.KEY_BASED);
+        Default(BatcherBuilder.DEFAULT),
+        Key_Based(BatcherBuilder.KEY_BASED);
 
         private final BatcherBuilder batcherBuilder;
 

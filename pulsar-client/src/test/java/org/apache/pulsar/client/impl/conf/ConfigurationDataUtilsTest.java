@@ -76,12 +76,12 @@ public class ConfigurationDataUtilsTest {
         confData.setProducerName("unset");
         confData.setBatchingEnabled(true);
         confData.setBatchingMaxMessages(1234);
-        confData.setBatcherBuilderType(ProducerConfigurationData.BatcherBuilderType.DEFAULT);
+        confData.setBatcherBuilderType(ProducerConfigurationData.BatcherBuilderType.Default);
         confData.setAutoUpdatePartitionsIntervalSeconds(1, TimeUnit.MINUTES);
         Map<String, Object> config = new HashMap<>();
         config.put("producerName", "test-producer");
         config.put("batchingEnabled", false);
-        config.put("batcherBuilderType", "KEY_BASED");
+        config.put("batcherBuilderType", "Key_Based");
         confData = ConfigurationDataUtils.loadData(config, confData, ProducerConfigurationData.class);
         assertEquals("test-producer", confData.getProducerName());
         assertFalse(confData.isBatchingEnabled());
