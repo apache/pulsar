@@ -2402,7 +2402,7 @@ public class PersistentTopic extends AbstractTopic
                                 }
                                 future.complete(expired);
                             } catch (Exception e) {
-                                log.error("[{}][{}] Error deserializing message for backlog check", e);
+                                log.error("[{}][{}] Error deserializing message for backlog check", topicName, e);
                                 future.complete(false);
                             } finally {
                                 entry.release();
