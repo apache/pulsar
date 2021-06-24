@@ -68,7 +68,7 @@ public class TransactionAggregator {
                                     generateManageLedgerStats(managedLedger,
                                             stream, cluster, namespace, name, subscription.getName());
                                 } catch (Exception e) {
-                                    if (e instanceof BrokerServiceException.NotAllowedException) {
+                                    if (e.getCause() instanceof BrokerServiceException.NotAllowedException) {
                                         // ignore
                                     } else {
                                         log.warn("Transaction pending ack generate managedLedgerStats fail!", e);
