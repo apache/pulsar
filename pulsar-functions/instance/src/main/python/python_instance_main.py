@@ -158,7 +158,10 @@ def main():
     tls_allow_insecure_connection = True
   if args.tls_trust_cert_path:
      tls_trust_cert_path =  args.tls_trust_cert_path
-  pulsar_client = pulsar.Client(args.pulsar_serviceurl, authentication, 30, 1, 1, 50000, None, use_tls, tls_trust_cert_path, tls_allow_insecure_connection)
+  pulsar_client = pulsar.Client(args.pulsar_serviceurl, authentication=authentication, operation_timeout_seconds=30,
+                                io_threads=1, message_listener_threads=1, concurrent_lookup_requests=50000,
+                                log_conf_file_path=None, use_tls=use_tls, tls_trust_certs_file_path=tls_trust_cert_path,
+                                tls_allow_insecure_connection=tls_allow_insecure_connection)
 
   state_storage_serviceurl = None
   if args.state_storage_serviceurl is not None:
