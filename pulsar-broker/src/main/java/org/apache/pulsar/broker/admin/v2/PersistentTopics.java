@@ -1762,6 +1762,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
             .thenCompose(__ -> internalSetDeduplication(null))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
