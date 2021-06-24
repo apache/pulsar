@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.broker.systopic;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 import org.apache.pulsar.common.naming.TopicName;
-import org.junit.Test;
+import org.testng.annotations.Test;
 
 public class SystemTopicClientTest {
 

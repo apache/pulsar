@@ -18,21 +18,19 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 
 import java.lang.reflect.Field;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
