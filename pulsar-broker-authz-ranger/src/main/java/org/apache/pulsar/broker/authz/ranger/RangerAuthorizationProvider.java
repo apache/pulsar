@@ -18,11 +18,13 @@
  */
 package org.apache.pulsar.broker.authz.ranger;
 
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import javax.ws.rs.core.Response;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
@@ -47,9 +49,6 @@ import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.ws.rs.core.Response;
-
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 public class RangerAuthorizationProvider implements AuthorizationProvider {
 

@@ -95,17 +95,19 @@ public class RangerAuthorizationProvider implements AuthorizationProvider {
 
     @Override
     public CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName,
-            String role, AuthenticationDataSource authenticationData) {
+                                                            String role, AuthenticationDataSource authenticationData) {
         return authorizationProvider.allowFunctionOpsAsync(namespaceName, role, authenticationData);
     }
 
     @Override
-    public CompletableFuture<Boolean> allowSourceOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
+    public CompletableFuture<Boolean> allowSourceOpsAsync(NamespaceName namespaceName,
+                                                          String role, AuthenticationDataSource authenticationData) {
         return authorizationProvider.allowSourceOpsAsync(namespaceName, role, authenticationData);
     }
 
     @Override
-    public CompletableFuture<Boolean> allowSinkOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
+    public CompletableFuture<Boolean> allowSinkOpsAsync(NamespaceName namespaceName,
+                                                        String role, AuthenticationDataSource authenticationData) {
         return authorizationProvider.allowSinkOpsAsync(namespaceName, role, authenticationData);
     }
 
@@ -148,13 +150,14 @@ public class RangerAuthorizationProvider implements AuthorizationProvider {
     @Override
     public CompletableFuture<Boolean> allowNamespaceOperationAsync(NamespaceName namespaceName,
             String role, NamespaceOperation operation, AuthenticationDataSource authData) {
-        return authorizationProvider.allowNamespaceOperationAsync(namespaceName, role, operation,authData);
+        return authorizationProvider.allowNamespaceOperationAsync(namespaceName, role, operation, authData);
     }
 
     @Override
     public CompletableFuture<Boolean> allowNamespacePolicyOperationAsync(NamespaceName namespaceName,
             PolicyName policy, PolicyOperation operation, String role, AuthenticationDataSource authData) {
-        return authorizationProvider.allowNamespacePolicyOperationAsync(namespaceName, policy, operation, role, authData);
+        return authorizationProvider.allowNamespacePolicyOperationAsync(
+                namespaceName, policy, operation, role, authData);
     }
 
     @Override
