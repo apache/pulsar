@@ -62,7 +62,6 @@ public class PulsarOffsetBackingStoreTest extends ProducerConsumerBase {
         super.producerBaseSetup();
 
         this.topicName = "persistent://my-property/my-ns/offset-topic";
-        this.defaultProps.put(PulsarKafkaWorkerConfig.PULSAR_SERVICE_URL_CONFIG, brokerUrl.toString());
         this.defaultProps.put(PulsarKafkaWorkerConfig.OFFSET_STORAGE_TOPIC_CONFIG, topicName);
         this.distributedConfig = new PulsarKafkaWorkerConfig(this.defaultProps);
         this.client = PulsarClient.builder()

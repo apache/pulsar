@@ -66,9 +66,6 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
     public void configure(WorkerConfig workerConfig) {
         this.topic = workerConfig.getString(PulsarKafkaWorkerConfig.OFFSET_STORAGE_TOPIC_CONFIG);
         checkArgument(!isBlank(topic), "Offset storage topic must be specified");
-        this.serviceUrl = workerConfig.getString(PulsarKafkaWorkerConfig.PULSAR_SERVICE_URL_CONFIG);
-        checkArgument(!isBlank(serviceUrl), "Pulsar service url must be specified at `"
-            + WorkerConfig.BOOTSTRAP_SERVERS_CONFIG + "`");
         this.data = new HashMap<>();
 
         log.info("Configure offset backing store on pulsar topic {} at cluster {}",

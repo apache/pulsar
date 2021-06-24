@@ -67,7 +67,6 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
         config.put(PulsarKafkaWorkerConfig.VALUE_CONVERTER_CLASS_CONFIG, "org.apache.kafka.connect.storage.StringConverter");
 
         this.offsetTopicName = "persistent://my-property/my-ns/kafka-connect-source-offset";
-        config.put(PulsarKafkaWorkerConfig.PULSAR_SERVICE_URL_CONFIG, brokerUrl.toString());
         config.put(PulsarKafkaWorkerConfig.OFFSET_STORAGE_TOPIC_CONFIG, offsetTopicName);
 
         this.topicName = "persistent://my-property/my-ns/kafka-connect-source";
