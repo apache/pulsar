@@ -207,7 +207,7 @@
 <tr><td>allowAutoTopicCreationType</td><td>The topic type (partitioned or non-partitioned) that is allowed to be automatically created.</td><td>Partitioned</td></tr>
 <tr><td>allowAutoSubscriptionCreation</td><td>Enable subscription auto creation if a new consumer connected</td><td>true</td></tr>
 <tr><td>defaultNumPartitions</td><td>The number of partitioned topics that is allowed to be automatically created if <code>allowAutoTopicCreationType</code> is partitioned</td><td>1</td></tr>
-<tr><td>brokerDeleteInactiveTopicsEnabled</td><td>Enable the deletion of inactive topics</td><td>true</td></tr>
+<tr><td>brokerDeleteInactiveTopicsEnabled</td><td>Enable the deletion of inactive topics. If topics are not consumed for some while, these inactive topics might be cleaned up. Deleting inactive topics is enabled by default. The default period is 1 minute.</td><td>true</td></tr>
 <tr><td>brokerDeleteInactiveTopicsFrequencySeconds</td><td>How often to check for inactive topics</td><td>60</td></tr>
 <tr><td>brokerDeleteInactiveTopicsMode</td><td>Set the mode to delete inactive topics. <li> <code>delete_when_no_subscriptions</code>: 删除没有订阅或活动生产者的主题。 <li> <code>delete_when_subscriptions_caught_up</code>: delete the topic whose subscriptions have no backlogs and which has no active producers or consumers.</td><td><code>delete_when_no_subscriptions</code></td></tr>
 <tr><td>brokerDeleteInactiveTopicsMaxInactiveDurationSeconds</td><td>Set the maximum duration for inactive topics. If it is not specified, the <code>brokerDeleteInactiveTopicsFrequencySeconds</code> parameter is adopted.</td><td>N/A</td></tr>
@@ -444,7 +444,7 @@
 <tr><td>backlogQuotaCheckIntervalInSeconds</td><td>How often to check for topics that have reached the backlog quota.</td><td>60</td></tr>
 <tr><td>backlogQuotaDefaultLimitGB</td><td>The default per-topic backlog quota limit.</td><td>10</td></tr>
 <tr><td>ttlDurationDefaultInSeconds</td><td>The default Time to Live (TTL) for namespaces if the TTL is not configured at namespace policies. When the value is set to <code>0</code>, TTL is disabled. By default, TTL is disabled.</td><td>0</td></tr>
-<tr><td>brokerDeleteInactiveTopicsEnabled</td><td>Enable the deletion of inactive topics.</td><td>true</td></tr>
+<tr><td>brokerDeleteInactiveTopicsEnabled</td><td>Enable the deletion of inactive topics. If topics are not consumed for some while, these inactive topics might be cleaned up. Deleting inactive topics is enabled by default. The default period is 1 minute.</td><td>true</td></tr>
 <tr><td>brokerDeleteInactiveTopicsFrequencySeconds</td><td>How often to check for inactive topics, in seconds.</td><td>60</td></tr>
 <tr><td>messageExpiryCheckIntervalInMinutes</td><td>How often to proactively check and purged expired messages.</td><td>5</td></tr>
 <tr><td>activeConsumerFailoverDelayTimeMillis</td><td>How long to delay rewinding cursor and dispatching messages when active consumer is changed.</td><td>1000</td></tr>

@@ -974,18 +974,6 @@ table {
     <li class="set"><h3><a href="#header-classes">Classes</a></h3>
       <ul>
         <li class="mono">
-        <span class="class_name"><a href="#pulsar.schema.schema.AvroSchema">AvroSchema</a></span>
-        
-          
-  <ul>
-    <li class="mono"><a href="#pulsar.schema.schema.AvroSchema.__init__">__init__</a></li>
-    <li class="mono"><a href="#pulsar.schema.schema.AvroSchema.decode">decode</a></li>
-    <li class="mono"><a href="#pulsar.schema.schema.AvroSchema.encode">encode</a></li>
-    <li class="mono"><a href="#pulsar.schema.schema.AvroSchema.schema_info">schema_info</a></li>
-  </ul>
-
-        </li>
-        <li class="mono">
         <span class="class_name"><a href="#pulsar.schema.schema.BytesSchema">BytesSchema</a></span>
         
           
@@ -1074,9 +1062,7 @@ table {
 
 from abc import abstractmethod
 import json
-import fastavro
 import _pulsar
-import io
 import enum
 
 
@@ -1149,31 +1135,6 @@ class JsonSchema(Schema):
 
     def decode(self, data):
         return self._record_cls(**json.loads(data))
-
-
-class AvroSchema(Schema):
-    def __init__(self, record_cls):
-        super(AvroSchema, self).__init__(record_cls, _pulsar.SchemaType.AVRO,
-                                         record_cls.schema(), 'AVRO')
-        self._schema = record_cls.schema()
-
-    def _get_serialized_value(self, x):
-        if isinstance(x, enum.Enum):
-            return x.name
-        else:
-            return x
-
-    def encode(self, obj):
-        self._validate_object_type(obj)
-        buffer = io.BytesIO()
-        m = {k: self._get_serialized_value(v) for k, v in obj.__dict__.items()}
-        fastavro.schemaless_writer(buffer, self._schema, m)
-        return buffer.getvalue()
-
-    def decode(self, data):
-        buffer = io.BytesIO(data)
-        d = fastavro.schemaless_reader(buffer, self._schema)
-        return self._record_cls(**d)
 </code></pre>
   </div>
 
@@ -1183,156 +1144,6 @@ class AvroSchema(Schema):
 
 
     <h2 class="section-title" id="header-classes">Classes</h2>
-      
-      <div class="item">
-      <p id="pulsar.schema.schema.AvroSchema" class="name">class <span class="ident">AvroSchema</span></p>
-      
-  
-  <div class="source_cont">
-  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.schema.schema.AvroSchema', this);">Show source &equiv;</a></p>
-  <div id="source-pulsar.schema.schema.AvroSchema" class="source">
-    <pre><code>class AvroSchema(Schema):
-    def __init__(self, record_cls):
-        super(AvroSchema, self).__init__(record_cls, _pulsar.SchemaType.AVRO,
-                                         record_cls.schema(), 'AVRO')
-        self._schema = record_cls.schema()
-
-    def _get_serialized_value(self, x):
-        if isinstance(x, enum.Enum):
-            return x.name
-        else:
-            return x
-
-    def encode(self, obj):
-        self._validate_object_type(obj)
-        buffer = io.BytesIO()
-        m = {k: self._get_serialized_value(v) for k, v in obj.__dict__.items()}
-        fastavro.schemaless_writer(buffer, self._schema, m)
-        return buffer.getvalue()
-
-    def decode(self, data):
-        buffer = io.BytesIO(data)
-        d = fastavro.schemaless_reader(buffer, self._schema)
-        return self._record_cls(**d)
-</code></pre>
-  </div>
-</div>
-
-
-      <div class="class">
-          <h3>Ancestors (in MRO)</h3>
-          <ul class="class_list">
-          <li><a href="#pulsar.schema.schema.AvroSchema">AvroSchema</a></li>
-          <li><a href="#pulsar.schema.schema.Schema">Schema</a></li>
-          <li>__builtin__.object</li>
-          </ul>
-          <h3>Methods</h3>
-            
-  <div class="item">
-    <div class="name def" id="pulsar.schema.schema.AvroSchema.__init__">
-    <p>def <span class="ident">__init__</span>(</p><p>self, record_cls)</p>
-    </div>
-    
-    <p class="inheritance">
-     <strong>Inheritance:</strong>
-       <code><a href="#pulsar.schema.schema.Schema">Schema</a></code>.<code><a href="#pulsar.schema.schema.Schema.__init__">__init__</a></code>
-    </p>
-
-    
-  
-  <div class="source_cont">
-  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.schema.schema.AvroSchema.__init__', this);">Show source &equiv;</a></p>
-  <div id="source-pulsar.schema.schema.AvroSchema.__init__" class="source">
-    <pre><code>def __init__(self, record_cls):
-    super(AvroSchema, self).__init__(record_cls, _pulsar.SchemaType.AVRO,
-                                     record_cls.schema(), 'AVRO')
-    self._schema = record_cls.schema()
-</code></pre>
-  </div>
-</div>
-
-  </div>
-  
-            
-  <div class="item">
-    <div class="name def" id="pulsar.schema.schema.AvroSchema.decode">
-    <p>def <span class="ident">decode</span>(</p><p>self, data)</p>
-    </div>
-    
-    <p class="inheritance">
-     <strong>Inheritance:</strong>
-       <code><a href="#pulsar.schema.schema.Schema">Schema</a></code>.<code><a href="#pulsar.schema.schema.Schema.decode">decode</a></code>
-    </p>
-
-    
-  
-  <div class="source_cont">
-  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.schema.schema.AvroSchema.decode', this);">Show source &equiv;</a></p>
-  <div id="source-pulsar.schema.schema.AvroSchema.decode" class="source">
-    <pre><code>def decode(self, data):
-    buffer = io.BytesIO(data)
-    d = fastavro.schemaless_reader(buffer, self._schema)
-    return self._record_cls(**d)
-</code></pre>
-  </div>
-</div>
-
-  </div>
-  
-            
-  <div class="item">
-    <div class="name def" id="pulsar.schema.schema.AvroSchema.encode">
-    <p>def <span class="ident">encode</span>(</p><p>self, obj)</p>
-    </div>
-    
-    <p class="inheritance">
-     <strong>Inheritance:</strong>
-       <code><a href="#pulsar.schema.schema.Schema">Schema</a></code>.<code><a href="#pulsar.schema.schema.Schema.encode">encode</a></code>
-    </p>
-
-    
-  
-  <div class="source_cont">
-  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.schema.schema.AvroSchema.encode', this);">Show source &equiv;</a></p>
-  <div id="source-pulsar.schema.schema.AvroSchema.encode" class="source">
-    <pre><code>def encode(self, obj):
-    self._validate_object_type(obj)
-    buffer = io.BytesIO()
-    m = {k: self._get_serialized_value(v) for k, v in obj.__dict__.items()}
-    fastavro.schemaless_writer(buffer, self._schema, m)
-    return buffer.getvalue()
-</code></pre>
-  </div>
-</div>
-
-  </div>
-  
-            
-  <div class="item">
-    <div class="name def" id="pulsar.schema.schema.AvroSchema.schema_info">
-    <p>def <span class="ident">schema_info</span>(</p><p>self)</p>
-    </div>
-    
-    <p class="inheritance">
-     <strong>Inheritance:</strong>
-       <code><a href="#pulsar.schema.schema.Schema">Schema</a></code>.<code><a href="#pulsar.schema.schema.Schema.schema_info">schema_info</a></code>
-    </p>
-
-    
-  
-  <div class="source_cont">
-  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.schema.schema.AvroSchema.schema_info', this);">Show source &equiv;</a></p>
-  <div id="source-pulsar.schema.schema.AvroSchema.schema_info" class="source">
-    <pre><code>def schema_info(self):
-    return self._schema_info
-</code></pre>
-  </div>
-</div>
-
-  </div>
-  
-      </div>
-      </div>
       
       <div class="item">
       <p id="pulsar.schema.schema.BytesSchema" class="name">class <span class="ident">BytesSchema</span></p>
