@@ -436,6 +436,9 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
 
         // close the producer, open again
         sink = new KafkaConnectSink();
+        when(context.getPulsarClient()).then(PulsarClient.builder()
+                .serviceUrl(brokerUrl.toString())
+                .build());
         sink.open(props, context);
 
         // offset is 1 after reopening the producer

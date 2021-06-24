@@ -53,6 +53,7 @@ public class PulsarOffsetBackingStoreTest extends ProducerConsumerBase {
     private PulsarKafkaWorkerConfig distributedConfig;
     private String topicName;
     private PulsarOffsetBackingStore offsetBackingStore;
+    private PulsarClient client;
 
     @BeforeMethod
     @Override
@@ -64,7 +65,9 @@ public class PulsarOffsetBackingStoreTest extends ProducerConsumerBase {
         this.defaultProps.put(PulsarKafkaWorkerConfig.PULSAR_SERVICE_URL_CONFIG, brokerUrl.toString());
         this.defaultProps.put(PulsarKafkaWorkerConfig.OFFSET_STORAGE_TOPIC_CONFIG, topicName);
         this.distributedConfig = new PulsarKafkaWorkerConfig(this.defaultProps);
-        PulsarClient client = mock(PulsarClient.class);
+        this.client = PulsarClient.builder()
+                .serviceUrl(brokerUrl.toString())
+                .build();
         this.offsetBackingStore = new PulsarOffsetBackingStore(client);
         this.offsetBackingStore.configure(distributedConfig);
         this.offsetBackingStore.start();

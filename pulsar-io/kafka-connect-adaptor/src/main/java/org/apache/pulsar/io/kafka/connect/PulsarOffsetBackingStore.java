@@ -141,22 +141,23 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
     @Override
     public void start() {
         try {
-            log.info("Successfully created pulsar client to {}", serviceUrl);
             producer = client.newProducer(Schema.BYTES)
                 .topic(topic)
                 .create();
             log.info("Successfully created producer to produce updates to topic {}", topic);
+
             reader = client.newReader(Schema.BYTES)
                     .topic(topic)
                     .startMessageId(MessageId.earliest)
                 .create();
             log.info("Successfully created reader to replay updates from topic {}", topic);
+
             CompletableFuture<Void> endFuture = new CompletableFuture<>();
             readToEnd(endFuture);
             endFuture.join();
         } catch (PulsarClientException e) {
-            log.error("Failed to create pulsar client to cluster at {}", serviceUrl, e);
-            throw new RuntimeException("Failed to create pulsar client to cluster at " + serviceUrl, e);
+            log.error("Failed to setup pulsar producer/reader to cluster at {}", serviceUrl, e);
+            throw new RuntimeException("Failed to setup pulsar producer/reader to cluster at " + serviceUrl, e);
         }
     }
 

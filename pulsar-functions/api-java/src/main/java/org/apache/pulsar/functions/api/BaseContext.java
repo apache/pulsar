@@ -198,5 +198,7 @@ public interface BaseContext {
      *
      * @return the instance of pulsar client
      */
-    PulsarClient getPulsarClient();
+    default PulsarClient getPulsarClient() {
+        throw new UnsupportedOperationException("not implemented");
+    }
 }
