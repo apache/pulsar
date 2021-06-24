@@ -99,8 +99,8 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         this.client = PulsarClient.builder()
                 .serviceUrl(brokerUrl.toString())
                 .build();
-        when(mockCtx.getSubscriptionType()).thenReturn(SubscriptionType.Failover);
-        when(mockCtx.getPulsarClient()).thenReturn(client);
+        when(context.getSubscriptionType()).thenReturn(SubscriptionType.Failover);
+        when(context.getPulsarClient()).thenReturn(client);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -177,13 +177,13 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         assertEquals(MessageIdUtils.getOffset(msgId), sink.currentOffset(tp.topic(), tp.partition()));
 
         sink.taskContext.offset(tp, 0);
-        verify(mockCtx, times(1)).seek(Mockito.anyString(), Mockito.anyInt(), any());
+        verify(context, times(1)).seek(Mockito.anyString(), Mockito.anyInt(), any());
         assertEquals(0, sink.currentOffset(tp.topic(), tp.partition()));
 
         sink.taskContext.pause(tp);
-        verify(mockCtx, times(1)).pause(tp.topic(), tp.partition());
+        verify(context, times(1)).pause(tp.topic(), tp.partition());
         sink.taskContext.resume(tp);
-        verify(mockCtx, times(1)).resume(tp.topic(), tp.partition());
+        verify(context, times(1)).resume(tp.topic(), tp.partition());
 
         sink.close();
     }
@@ -416,7 +416,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
 
         KafkaConnectSink sink = new KafkaConnectSink();
         when(context.getSubscriptionType()).thenReturn(SubscriptionType.Exclusive);
-        sink.open(props, mockCtx);
+        sink.open(props, context);
 
         // offset is -1 before any data is written (aka no offset)
         assertEquals(-1L, sink.currentOffset(topicName, partition));
@@ -436,7 +436,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
 
         // close the producer, open again
         sink = new KafkaConnectSink();
-        sink.open(props, mockCtx);
+        sink.open(props, context);
 
         // offset is 1 after reopening the producer
         assertEquals(1, sink.currentOffset(topicName, partition));
