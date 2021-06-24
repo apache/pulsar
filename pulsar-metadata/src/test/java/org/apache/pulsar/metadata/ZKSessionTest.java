@@ -178,7 +178,6 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
         Thread.sleep(2_000);
         Awaitility.await()
                 .untilAsserted(()-> assertEquals(le1.getState(),LeaderElectionState.Leading));
-        assertEquals(le1.getState(),LeaderElectionState.Leading);
         assertTrue(store.get(path).join().isPresent());
     }
 }
