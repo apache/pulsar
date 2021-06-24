@@ -22,13 +22,10 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
-
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.apache.pulsar.metadata.api.coordination.LeaderElection;
@@ -171,10 +168,12 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
         e = sessionEvents.poll(10, TimeUnit.SECONDS);
         assertEquals(e, SessionEvent.SessionLost);
 
-        Awaitility.await().untilAsserted(() -> {
-            assertEquals(le1.getState(), LeaderElectionState.Leading);
-        });
-
+        // due to zookeeper async notice, we need to wait.
+        Awaitility.await()
+                .until(() -> le1.getState() == LeaderElectionState.Leading);
+        assertEquals(le1.getState(), LeaderElectionState.Leading);
+        Awaitility.await()
+                .until(()-> leaderElectionEvents.poll() == null);
         les = leaderElectionEvents.poll();
         assertNull(les);
 
@@ -183,9 +182,10 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
         e = sessionEvents.poll(10, TimeUnit.SECONDS);
         assertEquals(e, SessionEvent.SessionReestablished);
 
-        Awaitility.await().untilAsserted(() -> {
-                    assertEquals(le1.getState(), LeaderElectionState.Leading);
-        });
+        // due to zookeeper async notice, we need to wait.
+        Awaitility.await()
+                .until(() -> le1.getState() == LeaderElectionState.Leading);
+        assertEquals(le1.getState(), LeaderElectionState.Leading);
         les = leaderElectionEvents.poll();
         assertNull(les);
 
