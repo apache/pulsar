@@ -1048,12 +1048,12 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                     clientBuilder.serviceUrl(
                             isNotBlank(data.getBrokerServiceUrl()) ? data.getBrokerServiceUrl() : data.getServiceUrl());
                 }
-                if (data.getProxyProtocol() != null && StringUtils.isNotBlank(data.getProxyServiceUrl())) {
+                if (StringUtils.isNotBlank(data.getProxyServiceUrl())) {
                     clientBuilder.proxyServiceUrl(data.getProxyServiceUrl(), data.getProxyProtocol());
                     log.info("Configuring proxy-url {} with protocol {}", data.getProxyServiceUrl(),
                             data.getProxyProtocol());
                 }
-                if (data.getListenerName() != null && StringUtils.isNotBlank(data.getListenerName())) {
+                if (StringUtils.isNotBlank(data.getListenerName())) {
                     clientBuilder.listenerName(data.getListenerName());
                     log.info("Configuring listenerName {}", data.getListenerName());
                 }
