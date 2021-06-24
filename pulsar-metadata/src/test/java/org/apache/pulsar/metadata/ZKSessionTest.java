@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
@@ -23,6 +23,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
+import java.time.Duration;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -137,7 +138,7 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
         assertTrue(store.get(path).join().isPresent());
     }
 
-    @Test
+    @Test(invocationCount = 200)
     public void testReacquireLeadershipAfterSessionLost() throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(zks.getConnectionString(),
@@ -171,10 +172,12 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
         e = sessionEvents.poll(10, TimeUnit.SECONDS);
         assertEquals(e, SessionEvent.SessionLost);
 
-        Awaitility.await().untilAsserted(() -> {
-            assertEquals(le1.getState(), LeaderElectionState.Leading);
-        });
-
+        // due to zookeeper async notice, we need to wait.
+        Awaitility.await()
+                .until(() -> le1.getState() == LeaderElectionState.Leading);
+        assertEquals(le1.getState(), LeaderElectionState.Leading);
+        Awaitility.await()
+                .until(()-> leaderElectionEvents.poll() == null);
         les = leaderElectionEvents.poll();
         assertNull(les);
 
@@ -184,7 +187,7 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
         assertEquals(e, SessionEvent.SessionReestablished);
 
         Awaitility.await().untilAsserted(() -> {
-                    assertEquals(le1.getState(), LeaderElectionState.Leading);
+            assertEquals(le1.getState(), LeaderElectionState.Leading);
         });
         les = leaderElectionEvents.poll();
         assertNull(les);
