@@ -355,7 +355,6 @@ class Client:
     def __init__(self, service_url,
                  authentication=None,
                  operation_timeout_seconds=30,
-                 connection_timeout_ms=10000,
                  io_threads=1,
                  message_listener_threads=1,
                  concurrent_lookup_requests=50000,
@@ -364,7 +363,8 @@ class Client:
                  tls_trust_certs_file_path=None,
                  tls_allow_insecure_connection=False,
                  tls_validate_hostname=False,
-                 logger=None
+                 logger=None,
+                 connection_timeout_ms=10000,
                  ):
         """
         Create a new Pulsar client instance.
@@ -381,8 +381,6 @@ class Client:
         * `operation_timeout_seconds`:
           Set timeout on client operations (subscribe, create producer, close,
           unsubscribe).
-        * `connection_timeout_ms`:
-          Set timeout in milliseconds on TCP connections.
         * `io_threads`:
           Set the number of IO threads to be used by the Pulsar client.
         * `message_listener_threads`:
@@ -412,6 +410,8 @@ class Client:
           the endpoint.
         * `logger`:
           Set a Python logger for this Pulsar client. Should be an instance of `logging.Logger`.
+        * `connection_timeout_ms`:
+          Set timeout in milliseconds on TCP connections.
         """
         _check_type(str, service_url, 'service_url')
         _check_type_or_none(Authentication, authentication, 'authentication')
