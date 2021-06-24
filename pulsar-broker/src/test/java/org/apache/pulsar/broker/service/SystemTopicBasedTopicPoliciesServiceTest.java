@@ -201,6 +201,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         assertNotNull(listMap.get(topicName).get(0));
 
         admin.topics().deletePartitionedTopic(topic, true);
+        admin.namespaces().unload(NAMESPACE1);
         assertNull(map.get(topicName));
         assertNull(listMap.get(topicName));
     }
