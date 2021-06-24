@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.io.kafka.connect;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -33,6 +35,7 @@ import org.apache.kafka.connect.runtime.TaskConfig;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.io.core.SourceContext;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -49,6 +52,8 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
     private String topicName;
     private KafkaConnectSource kafkaConnectSource;
     private File tempFile;
+    private SourceContext context;
+    private PulsarClient client;
 
     @BeforeMethod
     @Override
@@ -70,11 +75,19 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
         config.put(FileStreamSourceConnector.FILE_CONFIG, tempFile.getAbsoluteFile().toString());
         config.put(FileStreamSourceConnector.TASK_BATCH_SIZE_CONFIG, String.valueOf(FileStreamSourceConnector.DEFAULT_TASK_BATCH_SIZE));
 
+        this.context = mock(SourceContext.class);
+        this.client = PulsarClient.builder()
+                .serviceUrl(brokerUrl)
+                .build();
+        when(context.getPulsarClient()).thenReturn(this.client);
     }
 
     @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
+        if (this.client != null) {
+            this.client.close();
+        }
         tempFile.delete();
         super.internalCleanup();
     }
@@ -89,7 +102,7 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
     @Test
     public void testOpenAndRead() throws Exception {
         kafkaConnectSource = new KafkaConnectSource();
-        kafkaConnectSource.open(config, null);
+        kafkaConnectSource.open(config, context);
 
         // use FileStreamSourceConnector, each line is a record, need "\n" and end of each record.
         OutputStream os = Files.newOutputStream(tempFile.toPath());

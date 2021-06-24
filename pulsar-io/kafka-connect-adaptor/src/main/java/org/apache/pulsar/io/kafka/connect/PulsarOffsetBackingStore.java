@@ -58,6 +58,7 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
     private volatile CompletableFuture<Void> outstandingReadToEnd = null;
 
     public PulsarOffsetBackingStore(PulsarClient client) {
+        checkArgument(client != null, "Pulsar Client must be provided");
         this.client = client;
     }
 
