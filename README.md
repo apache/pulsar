@@ -95,6 +95,11 @@ Compile and install:
 $ mvn install -DskipTests
 ```
 
+Compile and install individual module
+```bash
+$ mvn -pl module-name (e.g: pulsar-broker) install -DskipTests
+```
+
 ## Minimal build (This skips most of external connectors and tiered storage handlers)
 ```
 mvn install -Pcore-modules,-main
@@ -109,8 +114,7 @@ $ mvn test
 Run Individual Unit Test:
 
 ```bash
-$ cd module-name (e.g: pulsar-client)
-$ mvn test -Dtest=unit-test-name (e.g: ConsumerBuilderImplTest)
+$ mvn -pl module-name (e.g: pulsar-client) test -Dtest=unit-test-name (e.g: ConsumerBuilderImplTest)
 ```
 
 Run Selected Test packages:
