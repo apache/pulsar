@@ -21,8 +21,6 @@ package org.apache.pulsar.zookeeper;
 import static org.apache.pulsar.zookeeper.ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.util.HashedWheelTimer;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.netty.util.HashedWheelTimer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
