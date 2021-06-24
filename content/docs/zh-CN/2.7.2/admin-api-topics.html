@@ -84,7 +84,7 @@
 <p>无论是持久化还是非持久化主题，你可以通过<code>pulsar-admin</code>工具、REST API 、 Java 获取到主题资源。</p>
 <blockquote>
 <p><strong>备注</strong>    <br>
-在 REST API 中 <code>:schema</code> 分为持久化和非持久化。 <code>:租户</code>，<code>:命名空间</code>，<code>:x</code> 是变量，在使用时候请注意使用真正的租户、命名空间，和 <code>x</code> 替换。<br>
+REST API 中 <code>:schema</code> 分为 persistent（持久化）和 non-persistent（非持久化）。 <code>:租户</code>，<code>:命名空间</code>，<code>:x</code> 是变量，在使用时候请注意使用真正的租户、命名空间，和 <code>x</code> 替换。<br>
 以 <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/getList?version=2.8.0&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/:schema/:tenant/:namespace</i></a>
  为例， 若要获取 REST API 中持久化主题列表，请参考 <code>https://pulsar.apache.org/admin/v2/persistent/my-tenant/my-namespace</code>。 若要获取 REST API 中非持久化主题的列表，请参考 <code>https://pulsar.apache.org/admin/v2/non-persistent/my-tenant/my-namespace</code>。</p>
 </blockquote>
@@ -110,14 +110,14 @@
 </span></div></div><div id="tab-group-18013-content-18016" class="tab-pane" data-group="group_18013" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />admin.topics().getPermissions(topic);<br /></code></pre>
 </span></div></div></div></div>
 <h3><a class="anchor" aria-hidden="true" id="取消权限"></a><a href="#取消权限" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>取消权限</h3>
-<p>通过以下方式撤销授予客户端角色的权限。</p>
+<p>您可以通过以下方式撤销授予客户端角色的权限。</p>
 <div class="tabs"><div class="nav-tabs"><div id="tab-group-18017-tab-18018" class="nav-link active" data-group="group_18017" data-tab="tab-group-18017-content-18018">pulsar-admin</div><div id="tab-group-18017-tab-18019" class="nav-link" data-group="group_18017" data-tab="tab-group-18017-content-18019">REST API</div><div id="tab-group-18017-tab-18020" class="nav-link" data-group="group_18017" data-tab="tab-group-18017-content-18020">Java</div></div><div class="tab-content"><div id="tab-group-18017-content-18018" class="tab-pane active" data-group="group_18017" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics revoke-permission \</span><br />  --role application1 \<br />  persistent://test-tenant/ns1/tp1 \<br /><br />{<br />  "application1": [<br />    "consume",<br />    "produce"<br />  ]<br />}<br /></code></pre>
 </span></div></div><div id="tab-group-18017-content-18019" class="tab-pane" data-group="group_18017" tabindex="-1"><div><span><p><a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/revokePermissionsOnTopic?version=2.8.0&amp;apiVersion=v2"><b>DELETE</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/permissions/:role</i></a>
 </p>
 </span></div></div><div id="tab-group-18017-content-18020" class="tab-pane" data-group="group_18017" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />String role = <span class="hljs-string">"test-role"</span>;<br />admin.topics().revokePermissions(topic, role);<br /></code></pre>
 </span></div></div></div></div>
 <h3><a class="anchor" aria-hidden="true" id="删除-topic"></a><a href="#删除-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>删除 topic</h3>
-<p>您可以通过以下方式删除一个主题。 如果任何活跃的订阅或生产商都与某个topic相关联，则您不能对其删除</p>
+<p>您可以通过以下方式删除一个主题。 如果某个主题拥有任何活跃的订阅或者生产者，则不能对其删除。</p>
 <div class="tabs"><div class="nav-tabs"><div id="tab-group-18021-tab-18022" class="nav-link active" data-group="group_18021" data-tab="tab-group-18021-content-18022">pulsar-admin</div><div id="tab-group-18021-tab-18023" class="nav-link" data-group="group_18021" data-tab="tab-group-18021-content-18023">REST API</div><div id="tab-group-18021-tab-18024" class="nav-link" data-group="group_18021" data-tab="tab-group-18021-content-18024">Java</div></div><div class="tab-content"><div id="tab-group-18021-content-18022" class="tab-pane active" data-group="group_18021" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics delete \</span><br />  persistent://test-tenant/ns1/tp1 \<br /></code></pre>
 </span></div></div><div id="tab-group-18021-content-18023" class="tab-pane" data-group="group_18021" tabindex="-1"><div><span><p><a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/deleteTopic?version=2.8.0&amp;apiVersion=v2"><b>DELETE</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic</i></a>
 </p>
@@ -165,33 +165,33 @@
 <li><p><strong>consumers</strong>：连接到此订阅的消费者列表。</p>
 <ul>
 <li><p><strong>msgRateOut</strong>：发送给消费者的消息总速率（msg/s）。</p></li>
-<li><p><strong>msgThroughputOut</strong>: The total throughput (bytes/s) delivered to the consumer.</p></li>
-<li><p><strong>consumerName</strong>: The internal identifier for this consumer, generated by the client library.</p></li>
-<li><p><strong>availablePermits</strong>: The number of messages that the consumer has space for in the client library's listen queue. <code>0</code> means the client library's queue is full and <code>receive()</code> isn't being called. A non-zero value means this consumer is ready for dispatched messages.</p></li>
-<li><p><strong>unackedMessages</strong>: The number of unacknowledged messages for the consumer.</p></li>
-<li><p><strong>blockedConsumerOnUnackedMsgs</strong>: The flag used to verify if the consumer is blocked due to reaching threshold of the unacknowledged messages.</p></li>
-<li><p><strong>lastConsumedTimestamp</strong>: The timestamp when the consumer reads a message the last time.</p></li>
-<li><p><strong>lastAckedTimestamp</strong>: The timestamp when the consumer acknowledges a message the last time.</p></li>
+<li><p><strong>msgThroughputOut</strong>: 发送给消费者的总吞吐量（byte/s）。</p></li>
+<li><p><strong>consumerName</strong>：由客户端生成的消费者内部标识符。</p></li>
+<li><p><strong>availablePermits</strong>：消费者在客户端库的监听队列中有空闲的消息数量。 <code>0</code> 意味着客户端库的队列已经满了，<code>receive()</code> 方法不会再接收消息。 非 0 值意味着该消费者可以接收消息。</p></li>
+<li><p><strong>unackedMessages</strong>：消费者未确认消息的数量。</p></li>
+<li><p><strong>blockedConsumerOnUnackedMsgs</strong>：验证消费者是否因达到未确认消息数的阀值而被阻塞。</p></li>
+<li><p><strong>lastConsumedTimestamp</strong>：消费者最后一次读取消息的时间戳。</p></li>
+<li><p><strong>lastAckedTimestamp</strong>：消费者最后一次确认消息的时间戳。</p></li>
 </ul></li>
 </ul></li>
 </ul></li>
 <li><p><strong>replication</strong>: This section gives the stats for cross-colo replication of this topic</p>
 <ul>
-<li><p><strong>msgRateIn</strong>: The total rate (msg/s) of messages received from the remote cluster.</p></li>
-<li><p><strong>msgThroughputIn</strong>: The total throughput (bytes/s) received from the remote cluster.</p></li>
-<li><p><strong>msgRateOut</strong>: The total rate of messages (msg/s) delivered to the replication-subscriber.</p></li>
-<li><p><strong>msgThroughputOut</strong>: The total throughput (bytes/s) delivered to the replication-subscriber.</p></li>
-<li><p><strong>msgRateExpired</strong>: The total rate of messages (msg/s) expired.</p></li>
-<li><p><strong>replicationBacklog</strong>: The number of messages pending to be replicated to remote cluster.</p></li>
-<li><p><strong>connected</strong>: Whether the outbound replicator is connected.</p></li>
-<li><p><strong>replicationDelayInSeconds</strong>: How long the oldest message has been waiting to be sent through the connection, if connected is <code>true</code>.</p></li>
-<li><p><strong>inboundConnection</strong>: The IP and port of the broker in the remote cluster's publisher connection to this broker.</p></li>
+<li><p><strong>msgRateIn</strong>：从远程集群中收到消息的总速率（msg/s）。</p></li>
+<li><p><strong>msgThroughputIn</strong>：从远程集群中收到消息的总吞吐量（byte/s）。</p></li>
+<li><p><strong>msgRateOut</strong>：发送给副本订阅的消息总速率（msg/s）。</p></li>
+<li><p><strong>msgThroughputOut</strong>：发送给副本的消息总吞吐量（byte/s）。</p></li>
+<li><p><strong>msgRateExpired</strong>：过期消息的总速率（msg/s）。</p></li>
+<li><p><strong>replicationBacklog</strong>：待复制到远程集群的消息数量。</p></li>
+<li><p><strong>connected</strong>：验证外部副本连接器是否已经连接。</p></li>
+<li><p><strong>replicationDelayInSeconds</strong>：如果连接是 <code>true</code> 的话，最早消息的已等待被发送的时长。</p></li>
+<li><p><strong>inboundConnection</strong>：远程集群中的 broker 要连接到 此 broker 的 IP 和端口。</p></li>
 <li><p><strong>inboundConnectedSince</strong>: The TCP connection being used to publish messages to the remote cluster. 如果没有连接到本地发布者，一分钟后连接将自动关闭。</p></li>
-<li><p><strong>outboundConnection</strong>: The address of the outbound replication connection.</p></li>
-<li><p><strong>outboundConnectedSince</strong>: The timestamp of establishing outbound connection.</p></li>
+<li><p><strong>outboundConnection</strong>：外部副本连接的地址。</p></li>
+<li><p><strong>outboundConnectedSince</strong>：建立对外连接时的时间戳。</p></li>
 </ul></li>
 </ul>
-<p>The following is an example of a topic status.</p>
+<p>下面是主题状态的示例：</p>
 <pre><code class="hljs css language-json">{
   <span class="hljs-attr">"msgRateIn"</span>: <span class="hljs-number">4641.528542257553</span>,
   <span class="hljs-attr">"msgThroughputIn"</span>: <span class="hljs-number">44663039.74947473</span>,
@@ -223,17 +223,17 @@
   <span class="hljs-attr">"replication"</span>: {}
 }
 </code></pre>
-<p>To get the status of a topic, you can use the following ways.</p>
+<p>使用以下方式来获取一个主题的状态：</p>
 <div class="tabs"><div class="nav-tabs"><div id="tab-group-18029-tab-18030" class="nav-link active" data-group="group_18029" data-tab="tab-group-18029-content-18030">pulsar-admin</div><div id="tab-group-18029-tab-18031" class="nav-link" data-group="group_18029" data-tab="tab-group-18029-content-18031">REST API</div><div id="tab-group-18029-tab-18032" class="nav-link" data-group="group_18029" data-tab="tab-group-18029-content-18032">Java</div></div><div class="tab-content"><div id="tab-group-18029-content-18030" class="tab-pane active" data-group="group_18029" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics stats \</span><br />  persistent://test-tenant/ns1/tp1 \<br /></code></pre>
 </span></div></div><div id="tab-group-18029-content-18031" class="tab-pane" data-group="group_18029" tabindex="-1"><div><span><p><a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/getStats?version=2.8.0&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/stats</i></a>
 </p>
 </span></div></div><div id="tab-group-18029-content-18032" class="tab-pane" data-group="group_18029" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />admin.topics().getStats(topic);<br /></code></pre>
 </span></div></div></div></div>
 <h3><a class="anchor" aria-hidden="true" id="获取内部统计信息"></a><a href="#获取内部统计信息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取内部统计信息</h3>
-<p>You can get the detailed statistics of a topic.</p>
+<p>主题中的详细统计数据如下：</p>
 <ul>
-<li><p><strong>entriesAddedCounter</strong>: Messages published since this broker loaded this topic.</p></li>
-<li><p><strong>numberOfEntries</strong>: The total number of messages being tracked.</p></li>
+<li><p><strong>entriesAddedCounter</strong>：自此 broker 加载该主题以来发布的消息总量。</p></li>
+<li><p><strong>numberOfEntries</strong>：追踪消息的总数。</p></li>
 <li><p><strong>totalSize</strong>: The total storage size in bytes of all messages.</p></li>
 <li><p><strong>currentLedgerEntries</strong>: The count of messages written to the ledger that is currently open for writing.</p></li>
 <li><p><strong>currentLedgerSize</strong>: The size in bytes of messages written to the ledger that is currently open for writing.</p></li>
