@@ -615,7 +615,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 5000)
     public void testUpdateDynamicLocalConfiguration() throws Exception {
         // (1) try to update dynamic field
         final long initValue = 30000;
@@ -623,13 +623,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         pulsar.getConfiguration().setBrokerShutdownTimeoutMs(initValue);
         // update configuration
         admin.brokers().updateDynamicConfiguration("brokerShutdownTimeoutMs", Long.toString(shutdownTime));
-        // sleep incrementally as zk-watch notification is async and may take some time
-        for (int i = 0; i < 5; i++) {
-            if (pulsar.getConfiguration().getBrokerShutdownTimeoutMs() == initValue) {
-                Thread.sleep(50 + (i * 10));
-            }
-        }
-
+        Awaitility.await().until(()
+                -> pulsar.getConfiguration().getBrokerShutdownTimeoutMs() != initValue);
         // verify value is updated
         assertEquals(pulsar.getConfiguration().getBrokerShutdownTimeoutMs(), shutdownTime);
     }
