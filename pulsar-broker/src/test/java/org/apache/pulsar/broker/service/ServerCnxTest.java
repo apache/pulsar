@@ -752,17 +752,15 @@ public class ServerCnxTest {
         CompletableFuture<Topic> delayFuture = new CompletableFuture<>();
         doReturn(delayFuture).when(brokerService).getOrCreateTopic(any(String.class));
         // Create subscriber first time
-        ByteBuf clientCommand = Commands.newSubscribe(successTopicName, //
+        ByteBuf clientCommand1 = Commands.newSubscribe(successTopicName, //
                 successSubName, 1 /* consumer id */, 1 /* request id */, SubType.Exclusive, 0,
                 "test" /* consumer name */, 0 /* avoid reseting cursor */);
-        channel.writeInbound(clientCommand);
-
         // Create producer second time
-        clientCommand = Commands.newSubscribe(successTopicName, //
+        ByteBuf clientCommand2 = Commands.newSubscribe(successTopicName, //
                 successSubName, 1 /* consumer id */, 1 /* request id */, SubType.Exclusive, 0,
                 "test" /* consumer name */, 0 /* avoid reseting cursor */);
-        channel.writeInbound(clientCommand);
-
+        channel.writeInbound(clientCommand1);
+        channel.writeInbound(clientCommand2);
         Object response = getResponse();
         assertTrue(response instanceof CommandError, "Response is not CommandError but " + response);
         CommandError error = (CommandError) response;
