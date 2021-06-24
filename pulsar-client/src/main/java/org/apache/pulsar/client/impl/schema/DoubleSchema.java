@@ -32,7 +32,7 @@ public class DoubleSchema extends AbstractSchema<Double> {
     private static final SchemaInfo SCHEMA_INFO;
 
     static {
-        SCHEMA_INFO = new SchemaInfo()
+        SCHEMA_INFO = new SchemaInfoImpl()
             .setName("Double")
             .setType(SchemaType.DOUBLE)
             .setSchema(new byte[0]);

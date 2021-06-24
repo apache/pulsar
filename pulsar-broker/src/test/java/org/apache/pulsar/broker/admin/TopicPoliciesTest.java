@@ -45,15 +45,16 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
+import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -90,6 +91,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     private final String testTopic = "persistent://" + myNamespace + "/test-set-backlog-quota";
 
     private final String persistenceTopic = "persistent://" + myNamespace + "/test-set-persistence";
+
+    private final String topicPolicyEventsTopic = "persistent://" + myNamespace + "/__change_events";
 
     @BeforeMethod
     @Override
@@ -2276,6 +2279,42 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             log.error("Failed to send/produce message, ", e);
             Assert.fail();
         }
+    }
+
+    @Test
+    public void testSystemTopicShouldBeCompacted() throws Exception {
+        BacklogQuota backlogQuota = BacklogQuota.builder()
+                .limitSize(1024)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                .build();
+        log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
+
+        Awaitility.await()
+                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(testTopic)));
+
+        admin.topics().setBacklogQuota(testTopic, backlogQuota);
+        log.info("Backlog quota set success on topic: {}", testTopic);
+
+        Awaitility.await()
+                .untilAsserted(() -> {
+                    TopicStats stats = admin.topics().getStats(topicPolicyEventsTopic);
+                    Assert.assertTrue(stats.getSubscriptions().containsKey("__compaction"));
+                });
+
+        PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topicPolicyEventsTopic);
+        long previousCompactedLedgerId = internalStats.compactedLedger.ledgerId;
+
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertEquals(admin.topics().getBacklogQuotaMap(testTopic)
+                        .get(BacklogQuota.BacklogQuotaType.destination_storage), backlogQuota));
+
+        pulsar.getBrokerService().checkCompaction();
+
+        Awaitility.await()
+                .untilAsserted(() -> {
+                    PersistentTopicInternalStats iStats = admin.topics().getInternalStats(topicPolicyEventsTopic);
+                    Assert.assertTrue(iStats.compactedLedger.ledgerId != previousCompactedLedgerId);
+                });
     }
 
 }

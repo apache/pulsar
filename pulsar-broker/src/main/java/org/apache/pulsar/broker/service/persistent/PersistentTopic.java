@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.common.events.EventsTopicNames.checkTopicIsEventsNames;
+import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
 import com.carrotsearch.hppc.ObjectObjectHashMap;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
@@ -46,6 +47,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
+import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
@@ -105,7 +107,6 @@ import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.broker.stats.ReplicationMetrics;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferDisable;
-import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.api.MessageId;
@@ -146,9 +147,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.compaction.CompactedTopic;
 import org.apache.pulsar.compaction.CompactedTopicImpl;
-import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
-import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
 import org.apache.pulsar.utils.StatsOutputStream;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
@@ -316,10 +315,7 @@ public class PersistentTopic extends AbstractTopic
         checkReplicatedSubscriptionControllerState();
         TopicName topicName = TopicName.get(topic);
         if (brokerService.getPulsar().getConfiguration().isTransactionCoordinatorEnabled()
-                && !checkTopicIsEventsNames(topicName)
-                && !topicName.getEncodedLocalName().startsWith(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getLocalName())
-                && !topicName.getEncodedLocalName().startsWith(MLTransactionLogImpl.TRANSACTION_LOG_PREFIX)
-                && !topicName.getEncodedLocalName().endsWith(MLPendingAckStore.PENDING_ACK_STORE_SUFFIX)) {
+                && !checkTopicIsEventsNames(topicName)) {
             this.transactionBuffer = brokerService.getPulsar()
                     .getTransactionBufferProvider().newTransactionBuffer(this, transactionCompletableFuture);
         } else {
@@ -380,7 +376,7 @@ public class PersistentTopic extends AbstractTopic
     private PersistentSubscription createPersistentSubscription(String subscriptionName, ManagedCursor cursor,
             boolean replicated) {
         checkNotNull(compactedTopic);
-        if (subscriptionName.equals(Compactor.COMPACTION_SUBSCRIPTION)) {
+        if (subscriptionName.equals(COMPACTION_SUBSCRIPTION)) {
             return new CompactorSubscription(this, compactedTopic, subscriptionName, cursor);
         } else {
             return new PersistentSubscription(this, subscriptionName, cursor, replicated);
@@ -1368,13 +1364,14 @@ public class PersistentTopic extends AbstractTopic
 
                 long backlogEstimate = 0;
 
-                PersistentSubscription compactionSub = subscriptions.get(Compactor.COMPACTION_SUBSCRIPTION);
+                PersistentSubscription compactionSub = subscriptions.get(COMPACTION_SUBSCRIPTION);
                 if (compactionSub != null) {
                     backlogEstimate = compactionSub.estimateBacklogSize();
                 } else {
                     // compaction has never run, so take full backlog size,
                     // or total size if we have no durable subs yet.
-                    backlogEstimate = subscriptions.isEmpty()
+                    backlogEstimate = subscriptions.isEmpty() || subscriptions.values().stream()
+                                .noneMatch(sub -> sub.getCursor().isDurable())
                             ? ledger.getTotalSize()
                             : ledger.getEstimatedBacklogSize();
                 }
@@ -1392,6 +1389,13 @@ public class PersistentTopic extends AbstractTopic
         } catch (Exception e) {
             log.debug("[{}] Error getting policies", topic);
         }
+    }
+
+    /**
+     * Return if the topic has triggered compaction before or not.
+     */
+    protected boolean hasCompactionTriggered() {
+        return subscriptions.containsKey(COMPACTION_SUBSCRIPTION);
     }
 
     CompletableFuture<Void> startReplicator(String remoteCluster) {
@@ -1939,22 +1943,35 @@ public class PersistentTopic extends AbstractTopic
                         ledgers.forEach(ledgerId -> {
                             CompletableFuture<Void> completableFuture = new CompletableFuture<>();
                             getLedgerMetadataFutures.add(completableFuture);
-                            brokerService.getPulsar().getBookKeeperClient()
-                                    .getLedgerMetadata(ledgerId)
-                                    .thenAccept(metadata -> {
-                                        LedgerInfo schemaLedgerInfo = new LedgerInfo();
-                                        schemaLedgerInfo.ledgerId = metadata.getLedgerId();
-                                        schemaLedgerInfo.entries = metadata.getLastEntryId() + 1;
-                                        schemaLedgerInfo.size = metadata.getLength();
-                                        if (includeLedgerMetadata) {
-                                            info.metadata = metadata.toSafeString();
-                                        }
-                                        stats.schemaLedgers.add(schemaLedgerInfo);
-                                        completableFuture.complete(null);
-                                    }).exceptionally(e -> {
-                                completableFuture.completeExceptionally(e);
-                                return null;
-                            });
+                            CompletableFuture<LedgerMetadata> metadataFuture = null;
+                            try {
+                                metadataFuture = brokerService.getPulsar().getBookKeeperClient()
+                                    .getLedgerMetadata(ledgerId);
+                            } catch (NullPointerException e) {
+                                // related to bookkeeper issue https://github.com/apache/bookkeeper/issues/2741
+                                if (log.isDebugEnabled()) {
+                                    log.debug("{{}} Failed to get ledger metadata for the schema ledger {}",
+                                            topic, ledgerId, e);
+                                }
+                            }
+                            if (metadataFuture != null) {
+                                metadataFuture.thenAccept(metadata -> {
+                                    LedgerInfo schemaLedgerInfo = new LedgerInfo();
+                                    schemaLedgerInfo.ledgerId = metadata.getLedgerId();
+                                    schemaLedgerInfo.entries = metadata.getLastEntryId() + 1;
+                                    schemaLedgerInfo.size = metadata.getLength();
+                                    if (includeLedgerMetadata) {
+                                        info.metadata = metadata.toSafeString();
+                                    }
+                                    stats.schemaLedgers.add(schemaLedgerInfo);
+                                    completableFuture.complete(null);
+                                }).exceptionally(e -> {
+                                    completableFuture.completeExceptionally(e);
+                                    return null;
+                                });
+                            } else {
+                                completableFuture.complete(null);
+                            }
                         });
                         FutureUtil.waitForAll(getLedgerMetadataFutures).thenRun(() -> {
                             schemaStoreLedgersFuture.complete(null);
@@ -2571,13 +2588,18 @@ public class PersistentTopic extends AbstractTopic
         ledgerImpl.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
             @Override
             public void readEntryComplete(Entry entry, Object ctx) {
-                MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
-                if (metadata.hasNumMessagesInBatch()) {
-                    completableFuture.complete(new BatchMessageIdImpl(position.getLedgerId(), position.getEntryId(),
-                            partitionIndex, metadata.getNumMessagesInBatch() - 1));
-                } else {
-                    completableFuture
-                            .complete(new MessageIdImpl(position.getLedgerId(), position.getEntryId(), partitionIndex));
+                try {
+                    MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+                    if (metadata.hasNumMessagesInBatch()) {
+                        completableFuture.complete(new BatchMessageIdImpl(position.getLedgerId(), position.getEntryId(),
+                                partitionIndex, metadata.getNumMessagesInBatch() - 1));
+                    } else {
+                        completableFuture
+                                .complete(new MessageIdImpl(position.getLedgerId(), position.getEntryId(),
+                                        partitionIndex));
+                    }
+                } finally {
+                    entry.release();
                 }
             }
 

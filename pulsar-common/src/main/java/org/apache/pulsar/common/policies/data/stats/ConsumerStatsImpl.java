@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.policies.data.stats;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import java.util.List;
@@ -66,15 +67,21 @@ public class ConsumerStatsImpl implements ConsumerStats {
     public String readPositionWhenJoining;
 
     /** Address of this consumer. */
+    @JsonIgnore
     private int addressOffset = -1;
+    @JsonIgnore
     private int addressLength;
 
     /** Timestamp of connection. */
+    @JsonIgnore
     private int connectedSinceOffset = -1;
+    @JsonIgnore
     private int connectedSinceLength;
 
     /** Client library version. */
+    @JsonIgnore
     private int clientVersionOffset = -1;
+    @JsonIgnore
     private int clientVersionLength;
 
     public long lastAckedTimestamp;
@@ -90,6 +97,7 @@ public class ConsumerStatsImpl implements ConsumerStats {
      * In order to prevent multiple string object allocation under stats: create a string-buffer
      * that stores data for all string place-holders.
      */
+    @JsonIgnore
     private StringBuilder stringBuffer = new StringBuilder();
 
     public ConsumerStatsImpl add(ConsumerStatsImpl stats) {

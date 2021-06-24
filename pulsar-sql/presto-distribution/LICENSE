@@ -251,22 +251,22 @@ The Apache Software License, Version 2.0
  * Joda Time
     - joda-time-2.10.5.jar
   * Jetty
-    - http2-client-9.4.39.v20210325.jar
-    - http2-common-9.4.39.v20210325.jar
-    - http2-hpack-9.4.39.v20210325.jar
-    - http2-http-client-transport-9.4.39.v20210325.jar
-    - jetty-alpn-client-9.4.39.v20210325.jar
-    - http2-server-9.4.39.v20210325.jar
-    - jetty-alpn-java-client-9.4.39.v20210325.jar
-    - jetty-client-9.4.39.v20210325.jar
-    - jetty-http-9.4.39.v20210325.jar
-    - jetty-io-9.4.39.v20210325.jar
-    - jetty-jmx-9.4.39.v20210325.jar
-    - jetty-security-9.4.39.v20210325.jar
-    - jetty-server-9.4.39.v20210325.jar
-    - jetty-servlet-9.4.39.v20210325.jar
-    - jetty-util-9.4.39.v20210325.jar
-    - jetty-util-ajax-9.4.39.v20210325.jar
+    - http2-client-9.4.42.v20210604.jar
+    - http2-common-9.4.42.v20210604.jar
+    - http2-hpack-9.4.42.v20210604.jar
+    - http2-http-client-transport-9.4.42.v20210604.jar
+    - jetty-alpn-client-9.4.42.v20210604.jar
+    - http2-server-9.4.42.v20210604.jar
+    - jetty-alpn-java-client-9.4.42.v20210604.jar
+    - jetty-client-9.4.42.v20210604.jar
+    - jetty-http-9.4.42.v20210604.jar
+    - jetty-io-9.4.42.v20210604.jar
+    - jetty-jmx-9.4.42.v20210604.jar
+    - jetty-security-9.4.42.v20210604.jar
+    - jetty-server-9.4.42.v20210604.jar
+    - jetty-servlet-9.4.42.v20210604.jar
+    - jetty-util-9.4.42.v20210604.jar
+    - jetty-util-ajax-9.4.42.v20210604.jar
   * Apache BVal
     - bval-jsr-2.0.0.jar
   * Bytecode
@@ -274,7 +274,7 @@ The Apache Software License, Version 2.0
   * CGLIB Nodep
     - cglib-nodep-3.3.0.jar
   * Airlift
-    - aircompressor-0.16.jar
+    - aircompressor-0.19.jar
     - airline-0.8.jar
     - bootstrap-0.199.jar
     - bootstrap-0.195.jar
@@ -362,7 +362,7 @@ The Apache Software License, Version 2.0
     - avro-1.10.2.jar
     - avro-protobuf-1.10.2.jar
   * Caffeine
-    - caffeine-2.6.2.jar
+    - caffeine-2.9.1.jar
   * Javax
     - javax.inject-1.jar
     - javax.servlet-api-3.1.0.jar
@@ -426,7 +426,7 @@ The Apache Software License, Version 2.0
     - codahale-metrics-provider-4.14.1.jar
   * Apache Commons
     - commons-cli-1.2.jar
-    - commons-codec-1.10.jar
+    - commons-codec-1.15.jar
     - commons-collections4-4.1.jar
     - commons-configuration-1.10.jar
     - commons-io-2.8.0.jar
@@ -450,7 +450,6 @@ The Apache Software License, Version 2.0
   * Apache Zookeeper
     - zookeeper-3.6.3.jar
     - zookeeper-jute-3.6.3.jar
-    - zookeeper-prometheus-metrics-3.6.3.jar
   * Apache Yetus Audience Annotations
     - audience-annotations-0.5.0.jar
   * Swagger
@@ -557,6 +556,7 @@ Creative Commons Attribution License
 
 Bouncy Castle License
  * Bouncy Castle -- licenses/LICENSE-bouncycastle.txt
--    - bcpkix-jdk15on-1.68.jar
--    - bcprov-ext-jdk15on-1.68.jar
--    - bcprov-jdk15on-1.68.jar
+   - bcpkix-jdk15on-1.69.jar
+   - bcprov-ext-jdk15on-1.69.jar
+   - bcprov-jdk15on-1.69.jar
+   - bcutil-jdk15on-1.69.jar

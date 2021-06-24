@@ -41,9 +41,10 @@ import java.util.stream.Collectors;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.schema.KeyValueSchema;
 import org.apache.pulsar.client.impl.schema.AbstractSchema;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
-import org.apache.pulsar.client.impl.schema.KeyValueSchema;
+import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.KeyValue;
@@ -300,8 +301,6 @@ public class MessageImpl<T> implements Message<T> {
         @SuppressWarnings("unchecked")
         MessageImpl<byte[]> msg = (MessageImpl<byte[]>) RECYCLER.get();
 
-        Commands.skipBrokerEntryMetadataIfExist(headersAndPayloadWithBrokerEntryMetadata);
-
         Commands.parseMessageMetadata(headersAndPayloadWithBrokerEntryMetadata, msg.msgMetadata);
         msg.payload = headersAndPayloadWithBrokerEntryMetadata;
         msg.messageId = null;
@@ -419,6 +418,8 @@ public class MessageImpl<T> implements Message<T> {
     private void ensureSchemaIsLoaded() {
         if (schema instanceof AutoConsumeSchema) {
             ((AutoConsumeSchema) schema).fetchSchemaIfNeeded(BytesSchemaVersion.of(getSchemaVersion()));
+        } else if (schema instanceof KeyValueSchemaImpl) {
+            ((KeyValueSchemaImpl) schema).fetchSchemaIfNeeded(getTopicName(), BytesSchemaVersion.of(getSchemaVersion()));
         }
     }
 
@@ -450,11 +451,11 @@ public class MessageImpl<T> implements Message<T> {
     }
 
 
-    private KeyValueSchema getKeyValueSchema() {
+    private KeyValueSchemaImpl getKeyValueSchema() {
         if (schema instanceof AutoConsumeSchema) {
-            return (KeyValueSchema) ((AutoConsumeSchema) schema).getInternalSchema(getSchemaVersion());
+            return (KeyValueSchemaImpl) ((AutoConsumeSchema) schema).getInternalSchema(getSchemaVersion());
         } else {
-            return (KeyValueSchema) schema;
+            return (KeyValueSchemaImpl) schema;
         }
     }
 
@@ -472,7 +473,7 @@ public class MessageImpl<T> implements Message<T> {
     }
     
     private T getKeyValueBySchemaVersion() {
-        KeyValueSchema kvSchema = getKeyValueSchema();
+        KeyValueSchemaImpl kvSchema = getKeyValueSchema();
         byte[] schemaVersion = getSchemaVersion();
         if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
             org.apache.pulsar.common.schema.KeyValue keyValue =
@@ -489,7 +490,7 @@ public class MessageImpl<T> implements Message<T> {
     }
 
     private T getKeyValue() {
-        KeyValueSchema kvSchema = getKeyValueSchema();
+        KeyValueSchemaImpl kvSchema = getKeyValueSchema();
         if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
             org.apache.pulsar.common.schema.KeyValue keyValue =
                     (org.apache.pulsar.common.schema.KeyValue) kvSchema.decode(getKeyBytes(), getData(), null);

@@ -41,7 +41,6 @@ import java.net.URI;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
@@ -79,13 +78,11 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
-import org.apache.pulsar.common.policies.data.AutoFailoverPolicyDataImpl;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.BrokerInfo;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
-import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -112,8 +109,6 @@ import org.slf4j.LoggerFactory;
 
 @Test(groups = "broker")
 public class AdminTest extends MockedPulsarServiceBaseTest {
-    private static final Logger log = LoggerFactory.getLogger(AdminTest.class);
-
     private final String configClusterName = "use";
     private ConfigurationCacheService configurationCache;
     private Clusters clusters;
@@ -415,9 +410,9 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
                     .listenerName("listenerName")
                     .build());
             ClusterData cluster = clusters.getCluster("auth");
-            assertEquals("authenticationPlugin", cluster.getAuthenticationPlugin());
-            assertEquals("authenticationParameters", cluster.getAuthenticationParameters());
-            assertEquals("listenerName", cluster.getListenerName());
+            assertEquals(cluster.getAuthenticationPlugin(), "authenticationPlugin");
+            assertEquals(cluster.getAuthenticationParameters(), "authenticationParameters");
+            assertEquals(cluster.getListenerName(), "listenerName");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
         }
@@ -785,7 +780,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         assertEquals(persistentTopics.getPartitionedTopicList(property, cluster, namespace), Lists.newArrayList());
         response = mock(AsyncResponse.class);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
-        persistentTopics.createPartitionedTopic(response, property, cluster, namespace, topic, 5);
+        persistentTopics.createPartitionedTopic(response, property, cluster, namespace, topic, 5, false);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
         assertEquals(persistentTopics.getPartitionedTopicList(property, cluster, namespace), Lists
