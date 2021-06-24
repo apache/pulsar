@@ -34,7 +34,6 @@ import javax.ws.rs.core.Response.Status;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
-import org.apache.pulsar.broker.intercept.BrokerInterceptors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
