@@ -78,7 +78,7 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
 
         this.context = mock(SourceContext.class);
         this.client = PulsarClient.builder()
-                .serviceUrl(brokerUrl)
+                .serviceUrl(brokerUrl.toString())
                 .build();
         when(context.getPulsarClient()).thenReturn(this.client);
     }

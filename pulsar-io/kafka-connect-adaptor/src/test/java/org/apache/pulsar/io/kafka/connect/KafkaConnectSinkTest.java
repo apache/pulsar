@@ -97,7 +97,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
 
         this.context = mock(SinkContext.class);
         this.client = PulsarClient.builder()
-                .serviceUrl(brokerUrl)
+                .serviceUrl(brokerUrl.toString())
                 .build();
         when(mockCtx.getSubscriptionType()).thenReturn(SubscriptionType.Failover);
         when(mockCtx.getPulsarClient()).thenReturn(client);
