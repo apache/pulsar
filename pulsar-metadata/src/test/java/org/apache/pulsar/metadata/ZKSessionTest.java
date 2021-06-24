@@ -136,6 +136,7 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
 
     @Test
     public void testReacquireLeadershipAfterSessionLost() throws Exception {
+        //  ---  init
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(zks.getConnectionString(),
                 MetadataStoreConfig.builder()
@@ -144,7 +145,6 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
 
         BlockingQueue<SessionEvent> sessionEvents = new LinkedBlockingQueue<>();
         store.registerSessionListener(sessionEvents::add);
-
         BlockingQueue<LeaderElectionState> leaderElectionEvents = new LinkedBlockingQueue<>();
         String path = newKey();
 
@@ -153,13 +153,13 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
         @Cleanup
         LeaderElection<String> le1 = coordinationService.getLeaderElection(String.class, path,
                 leaderElectionEvents::add);
-
+        // --- test manual elect
         le1.elect("value-1").join();
         assertEquals(le1.getState(), LeaderElectionState.Leading);
 
         LeaderElectionState les = leaderElectionEvents.poll(5, TimeUnit.SECONDS);
         assertEquals(les, LeaderElectionState.Leading);
-
+        // --- expire session
         zks.expireSession(((ZKMetadataStore) store).getZkSessionId());
 
         SessionEvent e = sessionEvents.poll(5, TimeUnit.SECONDS);
@@ -167,28 +167,18 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
 
         e = sessionEvents.poll(10, TimeUnit.SECONDS);
         assertEquals(e, SessionEvent.SessionLost);
-
-        // due to zookeeper async notice, we need to wait.
+        // --- test  le1 can be leader
         Awaitility.await()
-                .until(() -> le1.getState() == LeaderElectionState.Leading);
-        assertEquals(le1.getState(), LeaderElectionState.Leading);
-        Awaitility.await()
-                .until(()-> leaderElectionEvents.poll() == null);
-        les = leaderElectionEvents.poll();
-        assertNull(les);
-
+                .untilAsserted(()-> assertEquals(le1.getState(),LeaderElectionState.Leading)); // reacquire leadership
         e = sessionEvents.poll(10, TimeUnit.SECONDS);
         assertEquals(e, SessionEvent.Reconnected);
         e = sessionEvents.poll(10, TimeUnit.SECONDS);
         assertEquals(e, SessionEvent.SessionReestablished);
-
-        // due to zookeeper async notice, we need to wait.
+        // ---- after 2000 millis, the le1 is also can be leader.
+        Thread.sleep(2_000);
         Awaitility.await()
-                .until(() -> le1.getState() == LeaderElectionState.Leading);
-        assertEquals(le1.getState(), LeaderElectionState.Leading);
-        les = leaderElectionEvents.poll();
-        assertNull(les);
-
+                .untilAsserted(()-> assertEquals(le1.getState(),LeaderElectionState.Leading));
+        assertEquals(le1.getState(),LeaderElectionState.Leading);
         assertTrue(store.get(path).join().isPresent());
     }
 }
