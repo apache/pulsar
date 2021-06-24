@@ -52,7 +52,7 @@ public class ResponseHandlerFilter implements Filter {
     public ResponseHandlerFilter(PulsarService pulsar) {
         this.brokerAddress = pulsar.getAdvertisedAddress();
         this.interceptor = pulsar.getBrokerInterceptor();
-        this.interceptorEnabled = isInterceptorEnabled(pulsar);
+        this.interceptorEnabled = !pulsar.getConfig().getBrokerInterceptors().isEmpty();
     }
 
     @Override
@@ -126,14 +126,4 @@ public class ResponseHandlerFilter implements Filter {
         // No state to clean up.
     }
 
-    private boolean isInterceptorEnabled(PulsarService pulsar) {
-        if (pulsar.getBrokerInterceptor() == null) {
-            return false;
-        }
-        if (pulsar.getBrokerInterceptor() instanceof BrokerInterceptors) {
-            return !((BrokerInterceptors) pulsar.getBrokerInterceptor()).getInterceptors().isEmpty();
-        }
-        // broker interceptor is not null and it's not BrokerInterceptors
-        return true;
-    }
 }

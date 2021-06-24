@@ -78,6 +78,7 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
                 listenerName2,
                 new BrokerInterceptorWithClassLoader(listener2, ncl2));
         this.listeners = new BrokerInterceptors(this.listenerMap);
+        this.enableBrokerInterceptor = true;
         super.internalSetup();
         super.producerBaseSetup();
     }

@@ -82,8 +82,10 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     public void onWebserviceResponse(ServletRequest request, ServletResponse response) {
         count ++;
         log.info("[{}] On [{}] Webservice response {}", count, ((HttpServletRequest)request).getRequestURL().toString(), response);
-        Response res = (Response) response;
-        responseList.add(new ResponseEvent(res.getHttpChannel().getRequest().getRequestURI(), res.getStatus()));
+        if (response instanceof Response) {
+            Response res = (Response) response;
+            responseList.add(new ResponseEvent(res.getHttpChannel().getRequest().getRequestURI(), res.getStatus()));
+        }
     }
 
     @Override

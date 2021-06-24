@@ -20,7 +20,10 @@ package org.apache.pulsar.broker.auth;
 
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
+
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
 
@@ -94,6 +97,8 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
     private SameThreadOrderedSafeExecutor sameThreadOrderedSafeExecutor;
     private OrderedExecutor bkExecutor;
+
+    protected boolean enableBrokerInterceptor = false;
 
     public MockedPulsarServiceBaseTest() {
         resetConfig();
@@ -299,6 +304,17 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         doReturn(new CounterBrokerInterceptor()).when(pulsar).getBrokerInterceptor();
 
         doAnswer((invocation) -> spy(invocation.callRealMethod())).when(pulsar).newCompactor();
+        if (enableBrokerInterceptor) {
+            mockConfigBrokerInterceptors(pulsar);
+        }
+    }
+
+    private void mockConfigBrokerInterceptors(PulsarService pulsarService) {
+        ServiceConfiguration configuration = spy(conf);
+        Set<String> mockBrokerInterceptors = mock(Set.class);
+        when(mockBrokerInterceptors.isEmpty()).thenReturn(false);
+        when(configuration.getBrokerInterceptors()).thenReturn(mockBrokerInterceptors);
+        when(pulsarService.getConfig()).thenReturn(configuration);
     }
 
     protected void waitForZooKeeperWatchers() {
