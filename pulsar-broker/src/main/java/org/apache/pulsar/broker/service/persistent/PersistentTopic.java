@@ -2393,10 +2393,9 @@ public class PersistentTopic extends AbstractTopic
                     new AsyncCallbacks.ReadEntryCallback() {
                         @Override
                         public void readEntryComplete(Entry entry, Object ctx) {
-                            MessageImpl<byte[]> msg = null;
                             try {
-                                msg = MessageImpl.deserializeBrokerEntryMetaDataFirst(entry.getDataBuffer());
-                                boolean expired = msg.isExpired(backlogQuotaLimitInSecond);
+                                long entryTimestamp = MessageImpl.getEntryTimestamp(entry.getDataBuffer());
+                                boolean expired = MessageImpl.isEntryExpired(backlogQuotaLimitInSecond, entryTimestamp);
                                 if (expired && log.isDebugEnabled()) {
                                     log.debug("Time based backlog quota exceeded, oldest entry in cursor {}'s backlog"
                                     + "exceeded quota {}", ((ManagedLedgerImpl) ledger).getSlowestConsumer().getName(),
@@ -2408,9 +2407,6 @@ public class PersistentTopic extends AbstractTopic
                                 future.complete(false);
                             } finally {
                                 entry.release();
-                                if (msg != null) {
-                                    msg.recycle();
-                                }
                             }
                         }
 
@@ -2482,25 +2478,20 @@ public class PersistentTopic extends AbstractTopic
     }
 
     public boolean isOldestMessageExpired(ManagedCursor cursor, int messageTTLInSeconds) {
-        MessageImpl<byte[]> msg = null;
         Entry entry = null;
         boolean isOldestMessageExpired = false;
         try {
             entry = cursor.getNthEntry(1, IndividualDeletedEntries.Include);
             if (entry != null) {
-                msg = MessageImpl.deserializeBrokerEntryMetaDataFirst(entry.getDataBuffer());
-                if (messageTTLInSeconds != 0) {
-                    isOldestMessageExpired = msg.isExpired((int) (messageTTLInSeconds * MESSAGE_EXPIRY_THRESHOLD));
-                }
+                long entryTimestamp = MessageImpl.getEntryTimestamp(entry.getDataBuffer());
+                isOldestMessageExpired = MessageImpl.isEntryExpired(
+                        (int) (messageTTLInSeconds * MESSAGE_EXPIRY_THRESHOLD), entryTimestamp);
             }
         } catch (Exception e) {
             log.warn("[{}] Error while getting the oldest message", topic, e);
         } finally {
             if (entry != null) {
                 entry.release();
-            }
-            if (msg != null) {
-                msg.recycle();
             }
         }
 

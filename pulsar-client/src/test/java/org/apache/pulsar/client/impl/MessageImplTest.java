@@ -450,10 +450,8 @@ public class MessageImplTest {
 
             CompositeByteBuf compositeByteBuf = PulsarByteBufAllocator.DEFAULT.compositeBuffer();
             compositeByteBuf.addComponents(true, brokerMeta, byteBuf);
-            MessageImpl messageWithEntryMetadata = MessageImpl.deserializeBrokerEntryMetaDataFirst(compositeByteBuf);
-            MessageImpl message = MessageImpl.deserializeSkipBrokerEntryMetaData(compositeByteBuf);
-            message.setBrokerEntryMetadata(messageWithEntryMetadata.getBrokerEntryMetadata());
-            assertTrue(message.isExpired(100));
+            long entryTimestamp = MessageImpl.getEntryTimestamp(compositeByteBuf);
+            assertTrue(MessageImpl.isEntryExpired(100, entryTimestamp));
 
             // test BrokerTimestamp set.
             byteBuf = PulsarByteBufAllocator.DEFAULT.buffer(data.length(), data.length());
@@ -475,10 +473,8 @@ public class MessageImplTest {
 
             compositeByteBuf = PulsarByteBufAllocator.DEFAULT.compositeBuffer();
             compositeByteBuf.addComponents(true, brokerMeta, byteBuf);
-            messageWithEntryMetadata = MessageImpl.deserializeBrokerEntryMetaDataFirst(compositeByteBuf);
-            message = MessageImpl.deserializeSkipBrokerEntryMetaData(compositeByteBuf);
-            message.setBrokerEntryMetadata(messageWithEntryMetadata.getBrokerEntryMetadata());
-            assertFalse(message.isExpired(24 * 3600));
+            entryTimestamp = MessageImpl.getEntryTimestamp(compositeByteBuf);
+            assertFalse(MessageImpl.isEntryExpired(24 * 3600, entryTimestamp));
         } catch (IOException e) {
             fail();
         }
