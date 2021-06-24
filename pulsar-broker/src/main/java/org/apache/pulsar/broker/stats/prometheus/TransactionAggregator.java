@@ -23,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -67,7 +68,11 @@ public class TransactionAggregator {
                                     generateManageLedgerStats(managedLedger,
                                             stream, cluster, namespace, name, subscription.getName());
                                 } catch (Exception e) {
-                                    log.warn("Transaction pending ack generate managedLedgerStats fail!", e);
+                                    if (e instanceof BrokerServiceException.NotAllowedException) {
+                                        // ignore
+                                    } else {
+                                        log.warn("Transaction pending ack generate managedLedgerStats fail!", e);
+                                    }
                                 }
                             });
                         }
