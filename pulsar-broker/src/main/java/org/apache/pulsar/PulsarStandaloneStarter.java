@@ -50,7 +50,7 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
             }
         } catch (Exception e) {
             jcommander.usage();
-            log.error(e.getMessage());
+            log.error("Parse args exception", e);
             return;
         }
 
@@ -74,16 +74,16 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
 
         // Set ZK server's host to localhost
         // Priority: args > conf > default
-        if (argsContains(args, "--zookeeper-port")) {
-            config.setZookeeperServers(zkServers + ":" + this.getZkPort());
-            config.setConfigurationStoreServers(zkServers + ":" + this.getZkPort());
-        } else {
+        String zkPortConfArg = "--zookeeper-port";
+        if (!argsContains(args, zkPortConfArg)) {
             if (config.getZookeeperServers() != null) {
                 this.setZkPort(Integer.parseInt(config.getZookeeperServers().split(":")[1]));
             }
-            config.setZookeeperServers(zkServers + ":" + this.getZkPort());
-            config.setConfigurationStoreServers(zkServers + ":" + this.getZkPort());
         }
+
+        zkServers = zkServers + ":" + this.getZkPort();
+        config.setZookeeperServers(zkServers);
+        config.setConfigurationStoreServers(zkServers);
 
         config.setRunningStandalone(true);
 
