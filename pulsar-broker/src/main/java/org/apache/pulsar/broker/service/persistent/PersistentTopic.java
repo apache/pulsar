@@ -2975,6 +2975,9 @@ public class PersistentTopic extends AbstractTopic
         updateUnackedMessagesExceededOnConsumer(namespacePolicies.orElse(null));
 
         checkDeduplicationStatus();
+
+        // update managed ledger config
+        checkPersistencePolicies();
     }
 
     private Optional<Policies> getNamespacePolicies() {
