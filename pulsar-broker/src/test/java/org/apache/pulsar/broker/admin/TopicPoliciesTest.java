@@ -591,24 +591,30 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         Awaitility.await()
                 .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(testTopic)));
-
+        admin.topics().createNonPartitionedTopic(persistenceTopic);
         admin.topics().setPersistence(persistenceTopic, persistencePolicies);
 
         Awaitility.await()
                 .untilAsserted(() -> Assert.assertEquals(admin.topics().getPersistence(persistenceTopic), persistencePolicies));
-
-        admin.lookups().lookupTopic(persistenceTopic);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(persistenceTopic)
+                .subscriptionName("test")
+                .subscribe();
+        admin.topics().unload(persistenceTopic);
         Topic t = pulsar.getBrokerService().getOrCreateTopic(persistenceTopic).get();
         PersistentTopic persistentTopic = (PersistentTopic) t;
-        ManagedLedgerConfig managedLedgerConfig = persistentTopic.getManagedLedger().getConfig();
-        assertEquals(managedLedgerConfig.getEnsembleSize(), 3);
-        assertEquals(managedLedgerConfig.getWriteQuorumSize(), 3);
-        assertEquals(managedLedgerConfig.getAckQuorumSize(), 3);
-        assertEquals(managedLedgerConfig.getThrottleMarkDelete(), 0.1);
+        Awaitility.await().untilAsserted(() -> {
+            ManagedLedgerConfig managedLedgerConfig = persistentTopic.getManagedLedger().getConfig();
+            assertEquals(managedLedgerConfig.getEnsembleSize(), 3);
+            assertEquals(managedLedgerConfig.getWriteQuorumSize(), 3);
+            assertEquals(managedLedgerConfig.getAckQuorumSize(), 3);
+            assertEquals(managedLedgerConfig.getThrottleMarkDelete(), 0.1);
+        });
 
         PersistencePolicies getPersistencePolicies = admin.topics().getPersistence(persistenceTopic);
         log.info("PersistencePolicies: {} will set to the topic: {}", persistencePolicies, persistenceTopic);
         Assert.assertEquals(getPersistencePolicies, persistencePolicies);
+        consumer.close();
     }
 
     @Test
@@ -664,7 +670,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         Awaitility.await()
                 .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(testTopic)));
-
+        admin.topics().createNonPartitionedTopic(persistenceTopic);
         admin.topics().setPersistence(persistenceTopic, persistencePolicies);
 
         Awaitility.await()
@@ -732,12 +738,12 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Awaitility.await()
                 .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(testTopic)));
 
+        admin.topics().createPartitionedTopic(persistenceTopic, 2);
         admin.topics().setMaxProducers(persistenceTopic, maxProducers);
 
         Awaitility.await()
                 .untilAsserted(() -> Assert.assertEquals(admin.topics().getMaxProducers(persistenceTopic), maxProducers));
 
-        admin.topics().createPartitionedTopic(persistenceTopic, 2);
         Producer<byte[]> producer1 = pulsarClient.newProducer().topic(persistenceTopic).create();
         Producer<byte[]> producer2 = pulsarClient.newProducer().topic(persistenceTopic).create();
         Producer<byte[]> producer3 = null;
@@ -763,13 +769,12 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         Awaitility.await()
                 .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(testTopic)));
-
+        admin.topics().createPartitionedTopic(persistenceTopic, 2);
         admin.topics().setMaxProducers(persistenceTopic, maxProducers);
 
         Awaitility.await()
                 .untilAsserted(() -> Assert.assertEquals(admin.topics().getMaxProducers(persistenceTopic), maxProducers));
 
-        admin.topics().createPartitionedTopic(persistenceTopic, 2);
         Producer<byte[]> producer1 = pulsarClient.newProducer().topic(persistenceTopic).create();
         Producer<byte[]> producer2 = pulsarClient.newProducer().topic(persistenceTopic).create();
         Producer<byte[]> producer3 = null;
@@ -1301,13 +1306,12 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         Awaitility.await()
                 .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(testTopic)));
-
+        admin.topics().createPartitionedTopic(persistenceTopic, 2);
         admin.topics().setMaxConsumers(persistenceTopic, maxConsumers);
 
         Awaitility.await()
                 .untilAsserted(() -> Assert.assertEquals(admin.topics().getMaxConsumers(persistenceTopic), maxConsumers));
 
-        admin.topics().createPartitionedTopic(persistenceTopic, 2);
         Consumer<byte[]> consumer1 = pulsarClient.newConsumer().subscriptionName("sub1").topic(persistenceTopic).subscribe();
         Consumer<byte[]> consumer2 = pulsarClient.newConsumer().subscriptionName("sub2").topic(persistenceTopic).subscribe();
         Consumer<byte[]> consumer3 = null;
@@ -1333,13 +1337,12 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Integer maxConsumers = 2;
         Awaitility.await()
                 .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(testTopic)));
-
+        admin.topics().createPartitionedTopic(persistenceTopic, 2);
         admin.topics().setMaxConsumers(persistenceTopic, maxConsumers);
 
         Awaitility.await()
                 .untilAsserted(() -> Assert.assertEquals(admin.topics().getMaxConsumers(persistenceTopic), maxConsumers));
 
-        admin.topics().createPartitionedTopic(persistenceTopic, 2);
         Consumer<byte[]> consumer1 = pulsarClient.newConsumer().subscriptionName("sub1").topic(persistenceTopic).subscribe();
         Consumer<byte[]> consumer2 = pulsarClient.newConsumer().subscriptionName("sub2").topic(persistenceTopic).subscribe();
         Consumer<byte[]> consumer3 = null;
@@ -1688,8 +1691,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     public void testTopicMaxMessageSizeApi() throws Exception{
         Awaitility.await()
                 .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(persistenceTopic)));
+        admin.topics().createNonPartitionedTopic(persistenceTopic);
         assertNull(admin.topics().getMaxMessageSize(persistenceTopic));
-
         admin.topics().setMaxMessageSize(persistenceTopic,10);
         Awaitility.await().until(()
                 -> pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(persistenceTopic)) != null);
