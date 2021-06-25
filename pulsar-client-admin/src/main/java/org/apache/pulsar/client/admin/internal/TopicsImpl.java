@@ -3487,7 +3487,29 @@ public class TopicsImpl extends BaseResource implements Topics {
         return asyncDeleteRequest(path);
     }
 
+    @Override
+    public void setReplicatedSubscriptionStatus(String topic, String subName, boolean enabled)
+            throws PulsarAdminException {
+        try {
+            setReplicatedSubscriptionStatusAsync(topic, subName, enabled).get(this.readTimeoutMs,
+                    TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
 
+    @Override
+    public CompletableFuture<Void> setReplicatedSubscriptionStatusAsync(String topic, String subName, boolean enabled) {
+        TopicName topicName = validateTopic(topic);
+        String encodedSubName = Codec.encode(subName);
+        WebTarget path = topicPath(topicName, "subscription", encodedSubName, "replicatedSubscriptionStatus");
+        return asyncPostRequest(path, Entity.entity(enabled, MediaType.APPLICATION_JSON));
+    }
 
     private static final Logger log = LoggerFactory.getLogger(TopicsImpl.class);
 }
