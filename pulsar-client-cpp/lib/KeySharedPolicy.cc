@@ -18,6 +18,8 @@
  */
 #include <lib/KeySharedPolicyImpl.h>
 
+#include <stdexcept>
+
 namespace pulsar {
 
 static const int DefaultHashRangeSize = 2 << 15;
