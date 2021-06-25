@@ -244,9 +244,9 @@ Then you can proceed with the following steps:
 
     (2) Expose `PULSAR_HOME` as the environment variable.
 
-        ```bash
-        export PULSAR_HOME=$(pwd)
-        ```
+    ```bash
+    export PULSAR_HOME=$(pwd)
+    ```
 
 4. Configure the Pulsar client.
 
