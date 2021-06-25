@@ -188,7 +188,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         result.completeExceptionally(ex);
                     } else {
                         initPolicesCache(reader, result);
-                        readMorePolicies(reader);
+                        result.thenRun(() -> readMorePolicies(reader));
                     }
                 });
             }
