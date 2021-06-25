@@ -2332,10 +2332,12 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         // set and check retention policy on topic level
         RetentionPolicies topicRetentionPolicies = new RetentionPolicies(2, -1);
         admin.topics().setRetention(testTopic, topicRetentionPolicies);
-        managedLedgerConfig = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
-        Assert.assertEquals(managedLedgerConfig.getRetentionTimeMillis(),
-                TimeUnit.MINUTES.toMillis(topicRetentionPolicies.getRetentionTimeInMinutes()));
-        Assert.assertEquals(managedLedgerConfig.getRetentionSizeInMB(), topicRetentionPolicies.getRetentionSizeInMB());
+        Awaitility.await().untilAsserted(() -> {
+            ManagedLedgerConfig config = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
+            Assert.assertEquals(config.getRetentionTimeMillis(),
+                    TimeUnit.MINUTES.toMillis(topicRetentionPolicies.getRetentionTimeInMinutes()));
+            Assert.assertEquals(config.getRetentionSizeInMB(), topicRetentionPolicies.getRetentionSizeInMB());
+        });
     }
 
 }
