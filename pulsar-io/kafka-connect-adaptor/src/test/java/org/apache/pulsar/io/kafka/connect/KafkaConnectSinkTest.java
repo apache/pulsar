@@ -87,7 +87,6 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
 
         props = Maps.newHashMap();
         props.put("topic", "test-topic");
-        props.put("pulsarServiceUrl", brokerUrl.toString());
         props.put("offsetStorageTopic", offsetTopicName);
         props.put("kafkaConnectorSinkClass", "org.apache.kafka.connect.file.FileStreamSinkConnector");
 
