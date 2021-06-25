@@ -82,6 +82,7 @@
       <version>${jersey.version}</version>
     </dependency>
 
+
     <dependency>
       <groupId>io.prestosql</groupId>
       <artifactId>presto-main</artifactId>
@@ -101,6 +102,12 @@
           <artifactId>activation</artifactId>
         </exclusion>
       </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>io.prestosql</groupId>
+      <artifactId>presto-server-main</artifactId>
+      <version>${presto.version}</version>
     </dependency>
 
     <dependency>
