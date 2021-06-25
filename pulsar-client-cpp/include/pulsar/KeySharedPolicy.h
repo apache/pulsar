@@ -22,6 +22,9 @@
 
 #include <memory>
 
+#include <utility>
+#include <vector>
+
 namespace pulsar {
 
 /**
@@ -43,6 +46,9 @@ enum KeySharedMode
 };
 
 struct KeySharedPolicyImpl;
+
+typedef std::pair<int, int> StickyRange;
+typedef std::vector<StickyRange> StickyRanges;
 
 class PULSAR_PUBLIC KeySharedPolicy {
    public:
@@ -87,6 +93,16 @@ class PULSAR_PUBLIC KeySharedPolicy {
      * @return true if out of order delivery is enabled
      */
     bool isAllowOutOfOrderDelivery() const;
+
+    /**
+     * @param ranges used with sticky mode
+     */
+    KeySharedPolicy& setStickyRanges(std::initializer_list<StickyRange> ranges);
+
+    /**
+     * @return ranges used with sticky mode
+     */
+    StickyRanges getStickyRanges() const;
 
    private:
     std::shared_ptr<KeySharedPolicyImpl> impl_;
