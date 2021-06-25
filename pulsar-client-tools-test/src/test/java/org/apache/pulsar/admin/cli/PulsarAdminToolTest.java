@@ -939,6 +939,9 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("remove-subscribe-rate persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).removeSubscribeRate("persistent://myprop/clust/ns1/ds1");
 
+        cmdTopics.run(split("set-replicated-subscription-status persistent://myprop/clust/ns1/ds1 -s sub1 -e"));
+        verify(mockTopics).setReplicatedSubscriptionStatus("persistent://myprop/clust/ns1/ds1", "sub1", true);
+
         //cmd with option cannot be executed repeatedly.
         cmdTopics = new CmdTopics(() -> admin);
         cmdTopics.run(split("expire-messages persistent://myprop/clust/ns1/ds1 -s sub1 -p 1:1 -e"));
@@ -1227,6 +1230,9 @@ public class PulsarAdminToolTest {
 
         cmdTopics.run(split("remove-message-ttl persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).removeMessageTTL("persistent://myprop/clust/ns1/ds1");
+
+        cmdTopics.run(split("set-replicated-subscription-status persistent://myprop/clust/ns1/ds1 -s sub1 -d"));
+        verify(mockTopics).setReplicatedSubscriptionStatus("persistent://myprop/clust/ns1/ds1", "sub1", false);
 
         //cmd with option cannot be executed repeatedly.
         cmdTopics = new CmdTopics(() -> admin);

@@ -47,6 +47,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
@@ -172,12 +173,25 @@ public class PersistentSubscription implements Subscription {
         return replicatedSubscriptionSnapshotCache != null;
     }
 
-    void setReplicated(boolean replicated) {
-        this.replicatedSubscriptionSnapshotCache = replicated
-                ? new ReplicatedSubscriptionSnapshotCache(subName,
-                        topic.getBrokerService().pulsar().getConfiguration()
-                                .getReplicatedSubscriptionsSnapshotMaxCachedPerSubscription())
-                : null;
+    public boolean setReplicated(boolean replicated) {
+        ServiceConfiguration config = topic.getBrokerService().getPulsar().getConfig();
+
+        if (!replicated || !config.isEnableReplicatedSubscriptions()) {
+            this.replicatedSubscriptionSnapshotCache = null;
+        } else if (this.replicatedSubscriptionSnapshotCache == null) {
+            this.replicatedSubscriptionSnapshotCache = new ReplicatedSubscriptionSnapshotCache(subName,
+                    config.getReplicatedSubscriptionsSnapshotMaxCachedPerSubscription());
+        }
+
+        if (this.cursor != null) {
+            if (replicated) {
+                return this.cursor.putProperty(REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
+            } else {
+                return this.cursor.removeProperty(REPLICATED_SUBSCRIPTION_PROPERTY);
+            }
+        }
+
+        return false;
     }
 
     @Override
