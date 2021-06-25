@@ -150,8 +150,8 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
         pulsar.getAdminClient().topics().getStats(topicName);
         MessageId messageIdAfterRestart = pulsar.getAdminClient().topics().getLastMessageId(topicName);
         LOG.info("lastmessageid " + messageIdAfterRestart);
-        assertEquals(messageIdAfterRestart, messageIdBeforeRestart);
-
+        Awaitility.await().untilAsserted(()->
+                assertEquals(messageIdAfterRestart, messageIdBeforeRestart));
         persistentTopic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
         managedLedgerConfig = persistentTopic.getManagedLedger().getConfig();
         managedLedgerConfig.setRetentionSizeInMB(-1);
