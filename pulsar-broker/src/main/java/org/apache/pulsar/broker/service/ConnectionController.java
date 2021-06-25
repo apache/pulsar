@@ -69,8 +69,7 @@ public interface ConnectionController {
                 return true;
             }
             if (!(remoteAddress instanceof InetSocketAddress)
-                    || !InetAddressUtils.isIPv4Address(((InetSocketAddress) remoteAddress).getHostString())
-                    || !InetAddressUtils.isIPv6Address(((InetSocketAddress) remoteAddress).getHostString())) {
+                    || !isLegalIpAddress(((InetSocketAddress) remoteAddress).getHostString())) {
                 return true;
             }
             lock.lock();
@@ -107,8 +106,7 @@ public interface ConnectionController {
                 return;
             }
             if (!(remoteAddress instanceof InetSocketAddress)
-                    || !InetAddressUtils.isIPv4Address(((InetSocketAddress) remoteAddress).getHostString())
-                    || !InetAddressUtils.isIPv6Address(((InetSocketAddress) remoteAddress).getHostString())) {
+                    || !isLegalIpAddress(((InetSocketAddress) remoteAddress).getHostString())) {
                 return;
             }
             lock.lock();
@@ -124,6 +122,10 @@ public interface ConnectionController {
             } finally {
                 lock.unlock();
             }
+        }
+
+        private boolean isLegalIpAddress(String address) {
+            return InetAddressUtils.isIPv4Address(address) || InetAddressUtils.isIPv6Address(address);
         }
     }
 
