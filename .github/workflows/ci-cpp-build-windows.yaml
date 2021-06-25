@@ -52,6 +52,13 @@ jobs:
             suffix: 'windows-win64'
             generator: 'Visual Studio 16 2019'
             arch: '-A x64'
+          - name: 'Windows x86'
+            os: windows-latest
+            triplet: x86-windows
+            vcpkg_dir: 'C:\vcpkg'
+            suffix: 'windows-win32'
+            generator: 'Visual Studio 16 2019'
+            arch: '-A Win32'
 
     steps:
       - name: checkout
