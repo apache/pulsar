@@ -174,8 +174,6 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
         assertEquals(e, SessionEvent.Reconnected);
         e = sessionEvents.poll(10, TimeUnit.SECONDS);
         assertEquals(e, SessionEvent.SessionReestablished);
-        // ---- after 2000 millis, the le1 is also can be leader.
-        Thread.sleep(2_000);
         Awaitility.await()
                 .untilAsserted(()-> assertEquals(le1.getState(),LeaderElectionState.Leading));
         assertTrue(store.get(path).join().isPresent());
