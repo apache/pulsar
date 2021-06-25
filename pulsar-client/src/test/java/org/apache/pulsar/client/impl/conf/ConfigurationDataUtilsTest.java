@@ -211,5 +211,13 @@ public class ConfigurationDataUtilsTest {
         assertEquals(pulsarClient.getConfiguration().getSocks5ProxyAddress(), new InetSocketAddress("localhost", 11080));
         assertEquals(pulsarClient.getConfiguration().getSocks5ProxyUsername(), "test");
         assertEquals(pulsarClient.getConfiguration().getSocks5ProxyPassword(), "test123");
+
+        ClientConfigurationData clientConfig2 = new ClientConfigurationData();
+        System.setProperty("socks5Proxy.address", "http://localhost:11080");
+        System.setProperty("socks5Proxy.username", "pulsar");
+        System.setProperty("socks5Proxy.password", "pulsar123");
+        assertEquals(clientConfig2.getSocks5ProxyAddress(), new InetSocketAddress("localhost", 11080));
+        assertEquals(clientConfig2.getSocks5ProxyUsername(), "pulsar");
+        assertEquals(clientConfig2.getSocks5ProxyPassword(), "pulsar123");
     }
 }

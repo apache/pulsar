@@ -22,7 +22,9 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Sets;
 
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.time.Clock;
+import java.util.Objects;
 import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -140,5 +142,24 @@ public class ClientConfigurationData implements Serializable, Cloneable {
         }
     }
 
+    public InetSocketAddress getSocks5ProxyAddress() {
+        if (Objects.nonNull(socks5ProxyAddress)) {
+            return socks5ProxyAddress;
+        }
+        String proxyAddress = System.getProperty("socks5Proxy.address");
+        try {
+            URI uri = URI.create(proxyAddress);
+            return new InetSocketAddress(uri.getHost(), uri.getPort());
+        } catch (Exception ignore) {
+            return null;
+        }
+    }
 
+    public String getSocks5ProxyUsername() {
+        return Objects.nonNull(socks5ProxyUsername) ? socks5ProxyUsername : System.getProperty("socks5Proxy.username");
+    }
+
+    public String getSocks5ProxyPassword() {
+        return Objects.nonNull(socks5ProxyPassword) ? socks5ProxyPassword : System.getProperty("socks5Proxy.password");
+    }
 }
