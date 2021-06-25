@@ -92,6 +92,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     private final WebTarget adminV2Topics;
     // CHECKSTYLE.OFF: MemberName
     private static final String BATCH_HEADER = "X-Pulsar-num-batch-message";
+    private static final String BATCH_SIZE_HEADER = "X-Pulsar-batch-size";
     private static final String MESSAGE_ID = "X-Pulsar-Message-ID";
     private static final String PUBLISH_TIME = "X-Pulsar-publish-time";
     // CHECKSTYLE.ON: MemberName
@@ -1482,17 +1483,23 @@ public class TopicsImpl extends BaseResource implements Topics {
                 messageMetadata.setNullValue(Boolean.parseBoolean(tmp.toString()));
             }
 
-            tmp = headers.getFirst(BATCH_HEADER);
-            if (response.getHeaderString(BATCH_HEADER) != null) {
-                properties.put(BATCH_HEADER, (String) tmp);
-                return getIndividualMsgsFromBatch(topic, msgId, data, properties, messageMetadata);
+            tmp = headers.getFirst(BATCH_SIZE_HEADER);
+            if (tmp != null) {
+                properties.put(BATCH_SIZE_HEADER, (String) tmp);
             }
+
             for (Entry<String, List<Object>> entry : headers.entrySet()) {
                 String header = entry.getKey();
                 if (header.contains("X-Pulsar-PROPERTY-")) {
                     String keyName = header.substring("X-Pulsar-PROPERTY-".length());
                     properties.put(keyName, (String) entry.getValue().get(0));
                 }
+            }
+
+            tmp = headers.getFirst(BATCH_HEADER);
+            if (response.getHeaderString(BATCH_HEADER) != null) {
+                properties.put(BATCH_HEADER, (String) tmp);
+                return getIndividualMsgsFromBatch(topic, msgId, data, properties, messageMetadata);
             }
 
             return Collections.singletonList(new MessageImpl<byte[]>(topic, msgId, properties,
