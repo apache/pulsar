@@ -967,7 +967,7 @@ public class PersistentTopicsBase extends AdminResource {
         try {
             validateTopicOperation(topicName, TopicOperation.UNLOAD);
         } catch (Exception e) {
-            log.error("[{}] Failed to unload topic {}", clientAppId(), topicName, e.getMessage());
+            log.error("[{}] Failed to unload topic {},{}", clientAppId(), topicName, e.getMessage());
             resumeAsyncResponseExceptionally(asyncResponse, e);
             return;
         }

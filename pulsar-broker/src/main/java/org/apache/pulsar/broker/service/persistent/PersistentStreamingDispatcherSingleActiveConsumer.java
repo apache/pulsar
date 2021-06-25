@@ -72,7 +72,7 @@ public class PersistentStreamingDispatcherSingleActiveConsumer extends Persisten
                         readMoreEntries(currentConsumer);
                     } else {
                         log.info("[{}-{}] Skipping read as we still havePendingRead {}", name,
-                                currentConsumer);
+                                currentConsumer, havePendingRead);
                     }
                 }
             }));

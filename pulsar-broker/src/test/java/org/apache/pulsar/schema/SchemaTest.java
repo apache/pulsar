@@ -598,8 +598,8 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
 
         Message<KeyValue<Schemas.PersonOne, Schemas.PersonTwo>> message = consumer.receive();
         Message<GenericRecord> message2 = consumer2.receive();
-        log.info("message: {}", message.getValue(), message.getValue().getClass());
-        log.info("message2: {}", message2.getValue().getNativeObject(), message2.getValue().getNativeObject().getClass());
+        log.info("message: {},{}", message.getValue(), message.getValue().getClass());
+        log.info("message2: {},{}", message2.getValue().getNativeObject(), message2.getValue().getNativeObject().getClass());
         KeyValue<GenericRecord, GenericRecord> keyValue2 = (KeyValue<GenericRecord, GenericRecord>) message2.getValue().getNativeObject();
         assertEquals(message.getValue().getKey().id, keyValue2.getKey().getField("id"));
         assertEquals(message.getValue().getValue().id, keyValue2.getValue().getField("id"));

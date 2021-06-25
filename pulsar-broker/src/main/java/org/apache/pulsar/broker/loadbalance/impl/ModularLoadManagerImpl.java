@@ -1006,7 +1006,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
         try {
             FutureUtil.waitForAll(futures).join();
         } catch (Exception e) {
-            log.warn("Error when writing metadata data to store: {}", e);
+            log.warn("Error when writing metadata data to store", e);
         }
     }
 

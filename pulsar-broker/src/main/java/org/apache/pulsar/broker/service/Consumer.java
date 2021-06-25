@@ -529,7 +529,7 @@ public class Consumer {
             oldPermits = MESSAGE_PERMITS_UPDATER.getAndAdd(this, additionalNumberOfMessages);
             if (log.isDebugEnabled()) {
                 log.debug("[{}-{}] Added {} message permits in broker.service.Consumer before updating dispatcher "
-                        + "for consumer", topicName, subscription, additionalNumberOfMessages, consumerId);
+                        + "for consumer {}", topicName, subscription, additionalNumberOfMessages, consumerId);
             }
             subscription.consumerFlow(this, additionalNumberOfMessages);
         } else {
@@ -555,7 +555,7 @@ public class Consumer {
         // add newly flow permits to actual consumer.messagePermits
         MESSAGE_PERMITS_UPDATER.getAndAdd(consumer, additionalNumberOfPermits);
         if (log.isDebugEnabled()){
-            log.debug("[{}-{}] Added {} blocked permits to broker.service.Consumer for consumer", topicName,
+            log.debug("[{}-{}] Added {} blocked permits to broker.service.Consumer for consumer {}", topicName,
                     subscription, additionalNumberOfPermits, consumerId);
         }
         // dispatch pending permits to flow more messages: it will add more permits to dispatcher and consumer
@@ -607,7 +607,7 @@ public class Consumer {
         lastConsumedTimestamp = consumerStats.lastConsumedTimestamp;
         MESSAGE_PERMITS_UPDATER.set(this, consumerStats.availablePermits);
         if (log.isDebugEnabled()){
-            log.debug("[{}-{}] Setting broker.service.Consumer's messagePermits to {} for consumer", topicName,
+            log.debug("[{}-{}] Setting broker.service.Consumer's messagePermits to {} for consumer {}", topicName,
                     subscription, consumerStats.availablePermits, consumerId);
         }
         unackedMessages = consumerStats.unackedMessages;
