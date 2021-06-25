@@ -447,11 +447,10 @@ The Apache Software License, Version 2.0
  * RocksDB - org.rocksdb-rocksdbjni-6.10.2.jar
  * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.5.1.jar
  * Apache Thrifth - org.apache.thrift-libthrift-0.12.0.jar
- * OkHttp and OkHttp3
-     - com.squareup.okhttp-okhttp-2.7.4.jar
+ * OkHttp3
      - com.squareup.okhttp3-logging-interceptor-3.14.9.jar
      - com.squareup.okhttp3-okhttp-3.14.9.jar
- * Okio - com.squareup.okio-okio-1.13.0.jar
+ * Okio - com.squareup.okio-okio-1.17.2.jar
  * Javassist -- org.javassist-javassist-3.25.0-GA.jar
  * gRPC
     - io.grpc-grpc-all-1.33.0.jar
@@ -459,7 +458,6 @@ The Apache Software License, Version 2.0
     - io.grpc-grpc-context-1.33.0.jar
     - io.grpc-grpc-core-1.33.0.jar
     - io.grpc-grpc-netty-1.33.0.jar
-    - io.grpc-grpc-okhttp-1.33.0.jar
     - io.grpc-grpc-protobuf-1.33.0.jar
     - io.grpc-grpc-protobuf-lite-1.33.0.jar
     - io.grpc-grpc-stub-1.33.0.jar
