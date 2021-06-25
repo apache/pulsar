@@ -2336,6 +2336,8 @@ public class PersistentTopicsBase extends AdminResource {
         }
         if (metadata.hasNumMessagesInBatch()) {
             responseBuilder.header("X-Pulsar-num-batch-message", metadata.getNumMessagesInBatch());
+            responseBuilder.header("X-Pulsar-batch-size", metadataAndPayload.readableBytes()
+                    - metadata.getSerializedSize());
         }
         if (metadata.hasNullValue()) {
             responseBuilder.header("X-Pulsar-null-value", metadata.hasNullValue());
