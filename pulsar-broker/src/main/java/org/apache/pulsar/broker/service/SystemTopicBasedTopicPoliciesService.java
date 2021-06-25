@@ -390,7 +390,6 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             //change persistent://tenant/namespace/xxx-partition-0  to persistent://tenant/namespace/xxx
             realTopicName = TopicName.get(topicName.getPartitionedTopicName());
         }
-        policiesCache.remove(realTopicName);
         listeners.remove(realTopicName);
     }
 
