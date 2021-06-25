@@ -23,9 +23,9 @@ import java.net.SocketAddress;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.regex.Pattern;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.common.tls.InetAddressUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,8 +48,6 @@ public interface ConnectionController {
     class DefaultConnectionController implements ConnectionController {
         private static final Logger log = LoggerFactory.getLogger(DefaultConnectionController.class);
         private static final Map<String, MutableInt> CONNECTIONS = new HashMap<>();
-        private static final Pattern IPV4_PATTERN = Pattern
-                .compile("^" + "(25[0-5]|2[0-4]\\d|[0-1]?\\d?\\d)" + "(\\.(25[0-5]|2[0-4]\\d|[0-1]?\\d?\\d)){3}" + "$");
         private static final ReentrantLock lock = new ReentrantLock();
         private static int totalConnectionNum = 0;
 
@@ -70,8 +68,9 @@ public interface ConnectionController {
             if (!maxConnectionsLimitEnabled && !maxConnectionsLimitPerIpEnabled) {
                 return true;
             }
-            if (!(remoteAddress instanceof InetSocketAddress) || !IPV4_PATTERN.matcher(
-                    ((InetSocketAddress) remoteAddress).getHostString()).find()) {
+            if (!(remoteAddress instanceof InetSocketAddress)
+                    || !InetAddressUtils.isIPv4Address(((InetSocketAddress) remoteAddress).getHostString())
+                    || !InetAddressUtils.isIPv6Address(((InetSocketAddress) remoteAddress).getHostString())) {
                 return true;
             }
             lock.lock();
@@ -107,8 +106,9 @@ public interface ConnectionController {
             if (!maxConnectionsLimitEnabled && !maxConnectionsLimitPerIpEnabled) {
                 return;
             }
-            if (!(remoteAddress instanceof InetSocketAddress) || !IPV4_PATTERN.matcher(
-                    ((InetSocketAddress) remoteAddress).getHostString()).find()) {
+            if (!(remoteAddress instanceof InetSocketAddress)
+                    || !InetAddressUtils.isIPv4Address(((InetSocketAddress) remoteAddress).getHostString())
+                    || !InetAddressUtils.isIPv6Address(((InetSocketAddress) remoteAddress).getHostString())) {
                 return;
             }
             lock.lock();
