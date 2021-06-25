@@ -190,6 +190,7 @@ class OpReadEntry implements ReadEntriesCallback {
         nextReadPosition = null;
         maxPosition = null;
         recyclerHandle.recycle(this);
+        count = 0;
     }
 
     private static final Logger log = LoggerFactory.getLogger(OpReadEntry.class);
