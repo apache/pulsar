@@ -35,7 +35,8 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
@@ -157,10 +158,10 @@ public class AuthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
                 // expected
             }
 
-            brokerAdmin.clusters().createCluster(configClusterName, new ClusterData(brokerUrl.toString()));
+            brokerAdmin.clusters().createCluster(configClusterName, ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
 
             brokerAdmin.tenants().createTenant("tenant1",
-                                               new TenantInfo(ImmutableSet.of("user1"),
+                                               new TenantInfoImpl(ImmutableSet.of("user1"),
                                                               ImmutableSet.of(configClusterName)));
             brokerAdmin.namespaces().createNamespace("tenant1/ns1");
             Assert.assertEquals(ImmutableSet.of("tenant1/ns1"), brokerAdmin.namespaces().getNamespaces("tenant1"));
@@ -171,7 +172,7 @@ public class AuthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
                 // expected
             }
             brokerAdmin.tenants().updateTenant("tenant1",
-                                               new TenantInfo(ImmutableSet.of("proxy"),
+                                               new TenantInfoImpl(ImmutableSet.of("proxy"),
                                                               ImmutableSet.of(configClusterName)));
             try {
                 user1Admin.namespaces().getNamespaces("tenant1");
@@ -180,7 +181,7 @@ public class AuthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
                 // expected
             }
             brokerAdmin.tenants().updateTenant("tenant1",
-                                               new TenantInfo(ImmutableSet.of("user1", "proxy"),
+                                               new TenantInfoImpl(ImmutableSet.of("user1", "proxy"),
                                                               ImmutableSet.of(configClusterName)));
             Assert.assertEquals(ImmutableSet.of("tenant1/ns1"), user1Admin.namespaces().getNamespaces("tenant1"));
         }

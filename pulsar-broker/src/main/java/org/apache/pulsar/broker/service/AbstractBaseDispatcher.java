@@ -98,13 +98,13 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
     public void filterEntriesForConsumer(List<Entry> entries, EntryBatchSizes batchSizes,
             SendMessageInfo sendMessageInfo, EntryBatchIndexesAcks indexesAcks,
             ManagedCursor cursor, boolean isReplayRead) {
-        filterEntriesForConsumer(Optional.empty(), entries, batchSizes, sendMessageInfo, indexesAcks, cursor,
+        filterEntriesForConsumer(Optional.empty(), 0, entries, batchSizes, sendMessageInfo, indexesAcks, cursor,
                 isReplayRead);
     }
 
-    public void filterEntriesForConsumer(Optional<EntryWrapper[]> entryWrapper, List<Entry> entries,
-            EntryBatchSizes batchSizes, SendMessageInfo sendMessageInfo, EntryBatchIndexesAcks indexesAcks,
-            ManagedCursor cursor, boolean isReplayRead) {
+    public void filterEntriesForConsumer(Optional<EntryWrapper[]> entryWrapper, int entryWrapperOffset,
+             List<Entry> entries, EntryBatchSizes batchSizes, SendMessageInfo sendMessageInfo,
+             EntryBatchIndexesAcks indexesAcks, ManagedCursor cursor, boolean isReplayRead) {
         int totalMessages = 0;
         long totalBytes = 0;
         int totalChunkedMessages = 0;
@@ -114,8 +114,9 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                 continue;
             }
             ByteBuf metadataAndPayload = entry.getDataBuffer();
-            MessageMetadata msgMetadata = entryWrapper.isPresent() && entryWrapper.get()[i] != null
-                    ? entryWrapper.get()[i].getMetadata()
+            int entryWrapperIndex = i + entryWrapperOffset;
+            MessageMetadata msgMetadata = entryWrapper.isPresent() && entryWrapper.get()[entryWrapperIndex] != null
+                    ? entryWrapper.get()[entryWrapperIndex].getMetadata()
                     : null;
             msgMetadata = msgMetadata == null
                     ? Commands.peekMessageMetadata(metadataAndPayload, subscription.toString(), -1)

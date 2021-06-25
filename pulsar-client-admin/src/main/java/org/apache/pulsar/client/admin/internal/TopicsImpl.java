@@ -21,8 +21,6 @@ package org.apache.pulsar.client.admin.internal;
 import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.io.InputStream;
@@ -75,6 +73,7 @@ import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -92,9 +91,9 @@ public class TopicsImpl extends BaseResource implements Topics {
     private final WebTarget adminTopics;
     private final WebTarget adminV2Topics;
     // CHECKSTYLE.OFF: MemberName
-    static private final String BATCH_HEADER = "X-Pulsar-num-batch-message";
-    static private final String MESSAGE_ID = "X-Pulsar-Message-ID";
-    static private final String PUBLISH_TIME = "X-Pulsar-publish-time";
+    private static final String BATCH_HEADER = "X-Pulsar-num-batch-message";
+    private static final String MESSAGE_ID = "X-Pulsar-Message-ID";
+    private static final String PUBLISH_TIME = "X-Pulsar-publish-time";
     // CHECKSTYLE.ON: MemberName
 
     public TopicsImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
@@ -385,9 +384,15 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public CompletableFuture<Void> createPartitionedTopicAsync(String topic, int numPartitions) {
+        return createPartitionedTopicAsync(topic, numPartitions, false);
+    }
+
+    public CompletableFuture<Void> createPartitionedTopicAsync(
+            String topic, int numPartitions, boolean createLocalTopicOnly) {
         checkArgument(numPartitions > 0, "Number of partitions should be more than 0");
         TopicName tn = validateTopic(topic);
-        WebTarget path = topicPath(tn, "partitions");
+        WebTarget path = topicPath(tn, "partitions")
+                .queryParam("createLocalTopicOnly", Boolean.toString(createLocalTopicOnly));
         return asyncPutRequest(path, Entity.entity(numPartitions, MediaType.APPLICATION_JSON));
     }
 
@@ -733,7 +738,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public JsonObject getInternalInfo(String topic) throws PulsarAdminException {
+    public String getInternalInfo(String topic) throws PulsarAdminException {
         try {
             return getInternalInfoAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
@@ -747,16 +752,15 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public CompletableFuture<JsonObject> getInternalInfoAsync(String topic) {
+    public CompletableFuture<String> getInternalInfoAsync(String topic) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "internal-info");
-        final CompletableFuture<JsonObject> future = new CompletableFuture<>();
+        final CompletableFuture<String> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<String>() {
                     @Override
                     public void completed(String response) {
-                        JsonObject json = new Gson().fromJson(response, JsonObject.class);
-                        future.complete(json);
+                        future.complete(response);
                     }
 
                     @Override
@@ -799,7 +803,7 @@ public class TopicsImpl extends BaseResource implements Topics {
                     @Override
                     public void completed(PartitionedTopicStats response) {
                         if (!perPartition) {
-                            response.partitions.clear();
+                            response.getPartitions().clear();
                         }
                         future.complete(response);
                     }
@@ -2070,9 +2074,9 @@ public class TopicsImpl extends BaseResource implements Topics {
         WebTarget path = topicPath(topicName, "offloadPolicies");
         path = path.queryParam("applied", applied);
         final CompletableFuture<OffloadPolicies> future = new CompletableFuture<>();
-        asyncGetRequest(path, new InvocationCallback<OffloadPolicies>() {
+        asyncGetRequest(path, new InvocationCallback<OffloadPoliciesImpl>() {
             @Override
-            public void completed(OffloadPolicies offloadPolicies) {
+            public void completed(OffloadPoliciesImpl offloadPolicies) {
                 future.complete(offloadPolicies);
             }
 
@@ -2103,7 +2107,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     public CompletableFuture<Void> setOffloadPoliciesAsync(String topic, OffloadPolicies offloadPolicies) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "offloadPolicies");
-        return asyncPostRequest(path, Entity.entity(offloadPolicies, MediaType.APPLICATION_JSON));
+        return asyncPostRequest(path, Entity.entity((OffloadPoliciesImpl) offloadPolicies, MediaType.APPLICATION_JSON));
     }
 
     @Override

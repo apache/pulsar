@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.resources;
 
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 public class TenantResources extends BaseResources<TenantInfo> {

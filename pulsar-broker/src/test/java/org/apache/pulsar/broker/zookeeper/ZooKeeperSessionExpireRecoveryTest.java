@@ -26,6 +26,7 @@ import com.google.common.collect.Sets;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.MockZooKeeper;
 import org.testng.annotations.AfterMethod;
@@ -52,7 +53,7 @@ public class ZooKeeperSessionExpireRecoveryTest extends MockedPulsarServiceBaseT
      */
     @Test
     public void testSessionExpired() throws Exception {
-        admin.clusters().createCluster("my-cluster", new ClusterData("test-url"));
+        admin.clusters().createCluster("my-cluster", ClusterData.builder().serviceUrl("test-url").build());
 
         assertTrue(Sets.newHashSet(admin.clusters().getClusters()).contains("my-cluster"));
 
@@ -64,12 +65,12 @@ public class ZooKeeperSessionExpireRecoveryTest extends MockedPulsarServiceBaseT
         assertTrue(Sets.newHashSet(admin.clusters().getClusters()).contains("my-cluster"));
 
         try {
-            admin.clusters().createCluster("my-cluster-2", new ClusterData("test-url"));
+            admin.clusters().createCluster("my-cluster-2", ClusterData.builder().serviceUrl("test-url").build());
             fail("Should have failed, because global zk is down");
         } catch (PulsarAdminException e) {
             // Ok
         }
 
-        admin.clusters().createCluster("cluster-2", new ClusterData("test-url"));
+        admin.clusters().createCluster("cluster-2", ClusterData.builder().serviceUrl("test-url").build());
     }
 }

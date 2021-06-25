@@ -49,9 +49,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class CompactedTopicImpl implements CompactedTopic {
-    final static long NEWER_THAN_COMPACTED = -0xfeed0fbaL;
-    final static long COMPACT_LEDGER_EMPTY = -0xfeed0fbbL;
-    final static int DEFAULT_STARTPOINT_CACHE_SIZE = 100;
+    static final long NEWER_THAN_COMPACTED = -0xfeed0fbaL;
+    static final long COMPACT_LEDGER_EMPTY = -0xfeed0fbbL;
+    static final int DEFAULT_STARTPOINT_CACHE_SIZE = 100;
 
     private final BookKeeper bk;
 

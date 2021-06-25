@@ -96,7 +96,7 @@ public abstract class TestPulsarConnector {
 
     protected static PulsarDispatchingRowDecoderFactory dispatchingRowDecoderFactory;
 
-    protected final static PulsarConnectorId pulsarConnectorId = new PulsarConnectorId("test-connector");
+    protected static final PulsarConnectorId pulsarConnectorId = new PulsarConnectorId("test-connector");
 
     protected static List<TopicName> topicNames;
     protected static List<TopicName> partitionedTopicNames;
@@ -104,7 +104,7 @@ public abstract class TestPulsarConnector {
     protected static Map<String, SchemaInfo> topicsToSchemas;
     protected static Map<String, Long> topicsToNumEntries;
 
-    private final static ObjectMapper objectMapper = new ObjectMapper();
+    private static final ObjectMapper objectMapper = new ObjectMapper();
 
     protected static List<String> fooFieldNames = new ArrayList<>();
 
@@ -455,7 +455,8 @@ public abstract class TestPulsarConnector {
                 String tenant = (String) args[0];
                 List<String> ns = getNamespace(tenant);
                 if (ns.isEmpty()) {
-                    throw new PulsarAdminException(new ClientErrorException(Response.status(404).build()));
+                    ClientErrorException cee = new ClientErrorException(Response.status(404).build());
+                    throw new PulsarAdminException(cee, cee.getMessage(), cee.getResponse().getStatus());
                 }
                 return ns;
             }
@@ -469,7 +470,8 @@ public abstract class TestPulsarConnector {
                 String ns = (String) args[0];
                 List<String> topics = getTopics(ns);
                 if (topics.isEmpty()) {
-                    throw new PulsarAdminException(new ClientErrorException(Response.status(404).build()));
+                    ClientErrorException cee = new ClientErrorException(Response.status(404).build());
+                    throw new PulsarAdminException(cee, cee.getMessage(), cee.getResponse().getStatus());
                 }
                 return topics;
             }
@@ -482,7 +484,8 @@ public abstract class TestPulsarConnector {
                 String ns = (String) args[0];
                 List<String> topics = getPartitionedTopics(ns);
                 if (topics.isEmpty()) {
-                    throw new PulsarAdminException(new ClientErrorException(Response.status(404).build()));
+                    ClientErrorException cee = new ClientErrorException(Response.status(404).build());
+                    throw new PulsarAdminException(cee, cee.getMessage(), cee.getResponse().getStatus());
                 }
                 return topics;
             }
@@ -508,7 +511,8 @@ public abstract class TestPulsarConnector {
                 if (topicsToSchemas.get(topic) != null) {
                     return topicsToSchemas.get(topic);
                 } else {
-                    throw new PulsarAdminException(new ClientErrorException(Response.status(404).build()));
+                    ClientErrorException cee = new ClientErrorException(Response.status(404).build());
+                    throw new PulsarAdminException(cee, cee.getMessage(), cee.getResponse().getStatus());
                 }
             }
         });

@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.admin.v3;
 import com.google.common.collect.Sets;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -32,16 +33,23 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
+import org.apache.pulsar.common.policies.data.TransactionCoordinatorInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStats;
+import org.apache.pulsar.common.policies.data.TransactionPendingAckInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionMetadata;
 import org.apache.pulsar.packages.management.core.MockedPackagesStorageProvider;
+import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -65,8 +73,8 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         conf.setSystemTopicEnabled(true);
         conf.setTransactionBufferSnapshotMaxTransactionCount(1);
         super.internalSetup();
-        admin.clusters().createCluster("test", new ClusterData(pulsar.getWebServiceAddress()));
-        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant("pulsar", tenantInfo);
         admin.namespaces().createNamespace("pulsar/system", Sets.newHashSet("test"));
         admin.tenants().createTenant("public", tenantInfo);
@@ -85,14 +93,14 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         getTransaction().commit().get();
         getTransaction().abort().get();
         TransactionCoordinatorStats transactionCoordinatorstats =
-                admin.transactions().getCoordinatorStatsById(1).get();
+                admin.transactions().getCoordinatorStatsByIdAsync(1).get();
         verifyCoordinatorStats(transactionCoordinatorstats.state,
                 transactionCoordinatorstats.leastSigBits, transactionCoordinatorstats.lowWaterMark);
 
-        transactionCoordinatorstats = admin.transactions().getCoordinatorStatsById(0).get();
+        transactionCoordinatorstats = admin.transactions().getCoordinatorStatsByIdAsync(0).get();
         verifyCoordinatorStats(transactionCoordinatorstats.state,
                 transactionCoordinatorstats.leastSigBits, transactionCoordinatorstats.lowWaterMark);
-        Map<Integer, TransactionCoordinatorStats> stats = admin.transactions().getCoordinatorStats().get();
+        Map<Integer, TransactionCoordinatorStats> stats = admin.transactions().getCoordinatorStatsAsync().get();
 
         assertEquals(stats.size(), 2);
 
@@ -114,7 +122,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES).topic(topic).sendTimeout(0, TimeUnit.SECONDS).create();
         MessageId messageId = producer.newMessage(transaction).value("Hello pulsar!".getBytes()).send();
         TransactionInBufferStats transactionInBufferStats = admin.transactions()
-                .getTransactionInBufferStats(new TxnID(transaction.getTxnIdMostBits(),
+                .getTransactionInBufferStatsAsync(new TxnID(transaction.getTxnIdMostBits(),
                         transaction.getTxnIdLeastBits()), topic).get();
         PositionImpl position =
                 PositionImpl.get(((MessageIdImpl) messageId).getLedgerId(), ((MessageIdImpl) messageId).getEntryId());
@@ -124,7 +132,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         transaction.abort().get();
 
         transactionInBufferStats = admin.transactions()
-                .getTransactionInBufferStats(new TxnID(transaction.getTxnIdMostBits(),
+                .getTransactionInBufferStatsAsync(new TxnID(transaction.getTxnIdMostBits(),
                         transaction.getTxnIdLeastBits()), topic).get();
         assertNull(transactionInBufferStats.startPosition);
         assertTrue(transactionInBufferStats.aborted);
@@ -145,7 +153,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         producer.sendAsync("Hello pulsar!".getBytes());
         TransactionImpl transaction = (TransactionImpl) getTransaction();
         TransactionInPendingAckStats transactionInPendingAckStats = admin.transactions()
-                .getTransactionInPendingAckStats(new TxnID(transaction.getTxnIdMostBits(),
+                .getTransactionInPendingAckStatsAsync(new TxnID(transaction.getTxnIdMostBits(),
                         transaction.getTxnIdLeastBits()), topic, subName).get();
         assertNull(transactionInPendingAckStats.cumulativeAckPosition);
 
@@ -156,7 +164,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         consumer.acknowledgeCumulativeAsync(batchMessageId, transaction).get();
 
         transactionInPendingAckStats = admin.transactions()
-                .getTransactionInPendingAckStats(new TxnID(transaction.getTxnIdMostBits(),
+                .getTransactionInPendingAckStatsAsync(new TxnID(transaction.getTxnIdMostBits(),
                         transaction.getTxnIdLeastBits()), topic, subName).get();
 
         assertEquals(transactionInPendingAckStats.cumulativeAckPosition,
@@ -205,7 +213,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         consumer3.acknowledgeCumulativeAsync(messageId2, transaction).get();
         TxnID txnID = new TxnID(transaction.getTxnIdMostBits(), transaction.getTxnIdLeastBits());
         TransactionMetadata transactionMetadata = admin.transactions()
-                .getTransactionMetadata(new TxnID(transaction.getTxnIdMostBits(),
+                .getTransactionMetadataAsync(new TxnID(transaction.getTxnIdMostBits(),
                         transaction.getTxnIdLeastBits())).get();
 
         assertEquals(transactionMetadata.txnId, txnID.toString());
@@ -259,7 +267,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         consumer2.acknowledgeAsync(messageId, transaction).get();
 
         TransactionBufferStats transactionBufferStats = admin.transactions().
-                getTransactionBufferStats(topic).get();
+                getTransactionBufferStatsAsync(topic).get();
 
         assertEquals(transactionBufferStats.state, "Ready");
         assertEquals(transactionBufferStats.maxReadPosition,
@@ -279,7 +287,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
                 .subscriptionName(subName).subscribe();
 
         TransactionPendingAckStats transactionPendingAckStats = admin.transactions().
-                getPendingAckStats(topic, subName).get();
+                getPendingAckStatsAsync(topic, subName).get();
 
         assertEquals(transactionPendingAckStats.state, "Ready");
     }
@@ -315,8 +323,71 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         return PositionImpl.get(((MessageIdImpl) messageId).getLedgerId(), ((MessageIdImpl) messageId).getEntryId());
     }
 
+    @Test(timeOut = 20000)
+    public void testGetCoordinatorInternalStats() throws Exception {
+        initTransaction(1);
+        Transaction transaction = pulsarClient.newTransaction()
+                .withTransactionTimeout(60, TimeUnit.SECONDS).build().get();
+
+        TransactionCoordinatorInternalStats stats = admin.transactions()
+                .getCoordinatorInternalStatsAsync(0, true).get();
+        verifyManagedLegerInternalStats(stats.transactionLogStats.managedLedgerInternalStats, 26);
+        assertEquals(TopicName.get(TopicDomain.persistent.toString(), NamespaceName.SYSTEM_NAMESPACE,
+                MLTransactionLogImpl.TRANSACTION_LOG_PREFIX + "0").getPersistenceNamingEncoding(),
+                stats.transactionLogStats.managedLedgerName);
+
+        transaction.commit().get();
+
+        stats = admin.transactions()
+                .getCoordinatorInternalStatsAsync(0, false).get();
+        assertNull(stats.transactionLogStats.managedLedgerInternalStats.ledgers.get(0).metadata);
+        assertEquals(TopicName.get(TopicDomain.persistent.toString(), NamespaceName.SYSTEM_NAMESPACE,
+                MLTransactionLogImpl.TRANSACTION_LOG_PREFIX + "0").getPersistenceNamingEncoding(),
+                stats.transactionLogStats.managedLedgerName);
+    }
+
+    @Test(timeOut = 20000)
+    public void testGetPendingAckInternalStats() throws Exception {
+        initTransaction(1);
+        TransactionImpl transaction = (TransactionImpl) getTransaction();
+        final String topic = "persistent://public/default/testGetPendingAckInternalStats";
+        final String subName = "test";
+        admin.topics().createNonPartitionedTopic(topic);
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES).topic(topic).create();
+        Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES).topic(topic)
+                .subscriptionName(subName).subscribe();
+        MessageId messageId = producer.send("Hello pulsar!".getBytes());
+        consumer.acknowledgeAsync(messageId, transaction).get();
+
+        TransactionPendingAckInternalStats stats = admin.transactions()
+                .getPendingAckInternalStatsAsync(topic, subName, true).get();
+        ManagedLedgerInternalStats managedLedgerInternalStats = stats.pendingAckLogStats.managedLedgerInternalStats;
+        assertEquals(TopicName.get(TopicDomain.persistent.toString(), "public", "default",
+                "testGetPendingAckInternalStats" + "-"
+                        + subName + MLPendingAckStore.PENDING_ACK_STORE_SUFFIX).getPersistenceNamingEncoding(),
+                stats.pendingAckLogStats.managedLedgerName);
+
+        verifyManagedLegerInternalStats(managedLedgerInternalStats, 16);
+
+        ManagedLedgerInternalStats finalManagedLedgerInternalStats = managedLedgerInternalStats;
+        managedLedgerInternalStats.cursors.forEach((s, cursorStats) -> {
+            assertEquals(s, MLPendingAckStore.PENDING_ACK_STORE_CURSOR_NAME);
+            assertEquals(cursorStats.readPosition, finalManagedLedgerInternalStats.lastConfirmedEntry);
+        });
+
+        stats = admin.transactions()
+                .getPendingAckInternalStatsAsync(topic, subName, false).get();
+        managedLedgerInternalStats = stats.pendingAckLogStats.managedLedgerInternalStats;
+
+        assertEquals(TopicName.get(TopicDomain.persistent.toString(), "public", "default",
+                "testGetPendingAckInternalStats" + "-"
+                        + subName + MLPendingAckStore.PENDING_ACK_STORE_SUFFIX).getPersistenceNamingEncoding(),
+                stats.pendingAckLogStats.managedLedgerName);
+        assertNull(managedLedgerInternalStats.ledgers.get(0).metadata);
+    }
+
     private static void verifyCoordinatorStats(String state,
-                                                long sequenceId, long lowWaterMark) {
+                                               long sequenceId, long lowWaterMark) {
         assertEquals(state, "Ready");
         assertEquals(sequenceId, 0);
         assertEquals(lowWaterMark, 0);
@@ -333,5 +404,21 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
     private Transaction getTransaction() throws Exception {
         return pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS).build().get();
+    }
+
+    private static void verifyManagedLegerInternalStats(ManagedLedgerInternalStats managedLedgerInternalStats,
+                                                        long totalSize) {
+        assertEquals(managedLedgerInternalStats.entriesAddedCounter, 1);
+        assertEquals(managedLedgerInternalStats.numberOfEntries, 1);
+        assertEquals(managedLedgerInternalStats.totalSize, totalSize);
+        assertEquals(managedLedgerInternalStats.currentLedgerEntries, 1);
+        assertEquals(managedLedgerInternalStats.currentLedgerSize, totalSize);
+        assertNull(managedLedgerInternalStats.lastLedgerCreationFailureTimestamp);
+        assertEquals(managedLedgerInternalStats.waitingCursorsCount, 0);
+        assertEquals(managedLedgerInternalStats.pendingAddEntriesCount, 0);
+        assertNotNull(managedLedgerInternalStats.lastConfirmedEntry);
+        assertEquals(managedLedgerInternalStats.ledgers.size(), 1);
+        assertNotNull(managedLedgerInternalStats.ledgers.get(0).metadata);
+        assertEquals(managedLedgerInternalStats.cursors.size(), 1);
     }
 }

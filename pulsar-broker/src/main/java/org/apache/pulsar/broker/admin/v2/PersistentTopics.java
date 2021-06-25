@@ -59,9 +59,8 @@ import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
-import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
@@ -72,6 +71,8 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
+import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -230,12 +231,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "The number of partitions for the topic",
                     required = true, type = "int", defaultValue = "0")
-                    int numPartitions) {
+                    int numPartitions,
+            @QueryParam("createLocalTopicOnly") @DefaultValue("false") boolean createLocalTopicOnly) {
         try {
             validateGlobalNamespaceOwnership(tenant, namespace);
             validatePartitionedTopicName(tenant, namespace, encodedTopic);
             validateTopicPolicyOperation(topicName, PolicyName.PARTITION, PolicyOperation.WRITE);
-            internalCreatePartitionedTopic(asyncResponse, numPartitions);
+            internalCreatePartitionedTopic(asyncResponse, numPartitions, createLocalTopicOnly);
         } catch (Exception e) {
             log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
             resumeAsyncResponseExceptionally(asyncResponse, e);
@@ -306,7 +308,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                                     @PathParam("namespace") String namespace,
                                                     @PathParam("topic") @Encoded String encodedTopic,
                                                     @ApiParam(value = "Offload policies for the specified topic")
-                                                            OffloadPolicies offloadPolicies) {
+                                           OffloadPoliciesImpl offloadPolicies) {
         validateTopicName(tenant, namespace, encodedTopic);
         validateAdminAccessForTenant(tenant);
         internalSetOffloadPolicies(offloadPolicies).whenComplete((res, ex)
@@ -1488,7 +1490,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @QueryParam("backlogQuotaType") BacklogQuotaType backlogQuotaType, BacklogQuota backlogQuota) {
+            @QueryParam("backlogQuotaType") BacklogQuotaType backlogQuotaType, BacklogQuotaImpl backlogQuota) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation();
         internalSetBacklogQuota(asyncResponse, backlogQuotaType, backlogQuota);
@@ -1963,7 +1965,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                           @PathParam("namespace") String namespace,
                                           @PathParam("topic") @Encoded String encodedTopic,
                                           @ApiParam(value = "Replicator dispatch rate of the topic")
-                                                      DispatchRate dispatchRate) {
+                                                  DispatchRateImpl dispatchRate) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation();
         internalSetReplicatorDispatchRate(dispatchRate).whenComplete((r, ex) -> {
@@ -2521,7 +2523,8 @@ public class PersistentTopics extends PersistentTopicsBase {
                                 @PathParam("tenant") String tenant,
                                 @PathParam("namespace") String namespace,
                                 @PathParam("topic") @Encoded String encodedTopic,
-                                @ApiParam(value = "Dispatch rate for the specified topic") DispatchRate dispatchRate) {
+                                @ApiParam(value = "Dispatch rate for the specified topic")
+                                            DispatchRateImpl dispatchRate) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation();
         internalSetDispatchRate(dispatchRate).whenComplete((r, ex) -> {
@@ -2617,7 +2620,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Subscription message dispatch rate for the specified topic")
-                    DispatchRate dispatchRate) {
+                    DispatchRateImpl dispatchRate) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation();
         internalSetSubscriptionDispatchRate(dispatchRate).whenComplete((r, ex) -> {

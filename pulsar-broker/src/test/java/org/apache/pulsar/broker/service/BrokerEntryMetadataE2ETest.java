@@ -18,9 +18,11 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.util.List;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.assertj.core.util.Sets;
@@ -89,5 +91,42 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
         }
 
         Assert.assertEquals(messages, receives);
+    }
+
+    @Test(timeOut = 20000)
+    public void testPeekMessage() throws Exception {
+        final String topic = newTopicName();
+        final String subscription = "my-sub";
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .create();
+        producer.newMessage().value("hello".getBytes()).send();
+
+        admin.topics().createSubscription(topic, subscription, MessageId.earliest);
+        final List<Message<byte[]>> messages = admin.topics().peekMessages(topic, subscription, 1);
+        Assert.assertEquals(messages.size(), 1);
+        Assert.assertEquals(messages.get(0).getData(), "hello".getBytes());
+    }
+
+    @Test(timeOut = 20000)
+    public void testGetLastMessageId() throws Exception {
+        final String topic = "persistent://prop/ns-abc/topic-test";
+        final String subscription = "my-sub";
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .create();
+        producer.newMessage().value("hello".getBytes()).send();
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionName(subscription)
+                .subscribe();
+        consumer.getLastMessageId();
     }
 }

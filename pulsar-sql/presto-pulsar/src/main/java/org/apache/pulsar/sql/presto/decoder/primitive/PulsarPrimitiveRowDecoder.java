@@ -66,6 +66,9 @@ public class PulsarPrimitiveRowDecoder implements PulsarRowDecoder {
 
     @Override
     public Optional<Map<DecoderColumnHandle, FieldValueProvider>> decodeRow(ByteBuf byteBuf) {
+        if (columnHandle == null) {
+            return Optional.empty();
+        }
         Object value = schema.decode(byteBuf);
         Map<DecoderColumnHandle, FieldValueProvider> primitiveColumn = new HashMap<>();
         if (value == null) {

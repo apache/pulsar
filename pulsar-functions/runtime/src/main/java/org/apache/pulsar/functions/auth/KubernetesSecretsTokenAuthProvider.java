@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.auth;
 import com.google.common.annotations.VisibleForTesting;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
+import io.kubernetes.client.openapi.models.V1DeleteOptions;
 import io.kubernetes.client.openapi.models.V1ObjectMeta;
 import io.kubernetes.client.openapi.models.V1PodSpec;
 import io.kubernetes.client.openapi.models.V1Secret;
@@ -32,7 +33,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
-import org.apache.pulsar.common.functions.AuthenticationConfig;
+import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.utils.Actions;
 import org.apache.pulsar.functions.utils.FunctionCommon;
@@ -97,8 +98,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                         .name(SECRET_NAME)
                         .secret(
                                 new V1SecretVolumeSource()
-                                        .secretName(getSecretName(new String(functionAuthData.get().getData())))
-                                        .defaultMode(256))));
+                                        .secretName(getSecretName(new String(functionAuthData.get().getData()))))));
 
         podSpec.getContainers().forEach(container -> container.setVolumeMounts(Collections.singletonList(
                 new V1VolumeMount()

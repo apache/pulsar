@@ -24,29 +24,28 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-
-import java.util.ArrayList;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedSet;
 import java.util.TreeSet;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.core.type.TypeReference;
-
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.NamespaceIsolationPolicy;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.BrokerStatus;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.annotations.Test;
 
 public class NamespaceIsolationPoliciesTest {
 
-    private final String defaultJson = "{\"policy1\":{\"namespaces\":[\"pulsar/use/test.*\"],\"primary\":[\"prod1-broker[1-3].messaging.use.example.com\"],\"secondary\":[\"prod1-broker.*.use.example.com\"],\"auto_failover_policy\":{\"policy_type\":\"min_available\",\"parameters\":{\"min_limit\":\"3\",\"usage_threshold\":\"100\"}}}}";
+    private final String defaultJson =
+            "{\"policy1\":{\"namespaces\":[\"pulsar/use/test.*\"],\"primary\":[\"prod1-broker[1-3].messaging.use.example.com\"],\"secondary\":[\"prod1-broker.*.use.example.com\"],\"auto_failover_policy\":{\"parameters\":{\"min_limit\":\"3\",\"usage_threshold\":\"100\"},\"policy_type\":\"min_available\"}}}";
 
     @Test
     public void testJsonSerialization() throws Exception {
@@ -67,23 +66,24 @@ public class NamespaceIsolationPoliciesTest {
         byte[] outJson = jsonMapperForWriter.writeValueAsBytes(policies.getPolicies());
         assertEquals(new String(outJson), this.defaultJson);
 
-        NamespaceIsolationData nsPolicyData = new NamespaceIsolationData();
-        nsPolicyData.namespaces = new ArrayList<>();
-        nsPolicyData.namespaces.add("other/use/other.*");
-        nsPolicyData.primary = new ArrayList<>();
-        nsPolicyData.primary.add("prod1-broker[4-6].messaging.use.example.com");
-        nsPolicyData.secondary = new ArrayList<>();
-        nsPolicyData.secondary.add("prod1-broker.*.messaging.use.example.com");
-        nsPolicyData.auto_failover_policy = new AutoFailoverPolicyData();
-        nsPolicyData.auto_failover_policy.policy_type = AutoFailoverPolicyType.min_available;
-        nsPolicyData.auto_failover_policy.parameters = new HashMap<>();
-        nsPolicyData.auto_failover_policy.parameters.put("min_limit", "1");
-        nsPolicyData.auto_failover_policy.parameters.put("usage_threshold", "100");
+        Map<String, String> parameters = new HashMap<>();
+        parameters.put("min_limit", "1");
+        parameters.put("usage_threshold", "100");
+
+        NamespaceIsolationData nsPolicyData = NamespaceIsolationData.builder()
+                .namespaces(Collections.singletonList("pulsar/use/other.*"))
+                .primary(Collections.singletonList("prod1-broker[4-6].messaging.use.example.com"))
+                .secondary(Collections.singletonList("prod1-broker.*.messaging.use.example.com"))
+                .autoFailoverPolicy(AutoFailoverPolicyData.builder()
+                        .policyType(AutoFailoverPolicyType.min_available)
+                        .parameters(parameters)
+                        .build()
+                ).build();
         policies.setPolicy("otherPolicy", nsPolicyData);
         byte[] morePolicyJson = jsonMapperForWriter.writeValueAsBytes(policies.getPolicies());
         ObjectMapper jsonParser = ObjectMapperFactory.create();
-        Map<String, NamespaceIsolationData> policiesMap = jsonParser.readValue(morePolicyJson,
-                new TypeReference<Map<String, NamespaceIsolationData>>() {
+        Map<String, NamespaceIsolationDataImpl> policiesMap = jsonParser.readValue(morePolicyJson,
+                new TypeReference<Map<String, NamespaceIsolationDataImpl>>() {
                 });
         assertEquals(policiesMap.size(), 2);
     }
@@ -134,8 +134,8 @@ public class NamespaceIsolationPoliciesTest {
         String newPolicyJson = "{\"namespaces\":[\"pulsar/use/TESTNS.*\"],\"primary\":[\"prod1-broker[45].messaging.use.example.com\"],\"secondary\":[\"prod1-broker.*.use.example.com\"],\"auto_failover_policy\":{\"policy_type\":\"min_available\",\"parameters\":{\"min_limit\":2,\"usage_threshold\":80}}}";
         String newPolicyName = "policy2";
         ObjectMapper jsonMapper = ObjectMapperFactory.create();
-        NamespaceIsolationData nsPolicyData = jsonMapper.readValue(newPolicyJson.getBytes(),
-                NamespaceIsolationData.class);
+        NamespaceIsolationDataImpl nsPolicyData = jsonMapper.readValue(newPolicyJson.getBytes(),
+                NamespaceIsolationDataImpl.class);
         policies.setPolicy(newPolicyName, nsPolicyData);
 
         assertEquals(policies.getPolicies().size(), 2);
@@ -149,7 +149,7 @@ public class NamespaceIsolationPoliciesTest {
     private NamespaceIsolationPolicies getDefaultTestPolicies() throws Exception {
         ObjectMapper jsonMapper = ObjectMapperFactory.create();
         return new NamespaceIsolationPolicies(jsonMapper
-                .readValue(this.defaultJson.getBytes(), new TypeReference<Map<String, NamespaceIsolationData>>() {
+                .readValue(this.defaultJson.getBytes(), new TypeReference<Map<String, NamespaceIsolationDataImpl>>() {
                 }));
     }
 
@@ -158,9 +158,21 @@ public class NamespaceIsolationPoliciesTest {
         NamespaceIsolationPolicies policies = this.getDefaultTestPolicies();
         NamespaceName ns = NamespaceName.get("pulsar/use/testns-1");
         SortedSet<BrokerStatus> primaryCandidates = new TreeSet<>();
-        BrokerStatus primary = new BrokerStatus("prod1-broker1.messaging.use.example.com", true, 0);
-        BrokerStatus secondary = new BrokerStatus("prod1-broker4.use.example.com", true, 0);
-        BrokerStatus shared = new BrokerStatus("use.example.com", true, 0);
+        BrokerStatus primary = BrokerStatus.builder()
+                .brokerAddress("prod1-broker1.messaging.use.example.com")
+                .active(true)
+                .loadFactor(0)
+                .build();
+        BrokerStatus secondary = BrokerStatus.builder()
+                .brokerAddress("prod1-broker4.messaging.use.example.com")
+                .active(true)
+                .loadFactor(0)
+                .build();
+        BrokerStatus shared = BrokerStatus.builder()
+                .brokerAddress("use.example.com")
+                .active(true)
+                .loadFactor(0)
+                .build();
         SortedSet<BrokerStatus> secondaryCandidates = new TreeSet<>();
         SortedSet<BrokerStatus> sharedCandidates = new TreeSet<>();
         policies.assignBroker(ns, primary, primaryCandidates, secondaryCandidates, sharedCandidates);

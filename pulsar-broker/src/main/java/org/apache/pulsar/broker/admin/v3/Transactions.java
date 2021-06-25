@@ -20,11 +20,11 @@ package org.apache.pulsar.broker.admin.v3;
 
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DefaultValue;
+import javax.ws.rs.Encoded;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
@@ -34,6 +34,8 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.broker.admin.impl.TransactionsBase;
+import org.apache.pulsar.common.naming.TopicDomain;
+import org.apache.pulsar.common.naming.TopicName;
 
 @Path("/transactions")
 @Produces(MediaType.APPLICATION_JSON)
@@ -57,7 +59,7 @@ public class Transactions extends TransactionsBase {
     }
 
     @GET
-    @Path("/transactionInBufferStats")
+    @Path("/transactionInBufferStats/{tenant}/{namespace}/{topic}/{mostSigBits}/{leastSigBits}")
     @ApiOperation(value = "Get transaction state in transaction buffer.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
@@ -69,18 +71,18 @@ public class Transactions extends TransactionsBase {
     public void getTransactionInBufferStats(@Suspended final AsyncResponse asyncResponse,
                                             @QueryParam("authoritative")
                                             @DefaultValue("false") boolean authoritative,
-                                            @QueryParam("mostSigBits")
-                                            @ApiParam(value = "Most sig bits of this transaction", required = true)
-                                                    long mostSigBits,
-                                            @ApiParam(value = "Least sig bits of this transaction", required = true)
-                                            @QueryParam("leastSigBits") long leastSigBits,
-                                            @ApiParam(value = "Topic", required = true)
-                                            @QueryParam("topic") String topic) {
-        internalGetTransactionInBufferStats(asyncResponse, authoritative, mostSigBits, leastSigBits, topic);
+                                            @PathParam("tenant") String tenant,
+                                            @PathParam("namespace") String namespace,
+                                            @PathParam("topic") @Encoded String encodedTopic,
+                                            @PathParam("mostSigBits") String mostSigBits,
+                                            @PathParam("leastSigBits") String leastSigBits) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalGetTransactionInBufferStats(asyncResponse, authoritative,
+                Long.parseLong(mostSigBits), Long.parseLong(leastSigBits));
     }
 
     @GET
-    @Path("/transactionInPendingAckStats")
+    @Path("/transactionInPendingAckStats/{tenant}/{namespace}/{topic}/{subName}/{mostSigBits}/{leastSigBits}")
     @ApiOperation(value = "Get transaction state in pending ack.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
@@ -92,21 +94,19 @@ public class Transactions extends TransactionsBase {
     public void getTransactionInPendingAckStats(@Suspended final AsyncResponse asyncResponse,
                                                 @QueryParam("authoritative")
                                                 @DefaultValue("false") boolean authoritative,
-                                                @QueryParam("mostSigBits")
-                                                @ApiParam(value = "Most sig bits of this transaction", required = true)
-                                                        long mostSigBits,
-                                                @ApiParam(value = "Least sig bits of this transaction", required = true)
-                                                @QueryParam("leastSigBits") long leastSigBits,
-                                                @ApiParam(value = "Topic name", required = true)
-                                                @QueryParam("topic") String topic,
-                                                @ApiParam(value = "Subscription name", required = true)
-                                                @QueryParam("subName") String subName) {
-        internalGetTransactionInPendingAckStats(asyncResponse, authoritative, mostSigBits,
-                leastSigBits, topic, subName);
+                                                @PathParam("tenant") String tenant,
+                                                @PathParam("namespace") String namespace,
+                                                @PathParam("topic") @Encoded String encodedTopic,
+                                                @PathParam("mostSigBits") String mostSigBits,
+                                                @PathParam("leastSigBits") String leastSigBits,
+                                                @PathParam("subName") String subName) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalGetTransactionInPendingAckStats(asyncResponse, authoritative, Long.parseLong(mostSigBits),
+                Long.parseLong(leastSigBits), subName);
     }
 
     @GET
-    @Path("/transactionBufferStats")
+    @Path("/transactionBufferStats/{tenant}/{namespace}/{topic}")
     @ApiOperation(value = "Get transaction buffer stats in topic.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
@@ -118,13 +118,15 @@ public class Transactions extends TransactionsBase {
     public void getTransactionBufferStats(@Suspended final AsyncResponse asyncResponse,
                                           @QueryParam("authoritative")
                                           @DefaultValue("false") boolean authoritative,
-                                          @ApiParam(value = "Topic name", required = true)
-                                              @QueryParam("topic") String topic) {
-        internalGetTransactionBufferStats(asyncResponse, authoritative, topic);
+                                          @PathParam("tenant") String tenant,
+                                          @PathParam("namespace") String namespace,
+                                          @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalGetTransactionBufferStats(asyncResponse, authoritative);
     }
 
     @GET
-    @Path("/pendingAckStats")
+    @Path("/pendingAckStats/{tenant}/{namespace}/{topic}/{subName}")
     @ApiOperation(value = "Get transaction pending ack stats in topic.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic or subName doesn't exist"),
@@ -136,15 +138,16 @@ public class Transactions extends TransactionsBase {
     public void getPendingAckStats(@Suspended final AsyncResponse asyncResponse,
                                    @QueryParam("authoritative")
                                    @DefaultValue("false") boolean authoritative,
-                                   @ApiParam(value = "Topic name", required = true)
-                                       @QueryParam("topic") String topic,
-                                   @ApiParam(value = "Subscription name", required = true)
-                                       @QueryParam("subName") String subName) {
-        internalGetPendingAckStats(asyncResponse, authoritative, topic, subName);
+                                   @PathParam("tenant") String tenant,
+                                   @PathParam("namespace") String namespace,
+                                   @PathParam("topic") @Encoded String encodedTopic,
+                                   @PathParam("subName") String subName) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalGetPendingAckStats(asyncResponse, authoritative, subName);
     }
 
     @GET
-    @Path("/transactionMetadata")
+    @Path("/transactionMetadata/{mostSigBits}/{leastSigBits}")
     @ApiOperation(value = "Get transaction metadata")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic "
@@ -157,12 +160,10 @@ public class Transactions extends TransactionsBase {
     public void getTransactionMetadata(@Suspended final AsyncResponse asyncResponse,
                                        @QueryParam("authoritative")
                                        @DefaultValue("false") boolean authoritative,
-                                       @QueryParam("mostSigBits")
-                                           @ApiParam(value = "Most sig bits of this transaction", required = true)
-                                                 int mostSigBits,
-                                       @ApiParam(value = "Least sig bits of this transaction", required = true)
-                                           @QueryParam("leastSigBits") long leastSigBits) {
-        internalGetTransactionMetadata(asyncResponse, authoritative, mostSigBits, leastSigBits);
+                                       @PathParam("mostSigBits") String mostSigBits,
+                                       @PathParam("leastSigBits") String leastSigBits) {
+        internalGetTransactionMetadata(asyncResponse, authoritative, Integer.parseInt(mostSigBits),
+                Long.parseLong(leastSigBits));
     }
 
     @GET
@@ -182,5 +183,46 @@ public class Transactions extends TransactionsBase {
                                     @PathParam("timeout") String timeout,
                                     @QueryParam("coordinatorId") Integer coordinatorId) {
         internalGetSlowTransactions(asyncResponse, authoritative, Long.parseLong(timeout), coordinatorId);
+    }
+
+    @GET
+    @Path("/coordinatorInternalStats/{coordinatorId}")
+    @ApiOperation(value = "Get coordinator internal stats.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 503, message = "This Broker is not "
+                    + "configured with transactionCoordinatorEnabled=true."),
+            @ApiResponse(code = 404, message = "Transaction coordinator not found"),
+            @ApiResponse(code = 405, message = "Broker don't use MLTransactionMetadataStore!"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void getCoordinatorInternalStats(@Suspended final AsyncResponse asyncResponse,
+                                            @QueryParam("authoritative")
+                                            @DefaultValue("false") boolean authoritative,
+                                            @PathParam("coordinatorId") String coordinatorId,
+                                            @QueryParam("metadata") @DefaultValue("false") boolean metadata) {
+        internalGetCoordinatorInternalStats(asyncResponse, authoritative, metadata, Integer.parseInt(coordinatorId));
+    }
+
+    @GET
+    @Path("/pendingAckInternalStats/{tenant}/{namespace}/{topic}/{subName}")
+    @ApiOperation(value = "Get transaction pending ack internal stats.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic "
+                    + "or subscription name doesn't exist"),
+            @ApiResponse(code = 503, message = "This Broker is not configured "
+                    + "with transactionCoordinatorEnabled=true."),
+            @ApiResponse(code = 307, message = "Topic is not owned by this broker!"),
+            @ApiResponse(code = 405, message = "Pending ack handle don't use managedLedger!"),
+            @ApiResponse(code = 400, message = "Topic is not a persistent topic!"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void getPendingAckInternalStats(@Suspended final AsyncResponse asyncResponse,
+                                           @QueryParam("authoritative")
+                                           @DefaultValue("false") boolean authoritative,
+                                           @PathParam("tenant") String tenant,
+                                           @PathParam("namespace") String namespace,
+                                           @PathParam("topic") @Encoded String encodedTopic,
+                                           @PathParam("subName") String subName,
+                                           @QueryParam("metadata") @DefaultValue("false") boolean metadata) {
+        internalGetPendingAckInternalStats(asyncResponse, authoritative,
+                TopicName.get(TopicDomain.persistent.value(), tenant, namespace, encodedTopic), subName, metadata);
     }
 }

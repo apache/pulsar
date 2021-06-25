@@ -49,7 +49,7 @@ public class KafkaConnectSource extends AbstractKafkaConnectSource<KeyValue<byte
                     .expireAfterAccess(30, TimeUnit.MINUTES).build();
 
     private boolean jsonWithEnvelope = false;
-    static private final String JSON_WITH_ENVELOPE_CONFIG = "json-with-envelope";
+    private static final String JSON_WITH_ENVELOPE_CONFIG = "json-with-envelope";
 
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
         if (config.get(JSON_WITH_ENVELOPE_CONFIG) != null) {

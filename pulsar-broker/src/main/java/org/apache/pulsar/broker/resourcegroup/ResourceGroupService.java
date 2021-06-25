@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.resourcegroup;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -31,7 +32,7 @@ import org.apache.pulsar.broker.resourcegroup.ResourceGroup.ResourceGroupRefType
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,18 +54,20 @@ public class ResourceGroupService {
         this.pulsar = pulsar;
         this.timeUnitScale = TimeUnit.SECONDS;
         this.quotaCalculator = new ResourceQuotaCalculatorImpl();
-        this.resourceUsageTransportMgr = pulsar.getResourceUsageTransportManager();
+        this.resourceUsageTransportManagerMgr = pulsar.getResourceUsageTransportManager();
+        this.rgConfigListener = new ResourceGroupConfigListener(this, pulsar);
         this.initialize();
     }
 
     // For testing only.
     public ResourceGroupService(PulsarService pulsar, TimeUnit timescale,
-                                ResourceUsageTransportManager transportMgr,
+                                ResourceUsageTopicTransportManager transportMgr,
                                 ResourceQuotaCalculator quotaCalc) {
         this.pulsar = pulsar;
         this.timeUnitScale = timescale;
-        this.resourceUsageTransportMgr = transportMgr;
+        this.resourceUsageTransportManagerMgr = transportMgr;
         this.quotaCalculator = quotaCalc;
+        this.rgConfigListener = new ResourceGroupConfigListener(this, pulsar);
         this.initialize();
     }
 
@@ -80,10 +83,11 @@ public class ResourceGroupService {
      *
      * @throws if RG with that name already exists.
      */
-    public void resourceGroupCreate(ResourceGroupConfigInfo rgConfig) throws PulsarAdminException {
-        this.checkRGCreateParams(rgConfig);
-        ResourceGroup rg = new ResourceGroup(this, rgConfig);
-        resourceGroupsMap.put(rgConfig.getName(), rg);
+    public void resourceGroupCreate(String rgName, org.apache.pulsar.common.policies.data.ResourceGroup rgConfig)
+      throws PulsarAdminException {
+        this.checkRGCreateParams(rgName, rgConfig);
+        ResourceGroup rg = new ResourceGroup(this, rgName, rgConfig);
+        resourceGroupsMap.put(rgName, rg);
     }
 
     /**
@@ -91,12 +95,13 @@ public class ResourceGroupService {
      *
      * @throws if RG with that name already exists (even if the resource usage handlers are different).
      */
-    public void resourceGroupCreate(ResourceGroupConfigInfo rgConfig,
+    public void resourceGroupCreate(String rgName,
+                                    org.apache.pulsar.common.policies.data.ResourceGroup rgConfig,
                                     ResourceUsagePublisher rgPublisher,
                                     ResourceUsageConsumer rgConsumer) throws PulsarAdminException {
-        this.checkRGCreateParams(rgConfig);
-        ResourceGroup rg = new ResourceGroup(this, rgConfig, rgPublisher, rgConsumer);
-        resourceGroupsMap.put(rgConfig.getName(), rg);
+        this.checkRGCreateParams(rgName, rgConfig);
+        ResourceGroup rg = new ResourceGroup(this, rgName, rgConfig, rgPublisher, rgConsumer);
+        resourceGroupsMap.put(rgName, rg);
     }
 
     /**
@@ -117,17 +122,22 @@ public class ResourceGroupService {
      *
      * @throws if RG with that name does not exist.
      */
-    public void resourceGroupUpdate(ResourceGroupConfigInfo rgConfig) throws PulsarAdminException {
+    public void resourceGroupUpdate(String rgName, org.apache.pulsar.common.policies.data.ResourceGroup rgConfig)
+      throws PulsarAdminException {
         try {
             checkNotNull(rgConfig);
         } catch (NullPointerException e) {
-            throw new IllegalArgumentException("ResourceGroupUpdate: Invalid null ResourceGroupConfigInfo");
+            throw new IllegalArgumentException("ResourceGroupUpdate: Invalid null ResourceGroup config");
         }
-        ResourceGroup rg = this.getResourceGroupInternal(rgConfig.getName());
+        ResourceGroup rg = this.getResourceGroupInternal(rgName);
         if (rg == null) {
-            throw new PulsarAdminException("Resource group does not exist: " + rgConfig.getName());
+            throw new PulsarAdminException("Resource group does not exist: " + rgName);
         }
         rg.updateResourceGroup(rgConfig);
+    }
+
+    public Set<String> resourceGroupGetAll() {
+        return resourceGroupsMap.keySet();
     }
 
     /**
@@ -178,7 +188,7 @@ public class ResourceGroupService {
         }
 
         ResourceGroupOpStatus status = rg.registerUsage(tenantName, ResourceGroupRefTypes.Tenants, true,
-                                                        this.resourceUsageTransportMgr);
+                                                        this.resourceUsageTransportManagerMgr);
         if (status == ResourceGroupOpStatus.Exists) {
             String errMesg = "Tenant " + tenantName + " already references the resource group " + resourceGroupName;
             errMesg += "; this is unexpected";
@@ -200,7 +210,7 @@ public class ResourceGroupService {
         ResourceGroup rg = checkResourceGroupExists(resourceGroupName);
 
         ResourceGroupOpStatus status = rg.registerUsage(tenantName, ResourceGroupRefTypes.Tenants, false,
-                                                        this.resourceUsageTransportMgr);
+                                                        this.resourceUsageTransportManagerMgr);
         if (status == ResourceGroupOpStatus.DoesNotExist) {
             String errMesg = "Tenant " + tenantName + " does not yet reference resource group " + resourceGroupName;
             throw new PulsarAdminException(errMesg);
@@ -229,7 +239,7 @@ public class ResourceGroupService {
         }
 
         ResourceGroupOpStatus status = rg.registerUsage(namespaceName, ResourceGroupRefTypes.Namespaces, true,
-                                                        this.resourceUsageTransportMgr);
+                                                        this.resourceUsageTransportManagerMgr);
         if (status == ResourceGroupOpStatus.Exists) {
             String errMesg = String.format("Namespace {} already references the target resource group {}",
                     namespaceName, resourceGroupName);
@@ -238,6 +248,16 @@ public class ResourceGroupService {
 
         // Associate this NS-name with the RG.
         this.namespaceToRGsMap.put(namespaceName, rg);
+    }
+
+    /**
+     * Return the resource group associated with a namespace.
+     *
+     * @param namespaceName
+     * @throws if the RG does not exist, or if the NS already references the RG.
+     */
+    public ResourceGroup getNamespaceResourceGroup(String namespaceName) {
+        return this.namespaceToRGsMap.get(namespaceName);
     }
 
     /**
@@ -251,7 +271,7 @@ public class ResourceGroupService {
         ResourceGroup rg = checkResourceGroupExists(resourceGroupName);
 
         ResourceGroupOpStatus status = rg.registerUsage(namespaceName, ResourceGroupRefTypes.Namespaces, false,
-                                                        this.resourceUsageTransportMgr);
+                                                        this.resourceUsageTransportManagerMgr);
         if (status == ResourceGroupOpStatus.DoesNotExist) {
             String errMesg = String.format("Namespace {} does not yet reference resource group {}",
                 namespaceName, resourceGroupName);
@@ -406,11 +426,11 @@ public class ResourceGroupService {
         long mSecsSinceEpochStart, mSecsSinceEpochEnd, diffMSecs;
         mSecsSinceEpochStart = System.currentTimeMillis();
         BrokerService bs = this.pulsar.getBrokerService();
-        Map<String, TopicStats> topicStatsMap = bs.getTopicStats();
+        Map<String, TopicStatsImpl> topicStatsMap = bs.getTopicStats();
 
-        for (Map.Entry<String, TopicStats> entry : topicStatsMap.entrySet()) {
+        for (Map.Entry<String, TopicStatsImpl> entry : topicStatsMap.entrySet()) {
             String topicName = entry.getKey();
-            TopicStats topicStats = entry.getValue();
+            TopicStatsImpl topicStats = entry.getValue();
             TopicName topic = TopicName.get(topicName);
             String tenantString = topic.getTenant();
             String nsString = topic.getNamespacePortion();
@@ -539,29 +559,32 @@ public class ResourceGroupService {
                     this.timeUnitScale);
         this.maxIntervalForSuppressingReportsMSecs =
                 this.resourceUsagePublishPeriodInSeconds * this.MaxUsageReportSuppressRounds;
+
     }
 
-    private void checkRGCreateParams(ResourceGroupConfigInfo rgConfig) throws PulsarAdminException {
+    private void checkRGCreateParams(String rgName, org.apache.pulsar.common.policies.data.ResourceGroup rgConfig)
+      throws PulsarAdminException {
         try {
             checkNotNull(rgConfig);
         } catch (NullPointerException e) {
-            throw new IllegalArgumentException("ResourceGroupCreate: Invalid null ResourceGroupConfigInfo");
+            throw new IllegalArgumentException("ResourceGroupCreate: Invalid null ResourceGroup config");
         }
 
-        if (rgConfig.getName().isEmpty()) {
+        if (rgName.isEmpty()) {
             throw new IllegalArgumentException("ResourceGroupCreate: can't create resource group with an empty name");
         }
 
-        ResourceGroup rg = getResourceGroupInternal(rgConfig.getName());
+        ResourceGroup rg = getResourceGroupInternal(rgName);
         if (rg != null) {
-            throw new PulsarAdminException("Resource group already exists:" + rgConfig.getName());
+            throw new PulsarAdminException("Resource group already exists:" + rgName);
         }
     }
 
     private static final Logger log = LoggerFactory.getLogger(ResourceGroupService.class);
     private final PulsarService pulsar;
     protected final ResourceQuotaCalculator quotaCalculator;
-    private ResourceUsageTransportManager resourceUsageTransportMgr;
+    private ResourceUsageTransportManager resourceUsageTransportManagerMgr;
+    private final ResourceGroupConfigListener rgConfigListener;
 
     // Given a RG-name, get the resource-group
     private ConcurrentHashMap<String, ResourceGroup> resourceGroupsMap = new ConcurrentHashMap<>();
@@ -594,7 +617,7 @@ public class ResourceGroupService {
     // set the value to 4.
     // Setting this to 0 will make us report in every round.
     // Don't set to negative values; behavior will be "undefined".
-    protected final static int MaxUsageReportSuppressRounds = 5;
+    protected static final int MaxUsageReportSuppressRounds = 5;
 
     // Convenient shorthand, for MaxUsageReportSuppressRounds converted to a time interval in milliseconds.
     protected static long maxIntervalForSuppressingReportsMSecs;
@@ -602,5 +625,5 @@ public class ResourceGroupService {
     // The percentage difference that is considered "within limits" to suppress usage reporting.
     // Setting this to 0 will also make us report in every round.
     // Don't set it to negative values; behavior will be "undefined".
-    protected final static float UsageReportSuppressionTolerancePercentage = 5;
+    protected static final float UsageReportSuppressionTolerancePercentage = 5;
 }

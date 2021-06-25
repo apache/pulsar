@@ -407,7 +407,10 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         admin.namespaces().createNamespace(namespace);
         admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("test"));
         admin.namespaces().setBacklogQuota(namespace,
-                new BacklogQuota(10, BacklogQuota.RetentionPolicy.producer_request_hold));
+                BacklogQuota.builder()
+                        .limitSize(10)
+                        .retentionPolicy(BacklogQuota.RetentionPolicy.producer_request_hold)
+                        .build());
 
         final String topic = namespace + "/my-topic5";
         final String subscription = "my-sub";
@@ -475,7 +478,10 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         admin.namespaces().createNamespace(namespace);
         admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("test"));
         admin.namespaces().setAutoTopicCreation(namespace,
-                new AutoTopicCreationOverride(false, TopicType.NON_PARTITIONED.toString(), null));
+                AutoTopicCreationOverride.builder()
+                        .allowAutoTopicCreation(false)
+                        .topicType(TopicType.NON_PARTITIONED.toString())
+                        .build());
 
         final String topic = namespace + "/my-topic";
         final String subscription = "my-sub";

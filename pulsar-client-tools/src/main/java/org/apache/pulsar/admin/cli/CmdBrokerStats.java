@@ -49,7 +49,8 @@ public class CmdBrokerStats extends CmdBase {
 
         @Override
         void run() throws Exception {
-            JsonArray metrics = getAdmin().brokerStats().getMetrics();
+            String s = getAdmin().brokerStats().getMetrics();
+            JsonArray metrics = new Gson().fromJson(s, JsonArray.class);
 
             try (Writer out = new OutputStreamWriter(System.out, StandardCharsets.UTF_8);
                  JsonWriter jsonWriter = new JsonWriter(out)) {
@@ -76,7 +77,8 @@ public class CmdBrokerStats extends CmdBase {
 
         @Override
         void run() throws Exception {
-            JsonArray result = getAdmin().brokerStats().getMBeans();
+            String s = getAdmin().brokerStats().getMBeans();
+            JsonArray result = new Gson().fromJson(s, JsonArray.class);
             try (Writer out = new OutputStreamWriter(System.out, StandardCharsets.UTF_8);
                  JsonWriter jsonWriter = new JsonWriter(out)) {
                 if (indent) {
@@ -105,7 +107,8 @@ public class CmdBrokerStats extends CmdBase {
 
         @Override
         void run() throws Exception {
-            JsonObject result = getAdmin().brokerStats().getTopics();
+            String s = getAdmin().brokerStats().getTopics();
+            JsonObject result = new Gson().fromJson(s, JsonObject.class);
             try (Writer out = new OutputStreamWriter(System.out, StandardCharsets.UTF_8);
                  JsonWriter jsonWriter = new JsonWriter(out)) {
                 if (indent) {

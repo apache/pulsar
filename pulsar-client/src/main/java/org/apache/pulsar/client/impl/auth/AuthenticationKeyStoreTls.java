@@ -39,13 +39,13 @@ import org.apache.pulsar.client.impl.AuthenticationUtil;
 public class AuthenticationKeyStoreTls implements Authentication, EncodedAuthenticationParameterSupport {
     private static final long serialVersionUID = 1L;
 
-    private final static String AUTH_NAME = "tls";
+    private static final String AUTH_NAME = "tls";
 
     // parameter name
-    public final static String KEYSTORE_TYPE = "keyStoreType";
-    public final static String KEYSTORE_PATH= "keyStorePath";
-    public final static String KEYSTORE_PW = "keyStorePassword";
-    private final static String DEFAULT_KEYSTORE_TYPE = "JKS";
+    public static final String KEYSTORE_TYPE = "keyStoreType";
+    public static final String KEYSTORE_PATH= "keyStorePath";
+    public static final String KEYSTORE_PW = "keyStorePassword";
+    private static final String DEFAULT_KEYSTORE_TYPE = "JKS";
 
     private transient KeyStoreParams keyStoreParams;
 

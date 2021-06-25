@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -732,5 +733,30 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     @Override
     public CompletableFuture<Void> close() {
         return this.pendingAckStoreFuture.thenAccept(PendingAckStore::closeAsync);
+    }
+
+    @Override
+    public boolean isTransactionAckPresent() {
+        if ((this.cumulativeAckOfTransaction == null
+                && (this.individualAckOfTransaction == null || this.individualAckOfTransaction.isEmpty()))) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    public CompletableFuture<ManagedLedger> getStoreManageLedger() {
+        if (this.pendingAckStoreFuture.isDone()) {
+            return this.pendingAckStoreFuture.thenCompose(pendingAckStore -> {
+                if (pendingAckStore instanceof MLPendingAckStore) {
+                    return ((MLPendingAckStore) pendingAckStore).getManagedLedger();
+                } else {
+                    return FutureUtil.failedFuture(
+                            new NotAllowedException("Pending ack handle don't use managedLedger!"));
+                }
+            });
+        } else {
+            return FutureUtil.failedFuture(new ServiceUnitNotReadyException("Pending ack have not init success!"));
+        }
     }
 }

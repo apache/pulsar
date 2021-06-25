@@ -26,7 +26,8 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -84,11 +85,14 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC1, initPolicy).get();
 
         // Wait for all topic policies updated.
-        Thread.sleep(3000);
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertTrue(systemTopicBasedTopicPoliciesService
+                        .getPoliciesCacheInit(TOPIC1.getNamespaceObject())));
 
-        Assert.assertTrue(systemTopicBasedTopicPoliciesService.getPoliciesCacheInit(TOPIC1.getNamespaceObject()));
         // Assert broker is cache all topic policies
-        Assert.assertEquals(systemTopicBasedTopicPoliciesService.getTopicPolicies(TOPIC1).getMaxConsumerPerTopic().intValue(), 10);
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertEquals(systemTopicBasedTopicPoliciesService.getTopicPolicies(TOPIC1)
+                        .getMaxConsumerPerTopic().intValue(), 10));
 
         // Update policy for TOPIC1
         TopicPolicies policies1 = TopicPolicies.builder()
@@ -126,21 +130,21 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
                 .build();
         systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC6, policies6).get();
 
-        Thread.sleep(1000);
+        Awaitility.await().untilAsserted(() -> {
+            TopicPolicies policiesGet1 = systemTopicBasedTopicPoliciesService.getTopicPolicies(TOPIC1);
+            TopicPolicies policiesGet2 = systemTopicBasedTopicPoliciesService.getTopicPolicies(TOPIC2);
+            TopicPolicies policiesGet3 = systemTopicBasedTopicPoliciesService.getTopicPolicies(TOPIC3);
+            TopicPolicies policiesGet4 = systemTopicBasedTopicPoliciesService.getTopicPolicies(TOPIC4);
+            TopicPolicies policiesGet5 = systemTopicBasedTopicPoliciesService.getTopicPolicies(TOPIC5);
+            TopicPolicies policiesGet6 = systemTopicBasedTopicPoliciesService.getTopicPolicies(TOPIC6);
 
-        TopicPolicies policiesGet1 = systemTopicBasedTopicPoliciesService.getTopicPolicies(TOPIC1);
-        TopicPolicies policiesGet2 = systemTopicBasedTopicPoliciesService.getTopicPolicies(TOPIC2);
-        TopicPolicies policiesGet3 = systemTopicBasedTopicPoliciesService.getTopicPolicies(TOPIC3);
-        TopicPolicies policiesGet4 = systemTopicBasedTopicPoliciesService.getTopicPolicies(TOPIC4);
-        TopicPolicies policiesGet5 = systemTopicBasedTopicPoliciesService.getTopicPolicies(TOPIC5);
-        TopicPolicies policiesGet6 = systemTopicBasedTopicPoliciesService.getTopicPolicies(TOPIC6);
-
-        Assert.assertEquals(policiesGet1, policies1);
-        Assert.assertEquals(policiesGet2, policies2);
-        Assert.assertEquals(policiesGet3, policies3);
-        Assert.assertEquals(policiesGet4, policies4);
-        Assert.assertEquals(policiesGet5, policies5);
-        Assert.assertEquals(policiesGet6, policies6);
+            Assert.assertEquals(policiesGet1, policies1);
+            Assert.assertEquals(policiesGet2, policies2);
+            Assert.assertEquals(policiesGet3, policies3);
+            Assert.assertEquals(policiesGet4, policies4);
+            Assert.assertEquals(policiesGet5, policies5);
+            Assert.assertEquals(policiesGet6, policies6);
+        });
 
         // Remove reader cache will remove policies cache
         Assert.assertEquals(systemTopicBasedTopicPoliciesService.getPoliciesCacheSize(), 6);
@@ -163,13 +167,13 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         policies1.setMaxProducerPerTopic(106);
         systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC1, policies1);
 
-        Thread.sleep(1000);
-
         // reader for NAMESPACE1 will back fill the reader cache
-        policiesGet1 = systemTopicBasedTopicPoliciesService.getTopicPolicies(TOPIC1);
-        policiesGet2 = systemTopicBasedTopicPoliciesService.getTopicPolicies(TOPIC2);
-        Assert.assertEquals(policies1, policiesGet1);
-        Assert.assertEquals(policies2, policiesGet2);
+        Awaitility.await().untilAsserted(() -> {
+            TopicPolicies policiesGet1 = systemTopicBasedTopicPoliciesService.getTopicPolicies(TOPIC1);
+            TopicPolicies policiesGet2 = systemTopicBasedTopicPoliciesService.getTopicPolicies(TOPIC2);
+            Assert.assertEquals(policies1, policiesGet1);
+            Assert.assertEquals(policies2, policiesGet2);
+        });
 
         // Check reader cache is correct.
         Assert.assertTrue(systemTopicBasedTopicPoliciesService.checkReaderIsCached(NamespaceName.get(NAMESPACE2)));
@@ -177,7 +181,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         Assert.assertTrue(systemTopicBasedTopicPoliciesService.checkReaderIsCached(NamespaceName.get(NAMESPACE3)));
 
         // Check get without cache
-        policiesGet1 = systemTopicBasedTopicPoliciesService.getTopicPoliciesBypassCacheAsync(TOPIC1).get();
+        TopicPolicies policiesGet1 = systemTopicBasedTopicPoliciesService.getTopicPoliciesBypassCacheAsync(TOPIC1).get();
         Assert.assertEquals(policies1, policiesGet1);
     }
 
@@ -205,9 +209,9 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
     }
 
     private void prepareData() throws PulsarAdminException {
-        admin.clusters().createCluster("test", new ClusterData(pulsar.getBrokerServiceUrl()));
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
         admin.tenants().createTenant("system-topic",
-                new TenantInfo(Sets.newHashSet(), Sets.newHashSet("test")));
+                new TenantInfoImpl(Sets.newHashSet(), Sets.newHashSet("test")));
         admin.namespaces().createNamespace(NAMESPACE1);
         admin.namespaces().createNamespace(NAMESPACE2);
         admin.namespaces().createNamespace(NAMESPACE3);

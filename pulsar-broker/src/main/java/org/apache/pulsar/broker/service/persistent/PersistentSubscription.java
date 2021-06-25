@@ -38,6 +38,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ConcurrentFindCursorPositionException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.InvalidCursorPositionException;
@@ -69,10 +70,10 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ConsumerStats;
-import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
+import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -140,7 +141,7 @@ public class PersistentSubscription implements Subscription {
         this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, subscriptionName, cursor, this);
         this.setReplicated(replicated);
         if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
-                && !checkTopicIsEventsNames(topicName)
+                && !checkTopicIsEventsNames(TopicName.get(topicName))
                 && !topicName.startsWith(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getLocalName())
                 && !topicName.startsWith(MLTransactionLogImpl.TRANSACTION_LOG_PREFIX)
                 && !topicName.endsWith(MLPendingAckStore.PENDING_ACK_STORE_SUFFIX)) {
@@ -282,7 +283,7 @@ public class PersistentSubscription implements Subscription {
         }
 
         // preserve accumulative stats form removed consumer
-        ConsumerStats stats = consumer.getStats();
+        ConsumerStatsImpl stats = consumer.getStats();
         bytesOutFromRemovedConsumers.add(stats.bytesOutCounter);
         msgOutFromRemovedConsumer.add(stats.msgOutCounter);
 
@@ -394,7 +395,8 @@ public class PersistentSubscription implements Subscription {
             }
         }
 
-        if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()) {
+        if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
+                && this.pendingAckHandle.isTransactionAckPresent()) {
             Position currentMarkDeletePosition = cursor.getMarkDeletedPosition();
             if ((lastMarkDeleteForTransactionMarker == null
                     || ((PositionImpl) lastMarkDeleteForTransactionMarker)
@@ -964,8 +966,8 @@ public class PersistentSubscription implements Subscription {
         return cursor.getEstimatedSizeSinceMarkDeletePosition();
     }
 
-    public SubscriptionStats getStats(Boolean getPreciseBacklog, boolean subscriptionBacklogSize) {
-        SubscriptionStats subStats = new SubscriptionStats();
+    public SubscriptionStatsImpl getStats(Boolean getPreciseBacklog, boolean subscriptionBacklogSize) {
+        SubscriptionStatsImpl subStats = new SubscriptionStatsImpl();
         subStats.lastExpireTimestamp = lastExpireTimestamp;
         subStats.lastConsumedFlowTimestamp = lastConsumedFlowTimestamp;
         subStats.lastMarkDeleteAdvancedTimestamp = lastMarkDeleteAdvancedTimestamp;
@@ -976,14 +978,13 @@ public class PersistentSubscription implements Subscription {
             Map<String, List<String>> consumerKeyHashRanges = getType() == SubType.Key_Shared
                     ? ((PersistentStickyKeyDispatcherMultipleConsumers) dispatcher).getConsumerKeyHashRanges() : null;
             dispatcher.getConsumers().forEach(consumer -> {
-                ConsumerStats consumerStats = consumer.getStats();
+                ConsumerStatsImpl consumerStats = consumer.getStats();
                 subStats.consumers.add(consumerStats);
                 subStats.msgRateOut += consumerStats.msgRateOut;
                 subStats.msgThroughputOut += consumerStats.msgThroughputOut;
                 subStats.bytesOutCounter += consumerStats.bytesOutCounter;
                 subStats.msgOutCounter += consumerStats.msgOutCounter;
                 subStats.msgRateRedeliver += consumerStats.msgRateRedeliver;
-                subStats.chuckedMessageRate += consumerStats.chuckedMessageRate;
                 subStats.chunkedMessageRate += consumerStats.chunkedMessageRate;
                 subStats.unackedMessages += consumerStats.unackedMessages;
                 subStats.lastConsumedTimestamp =
@@ -995,14 +996,15 @@ public class PersistentSubscription implements Subscription {
             });
         }
 
-        subStats.type = getType();
+        SubType subType = getType();
+        subStats.type = getTypeString();
         if (dispatcher instanceof PersistentDispatcherSingleActiveConsumer) {
             Consumer activeConsumer = ((PersistentDispatcherSingleActiveConsumer) dispatcher).getActiveConsumer();
             if (activeConsumer != null) {
                 subStats.activeConsumerName = activeConsumer.consumerName();
             }
         }
-        if (Subscription.isIndividualAckMode(subStats.type)) {
+        if (Subscription.isIndividualAckMode(subType)) {
             if (dispatcher instanceof PersistentDispatcherMultipleConsumers) {
                 PersistentDispatcherMultipleConsumers d = (PersistentDispatcherMultipleConsumers) dispatcher;
                 subStats.unackedMessages = d.getTotalUnackedMessages();
@@ -1153,6 +1155,14 @@ public class PersistentSubscription implements Subscription {
 
     public TransactionInPendingAckStats getTransactionInPendingAckStats(TxnID txnID) {
         return this.pendingAckHandle.getTransactionInPendingAckStats(txnID);
+    }
+
+    public CompletableFuture<ManagedLedger> getPendingAckManageLedger() {
+        if (this.pendingAckHandle instanceof PendingAckHandleImpl) {
+            return ((PendingAckHandleImpl) this.pendingAckHandle).getStoreManageLedger();
+        } else {
+            return FutureUtil.failedFuture(new NotAllowedException("Pending ack handle don't use managedLedger!"));
+        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentSubscription.class);

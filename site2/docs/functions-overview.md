@@ -34,7 +34,7 @@ Pulsar Functions provide a wide range of functionality, and the core programming
 
   * Apply some processing logic to the input and write output to:
     * An **output topic** in Pulsar
-    * [Apache BookKeeper](#state-storage)
+    * [Apache BookKeeper](functions-develop.md#state-storage)
   * Write logs to a **log topic** (potentially for debugging purposes)
   * Increment a [counter](#word-count-example)
 
@@ -107,9 +107,11 @@ class RoutingFunction(Function):
         self.fruits_topic = "persistent://public/default/fruits"
         self.vegetables_topic = "persistent://public/default/vegetables"
 
+    @staticmethod
     def is_fruit(item):
         return item in [b"apple", b"orange", b"pear", b"other fruits..."]
 
+    @staticmethod
     def is_vegetable(item):
         return item in [b"carrot", b"lettuce", b"radish", b"other vegetables..."]
 

@@ -24,9 +24,16 @@ import java.lang.reflect.Method;
 import lombok.experimental.UtilityClass;
 
 @UtilityClass
-class ReflectionUtils {
+public class ReflectionUtils {
     interface SupplierWithException<T> {
         T get() throws Exception;
+    }
+
+    public static <T> T newBuilder(String className) {
+        return catchExceptions(
+                () -> (T) ReflectionUtils.getStaticMethod(
+                        className, "builder", null)
+                        .invoke(null, null));
     }
 
     static <T> T catchExceptions(SupplierWithException<T> s) {

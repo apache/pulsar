@@ -44,7 +44,7 @@ On broker side, you need the corresponding plugin to validate the credentials th
 In `conf/broker.conf` you can choose to specify a list of valid providers:
 
 ```properties
-# Autentication provider name list, which is comma separated list of class names
+# Authentication provider name list, which is comma separated list of class names
 authenticationProviders=
 ```
 To implement `org.apache.pulsar.broker.authentication.AuthenticationProvider` on one single interface:

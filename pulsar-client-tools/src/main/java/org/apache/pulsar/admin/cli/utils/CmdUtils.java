@@ -26,12 +26,12 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
 import java.io.File;
 import java.io.IOException;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 public class CmdUtils {
     public static <T> T loadConfig(String file, Class<T> clazz) throws IOException {
-        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         try {
-            return mapper.readValue(new File(file), clazz);
+            return ObjectMapperFactory.getThreadLocalYaml().readValue(new File(file), clazz);
         } catch (Exception ex) {
             if (ex instanceof UnrecognizedPropertyException) {
                 UnrecognizedPropertyException unrecognizedPropertyException

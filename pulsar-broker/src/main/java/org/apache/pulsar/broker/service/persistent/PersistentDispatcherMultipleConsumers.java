@@ -23,6 +23,7 @@ import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -151,7 +152,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         }
 
         consumerList.add(consumer);
-        consumerList.sort((c1, c2) -> c1.getPriorityLevel() - c2.getPriorityLevel());
+        consumerList.sort(Comparator.comparingInt(Consumer::getPriorityLevel));
         consumerSet.add(consumer);
     }
 
@@ -482,11 +483,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             return;
         }
         EntryWrapper[] entryWrappers = new EntryWrapper[entries.size()];
-        int totalMessages = updateEntryWrapperWithMetadata(entryWrappers, entries);
+        int remainingMessages = updateEntryWrapperWithMetadata(entryWrappers, entries);
         int start = 0;
         long totalMessagesSent = 0;
         long totalBytesSent = 0;
-        int avgBatchSizePerMsg = totalMessages > 0 ? Math.max(totalMessages / entries.size(), 1) : 1;
+        int avgBatchSizePerMsg = remainingMessages > 0 ? Math.max(remainingMessages / entries.size(), 1) : 1;
 
         int firstAvailableConsumerPermits, currentTotalAvailablePermits;
         boolean dispatchMessage;
@@ -514,31 +515,32 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                         c, c.getAvailablePermits());
             }
 
-            int messagesForC = Math.min(Math.min(entriesToDispatch, availablePermits),
+            int messagesForC = Math.min(Math.min(remainingMessages, availablePermits),
                     serviceConfig.getDispatcherMaxRoundRobinBatchSize());
             messagesForC = Math.max(messagesForC / avgBatchSizePerMsg, 1);
 
             if (messagesForC > 0) {
-
+                int end = Math.min(start + messagesForC, entries.size());
                 // remove positions first from replay list first : sendMessages recycles entries
                 if (readType == ReadType.Replay) {
-                    entries.subList(start, start + messagesForC).forEach(entry -> {
+                    entries.subList(start, end).forEach(entry -> {
                         messagesToRedeliver.remove(entry.getLedgerId(), entry.getEntryId());
                     });
                 }
 
                 SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
-                List<Entry> entriesForThisConsumer = entries.subList(start, start + messagesForC);
+                List<Entry> entriesForThisConsumer = entries.subList(start, end);
 
                 EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesForThisConsumer.size());
                 EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entriesForThisConsumer.size());
-                filterEntriesForConsumer(Optional.ofNullable(entryWrappers), entriesForThisConsumer, batchSizes,
-                        sendMessageInfo, batchIndexesAcks, cursor, readType == ReadType.Replay);
+                filterEntriesForConsumer(Optional.ofNullable(entryWrappers), start, entriesForThisConsumer,
+                        batchSizes, sendMessageInfo, batchIndexesAcks, cursor, readType == ReadType.Replay);
 
                 c.sendMessages(entriesForThisConsumer, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
                         sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(), redeliveryTracker);
 
                 int msgSent = sendMessageInfo.getTotalMessages();
+                remainingMessages -= msgSent;
                 start += messagesForC;
                 entriesToDispatch -= messagesForC;
                 TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this,
@@ -671,8 +673,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             return 0;
         }
         for (Consumer consumer : consumerList) {
-            if (isConsumerAvailable(consumer)) {
-                return consumer.getAvailablePermits();
+            if (consumer != null && !consumer.isBlocked()) {
+                int availablePermits = consumer.getAvailablePermits();
+                if (availablePermits > 0) {
+                    return availablePermits;
+                }
             }
         }
         return 0;
