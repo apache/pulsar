@@ -136,9 +136,12 @@ class PythonInstance(object):
     if self.instance_config.function_details.source.subscriptionType == Function_pb2.SubscriptionType.Value("FAILOVER"):
       mode = pulsar._pulsar.ConsumerType.Failover
 
-    subscription_name = str(self.instance_config.function_details.tenant) + "/" + \
-                        str(self.instance_config.function_details.namespace) + "/" + \
-                        str(self.instance_config.function_details.name)
+    subscription_name = self.instance_config.function_details.source.subscriptionName    
+
+    if not (subscription_name and subscription_name.strip()):
+      subscription_name = str(self.instance_config.function_details.tenant) + "/" + \
+                          str(self.instance_config.function_details.namespace) + "/" + \
+                          str(self.instance_config.function_details.name)
 
     properties = util.get_properties(util.getFullyQualifiedFunctionName(
                         self.instance_config.function_details.tenant,

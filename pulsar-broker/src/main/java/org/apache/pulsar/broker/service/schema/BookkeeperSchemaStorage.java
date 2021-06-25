@@ -158,7 +158,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         try {
             locatorEntry = getLocator(key).get();
         } catch (Exception e) {
-            log.warn("Failed to get list of schema-storage ledger for {}", key,
+            log.warn("Failed to get list of schema-storage ledger for {} , the exception as follow: \n {}", key,
                     (e instanceof ExecutionException ? e.getCause() : e));
             throw new IOException("Failed to get schema ledger for" + key);
         }
