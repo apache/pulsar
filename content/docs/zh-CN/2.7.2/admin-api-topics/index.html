@@ -84,7 +84,7 @@
 <p>无论是持久化还是非持久化主题，你可以通过<code>pulsar-admin</code>工具、REST API 、 Java 获取到主题资源。</p>
 <blockquote>
 <p><strong>备注</strong>    <br>
-REST API 中 <code>:schema</code> 分为 persistent（持久化）和 non-persistent（非持久化）。 <code>:租户</code>，<code>:命名空间</code>，<code>:x</code> 是变量，在使用时候请注意使用真正的租户、命名空间，和 <code>x</code> 替换。<br>
+REST API 中 <code>:schema</code> 分为 persistent（持久化）和 non-persistent（非持久化）。 <code>:tenant</code>，<code>:namespace</code>，<code>:x</code> 是变量，在使用时候请注意使用真正的租户、命名空间，和 <code>x</code> 替换。<br>
 以 <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/getList?version=2.8.0&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/:schema/:tenant/:namespace</i></a>
  为例， 若要获取 REST API 中持久化主题列表，请参考 <code>https://pulsar.apache.org/admin/v2/persistent/my-tenant/my-namespace</code>。 若要获取 REST API 中非持久化主题的列表，请参考 <code>https://pulsar.apache.org/admin/v2/non-persistent/my-tenant/my-namespace</code>。</p>
 </blockquote>
@@ -138,13 +138,13 @@ REST API 中 <code>:schema</code> 分为 persistent（持久化）和 non-persis
 <li><p><strong>msgRateOut</strong>：所有本地和副本消费者每秒调度消息率之和（msg/s）。</p></li>
 <li><p><strong>msgThroughputOut</strong>：所有本地和副本消费者每秒调度消息字节数之和（byte/s）。</p></li>
 <li><p><strong>averageMsgSize</strong>：在最近时间间隔内发布消息的平均大小（以字节为单位）。</p></li>
-<li><p><strong>storageSize</strong>: The sum of the ledgers' storage size for this topic. 用于存储该主题信息的空间。</p></li>
+<li><p><strong>storageSize</strong>: The sum of the ledgers' storage size for this topic. 用于存储该主题消息的空间。</p></li>
 <li><p><strong>publishers</strong>: The list of all local publishers into the topic. 该列表的范围从零到千不等。</p>
 <ul>
-<li><p><strong>msgRateIn</strong>：发布者每秒发布消息的速率（msg/s）。</p></li>
+<li><p><strong>msgRateIn</strong>：发布者每秒发布消息的总速率（msg/s）。</p></li>
 <li><p><strong>msgThroughputIn</strong>：发布者发布消息的总吞吐量（byte/s）。</p></li>
 <li><p><strong>averageMsgSize</strong>：发布者在最近时间间隔内发布消息的平均大小（以字节为单位）。</p></li>
-<li><p><strong>producerId</strong>：生产者内部识别号。</p></li>
+<li><p><strong>producerId</strong>：该主题对应的生产者内部识别号。</p></li>
 <li><p><strong>producerName</strong>：由客户端生成的生产者内部识别名称。</p></li>
 <li><p><strong>address</strong>：连接生产者所需的 IP 地址和端口号。</p></li>
 <li><p><strong>connectedSince</strong>：生产者上次创建或者重新连接时的时间戳。</p></li>
