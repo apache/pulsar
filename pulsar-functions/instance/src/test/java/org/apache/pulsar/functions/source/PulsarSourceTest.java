@@ -54,7 +54,7 @@ import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.io.core.SourceContext;
-import org.junit.Assert;
+import org.testng.Assert;
 import org.mockito.ArgumentMatcher;
 import static org.testng.Assert.assertSame;
 
@@ -343,13 +343,13 @@ public class PulsarSourceTest {
 
         if (pulsarSourceConfig instanceof SingleConsumerPulsarSourceConfig) {
             SingleConsumerPulsarSourceConfig cfg = (SingleConsumerPulsarSourceConfig) pulsarSourceConfig;
-            Assert.assertEquals(1, pulsarSource.getInputConsumers().size());
+            Assert.assertEquals(pulsarSource.getInputConsumers().size(), 1);
             return;
         }
 
         if (pulsarSourceConfig instanceof MultiConsumerPulsarSourceConfig) {
             MultiConsumerPulsarSourceConfig cfg = (MultiConsumerPulsarSourceConfig) pulsarSourceConfig;
-            Assert.assertEquals(cfg.getTopicSchema().size(), pulsarSource.getInputConsumers().size());
+            Assert.assertEquals(pulsarSource.getInputConsumers().size(), cfg.getTopicSchema().size());
             return;
         }
 
