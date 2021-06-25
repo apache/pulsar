@@ -363,7 +363,8 @@ class Client:
                  tls_trust_certs_file_path=None,
                  tls_allow_insecure_connection=False,
                  tls_validate_hostname=False,
-                 logger=None
+                 logger=None,
+                 connection_timeout_ms=10000,
                  ):
         """
         Create a new Pulsar client instance.
@@ -409,10 +410,13 @@ class Client:
           the endpoint.
         * `logger`:
           Set a Python logger for this Pulsar client. Should be an instance of `logging.Logger`.
+        * `connection_timeout_ms`:
+          Set timeout in milliseconds on TCP connections.
         """
         _check_type(str, service_url, 'service_url')
         _check_type_or_none(Authentication, authentication, 'authentication')
         _check_type(int, operation_timeout_seconds, 'operation_timeout_seconds')
+        _check_type(int, connection_timeout_ms, 'connection_timeout_ms')
         _check_type(int, io_threads, 'io_threads')
         _check_type(int, message_listener_threads, 'message_listener_threads')
         _check_type(int, concurrent_lookup_requests, 'concurrent_lookup_requests')
@@ -427,6 +431,7 @@ class Client:
         if authentication:
             conf.authentication(authentication.auth)
         conf.operation_timeout_seconds(operation_timeout_seconds)
+        conf.connection_timeout(connection_timeout_ms)
         conf.io_threads(io_threads)
         conf.message_listener_threads(message_listener_threads)
         conf.concurrent_lookup_requests(concurrent_lookup_requests)

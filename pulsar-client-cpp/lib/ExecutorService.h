@@ -47,6 +47,8 @@ class PULSAR_PUBLIC ExecutorService : private boost::noncopyable {
     void postWork(std::function<void(void)> task);
     void close();
 
+    boost::asio::io_service &getIOService() { return *io_service_; }
+
    private:
     /*
      *  only called once and within lock so no need to worry about thread-safety
