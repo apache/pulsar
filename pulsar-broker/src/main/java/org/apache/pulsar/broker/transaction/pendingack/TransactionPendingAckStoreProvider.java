@@ -59,4 +59,13 @@ public interface TransactionPendingAckStoreProvider {
      */
     CompletableFuture<PendingAckStore> newPendingAckStore(PersistentSubscription subscription);
 
+    /**
+     * Check pending ack store has been initialized before.
+     *
+     * @param subscription {@link PersistentSubscription}
+     * @return a future represents the result of the operation.
+     *         an instance of {@link Boolean} is returned
+     *         if the operation succeeds.
+     */
+    CompletableFuture<Boolean> checkInitializedBefore(PersistentSubscription subscription);
 }

@@ -161,6 +161,11 @@ public class PersistentSubscriptionTest {
                     }
                 });
             }
+
+            @Override
+            public CompletableFuture<Boolean> checkInitializedBefore(PersistentSubscription subscription) {
+                return CompletableFuture.completedFuture(true);
+            }
         }).when(pulsarMock).getTransactionPendingAckStoreProvider();
         doReturn(svcConfig).when(pulsarMock).getConfiguration();
         doReturn(mock(Compactor.class)).when(pulsarMock).getCompactor();

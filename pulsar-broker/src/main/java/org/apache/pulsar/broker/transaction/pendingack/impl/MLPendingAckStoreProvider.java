@@ -83,4 +83,13 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
                         }, () -> true, null);
         return pendingAckStoreFuture;
     }
+
+    @Override
+    public CompletableFuture<Boolean> checkInitializedBefore(PersistentSubscription subscription) {
+        PersistentTopic originPersistentTopic = (PersistentTopic) subscription.getTopic();
+        String pendingAckTopicName = MLPendingAckStore
+                .getTransactionPendingAckStoreSuffix(originPersistentTopic.getName(), subscription.getName());
+        return originPersistentTopic.getBrokerService().getManagedLedgerFactory()
+                .checkManagedLedgerInitializedBefore(TopicName.get(pendingAckTopicName).getPersistenceNamingEncoding());
+    }
 }

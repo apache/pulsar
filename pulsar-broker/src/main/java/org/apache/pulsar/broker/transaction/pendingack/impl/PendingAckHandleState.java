@@ -32,6 +32,7 @@ public abstract class PendingAckHandleState {
         None,
         Initializing,
         Ready,
+        Error,
         Close
     }
 
@@ -39,7 +40,7 @@ public abstract class PendingAckHandleState {
             AtomicReferenceFieldUpdater.newUpdater(PendingAckHandleState.class, State.class, "state");
 
     @SuppressWarnings("unused")
-    private volatile State state = null;
+    protected volatile State state = null;
 
     public PendingAckHandleState(State state) {
         STATE_UPDATER.set(this, state);
@@ -58,6 +59,10 @@ public abstract class PendingAckHandleState {
         return (STATE_UPDATER.compareAndSet(this, State.Ready, State.Close)
                 || STATE_UPDATER.compareAndSet(this, State.None, State.Close)
                 || STATE_UPDATER.compareAndSet(this, State.Initializing, State.Close));
+    }
+
+    protected void changeToErrorState() {
+        STATE_UPDATER.set(this, State.Error);
     }
 
     public boolean checkIfReady() {

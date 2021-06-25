@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.transaction.pendingack;
 
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
@@ -51,6 +52,7 @@ import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -297,5 +299,60 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         Awaitility.await()
                 .until(() -> ((PositionImpl) managedCursor.getMarkDeletedPosition())
                         .compareTo((PositionImpl) managedCursor.getManagedLedger().getLastConfirmedEntry()) == -1);
+    }
+
+    @DataProvider(name = "ackType")
+    public static Object[] ackType() {
+        return new Object[] { "cumulative", "individual"};
+    }
+
+    @Test(dataProvider = "ackType")
+    public void testPendingAckManagedLedgerInit(String ackType) throws Exception {
+        String subName = "managedLedger-init";
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(PENDING_ACK_REPLAY_TOPIC)
+                .enableBatching(true)
+                .batchingMaxMessages(200)
+                .create();
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(PENDING_ACK_REPLAY_TOPIC)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Failover)
+                .enableBatchIndexAcknowledgment(true)
+                .subscribe();
+
+        String pendingAckTopicName = MLPendingAckStore
+                .getTransactionPendingAckStoreSuffix(TopicName.get(PENDING_ACK_REPLAY_TOPIC).toString(), subName);
+
+        assertFalse(getPulsarServiceList().get(0).getManagedLedgerFactory()
+                .checkManagedLedgerInitializedBefore(TopicName.get(pendingAckTopicName)
+                        .getPersistenceNamingEncoding()).get());
+
+        producer.send("Hello Pulsar!".getBytes());
+        producer.send("Hello Pulsar!".getBytes());
+
+        Transaction transaction = pulsarClient.newTransaction()
+                .withTransactionTimeout(10, TimeUnit.SECONDS).build().get();
+        if (ackType.equals("individual")) {
+            consumer.acknowledgeAsync(consumer.receive().getMessageId(), transaction);
+            consumer.acknowledgeAsync(consumer.receive().getMessageId(), transaction);
+        } else {
+            consumer.acknowledgeCumulativeAsync(consumer.receive().getMessageId(), transaction);
+            consumer.acknowledgeCumulativeAsync(consumer.receive().getMessageId(), transaction);
+        }
+
+        transaction.commit().get();
+
+        admin.topics().unload(PENDING_ACK_REPLAY_TOPIC);
+
+        Awaitility.await().until(consumer::isConnected);
+
+        assertTrue(getPulsarServiceList().get(0).getManagedLedgerFactory()
+                .checkManagedLedgerInitializedBefore(TopicName.get(pendingAckTopicName)
+                        .getPersistenceNamingEncoding()).get());
     }
 }

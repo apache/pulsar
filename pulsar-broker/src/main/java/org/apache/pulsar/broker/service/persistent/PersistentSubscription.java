@@ -453,11 +453,11 @@ public class PersistentSubscription implements Subscription {
     public CompletableFuture<Void> transactionIndividualAcknowledge(
             TxnID txnId,
             List<MutablePair<PositionImpl, Integer>> positions) {
-        return pendingAckHandle.individualAcknowledgeMessage(txnId, positions);
+        return pendingAckHandle.individualAcknowledgeMessage(txnId, positions, false);
     }
 
     public CompletableFuture<Void> transactionCumulativeAcknowledge(TxnID txnId, List<PositionImpl> positions) {
-        return pendingAckHandle.cumulativeAcknowledgeMessage(txnId, positions);
+        return pendingAckHandle.cumulativeAcknowledgeMessage(txnId, positions, false);
     }
 
     private final MarkDeleteCallback markDeleteCallback = new MarkDeleteCallback() {
