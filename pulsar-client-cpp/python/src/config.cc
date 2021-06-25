@@ -195,6 +195,8 @@ void export_config() {
             .def("authentication", &ClientConfiguration_setAuthentication, return_self<>())
             .def("operation_timeout_seconds", &ClientConfiguration::getOperationTimeoutSeconds)
             .def("operation_timeout_seconds", &ClientConfiguration::setOperationTimeoutSeconds, return_self<>())
+            .def("connection_timeout", &ClientConfiguration::getConnectionTimeout)
+            .def("connection_timeout", &ClientConfiguration::setConnectionTimeout, return_self<>())
             .def("io_threads", &ClientConfiguration::getIOThreads)
             .def("io_threads", &ClientConfiguration::setIOThreads, return_self<>())
             .def("message_listener_threads", &ClientConfiguration::getMessageListenerThreads)
