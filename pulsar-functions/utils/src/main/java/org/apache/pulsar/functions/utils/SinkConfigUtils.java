@@ -250,6 +250,7 @@ public class SinkConfigUtils {
         sinkConfig.setParallelism(functionDetails.getParallelism());
         sinkConfig.setProcessingGuarantees(FunctionCommon.convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
         Map<String, ConsumerConfig> consumerConfigMap = new HashMap<>();
+        List<String> inputs = new LinkedList<>();
         for (Map.Entry<String, Function.ConsumerSpec> input : functionDetails.getSource().getInputSpecsMap().entrySet()) {
             ConsumerConfig consumerConfig = new ConsumerConfig();
             if (!isEmpty(input.getValue().getSerdeClassName())) {
@@ -267,7 +268,9 @@ public class SinkConfigUtils {
             consumerConfig.setRegexPattern(input.getValue().getIsRegexPattern());
             consumerConfig.setConsumerProperties(input.getValue().getConsumerPropertiesMap());
             consumerConfigMap.put(input.getKey(), consumerConfig);
+            inputs.add(input.getKey());
         }
+        sinkConfig.setInputs(inputs);
         sinkConfig.setInputSpecs(consumerConfigMap);
         if (!isEmpty(functionDetails.getSource().getSubscriptionName())) {
             sinkConfig.setSourceSubscriptionName(functionDetails.getSource().getSubscriptionName());
