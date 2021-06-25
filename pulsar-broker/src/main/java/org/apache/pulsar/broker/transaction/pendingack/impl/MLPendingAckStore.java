@@ -384,8 +384,8 @@ public class MLPendingAckStore implements PendingAckStore {
 
     }
 
-    public CompletableFuture<ManagedLedger> getManagedLedger() {
-        return CompletableFuture.completedFuture(this.managedLedger);
+    public CompletableFuture<Optional<ManagedLedger>> getManagedLedger() {
+        return CompletableFuture.completedFuture(Optional.of(this.managedLedger));
     }
 
     public static String getTransactionPendingAckStoreSuffix(String originTopicName, String subName) {

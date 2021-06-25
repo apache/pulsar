@@ -530,14 +530,17 @@ public abstract class TransactionsBase extends AdminResource {
                         Topic topicObject = optionalTopic.get();
                         if (topicObject instanceof PersistentTopic) {
                             try {
-                                ManagedLedger managedLedger =
+                                Optional<ManagedLedger> managedLedgerOptional =
                                         ((PersistentTopic) topicObject).getPendingAckManagedLedger(subName).get();
-                                TransactionPendingAckInternalStats stats =
-                                        new TransactionPendingAckInternalStats();
+                                TransactionPendingAckInternalStats stats = new TransactionPendingAckInternalStats();
+
                                 TransactionLogStats pendingAckLogStats = new TransactionLogStats();
-                                pendingAckLogStats.managedLedgerName = managedLedger.getName();
-                                pendingAckLogStats.managedLedgerInternalStats =
-                                        managedLedger.getManagedLedgerInternalStats(metadata).get();
+                                if (managedLedgerOptional.isPresent()) {
+                                    ManagedLedger managedLedger = managedLedgerOptional.get();
+                                    pendingAckLogStats.managedLedgerName = managedLedger.getName();
+                                    pendingAckLogStats.managedLedgerInternalStats =
+                                            managedLedger.getManagedLedgerInternalStats(metadata).get();
+                                }
                                 stats.pendingAckLogStats = pendingAckLogStats;
                                 asyncResponse.resume(stats);
                             } catch (Exception exception) {

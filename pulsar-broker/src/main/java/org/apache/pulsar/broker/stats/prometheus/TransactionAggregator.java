@@ -19,11 +19,11 @@
 package org.apache.pulsar.broker.stats.prometheus;
 
 import io.netty.util.concurrent.FastThreadLocal;
+import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -63,16 +63,13 @@ public class TransactionAggregator {
                             topic.getSubscriptions().values().forEach(subscription -> {
                                 try {
                                     localManageLedgerStats.get().reset();
-                                    ManagedLedger managedLedger =
-                                            ((PersistentSubscription) subscription).getPendingAckManageLedger().get();
-                                    generateManageLedgerStats(managedLedger,
-                                            stream, cluster, namespace, name, subscription.getName());
-                                } catch (Exception e) {
-                                    if (e.getCause() instanceof BrokerServiceException.NotAllowedException) {
-                                        // ignore
-                                    } else {
-                                        log.warn("Transaction pending ack generate managedLedgerStats fail!", e);
+                                    Optional<ManagedLedger> managedLedger = ((PersistentSubscription) subscription).getPendingAckManageLedger().get();
+                                    if (managedLedger.isPresent()) {
+                                        generateManageLedgerStats(managedLedger.get(),
+                                                stream, cluster, namespace, name, subscription.getName());
                                     }
+                                } catch (Exception e) {
+                                    log.warn("Transaction pending ack generate managedLedgerStats fail!", e);
                                 }
                             });
                         }
