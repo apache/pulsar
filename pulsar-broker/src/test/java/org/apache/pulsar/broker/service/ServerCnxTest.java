@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockBookKeeper;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockZooKeeper;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
+import org.awaitility.Awaitility;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.matches;
@@ -744,7 +745,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 5000)
+    @Test(timeOut = 30000)
     public void testDuplicateConcurrentSubscribeCommand() throws Exception {
         resetChannel();
         setChannelConnected();
@@ -763,10 +764,12 @@ public class ServerCnxTest {
                 "test" /* consumer name */, 0 /* avoid reseting cursor */);
         channel.writeInbound(clientCommand);
 
-        Object response = getResponse();
-        assertTrue(response instanceof CommandError, "Response is not CommandError but " + response);
-        CommandError error = (CommandError) response;
-        assertEquals(error.getError(), ServerError.ServiceNotReady);
+        Awaitility.await().untilAsserted(() -> {
+            Object response = getResponse();
+            assertTrue(response instanceof CommandError, "Response is not CommandError but " + response);
+            CommandError error = (CommandError) response;
+            assertEquals(error.getError(), ServerError.ServiceNotReady);
+        });
         channel.finish();
     }
 
