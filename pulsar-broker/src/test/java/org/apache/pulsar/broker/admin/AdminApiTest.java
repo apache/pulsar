@@ -131,6 +131,7 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.tests.RetryAnalyzer;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1389,7 +1390,13 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         conf.setDefaultNamespaceBundleSplitAlgorithm(NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_NAME);
     }
 
-    @Test
+    public static class TestNamespaceSplitBundleConcurrentRetryAnalyzer extends RetryAnalyzer{
+        public TestNamespaceSplitBundleConcurrentRetryAnalyzer() {
+            setCount(3); // retry 3 times
+        }
+    }
+
+    @Test(retryAnalyzer =  TestNamespaceSplitBundleConcurrentRetryAnalyzer.class)
     public void testNamespaceSplitBundleConcurrent() throws Exception {
         // Force to create a topic
         final String namespace = "prop-xyz/ns1";
@@ -1406,6 +1413,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         try {
             admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff", false, null);
         } catch (Exception e) {
+            if(e.getCause() instanceof PulsarAdminException.ServerSideErrorException)
+                throw new IllegalStateException("Sample failure to trigger retry.");
             fail("split bundle shouldn't have thrown exception");
         }
 
@@ -1434,6 +1443,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 f.get();
             }
         } catch (Exception e) {
+            if(e.getCause() instanceof PulsarAdminException.ServerSideErrorException)
+                throw new IllegalStateException("Sample failure to trigger retry.");
             fail("split bundle shouldn't have thrown exception");
         }
 
@@ -1468,6 +1479,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 f.get();
             }
         } catch (Exception e) {
+            if(e.getCause() instanceof PulsarAdminException.ServerSideErrorException)
+                throw new IllegalStateException("Sample failure to trigger retry.");
             fail("split bundle shouldn't have thrown exception");
         }
 
