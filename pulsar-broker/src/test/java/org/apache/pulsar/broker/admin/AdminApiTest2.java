@@ -2071,7 +2071,13 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         for (int i = 0; i < boundaries.size() - 1; i++) {
             String bundle = String.format("%s_%s", boundaries.get(i), boundaries.get(i + 1));
             List<String> topic = admin.topics().getListInBundle(namespace, bundle);
+            if (topic == null) {
+                continue;
+            }
             topicNum += topic.size();
+            for (String s : topic) {
+                assertFalse(TopicName.get(s).isPersistent());
+            }
         }
         assertEquals(topicNum, 3);
     }
