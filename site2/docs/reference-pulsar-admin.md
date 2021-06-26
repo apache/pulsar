@@ -1297,9 +1297,9 @@ $ pulsar-admin namespaces set-dispatch-rate tenant/namespace options
 Options
 |Flag|Description|Default|
 |----|---|---|
-|`-bd`, `--byte-dispatch-rate`|The byte dispatch rate (default -1 will be overwrite if not passed)|-1|
-|`-dt`, `--dispatch-rate-period`|The dispatch rate period in second type (default 1 second will be overwrite if not passed)|1|
-|`-md`, `--msg-dispatch-rate`|The message dispatch rate (default -1 will be overwrite if not passed)|-1|
+|`-bd`, `--byte-dispatch-rate`|The byte dispatch rate (less than zero means no limit)|-1|
+|`-dt`, `--dispatch-rate-period`|The dispatch rate period in seconds (less than zero means no limit)|1|
+|`-md`, `--msg-dispatch-rate`|The message dispatch rate (less than zero means no limit)|-1|
 
 ### `get-dispatch-rate`
 Get configured message-dispatch-rate for all topics of the namespace (Disabled if value < 0)
@@ -1320,9 +1320,9 @@ $ pulsar-admin namespaces set-replicator-dispatch-rate tenant/namespace options
 Options
 |Flag|Description|Default|
 |----|---|---|
-|`-bd`, `--byte-dispatch-rate`|The byte dispatch rate (default -1 will be overwrite if not passed)|-1|
-|`-dt`, `--dispatch-rate-period`|The dispatch rate period in second type (default 1 second will be overwrite if not passed)|1|
-|`-md`, `--msg-dispatch-rate`|The message dispatch rate (default -1 will be overwrite if not passed)|-1|
+|`-bd`, `--byte-dispatch-rate`|The byte dispatch rate (less than zero means no limit)|-1|
+|`-dt`, `--dispatch-rate-period`|The dispatch rate period in seconds (less than zero means no limit)|1|
+|`-md`, `--msg-dispatch-rate`|The message dispatch rate (less than zero means no limit)|-1|
 
 ### `get-replicator-dispatch-rate`
 Get replicator configured message-dispatch-rate for all topics of the namespace (Disabled if value < 0)
@@ -1343,8 +1343,8 @@ $ pulsar-admin namespaces set-subscribe-rate tenant/namespace options
 Options
 |Flag|Description|Default|
 |----|---|---|
-|`-sr`, `--subscribe-rate`|The subscribe rate (default -1 will be overwrite if not passed)|-1|
-|`-st`, `--subscribe-rate-period`|The subscribe rate period in second type (default 30 second will be overwrite if not passed)|30|
+|`-sr`, `--subscribe-rate`|The subscribe rate (less than zero means no limit)|-1|
+|`-st`, `--subscribe-rate-period`|The subscribe rate period in seconds|30|
 
 ### `get-subscribe-rate`
 Get configured subscribe-rate per consumer for all topics of the namespace
@@ -1365,9 +1365,9 @@ $ pulsar-admin namespaces set-subscription-dispatch-rate tenant/namespace option
 Options
 |Flag|Description|Default|
 |----|---|---|
-|`-bd`, `--byte-dispatch-rate`|The byte dispatch rate (default -1 will be overwrite if not passed)|-1|
-|`-dt`, `--dispatch-rate-period`|The dispatch rate period in second type (default 1 second will be overwrite if not passed)|1|
-|`-md`, `--sub-msg-dispatch-rate`|The message dispatch rate (default -1 will be overwrite if not passed)|-1|
+|`-bd`, `--byte-dispatch-rate`|The byte dispatch rate (less than zero means no limit)|-1|
+|`-dt`, `--dispatch-rate-period`|The dispatch rate period in seconds (less than zero means no limit)|1|
+|`-md`, `--sub-msg-dispatch-rate`|The message dispatch rate (less than zero means no limit)|-1|
 
 ### `get-subscription-dispatch-rate`
 Get subscription configured message-dispatch-rate for all topics of the namespace (Disabled if value < 0)
@@ -2448,6 +2448,68 @@ Remove a deduplication policy for a topic.
 Usage
 ```bash
 $ pulsar-admin topics remove-deduplication tenant/namespace/topic
+```
+
+### `get-retention`
+Get the retention policy for a topic.
+
+Usage
+```bash
+$ pulsar-admin topics get-retention tenant/namespace/topic
+```
+
+### `set-retention`
+Set the retention policy for a topic.
+
+Usage
+```bash
+$ pulsar-admin topics set-retention tenant/namespace/topic
+```
+
+Options
+|Flag|Description|Default|
+|----|---|---|
+|`-s`, `--size`|The retention size limits (for example 10M, 16G or 3T). 0 means no retention and -1 means infinite size retention||
+|`-t`, `--time`|The retention time in minutes, hours, days, or weeks. Examples: 100m, 13h, 2d, 5w. 0 means no retention and -1 means infinite time retention||
+
+### `remove-retention`
+Remove a retention policy for a topic.
+
+Usage
+```bash
+$ pulsar-admin topics remove-retention tenant/namespace/topic
+```
+
+
+### `set-dispatch-rate`
+Set message-dispatch-rate for a topic.
+
+Usage
+```bash
+$ pulsar-admin topics set-dispatch-rate tenant/namespace/topic options
+```
+
+Options
+|Flag|Description|Default|
+|----|---|---|
+|`-bd`, `--byte-dispatch-rate`|The byte dispatch rate (less than zero means no limit)|-1|
+|`-dt`, `--dispatch-rate-period`|The dispatch rate period in seconds (less than zero means no limit)|1|
+|`-md`, `--msg-dispatch-rate`|The message dispatch rate (less than zero means no limit)|-1|
+
+### `get-dispatch-rate`
+Get configured message-dispatch-rate for a topic (Disabled if value < 0).
+
+Usage
+```bash
+$ pulsar-admin topics get-dispatch-rate tenant/namespace/topic
+```
+
+### `remove-dispatch-rate`
+Remove a message-dispatch-rate policy for a topic.
+
+Usage
+```bash
+$ pulsar-admin topics remove-dispatch-rate tenant/namespace/topic
 ```
 
 
