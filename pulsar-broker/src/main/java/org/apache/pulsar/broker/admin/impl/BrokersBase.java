@@ -309,15 +309,13 @@ public class BrokersBase extends PulsarWebResource {
         String messageStr = UUID.randomUUID().toString();
         // create non-partitioned topic manually and close the previous reader if present.
         try {
-            pulsar().getBrokerService().getTopic(topic, true).get().ifPresent(t -> {
-                t.getSubscriptions().forEach((__, value) -> {
-                    try {
-                        value.deleteForcefully();
-                    } catch (Exception e) {
-                        LOG.warn("Failed to delete previous subscription {} for health check", value.getName(), e);
-                    }
-                });
-            });
+            pulsar().getBrokerService().getTopic(topic, true).get().ifPresent(t -> t.getSubscriptions().forEach((__, value) -> {
+                try {
+                    value.deleteForcefully();
+                } catch (Exception e) {
+                    LOG.warn("Failed to delete previous subscription {} for health check", value.getName(), e);
+                }
+            }));
         } catch (Exception e) {
             LOG.warn("Failed to try to delete subscriptions for health check", e);
         }
@@ -351,20 +349,16 @@ public class BrokersBase extends PulsarWebResource {
                 });
 
         completePromise.whenComplete((ignore, exception) -> {
-                producerFuture.thenAccept((producer) -> {
-                        producer.closeAsync().whenComplete((ignore2, exception2) -> {
-                                if (exception2 != null) {
-                                    LOG.warn("Error closing producer for healthcheck", exception2);
-                                }
-                            });
-                    });
-                readerFuture.thenAccept((reader) -> {
-                        reader.closeAsync().whenComplete((ignore2, exception2) -> {
-                                if (exception2 != null) {
-                                    LOG.warn("Error closing reader for healthcheck", exception2);
-                                }
-                            });
-                    });
+                producerFuture.thenAccept((producer) -> producer.closeAsync().whenComplete((ignore2, exception2) -> {
+                        if (exception2 != null) {
+                            LOG.warn("Error closing producer for healthcheck", exception2);
+                        }
+                    }));
+                readerFuture.thenAccept((reader) -> reader.closeAsync().whenComplete((ignore2, exception2) -> {
+                        if (exception2 != null) {
+                            LOG.warn("Error closing reader for healthcheck", exception2);
+                        }
+                    }));
                 if (exception != null) {
                     asyncResponse.resume(new RestException(exception));
                 } else {

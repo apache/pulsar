@@ -465,9 +465,7 @@ public abstract class AdminResource extends PulsarWebResource {
         // serve/redirect request else fail partitioned-metadata-request so, client fails while creating
         // producer/consumer
         return validateGlobalNamespaceOwnershipAsync(topicName.getNamespaceObject())
-                .thenRun(() -> {
-                    validateTopicOperation(topicName, TopicOperation.LOOKUP);
-                })
+                .thenRun(() -> validateTopicOperation(topicName, TopicOperation.LOOKUP))
                 .thenCompose(__ -> {
                     if (checkAllowAutoCreation) {
                         return pulsar().getBrokerService()

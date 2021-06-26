@@ -403,9 +403,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                         FutureUtil.waitForAll(deleteFutures).whenComplete((v, e) -> {
                             final String path = getSchemaPath(schemaId);
                             store.delete(path, Optional.empty())
-                                    .thenRun(() -> {
-                                        future.complete(version);
-                                    }).exceptionally(ex1 -> {
+                                    .thenRun(() -> future.complete(version)).exceptionally(ex1 -> {
                                 future.completeExceptionally(ex1);
                                 return null;
                             });

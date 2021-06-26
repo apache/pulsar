@@ -126,9 +126,7 @@ public abstract class AbstractReplicator {
         }
 
         log.info("[{}][{} -> {}] Starting replicator", topicName, localCluster, remoteCluster);
-        producerBuilder.createAsync().thenAccept(producer -> {
-            readEntries(producer);
-        }).exceptionally(ex -> {
+        producerBuilder.createAsync().thenAccept(this::readEntries).exceptionally(ex -> {
             if (STATE_UPDATER.compareAndSet(this, State.Starting, State.Stopped)) {
                 long waitTimeMs = backOff.next();
                 log.warn("[{}][{} -> {}] Failed to create remote producer ({}), retrying in {} s", topicName,

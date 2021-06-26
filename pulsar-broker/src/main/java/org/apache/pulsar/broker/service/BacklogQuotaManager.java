@@ -274,9 +274,7 @@ public class BacklogQuotaManager {
             futures.add(producer.disconnect());
         });
 
-        FutureUtil.waitForAll(futures).thenRun(() -> {
-            log.info("All producers on topic [{}] are disconnected", persistentTopic.getName());
-        }).exceptionally(exception -> {
+        FutureUtil.waitForAll(futures).thenRun(() -> log.info("All producers on topic [{}] are disconnected", persistentTopic.getName())).exceptionally(exception -> {
             log.error("Error in disconnecting producers on topic [{}] [{}]", persistentTopic.getName(), exception);
             return null;
 
