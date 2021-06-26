@@ -28,7 +28,6 @@ import com.google.common.util.concurrent.RateLimiter;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
@@ -44,11 +43,20 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-
 import org.apache.commons.io.HexDump;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.SubscriptionMode;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.GenericRecord;
@@ -80,54 +88,55 @@ public class CmdConsume {
     @Parameter(description = "TopicName", required = true)
     private List<String> mainOptions = new ArrayList<String>();
 
-    @Parameter(names = { "-t", "--subscription-type" }, description = "Subscription type.")
+    @Parameter(names = {"-t", "--subscription-type"}, description = "Subscription type.")
     private SubscriptionType subscriptionType = SubscriptionType.Exclusive;
 
-    @Parameter(names = { "-m", "--subscription-mode" }, description = "Subscription mode.")
+    @Parameter(names = {"-m", "--subscription-mode"}, description = "Subscription mode.")
     private SubscriptionMode subscriptionMode = SubscriptionMode.Durable;
 
-    @Parameter(names = { "-p", "--subscription-position" }, description = "Subscription position.")
+    @Parameter(names = {"-p", "--subscription-position"}, description = "Subscription position.")
     private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Latest;
 
-    @Parameter(names = { "-s", "--subscription-name" }, required = true, description = "Subscription name.")
+    @Parameter(names = {"-s", "--subscription-name"}, required = true, description = "Subscription name.")
     private String subscriptionName;
 
-    @Parameter(names = { "-n",
-            "--num-messages" }, description = "Number of messages to consume, 0 means to consume forever.")
+    @Parameter(names = {"-n",
+            "--num-messages"}, description = "Number of messages to consume, 0 means to consume forever.")
     private int numMessagesToConsume = 1;
 
-    @Parameter(names = { "--hex" }, description = "Display binary messages in hex.")
+    @Parameter(names = {"--hex"}, description = "Display binary messages in hex.")
     private boolean displayHex = false;
 
-    @Parameter(names = { "--hide-content" }, description = "Do not write the message to console.")
+    @Parameter(names = {"--hide-content"}, description = "Do not write the message to console.")
     private boolean hideContent = false;
 
-    @Parameter(names = { "-r", "--rate" }, description = "Rate (in msg/sec) at which to consume, "
+    @Parameter(names = {"-r", "--rate"}, description = "Rate (in msg/sec) at which to consume, "
             + "value 0 means to consume messages as fast as possible.")
     private double consumeRate = 0;
 
-    @Parameter(names = { "--regex" }, description = "Indicate the topic name is a regex pattern")
+    @Parameter(names = {"--regex"}, description = "Indicate the topic name is a regex pattern")
     private boolean isRegex = false;
-    
-    @Parameter(names = { "-q", "--queue-size" }, description = "Consumer receiver queue size.")
+
+    @Parameter(names = {"-q", "--queue-size"}, description = "Consumer receiver queue size.")
     private int receiverQueueSize = 0;
 
-    @Parameter(names = { "-mc", "--max_chunked_msg" }, description = "Max pending chunk messages")
+    @Parameter(names = {"-mc", "--max_chunked_msg"}, description = "Max pending chunk messages")
     private int maxPendingChunkedMessage = 0;
 
-    @Parameter(names = { "-ac",
-            "--auto_ack_chunk_q_full" }, description = "Auto ack for oldest message on queue is full")
+    @Parameter(names = {"-ac",
+            "--auto_ack_chunk_q_full"}, description = "Auto ack for oldest message on queue is full")
     private boolean autoAckOldestChunkedMessageOnQueueFull = false;
 
-    @Parameter(names = { "-ekv",
-            "--encryption-key-value" }, description = "The URI of private key to decrypt payload, for example "
-                    + "file:///path/to/private.key or data:application/x-pem-file;base64,*****")
+    @Parameter(names = {"-ekv",
+            "--encryption-key-value"}, description = "The URI of private key to decrypt payload, for example "
+            + "file:///path/to/private.key or data:application/x-pem-file;base64,*****")
     private String encKeyValue;
 
-    @Parameter(names = { "-st", "--schema-type"}, description = "Set a schema type on the consumer, it can be 'bytes' or 'auto_consume'")
+    @Parameter(names = {"-st",
+            "--schema-type"}, description = "Set a schema type on the consumer, it can be 'bytes' or 'auto_consume'")
     private String schematype = "bytes";
 
-    @Parameter(names = { "-pm", "--pool-messages" }, description = "Use the pooled message")
+    @Parameter(names = {"-pm", "--pool-messages"}, description = "Use the pooled message")
     private boolean poolMessages = true;
 
     private ClientBuilder clientBuilder;
@@ -149,7 +158,7 @@ public class CmdConsume {
     }
 
     /**
-     * Interprets the message to create a string representation
+     * Interprets the message to create a string representation.
      *
      * @param message
      *            The message to interpret
@@ -193,13 +202,12 @@ public class CmdConsume {
     }
 
     private static String interpretByteArray(boolean displayHex, byte[] msgData) throws IOException {
-        String data;
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         if (!displayHex) {
             return new String(msgData);
         } else {
             HexDump.dump(msgData, 0, out, 0);
-            return  new String(out.toByteArray());
+            return out.toString();
         }
     }
 
@@ -208,9 +216,9 @@ public class CmdConsume {
             case AVRO:
             case JSON:
             case PROTOBUF_NATIVE:
-                    return genericRecordToMap((GenericRecord) value, displayHex);
+                return genericRecordToMap((GenericRecord) value, displayHex);
             case KEY_VALUE:
-                    return keyValueToMap((KeyValue) value.getNativeObject(), displayHex);
+                return keyValueToMap((KeyValue) value.getNativeObject(), displayHex);
             default:
                 return primitiveValueToMap(value.getNativeObject(), displayHex);
         }
@@ -244,7 +252,7 @@ public class CmdConsume {
             if (fieldValue instanceof GenericRecord) {
                 fieldValue = genericRecordToMap((GenericRecord) fieldValue, displayHex);
             } else if (fieldValue == null) {
-                fieldValue =  "NULL";
+                fieldValue = "NULL";
             } else if (fieldValue instanceof byte[]) {
                 fieldValue = interpretByteArray(displayHex, (byte[]) fieldValue);
             }
@@ -259,18 +267,21 @@ public class CmdConsume {
      * @return 0 for success, < 0 otherwise
      */
     public int run() throws PulsarClientException, IOException {
-        if (mainOptions.size() != 1)
+        if (mainOptions.size() != 1) {
             throw (new ParameterException("Please provide one and only one topic name."));
-        if (this.subscriptionName == null || this.subscriptionName.isEmpty())
+        }
+        if (this.subscriptionName == null || this.subscriptionName.isEmpty()) {
             throw (new ParameterException("Subscription name is not provided."));
-        if (this.numMessagesToConsume < 0)
+        }
+        if (this.numMessagesToConsume < 0) {
             throw (new ParameterException("Number of messages should be zero or positive."));
+        }
 
         String topic = this.mainOptions.get(0);
 
-        if(this.serviceURL.startsWith("ws")) {
+        if (this.serviceURL.startsWith("ws")) {
             return consumeFromWebSocket(topic);
-        }else {
+        } else {
             return consume(topic);
         }
     }
@@ -333,7 +344,7 @@ public class CmdConsume {
                             System.out.println(output);
                         } else if (numMessagesConsumed % 1000 == 0) {
                             System.out.println("Received " + numMessagesConsumed + " messages");
-                        }  
+                        }
                         consumer.acknowledge(msg);
                     } finally {
                         msg.release();
@@ -395,7 +406,7 @@ public class CmdConsume {
         }
 
         try {
-            LOG.info("Trying to create websocket session..{}",consumerUri);
+            LOG.info("Trying to create websocket session..{}", consumerUri);
             produceClient.connect(consumerSocket, consumerUri, produceRequest);
             connected.get();
         } catch (Exception e) {
@@ -414,8 +425,9 @@ public class CmdConsume {
                     LOG.debug("No message to consume after waiting for 5 seconds.");
                 } else {
                     try {
-                        System.out.println(Arrays.toString(Base64.getDecoder().decode(msg))); // print decode
-                    }catch(Exception e) {
+                        String output = interpretByteArray(displayHex, Base64.getDecoder().decode(msg));
+                        System.out.println(output); // print decode
+                    } catch (Exception e) {
                         System.out.println(msg);
                     }
                     numMessagesConsumed += 1;
