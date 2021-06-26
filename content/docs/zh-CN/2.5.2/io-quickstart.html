@@ -75,45 +75,45 @@
               }
             });
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">How to connect Pulsar to database</h1></header><article><div><span><p>This tutorial provides a hands-on look at how you can move data out of Pulsar without writing a single line of code.</p>
-<p>It is helpful to review the <a href="/docs/zh-CN/2.5.2/io-overview">concepts</a> for Pulsar I/O with running the steps in this guide to gain a deeper understanding.</p>
-<p>At the end of this tutorial, you are able to:</p>
+<p>运行本指南中的步骤让你在阅读 Pulsar I/O <a href="/docs/zh-CN/2.5.2/io-overview">概念</a>时会有更深入的理解。</p>
+<p>本教程结束后，你可以：</p>
 <ul>
-<li><p><a href="#Connect-Pulsar-to-Cassandra">Connect Pulsar to Cassandra</a></p></li>
+<li><p><a href="#Connect-Pulsar-to-Cassandra">连接 Pulsar 到 Cassandra</a></p></li>
 <li><p><a href="#Connect-Pulsar-to-MySQL">Connect Pulsar to MySQL</a></p></li>
 </ul>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="提示"></a><a href="#提示" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
 <ul>
-<li><p>These instructions assume you are running Pulsar in <a href="/docs/zh-CN/2.5.2/standalone">standalone mode</a>. However, all the commands used in this tutorial can be used in a multi-nodes Pulsar cluster without any changes.</p></li>
+<li><p>These instructions assume you are running Pulsar in <a href="/docs/zh-CN/2.5.2/standalone">standalone mode</a>. 但是，本教程中使用的所有命令无需做任何更改也可在多节点 Pulsar 集群中使用。</p></li>
 <li><p>All the instructions are assumed to run at the root directory of a Pulsar binary distribution.</p></li>
 </ul>
 </blockquote>
-<h2><a class="anchor" aria-hidden="true" id="install-pulsar-and-built-in-connector"></a><a href="#install-pulsar-and-built-in-connector" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Install Pulsar and built-in connector</h2>
-<p>Before connecting Pulsar to a database, you need to install Pulsar and the desired built-in connector.</p>
+<h2><a class="anchor" aria-hidden="true" id="安装-pulsar-和内置连接器"></a><a href="#安装-pulsar-和内置连接器" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>安装 Pulsar 和内置连接器</h2>
+<p>在连接 Pulsar 数据库之前，你需要安装 Pulsar 和所需的内置连接器。</p>
 <p>For more information about <strong>how to install a standalone Pulsar and built-in connectors</strong>, see <a href="/docs/zh-CN/2.5.2/standalone/#installing-pulsar">here</a>.</p>
 <h2><a class="anchor" aria-hidden="true" id="启动单机模式-pulsar"></a><a href="#启动单机模式-pulsar" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>启动单机模式 Pulsar</h2>
 <ol>
-<li><p>Start Pulsar locally.</p>
+<li><p>本地启动 Pulsar。</p>
 <pre><code class="hljs css language-bash">bin/pulsar standalone
 </code></pre>
-<p>All the components of a Pulsar service are start in order.</p>
+<p>按顺序启动 Pulsar 服务的所有组件。</p>
 <p>You can curl those pulsar service endpoints to make sure Pulsar service is up running correctly.</p></li>
-<li><p>Check Pulsar binary protocol port.</p>
+<li><p>检查 Pulsar 二进制协议端口。</p>
 <pre><code class="hljs css language-bash">telnet localhost 6650
 </code></pre></li>
-<li><p>Check Pulsar Function cluster.</p>
+<li><p>检查 Pulsar Function 集群。</p>
 <pre><code class="hljs css language-bash">curl -s http://localhost:8080/admin/v2/worker/cluster
 </code></pre>
-<p><strong>Example output</strong></p>
+<p><strong>示例输出</strong></p>
 <pre><code class="hljs css language-json">[{<span class="hljs-attr">"workerId"</span>:<span class="hljs-string">"c-standalone-fw-localhost-6750"</span>,<span class="hljs-attr">"workerHostname"</span>:<span class="hljs-string">"localhost"</span>,<span class="hljs-attr">"port"</span>:<span class="hljs-number">6750</span>}]
 </code></pre></li>
-<li><p>Make sure a public tenant and a default namespace exist.</p>
+<li><p>请确保公共租户和默认命名空间存在。</p>
 <pre><code class="hljs css language-bash">curl -s http://localhost:8080/admin/v2/namespaces/public
 </code></pre>
-<p><strong>Example output</strong></p>
+<p><strong>示例输出</strong></p>
 <pre><code class="hljs css language-json">[<span class="hljs-string">"public/default"</span>,<span class="hljs-string">"public/functions"</span>]
 </code></pre></li>
-<li><p>All built-in connectors should be listed as available.</p>
+<li><p>所有内置连接器都应列为 available。</p>
 <pre><code class="hljs css language-bash">curl -s http://localhost:8080/admin/v2/<span class="hljs-built_in">functions</span>/connectors
 </code></pre>
 <p><strong>Example outoupt</strong></p>
@@ -121,35 +121,35 @@
 </code></pre>
 <p>If an error occurs when starting Pulsar service, you may see an exception at the terminal running <code>pulsar/standalone</code>, or you can navigate to the <code>logs</code> directory under the Pulsar directory to view the logs.</p></li>
 </ol>
-<h2><a class="anchor" aria-hidden="true" id="connect-pulsar-to-cassandra"></a><a href="#connect-pulsar-to-cassandra" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Connect Pulsar to Cassandra</h2>
+<h2><a class="anchor" aria-hidden="true" id="连接-pulsar-到-cassandra"></a><a href="#连接-pulsar-到-cassandra" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>连接 Pulsar 到 Cassandra</h2>
 <p>This section demonstrates how to connector Pulsar to Cassandra.</p>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="提示-1"></a><a href="#提示-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
 <ul>
 <li><p>Make sure you have Docker installed. If you do not have one, see <a href="https://docs.docker.com/docker-for-mac/install/">install Docker</a>.</p></li>
-<li><p>The Cassandra sink connector reads messages from Pulsar topics and writes the messages into Cassandra tables. For more information, see <a href="/docs/zh-CN/2.5.2/io-cassandra-sink">Cassandra sink connector</a>.</p></li>
+<li><p>The Cassandra sink connector reads messages from Pulsar topics and writes the messages into Cassandra tables. 更多详细信息，请参阅 <a href="/docs/zh-CN/2.5.2/io-cassandra-sink">Cassandra sink connector</a>。</p></li>
 </ul>
 </blockquote>
-<h3><a class="anchor" aria-hidden="true" id="setup-a-cassandra-cluster"></a><a href="#setup-a-cassandra-cluster" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Setup a Cassandra cluster</h3>
-<p>This example uses <code>cassandra</code> Docker image to start a single-node Cassandra cluster in Docker.</p>
+<h3><a class="anchor" aria-hidden="true" id="配置-cassandra-集群"></a><a href="#配置-cassandra-集群" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置 Cassandra 集群</h3>
+<p>本示例使用 <code>cassandra</code> Docker 镜像在 Docker 中启动单节点 Cassandra 集群。</p>
 <ol>
-<li><p>Start a Cassandra cluster.</p>
+<li><p>启动 Cassandra 集群。</p>
 <pre><code class="hljs css language-bash">docker run -d --rm --name=cassandra -p 9042:9042 cassandra
 </code></pre>
 <blockquote>
 <p><strong>Note</strong></p>
-<p>Before moving to the next steps, make sure the Cassandra cluster is running.</p>
+<p>进行下一个步骤前，请确保 Cassandra 集群正在运行。</p>
 </blockquote></li>
-<li><p>Make sure the Docker process is running.</p>
+<li><p>确保 Docker 进程正在运行。</p>
 <pre><code class="hljs css language-bash">docker ps
 </code></pre></li>
-<li><p>Check the Cassandra logs to make sure the Cassandra process is running as expected.</p>
+<li><p>检查 Cassandra 日志以确保 Cassandra 进程按预期运行。</p>
 <pre><code class="hljs css language-bash">docker logs cassandra
 </code></pre></li>
-<li><p>Check the status of the Cassandra cluster.</p>
+<li><p>检查 Cassandra 集群的状态。</p>
 <pre><code class="hljs css language-bash">docker <span class="hljs-built_in">exec</span> cassandra nodetool status
 </code></pre>
-<p><strong>Example output</strong></p>
+<p><strong>示例输出</strong></p>
 <pre><code class="hljs">Datacenter: datacenter1
 =======================
 <span class="hljs-attribute">Status</span>=Up/Down
@@ -157,27 +157,27 @@
 -- <span class="hljs-built_in"> Address </span>    Load       Tokens       Owns (effective)  Host ID                               Rack
 UN  172.17.0.2  103.67 KiB  256          100.0%            af0e4b2f-84e0-4f0b-bb14-bd5f9070ff26  rack1
 </code></pre></li>
-<li><p>Use <code>cqlsh</code> to connect to the Cassandra cluster.</p>
+<li><p>使用 <code>cqlsh</code> 连接到 Cassandra 集群。</p>
 <pre><code class="hljs css language-bash">$ docker <span class="hljs-built_in">exec</span> -ti cassandra cqlsh localhost
 Connected to Test Cluster at localhost:9042.
 [cqlsh 5.0.1 | Cassandra 3.11.2 | CQL spec 3.4.4 | Native protocol v4]
 Use HELP <span class="hljs-keyword">for</span> <span class="hljs-built_in">help</span>.
 cqlsh&gt;
 </code></pre></li>
-<li><p>Create a keyspace <code>pulsar_test_keyspace</code>.</p>
+<li><p>创建键空间 <code>pulsar_test_keyspace</code>。</p>
 <pre><code class="hljs css language-bash">cqlsh&gt; CREATE KEYSPACE pulsar_test_keyspace WITH replication = {<span class="hljs-string">'class'</span>:<span class="hljs-string">'SimpleStrategy'</span>, <span class="hljs-string">'replication_factor'</span>:1};
 </code></pre></li>
-<li><p>Create a table <code>pulsar_test_table</code>.</p>
+<li><p>创建表 <code>pulsar_test_table</code>。</p>
 <pre><code class="hljs css language-bash">cqlsh&gt; USE pulsar_test_keyspace;
 cqlsh:pulsar_test_keyspace&gt; CREATE TABLE pulsar_test_table (key text PRIMARY KEY, col text);
 </code></pre></li>
 </ol>
-<h3><a class="anchor" aria-hidden="true" id="configure-a-cassandra-sink"></a><a href="#configure-a-cassandra-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure a Cassandra sink</h3>
+<h3><a class="anchor" aria-hidden="true" id="配置-cassandra-sink"></a><a href="#配置-cassandra-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置 Cassandra sink</h3>
 <p>Now that we have a Cassandra cluster running locally.</p>
-<p>In this section, you need to configure a Cassandra sink connector.</p>
-<p>To run a Cassandra sink connector, you need to prepare a configuration file including the information that Pulsar connector runtime needs to know.</p>
-<p>For example, how Pulsar connector can find the Cassandra cluster, what is the keyspace and the table that Pulsar connector uses for writing Pulsar messages to, and so on.</p>
-<p>You can create a configuration file through one of the following methods.</p>
+<p>在本节中，你需要配置一个 Cassandra sink 连接器。</p>
+<p>要运行 Cassandra sink 连接器，你需要准备一个配置文件，其中包含 Pulsar 连接器运行时需要知道的信息。</p>
+<p>例如，Pulsar 连接器如何找到 Cassandra 集群， Pulsar 连接器用于写入消息的键空间和表，等等。</p>
+<p>你可以通过以下任意一种方法创建配置文件。</p>
 <ul>
 <li><p>JSON</p>
 <pre><code class="hljs css language-json">{
@@ -197,8 +197,8 @@ cqlsh:pulsar_test_keyspace&gt; CREATE TABLE pulsar_test_table (key text PRIMARY 
     <span class="hljs-attr">columnName:</span> <span class="hljs-string">"col"</span>
 </code></pre></li>
 </ul>
-<p>For more information, see <a href="/docs/zh-CN/2.5.2/io-cassandra-sink">Cassandra sink connector</a>.</p>
-<h3><a class="anchor" aria-hidden="true" id="create-a-cassandra-sink"></a><a href="#create-a-cassandra-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Create a Cassandra sink</h3>
+<p>更多详细信息，请参阅 <a href="/docs/zh-CN/2.5.2/io-cassandra-sink">Cassandra sink connector</a>。</p>
+<h3><a class="anchor" aria-hidden="true" id="创建-cassandra-sink"></a><a href="#创建-cassandra-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>创建 Cassandra sink</h3>
 <p>You can use the <a href="/docs/zh-CN/2.5.2/io-cli">Connector Admin CLI</a> to create a sink connector and perform other operations on them.</p>
 <p>Run the following command to create a Cassandra sink connector with sink type <em>cassandra</em> and the config file <em>examples/cassandra-sink.yml</em> created previously.</p>
 <h4><a class="anchor" aria-hidden="true" id="note"></a><a href="#note" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Note</h4>
@@ -224,7 +224,7 @@ cqlsh:pulsar_test_keyspace&gt; CREATE TABLE pulsar_test_table (key text PRIMARY 
     --namespace default \
     --name cassandra-test-sink
 </code></pre>
-<p><strong>Example output</strong></p>
+<p><strong>示例输出</strong></p>
 <pre><code class="hljs css language-json">{
   <span class="hljs-attr">"tenant"</span>: <span class="hljs-string">"public"</span>,
   <span class="hljs-attr">"namespace"</span>: <span class="hljs-string">"default"</span>,
@@ -255,7 +255,7 @@ cqlsh:pulsar_test_keyspace&gt; CREATE TABLE pulsar_test_table (key text PRIMARY 
     --namespace default \
     --name cassandra-test-sink
 </code></pre>
-<p><strong>Example output</strong></p>
+<p><strong>示例输出</strong></p>
 <pre><code class="hljs css language-json">{
   <span class="hljs-attr">"numInstances"</span> : <span class="hljs-number">1</span>,
   <span class="hljs-attr">"numRunning"</span> : <span class="hljs-number">1</span>,
@@ -290,7 +290,7 @@ cqlsh:pulsar_test_keyspace&gt; CREATE TABLE pulsar_test_table (key text PRIMARY 
     --name cassandra-test-sink
 </code></pre>
 <p>You can see 10 messages are processed by the Cassandra sink <em>test_cassandra</em>.</p>
-<p><strong>Example output</strong></p>
+<p><strong>示例输出</strong></p>
 <pre><code class="hljs css language-json">{
   <span class="hljs-attr">"numInstances"</span> : <span class="hljs-number">1</span>,
   <span class="hljs-attr">"numRunning"</span> : <span class="hljs-number">1</span>,
@@ -312,7 +312,7 @@ cqlsh:pulsar_test_keyspace&gt; CREATE TABLE pulsar_test_table (key text PRIMARY 
   } ]
 }
 </code></pre></li>
-<li><p>Use <code>cqlsh</code> to connect to the Cassandra cluster.</p>
+<li><p>使用 <code>cqlsh</code> 连接到 Cassandra 集群。</p>
 <pre><code class="hljs css language-bash">docker <span class="hljs-built_in">exec</span> -ti cassandra cqlsh localhost
 </code></pre></li>
 <li><p>Check the data of the Cassandra table <em>pulsar_test_table</em>.</p>
@@ -676,7 +676,7 @@ engine=innodb;
 
 Reason: Sink pulsar-mysql-jdbc-sink doesn't exist
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.5.2/io-overview"><span class="arrow-prev">← </span><span>概述</span></a><a class="docs-next button" href="/docs/zh-CN/2.5.2/io-use"><span>Use</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#install-pulsar-and-built-in-connector">Install Pulsar and built-in connector</a></li><li><a href="#启动单机模式-pulsar">启动单机模式 Pulsar</a></li><li><a href="#connect-pulsar-to-cassandra">Connect Pulsar to Cassandra</a><ul class="toc-headings"><li><a href="#setup-a-cassandra-cluster">Setup a Cassandra cluster</a></li><li><a href="#configure-a-cassandra-sink">Configure a Cassandra sink</a></li><li><a href="#create-a-cassandra-sink">Create a Cassandra sink</a></li><li><a href="#inspect-a-cassandra-sink">Inspect a Cassandra sink</a></li><li><a href="#verify-a-cassandra-sink">Verify a Cassandra sink</a></li><li><a href="#delete-a-cassandra-sink">Delete a Cassandra Sink</a></li></ul></li><li><a href="#connect-pulsar-to-mysql">Connect Pulsar to MySQL</a><ul class="toc-headings"><li><a href="#setup-a-mysql-cluster">Setup a MySQL cluster</a></li><li><a href="#configure-a-jdbc-sink">Configure a JDBC sink</a></li><li><a href="#create-a-jdbc-sink">Create a JDBC sink</a></li><li><a href="#inspect-a-jdbc-sink">Inspect a JDBC sink</a></li><li><a href="#stop-a-jdbc-sink">Stop a JDBC sink</a></li><li><a href="#restart-a-jdbc-sink">Restart a JDBC sink</a></li><li><a href="#update-a-jdbc-sink">Update a JDBC sink</a></li><li><a href="#delete-a-jdbc-sink">Delete a JDBC sink</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.5.2/io-overview"><span class="arrow-prev">← </span><span>概述</span></a><a class="docs-next button" href="/docs/zh-CN/2.5.2/io-use"><span>Use</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#安装-pulsar-和内置连接器">安装 Pulsar 和内置连接器</a></li><li><a href="#启动单机模式-pulsar">启动单机模式 Pulsar</a></li><li><a href="#连接-pulsar-到-cassandra">连接 Pulsar 到 Cassandra</a><ul class="toc-headings"><li><a href="#配置-cassandra-集群">配置 Cassandra 集群</a></li><li><a href="#配置-cassandra-sink">配置 Cassandra sink</a></li><li><a href="#创建-cassandra-sink">创建 Cassandra sink</a></li><li><a href="#inspect-a-cassandra-sink">Inspect a Cassandra sink</a></li><li><a href="#verify-a-cassandra-sink">Verify a Cassandra sink</a></li><li><a href="#delete-a-cassandra-sink">Delete a Cassandra Sink</a></li></ul></li><li><a href="#connect-pulsar-to-mysql">Connect Pulsar to MySQL</a><ul class="toc-headings"><li><a href="#setup-a-mysql-cluster">Setup a MySQL cluster</a></li><li><a href="#configure-a-jdbc-sink">Configure a JDBC sink</a></li><li><a href="#create-a-jdbc-sink">Create a JDBC sink</a></li><li><a href="#inspect-a-jdbc-sink">Inspect a JDBC sink</a></li><li><a href="#stop-a-jdbc-sink">Stop a JDBC sink</a></li><li><a href="#restart-a-jdbc-sink">Restart a JDBC sink</a></li><li><a href="#update-a-jdbc-sink">Update a JDBC sink</a></li><li><a href="#delete-a-jdbc-sink">Delete a JDBC sink</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

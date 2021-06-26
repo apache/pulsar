@@ -313,53 +313,53 @@
 <pre><code class="hljs css language-bash">bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --name word-filter \
   --user-config <span class="hljs-string">'{"forbidden-word":"rosebud"}'</span> \
-  <span class="hljs-comment"># 其他函数配置</span>
+  <span class="hljs-comment"># 函数的其他配置</span>
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="api"></a><a href="#api" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>API</h3>
 <p>你可以使用以下 API 获取窗口函数的用户自定义信息。</p>
 <h4><a class="anchor" aria-hidden="true" id="getuserconfigmap"></a><a href="#getuserconfigmap" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>getUserConfigMap</h4>
-<p><code>getUserConfigMap</code> API gets a map of all user-defined key/value configurations for the window function.</p>
+<p><code>getUserConfigMap</code> API：获取窗口函数所有用户定义的 key/value 配置。</p>
 <pre><code class="hljs css language-java"><span class="hljs-comment">/**
-     * Get a map of all user-defined key/value configs for the function.
+     * 获取函数内所有用户自定义的 key/value 配置。
      *
-     * <span class="hljs-doctag">@return</span> The full map of user-defined config values
+     * <span class="hljs-doctag">@return</span> 所有用户自定义的配置值映射
      */</span>
     <span class="hljs-function">Map&lt;String, Object&gt; <span class="hljs-title">getUserConfigMap</span><span class="hljs-params">()</span></span>;
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="getuserconfigvalue"></a><a href="#getuserconfigvalue" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>getUserConfigValue</h4>
-<p>The <code>getUserConfigValue</code> API gets a user-defined key/value.</p>
+<p><code>getUserConfigValue</code> API：获得一个用户自定义的 key/value。</p>
 <pre><code class="hljs css language-java"><span class="hljs-comment">/**
-     * Get any user-defined key/value.
+     * 获取任意用户自定义配置的 key/value。
      *
-     * <span class="hljs-doctag">@param</span> key The key
-     * <span class="hljs-doctag">@return</span> The Optional value specified by the user for that key.
+     * <span class="hljs-doctag">@param</span> key 参数的 key
+     * <span class="hljs-doctag">@return</span> Optional 对象：指定 key 对应的配置值。
      */</span>
     <span class="hljs-function">Optional&lt;Object&gt; <span class="hljs-title">getUserConfigValue</span><span class="hljs-params">(String key)</span></span>;
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="getuserconfigvalueordefault"></a><a href="#getuserconfigvalueordefault" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>getUserConfigValueOrDefault</h4>
-<p>The <code>getUserConfigValueOrDefault</code> API gets a user-defined key/value or a default value if none is present.</p>
+<p><code>getUserConfigValueOrdefault</code> API：获取一个用户自定义的 key/value，若没有设置值，则返回默认值。</p>
 <pre><code class="hljs css language-java"><span class="hljs-comment">/**
-     * Get any user-defined key/value or a default value if none is present.
+     * 获取任意用户自定义的 key/value，若未设置，则返回默认值。
      *
      * <span class="hljs-doctag">@param</span> key
      * <span class="hljs-doctag">@param</span> defaultValue
-     * <span class="hljs-doctag">@return</span> Either the user config value associated with a given key or a supplied default value
+     * <span class="hljs-doctag">@return</span> 对应 key 用户自定义的值或者是指定的默认值。
      */</span>
     <span class="hljs-function">Object <span class="hljs-title">getUserConfigValueOrDefault</span><span class="hljs-params">(String key, Object defaultValue)</span></span>;
 </code></pre>
-<p>This example demonstrates how to access key/value pairs provided to Pulsar window functions.</p>
-<p>Java SDK context object enables you to access key/value pairs provided to Pulsar window functions via the command line (as JSON).</p>
+<p>这个示例演示如何访问 Pulsar 窗口函数中配置的键值对。</p>
+<p>Java SDK 上下文对象允许你通过命令行访问 Pulsar 窗口函数中配置的 key/value 值（以 JSON 形式）。</p>
 <blockquote>
 <p><strong>提示</strong></p>
-<p>For all key/value pairs passed to Java window functions, both the <code>key</code> and the <code>value</code> are <code>String</code>. To set the value to be a different type, you need to deserialize it from the <code>String</code> type.</p>
+<p>Java 窗口函数，所有配置的键/值对，<code>key</code> 和 <code>value</code> 都是 <code>String</code> 类型。 要将值设置为其他类型，则需要对 <code>String</code> 类型反序列化。</p>
 </blockquote>
-<p>This example passes a key/value pair in a Java window function.</p>
+<p>以下代码示范如何在 Java 窗口函数中配置键/值对。</p>
 <pre><code class="hljs css language-bash">bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
    --user-config <span class="hljs-string">'{"word-of-the-day":"verdure"}'</span> \
-  <span class="hljs-comment"># Other function configs</span>
+  <span class="hljs-comment"># 函数的其他配置</span>
 </code></pre>
-<p>This example accesses values in a Java window function.</p>
-<p>The <code>UserConfigFunction</code> function logs the string <code>&quot;The word of the day is verdure&quot;</code> every time the function is invoked (which means every time a message arrives). The user config of <code>word-of-the-day</code> is changed <strong>only</strong> when the function is updated with a new config value via multiple ways, such as the command line tool or REST API.</p>
+<p>以下代码示范如何在窗口函数中访问键/值对。</p>
+<p>在每次调用本函数时，<code>UserConfigFunction</code> 方法都会去记录字符串 <code>&quot;The word of the day is verdure&quot;</code>（即在每次消息到达时）。 <strong>只有</strong>当函数使用一个新的配置值进行更新之后，用户配置项 <code>word-of-the-day</code> 的值才会被改变。更新函数值有多种方式，例如通过命令行或者 REST API。</p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Context;
 <span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Function;
 <span class="hljs-keyword">import</span> org.slf4j.Logger;
@@ -373,13 +373,13 @@
         <span class="hljs-keyword">if</span> (whatToWrite.get() != <span class="hljs-keyword">null</span>) {
             <span class="hljs-keyword">return</span> (String)whatToWrite.get();
         } <span class="hljs-keyword">else</span> {
-            <span class="hljs-keyword">return</span> <span class="hljs-string">"Not a nice way"</span>;
+            <span class="hljs-keyword">return</span> <span class="hljs-string">"好像没有数据哟~"</span>;
         }
     }
 
 }
 </code></pre>
-<p>If no value is provided, you can access the entire user config map or set a default value.</p>
+<p>如果没有找到任何预先设置的值，你可以访问整个用户配置映射或设置默认值。</p>
 <pre><code class="hljs css language-java"><span class="hljs-comment">// Get the whole config map</span>
 Map&lt;String, String&gt; allConfigs = context.getUserConfigMap();
 
