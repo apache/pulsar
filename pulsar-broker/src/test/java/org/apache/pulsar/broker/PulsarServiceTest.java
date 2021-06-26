@@ -26,7 +26,6 @@ import static org.testng.AssertJUnit.assertSame;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.testng.AssertJUnit;
 import org.testng.annotations.AfterMethod;
@@ -70,7 +69,7 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         configuration.setClusterName("clusterName");
         configuration.setFunctionsWorkerEnabled(true);
         WorkerService expectedWorkerService = mock(WorkerService.class);
-        PulsarService pulsarService = spy(new PulsarService(configuration, new WorkerConfig(),
+        PulsarService pulsarService = spy(new PulsarService(configuration,
                 Optional.of(expectedWorkerService), (exitCode) -> {}));
 
         WorkerService actualWorkerService = pulsarService.getWorkerService();
@@ -87,7 +86,7 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         configuration.setZookeeperServers("localhost");
         configuration.setClusterName("clusterName");
         configuration.setFunctionsWorkerEnabled(false);
-        PulsarService pulsarService = new PulsarService(configuration, new WorkerConfig(),
+        PulsarService pulsarService = new PulsarService(configuration,
                 Optional.empty(), (exitCode) -> {});
 
         String errorMessage = "Pulsar Function Worker is not enabled, probably functionsWorkerEnabled is set to false";
