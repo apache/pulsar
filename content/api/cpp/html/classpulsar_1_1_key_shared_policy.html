@@ -114,6 +114,10 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:a81aa3f6f9f2c91f5f4ce5b89363dbcbb"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aaf3b6759f7617fbefc6a144944fa890e"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_key_shared_policy.html#aaf3b6759f7617fbefc6a144944fa890e">isAllowOutOfOrderDelivery</a> () const </td></tr>
 <tr class="separator:aaf3b6759f7617fbefc6a144944fa890e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0f54710a1b3e5c91303ff1391bcc7872"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classpulsar_1_1_key_shared_policy.html">KeySharedPolicy</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_key_shared_policy.html#a0f54710a1b3e5c91303ff1391bcc7872">setStickyRanges</a> (std::initializer_list&lt; StickyRange &gt; ranges)</td></tr>
+<tr class="separator:a0f54710a1b3e5c91303ff1391bcc7872"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:abbe1cd27d9c4287393a811335c749aeb"><td class="memItemLeft" align="right" valign="top">StickyRanges&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_key_shared_policy.html#abbe1cd27d9c4287393a811335c749aeb">getStickyRanges</a> () const </td></tr>
+<tr class="separator:abbe1cd27d9c4287393a811335c749aeb"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <h2 class="groupheader">Member Function Documentation</h2>
 <a class="anchor" id="ae3183f96c854f87996b1101885884483"></a>
@@ -145,6 +149,22 @@ Public Member Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 <dl class="section return"><dt>Returns</dt><dd>the KeySharedMode of KeyShared subscription </dd></dl>
+
+</div>
+</div>
+<a class="anchor" id="abbe1cd27d9c4287393a811335c749aeb"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">StickyRanges pulsar::KeySharedPolicy::getStickyRanges </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<dl class="section return"><dt>Returns</dt><dd>ranges used with sticky mode </dd></dl>
 
 </div>
 </div>
@@ -209,6 +229,28 @@ Public Member Functions</h2></td></tr>
   </dd>
 </dl>
 <dl class="section see"><dt>See also</dt><dd><a class="el" href="namespacepulsar.html#a499d1327931169d068b9b353f106dd04">KeySharedMode</a> </dd></dl>
+
+</div>
+</div>
+<a class="anchor" id="a0f54710a1b3e5c91303ff1391bcc7872"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classpulsar_1_1_key_shared_policy.html">KeySharedPolicy</a>&amp; pulsar::KeySharedPolicy::setStickyRanges </td>
+          <td>(</td>
+          <td class="paramtype">std::initializer_list&lt; StickyRange &gt;&#160;</td>
+          <td class="paramname"><em>ranges</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">ranges</td><td>used with sticky mode </td></tr>
+  </table>
+  </dd>
+</dl>
 
 </div>
 </div>

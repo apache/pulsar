@@ -163,6 +163,10 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:a97191cb58954268cdbb7cc69a7b8cdba"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a8e2c09b124d43c857e8d58ab83800030"><td class="memItemLeft" align="right" valign="top">unsigned int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_client_configuration.html#a8e2c09b124d43c857e8d58ab83800030">getPartitionsUpdateInterval</a> () const </td></tr>
 <tr class="separator:a8e2c09b124d43c857e8d58ab83800030"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aae613c6cb5f3890d3d9bc9cbf9a93a11"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classpulsar_1_1_client_configuration.html">ClientConfiguration</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_client_configuration.html#aae613c6cb5f3890d3d9bc9cbf9a93a11">setConnectionTimeout</a> (int timeoutMs)</td></tr>
+<tr class="separator:aae613c6cb5f3890d3d9bc9cbf9a93a11"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac37c4dcebad16831ca2e55a36a6c63ec"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_client_configuration.html#ac37c4dcebad16831ca2e55a36a6c63ec">getConnectionTimeout</a> () const </td></tr>
+<tr class="separator:ac37c4dcebad16831ca2e55a36a6c63ec"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="friends"></a>
 Friends</h2></td></tr>
@@ -203,6 +207,22 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>PulsarWrapper</b></t
       </table>
 </div><div class="memdoc">
 <dl class="section return"><dt>Returns</dt><dd>Get configured total allowed concurrent lookup-request. </dd></dl>
+
+</div>
+</div>
+<a class="anchor" id="ac37c4dcebad16831ca2e55a36a6c63ec"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">int pulsar::ClientConfiguration::getConnectionTimeout </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>The getter associated with <a class="el" href="classpulsar_1_1_client_configuration.html#aae613c6cb5f3890d3d9bc9cbf9a93a11">setConnectionTimeout()</a>. </p>
 
 </div>
 </div>
@@ -441,6 +461,31 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>PulsarWrapper</b></t
   </table>
   </dd>
 </dl>
+
+</div>
+</div>
+<a class="anchor" id="aae613c6cb5f3890d3d9bc9cbf9a93a11"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classpulsar_1_1_client_configuration.html">ClientConfiguration</a>&amp; pulsar::ClientConfiguration::setConnectionTimeout </td>
+          <td>(</td>
+          <td class="paramtype">int&#160;</td>
+          <td class="paramname"><em>timeoutMs</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Set the duration of time to wait for a connection to a broker to be established. If the duration passes without a response from the broker, the connection attempt is dropped.</p>
+<p>Default: 10000</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">timeoutMs</td><td>the duration in milliseconds </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd></dd></dl>
 
 </div>
 </div>
