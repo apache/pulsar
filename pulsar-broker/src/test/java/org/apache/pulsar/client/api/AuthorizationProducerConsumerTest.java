@@ -209,9 +209,16 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
                 .authentication(authentication));
 
         // (1) Create subscription name
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
-                .subscribe();
-        consumer.close();
+        // should fail with empty subscription permission
+        try {
+            Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                    .subscribe();
+            fail("should have fail with authorization exception");
+        } catch (org.apache.pulsar.client.api.PulsarClientException.AuthorizationException e) {
+            // OK
+        }
+        superAdmin.topics().createNonPartitionedTopic(topicName);
+        superAdmin.topics().createSubscription(topicName, subscriptionName, MessageId.latest);
 
         // verify tenant is able to perform all subscription-admin api
         tenantAdmin.topics().skipAllMessages(topicName, subscriptionName);
@@ -228,8 +235,8 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         tenantAdmin.topics().resetCursor(topicName, subscriptionName, MessageId.earliest);
 
         // grant namespace-level authorization to the subscriptionRole
-        tenantAdmin.namespaces().grantPermissionOnNamespace(namespace, subscriptionRole,
-                Collections.singleton(AuthAction.consume));
+        tenantAdmin.namespaces().grantPermissionOnSubscription(namespace, subscriptionName,
+                Collections.singleton(subscriptionRole));
 
         // subscriptionRole has namespace-level authorization
         sub1Admin.topics().resetCursor(topicName, subscriptionName, 10);

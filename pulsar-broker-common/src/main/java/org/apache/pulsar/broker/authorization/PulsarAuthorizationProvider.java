@@ -120,7 +120,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                         // list is empty)
                         Set<String> roles = policies.get().auth_policies
                                 .getSubscriptionAuthentication().get(subscription);
-                        if (roles != null && !roles.isEmpty() && !roles.contains(role)) {
+                        if (roles == null || roles.isEmpty() || !roles.contains(role)) {
                             log.warn("[{}] is not authorized to subscribe on {}-{}", role, topicName, subscription);
                             permissionFuture.complete(false);
                             return;

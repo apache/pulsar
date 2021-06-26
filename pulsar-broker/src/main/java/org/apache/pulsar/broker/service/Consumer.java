@@ -653,7 +653,7 @@ public class Consumer {
                     return;
                 }
             } catch (Exception e) {
-                log.warn("[{}] Get unexpected error while autorizing [{}]  {}", appId, subscription.getTopicName(),
+                log.warn("[{}] Get unexpected error while authorizing [{}]  {}", appId, subscription.getTopicName(),
                         e.getMessage(), e);
             }
             log.info("[{}] is not allowed to consume from topic [{}] anymore", appId, subscription.getTopicName());
