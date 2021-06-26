@@ -2724,7 +2724,7 @@ public class PersistentTopic extends AbstractTopic
             });
     }
 
-    private synchronized void checkReplicatedSubscriptionControllerState() {
+    public synchronized void checkReplicatedSubscriptionControllerState() {
         AtomicBoolean shouldBeEnabled = new AtomicBoolean(false);
         subscriptions.forEach((name, subscription) -> {
             if (subscription.isReplicated()) {
@@ -2975,6 +2975,9 @@ public class PersistentTopic extends AbstractTopic
         updateUnackedMessagesExceededOnConsumer(namespacePolicies.orElse(null));
 
         checkDeduplicationStatus();
+
+        // update managed ledger config
+        checkPersistencePolicies();
     }
 
     private Optional<Policies> getNamespacePolicies() {

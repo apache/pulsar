@@ -344,8 +344,8 @@ The Apache Software License, Version 2.0
     - maven-settings-builder-3.0.5.jar
 	- wagon-provider-api-2.4.jar
   * OkHttp
-    - okhttp-3.9.0.jar
-    - okhttp-urlconnection-3.9.0.jar
+    - okhttp-3.14.9.jar
+    - okhttp-urlconnection-3.14.9.jar
   * OpenCSV
     - opencsv-2.3.jar
   * Plexus
@@ -375,7 +375,7 @@ The Apache Software License, Version 2.0
   * Objenesis
     - objenesis-2.6.jar
   * Okio
-    - okio-1.13.0.jar
+    - okio-1.17.2.jar
   * Presto
     - presto-array-332.jar
     - presto-cli-332.jar

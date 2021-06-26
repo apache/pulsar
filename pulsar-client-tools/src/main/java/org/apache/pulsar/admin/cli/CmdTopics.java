@@ -221,6 +221,8 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("set-subscribe-rate", new SetSubscribeRate());
         jcommander.addCommand("remove-subscribe-rate", new RemoveSubscribeRate());
 
+        jcommander.addCommand("set-replicated-subscription-status", new SetReplicatedSubscriptionStatus());
+
         initDeprecatedCommands();
     }
 
@@ -910,6 +912,17 @@ public class CmdTopics extends CmdBase {
                 System.out.println("Cannot find any messages based on ledgerId:"
                         + ledgerId + " entryId:" + entryId);
             } else {
+                if (message.getMessageId() instanceof BatchMessageIdImpl) {
+                    BatchMessageIdImpl msgId = (BatchMessageIdImpl) message.getMessageId();
+                    System.out.println("Batch Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId() + ":" + msgId.getBatchIndex());
+                } else {
+                    MessageIdImpl msgId = (MessageIdImpl) message.getMessageId();
+                    System.out.println("Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId());
+                }
+                if (message.getProperties().size() > 0) {
+                    System.out.println("Properties:");
+                    print(message.getProperties());
+                }
                 ByteBuf date = Unpooled.wrappedBuffer(message.getData());
                 System.out.println(ByteBufUtil.prettyHexDump(date));
             }
@@ -2295,6 +2308,31 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             getTopics().removeSubscribeRate(persistentTopic);
+        }
+    }
+
+    @Parameters(commandDescription = "Enable or disable a replicated subscription on a topic")
+    private class SetReplicatedSubscriptionStatus extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-s",
+                "--subscription" }, description = "Subscription name to enable or disable replication", required = true)
+        private String subName;
+
+        @Parameter(names = { "--enable", "-e" }, description = "Enable replication")
+        private boolean enable = false;
+
+        @Parameter(names = { "--disable", "-d" }, description = "Disable replication")
+        private boolean disable = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            if (enable == disable) {
+                throw new ParameterException("Need to specify either --enable or --disable");
+            }
+            getTopics().setReplicatedSubscriptionStatus(persistentTopic, subName, enable);
         }
     }
 
