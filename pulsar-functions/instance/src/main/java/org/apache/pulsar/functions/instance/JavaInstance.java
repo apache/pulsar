@@ -32,6 +32,7 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Function;
+import org.apache.pulsar.functions.api.Hook;
 import org.apache.pulsar.functions.api.Record;
 
 /**
@@ -74,6 +75,24 @@ public class JavaInstance implements AutoCloseable {
         }
     }
 
+    public void setup() {
+        if (null != function && function instanceof Hook) {
+            try {
+                ((Hook) function).preProcess(context);
+            } catch (RuntimeException e) {
+                log.error("setup error:", e);
+                throw new RuntimeException("function preProcess occurred exception", e);
+            }
+        }
+        if (null != javaUtilFunction && javaUtilFunction instanceof Hook) {
+            try {
+                ((Hook) javaUtilFunction).preProcess(context);
+            } catch (RuntimeException e) {
+                log.error("setup error:", e);
+                throw new RuntimeException("javaUtilFunction preProcess occurred exception", e);
+            }
+        }
+    }
     @VisibleForTesting
     public JavaExecutionResult handleMessage(Record<?> record, Object input) {
         return handleMessage(record, input, (rec, result) -> {}, cause -> {});
@@ -160,7 +179,22 @@ public class JavaInstance implements AutoCloseable {
     @Override
     public void close() {
         context.close();
-        executor.shutdown();
+        if (null != function && function instanceof Hook) {
+            try {
+                ((Hook) function).postProcess();
+            } catch (RuntimeException e) {
+                log.error("function postProcess occurred exception", e);
+                throw new RuntimeException("function postProcess occurred exception", e);
+            }
+        }
+        if (null != javaUtilFunction && javaUtilFunction instanceof Hook) {
+            try {
+                ((Hook) javaUtilFunction).postProcess();
+            } catch (RuntimeException e) {
+                log.error("function postProcess occurred exception", e);
+                throw new RuntimeException("function postProcess occurred exception", e);
+            }
+        }
     }
 
     public Map<String, Double> getAndResetMetrics() {
