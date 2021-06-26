@@ -221,7 +221,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         setupLogHandler();
 
         javaInstance = new JavaInstance(contextImpl, object, instanceConfig);
-
+        javaInstance.setup();
         // to signal member variables are initialized
         isInitialized = true;
     }
