@@ -1369,25 +1369,25 @@ public class PulsarAdminToolTest {
     @Test
     public void nonPersistentTopics() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
-        NonPersistentTopics mockTopics = mock(NonPersistentTopics.class);
-        when(admin.nonPersistentTopics()).thenReturn(mockTopics);
+        Topics mockTopics = mock(Topics.class);
+        when(admin.topics()).thenReturn(mockTopics);
 
-        CmdNonPersistentTopics topics = new CmdNonPersistentTopics(() -> admin);
+        CmdTopics topics = new CmdTopics(() -> admin);
 
-        topics.run(split("stats non-persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).getStats("non-persistent://myprop/clust/ns1/ds1");
+        topics.run(split("stats non-persistent://myprop/ns1/ds1"));
+        verify(mockTopics).getStatsNonPersistent("non-persistent://myprop/ns1/ds1", false, false);
 
-        topics.run(split("stats-internal non-persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).getInternalStats("non-persistent://myprop/clust/ns1/ds1");
+        topics.run(split("stats-internal non-persistent://myprop/ns1/ds1"));
+        verify(mockTopics).getInternalStats("non-persistent://myprop/ns1/ds1", false);
 
-        topics.run(split("create-partitioned-topic non-persistent://myprop/clust/ns1/ds1 --partitions 32"));
-        verify(mockTopics).createPartitionedTopic("non-persistent://myprop/clust/ns1/ds1", 32);
+        topics.run(split("create-partitioned-topic non-persistent://myprop/ns1/ds1 --partitions 32"));
+        verify(mockTopics).createPartitionedTopic("non-persistent://myprop/ns1/ds1", 32);
 
-        topics.run(split("list myprop/clust/ns1"));
-        verify(mockTopics).getList("myprop/clust/ns1");
+        topics.run(split("list myprop/ns1"));
+        verify(mockTopics).getList("myprop/ns1", null);
 
-        topics.run(split("list-in-bundle myprop/clust/ns1 --bundle 0x23d70a30_0x26666658"));
-        verify(mockTopics).getListInBundle("myprop/clust/ns1", "0x23d70a30_0x26666658");
+        topics.run(split("list-in-bundle myprop/ns1 --bundle 0x23d70a30_0x26666658"));
+        verify(mockTopics).getListInBundle("myprop/ns1", "0x23d70a30_0x26666658");
 
     }
 

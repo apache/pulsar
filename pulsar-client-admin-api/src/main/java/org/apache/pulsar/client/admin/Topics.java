@@ -37,6 +37,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
+import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
@@ -847,6 +848,62 @@ public interface Topics {
 
     default CompletableFuture<TopicStats> getStatsAsync(String topic) {
         return getStatsAsync(topic, false, false);
+    }
+
+
+    /**
+     * Get the stats for non-persistent topic.
+     * All the rates are computed over a 1 minute window and are relative the last completed 1 minute period.
+     *
+     * @param topic
+     *            topic name
+     * @param getPreciseBacklog
+     *            Set to true to get precise backlog, Otherwise get imprecise backlog.
+     * @param subscriptionBacklogSize
+     *            Whether to get backlog size for each subscription.
+     * @return the topic statistics
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Topic does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    NonPersistentTopicStats getStatsNonPersistent(String topic, boolean getPreciseBacklog,
+                                                  boolean subscriptionBacklogSize) throws PulsarAdminException;
+
+    default NonPersistentTopicStats getStatsNonPersistent(String topic) throws PulsarAdminException {
+        return getStatsNonPersistent(topic, false, false);
+    }
+
+    /**
+     * Get the stats for non persistent topic asynchronously.
+     * All the rates are computed over a 1 minute window and are relative the last completed 1 minute period.
+     *
+     * @param topic
+     *            topic name
+     * @param getPreciseBacklog
+     *            Set to true to get precise backlog, Otherwise get imprecise backlog.
+     * @param subscriptionBacklogSize
+     *            Whether to get backlog size for each subscription.
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Topic does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     *
+     * @return a future that can be used to track when the topic statistics are returned
+     *
+     */
+    CompletableFuture<NonPersistentTopicStats> getStatsNonPersistentAsync(String topic, boolean getPreciseBacklog,
+                                                  boolean subscriptionBacklogSize) throws PulsarAdminException;
+
+    default CompletableFuture<NonPersistentTopicStats> getStatsNonPersistentAsync(String topic)
+            throws PulsarAdminException {
+        return getStatsNonPersistentAsync(topic, false, false);
     }
 
     /**
