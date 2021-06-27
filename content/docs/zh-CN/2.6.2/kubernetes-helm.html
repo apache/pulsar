@@ -230,9 +230,7 @@ pulsar-mini-zookeeper        ClusterIP      None             &lt;none&gt;       
 <li><p>暴露 <code>PULSAR_HOME</code>。</p>
 <p>(1) 输入已解压的下载文件的目录。</p>
 <p>(2) 将 <code>PULSAR_HOME</code> 暴露为环境变量。</p>
-<pre><code class="hljs"> ```bash
- export PULSAR_HOME=$(pwd)
- ```
+<pre><code class="hljs css language-bash"><span class="hljs-built_in">export</span> PULSAR_HOME=$(<span class="hljs-built_in">pwd</span>)
 </code></pre></li>
 <li><p>配置 Pulsar 客户端。</p>
 <p>在 <code>${PULSAR_HOME}/conf/client.conf</code> 文件中，用你从上面步骤中获得的服务 URL 来替换掉 <code>webServiceUrl</code> 与 <code>brokerServiceUrl</code>。</p></li>

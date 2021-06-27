@@ -236,9 +236,7 @@ brokerServiceUrl=<span class="hljs-string">pulsar:</span><span class="hljs-comme
 <li><p>Expose <code>PULSAR_HOME</code>.</p>
 <p>(1) Enter the directory of the decompressed download file.</p>
 <p>(2) Expose <code>PULSAR_HOME</code> as the environment variable.</p>
-<pre><code class="hljs"> ```bash
- export PULSAR_HOME=$(pwd)
- ```
+<pre><code class="hljs css language-bash"><span class="hljs-built_in">export</span> PULSAR_HOME=$(<span class="hljs-built_in">pwd</span>)
 </code></pre></li>
 <li><p>Configure the Pulsar client.</p>
 <p>In the <code>${PULSAR_HOME}/conf/client.conf</code> file, replace <code>webServiceUrl</code> and <code>brokerServiceUrl</code> with the service URLs you get from the above steps.</p></li>

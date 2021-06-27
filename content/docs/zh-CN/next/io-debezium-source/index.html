@@ -184,10 +184,12 @@ mysql&gt; <span class="hljs-keyword">UPDATE</span> products <span class="hljs-ke
     <span class="hljs-attr">"database.hostname"</span>: <span class="hljs-string">"localhost"</span>,
     <span class="hljs-attr">"database.port"</span>: <span class="hljs-string">"5432"</span>,
     <span class="hljs-attr">"database.user"</span>: <span class="hljs-string">"postgres"</span>,
-    <span class="hljs-attr">"database.password"</span>: <span class="hljs-string">"postgres"</span>,
+    <span class="hljs-attr">"database.password"</span>: <span class="hljs-string">"changeme"</span>,
     <span class="hljs-attr">"database.dbname"</span>: <span class="hljs-string">"postgres"</span>,
     <span class="hljs-attr">"database.server.name"</span>: <span class="hljs-string">"dbserver1"</span>,
-    <span class="hljs-attr">"schema.whitelist"</span>: <span class="hljs-string">"inventory"</span>,
+    <span class="hljs-attr">"plugin.name"</span>: <span class="hljs-string">"pgoutput"</span>,
+    <span class="hljs-attr">"schema.whitelist"</span>: <span class="hljs-string">"public"</span>,
+    <span class="hljs-attr">"table.whitelist"</span>: <span class="hljs-string">"public.users"</span>,
     <span class="hljs-attr">"pulsar.service.url"</span>: <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>
 }
 </code></pre></li>
@@ -202,25 +204,31 @@ mysql&gt; <span class="hljs-keyword">UPDATE</span> products <span class="hljs-ke
 
 <span class="hljs-attr">configs:</span>
 
-    <span class="hljs-comment">## config for pg, docker image: debezium/example-postgress:0.8</span>
+    <span class="hljs-comment">## config for postgres version 10+, official docker image: postgres:&lt;10+&gt;</span>
     <span class="hljs-attr">database.hostname:</span> <span class="hljs-string">"localhost"</span>
     <span class="hljs-attr">database.port:</span> <span class="hljs-string">"5432"</span>
     <span class="hljs-attr">database.user:</span> <span class="hljs-string">"postgres"</span>
-    <span class="hljs-attr">database.password:</span> <span class="hljs-string">"postgres"</span>
+    <span class="hljs-attr">database.password:</span> <span class="hljs-string">"changeme"</span>
     <span class="hljs-attr">database.dbname:</span> <span class="hljs-string">"postgres"</span>
     <span class="hljs-attr">database.server.name:</span> <span class="hljs-string">"dbserver1"</span>
-    <span class="hljs-attr">schema.whitelist:</span> <span class="hljs-string">"inventory"</span>
+    <span class="hljs-attr">plugin.name:</span> <span class="hljs-string">"pgoutput"</span>
+    <span class="hljs-attr">schema.whitelist:</span> <span class="hljs-string">"public"</span>
+    <span class="hljs-attr">table.whitelist:</span> <span class="hljs-string">"public.users"</span>
 
     <span class="hljs-comment">## PULSAR_SERVICE_URL_CONFIG</span>
     <span class="hljs-attr">pulsar.service.url:</span> <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>
 </code></pre></li>
 </ul>
+<p>Notice that <code>pgoutput</code> is a standard plugin of Postgres introduced in version 10 - <a href="https://www.postgresql.org/docs/10/logical-replication-architecture.html">see Postgres architecture docu</a>. You don't need to install anything, just make sure the WAL level is set to <code>logical</code> (see docker command below and <a href="https://www.postgresql.org/docs/current/runtime-config-wal.html">Postgres docu</a>).</p>
 <h3><a class="anchor" aria-hidden="true" id="用法-1"></a><a href="#用法-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>用法</h3>
 <p>此示例显示如何使用 Pulsar Debezium 连接器更改 PostgreSQL 表的数据。</p>
 <ol>
 <li><p>以数据库启动一个 PostgreSQL 服务器，Debezium 可以从数据库捕获更改。</p>
-<pre><code class="hljs css language-bash">$ docker pull debezium/example-postgres:0.8
-$ docker run -d -it --rm --name pulsar-postgresql -p 5432:5432  debezium/example-postgres:0.8
+<pre><code class="hljs css language-bash">$ docker run -d -it --rm \
+--name pulsar-postgres \
+-p 5432:5432 \
+-e POSTGRES_PASSWORD=changeme \
+postgres:13.3 -c wal_level=logical
 </code></pre></li>
 <li><p>以独立模式启动本地的 Pulsar 服务。</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar standalone
@@ -235,47 +243,52 @@ $ docker run -d -it --rm --name pulsar-postgresql -p 5432:5432  debezium/example
 --destination-topic-name debezium-postgres-topic \
 --tenant public \
 --namespace default \
---<span class="hljs-built_in">source</span>-config <span class="hljs-string">'{"database.hostname": "localhost","database.port": "5432","database.user": "postgres","database.password": "postgres","database.dbname": "postgres","database.server.name": "dbserver1","schema.whitelist": "inventory","pulsar.service.url": "pulsar://127.0.0.1:6650"}'</span>
+--<span class="hljs-built_in">source</span>-config <span class="hljs-string">'{"database.hostname": "localhost","database.port": "5432","database.user": "postgres","database.password": "changeme","database.dbname": "postgres","database.server.name": "dbserver1","schema.whitelist": "public","table.whitelist": "public.users","pulsar.service.url": "pulsar://127.0.0.1:6650"}'</span>
 </code></pre></li>
 <li><p>使用前面显示的 <strong>YAML</strong> 配置文件。</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">source</span> localrun  \
 --<span class="hljs-built_in">source</span>-config-file debezium-postgres-source-config.yaml
 </code></pre></li>
 </ul></li>
-<li><p>为 <em>sub 产品</em> 订阅表中的主题 <em>子产品</em>。</p>
-<pre><code class="hljs">$ bin/pulsar-<span class="hljs-keyword">client</span> consume -s <span class="hljs-string">"sub-products"</span> <span class="hljs-keyword">public</span>/<span class="hljs-keyword">default</span>/dbserver1.inventory.products -n <span class="hljs-number">0</span>
+<li><p>Subscribe the topic <em>sub-users</em> for the <em>public.users</em> table.</p>
+<pre><code class="hljs">$ bin/pulsar-<span class="hljs-keyword">client</span> consume -s <span class="hljs-string">"sub-users"</span> <span class="hljs-keyword">public</span>/<span class="hljs-keyword">default</span>/dbserver1.<span class="hljs-keyword">public</span>.users -n <span class="hljs-number">0</span>
 </code></pre></li>
 <li><p>在 Docker 中启动一个 PostgreSQL 客户端。</p>
 <pre><code class="hljs css language-bash">$ docker <span class="hljs-built_in">exec</span> -it pulsar-postgresql /bin/bash
 </code></pre></li>
 <li><p>A PostgreSQL client pops out.</p>
-<p>使用以下命令更改表 <em>产品</em> 的数据。</p>
-<pre><code class="hljs">psql -U postgres postgres
-postgres=<span class="hljs-comment"># \c postgres;</span>
-You are now connected to database <span class="hljs-string">"postgres"</span> as user <span class="hljs-string">"postgres"</span>.
-postgres=<span class="hljs-comment"># SET search_path TO inventory;</span>
-SET
-postgres=<span class="hljs-comment"># select * from products;</span>
- id  |<span class="hljs-string">        name        </span>|<span class="hljs-string">                       description                       </span>|<span class="hljs-string"> weight
------+--------------------+---------------------------------------------------------+--------
- 102 </span>|<span class="hljs-string"> car battery        </span>|<span class="hljs-string"> 12V car battery                                         </span>|<span class="hljs-string">    8.1
- 103 </span>|<span class="hljs-string"> 12-pack drill bits </span>|<span class="hljs-string"> 12-pack of drill bits with sizes ranging from #40 to #3 </span>|<span class="hljs-string">    0.8
- 104 </span>|<span class="hljs-string"> hammer             </span>|<span class="hljs-string"> 12oz carpenter's hammer                                 </span>|<span class="hljs-string">   0.75
- 105 </span>|<span class="hljs-string"> hammer             </span>|<span class="hljs-string"> 14oz carpenter's hammer                                 </span>|<span class="hljs-string">  0.875
- 106 </span>|<span class="hljs-string"> hammer             </span>|<span class="hljs-string"> 16oz carpenter's hammer                                 </span>|<span class="hljs-string">      1
- 107 </span>|<span class="hljs-string"> rocks              </span>|<span class="hljs-string"> box of assorted rocks                                   </span>|<span class="hljs-string">    5.3
- 108 </span>|<span class="hljs-string"> jacket             </span>|<span class="hljs-string"> water resistent black wind breaker                      </span>|<span class="hljs-string">    0.1
- 109 </span>|<span class="hljs-string"> spare tire         </span>|<span class="hljs-string"> 24 inch spare tire                                      </span>|<span class="hljs-string">   22.2
- 101 </span>|<span class="hljs-string"> 1111111111         </span>|<span class="hljs-string"> Small 2-wheel scooter                                   </span>|<span class="hljs-string">   3.14
-(9 rows)
+<p>Use the following commands to create sample data in the table <em>users</em>.</p>
+<pre><code class="hljs">psql -U postgres -h localhost -p 5432
+Password <span class="hljs-keyword">for</span><span class="hljs-built_in"> user </span>postgres:
 
-postgres=# UPDATE products SET name='1111111111' WHERE id=107;
+CREATE TABLE users(
+  id BIGINT GENERATED ALWAYS AS IDENTITY, PRIMARY KEY(id),
+  hash_firstname TEXT <span class="hljs-keyword">NOT</span> <span class="hljs-literal">NULL</span>,
+  hash_lastname TEXT <span class="hljs-keyword">NOT</span> <span class="hljs-literal">NULL</span>,
+  gender VARCHAR(6) <span class="hljs-keyword">NOT</span> <span class="hljs-literal">NULL</span> CHECK (gender <span class="hljs-keyword">IN</span> (<span class="hljs-string">'male'</span>, <span class="hljs-string">'female'</span>))
+);
+
+INSERT INTO users(hash_firstname, hash_lastname, gender)
+  SELECT md5(RANDOM()::TEXT), md5(RANDOM()::TEXT), CASE WHEN RANDOM() &lt; 0.5 THEN <span class="hljs-string">'male'</span> <span class="hljs-keyword">ELSE</span> <span class="hljs-string">'female'</span> END <span class="hljs-keyword">FROM</span> generate_series(1, 100);
+
+<span class="hljs-attribute">postgres</span>=# select * <span class="hljs-keyword">from</span><span class="hljs-built_in"> users;
+</span>
+  id   |          hash_firstname          |          hash_lastname           | gender 
+-------+----------------------------------+----------------------------------+--------
+     1 | 02bf7880eb489edc624ba637f5ab42bd | 3e742c2cc4217d8e3382cc251415b2fb | female
+     2 | dd07064326bb9119189032316158f064 | 9c0e938f9eddbd5200ba348965afbc61 | male
+     3 | 2c5316fdd9d6595c1cceb70eed12e80c | 8a93d7d8f9d76acfaaa625c82a03ea8b | female
+     4 | 3dfa3b4f70d8cd2155567210e5043d2b | 32c156bc28f7f03ab5d28e2588a3dc19 | female
+
+
+<span class="hljs-attribute">postgres</span>=# UPDATE<span class="hljs-built_in"> users </span><span class="hljs-builtin-name">SET</span> <span class="hljs-attribute">hash_firstname</span>=<span class="hljs-string">'maxim'</span> WHERE <span class="hljs-attribute">id</span>=1;
 UPDATE 1
-</span></code></pre>
+</code></pre>
 <p>在订阅主题的终端窗口中，你可以收到以下消息。</p>
 <pre><code class="hljs css language-bash">----- got message -----
-{<span class="hljs-string">"schema"</span>:{<span class="hljs-string">"type"</span>:<span class="hljs-string">"struct"</span>,<span class="hljs-string">"fields"</span>:[{<span class="hljs-string">"type"</span>:<span class="hljs-string">"int32"</span>,<span class="hljs-string">"optional"</span>:<span class="hljs-literal">false</span>,<span class="hljs-string">"field"</span>:<span class="hljs-string">"id"</span>}],<span class="hljs-string">"optional"</span>:<span class="hljs-literal">false</span>,<span class="hljs-string">"name"</span>:<span class="hljs-string">"dbserver1.inventory.products.Key"</span>},<span class="hljs-string">"payload"</span>:{<span class="hljs-string">"id"</span>:107}}�{<span class="hljs-string">"schema"</span>:{<span class="hljs-string">"type"</span>:<span class="hljs-string">"struct"</span>,<span class="hljs-string">"fields"</span>:[{<span class="hljs-string">"type"</span>:<span class="hljs-string">"struct"</span>,<span class="hljs-string">"fields"</span>:[{<span class="hljs-string">"type"</span>:<span class="hljs-string">"int32"</span>,<span class="hljs-string">"optional"</span>:<span class="hljs-literal">false</span>,<span class="hljs-string">"field"</span>:<span class="hljs-string">"id"</span>},{<span class="hljs-string">"type"</span>:<span class="hljs-string">"string"</span>,<span class="hljs-string">"optional"</span>:<span class="hljs-literal">false</span>,<span class="hljs-string">"field"</span>:<span class="hljs-string">"name"</span>},{<span class="hljs-string">"type"</span>:<span class="hljs-string">"string"</span>,<span class="hljs-string">"optional"</span>:<span class="hljs-literal">true</span>,<span class="hljs-string">"field"</span>:<span class="hljs-string">"description"</span>},{<span class="hljs-string">"type"</span>:<span class="hljs-string">"double"</span>,<span class="hljs-string">"optional"</span>:<span class="hljs-literal">true</span>,<span class="hljs-string">"field"</span>:<span class="hljs-string">"weight"</span>}],<span class="hljs-string">"optional"</span>:<span class="hljs-literal">true</span>,<span class="hljs-string">"name"</span>:<span class="hljs-string">"dbserver1.inventory.products.Value"</span>,<span class="hljs-string">"field"</span>:<span class="hljs-string">"before"</span>},{<span class="hljs-string">"type"</span>:<span class="hljs-string">"struct"</span>,<span class="hljs-string">"fields"</span>:[{<span class="hljs-string">"type"</span>:<span class="hljs-string">"int32"</span>,<span class="hljs-string">"optional"</span>:<span class="hljs-literal">false</span>,<span class="hljs-string">"field"</span>:<span class="hljs-string">"id"</span>},{<span class="hljs-string">"type"</span>:<span class="hljs-string">"string"</span>,<span class="hljs-string">"optional"</span>:<span class="hljs-literal">false</span>,<span class="hljs-string">"field"</span>:<span class="hljs-string">"name"</span>},{<span class="hljs-string">"type"</span>:<span class="hljs-string">"string"</span>,<span class="hljs-string">"optional"</span>:<span class="hljs-literal">true</span>,<span class="hljs-string">"field"</span>:<span class="hljs-string">"description"</span>},{<span class="hljs-string">"type"</span>:<span class="hljs-string">"double"</span>,<span class="hljs-string">"optional"</span>:<span class="hljs-literal">true</span>,<span class="hljs-string">"field"</span>:<span class="hljs-string">"weight"</span>}],<span class="hljs-string">"optional"</span>:<span class="hljs-literal">true</span>,<span class="hljs-string">"name"</span>:<span class="hljs-string">"dbserver1.inventory.products.Value"</span>,<span class="hljs-string">"field"</span>:<span class="hljs-string">"after"</span>},{<span class="hljs-string">"type"</span>:<span class="hljs-string">"struct"</span>,<span class="hljs-string">"fields"</span>:[{<span class="hljs-string">"type"</span>:<span class="hljs-string">"string"</span>,<span class="hljs-string">"optional"</span>:<span class="hljs-literal">true</span>,<span class="hljs-string">"field"</span>:<span class="hljs-string">"version"</span>},{<span class="hljs-string">"type"</span>:<span class="hljs-string">"string"</span>,<span class="hljs-string">"optional"</span>:<span class="hljs-literal">true</span>,<span class="hljs-string">"field"</span>:<span class="hljs-string">"connector"</span>},{<span class="hljs-string">"type"</span>:<span class="hljs-string">"string"</span>,<span class="hljs-string">"optional"</span>:<span class="hljs-literal">false</span>,<span class="hljs-string">"field"</span>:<span class="hljs-string">"name"</span>},{<span class="hljs-string">"type"</span>:<span class="hljs-string">"string"</span>,<span class="hljs-string">"optional"</span>:<span class="hljs-literal">false</span>,<span class="hljs-string">"field"</span>:<span class="hljs-string">"db"</span>},{<span class="hljs-string">"type"</span>:<span class="hljs-string">"int64"</span>,<span class="hljs-string">"optional"</span>:<span class="hljs-literal">true</span>,<span class="hljs-string">"field"</span>:<span class="hljs-string">"ts_usec"</span>},{<span class="hljs-string">"type"</span>:<span class="hljs-string">"int64"</span>,<span class="hljs-string">"optional"</span>:<span class="hljs-literal">true</span>,<span class="hljs-string">"field"</span>:<span class="hljs-string">"txId"</span>},{<span class="hljs-string">"type"</span>:<span class="hljs-string">"int64"</span>,<span class="hljs-string">"optional"</span>:<span class="hljs-literal">true</span>,<span class="hljs-string">"field"</span>:<span class="hljs-string">"lsn"</span>},{<span class="hljs-string">"type"</span>:<span class="hljs-string">"string"</span>,<span class="hljs-string">"optional"</span>:<span class="hljs-literal">true</span>,<span class="hljs-string">"field"</span>:<span class="hljs-string">"schema"</span>},{<span class="hljs-string">"type"</span>:<span class="hljs-string">"string"</span>,<span class="hljs-string">"optional"</span>:<span class="hljs-literal">true</span>,<span class="hljs-string">"field"</span>:<span class="hljs-string">"table"</span>},{<span class="hljs-string">"type"</span>:<span class="hljs-string">"boolean"</span>,<span class="hljs-string">"optional"</span>:<span class="hljs-literal">true</span>,<span class="hljs-string">"default"</span>:<span class="hljs-literal">false</span>,<span class="hljs-string">"field"</span>:<span class="hljs-string">"snapshot"</span>},{<span class="hljs-string">"type"</span>:<span class="hljs-string">"boolean"</span>,<span class="hljs-string">"optional"</span>:<span class="hljs-literal">true</span>,<span class="hljs-string">"field"</span>:<span class="hljs-string">"last_snapshot_record"</span>}],<span class="hljs-string">"optional"</span>:<span class="hljs-literal">false</span>,<span class="hljs-string">"name"</span>:<span class="hljs-string">"io.debezium.connector.postgresql.Source"</span>,<span class="hljs-string">"field"</span>:<span class="hljs-string">"source"</span>},{<span class="hljs-string">"type"</span>:<span class="hljs-string">"string"</span>,<span class="hljs-string">"optional"</span>:<span class="hljs-literal">false</span>,<span class="hljs-string">"field"</span>:<span class="hljs-string">"op"</span>},{<span class="hljs-string">"type"</span>:<span class="hljs-string">"int64"</span>,<span class="hljs-string">"optional"</span>:<span class="hljs-literal">true</span>,<span class="hljs-string">"field"</span>:<span class="hljs-string">"ts_ms"</span>}],<span class="hljs-string">"optional"</span>:<span class="hljs-literal">false</span>,<span class="hljs-string">"name"</span>:<span class="hljs-string">"dbserver1.inventory.products.Envelope"</span>},<span class="hljs-string">"payload"</span>:{<span class="hljs-string">"before"</span>:{<span class="hljs-string">"id"</span>:107,<span class="hljs-string">"name"</span>:<span class="hljs-string">"rocks"</span>,<span class="hljs-string">"description"</span>:<span class="hljs-string">"box of assorted rocks"</span>,<span class="hljs-string">"weight"</span>:5.3},<span class="hljs-string">"after"</span>:{<span class="hljs-string">"id"</span>:107,<span class="hljs-string">"name"</span>:<span class="hljs-string">"1111111111"</span>,<span class="hljs-string">"description"</span>:<span class="hljs-string">"box of assorted rocks"</span>,<span class="hljs-string">"weight"</span>:5.3},<span class="hljs-string">"source"</span>:{<span class="hljs-string">"version"</span>:<span class="hljs-string">"0.9.2.Final"</span>,<span class="hljs-string">"connector"</span>:<span class="hljs-string">"postgresql"</span>,<span class="hljs-string">"name"</span>:<span class="hljs-string">"dbserver1"</span>,<span class="hljs-string">"db"</span>:<span class="hljs-string">"postgres"</span>,<span class="hljs-string">"ts_usec"</span>:1559208957661080,<span class="hljs-string">"txId"</span>:577,<span class="hljs-string">"lsn"</span>:23862872,<span class="hljs-string">"schema"</span>:<span class="hljs-string">"inventory"</span>,<span class="hljs-string">"table"</span>:<span class="hljs-string">"products"</span>,<span class="hljs-string">"snapshot"</span>:<span class="hljs-literal">false</span>,<span class="hljs-string">"last_snapshot_record"</span>:null},<span class="hljs-string">"op"</span>:<span class="hljs-string">"u"</span>,<span class="hljs-string">"ts_ms"</span>:1559208957692}}
-</code></pre></li>
+{<span class="hljs-string">"before"</span>:null,<span class="hljs-string">"after"</span>:{<span class="hljs-string">"id"</span>:1,<span class="hljs-string">"hash_firstname"</span>:<span class="hljs-string">"maxim"</span>,<span class="hljs-string">"hash_lastname"</span>:<span class="hljs-string">"292113d30a3ccee0e19733dd7f88b258"</span>,<span class="hljs-string">"gender"</span>:<span class="hljs-string">"male"</span>},<span class="hljs-string">"source:{"</span>version<span class="hljs-string">":"</span>1.0.0.Final<span class="hljs-string">","</span>connector<span class="hljs-string">":"</span>postgresql<span class="hljs-string">","</span>name<span class="hljs-string">":"</span>foobar<span class="hljs-string">","</span>ts_ms<span class="hljs-string">":1624045862644,"</span>snapshot<span class="hljs-string">":"</span><span class="hljs-literal">false</span><span class="hljs-string">","</span>db<span class="hljs-string">":"</span>postgres<span class="hljs-string">","</span>schema<span class="hljs-string">":"</span>public<span class="hljs-string">","</span>table<span class="hljs-string">":"</span>users<span class="hljs-string">","</span>txId<span class="hljs-string">":595,"</span>lsn<span class="hljs-string">":24419784,"</span>xmin<span class="hljs-string">":null},"</span>op<span class="hljs-string">":"</span>u<span class="hljs-string">","</span>ts_ms<span class="hljs-string">":1624045862648}
+...many more
+</span></code></pre></li>
 </ol>
 <h2><a class="anchor" aria-hidden="true" id="example-of-mongodb"></a><a href="#example-of-mongodb" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example of MongoDB</h2>
 <p>你需要在使用 Pulsar Debezium 连接器之前创建一个配置文件。</p>
