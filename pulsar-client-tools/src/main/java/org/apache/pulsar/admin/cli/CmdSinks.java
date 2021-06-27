@@ -340,6 +340,8 @@ public class CmdSinks extends CmdBase {
         protected Long negativeAckRedeliveryDelayMs;
         @Parameter(names = "--custom-runtime-options", description = "A string that encodes options to customize the runtime, see docs for configured runtime for details")
         protected String customRuntimeOptions;
+        @Parameter(names = "--numOfSender", description = "number of senders")
+        protected Integer numOfSender;
 
         protected SinkConfig sinkConfig;
 
@@ -487,6 +489,12 @@ public class CmdSinks extends CmdBase {
 
             if (customRuntimeOptions != null) {
                 sinkConfig.setCustomRuntimeOptions(customRuntimeOptions);
+            }
+
+            if(numOfSender != null){
+                sinkConfig.setNumOfSender(numOfSender);
+            }else{
+                sinkConfig.setNumOfSender(1);
             }
 
             // check if configs are valid

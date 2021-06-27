@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.instance;
 
 import lombok.Data;
+import org.apache.pulsar.functions.api.Record;
 
 /**
  * This is the Java Instance. This is started by the runtimeSpawner using the JavaInstanceClient
@@ -30,10 +31,12 @@ public class JavaExecutionResult {
     private Exception userException;
     private Exception systemException;
     private Object result;
+    private Record srcRecord;
 
     public void reset() {
         setUserException(null);
         setSystemException(null);
         setResult(null);
+        setSrcRecord(null);
     }
 }

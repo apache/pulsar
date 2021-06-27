@@ -309,11 +309,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
                 // process the message
                 Thread.currentThread().setContextClassLoader(functionClassLoader);
-                result = javaInstance.handleMessage(
-                    currentRecord, currentRecord.getValue(), this::handleResult,
-                    cause -> currentThread.interrupt());
                 try {
-                    queue.put(result);
+                    queue.put(javaInstance.handleMessage(
+                        currentRecord, currentRecord.getValue(), this::handleResult,
+                        cause -> currentThread.interrupt()));
                     stats.setSendQSize(queue.size());
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
@@ -326,10 +325,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
                 removeLogTopicHandler();
 
-                if (result != null) {
-                    // process the synchronous results
-                    handleResult(currentRecord, result);
-                }
             }
         } catch (Throwable t) {
             log.error("[{}] Uncaught exception in Java Instance", FunctionCommon.getFullyQualifiedInstanceId(
@@ -374,25 +369,32 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     }
 
-    private void handleResult(Record srcRecord, JavaExecutionResult result) {
-        if (result.getUserException() != null) {
-            Exception t = result.getUserException();
-            log.warn("Encountered exception when processing message {}",
+    private void processResult(CompletableFuture<JavaExecutionResult> resultCompletableFuture) {
+        resultCompletableFuture.whenComplete((result, throwable) -> {
+            Record srcRecord = result.getSrcRecord();
+            try{
+            if (throwable != null || result.getUserException() != null) {
+                Throwable t = throwable != null ? throwable : result.getUserException();
+                log.warn("Encountered exception when processing message {}",
                     srcRecord, t);
-            stats.incrUserExceptions(t);
-            srcRecord.fail();
-        } else {
-            if (result.getResult() != null) {
-                sendOutputMessage(srcRecord, result.getResult());
+                stats.incrUserExceptions(t);
+                srcRecord.fail();
             } else {
-                if (instanceConfig.getFunctionDetails().getAutoAck()) {
-                    // the function doesn't produce any result or the user doesn't want the result.
-                    srcRecord.ack();
+                if (result.getResult() != null) {
+                    sendOutputMessage(srcRecord, result.getResult());
+                } else {
+                    if (instanceConfig.getFunctionDetails().getAutoAck()) {
+                        // the function doesn't produce any result or the user doesn't want the result.
+                        srcRecord.ack();
+                    }
                 }
+                // increment total successfully processed
+                stats.incrTotalProcessedSuccessfully();
+            }}catch (Exception e){
+                log.warn("Failed to process result of message {}", currentRecord,e);
+                srcRecord.fail();
             }
-            // increment total successfully processed
-            stats.incrTotalProcessedSuccessfully();
-        }
+        });
     }
 
     private void sendOutputMessage(Record srcRecord, Object output) {

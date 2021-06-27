@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.instance.stats;
 
 import com.google.common.collect.EvictingQueue;
+
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.Arrays;
@@ -99,6 +100,8 @@ public abstract class ComponentStatsManager implements AutoCloseable {
 
     public abstract void setLastInvocation(long ts);
 
+    public abstract void setSendQSize(long ts);
+
     public abstract void processTimeStart();
 
     public abstract void processTimeEnd();
@@ -112,6 +115,8 @@ public abstract class ComponentStatsManager implements AutoCloseable {
     public abstract double getTotalUserExceptions();
 
     public abstract double getLastInvocation();
+
+    public abstract double getSendQSize();
 
     public abstract double getAvgProcessLatency();
 

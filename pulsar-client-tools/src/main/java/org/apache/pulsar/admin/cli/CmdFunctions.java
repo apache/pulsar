@@ -323,6 +323,8 @@ public class CmdFunctions extends CmdBase {
         protected String deadLetterTopic;
         protected FunctionConfig functionConfig;
         protected String userCodeFile;
+        @Parameter(names = "--numOfSender", description = "number of senders")
+        protected Integer numOfSender;
 
         private void mergeArgs() {
             if (!StringUtils.isBlank(DEPRECATED_className)) className = DEPRECATED_className;
@@ -548,6 +550,12 @@ public class CmdFunctions extends CmdBase {
                 userCodeFile = functionConfig.getPy();
             } else if (functionConfig.getGo() != null) {
                 userCodeFile = functionConfig.getGo();
+            }
+
+            if(numOfSender != null){
+                functionConfig.setNumOfSenders(numOfSender);
+            }else{
+                functionConfig.setNumOfSenders(1);
             }
 
             // check if configs are valid

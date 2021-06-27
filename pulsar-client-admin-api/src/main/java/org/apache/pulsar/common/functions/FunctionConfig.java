@@ -127,4 +127,5 @@ public class FunctionConfig {
     private Boolean exposePulsarAdminClientEnabled;
 
     private SubscriptionInitialPosition subscriptionPosition;
+    private Integer numOfSenders;
 }

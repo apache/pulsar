@@ -127,6 +127,7 @@ public class JavaInstance implements AutoCloseable {
                 log.debug("Got result: object: {}", output);
             }
             executionResult.setResult(output);
+            executionResult.setSrcRecord(record);
             return executionResult;
         }
     }
@@ -141,6 +142,7 @@ public class JavaInstance implements AutoCloseable {
             try {
                 Object result = asyncResult.getProcessResult().get();
                 execResult.setResult(result);
+                execResult.setSrcRecord(asyncResult.getRecord());
             } catch (ExecutionException e) {
                 if (e.getCause() instanceof Exception) {
                     execResult.setUserException((Exception) e.getCause());
