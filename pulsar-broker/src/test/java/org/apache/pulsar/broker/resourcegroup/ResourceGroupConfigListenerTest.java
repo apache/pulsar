@@ -23,6 +23,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import com.google.common.collect.Sets;
+import java.time.Duration;
 import java.util.Random;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -59,7 +60,9 @@ public class ResourceGroupConfigListenerTest extends MockedPulsarServiceBaseTest
     public void createResourceGroup(String rgName, ResourceGroup rg) throws PulsarAdminException {
         admin.resourcegroups().createResourceGroup(rgName, rg);
 
-        Awaitility.await().untilAsserted(() -> {
+        Awaitility.await()
+                .atMost(Duration.ofSeconds(30))
+                .untilAsserted(() -> {
             final org.apache.pulsar.broker.resourcegroup.ResourceGroup resourceGroup = pulsar
                     .getResourceGroupServiceManager().resourceGroupGet(rgName);
             assertNotNull(resourceGroup);
