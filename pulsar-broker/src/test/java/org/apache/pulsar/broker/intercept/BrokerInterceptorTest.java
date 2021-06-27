@@ -19,6 +19,11 @@
 package org.apache.pulsar.broker.intercept;
 
 import lombok.Cleanup;
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -32,8 +37,10 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.mock;
@@ -71,6 +78,7 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
                 listenerName2,
                 new BrokerInterceptorWithClassLoader(listener2, ncl2));
         this.listeners = new BrokerInterceptors(this.listenerMap);
+        this.enableBrokerInterceptor = true;
         super.internalSetup();
         super.producerBaseSetup();
     }
@@ -138,4 +146,37 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
 
         assertEquals(((CounterBrokerInterceptor) listener).getBeforeSendCount(), 1);
     }
+
+    @Test
+    public void asyncResponseFilterTest() throws Exception {
+        Assert.assertTrue(pulsar.getBrokerInterceptor() instanceof CounterBrokerInterceptor);
+        CounterBrokerInterceptor interceptor = (CounterBrokerInterceptor) pulsar.getBrokerInterceptor();
+        interceptor.clearResponseList();
+
+        OkHttpClient client = new OkHttpClient();
+        String url = "http://127.0.0.1:" + conf.getWebServicePort().get() + "/admin/v3/test/asyncGet/my-topic/1000";
+        final Request request = new Request.Builder()
+                .url(url)
+                .get()
+                .build();
+        Call call = client.newCall(request);
+        CompletableFuture<Response> future = new CompletableFuture<>();
+        call.enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                future.completeExceptionally(e);
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                future.complete(response);
+            }
+        });
+        future.get();
+        CounterBrokerInterceptor.ResponseEvent responseEvent = interceptor.getResponseList().get(0);
+        Assert.assertEquals(responseEvent.getRequestUri(), "/admin/v3/test/asyncGet/my-topic/1000");
+        Assert.assertEquals(responseEvent.getResponseStatus(),
+                javax.ws.rs.core.Response.noContent().build().getStatus());
+    }
+
 }
