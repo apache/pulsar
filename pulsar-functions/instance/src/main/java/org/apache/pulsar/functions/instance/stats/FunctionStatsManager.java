@@ -60,6 +60,7 @@ public class FunctionStatsManager extends ComponentStatsManager{
     public static final String SINK_EXCEPTIONS_TOTAL_1min = "sink_exceptions_total_1min";
     public static final String PROCESS_LATENCY_MS_1min = "process_latency_ms_1min";
     public static final String RECEIVED_TOTAL_1min = "received_total_1min";
+    public static final String SENDQ_SIZE_TOTAL = "sendQ_size_total";
 
     /** Declare Prometheus stats **/
 
@@ -72,6 +73,8 @@ public class FunctionStatsManager extends ComponentStatsManager{
     final Summary statProcessLatency;
 
     final Gauge statlastInvocation;
+
+    final Gauge statSendQ;
 
     final Counter statTotalRecordsReceived;
     
@@ -103,6 +106,7 @@ public class FunctionStatsManager extends ComponentStatsManager{
     private final Counter.Child _statTotalUserExceptions;
     private final Summary.Child _statProcessLatency;
     private final Gauge.Child _statlastInvocation;
+    private final Gauge.Child _statSendQ;
     private final Counter.Child _statTotalRecordsReceived;
     private Counter.Child _statTotalProcessedSuccessfully1min;
     private Counter.Child _statTotalSysExceptions1min;
@@ -172,6 +176,13 @@ public class FunctionStatsManager extends ComponentStatsManager{
                 .labelNames(metricsLabelNames)
                 .create());
         _statlastInvocation = statlastInvocation.labels(metricsLabels);
+
+        statSendQ = Gauge.build()
+            .name(PULSAR_FUNCTION_METRICS_PREFIX + SENDQ_SIZE_TOTAL)
+            .help("Total number of messages parallelism send from source function.")
+            .labelNames(metricsLabelNames)
+            .register(collectorRegistry);
+        _statSendQ = statSendQ.labels(metricsLabels);
 
         statTotalRecordsReceived = collectorRegistry.registerIfNotExist(
                 PULSAR_FUNCTION_METRICS_PREFIX + RECEIVED_TOTAL,
@@ -375,6 +386,16 @@ public class FunctionStatsManager extends ComponentStatsManager{
     @Override
     public double getLastInvocation() {
         return _statlastInvocation.get();
+    }
+
+    @Override
+    public double getSendQSize() {
+        return _statSendQ.get();
+    }
+
+    @Override
+    public void setSendQSize(long ts) {
+        _statSendQ.set(ts);
     }
 
     public double getAvgProcessLatency() {

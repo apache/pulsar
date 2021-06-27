@@ -45,6 +45,7 @@ public class SinkStatsManager extends ComponentStatsManager {
     public static final String SINK_EXCEPTIONS_TOTAL_1min = "sink_exceptions_total_1min";
     public static final String RECEIVED_TOTAL_1min = "received_total_1min";
     public static final String WRITTEN_TOTAL_1min = "written_total_1min";
+    public static final String SENDQ_SIZE_TOTAL = "sendQ_size_total";
 
     /** Declare Prometheus stats **/
 
@@ -84,6 +85,9 @@ public class SinkStatsManager extends ComponentStatsManager {
     private Counter.Child _statTotalSysExceptions1min;
     private Counter.Child _statTotalSinkExceptions1min;
     private Counter.Child _statTotalWritten1min;
+
+    final Gauge statSendQ;
+    private final Gauge.Child _statSendQ;
 
     @Getter
     private EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> latestSystemExceptions = EvictingQueue.create(10);
@@ -179,6 +183,13 @@ public class SinkStatsManager extends ComponentStatsManager {
                 .labelNames(metricsLabelNames)
                 .create());
         _statTotalWritten1min = statTotalWritten1min.labels(metricsLabels);
+
+        statSendQ = Gauge.build()
+            .name(PULSAR_SINK_METRICS_PREFIX + SENDQ_SIZE_TOTAL)
+            .help("Total number of messages parallelism send from source function.")
+            .labelNames(metricsLabelNames)
+            .register(collectorRegistry);
+        _statSendQ = statSendQ.labels(metricsLabels);
 
         sysExceptions = collectorRegistry.registerIfNotExist(
                 PULSAR_SINK_METRICS_PREFIX + "system_exception",
@@ -280,6 +291,16 @@ public class SinkStatsManager extends ComponentStatsManager {
         _statlastInvocation.set(ts);
     }
 
+
+    @Override
+    public double getSendQSize() {
+        return _statSendQ.get();
+    }
+
+    @Override
+    public void setSendQSize(long ts) {
+        _statSendQ.set(ts);
+    }
     @Override
     public void processTimeStart() {
         //no-op

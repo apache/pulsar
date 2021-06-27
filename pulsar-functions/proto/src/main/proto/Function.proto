@@ -88,6 +88,8 @@ message FunctionDetails {
     bool retainOrdering = 21;
     bool retainKeyOrdering = 22;
     SubscriptionPosition subscriptionPosition = 23;
+    string externalPulsarsMap = 24;
+    int32 parallelismOfSender = 25;
 }
 
 message ConsumerSpec {

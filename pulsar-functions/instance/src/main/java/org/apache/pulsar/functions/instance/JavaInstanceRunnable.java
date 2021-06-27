@@ -27,6 +27,11 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -76,6 +81,7 @@ import org.apache.pulsar.functions.source.SingleConsumerPulsarSourceConfig;
 import org.apache.pulsar.functions.source.batch.BatchSourceExecutor;
 import org.apache.pulsar.functions.utils.CryptoUtils;
 import org.apache.pulsar.functions.utils.FunctionCommon;
+import org.apache.pulsar.functions.utils.NamedThreadFactory;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.Source;
 import org.slf4j.Logger;
@@ -130,6 +136,11 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     // used for out of band API calls like operations involving stats
     private transient boolean isInitialized = false;
 
+    private LinkedBlockingQueue<CompletableFuture<JavaExecutionResult>> queue;
+    private int numOfSenders;
+    private ThreadPoolExecutor senderPool;
+    private Sender[] senders;
+
     // a read write lock for stats operations
     private ReadWriteLock statsLock = new ReentrantReadWriteLock();
 
@@ -168,6 +179,33 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         this.collectorRegistry = collectorRegistry;
 
         this.instanceClassLoader = Thread.currentThread().getContextClassLoader();
+
+        this.numOfSenders = instanceConfig.getFunctionDetails().getParallelismOfSender();
+        this.queue = new LinkedBlockingQueue<>(1000);
+        this.senders = new Sender[numOfSenders];
+        this.senderPool = new ThreadPoolExecutor(numOfSenders,numOfSenders,1, TimeUnit.SECONDS,new SynchronousQueue<>()
+        ,new NamedThreadFactory(String.format("senders-%s-%s",instanceConfig.getInstanceName(),instanceConfig.getFunctionDetails().getName())));
+    }
+
+    class Sender implements Runnable{
+
+            boolean shouldStop = false;
+
+            @Override
+            public void run() {
+                while(!shouldStop && !Thread.interrupted()){
+                    try{
+                        processResult(queue.take());
+                        stats.setSendQSize(queue.size());
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
+            }
+            public void stop(){
+                shouldStop = true;
+            }
+
     }
 
     /**
@@ -224,6 +262,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
         // to signal member variables are initialized
         isInitialized = true;
+        for(int i = 0 ; i < senders.length; i++){
+            senderPool.submit(senders[i] = new Sender());
+        }
     }
 
     ContextImpl setupContext() {
@@ -271,6 +312,13 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 result = javaInstance.handleMessage(
                     currentRecord, currentRecord.getValue(), this::handleResult,
                     cause -> currentThread.interrupt());
+                try {
+                    queue.put(result);
+                    stats.setSendQSize(queue.size());
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+
                 Thread.currentThread().setContextClassLoader(instanceClassLoader);
 
                 // register end time
@@ -532,6 +580,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             bldr.setUserExceptionsTotal1Min((long) stats.getTotalUserExceptions1min());
             bldr.setReceivedTotal1Min((long) stats.getTotalRecordsReceived1min());
             bldr.setAvgProcessLatency1Min(stats.getAvgProcessLatency1min());
+            bldr.setSizeOfSendQ((long) stats.getSendQSize());
         }
 
         return bldr;

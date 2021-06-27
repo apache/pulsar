@@ -57,6 +57,7 @@ message FunctionStatus {
 //    MetricsData metrics = 15 [deprecated=true];
     // owner of function-instance
     string workerId = 16;
+    int64 sizeOfSendQ = 25;
 }
 
 // Deprecated
@@ -110,6 +111,8 @@ message MetricsData {
 
     // User defined metrics
     map<string, double> userMetrics = 9;
+    int64 sizeOfSendQ = 25;
+
 }
 
 message HealthCheckResult {

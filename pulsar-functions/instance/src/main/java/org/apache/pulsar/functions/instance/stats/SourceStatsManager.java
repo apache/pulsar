@@ -45,6 +45,7 @@ public class SourceStatsManager extends ComponentStatsManager {
     public static final String SOURCE_EXCEPTIONS_TOTAL_1min = "source_exceptions_total_1min";
     public static final String RECEIVED_TOTAL_1min = "received_total_1min";
     public static final String WRITTEN_TOTAL_1min = "written_total_1min";
+    public static final String SENDQ_SIZE_TOTAL = "sendQ_size_total";
 
     /** Declare Prometheus stats **/
 
@@ -72,6 +73,9 @@ public class SourceStatsManager extends ComponentStatsManager {
     final Gauge sysExceptions;
 
     final Gauge sourceExceptions;
+
+    final Gauge statSendQ;
+    private final Gauge.Child _statSendQ;
 
     // As an optimization
     private final Counter.Child _statTotalRecordsReceived;
@@ -133,6 +137,13 @@ public class SourceStatsManager extends ComponentStatsManager {
                 .labelNames(metricsLabelNames)
                 .create());
         _statTotalWritten = statTotalWritten.labels(metricsLabels);
+
+        statSendQ = Gauge.build()
+            .name(PULSAR_SOURCE_METRICS_PREFIX + SENDQ_SIZE_TOTAL)
+            .help("Total number of messages parallelism send from source function.")
+            .labelNames(metricsLabelNames)
+            .register(collectorRegistry);
+        _statSendQ = statSendQ.labels(metricsLabels);
 
         statlastInvocation = collectorRegistry.registerIfNotExist(
                 PULSAR_SOURCE_METRICS_PREFIX + LAST_INVOCATION,
@@ -284,6 +295,15 @@ public class SourceStatsManager extends ComponentStatsManager {
         //no-op
     }
 
+    @Override
+    public double getSendQSize() {
+        return _statSendQ.get();
+    }
+
+    @Override
+    public void setSendQSize(long ts) {
+        _statSendQ.set(ts);
+    }
     @Override
     public void processTimeEnd() {
         //no-op
