@@ -89,7 +89,7 @@
 </ul>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="安装-pulsar-和内置连接器"></a><a href="#安装-pulsar-和内置连接器" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>安装 Pulsar 和内置连接器</h2>
-<p>在连接 Pulsar 数据库之前，你需要安装 Pulsar 和所需的内置连接器。</p>
+<p>在连接 Pulsar 到数据库之前，你需要安装 Pulsar 和所需的内置连接器。</p>
 <p>For more information about <strong>how to install a standalone Pulsar and built-in connectors</strong>, see <a href="/docs/zh-CN/2.6.2/standalone/#installing-pulsar">here</a>.</p>
 <h2><a class="anchor" aria-hidden="true" id="启动单机模式-pulsar"></a><a href="#启动单机模式-pulsar" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>启动单机模式 Pulsar</h2>
 <ol>
@@ -199,7 +199,7 @@ cqlsh:pulsar_test_keyspace&gt; CREATE TABLE pulsar_test_table (key text PRIMARY 
 </ul>
 <p>更多详细信息，请参阅 <a href="/docs/zh-CN/2.6.2/io-cassandra-sink">Cassandra sink connector</a>。</p>
 <h3><a class="anchor" aria-hidden="true" id="创建-cassandra-sink"></a><a href="#创建-cassandra-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>创建 Cassandra sink</h3>
-<p>You can use the <a href="/docs/zh-CN/2.6.2/io-cli">Connector Admin CLI</a> to create a sink connector and perform other operations on them.</p>
+<p>你可以使用<a href="/docs/zh-CN/2.6.2/io-cli">连接器管理 CLI</a> 来创建 sink 连接器并执行其他操作。</p>
 <p>Run the following command to create a Cassandra sink connector with sink type <em>cassandra</em> and the config file <em>examples/cassandra-sink.yml</em> created previously.</p>
 <pre><code class="hljs css language-bash">bin/pulsar-admin sinks create \
     --tenant public \
@@ -211,10 +211,10 @@ cqlsh:pulsar_test_keyspace&gt; CREATE TABLE pulsar_test_table (key text PRIMARY 
 </code></pre>
 <p>Once the command is executed, Pulsar creates the sink connector <em>cassandra-test-sink</em>.</p>
 <p>This sink connector runs as a Pulsar Function and writes the messages produced in the topic <em>test_cassandra</em> to the Cassandra table <em>pulsar_test_table</em>.</p>
-<h3><a class="anchor" aria-hidden="true" id="inspect-a-cassandra-sink"></a><a href="#inspect-a-cassandra-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Inspect a Cassandra sink</h3>
-<p>You can use the <a href="/docs/zh-CN/2.6.2/io-cli">Connector Admin CLI</a> to monitor a connector and perform other operations on it.</p>
+<h3><a class="anchor" aria-hidden="true" id="检查-cassandra-sink"></a><a href="#检查-cassandra-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>检查 Cassandra sink</h3>
+<p>你可以使用<a href="/docs/zh-CN/2.6.2/io-cli">连接器管理 CLI</a> 来监控连接器并执行其他操作。</p>
 <ul>
-<li><p>Get the information of a Cassandra sink.</p>
+<li><p>获取 Cassandra sink 信息。</p>
 <pre><code class="hljs css language-bash">bin/pulsar-admin sinks get \
     --tenant public \
     --namespace default \
@@ -245,7 +245,7 @@ cqlsh:pulsar_test_keyspace&gt; CREATE TABLE pulsar_test_table (key text PRIMARY 
   <span class="hljs-attr">"archive"</span>: <span class="hljs-string">"builtin://cassandra"</span>
 }
 </code></pre></li>
-<li><p>Check the status of a Cassandra sink.</p>
+<li><p>检查 Cassandra sink 状态。</p>
 <pre><code class="hljs css language-bash">bin/pulsar-admin sinks status \
     --tenant public \
     --namespace default \
@@ -274,7 +274,7 @@ cqlsh:pulsar_test_keyspace&gt; CREATE TABLE pulsar_test_table (key text PRIMARY 
 }
 </code></pre></li>
 </ul>
-<h3><a class="anchor" aria-hidden="true" id="verify-a-cassandra-sink"></a><a href="#verify-a-cassandra-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Verify a Cassandra sink</h3>
+<h3><a class="anchor" aria-hidden="true" id="检验-cassandra-sink"></a><a href="#检验-cassandra-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>检验 Cassandra sink</h3>
 <ol>
 <li><p>Produce some messages to the input topic of the Cassandra sink <em>test_cassandra</em>.</p>
 <pre><code class="hljs css language-bash"><span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> {0..9}; <span class="hljs-keyword">do</span> bin/pulsar-client produce -m <span class="hljs-string">"key-<span class="hljs-variable">$i</span>"</span> -n 1 test_cassandra; <span class="hljs-keyword">done</span>
@@ -329,29 +329,29 @@ key    | col
   key-8 |  key-8
 </code></pre></li>
 </ol>
-<h3><a class="anchor" aria-hidden="true" id="delete-a-cassandra-sink"></a><a href="#delete-a-cassandra-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Delete a Cassandra Sink</h3>
-<p>You can use the <a href="/docs/zh-CN/2.6.2/io-cli">Connector Admin CLI</a> to delete a connector and perform other operations on it.</p>
+<h3><a class="anchor" aria-hidden="true" id="删除-cassandra-sink"></a><a href="#删除-cassandra-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>删除 Cassandra Sink</h3>
+<p>你可以使用<a href="/docs/zh-CN/2.6.2/io-cli">连接器管理 CLI</a> 来删除连接器并执行其他操作。</p>
 <pre><code class="hljs css language-bash">bin/pulsar-admin sinks delete \
     --tenant public \
     --namespace default \
     --name cassandra-test-sink
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="连接-pulsar-到-postgresql"></a><a href="#连接-pulsar-到-postgresql" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>连接 Pulsar 到 PostgreSQL</h2>
-<p>This section demonstrates how to connect Pulsar to PostgreSQL.</p>
+<p>本节展示如何连接 Pulsar 到 PostgreSQL。</p>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="提示-2"></a><a href="#提示-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
 <ul>
 <li><p>Make sure you have Docker installed. If you do not have one, see <a href="https://docs.docker.com/docker-for-mac/install/">install Docker</a>.</p></li>
-<li><p>The JDBC sink connector pulls messages from Pulsar topics and persists the messages to ClickHouse, MariaDB, PostgreSQL, or SQlite. For more information, see <a href="/docs/zh-CN/2.6.2/io-jdbc-sink">JDBC sink connector</a>.</p></li>
+<li><p>JDBC sink 连接器从 Pulsar 主题拉取消息，并将消息持久化到 ClickHouse、MariaDB、PostgreSQL 或 SQlite。 更多详细信息，请参阅 <a href="/docs/zh-CN/2.6.2/io-jdbc-sink">JDBC sink connector</a>。</p></li>
 </ul>
 </blockquote>
-<h3><a class="anchor" aria-hidden="true" id="setup-a-postgresql-cluster"></a><a href="#setup-a-postgresql-cluster" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Setup a PostgreSQL cluster</h3>
-<p>This example uses the PostgreSQL 12 docker image to start a single-node PostgreSQL cluster in Docker.</p>
+<h3><a class="anchor" aria-hidden="true" id="配置-postgresql-集群"></a><a href="#配置-postgresql-集群" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置 PostgreSQL 集群</h3>
+<p>本示例使用 PostgreSQL 12 Docker 镜像在 Docker 中启动单节点 PostgreSQL 集群。</p>
 <ol>
-<li><p>Pull the PostgreSQL 12 image from Docker.</p>
+<li><p>从 Docker 拉取 PostgreSQL 12 镜像。</p>
 <pre><code class="hljs css language-bash">$ docker pull postgres:12
 </code></pre></li>
-<li><p>Start PostgreSQL.</p>
+<li><p>启动 PostgreSQL。</p>
 <pre><code class="hljs css language-bash">$ docker run -d -it --rm \
 --name pulsar-postgres \
 -p 5432:5432 \
@@ -362,25 +362,25 @@ postgres:12
 <h4><a class="anchor" aria-hidden="true" id="tip"></a><a href="#tip" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
 <table>
 <thead>
-<tr><th>标记</th><th>说明</th><th>This example</th></tr>
+<tr><th>标记</th><th>说明</th><th>示例</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-d</code></td><td>To start a container in detached mode.</td><td>/</td></tr>
-<tr><td><code>-it</code></td><td>Keep STDIN open even if not attached and allocate a terminal.</td><td>/</td></tr>
-<tr><td><code>--rm</code></td><td>Remove the container automatically when it exits.</td><td>/</td></tr>
-<tr><td><code>-name</code></td><td>Assign a name to the container.</td><td>This example specifies <em>pulsar-postgres</em> for the container.</td></tr>
-<tr><td><code>-p</code></td><td>Publish the port of the container to the host.</td><td>This example publishes the port <em>5432</em> of the container to the host.</td></tr>
-<tr><td><code>-e</code></td><td>Set environment variables.</td><td>This example sets the following variables:<br>- The password for the user is <em>password</em>.<br>- The name for the user is <em>postgres</em>.</td></tr>
+<tr><td><code>-d</code></td><td>以分离模式启动容器。</td><td>/</td></tr>
+<tr><td><code>-it</code></td><td>即使没有连接，也要保持 STDIN 开启并分配终端。</td><td>/</td></tr>
+<tr><td><code>--rm</code></td><td>容器退出时会自动删除。</td><td>/</td></tr>
+<tr><td><code>-name</code></td><td>为容器指定名称。</td><td>This example specifies <em>pulsar-postgres</em> for the container.</td></tr>
+<tr><td><code>-p</code></td><td>将容器的端口发布到主机。</td><td>This example publishes the port <em>5432</em> of the container to the host.</td></tr>
+<tr><td><code>-e</code></td><td>设置环境变量</td><td>This example sets the following variables:<br>- The password for the user is <em>password</em>.<br>- The name for the user is <em>postgres</em>.</td></tr>
 </tbody>
 </table>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="提示-3"></a><a href="#提示-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
-<p>For more information about Docker commands, see <a href="https://docs.docker.com/engine/reference/commandline/run/">Docker CLI</a>.</p>
+<p>关于 Docker 命令的更多信息，详见 <a href="https://docs.docker.com/engine/reference/commandline/run/">Docker CLI</a>。</p>
 </blockquote></li>
-<li><p>Check if PostgreSQL has been started successfully.</p>
+<li><p>检查 PostgreSQL 是否已成功启动。</p>
 <pre><code class="hljs css language-bash">$ docker logs -f pulsar-postgres
 </code></pre>
-<p>PostgreSQL has been started successfully if the following message appears.</p>
+<p>如果出现以下消息说明 PostgreSQL 已成功启动。</p>
 <pre><code class="hljs css language-text">2020-05-11 20:09:24.492 UTC [1] LOG:  starting PostgreSQL 12.2 (Debian 12.2-2.pgdg100+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 8.3.0-6) 8.3.0, 64-bit
 2020-05-11 20:09:24.492 UTC [1] LOG:  listening on IPv4 address "0.0.0.0", port 5432
 2020-05-11 20:09:24.492 UTC [1] LOG:  listening on IPv6 address "::", port 5432
@@ -388,7 +388,7 @@ postgres:12
 2020-05-11 20:09:24.523 UTC [55] LOG:  database system was shut down at 2020-05-11 20:09:24 UTC
 2020-05-11 20:09:24.533 UTC [1] LOG:  database system is ready to accept connections
 </code></pre></li>
-<li><p>Access to PostgreSQL.</p>
+<li><p>访问 PostgreSQL。</p>
 <pre><code class="hljs css language-bash">$ docker <span class="hljs-built_in">exec</span> -it pulsar-postgres /bin/bash     
 </code></pre></li>
 <li><p>Create a PostgreSQL table <em>pulsar_postgres_jdbc_sink</em>.</p>
@@ -401,13 +401,13 @@ name VARCHAR(255) NOT NULL
 );
 </code></pre></li>
 </ol>
-<h3><a class="anchor" aria-hidden="true" id="configure-a-jdbc-sink"></a><a href="#configure-a-jdbc-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure a JDBC sink</h3>
-<p>Now we have a PostgreSQL running locally.</p>
-<p>In this section, you need to configure a JDBC sink connector.</p>
+<h3><a class="anchor" aria-hidden="true" id="配置-jdbc-sink"></a><a href="#配置-jdbc-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置 JDBC sink</h3>
+<p>现在我们有一个在本地运行的 PostgreSQL 。</p>
+<p>在本节中，你需要配置 Cassandra sink 连接器。</p>
 <ol>
 <li><p>Add a configuration file.</p>
-<p>To run a JDBC sink connector, you need to prepare a YAML configuration file including the information that Pulsar connector runtime needs to know.</p>
-<p>For example, how Pulsar connector can find the PostgreSQL cluster, what is the JDBC URL and the table that Pulsar connector uses for writing messages to.</p>
+<p>要运行 JDBC sink 连接器，你需要准备一个 YAML 配置文件，其中包含 Pulsar 连接器运行时需要知道的信息。</p>
+<p>例如，Pulsar 连接器如何找到 PostgreSQL 集群，JDBC URL 是什么以及 Pulsar 连接器用于写入消息的表。</p>
 <p>Create a <em>pulsar-postgres-jdbc-sink.yaml</em> file, copy the following contents to this file, and place the file in the <code>pulsar/connectors</code> folder.</p>
 <pre><code class="hljs css language-yaml"><span class="hljs-attr">configs:</span>
   <span class="hljs-attr">userName:</span> <span class="hljs-string">"postgres"</span>
@@ -425,7 +425,7 @@ name VARCHAR(255) NOT NULL
 </code></pre>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="提示-4"></a><a href="#提示-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
-<p>For more information about AVRO, see <a href="https://avro.apache.org/docs/1.9.1/">Apache Avro</a>.</p>
+<p>关于 AVRO 的更多信息，详见 <a href="https://avro.apache.org/docs/1.9.1/">Apache Avro</a>。</p>
 </blockquote></li>
 </ol>
 <ol start="3">
@@ -440,8 +440,8 @@ name VARCHAR(255) NOT NULL
 <pre><code class="hljs css language-json">{<span class="hljs-attr">"name"</span>:<span class="hljs-string">"pulsar-postgres-jdbc-sink-topic"</span>,<span class="hljs-attr">"schema"</span>:<span class="hljs-string">"{\"type\":\"record\",\"name\":\"Test\",\"fields\":[{\"name\":\"id\",\"type\":[\"null\",\"int\"]},{\"name\":\"name\",\"type\":[\"null\",\"string\"]}]}"</span>,<span class="hljs-attr">"type"</span>:<span class="hljs-string">"AVRO"</span>,<span class="hljs-attr">"properties"</span>:{}}
 </code></pre></li>
 </ol>
-<h3><a class="anchor" aria-hidden="true" id="create-a-jdbc-sink"></a><a href="#create-a-jdbc-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Create a JDBC sink</h3>
-<p>You can use the <a href="/docs/zh-CN/2.6.2/io-cli">Connector Admin CLI</a> to create a sink connector and perform other operations on it.</p>
+<h3><a class="anchor" aria-hidden="true" id="创建-jdbc-sink"></a><a href="#创建-jdbc-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>创建 JDBC sink</h3>
+<p>你可以使用<a href="/docs/zh-CN/2.6.2/io-cli">连接器管理 CLI</a> 来创建 sink 连接器并执行其他操作。</p>
 <p>This example creates a sink connector and specifies the desired information.</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks create \
 --archive ./connectors/pulsar-io-jdbc-postgres-2.8.0.nar \
@@ -455,41 +455,41 @@ name VARCHAR(255) NOT NULL
 <h4><a class="anchor" aria-hidden="true" id="tip-1"></a><a href="#tip-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
 <table>
 <thead>
-<tr><th>标记</th><th>说明</th><th>This example</th></tr>
+<tr><th>标记</th><th>说明</th><th>示例</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--archive</code></td><td>The path to the archive file for the sink.</td><td><em>pulsar-io-jdbc-postgres-2.8.0.nar</em></td></tr>
 <tr><td><code>--inputs</code></td><td>The input topic(s) of the sink. <br><br> Multiple topics can be specified as a comma-separated list.</td><td></td></tr>
-<tr><td><code>--name</code></td><td>The name of the sink.</td><td><em>pulsar-postgres-jdbc-sink</em></td></tr>
-<tr><td><code>--sink-config-file</code></td><td>The path to a YAML config file specifying the configuration of the sink.</td><td><em>pulsar-postgres-jdbc-sink.yaml</em></td></tr>
+<tr><td><code>--name</code></td><td>Sink 的名称</td><td><em>pulsar-postgres-jdbc-sink</em></td></tr>
+<tr><td><code>--sink-config-file</code></td><td>指定 sink 配置的 YAML 配置文件的路径。</td><td><em>pulsar-postgres-jdbc-sink.yaml</em></td></tr>
 <tr><td><code>--parallelism</code></td><td>The parallelism factor of the sink. <br><br> For example, the number of sink instances to run.</td><td><em>1</em></td></tr>
 </tbody>
 </table>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="提示-5"></a><a href="#提示-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
-<p>For more information about <code>pulsar-admin sinks create options</code>, see <a href="/docs/zh-CN/2.6.2/io-cli#sinks">here</a>.</p>
+<p>更多关于 <code>pulsar-admin sinks create options</code> 的信息，参阅<a href="/docs/zh-CN/2.6.2/io-cli#sinks">这里</a>。</p>
 </blockquote>
 <p>The sink has been created successfully if the following message appears.</p>
 <pre><code class="hljs css language-bash"><span class="hljs-string">"Created successfully"</span>
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="inspect-a-jdbc-sink"></a><a href="#inspect-a-jdbc-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Inspect a JDBC sink</h3>
-<p>You can use the <a href="/docs/zh-CN/2.6.2/io-cli">Connector Admin CLI</a> to monitor a connector and perform other operations on it.</p>
+<h3><a class="anchor" aria-hidden="true" id="检查-jdbc-sink"></a><a href="#检查-jdbc-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>检查 JDBC sink</h3>
+<p>你可以使用<a href="/docs/zh-CN/2.6.2/io-cli">连接器管理 CLI</a> 来监控连接器并执行其他操作。</p>
 <ul>
-<li><p>List all running JDBC sink(s).</p>
+<li><p>列出所有运行中的 JDBC sink(s)。</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks list \
 --tenant public \
 --namespace default
 </code></pre>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="提示-6"></a><a href="#提示-6" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
-<p>For more information about <code>pulsar-admin sinks list options</code>, see <a href="/docs/zh-CN/2.6.2/io-cli/#list-1">here</a>.</p>
+<p>更多关于 <code>pulsar-admin sinks list options</code> 的信息，参阅<a href="/docs/zh-CN/2.6.2/io-cli/#list-1">这里</a>。</p>
 </blockquote>
 <p>The result shows that only the <em>postgres-jdbc-sink</em> sink is running.</p>
 <pre><code class="hljs css language-json">[
 <span class="hljs-string">"pulsar-postgres-jdbc-sink"</span>
 ]
 </code></pre></li>
-<li><p>Get the information of a JDBC sink.</p>
+<li><p>获取 JDBC sink 信息。</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks get \
 --tenant public \
 --namespace default \
@@ -497,9 +497,9 @@ name VARCHAR(255) NOT NULL
 </code></pre>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="提示-7"></a><a href="#提示-7" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
-<p>For more information about <code>pulsar-admin sinks get options</code>, see <a href="/docs/zh-CN/2.6.2/io-cli/#get-1">here</a>.</p>
+<p>更多关于 <code>pulsar-admin sinks get options</code> 的信息，参阅<a href="/docs/zh-CN/2.6.2/io-cli/#get-1">这里</a>。</p>
 </blockquote>
-<p>The result shows the information of the sink connector, including tenant, namespace, topic and so on.</p>
+<p>结果显示了 sink 连接器的信息，包括租户、命名空间、主题等。</p>
 <pre><code class="hljs css language-json">{
   <span class="hljs-attr">"tenant"</span>: <span class="hljs-string">"public"</span>,
   <span class="hljs-attr">"namespace"</span>: <span class="hljs-string">"default"</span>,
@@ -522,7 +522,7 @@ name VARCHAR(255) NOT NULL
   <span class="hljs-attr">"autoAck"</span>: <span class="hljs-literal">true</span>
 }
 </code></pre></li>
-<li><p>Get the status of a JDBC sink</p>
+<li><p>获取 JDBC sink 状态。</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks status \
 --tenant public \
 --namespace default \
@@ -530,7 +530,7 @@ name VARCHAR(255) NOT NULL
 </code></pre>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="提示-8"></a><a href="#提示-8" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
-<p>For more information about <code>pulsar-admin sinks status options</code>, see <a href="/docs/zh-CN/2.6.2/io-cli/#status-1">here</a>.</p>
+<p>更多关于 <code>pulsar-admin sinks status options</code> 的信息，参阅<a href="/docs/zh-CN/2.6.2/io-cli/#status-1">这里</a>。</p>
 </blockquote>
 <p>The result shows the current status of sink connector, including the number of instance, running status, worker ID and so on.</p>
 <pre><code class="hljs css language-json">{
@@ -555,8 +555,8 @@ name VARCHAR(255) NOT NULL
 }
 </code></pre></li>
 </ul>
-<h3><a class="anchor" aria-hidden="true" id="stop-a-jdbc-sink"></a><a href="#stop-a-jdbc-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Stop a JDBC sink</h3>
-<p>You can use the <a href="/docs/zh-CN/2.6.2/io-cli">Connector Admin CLI</a> to stop a connector and perform other operations on it.</p>
+<h3><a class="anchor" aria-hidden="true" id="停止-jdbc-sink"></a><a href="#停止-jdbc-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>停止 JDBC sink</h3>
+<p>你可以使用<a href="/docs/zh-CN/2.6.2/io-cli">连接器管理 CLI</a> 来停止连接器并执行其他操作。</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks stop \
 --tenant public \
 --namespace default \
@@ -564,13 +564,13 @@ name VARCHAR(255) NOT NULL
 </code></pre>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="提示-9"></a><a href="#提示-9" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
-<p>For more information about <code>pulsar-admin sinks stop options</code>, see <a href="/docs/zh-CN/2.6.2/io-cli/#stop-1">here</a>.</p>
+<p>更多关于 <code>pulsar-admin sinks stop options</code> 的信息，参阅<a href="/docs/zh-CN/2.6.2/io-cli/#stop-1">这里</a>。</p>
 </blockquote>
 <p>The sink instance has been stopped successfully if the following message disappears.</p>
 <pre><code class="hljs css language-bash"><span class="hljs-string">"Stopped successfully"</span>
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="restart-a-jdbc-sink"></a><a href="#restart-a-jdbc-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Restart a JDBC sink</h3>
-<p>You can use the <a href="/docs/zh-CN/2.6.2/io-cli">Connector Admin CLI</a> to restart a connector and perform other operations on it.</p>
+<h3><a class="anchor" aria-hidden="true" id="重启-jdbc-sink"></a><a href="#重启-jdbc-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>重启 JDBC sink</h3>
+<p>你可以使用<a href="/docs/zh-CN/2.6.2/io-cli">连接器管理 CLI</a> 来重新启动连接器并执行其他操作。</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks restart \
 --tenant public \
 --namespace default \
@@ -578,7 +578,7 @@ name VARCHAR(255) NOT NULL
 </code></pre>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="提示-10"></a><a href="#提示-10" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
-<p>For more information about <code>pulsar-admin sinks restart options</code>, see <a href="/docs/zh-CN/2.6.2/io-cli/#restart-1">here</a>.</p>
+<p>更多关于 <code>pulsar-admin sinks restart options</code> 的信息，参阅<a href="/docs/zh-CN/2.6.2/io-cli/#restart-1">这里</a>。</p>
 </blockquote>
 <p>The sink instance has been started successfully if the following message disappears.</p>
 <pre><code class="hljs css language-bash"><span class="hljs-string">"Started successfully"</span>
@@ -586,13 +586,13 @@ name VARCHAR(255) NOT NULL
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="提示-11"></a><a href="#提示-11" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
 <ul>
-<li><p>Optionally, you can run a standalone sink connector using <code>pulsar-admin sinks localrun options</code>.</p>
+<li><p>可选，你可以使用 <code>pulsar-admin set localrun options</code> 运行独立的 sink 连接器。</p>
 <p>Note that <code>pulsar-admin sinks localrun options</code> <strong>runs a sink connector locally</strong>, while <code>pulsar-admin sinks start options</code> <strong>starts a sink connector in a cluster</strong>.</p></li>
-<li><p>For more information about <code>pulsar-admin sinks localrun options</code>, see <a href="/docs/zh-CN/2.6.2/io-cli#localrun-1">here</a>.</p></li>
+<li><p>更多关于 <code>pulsar-admin sinks localrun options</code> 的信息，参阅<a href="/docs/zh-CN/2.6.2/io-cli#localrun-1">这里</a>。</p></li>
 </ul>
 </blockquote>
-<h3><a class="anchor" aria-hidden="true" id="update-a-jdbc-sink"></a><a href="#update-a-jdbc-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Update a JDBC sink</h3>
-<p>You can use the <a href="/docs/zh-CN/2.6.2/io-cli">Connector Admin CLI</a> to update a connector and perform other operations on it.</p>
+<h3><a class="anchor" aria-hidden="true" id="更新-jdbc-sink"></a><a href="#更新-jdbc-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>更新 JDBC sink</h3>
+<p>你可以使用<a href="/docs/zh-CN/2.6.2/io-cli">连接器管理 CLI</a> 来更新连接器并执行其他操作。</p>
 <p>This example updates the parallelism of the <em>pulsar-postgres-jdbc-sink</em> sink connector to 2.</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks update \
 --name pulsar-postgres-jdbc-sink \
@@ -600,7 +600,7 @@ name VARCHAR(255) NOT NULL
 </code></pre>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="提示-12"></a><a href="#提示-12" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
-<p>For more information about <code>pulsar-admin sinks update options</code>, see <a href="/docs/zh-CN/2.6.2/io-cli/#update-1">here</a>.</p>
+<p>更多关于 <code>pulsar-admin sinks update options</code> 的信息，参阅<a href="/docs/zh-CN/2.6.2/io-cli/#update-1">这里</a>。</p>
 </blockquote>
 <p>The sink connector has been updated successfully if the following message disappears.</p>
 <pre><code class="hljs css language-bash"><span class="hljs-string">"Updated successfully"</span>
@@ -634,8 +634,8 @@ name VARCHAR(255) NOT NULL
   <span class="hljs-attr">"autoAck"</span>: <span class="hljs-literal">true</span>
 }
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="delete-a-jdbc-sink"></a><a href="#delete-a-jdbc-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Delete a JDBC sink</h3>
-<p>You can use the <a href="/docs/zh-CN/2.6.2/io-cli">Connector Admin CLI</a> to delete a connector and perform other operations on it.</p>
+<h3><a class="anchor" aria-hidden="true" id="删除-jdbc-sink"></a><a href="#删除-jdbc-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>删除 JDBC sink</h3>
+<p>你可以使用<a href="/docs/zh-CN/2.6.2/io-cli">连接器管理 CLI</a> 来删除连接器并执行其他操作。</p>
 <p>This example deletes the <em>pulsar-postgres-jdbc-sink</em> sink connector.</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks delete \
 --tenant public \
@@ -644,23 +644,23 @@ name VARCHAR(255) NOT NULL
 </code></pre>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="提示-13"></a><a href="#提示-13" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
-<p>For more information about <code>pulsar-admin sinks delete options</code>, see <a href="/docs/zh-CN/2.6.2/io-cli/#delete-1">here</a>.</p>
+<p>更多关于 <code>pulsar-admin sinks delete options</code> 的信息，参阅<a href="/docs/zh-CN/2.6.2/io-cli/#delete-1">这里</a>。</p>
 </blockquote>
 <p>The sink connector has been deleted successfully if the following message appears.</p>
 <pre><code class="hljs css language-text">"Deleted successfully"
 </code></pre>
-<p>This example double-checks the status of the sink connector.</p>
+<p>此示例复查 sink 连接器的状态。</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks get \
 --tenant public \
 --namespace default \
 --name pulsar-postgres-jdbc-sink
 </code></pre>
-<p>The result shows that the sink connector does not exist.</p>
+<p>结果显示 sink 连接器不存在。</p>
 <pre><code class="hljs css language-text">HTTP 404 Not Found
 
 Reason: Sink pulsar-postgres-jdbc-sink doesn't exist
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.6.2/io-overview"><span class="arrow-prev">← </span><span>概述</span></a><a class="docs-next button" href="/docs/zh-CN/2.6.2/io-use"><span>Use</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#安装-pulsar-和内置连接器">安装 Pulsar 和内置连接器</a></li><li><a href="#启动单机模式-pulsar">启动单机模式 Pulsar</a></li><li><a href="#连接-pulsar-到-cassandra">连接 Pulsar 到 Cassandra</a><ul class="toc-headings"><li><a href="#配置-cassandra-集群">配置 Cassandra 集群</a></li><li><a href="#配置-cassandra-sink">配置 Cassandra sink</a></li><li><a href="#创建-cassandra-sink">创建 Cassandra sink</a></li><li><a href="#inspect-a-cassandra-sink">Inspect a Cassandra sink</a></li><li><a href="#verify-a-cassandra-sink">Verify a Cassandra sink</a></li><li><a href="#delete-a-cassandra-sink">Delete a Cassandra Sink</a></li></ul></li><li><a href="#连接-pulsar-到-postgresql">连接 Pulsar 到 PostgreSQL</a><ul class="toc-headings"><li><a href="#setup-a-postgresql-cluster">Setup a PostgreSQL cluster</a></li><li><a href="#configure-a-jdbc-sink">Configure a JDBC sink</a></li><li><a href="#create-a-jdbc-sink">Create a JDBC sink</a></li><li><a href="#inspect-a-jdbc-sink">Inspect a JDBC sink</a></li><li><a href="#stop-a-jdbc-sink">Stop a JDBC sink</a></li><li><a href="#restart-a-jdbc-sink">Restart a JDBC sink</a></li><li><a href="#update-a-jdbc-sink">Update a JDBC sink</a></li><li><a href="#delete-a-jdbc-sink">Delete a JDBC sink</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.6.2/io-overview"><span class="arrow-prev">← </span><span>概述</span></a><a class="docs-next button" href="/docs/zh-CN/2.6.2/io-use"><span>Use</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#安装-pulsar-和内置连接器">安装 Pulsar 和内置连接器</a></li><li><a href="#启动单机模式-pulsar">启动单机模式 Pulsar</a></li><li><a href="#连接-pulsar-到-cassandra">连接 Pulsar 到 Cassandra</a><ul class="toc-headings"><li><a href="#配置-cassandra-集群">配置 Cassandra 集群</a></li><li><a href="#配置-cassandra-sink">配置 Cassandra sink</a></li><li><a href="#创建-cassandra-sink">创建 Cassandra sink</a></li><li><a href="#检查-cassandra-sink">检查 Cassandra sink</a></li><li><a href="#检验-cassandra-sink">检验 Cassandra sink</a></li><li><a href="#删除-cassandra-sink">删除 Cassandra Sink</a></li></ul></li><li><a href="#连接-pulsar-到-postgresql">连接 Pulsar 到 PostgreSQL</a><ul class="toc-headings"><li><a href="#配置-postgresql-集群">配置 PostgreSQL 集群</a></li><li><a href="#配置-jdbc-sink">配置 JDBC sink</a></li><li><a href="#创建-jdbc-sink">创建 JDBC sink</a></li><li><a href="#检查-jdbc-sink">检查 JDBC sink</a></li><li><a href="#停止-jdbc-sink">停止 JDBC sink</a></li><li><a href="#重启-jdbc-sink">重启 JDBC sink</a></li><li><a href="#更新-jdbc-sink">更新 JDBC sink</a></li><li><a href="#删除-jdbc-sink">删除 JDBC sink</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

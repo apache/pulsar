@@ -387,8 +387,8 @@ Map&lt;String, String&gt; allConfigs = context.getUserConfigMap();
 String wotd = context.getUserConfigValueOrDefault(<span class="hljs-string">"word-of-the-day"</span>, <span class="hljs-string">"perspicacious"</span>);
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="路由"></a><a href="#路由" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>路由</h2>
-<p>You can use the <code>context.publish()</code> interface to publish as many results as you want.</p>
-<p>This example shows that the <code>PublishFunction</code> class uses the built-in function in the context to publish messages to the <code>publishTopic</code> in a Java function.</p>
+<p>你可以使用 <code>context.publish()</code> 接口来发布尽可能多的结果。</p>
+<p>在下述 Java 代码中，<code>PublishWindowFunction</code> 类使用上下文对象的内置方法在函数中发布消息到 <code>publishTopic</code> 中。</p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">PublishWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
     <span class="hljs-meta">@Override</span>
     <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; input, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
@@ -402,7 +402,7 @@ String wotd = context.getUserConfigValueOrDefault(<span class="hljs-string">"wor
 }
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="state-storage"></a><a href="#state-storage" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>State storage</h2>
-<p>Pulsar window functions use <a href="https://bookkeeper.apache.org">Apache BookKeeper</a> as a state storage interface. Apache Pulsar installation (including the standalone installation) includes the deployment of BookKeeper bookies.</p>
+<p>Pulsar 窗口函数使用 <a href="https://bookkeeper.apache.org">Apache Bookerper</a> 存储状态。 在安装 Apache Pulsar 的时候（包含 Standalone 安装），都会同时包含部署 BookKeeper。</p>
 <p>Apache Pulsar integrates with Apache BookKeeper <code>table service</code> to store the <code>state</code> for functions. For example, the <code>WordCount</code> function can store its <code>counters</code> state into BookKeeper table service via Pulsar Functions state APIs.</p>
 <p>States are key-value pairs, where the key is a string and the value is arbitrary binary data—counters are stored as 64-bit big-endian binary values. Keys are scoped to an individual Pulsar Function and shared between instances of that function.</p>
 <p>Currently, Pulsar window functions expose Java API to access, update, and manage states. These APIs are available in the context object when you use Java SDK functions.</p>
