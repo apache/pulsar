@@ -22,23 +22,23 @@ import org.apache.pulsar.common.classification.InterfaceAudience;
 
 /**
  * An interface for hook
- * Preload and release of external resources
+ * Initial and close of external resources
  */
 @InterfaceAudience.Public
 public interface Hook {
 
     /**
-     * Pre-Process Function Hook
+     * InitialResource Function Hook
      *
      * @throws Exception
      */
-    void preProcess(Context context) throws RuntimeException;
+    void initialResource(Context context) throws Exception;
 
 
     /**
-     * Post-Process Function Hook
+     * CloseResource Function Hook
      *
      * @throws Exception
      */
-    void postProcess() throws RuntimeException;
+    void closeResource() throws Exception;
 }

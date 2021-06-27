@@ -75,21 +75,21 @@ public class JavaInstance implements AutoCloseable {
         }
     }
 
-    public void setup() {
+    public void setup() throws Exception {
         if (null != function && function instanceof Hook) {
             try {
-                ((Hook) function).preProcess(context);
-            } catch (RuntimeException e) {
+                ((Hook) function).initialResource(context);
+            } catch (Exception e) {
                 log.error("setup error:", e);
-                throw new RuntimeException("function preProcess occurred exception", e);
+                throw e;
             }
         }
         if (null != javaUtilFunction && javaUtilFunction instanceof Hook) {
             try {
-                ((Hook) javaUtilFunction).preProcess(context);
-            } catch (RuntimeException e) {
+                ((Hook) javaUtilFunction).initialResource(context);
+            } catch (Exception e) {
                 log.error("setup error:", e);
-                throw new RuntimeException("javaUtilFunction preProcess occurred exception", e);
+                throw e;
             }
         }
     }
@@ -177,22 +177,23 @@ public class JavaInstance implements AutoCloseable {
     }
 
     @Override
-    public void close() {
+    public void close() throws Exception {
         context.close();
+        executor.shutdown();
         if (null != function && function instanceof Hook) {
             try {
-                ((Hook) function).postProcess();
-            } catch (RuntimeException e) {
-                log.error("function postProcess occurred exception", e);
-                throw new RuntimeException("function postProcess occurred exception", e);
+                ((Hook) function).closeResource();
+            } catch (Exception e) {
+                log.error("function closeResource occurred exception", e);
+                throw e;
             }
         }
         if (null != javaUtilFunction && javaUtilFunction instanceof Hook) {
             try {
-                ((Hook) javaUtilFunction).postProcess();
-            } catch (RuntimeException e) {
-                log.error("function postProcess occurred exception", e);
-                throw new RuntimeException("function postProcess occurred exception", e);
+                ((Hook) javaUtilFunction).closeResource();
+            } catch (Exception e) {
+                log.error("function closeResource occurred exception", e);
+                throw e;
             }
         }
     }
