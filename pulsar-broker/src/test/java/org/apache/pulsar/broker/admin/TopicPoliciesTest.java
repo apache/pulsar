@@ -947,8 +947,9 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions,200,false);
         admin.topics().setInactiveTopicPolicies(topic, inactiveTopicPolicies);
 
+        InactiveTopicPolicies finalInactiveTopicPolicies = inactiveTopicPolicies;
         Awaitility.await()
-                .untilAsserted(() -> Assert.assertNotNull(admin.topics().getInactiveTopicPolicies(topic)));
+                .untilAsserted(() -> Assert.assertEquals(admin.topics().getInactiveTopicPolicies(topic), finalInactiveTopicPolicies));
 
         // restart broker, policy should still take effect
         restartBroker();
@@ -956,7 +957,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         // Trigger the cache init.
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
 
-        InactiveTopicPolicies finalInactiveTopicPolicies = inactiveTopicPolicies;
+
         Awaitility.await()
                 .untilAsserted(() -> {
                     PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
