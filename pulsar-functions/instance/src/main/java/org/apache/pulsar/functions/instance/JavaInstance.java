@@ -78,7 +78,7 @@ public class JavaInstance implements AutoCloseable {
     public void setup() throws Exception {
         if (null != function && function instanceof Hook) {
             try {
-                ((Hook) function).initialResource(context);
+                ((Hook) function).initialResource();
             } catch (Exception e) {
                 log.error("setup error:", e);
                 throw e;
@@ -86,7 +86,7 @@ public class JavaInstance implements AutoCloseable {
         }
         if (null != javaUtilFunction && javaUtilFunction instanceof Hook) {
             try {
-                ((Hook) javaUtilFunction).initialResource(context);
+                ((Hook) javaUtilFunction).initialResource();
             } catch (Exception e) {
                 log.error("setup error:", e);
                 throw e;

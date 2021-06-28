@@ -32,7 +32,7 @@ public interface Hook {
      *
      * @throws Exception
      */
-    void initialResource(Context context) throws Exception;
+    void initialResource() throws Exception;
 
 
     /**
