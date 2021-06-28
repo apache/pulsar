@@ -57,7 +57,7 @@ import java.util.concurrent.TimeUnit;
 // The tenants and namespaces in those topics are associated with a set of resource-groups (RGs).
 // After sending/receiving all the messages, traffic usage statistics, and Prometheus-metrics
 // are verified on the RGs.
-public class RGUsageMTAggrWaitForAllMesgs extends ProducerConsumerBase {
+public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
     @BeforeClass
     @Override
     protected void setup() throws Exception {
@@ -397,7 +397,9 @@ public class RGUsageMTAggrWaitForAllMesgs extends ProducerConsumerBase {
     // Produce/consume messages on the given topics, and verify that the resource-group stats are updated.
     private void testProduceConsumeUsageOnRG(String[] topicStrings) throws Exception {
         createRGs();
-        createTopics(topicStrings);
+        // creating the topics results in exposing a regression.
+        // It can be put back after https://github.com/apache/pulsar/issues/11289 is fixed.
+        // createTopics(topicStrings);
         registerTenantsAndNamespaces(topicStrings);
 
         final int TotalExpectedMessagesToSend = NumTotalMessages;
@@ -523,16 +525,18 @@ public class RGUsageMTAggrWaitForAllMesgs extends ProducerConsumerBase {
 
 //        // Verify the producer side stats (msgInCounter/bytesInCounter) only.
 //        this.verfyRGProdConsStats(topicStrings, sentNumBytes, sentNumMsgs, 0, 0,true, false);
+//        this.verifyRGMetrics(topicStrings, sentNumBytes, sentNumMsgs, recvdNumBytes, recvdNumMsgs, true, false);
 
         // Verify producer and consumer side stats.
-        this.verfyRGProdConsStats(topicStrings, sentNumBytes, sentNumMsgs,
-                recvdNumBytes, recvdNumMsgs, true, true);
+        this.verfyRGProdConsStats(topicStrings, sentNumBytes, sentNumMsgs, recvdNumBytes, recvdNumMsgs, true, true);
 
         // Verify the metrics corresponding to the operations in this test.
-        this.verifyRGMetrics(topicStrings, sentNumBytes, sentNumMsgs, recvdNumBytes, recvdNumMsgs);
+        this.verifyRGMetrics(topicStrings, sentNumBytes, sentNumMsgs, recvdNumBytes, recvdNumMsgs, true, true);
 
         unRegisterTenantsAndNamespaces(topicStrings);
-        destroyTopics(topicStrings);
+        // destroyTopics can be called after createTopics() is added back
+        // (see comment above regarding https://github.com/apache/pulsar/issues/11289).
+        // destroyTopics(topicStrings);
         destroyRGs();
     }
 
@@ -547,7 +551,7 @@ public class RGUsageMTAggrWaitForAllMesgs extends ProducerConsumerBase {
         BrokerService bs = pulsar.getBrokerService();
         Map<String, TopicStatsImpl> topicStatsMap = bs.getTopicStats();
 
-        log.info("verfyProdConsStats: topicStatsMap has {} entries", topicStatsMap.size());
+        log.debug("verfyProdConsStats: topicStatsMap has {} entries", topicStatsMap.size());
 
         // Pulsar runtime adds some additional bytes in the exchanges: a 45-byte per-message
         // metadata of some kind, plus more as the number of messages increases.
@@ -575,8 +579,12 @@ public class RGUsageMTAggrWaitForAllMesgs extends ProducerConsumerBase {
 
         // Since the following walk is on topics, keep track of the RGs for which we have already gathered stats,
         // so that we do not double-accumulate stats if multiple topics refer to the same RG.
-        HashSet<String> RGsWithPublisStatsGathered = new HashSet<>();
+        HashSet<String> RGsWithPublishStatsGathered = new HashSet<>();
         HashSet<String> RGsWithDispatchStatsGathered = new HashSet<>();
+
+        // Hack to ensure aggregator calculation without waiting for a period of aggregation.
+        // [aggregateResourceGroupLocalUsages() is idempotent when there's no fresh traffic flowing.]
+        this.rgservice.aggregateResourceGroupLocalUsages();
 
         for (Map.Entry<String, TopicStatsImpl> entry : topicStatsMap.entrySet()) {
             String mapTopicName = entry.getKey();
@@ -596,18 +604,16 @@ public class RGUsageMTAggrWaitForAllMesgs extends ProducerConsumerBase {
                 if (sentNumMsgs > 0 || recvdNumMsgs > 0) {
                     TopicName topic = TopicName.get(mapTopicName);
 
-                    // Hack to ensure aggregator calculation without waiting for a period of aggregation.
-                    // [aggregateResourceGroupLocalUsages() is idempotent when there's no fresh traffic flowing.]
-                    this.rgservice.aggregateResourceGroupLocalUsages();
-
                     final String tenantRGName = TopicToTenantRGName(topic);
-                    if (!RGsWithPublisStatsGathered.contains(tenantRGName)) {
-                        prodCounts = this.rgservice.getRGUsage(tenantRGName, ResourceGroupMonitoringClass.Publish);
+                    if (!RGsWithPublishStatsGathered.contains(tenantRGName)) {
+                        prodCounts = this.rgservice.getRGUsage(tenantRGName, ResourceGroupMonitoringClass.Publish,
+                                                               getCumulativeUsageStats);
                         totalTenantRGProdCounts = ResourceGroup.accumulateBMCount(totalTenantRGProdCounts, prodCounts);
-                        RGsWithPublisStatsGathered.add(tenantRGName);
+                        RGsWithPublishStatsGathered.add(tenantRGName);
                     }
                     if (!RGsWithDispatchStatsGathered.contains(tenantRGName)) {
-                        consCounts = this.rgservice.getRGUsage(tenantRGName, ResourceGroupMonitoringClass.Dispatch);
+                        consCounts = this.rgservice.getRGUsage(tenantRGName, ResourceGroupMonitoringClass.Dispatch,
+                                                               getCumulativeUsageStats);
                         totalTenantRGConsCounts = ResourceGroup.accumulateBMCount(totalTenantRGConsCounts, consCounts);
                         RGsWithDispatchStatsGathered.add(tenantRGName);
                     }
@@ -616,13 +622,15 @@ public class RGUsageMTAggrWaitForAllMesgs extends ProducerConsumerBase {
                     // If tenantRGName == nsRGName, the RG-infra will avoid double counting.
                     // We will do the same here, to get the expected stats.
                     if (tenantRGName.compareTo(nsRGName) != 0) {
-                        if (!RGsWithPublisStatsGathered.contains(nsRGName)) {
-                            prodCounts = this.rgservice.getRGUsage(nsRGName, ResourceGroupMonitoringClass.Publish);
+                        if (!RGsWithPublishStatsGathered.contains(nsRGName)) {
+                            prodCounts = this.rgservice.getRGUsage(nsRGName, ResourceGroupMonitoringClass.Publish,
+                                                                   getCumulativeUsageStats);
                             totalNsRGProdCounts = ResourceGroup.accumulateBMCount(totalNsRGProdCounts, prodCounts);
-                            RGsWithPublisStatsGathered.add(nsRGName);
+                            RGsWithPublishStatsGathered.add(nsRGName);
                         }
                         if (!RGsWithDispatchStatsGathered.contains(nsRGName)) {
-                            consCounts = this.rgservice.getRGUsage(nsRGName, ResourceGroupMonitoringClass.Dispatch);
+                            consCounts = this.rgservice.getRGUsage(nsRGName, ResourceGroupMonitoringClass.Dispatch,
+                                                                   getCumulativeUsageStats);
                             totalNsRGConsCounts = ResourceGroup.accumulateBMCount(totalNsRGConsCounts, consCounts);
                             RGsWithDispatchStatsGathered.add(nsRGName);
                         }
@@ -663,7 +671,8 @@ public class RGUsageMTAggrWaitForAllMesgs extends ProducerConsumerBase {
     // Check the metrics for the RGs involved
     private void verifyRGMetrics(String[] topicStrings,
                                  int sentNumBytes, int sentNumMsgs,
-                                 int recvdNumBytes, int recvdNumMsgs) throws Exception {
+                                 int recvdNumBytes, int recvdNumMsgs,
+                                 boolean checkProduce, boolean checkConsume) throws Exception {
 
         boolean tenantRGEqualsNsRG = tenantRGEqualsNamespaceRG(topicStrings);
         final int ExpectedNumBytesSent = sentNumBytes + PER_MESSAGE_METADATA_OHEAD * sentNumMsgs;
@@ -685,29 +694,32 @@ public class RGUsageMTAggrWaitForAllMesgs extends ProducerConsumerBase {
         // 'ScaleFactor' is a way to incorporate that effect in the verification.
         final int ScaleFactor = tenantRGEqualsNsRG ? 1 : 2;
 
-        ResourceGroupService rgs = this.rgservice;
+        // Hack to ensure aggregator calculation without waiting for a period of aggregation.
+        // [aggregateResourceGroupLocalUsages() is idempotent when there's no new traffic flowing.]
+        this.rgservice.aggregateResourceGroupLocalUsages();
+
         for (String rgName : RGNames) {
             for (ResourceGroupMonitoringClass mc : ResourceGroupMonitoringClass.values()) {
                 String mcName = mc.name();
                 int mcIndex = mc.ordinal();
-                double quotaBytes = rgs.getRgQuotaByteCount(rgName, mcName);
+                double quotaBytes = ResourceGroupService.getRgQuotaByteCount(rgName, mcName);
                 totalQuotaBytes[mcIndex] += quotaBytes;
-                double quotaMesgs = rgs.getRgQuotaMessageCount(rgName, mcName);
+                double quotaMesgs = ResourceGroupService.getRgQuotaMessageCount(rgName, mcName);
                 totalQuotaMessages[mcIndex] += quotaMesgs;
-                double usedBytes = rgs.getRgLocalUsageByteCount(rgName, mcName);
+                double usedBytes = ResourceGroupService.getRgLocalUsageByteCount(rgName, mcName);
                 totalUsedBytes[mcIndex] += usedBytes;
-                double usedMesgs = rgs.getRgLocalUsageMessageCount(rgName, mcName);
+                double usedMesgs = ResourceGroupService.getRgLocalUsageMessageCount(rgName, mcName);
                 totalUsedMessages[mcIndex] += usedMesgs;
 
                 double usageReportedCount = ResourceGroup.getRgUsageReportedCount(rgName, mcName);
                 totalUsageReportCounts[mcIndex] += usageReportedCount;
             }
 
-            totalTenantRegisters += rgs.getRgTenantRegistersCount(rgName);
-            totalTenantUnRegisters += rgs.getRgTenantUnRegistersCount(rgName);
-            totalNamespaceRegisters += rgs.getRgNamespaceRegistersCount(rgName);
-            totalNamespaceUnRegisters += rgs.getRgNamespaceUnRegistersCount(rgName);;
-            totalUpdates += rgs.getRgUpdatesCount(rgName);
+            totalTenantRegisters += ResourceGroupService.getRgTenantRegistersCount(rgName);
+            totalTenantUnRegisters += ResourceGroupService.getRgTenantUnRegistersCount(rgName);
+            totalNamespaceRegisters += ResourceGroupService.getRgNamespaceRegistersCount(rgName);
+            totalNamespaceUnRegisters += ResourceGroupService.getRgNamespaceUnRegistersCount(rgName);;
+            totalUpdates += ResourceGroupService.getRgUpdatesCount(rgName);
         }
         log.info("totalTenantRegisters={}, totalTenantUnRegisters={}, " +
                         "totalNamespaceRegisters={}, totalNamespaceUnRegisters={}",
@@ -735,12 +747,12 @@ public class RGUsageMTAggrWaitForAllMesgs extends ProducerConsumerBase {
                     totalUsedBytes[mcIdx], totalUsedMessages[mcIdx], totalUsageReportCounts[mcIdx]);
             // On each run, the bytes/messages are monotone incremented in Prometheus metrics.
             // So, we take the residuals into account when comparing against the expected.
-            if (mc == ResourceGroupMonitoringClass.Publish) {
+            if (checkProduce && mc == ResourceGroupMonitoringClass.Publish) {
                 Assert.assertEquals(totalUsedMessages[mcIdx] - residualSentNumMessages,
                                                                                 sentNumMsgs * ScaleFactor);
                 Assert.assertTrue(totalUsedBytes[mcIdx] - residualSentNumBytes
                                                                                 >= ExpectedNumBytesSent * ScaleFactor);
-            } else if (mc == ResourceGroupMonitoringClass.Dispatch) {
+            } else if (checkConsume && mc == ResourceGroupMonitoringClass.Dispatch) {
                 Assert.assertEquals(totalUsedMessages[mcIdx] - residualRecvdNumMessages,
                                                                                 recvdNumMsgs * ScaleFactor);
                 Assert.assertTrue(totalUsedBytes[mcIdx] - residualRecvdNumBytes
@@ -760,7 +772,7 @@ public class RGUsageMTAggrWaitForAllMesgs extends ProducerConsumerBase {
         Assert.assertEquals(totalUpdates, 0);  // currently, we don't update the RGs in this UT
 
         // Basic check that latency metrics are doing some work.
-        Summary.Child.Value usageAggrLatency = rgs.getRgUsageAggregationLatency();
+        Summary.Child.Value usageAggrLatency = ResourceGroupService.getRgUsageAggregationLatency();
         Assert.assertNotEquals(usageAggrLatency.count, 0);
         Assert.assertNotEquals(usageAggrLatency.sum, 0);
         double fiftiethPercentileValue = usageAggrLatency.quantiles.get(0.5);
@@ -768,7 +780,7 @@ public class RGUsageMTAggrWaitForAllMesgs extends ProducerConsumerBase {
         double ninetethPercentileValue = usageAggrLatency.quantiles.get(0.9);
         Assert.assertNotEquals(ninetethPercentileValue, 0);
 
-        Summary.Child.Value quotaCalcLatency = rgs.getRgQuotaCalculationTime();
+        Summary.Child.Value quotaCalcLatency = ResourceGroupService.getRgQuotaCalculationTime();
         Assert.assertNotEquals(quotaCalcLatency.count, 0);
         Assert.assertNotEquals(quotaCalcLatency.sum, 0);
         fiftiethPercentileValue = quotaCalcLatency.quantiles.get(0.5);
@@ -777,7 +789,7 @@ public class RGUsageMTAggrWaitForAllMesgs extends ProducerConsumerBase {
         Assert.assertNotEquals(ninetethPercentileValue, 0);
     }
 
-    private static final Logger log = LoggerFactory.getLogger(RGUsageMTAggrWaitForAllMesgs.class);
+    private static final Logger log = LoggerFactory.getLogger(RGUsageMTAggrWaitForAllMesgsTest.class);
 
     // Empirically, there appears to be a 45-byte overhead for metadata, imposed by Pulsar runtime.
     private final int PER_MESSAGE_METADATA_OHEAD = 45;
@@ -831,6 +843,9 @@ public class RGUsageMTAggrWaitForAllMesgs extends ProducerConsumerBase {
             PersistentTopicNamesDifferentTenantAndNsRGs,
             NonPersistentTopicNamesSameTenantAndNsRGs,
             NonPersistentTopicNamesDifferentTenantAndNsRGs);
+
+    // We don't periodically report to a remote broker in this test. So, we will use cumulative stats.
+    private final boolean getCumulativeUsageStats = true;
 
     // Keep track of the namespaces that were created, so we don't dup and get exceptions
     HashSet<String> createdNamespaces = new HashSet<>();

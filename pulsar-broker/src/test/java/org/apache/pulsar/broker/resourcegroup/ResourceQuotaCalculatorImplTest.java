@@ -43,9 +43,10 @@ public class ResourceQuotaCalculatorImplTest extends MockedPulsarServiceBaseTest
     }
 
     @Test
-    public void testRQCalcNegativeConfTest() {
+    public void testRQCalcNegativeConfTest() throws PulsarAdminException {
         final long[] allUsage = { 0 };
-        Assert.assertThrows(PulsarAdminException.class, () -> this.rqCalc.computeLocalQuota(-1, 0, allUsage));
+        long calculatedQuota = this.rqCalc.computeLocalQuota(-1, 0, allUsage);
+        Assert.assertEquals(calculatedQuota, Long.MAX_VALUE);
     }
 
     @Test

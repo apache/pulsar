@@ -352,10 +352,13 @@ public class ResourceGroupService {
     }
 
     // Visibility for testing.
-    protected BytesAndMessagesCount getRGUsage(String rgName, ResourceGroupMonitoringClass monClass)
-                                                                                        throws PulsarAdminException {
+    protected BytesAndMessagesCount getRGUsage(String rgName, ResourceGroupMonitoringClass monClass,
+                                               boolean getCumulative) throws PulsarAdminException {
         final ResourceGroup rg = this.getResourceGroupInternal(rgName);
         if (rg != null) {
+            if (getCumulative) {
+                return rg.getLocalUsageStatsCumulative(monClass);
+            }
             return rg.getLocalUsageStats(monClass);
         }
 
@@ -427,15 +430,25 @@ public class ResourceGroupService {
 
         try {
             boolean statsUpdated = this.incrementUsage(tenantString, nsString, monClass, bmDiff);
-            log.debug("updateStatsWithDiff: monclass={} statsUpdated={} for tenant={}, namespace={}; "
+            log.debug("updateStatsWithDiff for topic={}: monclass={} statsUpdated={} for tenant={}, namespace={}; "
                             + "by {} bytes, {} mesgs",
-                    monClass, statsUpdated, tenantString, nsString,
+                    topicName, monClass, statsUpdated, tenantString, nsString,
                     bmDiff.bytes, bmDiff.messages);
             hm.put(topicName, bmNewCount);
         } catch (Throwable t) {
             log.error("updateStatsWithDiff: got ex={} while aggregating for {} side",
                     t.getMessage(), monClass);
         }
+    }
+
+    // Visibility for testing.
+    protected BytesAndMessagesCount getPublishRateLimiters (String rgName) throws PulsarAdminException {
+        ResourceGroup rg = this.getResourceGroupInternal(rgName);
+        if (rg == null) {
+            throw new PulsarAdminException("Resource group does not exist: " + rgName);
+        }
+
+        return rg.getRgPublishRateLimiterValues();
     }
 
     // Visibility for testing.
@@ -512,10 +525,12 @@ public class ResourceGroupService {
                 continue;
             }
 
-            for (ResourceGroupMonitoringClass monClass : ResourceGroupMonitoringClass.values()) {
-                this.updateStatsWithDiff(topicName, tenantString, nsString,
-                        topicStats.bytesInCounter, topicStats.msgInCounter, monClass);
-            }
+            this.updateStatsWithDiff(topicName, tenantString, nsString,
+                    topicStats.getBytesInCounter(), topicStats.getMsgInCounter(),
+                    ResourceGroupMonitoringClass.Publish);
+            this.updateStatsWithDiff(topicName, tenantString, nsString,
+                    topicStats.getBytesOutCounter(), topicStats.getMsgOutCounter(),
+                    ResourceGroupMonitoringClass.Dispatch);
         }
         double diffTimeSeconds = aggrUsageTimer.observeDuration();
         log.debug("aggregateResourceGroupLocalUsages took {} milliseconds", diffTimeSeconds * 1000);
@@ -547,7 +562,8 @@ public class ResourceGroupService {
 
     // Periodically calculate the updated quota for all RGs in the background,
     // from the reports received from other brokers.
-    private void calculateQuotaForAllResourceGroups() {
+    // [Visibility for unit testing.]
+    protected void calculateQuotaForAllResourceGroups() {
         // Calculate the quota for the next window for this RG, based on the observed usage.
         final Summary.Timer quotaCalcTimer = rgQuotaCalculationLatency.startTimer();
         BytesAndMessagesCount updatedQuota = new BytesAndMessagesCount();
@@ -611,8 +627,8 @@ public class ResourceGroupService {
                         newPeriodInSeconds,
                         timeUnitScale);
             this.resourceUsagePublishPeriodInSeconds = newPeriodInSeconds;
-            this.maxIntervalForSuppressingReportsMSecs =
-                    this.resourceUsagePublishPeriodInSeconds * this.MaxUsageReportSuppressRounds;
+            maxIntervalForSuppressingReportsMSecs =
+                    this.resourceUsagePublishPeriodInSeconds * MaxUsageReportSuppressRounds;
         }
     }
 
@@ -630,8 +646,8 @@ public class ResourceGroupService {
                     periodInSecs,
                     periodInSecs,
                     this.timeUnitScale);
-        this.maxIntervalForSuppressingReportsMSecs =
-                this.resourceUsagePublishPeriodInSeconds * this.MaxUsageReportSuppressRounds;
+        maxIntervalForSuppressingReportsMSecs =
+                this.resourceUsagePublishPeriodInSeconds * MaxUsageReportSuppressRounds;
 
     }
 
@@ -660,6 +676,8 @@ public class ResourceGroupService {
 
     protected final ResourceQuotaCalculator quotaCalculator;
     private ResourceUsageTransportManager resourceUsageTransportManagerMgr;
+
+    // rgConfigListener is used only through its side effects in the ctors, to set up RG/NS loading in config-listeners.
     private final ResourceGroupConfigListener rgConfigListener;
 
     // Given a RG-name, get the resource-group
@@ -672,8 +690,8 @@ public class ResourceGroupService {
     private ConcurrentHashMap<String, ResourceGroup> namespaceToRGsMap = new ConcurrentHashMap<>();
 
     // Maps to maintain the usage per topic, in produce/consume directions.
-    private ConcurrentHashMap<String, BytesAndMessagesCount> topicProduceStats = new ConcurrentHashMap();
-    private ConcurrentHashMap<String, BytesAndMessagesCount> topicConsumeStats = new ConcurrentHashMap();
+    private ConcurrentHashMap<String, BytesAndMessagesCount> topicProduceStats = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<String, BytesAndMessagesCount> topicConsumeStats = new ConcurrentHashMap<>();
 
 
     // The task that periodically re-calculates the quota budget for local usage.
