@@ -247,6 +247,14 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
             // Ok
         }
 
+        // reset on position
+        try {
+            sub1Admin.topics().resetCursor(topicName, subscriptionName, MessageId.earliest);
+            fail("should have fail with authorization exception");
+        } catch (org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException e) {
+            // Ok
+        }
+
         // now, grant subscription-access to subscriptionRole as well
         superAdmin.namespaces().grantPermissionOnSubscription(namespace, subscriptionName,
                 Sets.newHashSet(otherPrincipal, subscriptionRole));
