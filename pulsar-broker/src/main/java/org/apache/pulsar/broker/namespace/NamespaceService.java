@@ -234,7 +234,7 @@ public class NamespaceService {
         return bundleFactory.getFullBundle(fqnn);
     }
 
-    private CompletableFuture<NamespaceBundle> getFullBundleAsync(NamespaceName fqnn) throws Exception {
+    private CompletableFuture<NamespaceBundle> getFullBundleAsync(NamespaceName fqnn) {
         return bundleFactory.getFullBundleAsync(fqnn);
     }
 
@@ -243,7 +243,7 @@ public class NamespaceService {
      *
      * If the service unit is not owned, return a CompletableFuture with empty optional.
      */
-    public CompletableFuture<Optional<URL>> getWebServiceUrlAsync(ServiceUnitId suName, LookupOptions options) throws Exception {
+    public CompletableFuture<Optional<URL>> getWebServiceUrlAsync(ServiceUnitId suName, LookupOptions options) {
         if (suName instanceof TopicName) {
             TopicName name = (TopicName) suName;
             if (LOG.isDebugEnabled()) {
@@ -945,6 +945,24 @@ public class NamespaceService {
         throw new IllegalArgumentException("Invalid class of NamespaceBundle: " + suName.getClass().getName());
     }
 
+    public CompletableFuture<Boolean> isServiceUnitOwnedAsync(ServiceUnitId suName) {
+        if (suName instanceof TopicName) {
+            return isTopicOwnedAsync((TopicName) suName);
+        }
+
+        if (suName instanceof NamespaceName) {
+            return isNamespaceOwnedAsync((NamespaceName) suName);
+        }
+
+        if (suName instanceof NamespaceBundle) {
+            return CompletableFuture.completedFuture(
+                    ownershipCache.isNamespaceBundleOwned((NamespaceBundle) suName));
+        }
+
+        return FutureUtil.failedFuture(
+                new IllegalArgumentException("Invalid class of NamespaceBundle: " + suName.getClass().getName()));
+    }
+
     public boolean isServiceUnitActive(TopicName topicName) {
         try {
             return ownershipCache.getOwnedBundle(getBundle(topicName)).isActive();
@@ -956,6 +974,11 @@ public class NamespaceService {
 
     private boolean isNamespaceOwned(NamespaceName fqnn) throws Exception {
         return ownershipCache.getOwnedBundle(getFullBundle(fqnn)) != null;
+    }
+
+    private CompletableFuture<Boolean> isNamespaceOwnedAsync(NamespaceName fqnn) {
+        return getFullBundleAsync(fqnn)
+                .thenApply(bundle -> ownershipCache.getOwnedBundle(bundle) != null);
     }
 
     private CompletableFuture<Boolean> isTopicOwnedAsync(TopicName topic) {
