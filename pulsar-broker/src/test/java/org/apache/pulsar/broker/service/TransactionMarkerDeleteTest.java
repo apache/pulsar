@@ -88,7 +88,7 @@ public class TransactionMarkerDeleteTest extends BrokerTestBase{
                 managedLedger.openCursor("test"), false);
 
         Position position1 = managedLedger.addEntry("test".getBytes());
-        managedLedger.addEntry(Markers
+        Position position2 = managedLedger.addEntry(Markers
                 .newTxnCommitMarker(1, 1, 1).array());
 
         Position position3 = managedLedger.addEntry("test".getBytes());
@@ -101,7 +101,7 @@ public class TransactionMarkerDeleteTest extends BrokerTestBase{
 
         Awaitility.await().during(1, TimeUnit.SECONDS).until(() ->
                 ((PositionImpl) persistentSubscription.getCursor().getMarkDeletedPosition())
-                        .compareTo((PositionImpl) position1) == 0);
+                        .compareTo((PositionImpl) position2) == 0);
         persistentSubscription.transactionIndividualAcknowledge(new TxnID(0, 0),
                 Collections.singletonList(MutablePair.of((PositionImpl) position3, 0))).get();
 

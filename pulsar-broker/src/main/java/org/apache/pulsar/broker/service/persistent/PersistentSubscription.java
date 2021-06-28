@@ -427,7 +427,6 @@ public class PersistentSubscription implements Subscription {
                                 try {
                                     MessageMetadata messageMetadata =
                                             Commands.parseMessageMetadata(entry.getDataBuffer());
-                                    isDeleteTransactionMarkerInProcess = false;
                                     if (Markers.isTxnCommitMarker(messageMetadata)
                                             || Markers.isTxnAbortMarker(messageMetadata)) {
                                         lastMarkDeleteForTransactionMarker = currentMarkDeletePosition;
@@ -435,6 +434,7 @@ public class PersistentSubscription implements Subscription {
                                                 AckType.Individual, properties);
                                     }
                                 } finally {
+                                    isDeleteTransactionMarkerInProcess = false;
                                     entry.release();
                                 }
                             }
