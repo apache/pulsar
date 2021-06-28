@@ -46,6 +46,7 @@ import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -250,7 +251,7 @@ public class SinkConfigUtils {
         sinkConfig.setParallelism(functionDetails.getParallelism());
         sinkConfig.setProcessingGuarantees(FunctionCommon.convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
         Map<String, ConsumerConfig> consumerConfigMap = new HashMap<>();
-        List<String> inputs = new LinkedList<>();
+        List<String> inputs = new ArrayList<>();
         for (Map.Entry<String, Function.ConsumerSpec> input : functionDetails.getSource().getInputSpecsMap().entrySet()) {
             ConsumerConfig consumerConfig = new ConsumerConfig();
             if (!isEmpty(input.getValue().getSerdeClassName())) {
