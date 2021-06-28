@@ -927,7 +927,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 });
     }
 
-    @Test(timeOut = 30000)
+    @Test(timeOut = 20000)
     public void testRestart() throws Exception {
         final String topic = testTopic + UUID.randomUUID();
         admin.topics().createNonPartitionedTopic(topic);
