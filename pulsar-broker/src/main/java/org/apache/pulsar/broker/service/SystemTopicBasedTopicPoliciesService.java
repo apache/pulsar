@@ -188,7 +188,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         result.completeExceptionally(ex);
                     } else {
                         initPolicesCache(reader, result);
-                        readMorePolicies(reader);
+                        result.thenRun(() -> readMorePolicies(reader));
                     }
                 });
             }
@@ -254,6 +254,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         readerCaches.remove(reader.getSystemTopic().getTopicName().getNamespaceObject());
                     }
                     refreshTopicPoliciesCache(msg);
+                    notifyListener(msg);
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] Loop next event reading for system topic.",
                                 reader.getSystemTopic().getTopicName().getNamespaceObject());
@@ -264,9 +265,9 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Reach the end of the system topic.", reader.getSystemTopic().getTopicName());
                 }
-                future.complete(null);
                 policyCacheInitMap.computeIfPresent(
                         reader.getSystemTopic().getTopicName().getNamespaceObject(), (k, v) -> true);
+                future.complete(null);
             }
         });
     }
@@ -390,7 +391,6 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             //change persistent://tenant/namespace/xxx-partition-0  to persistent://tenant/namespace/xxx
             realTopicName = TopicName.get(topicName.getPartitionedTopicName());
         }
-        policiesCache.remove(realTopicName);
         listeners.remove(realTopicName);
     }
 

@@ -140,4 +140,12 @@ ClientConfiguration& ClientConfiguration::setListenerName(const std::string& lis
 }
 
 const std::string& ClientConfiguration::getListenerName() const { return impl_->listenerName; }
+
+ClientConfiguration& ClientConfiguration::setConnectionTimeout(int timeoutMs) {
+    impl_->connectionTimeoutMs = timeoutMs;
+    return *this;
+}
+
+int ClientConfiguration::getConnectionTimeout() const { return impl_->connectionTimeoutMs; }
+
 }  // namespace pulsar

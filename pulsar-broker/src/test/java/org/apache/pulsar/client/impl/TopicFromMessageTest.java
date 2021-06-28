@@ -107,8 +107,12 @@ public class TopicFromMessageTest extends ProducerConsumerBase {
             producer1.send("foobar".getBytes());
             producer2.send("foobar".getBytes());
 
-            Assert.assertEquals(consumer.receive().getTopicName(), "persistent://public/default/topic1");
-            Assert.assertEquals(consumer.receive().getTopicName(), "persistent://public/default/topic2");
+            // We can't ensure the received order of the message.
+            String topicNameX = consumer.receive().getTopicName();
+            String topicNameY = consumer.receive().getTopicName();
+            Object[] actualTopicNames = new Object[]{topicNameX, topicNameY};
+            Object[] expectedTopicNames = new Object[]{"persistent://public/default/topic1", "persistent://public/default/topic2"};
+            Assert.assertEqualsNoOrder(actualTopicNames, expectedTopicNames);
         }
     }
 

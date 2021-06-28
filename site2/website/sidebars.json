@@ -1,6 +1,6 @@
 {
   "docs": {
-    "Get started": [
+    "Get Started": [
       "standalone",
       "standalone-docker",
       "kubernetes-helm"
@@ -50,7 +50,7 @@
       "sql-deployment-configurations",
       "sql-rest-api"
     ],
-   "Tiered storage": [
+   "Tiered Storage": [
      "tiered-storage-overview",
      "tiered-storage-aws",
      "tiered-storage-gcs",
@@ -107,7 +107,7 @@
     "Performance": [
       "performance-pulsar-perf"
     ],
-    "Client libraries": [
+    "Client Libraries": [
       "client-libraries",
       "client-libraries-java",
       "client-libraries-go",
