@@ -111,8 +111,6 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
         Producer<byte[]> producer = null;
         Consumer<byte[]> consumer = null;
 
-        this.pulsar.getBrokerService().getOrCreateTopic(topicString);
-
         producer = pulsarClient.newProducer()
                 .topic(topicString)
                 .create();
