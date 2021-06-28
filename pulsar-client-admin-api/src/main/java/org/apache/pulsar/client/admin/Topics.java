@@ -1350,6 +1350,28 @@ public interface Topics {
     CompletableFuture<Message<byte[]>> getMessageByIdAsync(String topic, long ledgerId, long entryId);
 
     /**
+     * Get message id by timestamp.
+     * @param topic
+     *            Topic name
+     * @param timestamp
+     *            Timestamp
+     * @return MessageId
+     * @throws PulsarAdminException
+     *            Unexpected error
+     */
+    MessageId getMessageIdByTimestamp(String topic, long timestamp) throws PulsarAdminException;
+
+    /**
+     * Get message id by timestamp asynchronously.
+     * @param topic
+     *            Topic name
+     * @param timestamp
+     *            Timestamp
+     * @return a future that can be used to track when the message id is returned.
+     */
+    CompletableFuture<MessageId> getMessageIdByTimestampAsync(String topic, long timestamp);
+
+    /**
      * Create a new subscription on a topic.
      *
      * @param topic

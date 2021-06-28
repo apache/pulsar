@@ -538,6 +538,31 @@ admin.topics().getMessageById(topic, ledgerId, entryId);
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
+### Get message ID 
+
+You can get message id published at or just after the given datetime.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
+```shell
+$ ./bin/pulsar-admin topics get-message-id \
+  persistent://public/default/my-topic \
+  -d 2021-06-28T19:01:17Z
+```
+
+<!--REST API-->
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/messageid/:timestamp|operation/getMessageIdByTimestamp?version=[[pulsar:version_number]]}
+
+<!--Java-->
+```java
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+long timestamp = System.currentTimeMillis()
+admin.topics().getMessageIdByTimestamp(topic, timestamp);
+```
+
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+
 ### Skip messages
 
 You can skip a number of messages for a specific subscription of a given topic in the following ways.

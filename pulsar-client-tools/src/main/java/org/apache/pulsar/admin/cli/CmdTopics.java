@@ -66,6 +66,7 @@ import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
+import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 
 @Parameters(commandDescription = "Operations on persistent topics")
@@ -112,6 +113,7 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("peek-messages", new PeekMessages());
         jcommander.addCommand("examine-messages", new ExamineMessages());
         jcommander.addCommand("get-message-by-id", new GetMessageById());
+        jcommander.addCommand("get-message-id", new GetMessageId());
         jcommander.addCommand("reset-cursor", new ResetCursor());
         jcommander.addCommand("terminate", new Terminate());
         jcommander.addCommand("compact", new Compact());
@@ -925,6 +927,31 @@ public class CmdTopics extends CmdBase {
                 }
                 ByteBuf date = Unpooled.wrappedBuffer(message.getData());
                 System.out.println(ByteBufUtil.prettyHexDump(date));
+            }
+        }
+    }
+
+    @Parameters(commandDescription = "Get message id")
+    private class GetMessageId extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-d", "--datetime" },
+                description = "datetime at or before this messageId. This datetime is in format of ISO_OFFSET_DATE_TIME,"
+                        + " e.g. 2021-06-28T16:53:08Z or 2021-06-28T16:53:08.123456789+08:00",
+                required = true)
+        private String datetime;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+
+            long timestamp = DateFormatter.parse(datetime);
+            MessageId messageId = getTopics().getMessageIdByTimestamp(persistentTopic, timestamp);
+            if (messageId == null) {
+                System.out.println("Cannot find any messages based on timestamp " + timestamp);
+            } else {
+                print(messageId);
             }
         }
     }

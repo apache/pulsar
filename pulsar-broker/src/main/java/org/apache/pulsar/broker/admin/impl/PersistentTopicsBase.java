@@ -51,6 +51,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetadataNotFoundException;
@@ -87,6 +88,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
@@ -2324,6 +2326,61 @@ public class PersistentTopicsBase extends AdminResource {
         } catch (Exception exception) {
             log.error("[{}] Failed to get message with ledgerId {} entryId {} from {}",
                     clientAppId(), ledgerId, entryId, topicName, exception);
+            asyncResponse.resume(new RestException(exception));
+        }
+    }
+
+    protected void internalGetMessageIdByTimestamp(AsyncResponse asyncResponse, long timestamp, boolean authoritative) {
+        try {
+            if (topicName.isGlobal()) {
+                validateGlobalNamespaceOwnership(namespaceName);
+            }
+
+            if (!topicName.isPartitioned() && getPartitionedTopicMetadata(topicName,
+                    authoritative, false).partitions > 0) {
+                throw new RestException(Status.METHOD_NOT_ALLOWED,
+                        "Get message id by timestamp on a partitioned topic is not allowed, "
+                                + "please try do it on specific topic partition");
+            }
+
+            validateTopicOwnership(topicName, authoritative);
+            validateTopicOperation(topicName, TopicOperation.PEEK_MESSAGES);
+
+            Topic topic = getTopicReference(topicName);
+            if (!(topic instanceof PersistentTopic)) {
+                log.error("[{}] Not supported operation of non-persistent topic {} ", clientAppId(), topicName);
+                throw new RestException(Status.METHOD_NOT_ALLOWED,
+                        "Get message id by timestamp on a non-persistent topic is not allowed");
+            }
+
+            ManagedLedger ledger = ((PersistentTopic) topic).getManagedLedger();
+            ledger.asyncFindPosition(entry -> {
+                MessageImpl<byte[]> msg = null;
+                try {
+                    msg = MessageImpl.deserializeBrokerEntryMetaDataFirst(entry.getDataBuffer());
+                    return msg.publishedEarlierThan(timestamp);
+                } catch (Exception e) {
+                    log.error("[{}] Error deserializing message for message position find", topicName, e);
+                } finally {
+                    entry.release();
+                    if (msg != null) {
+                        msg.recycle();
+                    }
+                }
+                return false;
+            }).whenComplete((position, throwable) -> {
+                if (throwable != null) {
+                    asyncResponse.resume(new RestException(throwable));
+                } else if (position == null) {
+                    asyncResponse.resume(new RestException(Status.NOT_FOUND, "Message id not found"));
+                } else {
+                    asyncResponse.resume(new MessageIdImpl(position.getLedgerId(), position.getEntryId(),
+                            topicName.getPartitionIndex()));
+                }
+            });
+        } catch (Exception exception) {
+            log.error("[{}] Failed to get message id by timestamp {} from {}",
+                    clientAppId(), timestamp, topicName, exception);
             asyncResponse.resume(new RestException(exception));
         }
     }
