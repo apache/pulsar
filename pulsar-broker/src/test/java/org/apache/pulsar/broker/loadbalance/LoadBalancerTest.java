@@ -303,7 +303,7 @@ public class LoadBalancerTest {
      * bottleneck, for the 4/5th brokers CPU become bottleneck since memory is big enough - non-bundles assigned so all
      * idle resources are available for new bundle Check the broker rankings are the load percentage of each broker.
      */
-    @Test
+    @Test(timeOut = 30000)
     public void testBrokerRanking() throws Exception {
         for (int i = 0; i < BROKER_COUNT; i++) {
             LoadReport lr = new LoadReport();
@@ -322,7 +322,7 @@ public class LoadBalancerTest {
 
         for (int i = 0; i < BROKER_COUNT; i++) {
             Method updateRanking = Whitebox.getMethod(SimpleLoadManagerImpl.class, "updateRanking");
-            updateRanking.invoke(pulsarServices[0].getLoadManager().get());
+            updateRanking.invoke(pulsarServices[i].getLoadManager().get());
         }
 
         // check the ranking result
