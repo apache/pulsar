@@ -234,14 +234,14 @@ REST API 中 <code>:schema</code> 分为 persistent（持久化）和 non-persis
 <ul>
 <li><p><strong>entriesAddedCounter</strong>：自此 broker 加载该主题以来发布的消息总量。</p></li>
 <li><p><strong>numberOfEntries</strong>：追踪消息的总数。</p></li>
-<li><p><strong>totalSize</strong>: The total storage size in bytes of all messages.</p></li>
-<li><p><strong>currentLedgerEntries</strong>: The count of messages written to the ledger that is currently open for writing.</p></li>
-<li><p><strong>currentLedgerSize</strong>: The size in bytes of messages written to the ledger that is currently open for writing.</p></li>
-<li><p><strong>lastLedgerCreatedTimestamp</strong>: The time when the last ledger is created.</p></li>
-<li><p><strong>lastLedgerCreationFailureTimestamp:</strong> The time when the last ledger failed.</p></li>
-<li><p><strong>waitingCursorsCount</strong>: The number of cursors that are &quot;caught up&quot; and waiting for a new message to be published.</p></li>
-<li><p><strong>pendingAddEntriesCount</strong>: The number of messages that complete (asynchronous) write requests.</p></li>
-<li><p><strong>lastConfirmedEntry</strong>: The ledgerid:entryid of the last message that is written successfully. If the entryid is <code>-1</code>, then the ledger is open, yet no entries are written.</p></li>
+<li><p><strong>totalSize</strong>：消息的总存储大小（以字节为单位）。</p></li>
+<li><p><strong>currentLedgerEntries</strong>：当前打开写入操作的 ledger 中，写入的消息总数。</p></li>
+<li><p><strong>currentLedgerSize</strong>：当前打开写入操作的 ledger 中，写入的消息字节大小。</p></li>
+<li><p><strong>lastLedgerCreatedTimestamp</strong>：最后一个 ledger 创建的时间。</p></li>
+<li><p><strong>lastLedgerCreationFailureTimestamp:</strong> 最后一个 ledger 失败的时间。</p></li>
+<li><p><strong>waitingCursorsCount</strong>：等待新消息发布并标记为 &quot;caught up&quot;的游标数量。</p></li>
+<li><p><strong>pendingAddEntriesCount</strong>：完成（异步）写请求的消息数。</p></li>
+<li><p><strong>lastConfirmedEntry</strong>：最后一条成功写入消息的 ledger:entryid。 如果 entryid 为 <code>-1</code>，即 ledger 是开启状态，但没有写入任何的 entry 。</p></li>
 <li><p><strong>state</strong>: The state of this ledger for writing. The state <code>LedgerOpened</code> means that a ledger is open for saving published messages.</p></li>
 <li><p><strong>ledgers</strong>: The ordered list of all ledgers for this topic holding messages.</p>
 <ul>
