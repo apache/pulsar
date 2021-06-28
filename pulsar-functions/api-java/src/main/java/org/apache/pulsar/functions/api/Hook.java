@@ -25,14 +25,14 @@ import org.apache.pulsar.common.classification.InterfaceAudience;
  * Initial and close of external resources
  */
 @InterfaceAudience.Public
-public interface Hook {
+public interface Hook extends Function{
 
     /**
      * InitialResource Function Hook
      *
      * @throws Exception
      */
-    void initialResource() throws Exception;
+    void setup() throws Exception;
 
 
     /**
@@ -40,5 +40,5 @@ public interface Hook {
      *
      * @throws Exception
      */
-    void closeResource() throws Exception;
+    void cleanup() throws Exception;
 }
