@@ -28,6 +28,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.SafeRun;
+import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
@@ -179,7 +180,10 @@ public class PersistentStreamingDispatcherSingleActiveConsumer extends Persisten
         }
 
         if (!havePendingRead && consumer.getAvailablePermits() > 0) {
-            int messagesToRead = calculateNumOfMessageToRead(consumer);
+            MutablePair<Integer, Integer> calculateResult = calculateToRead(consumer);
+            int messagesToRead = calculateResult.getLeft();
+            int bytesToRead = calculateResult.getRight();
+
 
             if (-1 == messagesToRead) {
                 // Skip read as topic/dispatcher has exceed the dispatch rate.
@@ -195,8 +199,7 @@ public class PersistentStreamingDispatcherSingleActiveConsumer extends Persisten
             if (consumer.readCompacted()) {
                 topic.getCompactedTopic().asyncReadEntriesOrWait(cursor, messagesToRead, this, consumer);
             } else {
-                streamingEntryReader.asyncReadEntries(messagesToRead, serviceConfig.getDispatcherMaxReadSizeBytes(),
-                        consumer);
+                streamingEntryReader.asyncReadEntries(messagesToRead, bytesToRead, consumer);
             }
         } else {
             if (log.isDebugEnabled()) {

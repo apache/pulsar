@@ -29,6 +29,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.SafeRun;
+import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.streamingdispatch.PendingReadEntryRequest;
@@ -139,8 +140,9 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
         // totalAvailablePermits may be updated by other threads
         int currentTotalAvailablePermits = totalAvailablePermits;
         if (currentTotalAvailablePermits > 0 && isAtleastOneConsumerAvailable()) {
-            int messagesToRead = calculateNumOfMessageToRead(currentTotalAvailablePermits);
-
+            MutablePair<Integer, Integer> calculateResult = calculateToRead(currentTotalAvailablePermits);
+            int messagesToRead = calculateResult.getLeft();
+            int bytesToRead = calculateResult.getRight();
             if (-1 == messagesToRead) {
                 // Skip read as topic/dispatcher has exceed the dispatch rate or previous pending read hasn't complete.
                 return;
@@ -178,7 +180,7 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
                             consumerList.size());
                 }
                 havePendingRead = true;
-                streamingEntryReader.asyncReadEntries(messagesToRead, serviceConfig.getDispatcherMaxReadSizeBytes(),
+                streamingEntryReader.asyncReadEntries(messagesToRead, bytesToRead,
                         ReadType.Normal);
             } else {
                 log.debug("[{}] Cannot schedule next read until previous one is done", name);

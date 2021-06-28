@@ -39,6 +39,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadE
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTracker;
 import org.apache.pulsar.broker.service.AbstractDispatcherMultipleConsumers;
@@ -224,9 +225,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         int firstAvailableConsumerPermits = getFirstAvailableConsumerPermits();
         int currentTotalAvailablePermits = Math.max(totalAvailablePermits, firstAvailableConsumerPermits);
         if (currentTotalAvailablePermits > 0 && firstAvailableConsumerPermits > 0) {
-            int messagesToRead = calculateNumOfMessageToRead(currentTotalAvailablePermits);
+            MutablePair<Integer, Integer> calculateResult = calculateToRead(currentTotalAvailablePermits);
+            int messagesToRead = calculateResult.getLeft();
+            int bytesToRead = calculateResult.getRight();
 
-            if (-1 == messagesToRead) {
+            if (-1 == messagesToRead || bytesToRead == -1) {
                 // Skip read as topic/dispatcher has exceed the dispatch rate or previous pending read hasn't complete.
                 return;
             }
@@ -263,8 +266,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                             consumerList.size());
                 }
                 havePendingRead = true;
-                cursor.asyncReadEntriesOrWait(messagesToRead, serviceConfig.getDispatcherMaxReadSizeBytes(),
-                        this,
+                cursor.asyncReadEntriesOrWait(messagesToRead, bytesToRead, this,
                         ReadType.Normal, topic.getMaxReadPosition());
             } else {
                 log.debug("[{}] Cannot schedule next read until previous one is done", name);
@@ -276,8 +278,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         }
     }
 
-    protected int calculateNumOfMessageToRead(int currentTotalAvailablePermits) {
+    // left pair is messagesToRead, right pair is bytesToRead
+    protected MutablePair<Integer, Integer> calculateToRead(int currentTotalAvailablePermits) {
         int messagesToRead = Math.min(currentTotalAvailablePermits, readBatchSize);
+        int bytesToRead = serviceConfig.getDispatcherMaxReadSizeBytes();
 
         Consumer c = getRandomConsumer();
         // if turn on precise dispatcher flow control, adjust the record to read
@@ -310,13 +314,19 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                     }
                     topic.getBrokerService().executor().schedule(() -> readMoreEntries(), MESSAGE_RATE_BACKOFF_MS,
                             TimeUnit.MILLISECONDS);
-                    return -1;
+                    return new MutablePair<>(-1, -1);
                 } else {
                     // if dispatch-rate is in msg then read only msg according to available permit
                     long availablePermitsOnMsg = topicRateLimiter.getAvailableDispatchRateLimitOnMsg();
                     if (availablePermitsOnMsg > 0) {
                         messagesToRead = Math.min(messagesToRead, (int) availablePermitsOnMsg);
                     }
+
+                    long availablePermitsOnByte = topicRateLimiter.getAvailableDispatchRateLimitOnByte();
+                    if (availablePermitsOnByte > 0) {
+                        bytesToRead = (int) availablePermitsOnByte;
+                    }
+
                 }
             }
 
@@ -331,12 +341,17 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                     }
                     topic.getBrokerService().executor().schedule(() -> readMoreEntries(), MESSAGE_RATE_BACKOFF_MS,
                             TimeUnit.MILLISECONDS);
-                    return -1;
+                    return new MutablePair<>(-1, -1);
                 } else {
                     // if dispatch-rate is in msg then read only msg according to available permit
                     long availablePermitsOnMsg = dispatchRateLimiter.get().getAvailableDispatchRateLimitOnMsg();
                     if (availablePermitsOnMsg > 0) {
                         messagesToRead = Math.min(messagesToRead, (int) availablePermitsOnMsg);
+                    }
+
+                    long availablePermitsOnByte = dispatchRateLimiter.get().getAvailableDispatchRateLimitOnByte();
+                    if (availablePermitsOnByte > 0) {
+                        bytesToRead = (int) availablePermitsOnByte;
                     }
                 }
             }
@@ -347,11 +362,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Skipping replay while awaiting previous read to complete", name);
             }
-            return -1;
+            return new MutablePair<>(-1, -1);
         }
 
         // If messagesToRead is 0 or less, correct it to 1 to prevent IllegalArgumentException
-        return Math.max(messagesToRead, 1);
+        return new MutablePair<>(Math.max(messagesToRead, 1), Math.max(bytesToRead, 1));
     }
 
     protected Set<? extends Position> asyncReplayEntries(Set<? extends Position> positions) {
