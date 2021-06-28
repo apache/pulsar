@@ -229,6 +229,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private final ScheduledExecutorService messageExpiryMonitor;
     private final ScheduledExecutorService compactionMonitor;
     private final ScheduledExecutorService consumedLedgersMonitor;
+    private ScheduledExecutorService transactionBufferDeleteMarkerMonitor;
     private ScheduledExecutorService topicPublishRateLimiterMonitor;
     private ScheduledExecutorService brokerPublishRateLimiterMonitor;
     private ScheduledExecutorService deduplicationSnapshotMonitor;
@@ -447,6 +448,13 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             }
         }
 
+        if (pulsar.getConfiguration().isTransactionCoordinatorEnabled()) {
+            this.transactionBufferDeleteMarkerMonitor = Executors
+                    .newSingleThreadScheduledExecutor(
+                            new DefaultThreadFactory("pulsar-transaction-delete-marker-monitor"));
+            this.startTransactionBufferDeleteMarkerMonitor();
+        }
+
         // start other housekeeping functions
         this.startStatsUpdater(
                 serviceConfig.getStatsUpdateInitialDelayInSecs(),
@@ -506,10 +514,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }
     }
 
-    protected void startMessageExpiryMonitor() {
-        int interval = pulsar().getConfiguration().getMessageExpiryCheckIntervalInMinutes();
-        messageExpiryMonitor.scheduleAtFixedRate(safeRun(this::checkMessageExpiry), interval, interval,
-                TimeUnit.MINUTES);
+    protected void startTransactionBufferDeleteMarkerMonitor() {
+        int interval = pulsar().getConfiguration().getTransactionDeleteMarkerIntervalInSecond();
+        transactionBufferDeleteMarkerMonitor.scheduleAtFixedRate(safeRun(this::checkDeleteTransactionMarker),
+                interval, interval, TimeUnit.SECONDS);
     }
 
     protected void startCheckReplicationPolicies() {
@@ -518,6 +526,12 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             messageExpiryMonitor.scheduleAtFixedRate(safeRun(this::checkReplicationPolicies), interval, interval,
                     TimeUnit.SECONDS);
         }
+    }
+
+    protected void startMessageExpiryMonitor() {
+        int interval = pulsar().getConfiguration().getMessageExpiryCheckIntervalInMinutes();
+        messageExpiryMonitor.scheduleAtFixedRate(safeRun(this::checkMessageExpiry), interval, interval,
+                TimeUnit.MINUTES);
     }
 
     protected void startCompactionMonitor() {
@@ -1530,6 +1544,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     public void checkMessageExpiry() {
         forEachTopic(Topic::checkMessageExpiry);
+    }
+
+    public void checkDeleteTransactionMarker() {
+        forEachTopic(Topic::checkTransactionDeleteMarker);
     }
 
     public void checkReplicationPolicies() {

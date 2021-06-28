@@ -1338,6 +1338,11 @@ public class PersistentTopic extends AbstractTopic
     }
 
     @Override
+    public void checkTransactionDeleteMarker() {
+        subscriptions.forEach((k, v) -> v.checkDeleteTransactionMarker());
+    }
+
+    @Override
     public void checkMessageDeduplicationInfo() {
         messageDeduplication.purgeInactiveProducers();
     }

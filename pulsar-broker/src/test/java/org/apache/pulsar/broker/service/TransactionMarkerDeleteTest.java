@@ -29,9 +29,11 @@ import static org.testng.Assert.assertTrue;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.collect.Sets;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
@@ -41,9 +43,13 @@ import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.MarkersMessageIdData;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.protocol.Markers;
+import org.apache.pulsar.common.util.collections.LongPairRangeSet;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -55,8 +61,13 @@ public class TransactionMarkerDeleteTest extends BrokerTestBase{
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
+        conf.setTransactionDeleteMarkerIntervalInSecond(3);
         conf.setTransactionCoordinatorEnabled(true);
         super.baseSetup();
+        admin.tenants().createTenant("public",
+                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
+
+        admin.namespaces().createNamespace("public/default");
     }
 
     @AfterMethod(alwaysRun = true)
@@ -120,5 +131,29 @@ public class TransactionMarkerDeleteTest extends BrokerTestBase{
         persistentSubscription.acknowledgeMessage(Collections.singletonList(position),
                 AckType.Individual, Collections.emptyMap());
         verify(managedLedger, times(0)).asyncReadEntry(any(), any(), any());
+    }
+
+    @Test
+    public void testTransactionMarkerDeleteMonitor() throws Exception {
+
+        admin.topics().createNonPartitionedTopic("test");
+        PersistentTopic topic = (PersistentTopic) getPulsar().getBrokerService()
+                .getTopic(TopicName.get("test").toString(), true).get().get();
+
+        PersistentSubscription persistentSubscription = (PersistentSubscription) topic.createSubscription(
+                "test", CommandSubscribe.InitialPosition.Earliest, false).get();
+
+        ManagedLedger managedLedger = topic.getManagedLedger();
+        ManagedCursor cursor = persistentSubscription.getCursor();
+
+        LongPairRangeSet<PositionImpl> set = ((ManagedCursorImpl) cursor).getIndividuallyDeletedMessagesSet();
+        set.addOpenClosed(Long.MAX_VALUE - 1, Long.MAX_VALUE - 1, Long.MAX_VALUE, Long.MAX_VALUE);
+
+        Position position = managedLedger.addEntry(Markers
+                .newTxnCommitMarker(1, 1, 1).array());
+
+        Awaitility.await().during(4, TimeUnit.SECONDS).until(() ->
+                ((PositionImpl) persistentSubscription.getCursor().getMarkDeletedPosition())
+                        .compareTo((PositionImpl) position) == 0);
     }
 }
