@@ -1934,7 +1934,7 @@ public class PersistentTopicsBase extends AdminResource {
                                        boolean authoritative) {
         try {
             validateTopicOwnership(topicName, authoritative);
-            validateTopicOperation(topicName, TopicOperation.RESET_CURSOR);
+            validateTopicOperation(topicName, TopicOperation.RESET_CURSOR, subName);
 
             log.info("[{}] [{}] Received reset cursor on subscription {} to time {}",
                     clientAppId(), topicName, subName, timestamp);
@@ -2157,7 +2157,7 @@ public class PersistentTopicsBase extends AdminResource {
             return;
         } else {
             validateTopicOwnership(topicName, authoritative);
-            validateTopicOperation(topicName, TopicOperation.RESET_CURSOR);
+            validateTopicOperation(topicName, TopicOperation.RESET_CURSOR, subName);
 
             PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
             if (topic == null) {
