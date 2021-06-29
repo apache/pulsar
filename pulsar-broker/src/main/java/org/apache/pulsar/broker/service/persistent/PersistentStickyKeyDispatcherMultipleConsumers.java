@@ -123,7 +123,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     public synchronized void removeConsumer(Consumer consumer) throws BrokerServiceException {
         // The consumer must be removed from the selector before calling the superclass removeConsumer method.
         // In the superclass removeConsumer method, the pending acks that the consumer has are added to
-        // messagesToRedeliver. If the consumer has not been removed from the selector at this point,
+        // redeliveryMessages. If the consumer has not been removed from the selector at this point,
         // the broker will try to redeliver the messages to the consumer that has already been closed.
         // As a result, the messages are not redelivered to any consumer, and the mark-delete position does not move,
         // eventually causing all consumers to get stuck.
@@ -144,14 +144,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             new FastThreadLocal<Map<Consumer, List<Entry>>>() {
                 @Override
                 protected Map<Consumer, List<Entry>> initialValue() throws Exception {
-                    return new HashMap<>();
-                }
-            };
-
-    private static final FastThreadLocal<Map<Consumer, Set<Integer>>> localConsumerStickyKeyHashesMap =
-            new FastThreadLocal<Map<Consumer, Set<Integer>>>() {
-                @Override
-                protected Map<Consumer, Set<Integer>> initialValue() throws Exception {
                     return new HashMap<>();
                 }
             };
@@ -178,8 +170,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
         final Map<Consumer, List<Entry>> groupedEntries = localGroupedEntries.get();
         groupedEntries.clear();
-        final Map<Consumer, Set<Integer>> consumerStickyKeyHashesMap = localConsumerStickyKeyHashesMap.get();
-        consumerStickyKeyHashesMap.clear();
+        final Map<Consumer, Set<Integer>> consumerStickyKeyHashesMap = new HashMap<>();
 
         for (Entry entry : entries) {
             int stickyKeyHash = getStickyKeyHash(entry);
