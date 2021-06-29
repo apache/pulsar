@@ -1,6 +1,10 @@
 function getCliByVersion(){
     var params = window.location.search
     var latestVersion = document.getElementById("latestVersion").textContent
+    var clientModule = document.getElementById("clientModule").textContent
+    if (!clientModule) {
+        clientModule = "pulsar-admin"
+    }
     params = params.replace('?', '')
     const paramsList = params.split('&')
     var version = 'master'
@@ -18,18 +22,26 @@ function getCliByVersion(){
     var versions = version.split('.')
     var majorVersion = parseInt(versions[0])
     var minorVersion = parseInt(versions[1])
-    if ((majorVersion == 2 && minorVersion <= 5) || majorVersion === 1) {
-        if (version === latestVersion) {
-            window.location.href = "/docs/en/pulsar-admin"
-            return
+    var minMinorVersion = 5
+    var referenceLink = "/pulsar-admin"
+    if (clientModule === "pulsar-client") {
+        minMinorVersion = 7
+        referenceLink = "/reference-cli-tools/#pulsar-client"
+    }
+    if (clientModule === "pulsar-admin") {
+        if ((majorVersion == 2 && minorVersion <= minMinorVersion) || majorVersion === 1) {
+            if (version === latestVersion) {
+                window.location.href = "/docs/en" + referenceLink
+                return
+            } else {
+                window.location.href = "/docs/en/" + version + referenceLink
+                return
+            }
         } else {
-            window.location.href = "/docs/en/" + version + "/pulsar-admin"
+            version = parseInt(versions[0]) + "." + parseInt(versions[1]) + ".0"
+            window.location.href = "http://pulsar.apache.org/tools/ + " + clientModule + "/" + version + "-SNAPSHOT"
             return
         }
-    } else {
-        version = parseInt(versions[0]) + "." + parseInt(versions[1]) + ".0"
-        window.location.href = "http://pulsar.apache.org/tools/pulsar-admin/" + version + "-SNAPSHOT"
-        return
     }
 }
 window.onload=getCliByVersion

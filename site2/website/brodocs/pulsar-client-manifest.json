@@ -1,0 +1,9 @@
+{
+  "docs": [
+    {
+      "filename": "pulsar-client.md"
+    }
+  ],
+  "title": "Docs",
+  "copyright": "<a href='http://pulsar.apache.org/'>Apache Pulsar</a>"
+}
