@@ -193,6 +193,8 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
                 Sets.newHashSet(AuthAction.consume, AuthAction.produce));
         admin.namespaces().grantPermissionOnNamespace(namespaceName, "client",
                 Sets.newHashSet(AuthAction.consume, AuthAction.produce));
+        admin.namespaces().grantPermissionOnSubscription(namespaceName, subscriptionName,
+                Sets.newHashSet("proxy", "client"));
 
         // Step 2: Try to use proxy Client as a normal Client - expect exception
         PulsarClient proxyClient = createPulsarClient(pulsar.getBrokerServiceUrl(), proxyAuthParams);
