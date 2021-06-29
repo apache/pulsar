@@ -159,6 +159,8 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
             // excepted
             admin.namespaces().grantPermissionOnNamespace(namespaceName, CLIENT_ROLE,
                     Sets.newHashSet(AuthAction.consume));
+            admin.namespaces().grantPermissionOnSubscription(namespaceName, "my-subscriber-name",
+                    Sets.newHashSet(CLIENT_ROLE));
             log.info("-- Admin permissions {} ---", admin.namespaces().getPermissions(namespaceName));
             consumer = proxyClient.newConsumer()
                     .topic("persistent://my-property/proxy-authorization/my-ns/my-topic1")
