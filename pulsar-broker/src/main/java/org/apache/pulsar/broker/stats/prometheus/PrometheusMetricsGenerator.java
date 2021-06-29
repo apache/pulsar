@@ -101,8 +101,11 @@ public class PrometheusMetricsGenerator {
 
             NamespaceStatsAggregator.generate(pulsar, includeTopicMetrics, includeConsumerMetrics, stream);
 
-            FunctionsStatsGenerator.generate(pulsar.getWorkerService(),
-                    pulsar.getConfiguration().getClusterName(), stream);
+            try {
+                FunctionsStatsGenerator.generate(pulsar.getWorkerService(),
+                        pulsar.getConfiguration().getClusterName(), stream);
+            } catch (UnsupportedOperationException ignore) {
+            }
 
             generateBrokerBasicMetrics(pulsar, stream);
 
