@@ -5,7 +5,7 @@ const Container = CompLibrary.Container;
 const CWD = process.cwd();
 const releases = require(`${CWD}/releases.json`);
 
-class PulsarAdminCli extends React.Component {
+class PulsarClientCli extends React.Component {
     render() {
         const latestVersion = releases[0];
         const url = "../js/getCliByVersion.js?latestVersion=" + latestVersion;
@@ -13,12 +13,12 @@ class PulsarAdminCli extends React.Component {
             <div className="pageContainer">
             <Container className="mainContainer documentContainer postContainer" >
             <span id="latestVersion" style={{display:'none'}}>{latestVersion}</span>
-            <span id="clientModule" style={{display: 'none'}}>pulsar-admin</span>
-            <script src={url}></script>
+            <span id="clientModule" style={{display: 'none'}}>pulsar-client</span>
+        <script src={url}></script>
             </Container>
             </div>
     );
     }
 }
 
-module.exports = PulsarAdminCli;
+module.exports = PulsarClientCli;
