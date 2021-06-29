@@ -120,6 +120,10 @@ public abstract class AbstractTopic implements Topic {
             AtomicLongFieldUpdater.newUpdater(AbstractTopic.class, "usageCount");
     private volatile long usageCount = 0;
 
+    private volatile int topicMaxMessageSize = 0;
+    private volatile long lastTopicMaxMessageSizeCheckTimeStamp = 0;
+    private final long topicMaxMessageSizeCheckIntervalMs;
+
     public AbstractTopic(String topic, BrokerService brokerService) {
         this.topic = topic;
         this.brokerService = brokerService;
@@ -132,6 +136,8 @@ public abstract class AbstractTopic implements Topic {
                 .getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds());
         this.inactiveTopicPolicies.setInactiveTopicDeleteMode(brokerService.pulsar().getConfiguration()
                 .getBrokerDeleteInactiveTopicsMode());
+        this.topicMaxMessageSizeCheckIntervalMs = TimeUnit.SECONDS.toMillis(brokerService.pulsar().getConfiguration()
+                .getMaxMessageSizeCheckIntervalInSeconds());
         this.lastActive = System.nanoTime();
         Policies policies = null;
         try {
@@ -853,14 +859,16 @@ public abstract class AbstractTopic implements Topic {
     }
 
     protected boolean isExceedMaximumMessageSize(int size) {
-        return getTopicPolicies()
-                .map(TopicPolicies::getMaxMessageSize)
-                .map(maxMessageSize -> {
-                    if (maxMessageSize == 0) {
-                        return false;
-                    }
-                    return size > maxMessageSize;
-                }).orElse(false);
+        if (lastTopicMaxMessageSizeCheckTimeStamp + topicMaxMessageSizeCheckIntervalMs < System.currentTimeMillis()) {
+            // refresh topicMaxMessageSize from topic policies
+            topicMaxMessageSize = getTopicPolicies().map(TopicPolicies::getMaxMessageSize).orElse(0);
+            lastTopicMaxMessageSizeCheckTimeStamp = System.currentTimeMillis();
+        }
+
+        if (topicMaxMessageSize == 0) {
+            return false;
+        }
+        return size > topicMaxMessageSize;
     }
 
     /**

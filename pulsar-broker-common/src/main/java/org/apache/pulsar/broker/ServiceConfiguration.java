@@ -918,6 +918,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
+            doc = "Check between intervals to see if max message size of topic policy has updated. default is 60s"
+    )
+    private int maxMessageSizeCheckIntervalInSeconds = 60;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
             doc = "The number of partitions per partitioned topic.\n"
                 + "If try to create or update partitioned topics by exceeded number of partitions, then fail."
     )
