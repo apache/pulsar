@@ -161,8 +161,8 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
 
                     return store.put(path, newValue, Optional.of(expectedVersion)).thenAccept(stat -> {
                         // Make sure we have the value cached before the operation is completed
-                        objCache.put(path,
-                                FutureUtils.value(Optional.of(new CacheGetResult<>(newValueObj, stat))));
+                        //objCache.put(path,
+                        //        FutureUtils.value(Optional.of(new CacheGetResult<>(newValueObj, stat))));
                     }).thenApply(__ -> newValueObj);
                 }), path);
     }
@@ -192,8 +192,8 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
 
                     return store.put(path, newValue, Optional.of(expectedVersion)).thenAccept(stat -> {
                         // Make sure we have the value cached before the operation is completed
-                        objCache.put(path,
-                                FutureUtils.value(Optional.of(new CacheGetResult<>(newValueObj, stat))));
+                        //objCache.put(path,
+                        //        FutureUtils.value(Optional.of(new CacheGetResult<>(newValueObj, stat))));
                     }).thenApply(__ -> newValueObj);
                 }), path);
     }
