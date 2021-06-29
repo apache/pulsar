@@ -4,13 +4,23 @@ title: Managing Namespaces
 sidebar_label: Namespaces
 ---
 
+> **Important**
+>
+> This page only shows **some frequently used operations**.
+>
+> - For the latest and complete information about `pulsar-admin`, including commands, flags, descriptions, and more, see [here](http://pulsar.apache.org/tools/pulsar-admin/).
+> 
+> - For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see [here]{@inject: rest:REST:/}.
+> 
+> - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [here](https://pulsar.apache.org/api/admin/).
+
 Pulsar [namespaces](reference-terminology.md#namespace) are logical groupings of [topics](reference-terminology.md#topic).
 
 Namespaces can be managed via:
 
-* The [`namespaces`](reference-pulsar-admin.md#clusters) command of the [`pulsar-admin`](reference-pulsar-admin.md) tool
+* The `namespaces` command of the [`pulsar-admin`](http://pulsar.apache.org/tools/pulsar-admin/) tool
 * The `/admin/v2/namespaces` endpoint of the admin {@inject: rest:REST:/} API
-* The `namespaces` method of the {@inject: javadoc:PulsarAdmin:/admin/org/apache/pulsar/client/admin/PulsarAdmin} object in the [Java API](client-libraries-java.md)
+* The `namespaces` method of the `PulsarAdmin` object in the [Java API](client-libraries-java.md)
 
 ## Namespaces resources
 
@@ -905,7 +915,7 @@ admin.namespaces().removeDeduplicationSnapshotInterval(namespace)
 
 ### Namespace isolation
 
-Coming soon.
+You can use the Pulsar isolation policy to allocate resources (broker and bookie) for a namespace. For more information, see [here](administration-isolation.md).
 
 ### Unload namespaces from a broker
 
