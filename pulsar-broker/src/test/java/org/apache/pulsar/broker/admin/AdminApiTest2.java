@@ -82,6 +82,7 @@ import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataImpl;
+import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.FailureDomain;
@@ -2043,6 +2044,40 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         assertEquals(admin.namespaces().getProperties(namespace), properties);
         admin.namespaces().clearProperties(namespace);
         assertEquals(admin.namespaces().getProperties(namespace).size(), 0);
+    }
+
+    @Test
+    public void testGetListInBundle() throws Exception {
+        final String namespace = "prop-xyz/ns11";
+        admin.namespaces().createNamespace(namespace, 3);
+
+        final String persistentTopicName = TopicName.get(
+                "persistent", NamespaceName.get(namespace),
+                "get_topics_mode_" + UUID.randomUUID()).toString();
+
+        final String nonPersistentTopicName = TopicName.get(
+                "non-persistent", NamespaceName.get(namespace),
+                "get_topics_mode_" + UUID.randomUUID()).toString();
+        admin.topics().createPartitionedTopic(persistentTopicName, 3);
+        admin.topics().createPartitionedTopic(nonPersistentTopicName, 3);
+        pulsarClient.newProducer().topic(persistentTopicName).create().close();
+        pulsarClient.newProducer().topic(nonPersistentTopicName).create().close();
+
+        BundlesData bundlesData = admin.namespaces().getBundles(namespace);
+        List<String> boundaries = bundlesData.getBoundaries();
+        int topicNum = 0;
+        for (int i = 0; i < boundaries.size() - 1; i++) {
+            String bundle = String.format("%s_%s", boundaries.get(i), boundaries.get(i + 1));
+            List<String> topic = admin.topics().getListInBundle(namespace, bundle);
+            if (topic == null) {
+                continue;
+            }
+            topicNum += topic.size();
+            for (String s : topic) {
+                assertFalse(TopicName.get(s).isPersistent());
+            }
+        }
+        assertEquals(topicNum, 3);
     }
 
     @Test
