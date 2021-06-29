@@ -414,6 +414,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
      */
     @Test(dataProvider = "subscriptions", timeOut = 5000)
     public void testBytesRateLimitingReceiveAllMessagesAfterThrottling(SubscriptionType subscription) throws Exception {
+        conf.setDispatchThrottlingOnNonBacklogConsumerEnabled(true);
         log.info("-- Starting {} test --", methodName);
 
         final String namespace = "my-property/throttling_ns";
@@ -440,6 +441,10 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         final AtomicInteger totalReceived = new AtomicInteger(0);
 
+        for (int i = 0; i < numProducedMessages; i++) {
+            producer.send(new byte[99]);
+        }
+
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
                 .subscriptionType(subscription).messageListener((c1, msg) -> {
                     Assert.assertNotNull(msg, "Message cannot be null");
@@ -447,13 +452,6 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
                     log.debug("Received message [{}] in the listener", receivedMessage);
                     totalReceived.incrementAndGet();
                 }).subscribe();
-
-        // deactive cursors
-        deactiveCursors((ManagedLedgerImpl) topic.getManagedLedger());
-
-        for (int i = 0; i < numProducedMessages; i++) {
-            producer.send(new byte[99]);
-        }
 
         Awaitility.await().atLeast(3, TimeUnit.SECONDS)
                 .atMost(5, TimeUnit.SECONDS).until(() -> totalReceived.get() > 6 && totalReceived.get() < 10);

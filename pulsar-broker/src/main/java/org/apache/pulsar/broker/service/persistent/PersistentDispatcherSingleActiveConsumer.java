@@ -34,8 +34,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadE
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.SafeRun;
-import org.apache.commons.lang3.tuple.MutablePair;
-import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.service.AbstractDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
@@ -68,19 +67,18 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     protected volatile int readBatchSize;
     protected final Backoff readFailureBackoff = new Backoff(15, TimeUnit.SECONDS,
             1, TimeUnit.MINUTES, 0, TimeUnit.MILLISECONDS);
-    protected final ServiceConfiguration serviceConfig;
     private volatile ScheduledFuture<?> readOnActiveConsumerTask = null;
 
     private final RedeliveryTracker redeliveryTracker;
 
     public PersistentDispatcherSingleActiveConsumer(ManagedCursor cursor, SubType subscriptionType, int partitionIndex,
                                                     PersistentTopic topic, Subscription subscription) {
-        super(subscriptionType, partitionIndex, topic.getName(), subscription);
+        super(subscriptionType, partitionIndex, topic.getName(), subscription,
+                topic.getBrokerService().pulsar().getConfiguration());
         this.topic = topic;
         this.name = topic.getName() + " / " + (cursor.getName() != null ? Codec.decode(cursor.getName())
                 : ""/* NonDurableCursor doesn't have name */);
         this.cursor = cursor;
-        this.serviceConfig = topic.getBrokerService().pulsar().getConfiguration();
         this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
         this.redeliveryTracker = RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
         this.initializeDispatchRateLimiterIfNeeded(Optional.empty());
@@ -325,7 +323,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         }
 
         if (consumer.getAvailablePermits() > 0) {
-            MutablePair<Integer, Integer> calculateResult = calculateToRead(consumer);
+            Pair<Integer, Integer> calculateResult = calculateToRead(consumer);
             int messagesToRead = calculateResult.getLeft();
             int bytesToRead = calculateResult.getRight();
 
@@ -352,7 +350,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         }
     }
 
-    protected MutablePair<Integer, Integer> calculateToRead(Consumer consumer) {
+    protected Pair<Integer, Integer> calculateToRead(Consumer consumer) {
         int availablePermits = consumer.getAvailablePermits();
         if (!consumer.isWritable()) {
             // If the connection is not currently writable, we issue the read request anyway, but for a single
@@ -395,18 +393,16 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                             }
                         }
                     }, MESSAGE_RATE_BACKOFF_MS, TimeUnit.MILLISECONDS);
-                    return MutablePair.of(-1, -1);
+                    return Pair.of(-1, -1);
                 } else {
-                    // if dispatch-rate is in msg then read only msg according to available permit
-                    long availablePermitsOnMsg = topicRateLimiter.getAvailableDispatchRateLimitOnMsg();
-                    if (availablePermitsOnMsg > 0) {
-                        messagesToRead = Math.min(messagesToRead, (int) availablePermitsOnMsg);
-                    }
 
-                    long availablePermitsOnByte = topicRateLimiter.getAvailableDispatchRateLimitOnByte();
-                    if (availablePermitsOnByte > 0) {
-                        bytesToRead = (int) availablePermitsOnByte;
-                    }
+                    Pair<Integer, Integer> calculateResult = calculateToRead(messagesToRead,
+                            (int) topicRateLimiter.getAvailableDispatchRateLimitOnMsg(),
+                            (int) topicRateLimiter.getAvailableDispatchRateLimitOnByte(), bytesToRead);
+
+                    messagesToRead = calculateResult.getLeft();
+                    bytesToRead = calculateResult.getRight();
+
                 }
             }
 
@@ -430,24 +426,21 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                             }
                         }
                     }, MESSAGE_RATE_BACKOFF_MS, TimeUnit.MILLISECONDS);
-                    return MutablePair.of(-1, -1);
+                    return Pair.of(-1, -1);
                 } else {
-                    // if dispatch-rate is in msg then read only msg according to available permit
-                    long subPermitsOnMsg = dispatchRateLimiter.get().getAvailableDispatchRateLimitOnMsg();
-                    if (subPermitsOnMsg > 0) {
-                        messagesToRead = Math.min(messagesToRead, (int) subPermitsOnMsg);
-                    }
 
-                    long subPermitsOnByte = dispatchRateLimiter.get().getAvailableDispatchRateLimitOnByte();
-                    if (subPermitsOnByte > 0) {
-                        bytesToRead = (int) subPermitsOnByte;
-                    }
+                    Pair<Integer, Integer> calculateResult = calculateToRead(messagesToRead,
+                            (int) dispatchRateLimiter.get().getAvailableDispatchRateLimitOnMsg(),
+                            (int) dispatchRateLimiter.get().getAvailableDispatchRateLimitOnByte(), bytesToRead);
+
+                    messagesToRead = calculateResult.getLeft();
+                    bytesToRead = calculateResult.getRight();
                 }
             }
         }
 
         // If messagesToRead is 0 or less, correct it to 1 to prevent IllegalArgumentException
-        return new MutablePair<>(Math.max(messagesToRead, 1), Math.max(bytesToRead, 1));
+        return Pair.of(Math.max(messagesToRead, 1), Math.max(bytesToRead, 1));
     }
 
     @Override

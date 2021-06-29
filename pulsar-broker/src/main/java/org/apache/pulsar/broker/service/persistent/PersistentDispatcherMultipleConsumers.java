@@ -40,7 +40,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsExcep
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
-import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTracker;
 import org.apache.pulsar.broker.service.AbstractDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -107,7 +107,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class,
                     "blockedDispatcherOnUnackedMsgs");
-    protected final ServiceConfiguration serviceConfig;
     protected Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
 
     protected enum ReadType {
@@ -116,8 +115,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     public PersistentDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor,
                                                  Subscription subscription) {
-        super(subscription);
-        this.serviceConfig = topic.getBrokerService().pulsar().getConfiguration();
+        super(subscription, topic.getBrokerService().pulsar().getConfiguration());
         this.cursor = cursor;
         this.lastIndividualDeletedRangeFromCursorRecovery = cursor.getLastIndividualDeletedRange();
         this.name = topic.getName() + " / " + Codec.decode(cursor.getName());
@@ -229,7 +227,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             int messagesToRead = calculateResult.getLeft();
             int bytesToRead = calculateResult.getRight();
 
-            if (-1 == messagesToRead || bytesToRead == -1) {
+            if (messagesToRead == -1 || bytesToRead == -1) {
                 // Skip read as topic/dispatcher has exceed the dispatch rate or previous pending read hasn't complete.
                 return;
             }
@@ -316,16 +314,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                             TimeUnit.MILLISECONDS);
                     return new MutablePair<>(-1, -1);
                 } else {
-                    // if dispatch-rate is in msg then read only msg according to available permit
-                    long availablePermitsOnMsg = topicRateLimiter.getAvailableDispatchRateLimitOnMsg();
-                    if (availablePermitsOnMsg > 0) {
-                        messagesToRead = Math.min(messagesToRead, (int) availablePermitsOnMsg);
-                    }
+                    Pair<Integer, Integer> calculateResult = calculateToRead(messagesToRead,
+                            (int) topicRateLimiter.getAvailableDispatchRateLimitOnMsg(),
+                            (int) topicRateLimiter.getAvailableDispatchRateLimitOnByte(), bytesToRead);
 
-                    long availablePermitsOnByte = topicRateLimiter.getAvailableDispatchRateLimitOnByte();
-                    if (availablePermitsOnByte > 0) {
-                        bytesToRead = (int) availablePermitsOnByte;
-                    }
+                    messagesToRead = calculateResult.getLeft();
+                    bytesToRead = calculateResult.getRight();
 
                 }
             }
@@ -343,16 +337,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                             TimeUnit.MILLISECONDS);
                     return new MutablePair<>(-1, -1);
                 } else {
-                    // if dispatch-rate is in msg then read only msg according to available permit
-                    long availablePermitsOnMsg = dispatchRateLimiter.get().getAvailableDispatchRateLimitOnMsg();
-                    if (availablePermitsOnMsg > 0) {
-                        messagesToRead = Math.min(messagesToRead, (int) availablePermitsOnMsg);
-                    }
+                    Pair<Integer, Integer> calculateResult = calculateToRead(messagesToRead,
+                            (int) dispatchRateLimiter.get().getAvailableDispatchRateLimitOnMsg(),
+                            (int) dispatchRateLimiter.get().getAvailableDispatchRateLimitOnByte(), bytesToRead);
 
-                    long availablePermitsOnByte = dispatchRateLimiter.get().getAvailableDispatchRateLimitOnByte();
-                    if (availablePermitsOnByte > 0) {
-                        bytesToRead = (int) availablePermitsOnByte;
-                    }
+                    messagesToRead = calculateResult.getLeft();
+                    bytesToRead = calculateResult.getRight();
                 }
             }
 

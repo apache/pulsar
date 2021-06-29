@@ -143,7 +143,7 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
             MutablePair<Integer, Integer> calculateResult = calculateToRead(currentTotalAvailablePermits);
             int messagesToRead = calculateResult.getLeft();
             int bytesToRead = calculateResult.getRight();
-            if (-1 == messagesToRead) {
+            if (-1 == messagesToRead || bytesToRead == -1) {
                 // Skip read as topic/dispatcher has exceed the dispatch rate or previous pending read hasn't complete.
                 return;
             }
