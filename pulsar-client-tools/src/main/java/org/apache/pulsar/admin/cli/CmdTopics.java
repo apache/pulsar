@@ -931,7 +931,7 @@ public class CmdTopics extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get message id")
+    @Parameters(commandDescription = "Get message ID")
     private class GetMessageId extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;

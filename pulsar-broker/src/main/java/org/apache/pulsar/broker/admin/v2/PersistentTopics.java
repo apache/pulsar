@@ -1517,7 +1517,7 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/messageid/{timestamp}")
-    @ApiOperation(value = "Get message id at or after this absolute timestamp (in ms).")
+    @ApiOperation(value = "Get message ID published at or just after this absolute timestamp (in ms).")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
@@ -1540,12 +1540,21 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("timestamp") long timestamp,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        try {
-            validateTopicName(tenant, namespace, encodedTopic);
-            internalGetMessageIdByTimestamp(asyncResponse, timestamp, authoritative);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalGetMessageIdByTimestamp(timestamp, authoritative)
+                .thenAccept(messageId -> {
+                    if (messageId == null) {
+                        asyncResponse.resume(new RestException(Response.Status.NOT_FOUND, "Message ID not found"));
+                    } else {
+                        asyncResponse.resume(messageId);
+                    }
+                })
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get message ID by timestamp {} from {}",
+                            clientAppId(), timestamp, topicName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET

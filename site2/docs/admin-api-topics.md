@@ -540,7 +540,7 @@ admin.topics().getMessageById(topic, ledgerId, entryId);
 
 ### Get message ID 
 
-You can get message id published at or just after the given datetime.
+You can get message ID published at or just after the given datetime.
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->

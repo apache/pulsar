@@ -2330,7 +2330,7 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    protected void internalGetMessageIdByTimestamp(AsyncResponse asyncResponse, long timestamp, boolean authoritative) {
+    protected CompletableFuture<MessageId> internalGetMessageIdByTimestamp(long timestamp, boolean authoritative) {
         try {
             if (topicName.isGlobal()) {
                 validateGlobalNamespaceOwnership(namespaceName);
@@ -2339,7 +2339,7 @@ public class PersistentTopicsBase extends AdminResource {
             if (!topicName.isPartitioned() && getPartitionedTopicMetadata(topicName,
                     authoritative, false).partitions > 0) {
                 throw new RestException(Status.METHOD_NOT_ALLOWED,
-                        "Get message id by timestamp on a partitioned topic is not allowed, "
+                        "Get message ID by timestamp on a partitioned topic is not allowed, "
                                 + "please try do it on specific topic partition");
             }
 
@@ -2350,11 +2350,11 @@ public class PersistentTopicsBase extends AdminResource {
             if (!(topic instanceof PersistentTopic)) {
                 log.error("[{}] Not supported operation of non-persistent topic {} ", clientAppId(), topicName);
                 throw new RestException(Status.METHOD_NOT_ALLOWED,
-                        "Get message id by timestamp on a non-persistent topic is not allowed");
+                        "Get message ID by timestamp on a non-persistent topic is not allowed");
             }
 
             ManagedLedger ledger = ((PersistentTopic) topic).getManagedLedger();
-            ledger.asyncFindPosition(entry -> {
+            return ledger.asyncFindPosition(entry -> {
                 MessageImpl<byte[]> msg = null;
                 try {
                     msg = MessageImpl.deserializeBrokerEntryMetaDataFirst(entry.getDataBuffer());
@@ -2368,20 +2368,18 @@ public class PersistentTopicsBase extends AdminResource {
                     }
                 }
                 return false;
-            }).whenComplete((position, throwable) -> {
-                if (throwable != null) {
-                    asyncResponse.resume(new RestException(throwable));
-                } else if (position == null) {
-                    asyncResponse.resume(new RestException(Status.NOT_FOUND, "Message id not found"));
+            }).thenApply(position -> {
+                if (position == null) {
+                    return null;
                 } else {
-                    asyncResponse.resume(new MessageIdImpl(position.getLedgerId(), position.getEntryId(),
-                            topicName.getPartitionIndex()));
+                    return new MessageIdImpl(position.getLedgerId(), position.getEntryId(),
+                            topicName.getPartitionIndex());
                 }
             });
+        } catch (WebApplicationException exception) {
+            return FutureUtil.failedFuture(exception);
         } catch (Exception exception) {
-            log.error("[{}] Failed to get message id by timestamp {} from {}",
-                    clientAppId(), timestamp, topicName, exception);
-            asyncResponse.resume(new RestException(exception));
+            return FutureUtil.failedFuture(new RestException(exception));
         }
     }
 
