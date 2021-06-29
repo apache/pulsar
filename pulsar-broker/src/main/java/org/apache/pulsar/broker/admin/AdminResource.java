@@ -50,6 +50,7 @@ import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.admin.internal.TopicsImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.Constants;
@@ -811,7 +812,8 @@ public abstract class AdminResource extends PulsarWebResource {
         return partitionedTopics;
     }
 
-    protected void internalCreatePartitionedTopic(AsyncResponse asyncResponse, int numPartitions) {
+    protected void internalCreatePartitionedTopic(AsyncResponse asyncResponse, int numPartitions,
+                                                  boolean createLocalTopicOnly) {
         final int maxPartitions = pulsar().getConfig().getMaxNumPartitionsPerPartitionedTopic();
         try {
             validateAdminAccessForTenant(topicName.getTenant());
@@ -828,56 +830,103 @@ public abstract class AdminResource extends PulsarWebResource {
             asyncResponse.resume(new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be less than or equal to " + maxPartitions));
             return;
         }
+
+        List<CompletableFuture<Void>> createFutureList = new ArrayList<>();
+
+        CompletableFuture<Void> createLocalFuture = new CompletableFuture<>();
+        createFutureList.add(createLocalFuture);
+
         checkTopicExistsAsync(topicName).thenAccept(exists -> {
             if (exists) {
                 log.warn("[{}] Failed to create already existing topic {}", clientAppId(), topicName);
-                asyncResponse.resume(new RestException(Status.CONFLICT, "This topic already exists"));
-            } else {
-
-                try {
-                    String path = ZkAdminPaths.partitionedTopicPath(topicName);
-                    byte[] data = jsonMapper().writeValueAsBytes(new PartitionedTopicMetadata(numPartitions));
-                    zkCreateOptimisticAsync(globalZk(), path, data, (rc, s, o, s1) -> {
-                        if (KeeperException.Code.OK.intValue() == rc) {
-                            globalZk().sync(path, (rc2, s2, ctx) -> {
-                                if (KeeperException.Code.OK.intValue() == rc2) {
-                                    log.info("[{}] Successfully created partitioned topic {}", clientAppId(), topicName);
-                                    tryCreatePartitionsAsync(numPartitions).thenAccept(v -> {
-                                        log.info("[{}] Successfully created partitions for topic {}", clientAppId(), topicName);
-                                        asyncResponse.resume(Response.noContent().build());
-                                    }).exceptionally(e -> {
-                                        log.error("[{}] Failed to create partitions for topic {}", clientAppId(), topicName);
-                                        // The partitioned topic is created but there are some partitions create failed
-                                        asyncResponse.resume(new RestException(e));
-                                        return null;
-                                    });
-                                } else {
-                                    log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, KeeperException.create(KeeperException.Code.get(rc2)));
-                                    asyncResponse.resume(new RestException(KeeperException.create(KeeperException.Code.get(rc2))));
-                                }
-                            }, null);
-                        } else if (KeeperException.Code.NODEEXISTS.intValue() == rc) {
-                            log.warn("[{}] Failed to create already existing partitioned topic {}", clientAppId(), topicName);
-                            asyncResponse.resume(new RestException(Status.CONFLICT, "Partitioned topic already exists"));
-                        } else if (KeeperException.Code.BADVERSION.intValue() == rc) {
-                            log.warn("[{}] Failed to create partitioned topic {}: concurrent modification", clientAppId(),
-                                    topicName);
-                            asyncResponse.resume(new RestException(Status.CONFLICT, "Concurrent modification"));
-                        } else {
-                            log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, KeeperException.create(KeeperException.Code.get(rc)));
-                            asyncResponse.resume(new RestException(KeeperException.create(KeeperException.Code.get(rc))));
-                        }
-                    });
-                } catch (Exception e) {
-                    log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
-                    resumeAsyncResponseExceptionally(asyncResponse, e);
-                }
+                createLocalFuture.completeExceptionally(
+                        new RestException(Status.CONFLICT, "This topic already exists"));
+                return;
             }
+
+            provisionPartitionedTopicPath(numPartitions, createLocalTopicOnly)
+                    .thenCompose(ignored -> tryCreatePartitionsAsync(numPartitions))
+                    .whenComplete((ignored, ex) -> {
+                        if (ex != null) {
+                            createLocalFuture.completeExceptionally(ex);
+                            return;
+                        }
+                        createLocalFuture.complete(null);
+                    });
         }).exceptionally(ex -> {
             log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, ex);
             resumeAsyncResponseExceptionally(asyncResponse, ex);
             return null;
         });
+
+        if (!createLocalTopicOnly && topicName.isGlobal() && isNamespaceReplicated(namespaceName)) {
+            getNamespaceReplicatedClusters(namespaceName)
+                    .stream()
+                    .filter(cluster -> !cluster.equals(pulsar().getConfiguration().getClusterName()))
+                    .forEach(cluster -> createFutureList.add(
+                            ((TopicsImpl) pulsar().getBrokerService().getClusterPulsarAdmin(cluster).topics())
+                                    .createPartitionedTopicAsync(
+                                            topicName.getPartitionedTopicName(), numPartitions, true)));
+        }
+
+        FutureUtil.waitForAll(createFutureList).whenComplete((ignored, ex) -> {
+            if (ex != null) {
+                log.error("[{}] Failed to create partitions for topic {}", clientAppId(), topicName, ex.getCause());
+                if (ex.getCause() instanceof RestException) {
+                    asyncResponse.resume(ex.getCause());
+                } else {
+                    resumeAsyncResponseExceptionally(asyncResponse, ex.getCause());
+                }
+                return;
+            }
+            log.info("[{}] Successfully created partitions for topic {} in cluster {}",
+                    clientAppId(), topicName, pulsar().getConfiguration().getClusterName());
+            asyncResponse.resume(Response.noContent().build());
+        });
+    }
+
+    private CompletableFuture<Void> provisionPartitionedTopicPath(int numPartitions, boolean createLocalTopicOnly) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        try {
+            String path = ZkAdminPaths.partitionedTopicPath(topicName);
+            byte[] data = jsonMapper().writeValueAsBytes(new PartitionedTopicMetadata(numPartitions));
+            zkCreateOptimisticAsync(globalZk(), path, data, (rc, s, o, s1) -> {
+                if (KeeperException.Code.OK.intValue() == rc) {
+                    globalZk().sync(path, (rc2, s2, ctx) -> {
+                        if (KeeperException.Code.OK.intValue() == rc2) {
+                            log.info("[{}] Successfully created partitioned topic {}", clientAppId(), topicName);
+                            future.complete(null);
+                        } else {
+                            log.error("[{}] Failed to create partitioned topic {}",
+                                    clientAppId(), topicName, KeeperException.create(KeeperException.Code.get(rc2)));
+                            future.completeExceptionally(
+                                    new RestException(KeeperException.create(KeeperException.Code.get(rc2))));
+                        }
+                    }, null);
+                } else if (KeeperException.Code.NODEEXISTS.intValue() == rc) {
+                    if (createLocalTopicOnly) {
+                        future.complete(null);
+                        return;
+                    }
+                    log.warn("[{}] Failed to create already existing partitioned topic {}", clientAppId(), topicName);
+                    future.completeExceptionally(
+                            new RestException(Status.CONFLICT, "Partitioned topic already exists"));
+                } else if (KeeperException.Code.BADVERSION.intValue() == rc) {
+                    log.warn("[{}] Failed to create partitioned topic {}: concurrent modification", clientAppId(),
+                            topicName);
+                    future.completeExceptionally(new RestException(Status.CONFLICT, "Concurrent modification"));
+                } else {
+                    log.error("[{}] Failed to create partitioned topic {}",
+                            clientAppId(), topicName, KeeperException.create(KeeperException.Code.get(rc)));
+                    future.completeExceptionally(
+                            new RestException(KeeperException.create(KeeperException.Code.get(rc))));
+                }
+            });
+        } catch (Exception e) {
+            log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
+            future.completeExceptionally(e);
+        }
+        return future;
     }
 
     /**
