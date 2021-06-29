@@ -234,6 +234,8 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         admin.topics().createPartitionedTopic(topicName, 2);
         admin.topics().grantPermission(topicName, CLIENT_ROLE,
                 Sets.newHashSet(AuthAction.consume, AuthAction.produce));
+        admin.namespaces().grantPermissionOnSubscription(namespaceName, subscriptionName,
+                Sets.newHashSet(CLIENT_ROLE));
 
         Consumer<byte[]> consumer = proxyClient.newConsumer()
                 .topic(topicName)
@@ -335,9 +337,12 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
             Assert.fail("should have failed with authorization error");
         } catch (Exception ex) {
             // excepted
+            String sub = CLIENT_ROLE + "-sub1";
+            admin.namespaces().grantPermissionOnSubscription(namespaceName, sub,
+                    Sets.newHashSet(CLIENT_ROLE));
             consumer = proxyClient.newConsumer()
                     .topic("persistent://my-property/proxy-authorization/my-ns/my-topic1")
-                    .subscriptionName(CLIENT_ROLE + "-sub1").subscribe();
+                    .subscriptionName(sub).subscribe();
         }
 
         Producer<byte[]> producer = proxyClient.newProducer(Schema.BYTES)
