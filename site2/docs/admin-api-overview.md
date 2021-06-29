@@ -10,13 +10,13 @@ You can interact with the admin interface via:
 
 - HTTP calls, which are made against the admin {@inject: rest:REST:/} API provided by Pulsar brokers. For some RESTful APIs, they might be redirected to the owner brokers for serving with [`307 Temporary Redirect`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/307), hence the HTTP callers should handle `307 Temporary Redirect`. If you use `curl` commands, you should specify `-L` to handle redirections.
   
-  > **Tip**
+  > **Important**
   > 
   > For the latest and complete information about REST API, including parameters, responses, samples, and more, see [here]{@inject: rest:REST:/}.
 
 - A Java client interface.
   
-  > **Tip**
+  > **Important**
   > 
   > For the latest and complete information about Java admin API, including classes, methods, descriptions, and more, see [here](https://pulsar.apache.org/api/admin/).
 
@@ -26,9 +26,9 @@ You can interact with the admin interface via:
     bin/pulsar-admin
     ```
 
-  > **Tip**
+  > **Important**
   > 
-  > For the latest and complete information about Java admin API, including commands, flags, descriptions, and more, see [here](http://pulsar.apache.org/tools/pulsar-admin/).
+  > For the latest and complete information about Java admin API, including commands, flags, descriptions, and more, see [here](https://pulsar.apache.org/tools/pulsar-admin/).
 
 > **The REST API is the admin interface**. Both the `pulsar-admin` CLI tool and the Java client use the REST API. If you implement your own admin interface client, you should use the REST API. 
 

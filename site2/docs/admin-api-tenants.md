@@ -8,7 +8,7 @@ sidebar_label: Tenants
 >
 > This page only shows **some frequently used operations**.
 >
-> - For the latest and complete information about `pulsar-admin`, including commands, flags, descriptions, and more, see [here](http://pulsar.apache.org/tools/pulsar-admin/).
+> - For the latest and complete information about `pulsar-admin`, including commands, flags, descriptions, and more, see [here](https://pulsar.apache.org/tools/pulsar-admin/).
 > 
 > - For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see [here]{@inject: rest:REST:/}.
 > 

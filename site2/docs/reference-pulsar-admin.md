@@ -6,7 +6,7 @@ sidebar_label: Pulsar Admin CLI
 
 > **Important**
 >
-> This page is deprecated and not updated anymore. For the latest and complete information about `pulsar-admin`, including commands, flags, descriptions, and more, see [here](http://pulsar.apache.org/tools/pulsar-admin/).
+> This page is deprecated and not updated anymore. For the latest and complete information about `pulsar-admin`, including commands, flags, descriptions, and more, see [here](https://pulsar.apache.org/tools/pulsar-admin/).
 
 The `pulsar-admin` tool enables you to manage Pulsar installations, including clusters, brokers, namespaces, tenants, and more.
 

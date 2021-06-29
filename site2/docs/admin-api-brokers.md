@@ -8,7 +8,7 @@ sidebar_label: Brokers
 >
 > This page only shows **some frequently used operations**.
 >
-> - For the latest and complete information about `pulsar-admin`, including commands, flags, descriptions, and more, see [here](http://pulsar.apache.org/tools/pulsar-admin/).
+> - For the latest and complete information about `pulsar-admin`, including commands, flags, descriptions, and more, see [here](https://pulsar.apache.org/tools/pulsar-admin/).
 > 
 > - For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see [here]{@inject: rest:REST:/}.
 > 
@@ -21,7 +21,7 @@ Pulsar brokers consist of two components:
 
 [Brokers](reference-terminology.md#broker) can be managed via:
 
-* The `brokers` command of the [`pulsar-admin`](http://pulsar.apache.org/tools/pulsar-admin/) tool
+* The `brokers` command of the [`pulsar-admin`](https://pulsar.apache.org/tools/pulsar-admin/) tool
 * The `/admin/v2/brokers` endpoint of the admin {@inject: rest:REST:/} API
 * The `brokers` method of the `PulsarAdmin` object in the [Java API](client-libraries-java.md)
 
