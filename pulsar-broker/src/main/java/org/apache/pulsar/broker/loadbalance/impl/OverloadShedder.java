@@ -47,7 +47,7 @@ public class OverloadShedder implements LoadSheddingStrategy {
 
     private final Multimap<String, String> selectedBundlesCache = ArrayListMultimap.create();
 
-    private final static double ADDITIONAL_THRESHOLD_PERCENT_MARGIN = 0.05;
+    private static final double ADDITIONAL_THRESHOLD_PERCENT_MARGIN = 0.05;
 
     /**
      * Attempt to shed some bundles off every broker which is overloaded.

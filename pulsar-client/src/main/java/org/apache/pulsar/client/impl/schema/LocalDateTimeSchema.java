@@ -37,7 +37,7 @@ public class LocalDateTimeSchema extends AbstractSchema<LocalDateTime> {
    public static final String DELIMITER = ":";
 
    static {
-       SCHEMA_INFO = new SchemaInfo()
+       SCHEMA_INFO = new SchemaInfoImpl()
              .setName("LocalDateTime")
              .setType(SchemaType.LOCAL_DATE_TIME)
              .setSchema(new byte[0]);
@@ -76,8 +76,8 @@ public class LocalDateTimeSchema extends AbstractSchema<LocalDateTime> {
       if (null == byteBuf) {
          return null;
       }
-      long epochDay = byteBuf.readLong();
-      long nanoOfDay = byteBuf.readLong();
+      long epochDay = byteBuf.getLong(0);
+      long nanoOfDay = byteBuf.getLong(8);
       return LocalDateTime.of(LocalDate.ofEpochDay(epochDay), LocalTime.ofNanoOfDay(nanoOfDay));
    }
 

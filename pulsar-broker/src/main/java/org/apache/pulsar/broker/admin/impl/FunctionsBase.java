@@ -42,9 +42,10 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
-import org.apache.pulsar.common.functions.UpdateOptions;
+import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.io.ConnectorDefinition;
-import org.apache.pulsar.common.policies.data.FunctionStats;
+import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataImpl;
+import org.apache.pulsar.common.policies.data.FunctionStatsImpl;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.service.api.Functions;
@@ -303,7 +304,7 @@ public class FunctionsBase extends AdminResource {
             )
             final @FormDataParam("functionConfig") FunctionConfig functionConfig,
             @ApiParam(value = "The update options is for the Pulsar Function that needs to be updated.")
-            final @FormDataParam("updateOptions") UpdateOptions updateOptions) throws IOException {
+            final @FormDataParam("updateOptions") UpdateOptionsImpl updateOptions) throws IOException {
 
         functions().updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
                 functionPkgUrl, functionConfig, clientAppId(), clientAuthData(), updateOptions);
@@ -403,7 +404,7 @@ public class FunctionsBase extends AdminResource {
     @GET
     @ApiOperation(
             value = "Displays the stats of a Pulsar Function",
-            response = FunctionStats.class
+            response = FunctionStatsImpl.class
     )
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this function"),
@@ -413,7 +414,7 @@ public class FunctionsBase extends AdminResource {
     })
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/{tenant}/{namespace}/{functionName}/stats")
-    public FunctionStats getFunctionStats(
+    public FunctionStatsImpl getFunctionStats(
             @ApiParam(value = "The tenant of a Pulsar Function")
             final @PathParam("tenant") String tenant,
             @ApiParam(value = "The namespace of a Pulsar Function")
@@ -427,7 +428,7 @@ public class FunctionsBase extends AdminResource {
     @GET
     @ApiOperation(
             value = "Displays the stats of a Pulsar Function instance",
-            response = FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.class
+            response = FunctionInstanceStatsDataImpl.class
     )
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this function"),
@@ -437,7 +438,7 @@ public class FunctionsBase extends AdminResource {
     })
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/{tenant}/{namespace}/{functionName}/{instanceId}/stats")
-    public FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData getFunctionInstanceStats(
+    public FunctionInstanceStatsDataImpl getFunctionInstanceStats(
             @ApiParam(value = "The tenant of a Pulsar Function") final @PathParam("tenant") String tenant,
             @ApiParam(value = "The namespace of a Pulsar Function") final @PathParam("namespace") String namespace,
             @ApiParam(value = "The name of a Pulsar Function") final @PathParam("functionName") String functionName,
@@ -667,7 +668,7 @@ public class FunctionsBase extends AdminResource {
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public void uploadFunction(final @FormDataParam("data") InputStream uploadedInputStream,
                                final @FormDataParam("path") String path) {
-        functions().uploadFunction(uploadedInputStream, path, clientAppId());
+        functions().uploadFunction(uploadedInputStream, path, clientAppId(), clientAuthData());
     }
 
     @GET
@@ -735,6 +736,6 @@ public class FunctionsBase extends AdminResource {
                                              final @FormDataParam("delete") boolean delete) {
 
         functions().updateFunctionOnWorkerLeader(tenant, namespace, functionName, uploadedInputStream,
-                delete, uri.getRequestUri(), clientAppId());
+                delete, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 }

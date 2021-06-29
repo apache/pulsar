@@ -48,6 +48,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -115,7 +116,7 @@ public class TenantsBase extends PulsarWebResource {
             @ApiResponse(code = 412, message = "Clusters do not exist") })
     public void createTenant(@Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "The tenant name") @PathParam("tenant") String tenant,
-            @ApiParam(value = "TenantInfo") TenantInfo tenantInfo) {
+            @ApiParam(value = "TenantInfo") TenantInfoImpl tenantInfo) {
 
         final String clientAppId = clientAppId();
         try {
@@ -181,7 +182,7 @@ public class TenantsBase extends PulsarWebResource {
             @ApiResponse(code = 412, message = "Clusters do not exist") })
     public void updateTenant(@Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "The tenant name") @PathParam("tenant") String tenant,
-            @ApiParam(value = "TenantInfo") TenantInfo newTenantAdmin) {
+            @ApiParam(value = "TenantInfo") TenantInfoImpl newTenantAdmin) {
         try {
             validateSuperUserAccess();
             validatePoliciesReadOnlyAccess();

@@ -85,6 +85,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
         // Just being cautious
         if (incomingMessages.size() > 0) {
             log.error("The incoming message queue should never be greater than 0 when Queue size is 0");
+            incomingMessages.forEach(Message::release);
             incomingMessages.clear();
         }
 

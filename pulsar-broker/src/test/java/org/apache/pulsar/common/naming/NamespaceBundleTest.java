@@ -32,7 +32,10 @@ import static org.testng.Assert.fail;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
+import org.apache.pulsar.metadata.api.MetadataStore;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.BoundType;
@@ -41,7 +44,12 @@ import com.google.common.hash.Hashing;
 
 @Test(groups = "broker-naming")
 public class NamespaceBundleTest {
-    private final NamespaceBundleFactory factory = getNamespaceBundleFactory();
+    private NamespaceBundleFactory factory;
+
+    @BeforeClass(alwaysRun = true)
+    protected void initializeFactory() {
+        factory = getNamespaceBundleFactory();
+    }
 
     @Test
     public void testConstructor() {
@@ -124,6 +132,9 @@ public class NamespaceBundleTest {
         when(pulsar.getLocalZkCacheService()).thenReturn(localZkCache);
         when(localZkCache.policiesCache()).thenReturn(poilciesCache);
         doNothing().when(poilciesCache).registerListener(any());
+        MetadataStoreExtended store = mock(MetadataStoreExtended.class);
+        when(pulsar.getLocalMetadataStore()).thenReturn(store);
+        when(pulsar.getConfigurationMetadataStore()).thenReturn(store);
         return NamespaceBundleFactory.createFactory(pulsar, Hashing.crc32());
     }
 

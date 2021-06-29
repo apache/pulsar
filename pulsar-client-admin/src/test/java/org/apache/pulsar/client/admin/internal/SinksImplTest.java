@@ -23,13 +23,13 @@ import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.fail;
-import java.util.concurrent.CompletableFuture;
+
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import javax.ws.rs.client.WebTarget;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.common.functions.UpdateOptions;
+import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.testng.annotations.Test;
 
@@ -145,14 +145,14 @@ public class SinksImplTest {
         }
 
         try {
-            instance.updateSinkAsync(sinkConfig, "file.nar", new UpdateOptions()).get();
+            instance.updateSinkAsync(sinkConfig, "file.nar", new UpdateOptionsImpl()).get();
             fail();
         } catch (ExecutionException err) {
             handler.accept(err);
         }
 
         try {
-            instance.updateSinkWithUrlAsync(sinkConfig, "http://localhost", new UpdateOptions()).get();
+            instance.updateSinkWithUrlAsync(sinkConfig, "http://localhost", new UpdateOptionsImpl()).get();
             fail();
         } catch (ExecutionException err) {
             handler.accept(err);

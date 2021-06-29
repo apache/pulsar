@@ -45,6 +45,7 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.policies.data.ErrorData;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -189,6 +190,14 @@ public abstract class BaseResource {
         return future;
     }
 
+    public <T> void asyncDeleteRequest(final WebTarget target, InvocationCallback<T> callback) {
+        try {
+            request(target).async().delete(callback);
+        } catch (PulsarAdminException cae) {
+            callback.failed(cae);
+        }
+    }
+
     public PulsarAdminException getApiException(Throwable e) {
         if (e instanceof PulsarAdminException) {
             return (PulsarAdminException) e;
@@ -196,34 +205,43 @@ public abstract class BaseResource {
             if (e.getCause() instanceof java.net.ConnectException) {
                 return new ConnectException(e.getCause());
             } else {
-                return new PulsarAdminException((ServerErrorException) e);
+                ServerErrorException see = (ServerErrorException) e;
+                int statusCode = see.getResponse().getStatus();
+                String httpError = getReasonFromServer(see);
+                return new PulsarAdminException(e, httpError, statusCode);
             }
         } else if (e instanceof WebApplicationException) {
             // Handle 5xx exceptions
             if (e instanceof ServerErrorException) {
                 ServerErrorException see = (ServerErrorException) e;
-                return new ServerSideErrorException(see, e.getMessage());
+                int statusCode = see.getResponse().getStatus();
+                String httpError = getReasonFromServer(see);
+                return new ServerSideErrorException(see, e.getMessage(), httpError, statusCode);
             } else if (e instanceof ClientErrorException) {
                 // Handle 4xx exceptions
                 ClientErrorException cee = (ClientErrorException) e;
                 int statusCode = cee.getResponse().getStatus();
+                String httpError = getReasonFromServer(cee);
                 switch (statusCode) {
                     case 401:
                     case 403:
-                        return new NotAuthorizedException(cee);
+                        return new NotAuthorizedException(cee, httpError, statusCode);
                     case 404:
-                        return new NotFoundException(cee);
+                        return new NotFoundException(cee, httpError, statusCode);
                     case 405:
-                        return new NotAllowedException(cee);
+                        return new NotAllowedException(cee, httpError, statusCode);
                     case 409:
-                        return new ConflictException(cee);
+                        return new ConflictException(cee, httpError, statusCode);
                     case 412:
-                        return new PreconditionFailedException(cee);
+                        return new PreconditionFailedException(cee, httpError, statusCode);
                     default:
-                        return new PulsarAdminException(cee);
+                        return new PulsarAdminException(httpError, cee, httpError, statusCode);
                 }
             } else {
-                return new PulsarAdminException((WebApplicationException) e);
+                WebApplicationException wae = (WebApplicationException) e;
+                int statusCode = wae.getResponse().getStatus();
+                String httpError = getReasonFromServer(wae);
+                return new PulsarAdminException(httpError, wae, httpError, statusCode);
             }
         } else {
             return new PulsarAdminException(e);
@@ -244,6 +262,24 @@ public abstract class BaseResource {
             }
         } catch (Exception e) {
             return getApiException(e);
+        }
+    }
+
+    public static String getReasonFromServer(WebApplicationException e) {
+        try {
+            return e.getResponse().readEntity(ErrorData.class).reason.toString();
+        } catch (Exception ex) {
+            try {
+                return ObjectMapperFactory.getThreadLocal().readValue(
+                        e.getResponse().getEntity().toString(), ErrorData.class).reason;
+            } catch (Exception ex1) {
+                try {
+                    return ObjectMapperFactory.getThreadLocal().readValue(e.getMessage(), ErrorData.class).reason;
+                } catch (Exception ex2) {
+                    // could not parse output to ErrorData class
+                    return e.getMessage();
+                }
+            }
         }
     }
 }

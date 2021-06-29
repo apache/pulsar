@@ -18,10 +18,6 @@
  */
 package org.apache.pulsar.broker.authorization;
 
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import javax.ws.rs.core.Response;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -30,16 +26,22 @@ import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.policies.data.NamespaceOperation;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.RestException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.ws.rs.core.Response;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -103,7 +105,7 @@ public class AuthorizationService {
      *             when failed to grant permission
      */
     public CompletableFuture<Void> grantPermissionAsync(NamespaceName namespace, Set<AuthAction> actions, String role,
-            String authDataJson) {
+                                                        String authDataJson) {
 
         if (provider != null) {
             return provider.grantPermissionAsync(namespace, actions, role, authDataJson);
@@ -122,7 +124,7 @@ public class AuthorizationService {
      * @return
      */
     public CompletableFuture<Void> grantSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName,
-            Set<String> roles, String authDataJson) {
+                                                                    Set<String> roles, String authDataJson) {
 
         if (provider != null) {
             return provider.grantSubscriptionPermissionAsync(namespace, subscriptionName, roles, authDataJson);
@@ -139,7 +141,7 @@ public class AuthorizationService {
      * @return
      */
     public CompletableFuture<Void> revokeSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName,
-            String role, String authDataJson) {
+                                                                     String role, String authDataJson) {
         if (provider != null) {
             return provider.revokeSubscriptionPermissionAsync(namespace, subscriptionName, role, authDataJson);
         }
@@ -158,7 +160,7 @@ public class AuthorizationService {
      *             when failed to grant permission
      */
     public CompletableFuture<Void> grantPermissionAsync(TopicName topicname, Set<AuthAction> actions, String role,
-            String authDataJson) {
+                                                        String authDataJson) {
 
         if (provider != null) {
             return provider.grantPermissionAsync(topicname, actions, role, authDataJson);
@@ -176,7 +178,7 @@ public class AuthorizationService {
      *            the app id used to send messages to the topic.
      */
     public CompletableFuture<Boolean> canProduceAsync(TopicName topicName, String role,
-            AuthenticationDataSource authenticationData) {
+                                                      AuthenticationDataSource authenticationData) {
 
         if (!this.conf.isAuthorizationEnabled()) {
             return CompletableFuture.completedFuture(true);
@@ -204,7 +206,7 @@ public class AuthorizationService {
      *            the subscription name defined by the client
      */
     public CompletableFuture<Boolean> canConsumeAsync(TopicName topicName, String role,
-            AuthenticationDataSource authenticationData, String subscription) {
+                                                      AuthenticationDataSource authenticationData, String subscription) {
         if (!this.conf.isAuthorizationEnabled()) {
             return CompletableFuture.completedFuture(true);
         }
@@ -237,7 +239,7 @@ public class AuthorizationService {
     }
 
     public boolean canConsume(TopicName topicName, String role, AuthenticationDataSource authenticationData,
-            String subscription) throws Exception {
+                              String subscription) throws Exception {
         try {
             return canConsumeAsync(topicName, role, authenticationData, subscription)
                     .get(conf.getZooKeeperOperationTimeoutSeconds(), SECONDS);
@@ -289,7 +291,7 @@ public class AuthorizationService {
      * @throws Exception
      */
     public CompletableFuture<Boolean> canLookupAsync(TopicName topicName, String role,
-            AuthenticationDataSource authenticationData) {
+                                                     AuthenticationDataSource authenticationData) {
         CompletableFuture<Boolean> finalResult = new CompletableFuture<Boolean>();
         canProduceAsync(topicName, role, authenticationData).whenComplete((produceAuthorized, ex) -> {
             if (ex == null) {
@@ -327,7 +329,7 @@ public class AuthorizationService {
     }
 
     public CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName, String role,
-                                                       AuthenticationDataSource authenticationData) {
+                                                            AuthenticationDataSource authenticationData) {
         return provider.allowFunctionOpsAsync(namespaceName, role, authenticationData);
     }
 
@@ -396,11 +398,11 @@ public class AuthorizationService {
         validateOriginalPrincipal(conf.getProxyRoles(), role, originalRole);
         if (isProxyRole(role)) {
             CompletableFuture<Boolean> isRoleAuthorizedFuture = allowTenantOperationAsync(
-                tenantName, operation, role, authData);
+                    tenantName, operation, role, authData);
             CompletableFuture<Boolean> isOriginalAuthorizedFuture = allowTenantOperationAsync(
-                tenantName, operation, originalRole, authData);
+                    tenantName, operation, originalRole, authData);
             return isRoleAuthorizedFuture.thenCombine(isOriginalAuthorizedFuture,
-                (isRoleAuthorized, isOriginalAuthorized) -> isRoleAuthorized && isOriginalAuthorized);
+                    (isRoleAuthorized, isOriginalAuthorized) -> isRoleAuthorized && isOriginalAuthorized);
         } else {
             return allowTenantOperationAsync(tenantName, operation, role, authData);
         }
@@ -413,7 +415,7 @@ public class AuthorizationService {
                                         AuthenticationDataSource authData) {
         try {
             return allowTenantOperationAsync(
-                tenantName, operation, originalRole, role, authData).get();
+                    tenantName, operation, originalRole, role, authData).get();
         } catch (InterruptedException e) {
             throw new RestException(e);
         } catch (ExecutionException e) {
@@ -457,11 +459,11 @@ public class AuthorizationService {
         validateOriginalPrincipal(conf.getProxyRoles(), role, originalRole);
         if (isProxyRole(role)) {
             CompletableFuture<Boolean> isRoleAuthorizedFuture = allowNamespaceOperationAsync(
-                namespaceName, operation, role, authData);
+                    namespaceName, operation, role, authData);
             CompletableFuture<Boolean> isOriginalAuthorizedFuture = allowNamespaceOperationAsync(
-                namespaceName, operation, originalRole, authData);
+                    namespaceName, operation, originalRole, authData);
             return isRoleAuthorizedFuture.thenCombine(isOriginalAuthorizedFuture,
-                (isRoleAuthorized, isOriginalAuthorized) -> isRoleAuthorized && isOriginalAuthorized);
+                    (isRoleAuthorized, isOriginalAuthorized) -> isRoleAuthorized && isOriginalAuthorized);
         } else {
             return allowNamespaceOperationAsync(namespaceName, operation, role, authData);
         }
@@ -474,7 +476,7 @@ public class AuthorizationService {
                                            AuthenticationDataSource authData) {
         try {
             return allowNamespaceOperationAsync(
-                namespaceName, operation, originalRole, role, authData).get();
+                    namespaceName, operation, originalRole, role, authData).get();
         } catch (InterruptedException e) {
             throw new RestException(e);
         } catch (ExecutionException e) {
@@ -520,11 +522,11 @@ public class AuthorizationService {
         validateOriginalPrincipal(conf.getProxyRoles(), role, originalRole);
         if (isProxyRole(role)) {
             CompletableFuture<Boolean> isRoleAuthorizedFuture = allowNamespacePolicyOperationAsync(
-                namespaceName, policy, operation, role, authData);
+                    namespaceName, policy, operation, role, authData);
             CompletableFuture<Boolean> isOriginalAuthorizedFuture = allowNamespacePolicyOperationAsync(
-                namespaceName, policy, operation, originalRole, authData);
+                    namespaceName, policy, operation, originalRole, authData);
             return isRoleAuthorizedFuture.thenCombine(isOriginalAuthorizedFuture,
-                (isRoleAuthorized, isOriginalAuthorized) -> isRoleAuthorized && isOriginalAuthorized);
+                    (isRoleAuthorized, isOriginalAuthorized) -> isRoleAuthorized && isOriginalAuthorized);
         } else {
             return allowNamespacePolicyOperationAsync(namespaceName, policy, operation, role, authData);
         }
@@ -538,7 +540,71 @@ public class AuthorizationService {
                                                  AuthenticationDataSource authData) {
         try {
             return allowNamespacePolicyOperationAsync(
-                namespaceName, policy, operation, originalRole, role, authData).get();
+                    namespaceName, policy, operation, originalRole, role, authData).get();
+        } catch (InterruptedException e) {
+            throw new RestException(e);
+        } catch (ExecutionException e) {
+            throw new RestException(e.getCause());
+        }
+    }
+
+    /**
+     * Grant authorization-action permission on a topic to the given client
+     *
+     * @param topicName
+     * @param policy
+     * @param operation
+     * @param role
+     * @param authData additional authdata in json for targeted authorization provider
+     * @throws IllegalStateException when failed to grant permission
+     */
+    public CompletableFuture<Boolean> allowTopicPolicyOperationAsync(TopicName topicName,
+                                                                     PolicyName policy,
+                                                                     PolicyOperation operation,
+                                                                     String role,
+                                                                     AuthenticationDataSource authData) {
+        if (!this.conf.isAuthorizationEnabled()) {
+            return CompletableFuture.completedFuture(true);
+        }
+
+        if (provider != null) {
+            return provider.allowTopicPolicyOperationAsync(topicName, role, policy, operation, authData);
+        }
+
+        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured for " +
+                "allowTopicPolicyOperationAsync"));
+    }
+
+    public CompletableFuture<Boolean> allowTopicPolicyOperationAsync(TopicName topicName,
+                                                                     PolicyName policy,
+                                                                     PolicyOperation operation,
+                                                                     String originalRole,
+                                                                     String role,
+                                                                     AuthenticationDataSource authData) {
+
+        validateOriginalPrincipal(conf.getProxyRoles(), role, originalRole);
+        if (isProxyRole(role)) {
+            CompletableFuture<Boolean> isRoleAuthorizedFuture = allowTopicPolicyOperationAsync(
+                    topicName, policy, operation, role, authData);
+            CompletableFuture<Boolean> isOriginalAuthorizedFuture = allowTopicPolicyOperationAsync(
+                    topicName, policy, operation, originalRole, authData);
+            return isRoleAuthorizedFuture.thenCombine(isOriginalAuthorizedFuture,
+                    (isRoleAuthorized, isOriginalAuthorized) -> isRoleAuthorized && isOriginalAuthorized);
+        } else {
+            return allowTopicPolicyOperationAsync(topicName, policy, operation, role, authData);
+        }
+    }
+
+
+    public Boolean allowTopicPolicyOperation(TopicName topicName,
+                                             PolicyName policy,
+                                             PolicyOperation operation,
+                                             String originalRole,
+                                             String role,
+                                             AuthenticationDataSource authData) {
+        try {
+            return allowTopicPolicyOperationAsync(
+                    topicName, policy, operation, originalRole, role, authData).get();
         } catch (InterruptedException e) {
             throw new RestException(e);
         } catch (ExecutionException e) {
@@ -564,7 +630,7 @@ public class AuthorizationService {
                                                                AuthenticationDataSource authData) {
         if (log.isDebugEnabled()) {
             log.debug("Check if role {} is allowed to execute topic operation {} on topic {}",
-                role, operation, topicName);
+                    role, operation, topicName);
         }
         if (!this.conf.isAuthorizationEnabled()) {
             return CompletableFuture.completedFuture(true);
@@ -572,21 +638,21 @@ public class AuthorizationService {
 
         if (provider != null) {
             CompletableFuture<Boolean> allowFuture =
-                provider.allowTopicOperationAsync(topicName, role, operation, authData);
+                    provider.allowTopicOperationAsync(topicName, role, operation, authData);
             if (log.isDebugEnabled()) {
                 return allowFuture.whenComplete((allowed, exception) -> {
                     if (exception == null) {
                         if (allowed) {
                             log.debug("Topic operation {} on topic {} is allowed: role = {}",
-                                operation, topicName, role);
-                        } else{
+                                    operation, topicName, role);
+                        } else {
                             log.debug("Topic operation {} on topic {} is NOT allowed: role = {}",
-                                operation, topicName, role);
+                                    operation, topicName, role);
                         }
                     } else {
                         log.debug("Failed to check if topic operation {} on topic {} is allowed:"
-                                + " role = {}",
-                            operation, topicName, role, exception);
+                                        + " role = {}",
+                                operation, topicName, role, exception);
                     }
                 });
             } else {
@@ -596,5 +662,37 @@ public class AuthorizationService {
 
         return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured for " +
                 "allowTopicOperationAsync"));
+    }
+
+    public CompletableFuture<Boolean> allowTopicOperationAsync(TopicName topicName,
+                                                               TopicOperation operation,
+                                                               String originalRole,
+                                                               String role,
+                                                               AuthenticationDataSource authData) {
+        validateOriginalPrincipal(conf.getProxyRoles(), role, originalRole);
+        if (isProxyRole(role)) {
+            CompletableFuture<Boolean> isRoleAuthorizedFuture = allowTopicOperationAsync(
+                    topicName, operation, role, authData);
+            CompletableFuture<Boolean> isOriginalAuthorizedFuture = allowTopicOperationAsync(
+                    topicName, operation, originalRole, authData);
+            return isRoleAuthorizedFuture.thenCombine(isOriginalAuthorizedFuture,
+                    (isRoleAuthorized, isOriginalAuthorized) -> isRoleAuthorized && isOriginalAuthorized);
+        } else {
+            return allowTopicOperationAsync(topicName, operation, role, authData);
+        }
+    }
+
+    public Boolean allowTopicOperation(TopicName topicName,
+                                       TopicOperation operation,
+                                       String originalRole,
+                                       String role,
+                                       AuthenticationDataSource authData) {
+        try {
+            return allowTopicOperationAsync(topicName, operation, originalRole, role, authData).get();
+        } catch (InterruptedException e) {
+            throw new RestException(e);
+        } catch (ExecutionException e) {
+            throw new RestException(e.getCause());
+        }
     }
 }

@@ -26,8 +26,6 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
-import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
-import org.apache.pulsar.zookeeper.ZooKeeperCache.Deserializer;
 
 /**
  * New proposal for a load manager interface which attempts to use more intuitive method names and provide a starting
@@ -107,13 +105,6 @@ public interface ModularLoadManager {
     void writeBundleDataOnZooKeeper();
 
     /**
-     * Return :{@link Deserializer} to deserialize load-manager load report.
-     *
-     * @return
-     */
-    Deserializer<? extends ServiceLookupData> getLoadReportDeserializer();
-
-    /**
      * Get available broker list in cluster.
      *
      * @return
@@ -123,7 +114,7 @@ public interface ModularLoadManager {
     /**
      * Fetch local-broker data from load-manager broker cache.
      *
-     * @param broker load-balancer zk-path
+     * @param broker load-balancer path
      * @return
      */
     LocalBrokerData getBrokerLocalData(String broker);

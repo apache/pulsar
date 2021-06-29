@@ -76,7 +76,7 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     // --- Authentication ---
     // Enable authentication
     private boolean authenticationEnabled;
-    // Autentication provider name list, which is a list of class names
+    // Authentication provider name list, which is a list of class names
     private Set<String> authenticationProviders = Sets.newTreeSet();
     // Enforce authorization
     private boolean authorizationEnabled;

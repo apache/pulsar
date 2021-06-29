@@ -57,7 +57,7 @@ public class BasicKubernetesManifestCustomizer implements KubernetesManifestCust
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder(toBuilder = true)
-    static public class RuntimeOpts {
+    public static class RuntimeOpts {
         private String jobNamespace;
         private String jobName;
         private Map<String, String> extraLabels;

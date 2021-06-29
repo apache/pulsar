@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.EventLoopGroup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -29,12 +30,7 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 import org.testng.annotations.Test;
-
-import java.util.concurrent.ScheduledExecutorService;
-
 import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -46,15 +42,14 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
 
 @Slf4j
 @Test(groups = "broker")
 public class MessageDuplicationTest {
 
-    private final static int BROKER_DEDUPLICATION_ENTRIES_INTERVAL = 10;
-    private final static int BROKER_DEDUPLICATION_MAX_NUMBER_PRODUCERS = 10;
-    private final static String REPLICATOR_PREFIX = "foo";
+    private static final int BROKER_DEDUPLICATION_ENTRIES_INTERVAL = 10;
+    private static final int BROKER_DEDUPLICATION_MAX_NUMBER_PRODUCERS = 10;
+    private static final String REPLICATOR_PREFIX = "foo";
 
     @Test
     public void testIsDuplicate() {
@@ -163,20 +158,17 @@ public class MessageDuplicationTest {
         doReturn(true).when(messageDeduplication).isEnabled();
 
 
-        ScheduledExecutorService scheduledExecutorService = mock(ScheduledExecutorService.class);
+        EventLoopGroup eventLoopGroup = mock(EventLoopGroup.class);
 
-        doAnswer(new Answer() {
-            @Override
-            public Object answer(InvocationOnMock invocationOnMock) {
-                Object[] args = invocationOnMock.getArguments();
-                Runnable test = (Runnable) args[0];
-                test.run();
-                return null;
-            }
-        }).when(scheduledExecutorService).submit(any(Runnable.class));
+        doAnswer(invocationOnMock -> {
+            Object[] args = invocationOnMock.getArguments();
+            Runnable test = (Runnable) args[0];
+            test.run();
+            return null;
+        }).when(eventLoopGroup).submit(any(Runnable.class));
 
         BrokerService brokerService = mock(BrokerService.class);
-        doReturn(scheduledExecutorService).when(brokerService).executor();
+        doReturn(eventLoopGroup).when(brokerService).executor();
         doReturn(pulsarService).when(brokerService).pulsar();
 
         PersistentTopic persistentTopic = spy(new PersistentTopic("topic-1", brokerService, managedLedger, messageDeduplication));

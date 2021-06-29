@@ -31,6 +31,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -43,6 +44,7 @@ import org.testcontainers.shaded.okhttp3.OkHttpClient;
 import org.testcontainers.shaded.okhttp3.Request;
 import org.testcontainers.shaded.okhttp3.Response;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 
 
 /**
@@ -54,13 +56,14 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
     protected void pulsarSQLBasicTest(TopicName topic,
                                       boolean isBatch,
                                       boolean useNsOffloadPolices,
-                                      Schema schema) throws Exception {
+                                      Schema schema,
+                                      CompressionType compressionType) throws Exception {
         log.info("Pulsar SQL basic test. topic: {}", topic);
 
         waitPulsarSQLReady();
 
         log.info("start prepare data for query. topic: {}", topic);
-        int messageCnt = prepareData(topic, isBatch, useNsOffloadPolices, schema);
+        int messageCnt = prepareData(topic, isBatch, useNsOffloadPolices, schema, compressionType);
         log.info("finish prepare data for query. topic: {}, messageCnt: {}", topic, messageCnt);
 
         validateMetadata(topic);
@@ -68,6 +71,22 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
         validateData(topic, messageCnt, schema);
 
         log.info("Finish Pulsar SQL basic test. topic: {}", topic);
+    }
+
+    @DataProvider(name = "batchingAndCompression")
+    public static Object[][] batchingAndCompression() {
+        return new Object[][] {
+                { true, CompressionType.ZLIB },
+                { true, CompressionType.ZSTD },
+                { true, CompressionType.SNAPPY },
+                { true, CompressionType.LZ4 },
+                { true, CompressionType.NONE },
+                { false, CompressionType.ZLIB },
+                { false, CompressionType.ZSTD },
+                { false, CompressionType.SNAPPY },
+                { false, CompressionType.LZ4 },
+                { false, CompressionType.NONE },
+        };
     }
 
     public void waitPulsarSQLReady() throws Exception {
@@ -114,7 +133,8 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
     protected int prepareData(TopicName topicName,
                               boolean isBatch,
                               boolean useNsOffloadPolices,
-                              Schema schema) throws Exception {
+                              Schema schema,
+                              CompressionType compressionType) throws Exception {
         throw new Exception("Unsupported operation prepareData.");
     }
 
@@ -128,7 +148,7 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
                         "/bin/bash",
                         "-c", "bin/pulsar-admin namespaces unload " + topicName.getNamespace());
 
-        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(
+        Awaitility.await().untilAsserted(
                 () -> {
                     ContainerExecResult r = execQuery(
                             String.format("show tables in pulsar.\"%s\";", topicName.getNamespace()));
@@ -155,7 +175,7 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
             queryAllDataSql = String.format("select * from pulsar.\"%s\".\"%s\";", namespace, topic);
         }
 
-        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(
+        Awaitility.await().untilAsserted(
                 () -> {
                     ContainerExecResult containerExecResult = execQuery(queryAllDataSql);
                     assertThat(containerExecResult.getExitCode()).isEqualTo(0);
@@ -238,6 +258,13 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
 
         log.info("Executing query: result for topic {} returnedTimestamps size: {}", topic, returnedTimestamps.size());
         assertThat(returnedTimestamps.size()).isEqualTo(0);
+
+        query = String.format("select count(*) from pulsar.\"%s\".\"%s\"", namespace, topic);
+        log.info("Executing query: {}", query);
+        res = connection.createStatement().executeQuery(query);
+        res.next();
+        int count = res.getInt("_col0");
+        assertThat(count).isGreaterThan(messageNum - 2);
     }
 
     public ContainerExecResult execQuery(final String query) throws Exception {

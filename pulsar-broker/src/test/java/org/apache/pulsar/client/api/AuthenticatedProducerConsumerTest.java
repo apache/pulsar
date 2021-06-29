@@ -38,7 +38,8 @@ import org.apache.pulsar.client.impl.auth.AuthenticationBasic;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.zookeeper.KeeperException.Code;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -171,10 +172,10 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         authTls.configure(authParams);
         internalSetup(authTls);
 
-        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
 
         admin.tenants().createTenant("my-property",
-                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
 
         testSyncProducerAndConsumer(batchMessageDelayMs);
@@ -189,10 +190,10 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         authPassword.configure("{\"userId\":\"superUser\",\"password\":\"supepass\"}");
         internalSetup(authPassword);
 
-        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
 
         admin.tenants().createTenant("my-property",
-                new TenantInfo(Sets.newHashSet(), Sets.newHashSet("test")));
+                new TenantInfoImpl(Sets.newHashSet(), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
 
         testSyncProducerAndConsumer(batchMessageDelayMs);
@@ -207,10 +208,10 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         authPassword.configure("{\"userId\":\"superUser2\",\"password\":\"superpassword\"}");
         internalSetup(authPassword);
 
-        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
 
         admin.tenants().createTenant("my-property",
-                new TenantInfo(Sets.newHashSet(), Sets.newHashSet("test")));
+                new TenantInfoImpl(Sets.newHashSet(), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
 
         testSyncProducerAndConsumer(batchMessageDelayMs);
@@ -229,10 +230,15 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         authTls.configure(authParams);
         internalSetup(authTls);
 
-        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
-                pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls()));
+        admin.clusters().createCluster("test",
+                ClusterData.builder()
+                        .serviceUrl(brokerUrl.toString())
+                        .serviceUrlTls(brokerUrlTls.toString())
+                        .brokerServiceUrl(pulsar.getBrokerServiceUrl())
+                        .brokerServiceUrlTls(pulsar.getBrokerServiceUrlTls())
+                        .build());
         admin.tenants().createTenant("my-property",
-                new TenantInfo(Sets.newHashSet("anonymousUser"), Sets.newHashSet("test")));
+                new TenantInfoImpl(Sets.newHashSet("anonymousUser"), Sets.newHashSet("test")));
 
         // make a PulsarAdmin instance as "anonymousUser" for http request
         admin.close();
@@ -245,15 +251,8 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         replacePulsarClient(PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl())
                 .operationTimeout(1, TimeUnit.SECONDS));
 
-        // unauthorized topic test
-        Exception pulsarClientException = null;
-        try {
-            pulsarClient.newConsumer().topic("persistent://my-property/my-ns/other-topic")
-                    .subscriptionName("my-subscriber-name").subscribe();
-        } catch (Exception e) {
-            pulsarClientException = e;
-        }
-        Assert.assertTrue(pulsarClientException instanceof PulsarClientException);
+        pulsarClient.newConsumer().topic("persistent://my-property/my-ns/other-topic")
+                .subscriptionName("my-subscriber-name").subscribe();
 
         testSyncProducerAndConsumer(batchMessageDelayMs);
 
@@ -277,8 +276,12 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         internalSetup(authTls);
 
         final String cluster = "test";
-        final ClusterData clusterData = new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
-                pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
+        final ClusterData clusterData = ClusterData.builder()
+                .serviceUrl(brokerUrl.toString())
+                .serviceUrlTls(brokerUrlTls.toString())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl())
+                .brokerServiceUrlTls(pulsar.getBrokerServiceUrlTls())
+                .build();
         try {
             admin.clusters().createCluster(cluster, clusterData);
         } catch (PulsarAdminException e) {
@@ -305,10 +308,14 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         authTls.configure(authParams);
         internalSetup(authTls);
 
-        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
-                pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls()));
+        admin.clusters().createCluster("test", ClusterData.builder()
+                .serviceUrl(brokerUrl.toString())
+                .serviceUrlTls(brokerUrlTls.toString())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl())
+                .brokerServiceUrlTls(pulsar.getBrokerServiceUrlTls())
+                .build());
         admin.tenants().createTenant("my-property",
-                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         String namespace = "my-property/my-ns";
         admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
 

@@ -53,10 +53,11 @@ import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.replication.AutoRecoveryMain;
 import org.apache.commons.io.FileUtils;
-import org.apache.zookeeper.CreateMode;
+import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreFactory;
+import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.ZooDefs;
-import org.apache.zookeeper.ZooKeeper;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -71,7 +72,7 @@ public abstract class BookKeeperClusterTestCase {
 
     // ZooKeeper related variables
     protected ZooKeeperUtil zkUtil = new ZooKeeperUtil();
-    protected ZooKeeper zkc;
+    protected FaultInjectionMetadataStore metadataStore;
 
     // BookKeeper related variables
     protected List<File> tmpDirs = new LinkedList<File>();
@@ -93,7 +94,7 @@ public abstract class BookKeeperClusterTestCase {
         this.numBookies = numBookies;
     }
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void setUp() throws Exception {
         // enable zookeeper `zookeeper.4lw.commands.whitelist`
         System.setProperty("zookeeper.4lw.commands.whitelist", "*");
@@ -108,8 +109,6 @@ public abstract class BookKeeperClusterTestCase {
             startZKCluster(zkPath);
             // start bookkeeper service
             startBKCluster(zkPath);
-
-            zkc.create(zkPath + "/managed-ledgers", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         } catch (Exception e) {
             LOG.error("Error setting up", e);
             throw e;
@@ -126,7 +125,7 @@ public abstract class BookKeeperClusterTestCase {
         stopBKCluster();
         // stop zookeeper service
         stopZKCluster();
-        executor.shutdown();
+        executor.shutdownNow();
     }
 
     /**
@@ -140,7 +139,9 @@ public abstract class BookKeeperClusterTestCase {
 
     protected void startZKCluster(String path) throws Exception {
         zkUtil.startServer(path);
-        zkc = zkUtil.getZooKeeperClient();
+        metadataStore = new FaultInjectionMetadataStore(
+                MetadataStoreFactory.create(zkUtil.getZooKeeperConnectString(),
+                MetadataStoreConfig.builder().build()));
     }
 
     /**
@@ -211,7 +212,7 @@ public abstract class BookKeeperClusterTestCase {
         tmpDirs.add(f);
         f.delete();
         f.mkdir();
-        
+
         int port = 0;
         return newServerConfiguration(port, zkUtil.getZooKeeperConnectString(), f, new File[] { f }, ledgerRootPath);
     }
@@ -375,10 +376,7 @@ public abstract class BookKeeperClusterTestCase {
     /**
      * Restart bookie servers. Also restarts all the respective auto recovery process, if isAutoRecoveryEnabled is true.
      *
-     * @throws InterruptedException
-     * @throws IOException
-     * @throws KeeperException
-     * @throws BookieException
+     * @throws Exception
      */
     public void restartBookies() throws Exception {
         restartBookies(null);
@@ -390,10 +388,7 @@ public abstract class BookKeeperClusterTestCase {
      *
      * @param newConf
      *            New Configuration Settings
-     * @throws InterruptedException
-     * @throws IOException
-     * @throws KeeperException
-     * @throws BookieException
+     * @throws Exception
      */
     public void restartBookies(ServerConfiguration newConf) throws Exception {
         // shut down bookie server
@@ -448,11 +443,12 @@ public abstract class BookKeeperClusterTestCase {
         }
 
         int port = conf.getBookiePort();
-        while (bkc.getZkHandle()
-            .exists(ledgerRootPath + "/available/" + InetAddress.getLocalHost().getHostAddress() + ":" + port,
-                false) == null) {
-            Thread.sleep(500);
-        }
+
+        Awaitility.await().until(() ->
+                metadataStore.exists(
+                        ledgerRootPath + "/available/" + InetAddress.getLocalHost().getHostAddress() + ":" + port)
+                        .join()
+        );
 
         bkc.readBookiesBlocking();
         LOG.info("New bookie on port " + port + " has been created.");
@@ -479,10 +475,10 @@ public abstract class BookKeeperClusterTestCase {
         server.start();
 
         int port = conf.getBookiePort();
-        while (bkc.getZkHandle().exists(
-                "/ledgers/available/" + InetAddress.getLocalHost().getHostAddress() + ":" + port, false) == null) {
-            Thread.sleep(500);
-        }
+        Awaitility.await().until(() ->
+                metadataStore.exists(
+                        "/ledgers/available/" + InetAddress.getLocalHost().getHostAddress() + ":" + port).join()
+        );
 
         bkc.readBookiesBlocking();
         LOG.info("New bookie on port " + port + " has been created.");

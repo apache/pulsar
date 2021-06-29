@@ -74,7 +74,10 @@ add_maven_deps_to_classpath() {
     f="${PULSAR_HOME}/distribution/server/target/classpath.txt"
     if [ ! -f "${f}" ]
     then
-	${MVN} -f "${PULSAR_HOME}/pom.xml" dependency:build-classpath -Dmdep.outputFile="${f}" &> /dev/null
+    (
+      cd "${PULSAR_HOME}"
+      ${MVN} -pl distribution/server generate-sources &> /dev/null
+    )
     fi
     PULSAR_CLASSPATH=${CLASSPATH}:`cat "${f}"`
 }
@@ -92,6 +95,8 @@ where command is one of:
     monitor-brokers         Continuously receive broker data and/or load reports
     simulation-client       Run a simulation server acting as a Pulsar client
     simulation-controller   Run a simulation controller to give commands to servers
+
+    gen-doc                 Generate documentation automatically.
 
     help                    This help message
 
@@ -167,6 +172,8 @@ elif [ "$COMMAND" == "websocket-producer" ]; then
     exec $JAVA $OPTS org.apache.pulsar.proxy.socket.client.PerformanceClient "$@"
 elif [ "$COMMAND" == "managed-ledger" ]; then
     exec $JAVA $OPTS org.apache.pulsar.testclient.ManagedLedgerWriter "$@"
+elif [ "$COMMAND" == "gen-doc" ]; then
+    exec $JAVA $OPTS org.apache.pulsar.testclient.CmdGenerateDocumentation "$@"
 else
     pulsar_help;
 fi

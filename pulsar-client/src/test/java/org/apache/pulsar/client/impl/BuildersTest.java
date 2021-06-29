@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import com.google.common.collect.ImmutableSet;
+import lombok.Cleanup;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -82,6 +83,7 @@ public class BuildersTest {
 
     @Test
     public void readerBuilderLoadConfTest() throws Exception {
+        @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
         String topicName = "test_src";
         MessageId messageId = new MessageIdImpl(1, 2, 3);
@@ -99,7 +101,6 @@ public class BuildersTest {
         assertTrue(obj instanceof ReaderConfigurationData);
         assertEquals(((ReaderConfigurationData) obj).getTopicName(), topicName);
         assertEquals(((ReaderConfigurationData) obj).getStartMessageId(), messageId);
-        client.close();
     }
 
     @Test(expectedExceptions = {PulsarClientException.class}, expectedExceptionsMessageRegExp = ".* must be specified but they cannot be specified at the same time.*")

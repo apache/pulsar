@@ -23,6 +23,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -30,6 +31,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -494,5 +496,54 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
 
         consumer.unsubscribe();
         producer.close();
+    }
+
+    @Test(timeOut = 30000)
+    public void testPauseAndResumeNoReconnection() throws Exception {
+        final String topicName = "persistent://prop/ns-abc/zero-queue-pause-and-resume-no-reconnection";
+        final String subName = "sub";
+
+        final Object object = new Object();
+        AtomicBoolean running = new AtomicBoolean(false);
+
+        final List<Integer> receivedMessages = Collections.synchronizedList(new ArrayList<>());
+        final Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topicName)
+                .subscriptionName(subName)
+                .receiverQueueSize(0)
+                .messageListener((MessageListener<Integer>) (consumer1, msg) -> {
+                    assertNotNull(msg, "Message cannot be null");
+                    receivedMessages.add(msg.getValue());
+                    try {
+                        consumer1.acknowledge(msg);
+                    } catch (PulsarClientException ignored) {
+                    }
+                    synchronized (object) {
+                        running.set(false);
+                        object.notifyAll();
+                    }
+                }).subscribe();
+        final Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
+                .topic(topicName)
+                .enableBatching(false)
+                .create();
+        final int numMessages = 100;
+        for (int i = 0; i < numMessages; i++) {
+            consumer.resume();
+            producer.newMessage().value(i).sendAsync();
+            synchronized (object) {
+                running.set(true);
+                while (running.get()) {
+                    object.wait();
+                }
+            }
+            consumer.pause();
+        }
+
+        log.info("Received messages: {}", receivedMessages);
+        assertEquals(receivedMessages.size(), numMessages);
+        for (int i = 0; i < numMessages; i++) {
+            assertEquals(receivedMessages.get(i).intValue(), i);
+        }
     }
 }

@@ -40,6 +40,8 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import lombok.SneakyThrows;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
 import org.apache.bookkeeper.client.api.LedgerEntries;
@@ -56,8 +58,8 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.Ledge
 import org.apache.bookkeeper.mledger.util.MockClock;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
-import org.apache.pulsar.common.policies.data.OffloadPolicies.OffloadedReadPriority;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
+import org.apache.pulsar.common.policies.data.OffloadedReadPriority;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -112,6 +114,10 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         }
         verify(offloader, times(2))
                 .readOffloaded(anyLong(), (UUID) any(), anyMap());
+
+        ledger.close();
+        // Ensure that all the read handles had been closed
+        assertEquals(offloader.openedReadHandles.get(), 0);
     }
 
     @Test
@@ -196,13 +202,14 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         ConcurrentHashMap<UUID, ReadHandle> offloads = new ConcurrentHashMap<UUID, ReadHandle>();
 
 
-        OffloadPolicies offloadPolicies = OffloadPolicies.create("S3", "", "", "",
+        OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create("S3", "", "", "",
                 null, null,
-                OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
-                OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
-                OffloadPolicies.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES,
-                OffloadPolicies.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS,
-                OffloadPolicies.DEFAULT_OFFLOADED_READ_PRIORITY);
+                null, null,
+                OffloadPoliciesImpl.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
+                OffloadPoliciesImpl.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
+                OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES,
+                OffloadPoliciesImpl.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS,
+                OffloadPoliciesImpl.DEFAULT_OFFLOADED_READ_PRIORITY);
 
 
         @Override
@@ -224,10 +231,11 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
             return promise;
         }
 
+        @SneakyThrows
         @Override
         public CompletableFuture<ReadHandle> readOffloaded(long ledgerId, UUID uuid,
                                                            Map<String, String> offloadDriverMetadata) {
-            return CompletableFuture.completedFuture(offloads.get(uuid));
+            return CompletableFuture.completedFuture(new VerifyClosingReadHandle(offloads.get(uuid)));
         }
 
         @Override
@@ -238,13 +246,28 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         };
 
         @Override
-        public OffloadPolicies getOffloadPolicies() {
+        public OffloadPoliciesImpl getOffloadPolicies() {
             return offloadPolicies;
         }
 
         @Override
         public void close() {
 
+        }
+
+        private final AtomicInteger openedReadHandles = new AtomicInteger(0);
+
+        class VerifyClosingReadHandle extends MockOffloadReadHandle {
+            VerifyClosingReadHandle(ReadHandle toCopy) throws Exception {
+                super(toCopy);
+                openedReadHandles.incrementAndGet();
+            }
+
+            @Override
+            public CompletableFuture<Void> closeAsync() {
+                openedReadHandles.decrementAndGet();
+                return super.closeAsync();
+            }
         }
     }
 

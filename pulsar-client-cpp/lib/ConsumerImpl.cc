@@ -184,10 +184,10 @@ void ConsumerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
 
     ClientImplPtr client = client_.lock();
     uint64_t requestId = client->newRequestId();
-    SharedBuffer cmd =
-        Commands::newSubscribe(topic_, subscription_, consumerId_, requestId, getSubType(), consumerName_,
-                               subscriptionMode_, startMessageId_, readCompacted_, config_.getProperties(),
-                               config_.getSchema(), getInitialPosition(), config_.getKeySharedPolicy());
+    SharedBuffer cmd = Commands::newSubscribe(
+        topic_, subscription_, consumerId_, requestId, getSubType(), consumerName_, subscriptionMode_,
+        startMessageId_, readCompacted_, config_.getProperties(), config_.getSchema(), getInitialPosition(),
+        config_.isReplicateSubscriptionStateEnabled(), config_.getKeySharedPolicy());
     cnx->sendRequestWithId(cmd, requestId)
         .addListener(
             std::bind(&ConsumerImpl::handleCreateConsumer, shared_from_this(), cnx, std::placeholders::_1));
@@ -204,7 +204,7 @@ void ConsumerImpl::connectionFailed(Result result) {
 }
 
 void ConsumerImpl::sendFlowPermitsToBroker(const ClientConnectionPtr& cnx, int numMessages) {
-    if (cnx) {
+    if (cnx && numMessages > 0) {
         LOG_DEBUG(getName() << "Send more permits: " << numMessages);
         SharedBuffer cmd = Commands::newFlow(consumerId_, static_cast<unsigned int>(numMessages));
         cnx->sendCommand(cmd);
@@ -566,6 +566,7 @@ void ConsumerImpl::internalListener() {
         // This will only happen when the connection got reset and we cleared the queue
         return;
     }
+    trackMessage(msg);
     try {
         consumerStatsBasePtr_->receivedMessage(msg, ResultOk);
         lastDequedMessage_ = Optional<MessageId>::of(msg.getMessageId());
@@ -573,7 +574,7 @@ void ConsumerImpl::internalListener() {
     } catch (const std::exception& e) {
         LOG_ERROR(getName() << "Exception thrown from listener" << e.what());
     }
-    messageProcessed(msg);
+    messageProcessed(msg, false);
 }
 
 Result ConsumerImpl::fetchSingleMessageFromBroker(Message& msg) {
@@ -701,7 +702,7 @@ Result ConsumerImpl::receiveHelper(Message& msg, int timeout) {
     }
 }
 
-void ConsumerImpl::messageProcessed(Message& msg) {
+void ConsumerImpl::messageProcessed(Message& msg, bool track) {
     Lock lock(mutex_);
     lastDequedMessage_ = Optional<MessageId>::of(msg.getMessageId());
 
@@ -712,7 +713,9 @@ void ConsumerImpl::messageProcessed(Message& msg) {
     }
 
     increaseAvailablePermits(currentCnx);
-    trackMessage(msg);
+    if (track) {
+        trackMessage(msg);
+    }
 }
 
 /**
@@ -1223,6 +1226,11 @@ void ConsumerImpl::trackMessage(const Message& msg) {
     } else {
         unAckedMessageTrackerPtr_->add(msg.getMessageId());
     }
+}
+
+bool ConsumerImpl::isConnected() const {
+    Lock lock(mutex_);
+    return !getCnx().expired() && state_ == Ready;
 }
 
 } /* namespace pulsar */

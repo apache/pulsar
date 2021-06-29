@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl.v1;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerStats;
@@ -142,12 +143,20 @@ public class ConsumerV1Impl implements Consumer {
         consumer.seek(arg0);
     }
 
+    public void seek(Function<String, Object> function) throws PulsarClientException {
+        consumer.seek(function);
+    }
+
     public CompletableFuture<Void> seekAsync(long arg0) {
         return consumer.seekAsync(arg0);
     }
 
     public CompletableFuture<Void> seekAsync(MessageId arg0) {
         return consumer.seekAsync(arg0);
+    }
+
+    public CompletableFuture<Void> seekAsync(Function<String, Object> function) {
+        return consumer.seekAsync(function);
     }
 
     public void unsubscribe() throws PulsarClientException {

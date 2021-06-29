@@ -123,6 +123,11 @@ module.exports = [
         logo: 'https://s.vipkidstatic.com/fe-static/teacher/mkt-pc/img/e74f189.svg'
     },
     {
+        name: 'Vivy',
+        url: 'https://www.vivy.com/de/startseite/',
+        logo: 'https://www.vivy.com/fileadmin/vivy-startpage/vivy_logo.svg'
+    },
+    {
         name: 'IoTium',
         url: 'https://www.iotium.io/',
         logo: 'https://www.iotium.io/site/wp-content/uploads/2018/04/IoTium-logo.jpg'

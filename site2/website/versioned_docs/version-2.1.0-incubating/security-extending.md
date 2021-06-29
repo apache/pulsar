@@ -52,7 +52,7 @@ at the same time.
 In `conf/broker.conf` it's possible to specify a list of valid providers:
 
 ```properties
-# Autentication provider name list, which is comma separated list of class names
+# Authentication provider name list, which is comma separated list of class names
 authenticationProviders=
 ```
 

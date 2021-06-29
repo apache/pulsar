@@ -42,9 +42,14 @@ bool MemoryLimitController::tryReserveMemory(uint64_t size) {
 }
 
 void MemoryLimitController::reserveMemory(uint64_t size) {
-    while (!tryReserveMemory(size)) {
+    if (!tryReserveMemory(size)) {
         std::unique_lock<std::mutex> lock(mutex_);
-        condition_.wait(lock);
+
+        // Check again, while holding the lock, to ensure we reserve attempt and the waiting for the condition
+        // are synchronized.
+        while (!tryReserveMemory(size)) {
+            condition_.wait(lock);
+        }
     }
 }
 

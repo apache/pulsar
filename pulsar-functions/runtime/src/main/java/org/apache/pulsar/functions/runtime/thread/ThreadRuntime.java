@@ -34,6 +34,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.InstanceUtils;
+import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
@@ -65,7 +66,7 @@ public class ThreadRuntime implements Runtime {
     private PulsarAdmin pulsarAdmin;
     private String stateStorageServiceUrl;
     private SecretsProvider secretsProvider;
-    private CollectorRegistry collectorRegistry;
+    private FunctionCollectorRegistry collectorRegistry;
     private String narExtractionDirectory;
     private final Optional<ConnectorsManager> connectorsManager;
 
@@ -77,7 +78,7 @@ public class ThreadRuntime implements Runtime {
                   PulsarAdmin pulsarAdmin,
                   String stateStorageServiceUrl,
                   SecretsProvider secretsProvider,
-                  CollectorRegistry collectorRegistry,
+                  FunctionCollectorRegistry collectorRegistry,
                   String narExtractionDirectory,
                   Optional<ConnectorsManager> connectorsManager) {
         this.instanceConfig = instanceConfig;
@@ -172,12 +173,12 @@ public class ThreadRuntime implements Runtime {
                 secretsProvider,
                 collectorRegistry,
                 functionClassLoader);
+
         log.info("ThreadContainer starting function with instance config {}", instanceConfig);
         this.fnThread = new Thread(threadGroup, javaInstanceRunnable,
                 String.format("%s-%s",
                         FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails()),
                         instanceConfig.getInstanceId()));
-        this.fnThread.setContextClassLoader(functionClassLoader);
         this.fnThread.setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
             @Override
             public void uncaughtException(Thread t, Throwable e) {

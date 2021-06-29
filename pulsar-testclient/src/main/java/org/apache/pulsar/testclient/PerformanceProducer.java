@@ -25,6 +25,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
+import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.collect.Lists;
@@ -93,6 +94,9 @@ public class PerformanceProducer {
     private static Recorder recorder = new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
     private static Recorder cumulativeRecorder = new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
 
+    private static IMessageFormatter messageFormatter = null;
+
+    @Parameters(commandDescription = "Test pulsar producer performance.")
     static class Arguments {
 
         @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)
@@ -118,6 +122,15 @@ public class PerformanceProducer {
 
         @Parameter(names = { "-n", "--num-producers" }, description = "Number of producers (per topic)")
         public int numProducers = 1;
+
+        @Parameter(names = {"--separator"}, description = "Separator between the topic and topic number")
+        public String separator = "-";
+
+        @Parameter(names = {"--send-timeout"}, description = "Set the sendTimeout value default 0 to keep compatibility with previous version of pulsar-perf")
+        public int sendTimeout = 0;
+
+        @Parameter(names = { "-pn", "--producer-name" }, description = "Producer Name")
+        public String producerName = null;
 
         @Parameter(names = { "-u", "--service-url" }, description = "Pulsar Service URL")
         public String serviceURL;
@@ -225,8 +238,18 @@ public class PerformanceProducer {
                 "used for handling connections to brokers, default is 1 thread")
         public int ioThreads = 1;
 
+        @Parameter(names = {"-bw", "--busy-wait"}, description = "Enable Busy-Wait on the Pulsar client")
+        public boolean enableBusyWait = false;
+
         @Parameter(names = { "-am", "--access-mode" }, description = "Producer access mode")
         public ProducerAccessMode producerAccessMode = ProducerAccessMode.Shared;
+
+        @Parameter(names = { "-fp", "--format-payload" },
+                description = "Format %i as a message index in the stream from producer and/or %t as the timestamp nanoseconds.")
+        public boolean formatPayload = false;
+
+        @Parameter(names = {"-fc", "--format-class"}, description="Custom Formatter class name")
+        public String formatterClass = "org.apache.pulsar.testclient.DefaultMessageFormatter";
     }
 
     public static void main(String[] args) throws Exception {
@@ -254,7 +277,7 @@ public class PerformanceProducer {
                 String prefixTopicName = arguments.topics.get(0);
                 List<String> defaultTopics = Lists.newArrayList();
                 for (int i = 0; i < arguments.numTopics; i++) {
-                    defaultTopics.add(String.format("%s-%d", prefixTopicName, i));
+                    defaultTopics.add(String.format("%s%s%d", prefixTopicName, arguments.separator, i));
                 }
                 arguments.topics = defaultTopics;
             } else {
@@ -330,6 +353,10 @@ public class PerformanceProducer {
             for (String payload : payloadList) {
                 payloadByteList.add(payload.getBytes(StandardCharsets.UTF_8));
             }
+
+            if (arguments.formatPayload) {
+                messageFormatter = getMessageFormatter(arguments.formatterClass);
+            }
         } else {
             for (int i = 0; i < payloadBytes.length; ++i) {
                 payloadBytes[i] = (byte) (random.nextInt(26) + 65);
@@ -386,6 +413,7 @@ public class PerformanceProducer {
             executor.submit(() -> {
                 log.info("Started performance test thread {}", threadIdx);
                 runProducer(
+                    threadIdx,
                     arguments,
                     numMessagesPerThread,
                     msgRatePerThread,
@@ -425,7 +453,7 @@ public class PerformanceProducer {
 
             long now = System.nanoTime();
             double elapsed = (now - oldTime) / 1e9;
-
+            long total = totalMessagesSent.sum();
             double rate = messagesSent.sumThenReset() / elapsed;
             double failureRate = messagesFailed.sumThenReset() / elapsed;
             double throughput = bytesSent.sumThenReset() / elapsed / 1024 / 1024 * 8;
@@ -433,7 +461,8 @@ public class PerformanceProducer {
             reportHistogram = recorder.getIntervalHistogram(reportHistogram);
 
             log.info(
-                    "Throughput produced: {}  msg/s --- {} Mbit/s --- failure {} msg/s --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
+                    "Throughput produced: {} msg --- {} msg/s --- {} Mbit/s --- failure {} msg/s --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
+                    intFormat.format(total),
                     throughputFormat.format(rate), throughputFormat.format(throughput),
                     throughputFormat.format(failureRate),
                     dec.format(reportHistogram.getMean() / 1000.0),
@@ -451,7 +480,18 @@ public class PerformanceProducer {
         }
     }
 
-    private static void runProducer(Arguments arguments,
+    static IMessageFormatter getMessageFormatter(String formatterClass) {
+        try {
+            ClassLoader classLoader = PerformanceProducer.class.getClassLoader();
+            Class clz = classLoader.loadClass(formatterClass);
+            return (IMessageFormatter) clz.newInstance();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static void runProducer(int producerId,
+                                    Arguments arguments,
                                     long numMessages,
                                     int msgRate,
                                     List<byte[]> payloadByteList,
@@ -468,6 +508,7 @@ public class PerformanceProducer {
                     .connectionsPerBroker(arguments.maxConnections) //
                     .ioThreads(arguments.ioThreads) //
                     .statsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS) //
+                    .enableBusyWait(arguments.enableBusyWait)
                     .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
 
             if (isNotBlank(arguments.authPluginClassName)) {
@@ -484,13 +525,18 @@ public class PerformanceProducer {
 
             client = clientBuilder.build();
             ProducerBuilder<byte[]> producerBuilder = client.newProducer() //
-                    .sendTimeout(0, TimeUnit.SECONDS) //
+                    .sendTimeout(arguments.sendTimeout, TimeUnit.SECONDS) //
                     .compressionType(arguments.compression) //
                     .maxPendingMessages(arguments.maxOutstanding) //
                     .maxPendingMessagesAcrossPartitions(arguments.maxPendingMessagesAcrossPartitions)
                     .accessMode(arguments.producerAccessMode)
                     // enable round robin message routing if it is a partitioned topic
                     .messageRoutingMode(MessageRoutingMode.RoundRobinPartition);
+
+            if (arguments.producerName != null) {
+                String producerName = String.format("%s%s%d", arguments.producerName, arguments.separator, producerId);
+                producerBuilder.producerName(producerName);
+            }
 
             if (arguments.batchTimeMillis == 0.0 && arguments.batchMaxMessages == 0) {
                 producerBuilder.enableBatching(false);
@@ -514,6 +560,7 @@ public class PerformanceProducer {
             }
 
             for (int i = 0; i < arguments.numTopics; i++) {
+
                 String topic = arguments.topics.get(i);
                 log.info("Adding {} publishers on topic {}", arguments.numProducers, topic);
 
@@ -578,7 +625,12 @@ public class PerformanceProducer {
                     byte[] payloadData;
 
                     if (arguments.payloadFilename != null) {
-                        payloadData = payloadByteList.get(random.nextInt(payloadByteList.size()));
+                        if (messageFormatter != null) {
+                            payloadData = messageFormatter.formatMessage(arguments.producerName, totalSent,
+                                    payloadByteList.get(random.nextInt(payloadByteList.size())));
+                        } else {
+                            payloadData = payloadByteList.get(random.nextInt(payloadByteList.size()));
+                        }
                     } else {
                         payloadData = payloadBytes;
                     }
@@ -663,6 +715,7 @@ public class PerformanceProducer {
 
     static final DecimalFormat throughputFormat = new PaddingDecimalFormat("0.0", 8);
     static final DecimalFormat dec = new PaddingDecimalFormat("0.000", 7);
+    static final DecimalFormat intFormat = new PaddingDecimalFormat("0", 7);
     static final DecimalFormat totalFormat = new DecimalFormat("0.000");
     private static final Logger log = LoggerFactory.getLogger(PerformanceProducer.class);
 

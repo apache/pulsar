@@ -233,6 +233,18 @@ functionRuntimeFactoryConfigs:
 #   ram: 17179869184
 #   disk: 107374182400
 
+## Granularities of requested resources.
+## If the granularity of any type of resource is set,
+## the requested resource of the type must be a multiple of the granularity.
+#functionInstanceResourceGranularities:
+#    cpu: 1.0
+#    ram: 1073741824
+#    disk: 10737418240
+
+## If this configuration is set to be true, the amount of requested resources of all type of resources
+## that have the granularity set must be the same multiples of their granularities.
+#functionInstanceResourceChangeInLockStep: true
+
 ## The full class-name of an instance of RuntimeCustomizer.
 ## This class receives the customRuntimeOptions string and can customize details of how the runtime operates.
 #runtimeCustomizerClassName: "org.apache.pulsar.functions.runtime.kubernetes.KubernetesManifestCustomizer"
@@ -303,5 +315,5 @@ functionsDirectory: ./functions
 validateConnectorConfig: false
 
 # Whether to initialize distributed log metadata by runtime.
-# If it is set to true, you must ensure that it has been initialized by "bin/pulsarinitialize-cluster-metadata" command.
+# If it is set to true, you must ensure that it has been initialized by "bin/pulsar initialize-cluster-metadata" command.
 initializedDlogMetadata: false

@@ -19,24 +19,23 @@
 package org.apache.bookkeeper.test;
 
 import java.lang.reflect.Method;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
-import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
-import org.apache.bookkeeper.util.ZkUtils;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.MockZooKeeper;
-import org.apache.zookeeper.ZooDefs;
+import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.MetadataStoreFactory;
+import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 /**
  * A class runs several bookie servers for testing.
@@ -44,9 +43,6 @@ import org.testng.annotations.Test;
 public abstract class MockedBookKeeperTestCase {
 
     static final Logger LOG = LoggerFactory.getLogger(MockedBookKeeperTestCase.class);
-
-    // ZooKeeper related variables
-    protected MockZooKeeper zkc;
 
     // BookKeeper related variables
     protected PulsarMockBookKeeper bkc;
@@ -57,6 +53,8 @@ public abstract class MockedBookKeeperTestCase {
     protected OrderedScheduler executor;
     protected ExecutorService cachedExecutor;
 
+    protected FaultInjectionMetadataStore metadataStore;
+
     public MockedBookKeeperTestCase() {
         // By default start a 3 bookies cluster
         this(3);
@@ -66,9 +64,12 @@ public abstract class MockedBookKeeperTestCase {
         this.numBookies = numBookies;
     }
 
-    @BeforeMethod(groups = { "broker" })
-    public void setUp(Method method) throws Exception {
+    @BeforeMethod(alwaysRun = true)
+    public final void setUp(Method method) throws Exception {
         LOG.info(">>>>>> starting {}", method);
+        metadataStore = new FaultInjectionMetadataStore(
+                MetadataStoreFactory.create("memory://local", MetadataStoreConfig.builder().build()));
+
         try {
             // start bookkeeper service
             startBookKeeper();
@@ -77,39 +78,50 @@ public abstract class MockedBookKeeperTestCase {
             throw e;
         }
 
-        ManagedLedgerFactoryConfig conf = new ManagedLedgerFactoryConfig();
-        factory = new ManagedLedgerFactoryImpl(bkc, zkc, conf);
+        factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
 
-        zkc.create("/managed-ledgers", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        setUpTestCase();
     }
 
-    @AfterMethod(alwaysRun = true, groups = { "broker" })
-    public void tearDown(Method method) {
+    protected void setUpTestCase() throws Exception {
+
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public final void tearDown(Method method) {
+        try {
+            cleanUpTestCase();
+        } catch (Exception e) {
+            LOG.error("tearDown Error", e);
+        }
         try {
             LOG.info("@@@@@@@@@ stopping " + method);
             factory.shutdown();
             factory = null;
             stopBookKeeper();
-            stopZooKeeper();
             LOG.info("--------- stopped {}", method);
         } catch (Exception e) {
             LOG.error("tearDown Error", e);
         }
     }
 
-    @BeforeClass(groups = { "broker" })
-    public void setUpClass() {
+    protected void cleanUpTestCase() throws Exception {
+
+    }
+
+    @BeforeClass(alwaysRun = true)
+    public final void setUpClass() {
         executor = OrderedScheduler.newSchedulerBuilder().numThreads(2).name("test").build();
         cachedExecutor = Executors.newCachedThreadPool();
     }
 
-    @AfterClass(alwaysRun = true, groups = { "broker" })
-    public void tearDownClass() {
+    @AfterClass(alwaysRun = true)
+    public final void tearDownClass() {
         if (executor != null) {
-            executor.shutdown();
+            executor.shutdownNow();
         }
         if (cachedExecutor != null) {
-            cachedExecutor.shutdown();
+            cachedExecutor.shutdownNow();
         }
     }
 
@@ -119,23 +131,20 @@ public abstract class MockedBookKeeperTestCase {
      * @throws Exception
      */
     protected void startBookKeeper() throws Exception {
-        zkc = MockZooKeeper.newInstance();
         for (int i = 0; i < numBookies; i++) {
-            ZkUtils.createFullPathOptimistic(zkc, "/ledgers/available/192.168.1.1:" + (5000 + i), "".getBytes(), null,
-                    null);
+            metadataStore.put( "/ledgers/available/192.168.1.1:" + (5000 + i), new byte[0], Optional.empty()).join();
         }
 
-        zkc.create("/ledgers/LAYOUT", "1\nflat:1".getBytes(), null, null);
+        metadataStore.put("/ledgers/LAYOUT", "1\nflat:1".getBytes(), Optional.empty()).join();
 
-        bkc = new PulsarMockBookKeeper(zkc, executor.chooseThread(this));
+        bkc = new PulsarMockBookKeeper(executor);
     }
 
     protected void stopBookKeeper() {
         bkc.shutdown();
     }
 
-    protected void stopZooKeeper() throws Exception {
-        zkc.shutdown();
+    protected void stopMetadataStore() {
+        metadataStore.setAlwaysFail(new MetadataStoreException("failed"));
     }
-
 }

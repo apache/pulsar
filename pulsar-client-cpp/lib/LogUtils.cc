@@ -20,7 +20,7 @@
 
 #include <atomic>
 #include <iostream>
-#include <pulsar/SimpleLoggerFactory.h>
+#include <pulsar/ConsoleLoggerFactory.h>
 
 #include "Log4CxxLogger.h"
 
@@ -50,7 +50,7 @@ void LogUtils::setLoggerFactory(std::unique_ptr<LoggerFactory> loggerFactory) {
 
 LoggerFactory* LogUtils::getLoggerFactory() {
     if (s_loggerFactory.load() == nullptr) {
-        std::unique_ptr<LoggerFactory> newFactory(new SimpleLoggerFactory());
+        std::unique_ptr<LoggerFactory> newFactory(new ConsoleLoggerFactory());
         setLoggerFactory(std::move(newFactory));
     }
     return s_loggerFactory.load();

@@ -24,7 +24,7 @@ import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.common.functions.UpdateOptions;
+import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.io.ConfigFieldDefinition;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
@@ -84,7 +84,7 @@ public class SinksApiV3Resource extends FunctionApiResource {
                            final @FormDataParam("data") FormDataContentDisposition fileDetail,
                            final @FormDataParam("url") String functionPkgUrl,
                            final @FormDataParam("sinkConfig") SinkConfig sinkConfig,
-                           final @FormDataParam("updateOptions") UpdateOptions updateOptions) {
+                           final @FormDataParam("updateOptions") UpdateOptionsImpl updateOptions) {
 
         sinks().updateSink(tenant, namespace, sinkName, uploadedInputStream, fileDetail,
                 functionPkgUrl, sinkConfig, clientAppId(), clientAuthData(), updateOptions);
@@ -274,6 +274,6 @@ public class SinksApiV3Resource extends FunctionApiResource {
     })
     @Path("/reloadBuiltInSinks")
     public void reloadSinks() {
-        sinks().reloadConnectors(clientAppId());
+        sinks().reloadConnectors(clientAppId(), clientAuthData());
     }
 }

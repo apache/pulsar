@@ -78,9 +78,9 @@ public class MembershipManager implements AutoCloseable {
             throw new RuntimeException(e);
         }
 
-        for (ConsumerStats consumerStats : topicStats.subscriptions
-                .get(COORDINATION_TOPIC_SUBSCRIPTION).consumers) {
-            WorkerInfo workerInfo = WorkerInfo.parseFrom(consumerStats.metadata.get(WORKER_IDENTIFIER));
+        for (ConsumerStats consumerStats : topicStats.getSubscriptions()
+                .get(COORDINATION_TOPIC_SUBSCRIPTION).getConsumers()) {
+            WorkerInfo workerInfo = WorkerInfo.parseFrom(consumerStats.getMetadata().get(WORKER_IDENTIFIER));
             workerIds.add(workerInfo);
         }
         return workerIds;
@@ -96,12 +96,12 @@ public class MembershipManager implements AutoCloseable {
             throw new RuntimeException(e);
         }
 
-        String activeConsumerName = topicStats.subscriptions.get(COORDINATION_TOPIC_SUBSCRIPTION).activeConsumerName;
+        String activeConsumerName = topicStats.getSubscriptions().get(COORDINATION_TOPIC_SUBSCRIPTION).getActiveConsumerName();
         WorkerInfo leader = null;
-        for (ConsumerStats consumerStats : topicStats.subscriptions
-                .get(COORDINATION_TOPIC_SUBSCRIPTION).consumers) {
-            if (consumerStats.consumerName.equals(activeConsumerName)) {
-                leader = WorkerInfo.parseFrom(consumerStats.metadata.get(WORKER_IDENTIFIER));
+        for (ConsumerStats consumerStats : topicStats.getSubscriptions()
+                .get(COORDINATION_TOPIC_SUBSCRIPTION).getConsumers()) {
+            if (consumerStats.getConsumerName().equals(activeConsumerName)) {
+                leader = WorkerInfo.parseFrom(consumerStats.getMetadata().get(WORKER_IDENTIFIER));
             }
         }
         if (leader == null) {

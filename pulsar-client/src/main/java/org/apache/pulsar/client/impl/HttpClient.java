@@ -59,8 +59,8 @@ import org.asynchttpclient.netty.ssl.JsseSslEngineFactory;
 @Slf4j
 public class HttpClient implements Closeable {
 
-    protected final static int DEFAULT_CONNECT_TIMEOUT_IN_SECONDS = 10;
-    protected final static int DEFAULT_READ_TIMEOUT_IN_SECONDS = 30;
+    protected static final int DEFAULT_CONNECT_TIMEOUT_IN_SECONDS = 10;
+    protected static final int DEFAULT_READ_TIMEOUT_IN_SECONDS = 30;
 
     protected final AsyncHttpClient httpClient;
     protected final ServiceNameResolver serviceNameResolver;

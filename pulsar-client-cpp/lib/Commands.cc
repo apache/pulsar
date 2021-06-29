@@ -256,7 +256,7 @@ SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string&
                                     const std::map<std::string, std::string>& metadata,
                                     const SchemaInfo& schemaInfo,
                                     CommandSubscribe_InitialPosition subscriptionInitialPosition,
-                                    KeySharedPolicy keySharedPolicy) {
+                                    bool replicateSubscriptionState, KeySharedPolicy keySharedPolicy) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::SUBSCRIBE);
     CommandSubscribe* subscribe = cmd.mutable_subscribe();
@@ -269,6 +269,7 @@ SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string&
     subscribe->set_durable(subscriptionMode == SubscriptionModeDurable);
     subscribe->set_read_compacted(readCompacted);
     subscribe->set_initialposition(subscriptionInitialPosition);
+    subscribe->set_replicate_subscription_state(replicateSubscriptionState);
 
     if (isBuiltInSchema(schemaInfo.getSchemaType())) {
         subscribe->set_allocated_schema(getSchema(schemaInfo));
@@ -292,15 +293,20 @@ SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string&
     }
 
     if (subType == CommandSubscribe_SubType_Key_Shared) {
-        KeySharedMeta ksm;
+        KeySharedMeta& ksm = *subscribe->mutable_keysharedmeta();
         switch (keySharedPolicy.getKeySharedMode()) {
             case pulsar::AUTO_SPLIT:
                 ksm.set_keysharedmode(proto::KeySharedMode::AUTO_SPLIT);
                 break;
             case pulsar::STICKY:
                 ksm.set_keysharedmode(proto::KeySharedMode::STICKY);
+                for (StickyRange range : keySharedPolicy.getStickyRanges()) {
+                    IntRange* intRange = IntRange().New();
+                    intRange->set_start(range.first);
+                    intRange->set_end(range.second);
+                    ksm.mutable_hashranges()->AddAllocated(intRange);
+                }
         }
-
         ksm.set_allowoutoforderdelivery(keySharedPolicy.isAllowOutOfOrderDelivery());
     }
 

@@ -276,7 +276,7 @@ public class MockBrokerService {
             log.info("Started web service on {}", getHttpAddress());
 
             startMockBrokerService();
-            log.info("Started mock Pulsar service on ", getBrokerAddress());
+            log.info("Started mock Pulsar service on {}", getBrokerAddress());
 
             lookupData = new LookupData(getBrokerAddress(), null,
                     getHttpAddress(), null);
@@ -301,7 +301,7 @@ public class MockBrokerService {
         final int MaxMessageSize = 5 * 1024 * 1024;
 
         try {
-            workerGroup = EventLoopUtil.newEventLoopGroup(numThreads, threadFactory);
+            workerGroup = EventLoopUtil.newEventLoopGroup(numThreads, false, threadFactory);
 
             ServerBootstrap bootstrap = new ServerBootstrap();
             bootstrap.group(workerGroup, workerGroup);

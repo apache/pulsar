@@ -28,6 +28,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -120,8 +121,14 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
     @Override
     public synchronized void removeConsumer(Consumer consumer) throws BrokerServiceException {
-        super.removeConsumer(consumer);
+        // The consumer must be removed from the selector before calling the superclass removeConsumer method.
+        // In the superclass removeConsumer method, the pending acks that the consumer has are added to
+        // messagesToRedeliver. If the consumer has not been removed from the selector at this point,
+        // the broker will try to redeliver the messages to the consumer that has already been closed.
+        // As a result, the messages are not redelivered to any consumer, and the mark-delete position does not move,
+        // eventually causing all consumers to get stuck.
         selector.removeConsumer(consumer);
+        super.removeConsumer(consumer);
         if (recentlyJoinedConsumers != null) {
             recentlyJoinedConsumers.remove(consumer);
             if (consumerList.size() == 1) {
@@ -171,6 +178,10 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
         AtomicInteger keyNumbers = new AtomicInteger(groupedEntries.size());
 
+        int currentThreadKeyNumber = groupedEntries.size();
+        if (currentThreadKeyNumber == 0) {
+            currentThreadKeyNumber = -1;
+        }
         for (Map.Entry<Consumer, List<Entry>> current : groupedEntries.entrySet()) {
             Consumer consumer = current.getKey();
             List<Entry> entriesWithSameKey = current.getValue();
@@ -189,7 +200,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 // so we discard for now and mark them for later redelivery
                 for (int i = messagesForC; i < entriesWithSameKeyCount; i++) {
                     Entry entry = entriesWithSameKey.get(i);
-                    messagesToRedeliver.add(entry.getLedgerId(), entry.getEntryId());
+                    addMessageToReplay(entry.getLedgerId(), entry.getEntryId());
                     entry.release();
                     entriesWithSameKey.set(i, null);
                 }
@@ -214,7 +225,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                         sendMessageInfo.getTotalMessages(),
                         sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
                         getRedeliveryTracker()).addListener(future -> {
-                    if (future.isSuccess() && keyNumbers.decrementAndGet() == 0) {
+                    if (future.isDone() && keyNumbers.decrementAndGet() == 0) {
                         readMoreEntries();
                     }
                 });
@@ -223,6 +234,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                         -(sendMessageInfo.getTotalMessages() - batchIndexesAcks.getTotalAckedIndexCount()));
                 totalMessagesSent += sendMessageInfo.getTotalMessages();
                 totalBytesSent += sendMessageInfo.getTotalBytes();
+            } else {
+                currentThreadKeyNumber = keyNumbers.decrementAndGet();
             }
         }
 
@@ -260,6 +273,12 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             // readMoreEntries should run regardless whether or not stuck is caused by
             // stuckConsumers for avoid stopping dispatch.
             readMoreEntries();
+        }  else if (currentThreadKeyNumber == 0) {
+            topic.getBrokerService().executor().schedule(() -> {
+                synchronized (PersistentStickyKeyDispatcherMultipleConsumers.this) {
+                    readMoreEntries();
+                }
+            }, 100, TimeUnit.MILLISECONDS);
         }
     }
 

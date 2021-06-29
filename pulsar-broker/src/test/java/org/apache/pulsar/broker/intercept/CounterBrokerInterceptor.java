@@ -18,9 +18,16 @@
  */
 package org.apache.pulsar.broker.intercept;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import javax.servlet.FilterChain;
+import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
+import lombok.AllArgsConstructor;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.PulsarService;
@@ -28,12 +35,21 @@ import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.eclipse.jetty.server.Response;
 
 @Slf4j
 public class CounterBrokerInterceptor implements BrokerInterceptor {
 
     int beforeSendCount = 0;
     int count = 0;
+    private List<ResponseEvent> responseList = new ArrayList<>();
+
+    @Data
+    @AllArgsConstructor
+    public class ResponseEvent {
+        private String requestUri;
+        private int responseStatus;
+    }
 
     @Override
     public void beforeSendMessage(Subscription subscription,
@@ -65,7 +81,18 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     @Override
     public void onWebserviceResponse(ServletRequest request, ServletResponse response) {
         count ++;
-        log.info("[{}] On [{}] Webservice response", count, ((HttpServletRequest)request).getRequestURL().toString());
+        log.info("[{}] On [{}] Webservice response {}", count, ((HttpServletRequest)request).getRequestURL().toString(), response);
+        if (response instanceof Response) {
+            Response res = (Response) response;
+            responseList.add(new ResponseEvent(res.getHttpChannel().getRequest().getRequestURI(), res.getStatus()));
+        }
+    }
+
+    @Override
+    public void onFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+            throws IOException, ServletException {
+        count = 100;
+        chain.doFilter(request, response);
     }
 
     @Override
@@ -84,5 +111,13 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
 
     public int getBeforeSendCount() {
         return beforeSendCount;
+    }
+
+    public void clearResponseList() {
+        responseList.clear();
+    }
+
+    public List<ResponseEvent> getResponseList() {
+        return responseList;
     }
 }
