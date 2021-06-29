@@ -25,6 +25,7 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -57,6 +58,7 @@ import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -352,13 +354,20 @@ public class NonPersistentTopics extends PersistentTopics {
                     return;
                 }
                 try {
+                    ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>> bundleTopics =
+                            pulsar().getBrokerService().getMultiLayerTopicsMap().get(namespaceName.toString());
+                    if (bundleTopics == null || bundleTopics.isEmpty()) {
+                        asyncResponse.resume(Collections.emptyList());
+                        return;
+                    }
                     final List<String> topicList = Lists.newArrayList();
-                    pulsar().getBrokerService().forEachTopic(topic -> {
-                        TopicName topicName = TopicName.get(topic.getName());
-                        if (nsBundle.includes(topicName)) {
-                            topicList.add(topic.getName());
-                        }
-                    });
+                    String bundleKey = namespaceName.toString() + "/" + nsBundle.getBundleRange();
+                    ConcurrentOpenHashMap<String, Topic> topicMap = bundleTopics.get(bundleKey);
+                    if (topicMap != null) {
+                        topicList.addAll(topicMap.keys().stream()
+                                .filter(name -> !TopicName.get(name).isPersistent())
+                                .collect(Collectors.toList()));
+                    }
                     asyncResponse.resume(topicList);
                 } catch (Exception e) {
                     log.error("[{}] Failed to list topics on namespace bundle {}/{}", clientAppId(),
