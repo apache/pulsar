@@ -833,13 +833,12 @@ public abstract class AdminResource extends PulsarWebResource {
 
         List<CompletableFuture<Void>> createFutureList = new ArrayList<>();
 
-        CompletableFuture<Void> createLocalFuture = new CompletableFuture<>();
-        createFutureList.add(createLocalFuture);
-
+        CompletableFuture<Void> createPartitionedTopicFuture = new CompletableFuture<>();
+        createFutureList.add(createPartitionedTopicFuture);
         checkTopicExistsAsync(topicName).thenAccept(exists -> {
             if (exists) {
                 log.warn("[{}] Failed to create already existing topic {}", clientAppId(), topicName);
-                createLocalFuture.completeExceptionally(
+                createPartitionedTopicFuture.completeExceptionally(
                         new RestException(Status.CONFLICT, "This topic already exists"));
                 return;
             }
@@ -848,10 +847,10 @@ public abstract class AdminResource extends PulsarWebResource {
                     .thenCompose(ignored -> tryCreatePartitionsAsync(numPartitions))
                     .whenComplete((ignored, ex) -> {
                         if (ex != null) {
-                            createLocalFuture.completeExceptionally(ex);
+                            createPartitionedTopicFuture.completeExceptionally(ex);
                             return;
                         }
-                        createLocalFuture.complete(null);
+                        createPartitionedTopicFuture.complete(null);
                     });
         }).exceptionally(ex -> {
             log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, ex);
