@@ -18,6 +18,11 @@
  */
 package org.apache.pulsar.io.flume.source;
 
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectOutput;
+import java.io.ObjectOutputStream;
+import java.util.Map;
+import java.util.Optional;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.pulsar.functions.api.Record;
@@ -26,12 +31,9 @@ import org.apache.pulsar.io.flume.FlumeConnector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
-
 import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.SourceContext;
 
-import java.util.*;
 import java.util.concurrent.BlockingQueue;
 
 /**
