@@ -23,7 +23,6 @@ VERSION=`${ROOT_DIR}/src/get-project-version.py`
 DEST_DIR=$ROOT_DIR/generated-site
 
 cd $ROOT_DIR
-mvn install -DskipTests
 
 mkdir -p $DEST_DIR/tools/pulsar-client/${VERSION}
 mkdir -p $DEST_DIR/tools/pulsar-client/${VERSION}/node_modules
