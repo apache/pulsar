@@ -160,9 +160,9 @@ public class TransactionMetricsTest extends BrokerTestBase {
         TxnID txnID = pulsar.getTransactionMetadataStoreService().getStores()
                 .get(transactionCoordinatorIDOne).newTransaction(1000).get();
 
-        Awaitility.await().atMost(2000, TimeUnit.SECONDS).until(() -> {
+        Awaitility.await().atMost(2000, TimeUnit.MILLISECONDS).until(() -> {
             try {
-                TxnMeta txnMeta = pulsar.getTransactionMetadataStoreService()
+               pulsar.getTransactionMetadataStoreService()
                         .getStores().get(transactionCoordinatorIDOne).getTxnMeta(txnID).get();
             } catch (Exception e) {
                 return true;
