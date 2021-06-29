@@ -19,7 +19,8 @@
 package org.apache.pulsar.io.batchdiscovery;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.io.core.*;
+import org.apache.pulsar.io.core.BatchSourceTriggerer;
+import org.apache.pulsar.io.core.SourceContext;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.scheduling.support.CronTrigger;
 
