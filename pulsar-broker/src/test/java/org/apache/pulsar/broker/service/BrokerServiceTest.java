@@ -996,12 +996,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
     @Test
     public void testMetricsProvider() throws IOException {
-        PrometheusRawMetricsProvider rawMetricsProvider = new PrometheusRawMetricsProvider() {
-            @Override
-            public void generate(SimpleTextOutputStream stream) {
-                stream.write("test_metrics{label1=\"xyz\"} 10 \n");
-            }
-        };
+        PrometheusRawMetricsProvider rawMetricsProvider = stream -> stream.write("test_metrics{label1=\"xyz\"} 10 \n");
         getPulsar().addPrometheusRawMetricsProvider(rawMetricsProvider);
         HttpClient httpClient = HttpClientBuilder.create().build();
         final String metricsEndPoint = getPulsar().getWebServiceAddress() + "/metrics";
