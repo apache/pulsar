@@ -1315,6 +1315,7 @@ flexible messaging model and an intuitive client API.</description>
             -Dpulsar.allocator.pooled=false
             -Dpulsar.allocator.leak_detection=Advanced
             -Dpulsar.allocator.exit_on_oom=false
+            -Dio.netty.tryReflectionSetAccessible=true
             ${test.additional.args}
           </argLine>
           <reuseForks>${testReuseFork}</reuseForks>
