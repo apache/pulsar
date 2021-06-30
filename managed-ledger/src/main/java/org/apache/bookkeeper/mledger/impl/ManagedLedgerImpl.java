@@ -1589,6 +1589,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     synchronized void createLedgerAfterClosed() {
+        if (STATE_UPDATER.get(this) == State.CreatingLedger) {
+    		return;
+    	}
         STATE_UPDATER.set(this, State.CreatingLedger);
         this.lastLedgerCreationInitiationTimestamp = System.currentTimeMillis();
         mbean.startDataLedgerCreateOp();
