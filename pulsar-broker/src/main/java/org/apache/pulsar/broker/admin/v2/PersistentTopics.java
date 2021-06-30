@@ -216,12 +216,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "The number of partitions for the topic", required = true, type = "int", defaultValue = "0")
-            int numPartitions) {
+            int numPartitions,
+            @QueryParam("createLocalTopicOnly") @DefaultValue("false") boolean createLocalTopicOnly) {
         try {
             validateGlobalNamespaceOwnership(tenant,namespace);
             validatePartitionedTopicName(tenant, namespace, encodedTopic);
             validateAdminAccessForTenant(topicName.getTenant());
-            internalCreatePartitionedTopic(asyncResponse, numPartitions);
+            internalCreatePartitionedTopic(asyncResponse, numPartitions, createLocalTopicOnly);
         } catch (Exception e) {
             log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
             resumeAsyncResponseExceptionally(asyncResponse, e);
