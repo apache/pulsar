@@ -45,10 +45,16 @@ public class CmdGenerateDocumentation {
         JCommander commander = pulsarClientTool.commandParser;
         if (commandNames.size() == 0) {
             for (Map.Entry<String, JCommander> cmd : commander.getCommands().entrySet()) {
+                if (cmd.getKey().equals("generate_documentation")) {
+                    continue;
+                }
                 generateDocument(cmd.getKey(), commander);
             }
         } else {
             for (String commandName : commandNames) {
+                if (commandName.equals("generate_documentation")) {
+                    continue;
+                }
                 generateDocument(commandName, commander);
             }
         }
