@@ -98,6 +98,8 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
                 Sets.newHashSet(AuthAction.consume, AuthAction.produce));
         admin.namespaces().grantPermissionOnNamespace(namespaceName, "client",
                 Sets.newHashSet(AuthAction.consume, AuthAction.produce));
+        admin.namespaces().grantPermissionOnSubscription(namespaceName, subscriptionName,
+                Sets.newHashSet("proxy", "client"));
 
         // Step 2: Run Pulsar Proxy without forwarding authData - expect Exception
         ProxyConfiguration proxyConfig = new ProxyConfiguration();

@@ -251,6 +251,8 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
                 Sets.newHashSet(AuthAction.consume, AuthAction.produce));
         admin.namespaces().grantPermissionOnNamespace(namespaceName, "Client",
                 Sets.newHashSet(AuthAction.consume, AuthAction.produce));
+        admin.namespaces().grantPermissionOnSubscription(namespaceName, "my-subscriber-name",
+                Sets.newHashSet("Proxy", "Client"));
 
         Consumer<byte[]> consumer = proxyClient.newConsumer()
                 .topic("persistent://my-property/proxy-authorization/my-ns/my-topic1")
@@ -305,6 +307,8 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
                 Sets.newHashSet(AuthAction.consume, AuthAction.produce));
         admin.namespaces().grantPermissionOnNamespace(namespaceName, "Client",
                 Sets.newHashSet(AuthAction.consume, AuthAction.produce));
+        admin.namespaces().grantPermissionOnSubscription(namespaceName, "my-subscriber-name",
+                Sets.newHashSet("Proxy", "Client"));
 
         try {
             proxyClient.newConsumer().topic("persistent://my-property/proxy-authorization/my-ns/my-topic1")
@@ -357,6 +361,8 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
                 Sets.newHashSet(AuthAction.consume, AuthAction.produce));
         admin.namespaces().grantPermissionOnNamespace(namespaceName, "Client",
                 Sets.newHashSet(AuthAction.consume, AuthAction.produce));
+        admin.namespaces().grantPermissionOnSubscription(namespaceName, "my-subscriber-name",
+                Sets.newHashSet("Proxy", "Client"));
 
         try {
             proxyClient.newConsumer().topic("persistent://my-property/proxy-authorization/my-ns/my-topic1")
@@ -394,6 +400,8 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
                 Sets.newHashSet(AuthAction.consume, AuthAction.produce));
         admin.namespaces().grantPermissionOnNamespace(namespaceName, "Client",
                 Sets.newHashSet(AuthAction.consume, AuthAction.produce));
+        admin.namespaces().grantPermissionOnSubscription(namespaceName, "my-subscriber-name",
+                Sets.newHashSet("Proxy", "Client"));
 
         ProxyConfiguration proxyConfig = new ProxyConfiguration();
         proxyConfig.setAuthenticationEnabled(true);

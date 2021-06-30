@@ -178,6 +178,8 @@ public class ProxyWithAuthorizationNegTest extends ProducerConsumerBase {
         admin.namespaces().grantPermissionOnNamespace(namespaceName, "Proxy", Sets.newHashSet(AuthAction.produce));
         admin.namespaces().grantPermissionOnNamespace(namespaceName, "Client",
                 Sets.newHashSet(AuthAction.consume, AuthAction.produce));
+        admin.namespaces().grantPermissionOnSubscription(namespaceName, "my-subscriber-name",
+                Sets.newHashSet("Proxy", "Client"));
 
         Consumer<byte[]> consumer;
         try {
