@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.loadbalance.impl;
 
 import static org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.LOAD_REPORT_UPDATE_MIMIMUM_INTERVAL;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -42,6 +43,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -180,6 +182,8 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
     private boolean forceLoadReportUpdate = false;
     // check if given broker can load persistent/non-persistent topic
     private final BrokerTopicLoadingPredicate brokerTopicLoadingPredicate;
+
+    private volatile Future<?> updateRankingHandle;
 
     // Perform initializations which may be done without a PulsarService.
     public SimpleLoadManagerImpl() {
@@ -962,8 +966,13 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
                 log.debug("Received updated load report from broker node - [{}], scheduling re-ranking of brokers.",
                         n.getPath());
             }
-            scheduler.submit(this::updateRanking);
+            updateRankingHandle = scheduler.submit(this::updateRanking);
         }
+    }
+
+    @VisibleForTesting
+    public Future<?> getUpdateRankingHandle(){
+        return updateRankingHandle;
     }
 
     private void updateRanking() {

@@ -39,6 +39,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -321,8 +322,12 @@ public class LoadBalancerTest {
         }
 
         for (int i = 0; i < BROKER_COUNT; i++) {
-            Method updateRanking = Whitebox.getMethod(SimpleLoadManagerImpl.class, "updateRanking");
-            updateRanking.invoke(pulsarServices[i].getLoadManager().get());
+            Method method = Whitebox.getMethod(SimpleLoadManagerImpl.class, "getUpdateRankingHandle");
+            LoadManager loadManager = pulsarServices[i].getLoadManager().get();
+            Awaitility.await().until(() -> {
+                Object invoke = method.invoke(loadManager);
+                return invoke != null && ((Future) invoke).isDone();
+            });
         }
 
         // check the ranking result
