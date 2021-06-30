@@ -219,5 +219,14 @@ public class ConfigurationDataUtilsTest {
         assertEquals(clientConfig2.getSocks5ProxyAddress(), new InetSocketAddress("localhost", 11080));
         assertEquals(clientConfig2.getSocks5ProxyUsername(), "pulsar");
         assertEquals(clientConfig2.getSocks5ProxyPassword(), "pulsar123");
+
+        System.setProperty("socks5Proxy.address", "localhost:11080"); // invalid address, no scheme
+        try {
+            clientConfig2.getSocks5ProxyAddress();
+            fail("No exception thrown.");
+        } catch (Exception ex) {
+            assertTrue(ex.getMessage().contains("Invalid config [socks5Proxy.address]"));
+        }
+
     }
 }

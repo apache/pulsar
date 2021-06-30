@@ -57,6 +57,7 @@ public class ClientWithSocks5ProxyTest extends BrokerTestBase {
         initData();
     }
 
+    @Override
     protected void customizeNewPulsarClientBuilder(ClientBuilder clientBuilder) {
         clientBuilder.socks5ProxyAddress(new InetSocketAddress("localhost", 11080))
                 .socks5ProxyUsername("socks5")
@@ -137,6 +138,34 @@ public class ClientWithSocks5ProxyTest extends BrokerTestBase {
         ClientBuilder clientBuilder = PulsarClient.builder()
                 .serviceUrl(pulsar.getBrokerServiceUrl())
                 .socks5ProxyAddress(new InetSocketAddress("localhost", 11080));
+        PulsarClient pulsarClient = replacePulsarClient(clientBuilder);
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .create();
+        String msg = "abc";
+        producer.send(msg.getBytes());
+    }
+
+    @Test
+    public void testSetFromSystemProperty() throws PulsarClientException {
+        startSocks5Server(false);
+        System.setProperty("socks5Proxy.address", "http://localhost:11080");
+        ClientBuilder clientBuilder = PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrl());
+        PulsarClient pulsarClient = replacePulsarClient(clientBuilder);
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .create();
+        String msg = "abc";
+        producer.send(msg.getBytes());
+    }
+
+    @Test(expectedExceptions = PulsarClientException.class)
+    public void testSetErrorProxyAddress() throws PulsarClientException {
+        startSocks5Server(false);
+        System.setProperty("socks5Proxy.address", "localhost:11080"); // with no scheme
+        ClientBuilder clientBuilder = PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrl());
         PulsarClient pulsarClient = replacePulsarClient(clientBuilder);
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topicName)
