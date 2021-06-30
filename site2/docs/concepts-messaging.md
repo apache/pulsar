@@ -151,7 +151,7 @@ Messages can be acknowledged in the following two ways:
 
 The following example shows how to call the API :
 
-```
+```java
 consumer.acknowledge(msg);
 ```
 
@@ -172,7 +172,7 @@ Be aware that negative acknowledgment on ordered subscription types, such as Exc
 
 The following example shows how to call the API :
 
-```
+```java
 consumer.negativeAcknowledge(msg);
 ```
 
@@ -256,7 +256,7 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
 
 The following example shows how to call the API to put messages into the retrial queue:
 
-```
+```java
 consumer.reconsumeLater(msg,3,TimeUnit.SECONDS);
 ```
 
