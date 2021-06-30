@@ -25,7 +25,6 @@ import org.apache.pulsar.functions.api.Record;
 
 import org.apache.pulsar.common.functions.WindowConfig;
 import org.apache.pulsar.functions.api.WindowContext;
-import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -39,7 +38,11 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
 import static org.testng.internal.junit.ArrayAsserts.assertArrayEquals;
@@ -98,14 +101,14 @@ public class WindowFunctionExecutorTest {
     @BeforeMethod
     public void setUp() {
         testWindowedPulsarFunction = new TestWindowFunctionExecutor();
-        context = Mockito.mock(Context.class);
-        Mockito.doReturn("test-function").when(context).getFunctionName();
-        Mockito.doReturn("test-namespace").when(context).getNamespace();
-        Mockito.doReturn("test-tenant").when(context).getTenant();
+        context = mock(Context.class);
+        doReturn("test-function").when(context).getFunctionName();
+        doReturn("test-namespace").when(context).getNamespace();
+        doReturn("test-tenant").when(context).getTenant();
 
-        Record<?> record = Mockito.mock(Record.class);
-        Mockito.doReturn(Optional.of("test-topic")).when(record).getTopicName();
-        Mockito.doReturn(record).when(context).getCurrentRecord();
+        Record<?> record = mock(Record.class);
+        doReturn(Optional.of("test-topic")).when(record).getTopicName();
+        doReturn(record).when(context).getCurrentRecord();
 
         windowConfig = new WindowConfig();
         windowConfig.setTimestampExtractorClassName(TestTimestampExtractor.class.getName());
@@ -115,10 +118,10 @@ public class WindowFunctionExecutorTest {
         // trigger manually to avoid timing issues
         windowConfig.setWatermarkEmitIntervalMs(100000L);
         windowConfig.setActualWindowFunctionClassName(TestFunction.class.getName());
-        Mockito.doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class))).when(context).getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
+        doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class))).when(context).getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
 
-        Mockito.doReturn(Collections.singleton("test-source-topic")).when(context).getInputTopics();
-        Mockito.doReturn("test-sink-topic").when(context).getOutputTopic();
+        doReturn(Collections.singleton("test-source-topic")).when(context).getInputTopics();
+        doReturn("test-sink-topic").when(context).getOutputTopic();
     }
 
     @AfterMethod(alwaysRun = true)
@@ -130,7 +133,7 @@ public class WindowFunctionExecutorTest {
     public void testExecuteWithWrongWrongTimestampExtractorType() throws Exception {
         WindowConfig windowConfig = new WindowConfig();
         windowConfig.setTimestampExtractorClassName(TestWrongTimestampExtractor.class.getName());
-        Mockito.doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
+        doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
                 .when(context).getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
 
         testWindowedPulsarFunction.process(10L, context);
@@ -140,7 +143,7 @@ public class WindowFunctionExecutorTest {
     public void testExecuteWithWrongJavaWindowFunctionType() throws Exception {
         WindowConfig windowConfig = new WindowConfig();
         windowConfig.setActualWindowFunctionClassName(TestWrongFunction.class.getName());
-        Mockito.doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
+        doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
                 .when(context).getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
 
         testWindowedPulsarFunction.process(10L, context);
@@ -150,10 +153,10 @@ public class WindowFunctionExecutorTest {
     public void testExecuteWithTs() throws Exception {
         long[] timestamps = {603, 605, 607, 618, 626, 636};
         for (long ts : timestamps) {
-            Record<?> record = Mockito.mock(Record.class);
-            Mockito.doReturn(Optional.of("test-topic")).when(record).getTopicName();
-            Mockito.doReturn(record).when(context).getCurrentRecord();
-            Mockito.doReturn(ts).when(record).getValue();
+            Record<?> record = mock(Record.class);
+            doReturn(Optional.of("test-topic")).when(record).getTopicName();
+            doReturn(record).when(context).getCurrentRecord();
+            doReturn(ts).when(record).getValue();
             testWindowedPulsarFunction.process(ts, context);
         }
         testWindowedPulsarFunction.waterMarkEventGenerator.run();
@@ -174,12 +177,12 @@ public class WindowFunctionExecutorTest {
 
     @Test
     public void testPrepareLateTupleStreamWithoutTs() throws Exception {
-        context = Mockito.mock(Context.class);
-        Mockito.doReturn("test-function").when(context).getFunctionName();
-        Mockito.doReturn("test-namespace").when(context).getNamespace();
-        Mockito.doReturn("test-tenant").when(context).getTenant();
-        Mockito.doReturn(Collections.singleton("test-source-topic")).when(context).getInputTopics();
-        Mockito.doReturn("test-sink-topic").when(context).getOutputTopic();
+        context = mock(Context.class);
+        doReturn("test-function").when(context).getFunctionName();
+        doReturn("test-namespace").when(context).getNamespace();
+        doReturn("test-tenant").when(context).getTenant();
+        doReturn(Collections.singleton("test-source-topic")).when(context).getInputTopics();
+        doReturn("test-sink-topic").when(context).getOutputTopic();
         WindowConfig windowConfig = new WindowConfig();
         windowConfig.setWindowLengthDurationMs(20L);
         windowConfig.setSlidingIntervalDurationMs(10L);
@@ -187,7 +190,7 @@ public class WindowFunctionExecutorTest {
         windowConfig.setMaxLagMs(5L);
         windowConfig.setWatermarkEmitIntervalMs(10L);
         windowConfig.setActualWindowFunctionClassName(TestFunction.class.getName());
-        Mockito.doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
+        doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
                 .when(context).getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
 
         try {
