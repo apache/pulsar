@@ -20,6 +20,7 @@ package org.apache.pulsar.client.cli;
 
 import static org.testng.Assert.assertEquals;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
@@ -85,18 +86,9 @@ public class PulsarClientToolTest extends BrokerTestBase {
                 future.completeExceptionally(t);
             }
         });
-
-        // Make sure subscription has been created
-        while (true) {
-            try {
-                List<String> subscriptions = admin.topics().getSubscriptions(topicName);
-                if(subscriptions.size() == 1){
-                    break;
-                }
-            } catch (Exception ignored){
-            }
-            Thread.sleep(200);
-        }
+        Awaitility.await()
+                .ignoreExceptions()
+                .until(()->admin.topics().getSubscriptions(topicName).size() == 1);
 
         PulsarClientTool pulsarClientToolProducer = new PulsarClientTool(properties);
 
@@ -150,16 +142,10 @@ public class PulsarClientToolTest extends BrokerTestBase {
         Assert.assertFalse(future.isCompletedExceptionally());
         future.get();
 
-        while (true) {
-            try {
-                List<String> subscriptions = admin.topics().getSubscriptions(topicName);
-                if (subscriptions.size() == 0) {
-                    break;
-                }
-            } catch (Exception ignored) {
-            }
-            Thread.sleep(200);
-        }
+        Awaitility.await()
+                .ignoreExceptions()
+                .atMost(Duration.ofMillis(20000))
+                .until(()->admin.topics().getSubscriptions(topicName).size() == 0);
     }
 
     @Test(timeOut = 60000)
@@ -186,18 +172,11 @@ public class PulsarClientToolTest extends BrokerTestBase {
                 future.completeExceptionally(t);
             }
         });
-
         // Make sure subscription has been created
-        while (true) {
-            try {
-                List<String> subscriptions = admin.topics().getSubscriptions(topicName);
-                if (subscriptions.size() == 1) {
-                    break;
-                }
-            } catch (Exception ignored) {
-            }
-            Thread.sleep(200);
-        }
+        Awaitility.await()
+                .atMost(Duration.ofMillis(60000))
+                .ignoreExceptions()
+                .until(() -> admin.topics().getSubscriptions(topicName).size() == 1);
 
         PulsarClientTool pulsarClientToolProducer = new PulsarClientTool(properties);
 
@@ -207,7 +186,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         Assert.assertFalse(future.isCompletedExceptionally());
         future.get();
         //wait for close
-        Thread.sleep(2000);
+        Awaitility.waitAtMost(Duration.ofDays(2000));
         List<String> subscriptions = admin.topics().getSubscriptions(topicName);
         Assert.assertNotNull(subscriptions);
         Assert.assertEquals(subscriptions.size(), 1);
@@ -239,15 +218,10 @@ public class PulsarClientToolTest extends BrokerTestBase {
         });
 
         // Make sure subscription has been created
-        Awaitility.await().until(() -> {
-            boolean isCreated = false;
-            try {
-                List<String> subscriptions = admin.topics().getSubscriptions(topicName);
-                isCreated = (subscriptions.size() == 1);
-            } catch (Exception ignored) {
-            }
-            return isCreated;
-        });
+        Awaitility.await()
+                .atMost(Duration.ofMillis(20000))
+                .ignoreExceptions()
+                .until(() -> admin.topics().getSubscriptions(topicName).size() == 1);
 
         PulsarClientTool pulsarClientToolProducer = new PulsarClientTool(properties);
         String[] args = {"produce", "-m", "Have a nice day", "-n", Integer.toString(numberOfMessages), "-ekn",
