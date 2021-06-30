@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.broker.web;
 
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -29,6 +27,8 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import org.mockito.Mockito;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class MaxRequestSizeFilterTest {
@@ -44,19 +44,19 @@ public class MaxRequestSizeFilterTest {
                 .getDeclaredMethod("isChunked", ServletRequest.class);
         isChunked.setAccessible(true);
         // request is not httpServlet Request
-        ServletRequest mockHttpServletRequest = mock(ServletRequest.class);
+        ServletRequest mockHttpServletRequest = Mockito.mock(ServletRequest.class);
         Boolean result = (Boolean) isChunked.invoke(maxRequestSizeFilter, mockHttpServletRequest);
-        assertFalse(result);
+        Assert.assertFalse(result);
         // request not include encoding
-        HttpServletRequest spyHttpServletRequest = spy(HttpServletRequest.class);
-        doReturn(null).when(spyHttpServletRequest).getHeader("Transfer-Encoding");
+        HttpServletRequest spyHttpServletRequest = Mockito.spy(HttpServletRequest.class);
+        Mockito.doReturn(null).when(spyHttpServletRequest).getHeader("Transfer-Encoding");
         Boolean result2 = (Boolean) isChunked.invoke(maxRequestSizeFilter, spyHttpServletRequest);
-        assertFalse(result2);
+        Assert.assertFalse(result2);
         //request Transfer-Encoding is not chunked
-        HttpServletRequest spyHttpServletRequest3 = spy(HttpServletRequest.class);
-        doReturn("whatever").when(spyHttpServletRequest3).getHeader("Transfer-Encoding");
+        HttpServletRequest spyHttpServletRequest3 = Mockito.spy(HttpServletRequest.class);
+        Mockito.doReturn("whatever").when(spyHttpServletRequest3).getHeader("Transfer-Encoding");
         Boolean result3 = (Boolean) isChunked.invoke(maxRequestSizeFilter, spyHttpServletRequest);
-        assertFalse(result3);
+        Assert.assertFalse(result3);
     }
 
     @Test
@@ -66,40 +66,40 @@ public class MaxRequestSizeFilterTest {
         Method isChunked = maxRequestSizeFilter.getClass()
                 .getDeclaredMethod("isChunked", ServletRequest.class);
         isChunked.setAccessible(true);
-        HttpServletRequest spyHttpServletRequest = spy(HttpServletRequest.class);
+        HttpServletRequest spyHttpServletRequest = Mockito.spy(HttpServletRequest.class);
         // request  Transfer-Encoding is chunked
-        doReturn("chunked").when(spyHttpServletRequest).getHeader("Transfer-Encoding");
+        Mockito.doReturn("chunked").when(spyHttpServletRequest).getHeader("Transfer-Encoding");
         Boolean result = (Boolean) isChunked.invoke(maxRequestSizeFilter, spyHttpServletRequest);
-        assertTrue(result);
+        Assert.assertTrue(result);
     }
 
     @Test
     public void testDoFilterSendError() throws ServletException, IOException {
         MaxRequestSizeFilter maxRequestSizeFilter = new MaxRequestSizeFilter(MAX_SIZE);
-        FilterChain mockFilterChain = mock(FilterChain.class);
+        FilterChain mockFilterChain = Mockito.mock(FilterChain.class);
         // the size grater than max size
-        HttpServletRequest spyHttpServletRequest = spy(HttpServletRequest.class);
-        HttpServletResponse spyHttpServletResponse = spy(HttpServletResponse.class);
-        doReturn(ILLEGAL_SIZE).when(spyHttpServletRequest).getContentLengthLong();
+        HttpServletRequest spyHttpServletRequest = Mockito.spy(HttpServletRequest.class);
+        HttpServletResponse spyHttpServletResponse = Mockito.spy(HttpServletResponse.class);
+        Mockito.doReturn(ILLEGAL_SIZE).when(spyHttpServletRequest).getContentLengthLong();
         maxRequestSizeFilter.doFilter(spyHttpServletRequest, spyHttpServletResponse, mockFilterChain);
-        verify(spyHttpServletResponse).sendError(HttpServletResponse.SC_BAD_REQUEST, "Bad Request");
+        Mockito.verify(spyHttpServletResponse).sendError(HttpServletResponse.SC_BAD_REQUEST, "Bad Request");
         // the request is chunked
-        HttpServletRequest spyHttpServletRequest2 = spy(HttpServletRequest.class);
-        HttpServletResponse spyHttpServletResponse2 = spy(HttpServletResponse.class);
-        doReturn(LEGAL_SIZE).when(spyHttpServletRequest2).getContentLengthLong();
-        doReturn("chunked").when(spyHttpServletRequest2).getHeader("Transfer-Encoding");
+        HttpServletRequest spyHttpServletRequest2 = Mockito.spy(HttpServletRequest.class);
+        HttpServletResponse spyHttpServletResponse2 = Mockito.spy(HttpServletResponse.class);
+        Mockito.doReturn(LEGAL_SIZE).when(spyHttpServletRequest2).getContentLengthLong();
+        Mockito.doReturn("chunked").when(spyHttpServletRequest2).getHeader("Transfer-Encoding");
         maxRequestSizeFilter.doFilter(spyHttpServletRequest2, spyHttpServletResponse2, mockFilterChain);
-        verify(spyHttpServletResponse).sendError(HttpServletResponse.SC_BAD_REQUEST, "Bad Request");
+        Mockito.verify(spyHttpServletResponse).sendError(HttpServletResponse.SC_BAD_REQUEST, "Bad Request");
     }
 
     @Test
     public void testDoFilterInvokeChainDoFilter() throws ServletException, IOException {
         MaxRequestSizeFilter maxRequestSizeFilter = new MaxRequestSizeFilter(MAX_SIZE);
-        FilterChain spyFilterChain = spy(FilterChain.class);
-        ServletRequest spyHttpServletRequest = spy(ServletRequest.class);
-        ServletResponse spyHttpServletResponse = spy(ServletResponse.class);
-        doReturn(LEGAL_SIZE).when(spyHttpServletRequest).getContentLengthLong();
+        FilterChain spyFilterChain = Mockito.spy(FilterChain.class);
+        ServletRequest spyHttpServletRequest = Mockito.spy(ServletRequest.class);
+        ServletResponse spyHttpServletResponse = Mockito.spy(ServletResponse.class);
+        Mockito.doReturn(LEGAL_SIZE).when(spyHttpServletRequest).getContentLengthLong();
         maxRequestSizeFilter.doFilter(spyHttpServletRequest, spyHttpServletResponse, spyFilterChain);
-        verify(spyFilterChain).doFilter(spyHttpServletRequest,spyHttpServletResponse);
+        Mockito.verify(spyFilterChain).doFilter(spyHttpServletRequest,spyHttpServletResponse);
     }
 }
