@@ -49,12 +49,15 @@ import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -510,4 +513,43 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
 
     }
 
+    @Test(timeOut = 30000)
+    public void testReadCompactedWithEarliestPosition() throws Exception{
+        final String topic = "persistent://my-property/my-ns/testReadCompactedWithEarliestPosition";
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+        final int numMsg = 10;
+        for (int i = 0; i < numMsg; i++) {
+            producer.newMessage().key("" + i % 5).value("Hello - " + i).send();
+            if (i == 8) {
+                // To trigger the ledger rollover make sure the data distributed to multiple ledgers.
+                admin.topics().unload(topic);
+            }
+        }
+        admin.topics().triggerCompaction(topic);
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
+            assertTrue(stats.compactedLedger.ledgerId > 0);
+        });
+        // Trigger the ledger rollover
+        admin.topics().unload(topic);
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
+            assertEquals(stats.ledgers.size(), 1);
+            assertTrue(stats.ledgers.get(0).ledgerId > stats.compactedLedger.ledgerId);
+        });
+        @Cleanup
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+                .topic(topic)
+                .startMessageId(MessageId.earliest)
+                .readCompacted(true)
+                .create();
+
+        for (int i = 0; i < numMsg / 2 ; i ++) {
+            Message<String> msg = reader.readNext();
+            assertEquals(msg.getValue(), "Hello - " + (i + 5));
+        }
+    }
 }

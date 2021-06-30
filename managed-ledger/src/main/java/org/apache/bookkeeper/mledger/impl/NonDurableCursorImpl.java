@@ -34,7 +34,8 @@ import org.slf4j.LoggerFactory;
 public class NonDurableCursorImpl extends ManagedCursorImpl {
 
     NonDurableCursorImpl(BookKeeper bookkeeper, ManagedLedgerConfig config, ManagedLedgerImpl ledger, String cursorName,
-                         PositionImpl startCursorPosition, CommandSubscribe.InitialPosition initialPosition) {
+                         PositionImpl startCursorPosition, CommandSubscribe.InitialPosition initialPosition,
+                         boolean forceStartPosition) {
         super(bookkeeper, config, ledger, cursorName);
 
         // Compare with "latest" position marker by using only the ledger id. Since the C++ client is using 48bits to
@@ -52,31 +53,35 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
             }
         } else if (startCursorPosition.getLedgerId() == PositionImpl.earliest.getLedgerId()) {
             // Start from invalid ledger to read from first available entry
-            recoverCursor(ledger.getPreviousPosition(ledger.getFirstPosition()));
+            recoverCursor(ledger.getPreviousPosition(ledger.getFirstPosition()), forceStartPosition);
         } else {
             // Since the cursor is positioning on the mark-delete position, we need to take 1 step back from the desired
             // read-position
-            recoverCursor(startCursorPosition);
+            recoverCursor(startCursorPosition, forceStartPosition);
         }
 
         log.info("[{}] Created non-durable cursor read-position={} mark-delete-position={}", ledger.getName(),
                 readPosition, markDeletePosition);
     }
 
-    private void recoverCursor(PositionImpl mdPosition) {
-        Pair<PositionImpl, Long> lastEntryAndCounter = ledger.getLastPositionAndCounter();
-        this.readPosition = ledger.getNextValidPosition(mdPosition);
-        markDeletePosition = mdPosition;
-
-        // Initialize the counter such that the difference between the messages written on the ML and the
-        // messagesConsumed is equal to the current backlog (negated).
-        if (null != this.readPosition) {
-            long initialBacklog = readPosition.compareTo(lastEntryAndCounter.getLeft()) < 0
-                ? ledger.getNumberOfEntries(Range.closed(readPosition, lastEntryAndCounter.getLeft())) : 0;
-            messagesConsumedCounter = lastEntryAndCounter.getRight() - initialBacklog;
+    private void recoverCursor(PositionImpl mdPosition, boolean forceStartPosition) {
+        if (forceStartPosition) {
+            this.readPosition = mdPosition;
+            this.markDeletePosition = mdPosition;
         } else {
-            log.warn("Recovered a non-durable cursor from position {} but didn't find a valid read position {}",
-                mdPosition, readPosition);
+            Pair<PositionImpl, Long> lastEntryAndCounter = ledger.getLastPositionAndCounter();
+            this.readPosition = ledger.getNextValidPosition(mdPosition);
+            markDeletePosition = mdPosition;
+            // Initialize the counter such that the difference between the messages written on the ML and the
+            // messagesConsumed is equal to the current backlog (negated).
+            if (null != this.readPosition) {
+                long initialBacklog = readPosition.compareTo(lastEntryAndCounter.getLeft()) < 0
+                        ? ledger.getNumberOfEntries(Range.closed(readPosition, lastEntryAndCounter.getLeft())) : 0;
+                messagesConsumedCounter = lastEntryAndCounter.getRight() - initialBacklog;
+            } else {
+                log.warn("Recovered a non-durable cursor from position {} but didn't find a valid read position {}",
+                        mdPosition, readPosition);
+            }
         }
     }
 

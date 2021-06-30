@@ -99,7 +99,10 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Rewind cursor and read more entries without delay", name);
             }
-            cursor.rewind();
+
+            if (cursor.isDurable()) {
+                cursor.rewind();
+            }
 
             Consumer activeConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
             notifyActiveConsumerChanged(activeConsumer);
@@ -119,7 +122,9 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                 log.debug("[{}] Rewind cursor and read more entries after {} ms delay", name,
                         serviceConfig.getActiveConsumerFailoverDelayTimeMillis());
             }
-            cursor.rewind();
+            if (cursor.isDurable()) {
+                cursor.rewind();
+            }
 
             Consumer activeConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
             notifyActiveConsumerChanged(activeConsumer);
@@ -188,7 +193,9 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                 log.debug("[{}] rewind because no available consumer found", name);
             }
             entries.forEach(Entry::release);
-            cursor.rewind();
+            if (cursor.isDurable()) {
+                cursor.rewind();
+            }
             if (currentConsumer != null) {
                 notifyActiveConsumerChanged(currentConsumer);
                 readMoreEntries(currentConsumer);
@@ -296,7 +303,9 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         cancelPendingRead();
 
         if (!havePendingRead) {
-            cursor.rewind();
+            if (cursor.isDurable()) {
+                cursor.rewind();
+            }
             if (log.isDebugEnabled()) {
                 log.debug("[{}-{}] Cursor rewinded, redelivering unacknowledged messages. ", name, consumer);
             }

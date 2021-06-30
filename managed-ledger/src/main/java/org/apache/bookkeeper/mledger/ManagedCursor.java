@@ -425,7 +425,25 @@ public interface ManagedCursor {
      * @param newReadPosition
      *            the position where to move the cursor
      */
-    void seek(Position newReadPosition);
+    default void seek(Position newReadPosition) {
+        seek(newReadPosition, false);
+    }
+
+    /**
+     * Move the cursor to a different read position.
+     *
+     * <p/>If the new position happens to be before the already mark deleted position, it will be set to the mark
+     * deleted position instead.
+     *
+     * <p/>If move seek with force option, this means will not consider the current mark delete position and the LAC.
+     * This is been used for reading the compacted data.
+     *
+     * @param newReadPosition
+     *            the position where to move the cursor
+     * @param force
+     *            whether move to the new position forcibly
+     */
+    void seek(Position newReadPosition, boolean force);
 
     /**
      * Clear the cursor backlog.

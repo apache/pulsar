@@ -724,7 +724,7 @@ public class PersistentTopic extends AbstractTopic
                 getDurableSubscription(subscriptionName, initialPosition, startMessageRollbackDurationSec,
                         replicatedSubscriptionState)
                 : getNonDurableSubscription(subscriptionName, startMessageId, initialPosition,
-                startMessageRollbackDurationSec);
+                startMessageRollbackDurationSec, readCompacted);
 
         int maxUnackedMessages = isDurable
                 ? getMaxUnackedMessagesOnConsumer()
@@ -867,7 +867,8 @@ public class PersistentTopic extends AbstractTopic
     }
 
     private CompletableFuture<? extends Subscription> getNonDurableSubscription(String subscriptionName,
-            MessageId startMessageId, InitialPosition initialPosition, long startMessageRollbackDurationSec) {
+            MessageId startMessageId, InitialPosition initialPosition, long startMessageRollbackDurationSec,
+            boolean readCompacted) {
         log.info("[{}][{}] Creating non-durable subscription at msg id {}", topic, subscriptionName, startMessageId);
 
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
@@ -896,25 +897,60 @@ public class PersistentTopic extends AbstractTopic
                     // The client will then be able to discard the first messages if needed.
                     entryId = msgId.getEntryId() - 1;
                 }
-
-                Position startPosition = new PositionImpl(ledgerId, entryId);
-                ManagedCursor cursor = null;
-                try {
-                    cursor = ledger.newNonDurableCursor(startPosition, subscriptionName, initialPosition);
-                } catch (ManagedLedgerException e) {
-                    return FutureUtil.failedFuture(e);
+                if (ledgerId == -1 && entryId == -1 && readCompacted) {
+                    CompactedTopicImpl compactedTopicImpl = (CompactedTopicImpl) this.compactedTopic;
+                    Optional<CompactedTopicImpl.CompactedTopicContext> optionalCompactedTopicContext;
+                    try {
+                        optionalCompactedTopicContext = compactedTopicImpl.getCompactedTopicContext();
+                    } catch (ExecutionException e) {
+                        subscriptionFuture.completeExceptionally(e.getCause());
+                        return subscriptionFuture;
+                    } catch (InterruptedException e) {
+                        subscriptionFuture.completeExceptionally(e);
+                        Thread.currentThread().interrupt();
+                        return subscriptionFuture;
+                    }
+                    if (optionalCompactedTopicContext.isPresent()) {
+                        optionalCompactedTopicContext.get().getCache().get(0L).thenAccept(messageIdData -> {
+                            createNewNonDurableSubscription(new PositionImpl(messageIdData.getLedgerId(),
+                                            messageIdData.getEntryId() - 1), subscriptionName, initialPosition,
+                                    subscriptionFuture, startMessageRollbackDurationSec, true);
+                        }).exceptionally(ex -> {
+                            subscriptionFuture.completeExceptionally(ex);
+                            return null;
+                        });
+                    } else {
+                        createNewNonDurableSubscription(new PositionImpl(ledgerId, entryId),
+                                subscriptionName, initialPosition, subscriptionFuture,
+                                startMessageRollbackDurationSec, false);
+                    }
+                } else {
+                    createNewNonDurableSubscription(new PositionImpl(ledgerId, entryId),
+                            subscriptionName, initialPosition, subscriptionFuture,
+                            startMessageRollbackDurationSec, false);
                 }
-
-                subscription = new PersistentSubscription(this, subscriptionName, cursor, false);
-                subscriptions.put(subscriptionName, subscription);
             }
+            return subscriptionFuture;
+        }
+    }
 
-            if (startMessageRollbackDurationSec > 0) {
-                resetSubscriptionCursor(subscription, subscriptionFuture, startMessageRollbackDurationSec);
-                return subscriptionFuture;
-            } else {
-                return CompletableFuture.completedFuture(subscription);
-            }
+    private void createNewNonDurableSubscription(Position startPosition, String subscriptionName,
+             InitialPosition initialPosition, CompletableFuture<Subscription> future,
+             long startMessageRollbackDurationSec, boolean forceStartPosition) {
+        ManagedCursor cursor;
+        try {
+            cursor = ledger.newNonDurableCursor(startPosition, subscriptionName, initialPosition, forceStartPosition);
+        } catch (ManagedLedgerException e) {
+            future.completeExceptionally(e);
+            return;
+        }
+        PersistentSubscription subscription =
+                new PersistentSubscription(this, subscriptionName, cursor, false);
+        subscriptions.put(subscriptionName, subscription);
+        if (startMessageRollbackDurationSec > 0) {
+            resetSubscriptionCursor(subscription, future, startMessageRollbackDurationSec);
+        } else {
+            future.complete(subscription);
         }
     }
 
