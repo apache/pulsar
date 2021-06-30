@@ -10,9 +10,9 @@ sidebar_label: Topics
 >
 > - For the latest and complete information about `pulsar-admin`, including commands, flags, descriptions, and more, see [pulsar-admin doc](https://pulsar.apache.org/tools/pulsar-admin/).
 > 
-> - For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see [here]{@inject: rest:REST:/}.
+> - For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see [REST API doc]{@inject: rest:REST:/}.
 > 
-> - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [here](https://pulsar.apache.org/api/admin/).
+> - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](https://pulsar.apache.org/api/admin/).
 
 Pulsar has persistent and non-persistent topics. Persistent topic is a logical endpoint for publishing and consuming messages. The topic name structure for persistent topics is:
 
