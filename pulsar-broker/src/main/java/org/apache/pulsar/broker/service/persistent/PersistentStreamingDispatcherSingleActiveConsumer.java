@@ -180,9 +180,9 @@ public class PersistentStreamingDispatcherSingleActiveConsumer extends Persisten
         }
 
         if (!havePendingRead && consumer.getAvailablePermits() > 0) {
-            Pair<Integer, Integer> calculateResult = calculateToRead(consumer);
+            Pair<Integer, Long> calculateResult = calculateToRead(consumer);
             int messagesToRead = calculateResult.getLeft();
-            int bytesToRead = calculateResult.getRight();
+            long bytesToRead = calculateResult.getRight();
 
 
             if (-1 == messagesToRead || bytesToRead == -1) {

@@ -323,9 +323,9 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         }
 
         if (consumer.getAvailablePermits() > 0) {
-            Pair<Integer, Integer> calculateResult = calculateToRead(consumer);
+            Pair<Integer, Long> calculateResult = calculateToRead(consumer);
             int messagesToRead = calculateResult.getLeft();
-            int bytesToRead = calculateResult.getRight();
+            long bytesToRead = calculateResult.getRight();
 
             if (-1 == messagesToRead || bytesToRead == -1) {
                 // Skip read as topic/dispatcher has exceed the dispatch rate.
@@ -350,7 +350,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         }
     }
 
-    protected Pair<Integer, Integer> calculateToRead(Consumer consumer) {
+    protected Pair<Integer, Long> calculateToRead(Consumer consumer) {
         int availablePermits = consumer.getAvailablePermits();
         if (!consumer.isWritable()) {
             // If the connection is not currently writable, we issue the read request anyway, but for a single
@@ -361,7 +361,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         }
 
         int messagesToRead = Math.min(availablePermits, readBatchSize);
-        int bytesToRead = serviceConfig.getDispatcherMaxReadSizeBytes();
+        long bytesToRead = serviceConfig.getDispatcherMaxReadSizeBytes();
         // if turn of precise dispatcher flow control, adjust the records to read
         if (consumer.isPreciseDispatcherFlowControl()) {
             int avgMessagesPerEntry = consumer.getAvgMessagesPerEntry();
@@ -393,12 +393,12 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                             }
                         }
                     }, MESSAGE_RATE_BACKOFF_MS, TimeUnit.MILLISECONDS);
-                    return Pair.of(-1, -1);
+                    return Pair.of(-1, -1L);
                 } else {
 
-                    Pair<Integer, Integer> calculateResult = calculateToRead(messagesToRead,
+                    Pair<Integer, Long> calculateResult = computeReadLimits(messagesToRead,
                             (int) topicRateLimiter.getAvailableDispatchRateLimitOnMsg(),
-                            (int) topicRateLimiter.getAvailableDispatchRateLimitOnByte(), bytesToRead);
+                            topicRateLimiter.getAvailableDispatchRateLimitOnByte(), bytesToRead);
 
                     messagesToRead = calculateResult.getLeft();
                     bytesToRead = calculateResult.getRight();
@@ -426,12 +426,12 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                             }
                         }
                     }, MESSAGE_RATE_BACKOFF_MS, TimeUnit.MILLISECONDS);
-                    return Pair.of(-1, -1);
+                    return Pair.of(-1, -1L);
                 } else {
 
-                    Pair<Integer, Integer> calculateResult = calculateToRead(messagesToRead,
+                    Pair<Integer, Long> calculateResult = computeReadLimits(messagesToRead,
                             (int) dispatchRateLimiter.get().getAvailableDispatchRateLimitOnMsg(),
-                            (int) dispatchRateLimiter.get().getAvailableDispatchRateLimitOnByte(), bytesToRead);
+                            dispatchRateLimiter.get().getAvailableDispatchRateLimitOnByte(), bytesToRead);
 
                     messagesToRead = calculateResult.getLeft();
                     bytesToRead = calculateResult.getRight();

@@ -238,14 +238,14 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         // noop
     }
 
-    protected static Pair<Integer, Integer> calculateToRead(int messagesToRead, int availablePermitsOnMsg,
-                                                     int availablePermitsOnByte, int bytesToRead) {
+    protected static Pair<Integer, Long> computeReadLimits(int messagesToRead, int availablePermitsOnMsg,
+                                                           long bytesToRead, long availablePermitsOnByte) {
         if (availablePermitsOnMsg > 0) {
             messagesToRead = Math.min(messagesToRead, availablePermitsOnMsg);
         }
 
         if (availablePermitsOnByte > 0) {
-            bytesToRead = availablePermitsOnByte;
+            bytesToRead = Math.min(bytesToRead, availablePermitsOnByte);
         }
 
         return Pair.of(messagesToRead, bytesToRead);

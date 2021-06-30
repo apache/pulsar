@@ -68,7 +68,7 @@ public class StreamingEntryReader implements AsyncCallbacks.ReadEntryCallback, W
     private static final AtomicReferenceFieldUpdater<StreamingEntryReader, State> STATE_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(StreamingEntryReader.class, State.class, "state");
 
-    private volatile int maxReadSizeByte;
+    private volatile long maxReadSizeByte;
 
     private final Backoff readFailureBackoff = new Backoff(10, TimeUnit.MILLISECONDS,
             1, TimeUnit.SECONDS, 0, TimeUnit.MILLISECONDS);
@@ -81,7 +81,7 @@ public class StreamingEntryReader implements AsyncCallbacks.ReadEntryCallback, W
      * @param maxReadSizeByte maximum byte will be read from ledger.
      * @param ctx Context send along with read request.
      */
-    public synchronized void asyncReadEntries(int numEntriesToRead, int maxReadSizeByte, Object ctx) {
+    public synchronized void asyncReadEntries(int numEntriesToRead, long maxReadSizeByte, Object ctx) {
         if (STATE_UPDATER.compareAndSet(this, State.Canceling, State.Canceled)) {
             internalCancelReadRequests();
         }
