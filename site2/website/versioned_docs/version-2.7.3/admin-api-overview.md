@@ -18,7 +18,7 @@ You can currently interact with the admin interface via:
   $ bin/pulsar-admin
   ```
 
-  For the complete commands and descriptions of `pulsar-admin`, see [here](http://pulsar.apache.org/tools/pulsar-admin/2.7.0-SNAPSHOT/).
+  For the complete commands and descriptions of `pulsar-admin`, see [here](https://pulsar.apache.org/tools/pulsar-admin/2.7.0-SNAPSHOT/).
 
 - A Java client interface.
 
