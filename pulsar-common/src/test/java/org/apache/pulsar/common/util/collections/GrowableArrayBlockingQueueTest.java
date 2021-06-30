@@ -32,6 +32,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
@@ -131,11 +132,8 @@ public class GrowableArrayBlockingQueueTest {
                 queue.put(n);
                 ++n;
             }
-
             // Wait until all the entries are consumed
-            while (!queue.isEmpty()) {
-                Thread.sleep(1);
-            }
+            Awaitility.await().until(queue::isEmpty);
         }
 
         latch.await();

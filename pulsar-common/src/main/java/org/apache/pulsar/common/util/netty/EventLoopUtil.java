@@ -65,8 +65,8 @@ public class EventLoopUtil {
                     try {
                         CpuAffinity.acquireCore();
                     } catch (Throwable t) {
-                        log.warn("Failed to acquire CPU core for thread {}", Thread.currentThread().getName(),
-                                t.getMessage(), t);
+                        log.warn("Failed to acquire CPU core for thread {}, the error message is {}",
+                                Thread.currentThread().getName(), t.getMessage(), t);
                     }
                 });
             }
