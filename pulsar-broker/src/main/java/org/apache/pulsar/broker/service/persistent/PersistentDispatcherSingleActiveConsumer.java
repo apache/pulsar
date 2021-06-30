@@ -398,7 +398,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
 
                     Pair<Integer, Long> calculateResult = computeReadLimits(messagesToRead,
                             (int) topicRateLimiter.getAvailableDispatchRateLimitOnMsg(),
-                            topicRateLimiter.getAvailableDispatchRateLimitOnByte(), bytesToRead);
+                            bytesToRead, topicRateLimiter.getAvailableDispatchRateLimitOnByte());
 
                     messagesToRead = calculateResult.getLeft();
                     bytesToRead = calculateResult.getRight();
@@ -431,7 +431,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
 
                     Pair<Integer, Long> calculateResult = computeReadLimits(messagesToRead,
                             (int) dispatchRateLimiter.get().getAvailableDispatchRateLimitOnMsg(),
-                            dispatchRateLimiter.get().getAvailableDispatchRateLimitOnByte(), bytesToRead);
+                            bytesToRead, dispatchRateLimiter.get().getAvailableDispatchRateLimitOnByte());
 
                     messagesToRead = calculateResult.getLeft();
                     bytesToRead = calculateResult.getRight();
