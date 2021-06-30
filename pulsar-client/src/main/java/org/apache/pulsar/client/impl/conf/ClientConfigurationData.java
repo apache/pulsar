@@ -150,8 +150,8 @@ public class ClientConfigurationData implements Serializable, Cloneable {
         try {
             URI uri = URI.create(proxyAddress);
             return new InetSocketAddress(uri.getHost(), uri.getPort());
-        } catch (Exception ignore) {
-            return null;
+        } catch (Exception e) {
+            throw new RuntimeException("Invalid config [socks5Proxy.address]", e);
         }
     }
 

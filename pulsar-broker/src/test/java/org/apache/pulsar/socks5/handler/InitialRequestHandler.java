@@ -43,12 +43,10 @@ public class InitialRequestHandler extends SimpleChannelInboundHandler<DefaultSo
 				log.warn("decode failure : {}", msg.decoderResult());
 				ctx.fireChannelRead(msg);
 			} else {
-				if (SocksVersion.SOCKS5.equals(msg.version())) {
-					if (socks5Config.isEnableAuth()) {
-						ctx.writeAndFlush(new DefaultSocks5InitialResponse(Socks5AuthMethod.PASSWORD));
-					} else {
-						ctx.writeAndFlush(new DefaultSocks5InitialResponse(Socks5AuthMethod.NO_AUTH));
-					}
+				if (socks5Config.isEnableAuth()) {
+					ctx.writeAndFlush(new DefaultSocks5InitialResponse(Socks5AuthMethod.PASSWORD));
+				} else {
+					ctx.writeAndFlush(new DefaultSocks5InitialResponse(Socks5AuthMethod.NO_AUTH));
 				}
 			}
 		}

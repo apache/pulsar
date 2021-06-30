@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -43,6 +44,7 @@ import java.util.Set;
 import static org.testng.Assert.assertEquals;
 
 @Test
+@Slf4j
 public class ClientWithSocks5ProxyTest extends BrokerTestBase {
 
     private Socks5Server server;
@@ -72,7 +74,7 @@ public class ClientWithSocks5ProxyTest extends BrokerTestBase {
                 try {
                     server.start();
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    log.error("start socks5 server error", e);
                 }
             }
         });
