@@ -305,6 +305,25 @@ You can configure parameters if you do not want to use the default configuration
   }
   ```
   
+  If you don't want to block your main thread and rather listen constantly for new messages, consider using a `MessageListener`.
+  
+  ```java
+  MessageListener myMessageListener = (consumer, msg) -&gt; {
+    try {
+        System.out.println(&quot;Message received: &quot; + new String(msg.getData()));
+        consumer.acknowledge(msg);
+    } catch (Exception e) {
+        consumer.negativeAcknowledge(msg);
+    }
+  }
+  
+  Consumer consumer = client.newConsumer()
+       .topic(&quot;my-topic&quot;)
+       .subscriptionName(&quot;my-subscription&quot;)
+       .messageListener(myMessageListener)
+       .subscribe();
+  ```
+  
   ### Configure consumer
   
   If you instantiate a `Consumer` object by specifying only a topic and subscription name as in the example above, the consumer uses the default configuration.
