@@ -35,6 +35,16 @@ cd pulsar/site2/website
 yarn test
 ```
 
+If you want to tests the **complete website** (including api docs and cli tools docs)
+
+**At first**, you should do one full-website-building with running `sh docker-build-site`, and then
+```bash
+cd pulsar/site2/tools
+sh debug-site.sh
+```
+Access local website: [http://localhost](http://localhost)
+> `sh docker-build-site` is a very time-consuming process. After the first complete build is executed, if there are new modifications, it is recommended to only do the necessary, instead of performing the complete build again, and finally execute `sh debug-site.sh`
+
 ### Check
 
 Before submitting a pull request, run the following command to make sure no broken links exist.
