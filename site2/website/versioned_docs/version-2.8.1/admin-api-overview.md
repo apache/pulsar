@@ -17,7 +17,7 @@ You can interact with the admin interface via:
      $ bin/pulsar-admin
     ```
 
-    For complete commands of `pulsar-admin` tool, see [Pulsar admin snapshot](http://pulsar.apache.org/tools/pulsar-admin/).
+    For complete commands of `pulsar-admin` tool, see [Pulsar admin snapshot](https://pulsar.apache.org/tools/pulsar-admin/).
 
 
 > **The REST API is the admin interface**. Both the `pulsar-admin` CLI tool and the Java client use the REST API. If you implement your own admin interface client, you should use the REST API. 
