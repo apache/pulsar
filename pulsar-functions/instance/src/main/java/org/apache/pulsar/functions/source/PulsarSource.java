@@ -121,7 +121,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
         }
 
         inputTopics = inputConsumers.stream().flatMap(c -> {
-            return (c instanceof MultiTopicsConsumerImpl) ? ((MultiTopicsConsumerImpl<?>) c).getTopics().stream()
+            return (c instanceof MultiTopicsConsumerImpl) ? ((MultiTopicsConsumerImpl<?>) c).getPartitionedTopics().stream()
                     : Collections.singletonList(c.getTopic()).stream();
         }).collect(Collectors.toList());
     }
