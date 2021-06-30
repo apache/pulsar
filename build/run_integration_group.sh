@@ -128,6 +128,11 @@ test_group_sql() {
   mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-sql.xml -DintegrationTests -DtestForkCount=1 -DtestReuseFork=false
 }
 
+test_group_pulsar_io() {
+  mvn_run_integration_test --retry "$@" -DintegrationTestSuiteFile=pulsar-io-suite.xml -DintegrationTests -Dgroups=source
+  mvn_run_integration_test --retry "$@" -DintegrationTestSuiteFile=pulsar-io-suite.xml -DintegrationTests -Dgroups=sink
+}
+
 echo "Test Group : $TEST_GROUP"
 test_group_function_name="test_group_$(echo "$TEST_GROUP" | tr '[:upper:]' '[:lower:]')"
 if [[ "$(LC_ALL=C type -t $test_group_function_name)" == "function" ]]; then
