@@ -76,7 +76,6 @@ import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.collections.LongPairRangeSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
