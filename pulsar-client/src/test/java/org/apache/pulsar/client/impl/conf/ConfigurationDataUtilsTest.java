@@ -227,6 +227,6 @@ public class ConfigurationDataUtilsTest {
         } catch (Exception ex) {
             assertTrue(ex.getMessage().contains("Invalid config [socks5Proxy.address]"));
         }
-
+        System.clearProperty("socks5Proxy.address");
     }
 }

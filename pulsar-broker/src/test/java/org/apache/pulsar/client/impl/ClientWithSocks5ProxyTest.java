@@ -87,6 +87,7 @@ public class ClientWithSocks5ProxyTest extends BrokerTestBase {
     protected void cleanup() throws Exception {
         internalCleanup();
         server.shutdown();
+        System.clearProperty("socks5Proxy.address");
     }
 
     private void initData() throws PulsarAdminException {
