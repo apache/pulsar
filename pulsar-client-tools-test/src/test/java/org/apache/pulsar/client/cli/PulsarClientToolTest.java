@@ -187,7 +187,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         try {
             future.get(10, TimeUnit.SECONDS);
         } catch (Exception e) {
-            Assert.fail("consumer was unable to decrypt messages", e);
+            Assert.fail("consumer was unable to receive messages", e);
         }
     }
 
