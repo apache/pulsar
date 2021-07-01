@@ -599,11 +599,6 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     }
 
     @Override
-    public void checkTransactionDeleteMarker() {
-        // No-op
-    }
-
-    @Override
     public int getNumberOfConsumers() {
         int count = 0;
         for (NonPersistentSubscription subscription : subscriptions.values()) {

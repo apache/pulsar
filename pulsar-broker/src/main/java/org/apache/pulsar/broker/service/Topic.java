@@ -154,8 +154,6 @@ public interface Topic {
 
     void checkMessageExpiry();
 
-    void checkTransactionDeleteMarker();
-
     void checkMessageDeduplicationInfo();
 
     void checkTopicPublishThrottlingRate();
