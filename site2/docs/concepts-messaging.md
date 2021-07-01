@@ -149,11 +149,16 @@ Messages can be acknowledged in the following two ways:
 - Messages are acknowledged individually. With individual acknowledgement, the consumer needs to acknowledge each message and sends an acknowledgement request to the broker.
 - Messages are acknowledged cumulatively. With cumulative acknowledgement, the consumer only needs to acknowledge the last message it received. All messages in the stream up to (and including) the provided message are not re-delivered to that consumer.
 
-The following example shows how to call the API :
+The following example shows how to call the API With individual acknowledgement:
 
 ```java
 consumer.acknowledge(msg);
 ```
+If you are going to acknowledge messages cumulatively, you can use the following API:
+```java
+consumer.acknowledgeCumulative(msg);
+```
+
 
 > **Note**
 > Cumulative acknowledgement cannot be used in the [shared subscription mode](#subscription-modes), because the shared subscription mode involves multiple consumers who have access to the same subscription. In the shared subscription mode, messages are acknowledged individually.
@@ -173,6 +178,7 @@ Be aware that negative acknowledgment on ordered subscription types, such as Exc
 The following example shows how to call the API :
 
 ```java
+//With calling this api, messages are negatively acknowledged 
 consumer.negativeAcknowledge(msg);
 ```
 
