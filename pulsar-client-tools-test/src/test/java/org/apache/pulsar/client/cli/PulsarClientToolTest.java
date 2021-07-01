@@ -183,13 +183,13 @@ public class PulsarClientToolTest extends BrokerTestBase {
         String[] args = {"produce", "--messages", "Have a nice day", "-n", Integer.toString(numberOfMessages), "-r",
                 "20", "-p", "key1=value1", "-p", "key2=value2", "-k", "partition_key", topicName};
         Assert.assertEquals(pulsarClientToolProducer.run(args), 0);
-        Assert.assertFalse(future.isCompletedExceptionally());
-        future.get();
-        //wait for close
-        Awaitility.waitAtMost(Duration.ofMillis(2000));
-        List<String> subscriptions = admin.topics().getSubscriptions(topicName);
-        Assert.assertNotNull(subscriptions);
-        Assert.assertEquals(subscriptions.size(), 1);
+
+        try {
+            future.get(10, TimeUnit.SECONDS);
+            Assert.assertFalse(future.isCompletedExceptionally());
+        } catch (Exception e) {
+            Assert.fail("consumer was unable to decrypt messages", e);
+        }
     }
 
     @Test(timeOut = 20000)
