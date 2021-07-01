@@ -137,6 +137,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                         ((PersistentTopic) persistentSubscription.getTopic()).getBrokerService()
                                 .getPulsar().getTransactionReplayExecutor());
             }).exceptionally(e -> {
+                acceptQueue.clear();
                 changeToErrorState();
                 log.error("PendingAckHandleImpl init fail! TopicName : {}, SubName: {}", topicName, subName, e);
                 return null;
@@ -397,11 +398,36 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         return completableFuture;
     }
 
+    private void addCommitTxnRequest(TxnID txnId, Map<String, Long> properties, long lowWaterMark,
+                                    CompletableFuture<Void> completableFuture) {
+        acceptQueue.add(() -> commitTxn(txnId, properties, lowWaterMark, true).thenAccept(v ->
+                completableFuture.complete(null)).exceptionally(e -> {
+            completableFuture.completeExceptionally(e);
+            return null;
+        }));
+    }
+
     @Override
     public synchronized CompletableFuture<Void> commitTxn(TxnID txnID, Map<String, Long> properties,
-                                                          long lowWaterMark) {
+                                                          long lowWaterMark, boolean isInCacheRequest) {
         if (!checkIfReady()) {
-            return FutureUtil.failedFuture(new ServiceUnitNotReadyException("PendingAckHandle not replay complete!"));
+            synchronized (PendingAckHandleImpl.this) {
+                if (state == State.Initializing) {
+                    CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+                    addCommitTxnRequest(txnID, properties, lowWaterMark, completableFuture);
+                    return completableFuture;
+                } else if (state == State.None) {
+                    CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+                    addCommitTxnRequest(txnID, properties, lowWaterMark, completableFuture);
+                    initPendingAckStore();
+                    return completableFuture;
+                } else if (checkIfReady()) {
+
+                } else {
+                    return FutureUtil.failedFuture(
+                            new ServiceUnitNotReadyException("PendingAckHandle not replay complete!"));
+                }
+            }
         }
 
         CompletableFuture<Void> commitFuture = new CompletableFuture<>();
@@ -464,11 +490,38 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         return commitFuture;
     }
 
+    private void addAbortTxnRequest(TxnID txnId, Consumer consumer, long lowWaterMark,
+                                    CompletableFuture<Void> completableFuture) {
+        acceptQueue.add(() -> abortTxn(txnId, consumer, lowWaterMark, true).thenAccept(v ->
+                completableFuture.complete(null)).exceptionally(e -> {
+            completableFuture.completeExceptionally(e);
+            return null;
+        }));
+    }
+
     @Override
-    public synchronized CompletableFuture<Void> abortTxn(TxnID txnId, Consumer consumer, long lowWaterMark) {
+    public synchronized CompletableFuture<Void> abortTxn(TxnID txnId, Consumer consumer,
+                                                         long lowWaterMark, boolean isInCacheRequest) {
         if (!checkIfReady()) {
-            return FutureUtil.failedFuture(new ServiceUnitNotReadyException("PendingAckHandle not replay complete!"));
+            synchronized (PendingAckHandleImpl.this) {
+                if (state == State.Initializing) {
+                    CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+                    addAbortTxnRequest(txnId, consumer, lowWaterMark, completableFuture);
+                    return completableFuture;
+                } else if (state == State.None) {
+                    CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+                    addAbortTxnRequest(txnId, consumer, lowWaterMark, completableFuture);
+                    initPendingAckStore();
+                    return completableFuture;
+                } else if (checkIfReady()) {
+
+                } else {
+                    return FutureUtil.failedFuture(
+                            new ServiceUnitNotReadyException("PendingAckHandle not replay complete!"));
+                }
+            }
         }
+
         CompletableFuture<Void> abortFuture = new CompletableFuture<>();
         if (this.cumulativeAckOfTransaction != null) {
             pendingAckStoreFuture.thenAccept(pendingAckStore ->

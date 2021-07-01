@@ -54,12 +54,14 @@ public class PendingAckHandleDisabled implements PendingAckHandle {
     }
 
     @Override
-    public CompletableFuture<Void> commitTxn(TxnID txnID, Map<String, Long> properties, long lowWaterMark) {
+    public CompletableFuture<Void> commitTxn(TxnID txnID, Map<String, Long> properties, long lowWaterMark,
+                                             boolean isInCacheRequest) {
         return FutureUtil.failedFuture(new NotAllowedException("The transaction is disabled"));
     }
 
     @Override
-    public CompletableFuture<Void> abortTxn(TxnID txnId, Consumer consumer, long lowWaterMark) {
+    public CompletableFuture<Void> abortTxn(TxnID txnId, Consumer consumer, long lowWaterMark,
+                                            boolean isInCacheRequest) {
         return FutureUtil.failedFuture(new NotAllowedException("The transaction is disabled"));
     }
 
