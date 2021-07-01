@@ -545,7 +545,7 @@ You can get message ID published at or just after the given datetime.
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
 ```shell
-$ ./bin/pulsar-admin topics get-message-id \
+./bin/pulsar-admin topics get-message-id \
   persistent://public/default/my-topic \
   -d 2021-06-28T19:01:17Z
 ```
