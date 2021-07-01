@@ -71,7 +71,6 @@ public class CmdGenerateDocumentation {
         cmdClassMap.put("simulation-controller", Class.forName("org.apache.pulsar.testclient.LoadSimulationController$MainArguments"));
         cmdClassMap.put("websocket-producer", Class.forName("org.apache.pulsar.proxy.socket.client.PerformanceClient$Arguments"));
         cmdClassMap.put("managed-ledger", Class.forName("org.apache.pulsar.testclient.ManagedLedgerWriter$Arguments"));
-        cmdClassMap.put("gen-doc", Class.forName("org.apache.pulsar.testclient.CmdGenerateDocumentation$Arguments"));
 
         for (Map.Entry<String, Class<?>> entry : cmdClassMap.entrySet()) {
             String cmd = entry.getKey();
