@@ -140,7 +140,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         assertEquals(seqId, msgNum - 1);
         assertEquals(position.getEntryId(), msgNum - 1);
         //The first time, use topic-leve policies, 1 second delay + 1 second interval
-        Awaitility.await().atMost(2100, TimeUnit.MILLISECONDS)
+        Awaitility.await()
                 .until(() -> ((PositionImpl) persistentTopic.getMessageDeduplication().getManagedCursor()
                         .getMarkDeletedPosition()).getEntryId() == msgNum - 1);
         ManagedCursor managedCursor = persistentTopic.getMessageDeduplication().getManagedCursor();
@@ -151,7 +151,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         admin.topics().removeDeduplicationSnapshotInterval(topicName);
         producer.newMessage().value("msg").send();
         //zk update time + interval time
-        Awaitility.await().atMost( 3000, TimeUnit.MILLISECONDS)
+        Awaitility.await()
                 .until(() -> ((PositionImpl) persistentTopic.getMessageDeduplication().getManagedCursor()
                         .getMarkDeletedPosition()).getEntryId() == msgNum);
         markDeletedPosition = (PositionImpl) managedCursor.getMarkDeletedPosition();
@@ -161,7 +161,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
 
         //4 remove namespace-level policies, broker-level should be used, interval becomes 2 seconds
         admin.namespaces().removeDeduplicationSnapshotInterval(myNamespace);
-        Awaitility.await().atMost(2, TimeUnit.SECONDS)
+        Awaitility.await()
                 .until(() -> (admin.namespaces().getDeduplicationSnapshotInterval(myNamespace) == null));
         producer.newMessage().value("msg").send();
         //ensure that the time exceeds the scheduling interval of ns and topic, but no snapshot is generated
@@ -172,7 +172,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         assertNotEquals(msgNum + 1, markDeletedPosition.getEntryId());
         assertNotEquals(position, markDeletedPosition);
         // wait for scheduler
-        Awaitility.await().atMost(3, TimeUnit.SECONDS)
+        Awaitility.await()
                 .until(() -> ((PositionImpl) persistentTopic.getMessageDeduplication().getManagedCursor()
                         .getMarkDeletedPosition()).getEntryId() == msgNum + 1);
         markDeletedPosition = (PositionImpl) managedCursor.getMarkDeletedPosition();
