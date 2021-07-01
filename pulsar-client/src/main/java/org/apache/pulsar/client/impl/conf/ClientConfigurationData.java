@@ -25,6 +25,7 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.time.Clock;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -147,12 +148,14 @@ public class ClientConfigurationData implements Serializable, Cloneable {
             return socks5ProxyAddress;
         }
         String proxyAddress = System.getProperty("socks5Proxy.address");
-        try {
-            URI uri = URI.create(proxyAddress);
-            return new InetSocketAddress(uri.getHost(), uri.getPort());
-        } catch (Exception e) {
-            throw new RuntimeException("Invalid config [socks5Proxy.address]", e);
-        }
+        return Optional.ofNullable(proxyAddress).map(address -> {
+            try {
+                URI uri = URI.create(address);
+                return new InetSocketAddress(uri.getHost(), uri.getPort());
+            } catch (Exception e) {
+                throw new RuntimeException("Invalid config [socks5Proxy.address]", e);
+            }
+        }).orElse(null);
     }
 
     public String getSocks5ProxyUsername() {
