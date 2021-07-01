@@ -34,6 +34,7 @@ import org.testng.annotations.Test;
  * With BookKeeper Opportunistic Striping feature we can allow Pulsar to work
  * with only WQ bookie during temporary outages of some bookie.
  */
+@Test(groups = "broker")
 public class OpportunisticStripingTest extends BkEnsemblesTestBase {
 
     public OpportunisticStripingTest() {
@@ -42,7 +43,7 @@ public class OpportunisticStripingTest extends BkEnsemblesTestBase {
     }
 
     @Override
-    protected void configurePulsar(ServiceConfiguration config) throws Exception {
+    protected void configurePulsar(ServiceConfiguration config) {
         // we would like to stripe over 5 bookies
         config.setManagedLedgerDefaultEnsembleSize(5);
         // we want 2 copies for each entry

@@ -18,12 +18,7 @@
  */
 package org.apache.pulsar.client.admin;
 
-import javax.ws.rs.ClientErrorException;
-import javax.ws.rs.ServerErrorException;
-import javax.ws.rs.WebApplicationException;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.common.policies.data.ErrorData;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 /**
  * Pulsar admin exceptions.
@@ -36,58 +31,22 @@ public class PulsarAdminException extends Exception {
     private final String httpError;
     private final int statusCode;
 
-    private static String getReasonFromServer(WebApplicationException e) {
-        try {
-            return e.getResponse().readEntity(ErrorData.class).reason.toString();
-        } catch (Exception ex) {
-            try {
-                return ObjectMapperFactory.getThreadLocal().readValue(
-                        e.getResponse().getEntity().toString(), ErrorData.class).reason;
-            } catch (Exception ex1) {
-                try {
-                    return ObjectMapperFactory.getThreadLocal().readValue(e.getMessage(), ErrorData.class).reason;
-                } catch (Exception ex2) {
-                    // could not parse output to ErrorData class
-                    return e.getMessage();
-                }
-            }
-        }
+    public PulsarAdminException(Throwable t, String httpError, int statusCode) {
+        super(t);
+        this.httpError = httpError;
+        this.statusCode = statusCode;
     }
 
-    public PulsarAdminException(ClientErrorException e) {
-        super(getReasonFromServer(e), e);
-        this.httpError = getReasonFromServer(e);
-        this.statusCode = e.getResponse().getStatus();
-    }
-
-    public PulsarAdminException(ClientErrorException e, String message) {
-        super(message, e);
-        this.httpError = getReasonFromServer(e);
-        this.statusCode = e.getResponse().getStatus();
-    }
-
-    public PulsarAdminException(ServerErrorException e) {
-        super(getReasonFromServer(e), e);
-        this.httpError = getReasonFromServer(e);
-        this.statusCode = e.getResponse().getStatus();
-    }
-
-    public PulsarAdminException(ServerErrorException e, String message) {
-        super(message, e);
-        this.httpError = getReasonFromServer(e);
-        this.statusCode = e.getResponse().getStatus();
+    public PulsarAdminException(String message, Throwable t, String httpError, int statusCode) {
+        super(message, t);
+        this.httpError = httpError;
+        this.statusCode = statusCode;
     }
 
     public PulsarAdminException(Throwable t) {
         super(t);
         httpError = null;
         statusCode = DEFAULT_STATUS_CODE;
-    }
-
-    public PulsarAdminException(WebApplicationException e) {
-        super(getReasonFromServer(e), e);
-        this.httpError = getReasonFromServer(e);
-        this.statusCode = e.getResponse().getStatus();
     }
 
     public PulsarAdminException(String message, Throwable t) {
@@ -114,8 +73,8 @@ public class PulsarAdminException extends Exception {
      * Not Authorized Exception.
      */
     public static class NotAuthorizedException extends PulsarAdminException {
-        public NotAuthorizedException(ClientErrorException e) {
-            super(e);
+        public NotAuthorizedException(Throwable t, String httpError, int statusCode) {
+            super(httpError, t, httpError, statusCode);
         }
     }
 
@@ -123,8 +82,8 @@ public class PulsarAdminException extends Exception {
      * Not Found Exception.
      */
     public static class NotFoundException extends PulsarAdminException {
-        public NotFoundException(ClientErrorException e) {
-            super(e);
+        public NotFoundException(Throwable t, String httpError, int statusCode) {
+            super(httpError, t, httpError, statusCode);
         }
     }
 
@@ -132,8 +91,8 @@ public class PulsarAdminException extends Exception {
      * Not Allowed Exception.
      */
     public static class NotAllowedException extends PulsarAdminException {
-        public NotAllowedException(ClientErrorException e) {
-            super(e);
+        public NotAllowedException(Throwable t, String httpError, int statusCode) {
+            super(httpError, t, httpError, statusCode);
         }
     }
 
@@ -141,8 +100,8 @@ public class PulsarAdminException extends Exception {
      * Conflict Exception.
      */
     public static class ConflictException extends PulsarAdminException {
-        public ConflictException(ClientErrorException e) {
-            super(e);
+        public ConflictException(Throwable t, String httpError, int statusCode) {
+            super(httpError, t, httpError, statusCode);
         }
     }
 
@@ -150,8 +109,8 @@ public class PulsarAdminException extends Exception {
      * Precondition Failed Exception.
      */
     public static class PreconditionFailedException extends PulsarAdminException {
-        public PreconditionFailedException(ClientErrorException e) {
-            super(e);
+        public PreconditionFailedException(Throwable t, String httpError, int statusCode) {
+            super(httpError, t, httpError, statusCode);
         }
     }
 
@@ -168,12 +127,12 @@ public class PulsarAdminException extends Exception {
      * Server Side Error Exception.
      */
     public static class ServerSideErrorException extends PulsarAdminException {
-        public ServerSideErrorException(ServerErrorException e, String msg) {
-            super(e, msg);
+        public ServerSideErrorException(Throwable t, String message, String httpError, int statusCode) {
+            super(message, t, httpError, statusCode);
         }
 
-        public ServerSideErrorException(ServerErrorException e) {
-            super(e, "Some error occourred on the server");
+        public ServerSideErrorException(Throwable t) {
+            super("Some error occourred on the server", t);
         }
     }
 

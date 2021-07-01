@@ -21,6 +21,14 @@ cmake_minimum_required(VERSION 3.4)
 project (pulsar-cpp)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake_modules")
 
+if (VCPKG_TRIPLET)
+    message(STATUS "Use vcpkg, triplet is ${VCPKG_TRIPLET}")
+    set(CMAKE_PREFIX_PATH "${CMAKE_SOURCE_DIR}/vcpkg_installed/${VCPKG_TRIPLET}")
+    message(STATUS "Use CMAKE_PREFIX_PATH: ${CMAKE_PREFIX_PATH}")
+    set(PROTOC_PATH "${CMAKE_PREFIX_PATH}/tools/protobuf/protoc")
+    message(STATUS "Use protoc: ${PROTOC_PATH}")
+endif()
+
 find_program(CCACHE_PROGRAM ccache)
 if(CCACHE_PROGRAM)
     set(CMAKE_CXX_COMPILER_LAUNCHER "ccache")
@@ -56,6 +64,10 @@ ENDIF ()
 
 MESSAGE(STATUS "CMAKE_BUILD_TYPE:  " ${CMAKE_BUILD_TYPE})
 
+set(THREADS_PREFER_PTHREAD_FLAG TRUE)
+find_package(Threads REQUIRED)
+MESSAGE(STATUS "Threads library: " ${CMAKE_THREAD_LIBS_INIT})
+
 set(Boost_NO_BOOST_CMAKE ON)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_C_STANDARD 11)
@@ -87,8 +99,8 @@ set(OPENSSL_ROOT_DIR /usr/lib64/)
 ### This part is to find and keep SSL dynamic libs in RECORD_OPENSSL_SSL_LIBRARY and RECORD_OPENSSL_CRYPTO_LIBRARY
 ### After find the libs, will unset related cache, and will not affact another same call to find_package.
 if (APPLE)
-    set(OPENSSL_INCLUDE_DIR /usr/local/opt/openssl/include/)
-    set(OPENSSL_ROOT_DIR /usr/local/opt/openssl/)
+    set(OPENSSL_INCLUDE_DIR /usr/local/opt/openssl/include/ /opt/homebrew/opt/openssl/include)
+    set(OPENSSL_ROOT_DIR /usr/local/opt/openssl/ /opt/homebrew/opt/openssl)
 endif ()
 
 set(OPENSSL_USE_STATIC_LIBS FALSE)
@@ -222,11 +234,6 @@ if (BUILD_PYTHON_WRAPPER)
     find_package(Boost REQUIRED COMPONENTS ${BOOST_PYTHON_NAME_FOUND})
 endif (BUILD_PYTHON_WRAPPER)
 
-if (APPLE)
-    set(OPENSSL_INCLUDE_DIR /usr/local/opt/openssl/include/)
-    set(OPENSSL_ROOT_DIR /usr/local/opt/openssl/)
-endif ()
-
 find_package(OpenSSL REQUIRED)
 
 if (BUILD_TESTS)
@@ -282,6 +289,7 @@ include_directories(
 
 set(COMMON_LIBS
   ${COMMON_LIBS}
+  Threads::Threads
   ${Boost_REGEX_LIBRARY}
   ${Boost_SYSTEM_LIBRARY}
   ${CURL_LIBRARIES}
@@ -289,6 +297,7 @@ set(COMMON_LIBS
   ${ZLIB_LIBRARIES}
   ${Protobuf_LITE_LIBRARIES}
   ${ADDITIONAL_LIBRARIES}
+  ${CMAKE_DL_LIBS}
 )
 
 if (MSVC)
@@ -299,11 +308,7 @@ if (MSVC)
 endif()
 
 if (NOT MSVC)
-    set(COMMON_LIBS
-    ${COMMON_LIBS} -lpthread -lm
-    dl
-    pthread
-    )
+    set(COMMON_LIBS ${COMMON_LIBS} m)
 else()
     set(COMMON_LIBS
     ${COMMON_LIBS}

@@ -25,10 +25,12 @@ import static org.testng.Assert.assertTrue;
 
 import com.google.common.base.Charsets;
 
-import java.io.File;
+import java.io.*;
 import java.util.Collections;
+import java.util.function.Supplier;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang.SerializationUtils;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -170,5 +172,44 @@ public class AuthenticationTokenTest {
         assertTrue(authData.hasDataFromCommand());
         assertEquals(authData.getCommandData(), "my-test-token-string");
         authToken.close();
+    }
+
+    @Test
+    public void testSerializableAuthentication() throws Exception {
+        SerializableSupplier tokenSupplier = new SerializableSupplier("cert");
+        AuthenticationToken token = new AuthenticationToken(tokenSupplier);
+
+        // serialize
+        ByteArrayOutputStream outStream = new ByteArrayOutputStream();
+        ObjectOutputStream out = new ObjectOutputStream(outStream);
+        out.writeObject(token);
+        out.flush();
+        byte[] outputBytes = outStream.toByteArray();
+        out.close();
+
+        // deserialize
+        ByteArrayInputStream bis = new ByteArrayInputStream(outputBytes);
+        ObjectInput in = new ObjectInputStream(bis);
+        AuthenticationToken ts = (AuthenticationToken) in.readObject();
+        in.close();
+
+        // read the deserialized object
+        assertEquals(tokenSupplier.token, ts.getAuthData().getCommandData());
+    }
+
+    public static class SerializableSupplier implements Supplier<String>, Serializable {
+
+        private static final long serialVersionUID = 6259616338933150683L;
+        private String token;
+
+        public SerializableSupplier(final String token) {
+            super();
+            this.token = token;
+        }
+
+        @Override
+        public String get() {
+            return token;
+        }
     }
 }

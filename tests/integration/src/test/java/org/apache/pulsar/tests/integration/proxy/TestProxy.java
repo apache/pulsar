@@ -26,7 +26,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
@@ -38,7 +38,7 @@ import org.testng.annotations.Test;
  * Test cases for proxy.
  */
 public class TestProxy extends PulsarTestSuite {
-    private final static Logger log = LoggerFactory.getLogger(TestProxy.class);
+    private static final Logger log = LoggerFactory.getLogger(TestProxy.class);
 
     @Override
     protected PulsarClusterSpec.PulsarClusterSpecBuilder beforeSetupCluster(
@@ -58,7 +58,7 @@ public class TestProxy extends PulsarTestSuite {
             .build();
 
         admin.tenants().createTenant(tenant,
-                new TenantInfo(Collections.emptySet(), Collections.singleton(pulsarCluster.getClusterName())));
+                new TenantInfoImpl(Collections.emptySet(), Collections.singleton(pulsarCluster.getClusterName())));
 
         admin.namespaces().createNamespace(namespace, Collections.singleton(pulsarCluster.getClusterName()));
 
@@ -83,7 +83,7 @@ public class TestProxy extends PulsarTestSuite {
         for (int i = 0; i < 10; i++) {
             // Ensure we can get the stats for the topic irrespective of which broker the proxy decides to connect to
             TopicStats stats = admin.topics().getStats(topic);
-            assertEquals(stats.publishers.size(), 1);
+            assertEquals(stats.getPublishers().size(), 1);
         }
     }
 
@@ -110,7 +110,7 @@ public class TestProxy extends PulsarTestSuite {
                 .build();
 
         admin.tenants().createTenant(tenant,
-                new TenantInfo(Collections.emptySet(), Collections.singleton(pulsarCluster.getClusterName())));
+                new TenantInfoImpl(Collections.emptySet(), Collections.singleton(pulsarCluster.getClusterName())));
 
         admin.namespaces().createNamespace(namespace, Collections.singleton(pulsarCluster.getClusterName()));
 

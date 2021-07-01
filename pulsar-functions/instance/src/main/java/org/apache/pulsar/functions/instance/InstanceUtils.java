@@ -33,7 +33,6 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SizeUnit;
-import org.apache.pulsar.common.functions.AuthenticationConfig;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.sink.PulsarSink;
@@ -157,7 +156,9 @@ public class InstanceUtils {
         return properties;
     }
 
-    public static PulsarClient createPulsarClient(String pulsarServiceUrl, AuthenticationConfig authConfig) throws PulsarClientException {
+
+    public static PulsarClient createPulsarClient(String pulsarServiceUrl, AuthenticationConfig authConfig)
+            throws PulsarClientException {
         return createPulsarClient(pulsarServiceUrl, authConfig, Optional.empty());
     }
 
@@ -188,7 +189,8 @@ public class InstanceUtils {
         return null;
     }
 
-    public static PulsarAdmin createPulsarAdminClient(String pulsarWebServiceUrl, AuthenticationConfig authConfig) throws PulsarClientException {
+    public static PulsarAdmin createPulsarAdminClient(String pulsarWebServiceUrl, AuthenticationConfig authConfig)
+            throws PulsarClientException {
         PulsarAdminBuilder pulsarAdminBuilder = null;
         if (isNotBlank(pulsarWebServiceUrl)) {
             pulsarAdminBuilder = PulsarAdmin.builder().serviceHttpUrl(pulsarWebServiceUrl);

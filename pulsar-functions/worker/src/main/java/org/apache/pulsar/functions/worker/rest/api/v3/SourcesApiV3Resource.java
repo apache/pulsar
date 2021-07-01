@@ -24,7 +24,7 @@ import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.common.functions.UpdateOptions;
+import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.io.ConfigFieldDefinition;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SourceConfig;
@@ -85,7 +85,7 @@ public class SourcesApiV3Resource extends FunctionApiResource {
                              final @FormDataParam("data") FormDataContentDisposition fileDetail,
                              final @FormDataParam("url") String functionPkgUrl,
                              final @FormDataParam("sourceConfig") SourceConfig sourceConfig,
-                             final @FormDataParam("updateOptions") UpdateOptions updateOptions) {
+                             final @FormDataParam("updateOptions") UpdateOptionsImpl updateOptions) {
 
         sources().updateSource(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
                 functionPkgUrl, sourceConfig, clientAppId(), clientAuthData(), updateOptions);
@@ -290,6 +290,6 @@ public class SourcesApiV3Resource extends FunctionApiResource {
     })
     @Path("/reloadBuiltInSources")
     public void reloadSources() {
-        sources().reloadConnectors(clientAppId());
+        sources().reloadConnectors(clientAppId(), clientAuthData());
     }
 }

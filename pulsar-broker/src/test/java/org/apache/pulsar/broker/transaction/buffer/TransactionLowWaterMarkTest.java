@@ -28,6 +28,7 @@ import com.google.common.collect.Sets;
 
 import java.lang.reflect.Field;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -49,7 +50,6 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
-import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
@@ -57,8 +57,13 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
+import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
+import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
+import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -68,36 +73,53 @@ import org.testng.annotations.Test;
  * Pulsar client transaction test.
  */
 @Slf4j
+@Test(groups = "broker")
 public class TransactionLowWaterMarkTest extends TransactionTestBase {
 
-    private final static String TENANT = "tnx";
-    private final static String NAMESPACE1 = TENANT + "/ns1";
-    private final static String TOPIC = NAMESPACE1 + "/test-topic";
+    private static final String TENANT = "tnx";
+    private static final String NAMESPACE1 = TENANT + "/ns1";
+    private static final String TOPIC = NAMESPACE1 + "/test-topic";
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     protected void setup() throws Exception {
+        setBrokerCount(1);
         internalSetup();
 
         String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
         String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length -1];
-        admin.clusters().createCluster(CLUSTER_NAME, new ClusterData("http://localhost:" + webServicePort));
+        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl("http://localhost:" + webServicePort).build());
         admin.tenants().createTenant(TENANT,
-                new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
+                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(NAMESPACE1);
         admin.topics().createNonPartitionedTopic(TOPIC);
         admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
-                new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
+                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
         admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), 16);
 
+        if (pulsarClient != null) {
+            pulsarClient.shutdown();
+        }
         pulsarClient = PulsarClient.builder()
                 .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
                 .statsInterval(0, TimeUnit.SECONDS)
                 .enableTransaction(true)
                 .build();
-
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).until(() -> ((PulsarClientImpl) pulsarClient)
-                .getTcClient().getState() == TransactionCoordinatorClient.State.READY);
+        Map<TransactionCoordinatorID, TransactionMetadataStore> stores =
+                getPulsarServiceList().get(0).getTransactionMetadataStoreService().getStores();
+        Awaitility.await().until(() -> {
+            if (stores.size() == 16) {
+                for (TransactionCoordinatorID transactionCoordinatorID : stores.keySet()) {
+                    if (((MLTransactionMetadataStore) stores.get(transactionCoordinatorID)).getState()
+                            != TransactionMetadataStoreState.State.Ready) {
+                        return false;
+                    }
+                }
+                return true;
+            } else {
+                return false;
+            }
+        });
     }
 
     @AfterMethod(alwaysRun = true)
@@ -106,7 +128,7 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
     }
 
     @Test
-    private void testTransactionBufferLowWaterMark() throws Exception {
+    public void testTransactionBufferLowWaterMark() throws Exception {
         Transaction txn = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build().get();
@@ -138,6 +160,9 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
         message = consumer.receive(2, TimeUnit.SECONDS);
         assertNull(message);
 
+        Field field = TransactionImpl.class.getDeclaredField("state");
+        field.setAccessible(true);
+        field.set(txn, TransactionImpl.State.OPEN);
         producer.newMessage(txn).value(TEST2.getBytes()).send();
 
         message = consumer.receive(2, TimeUnit.SECONDS);
@@ -175,7 +200,7 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
     }
 
     @Test
-    private void testPendingAckLowWaterMark() throws Exception {
+    public void testPendingAckLowWaterMark() throws Exception {
         String subName = "test";
         Transaction txn = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
@@ -236,6 +261,9 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
         assertTrue(individualAckOfTransaction.containsKey(new TxnID(((TransactionImpl) txn).getTxnIdMostBits(),
                 ((TransactionImpl) txn).getTxnIdLeastBits())));
         txn.commit().get();
+        Field field = TransactionImpl.class.getDeclaredField("state");
+        field.setAccessible(true);
+        field.set(txn, TransactionImpl.State.OPEN);
         assertFalse(individualAckOfTransaction.containsKey(new TxnID(((TransactionImpl) txn).getTxnIdMostBits(),
                 ((TransactionImpl) txn).getTxnIdLeastBits())));
 

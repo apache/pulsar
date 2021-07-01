@@ -36,9 +36,15 @@ import org.apache.commons.collections.CollectionUtils;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
@@ -55,8 +61,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 
-/**
- */
+@Test(groups = "broker")
 public class PersistentQueueE2ETest extends BrokerTestBase {
 
     @BeforeClass
@@ -205,7 +210,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
         Consumer<byte[]> consumer2 = newPulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Shared).messageListener((consumer, msg) -> {
-                    // do notthing
+                    // do nothing
                 }).subscribe();
 
         List<CompletableFuture<MessageId>> futures = Lists.newArrayListWithCapacity(numMsgs * 2);
@@ -494,13 +499,13 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
             consumer1.acknowledge(msgId);
         }
 
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().untilAsserted(() -> {
             TopicStats stats = admin.topics().getStats(topicName);
             // Unacked messages count should be 0 for both consumers at this point
-            SubscriptionStats subStats = stats.subscriptions.get(subName);
-            assertEquals(subStats.msgBacklog, 0);
-            for (ConsumerStats cs : subStats.consumers) {
-                assertEquals(cs.unackedMessages, 0);
+            SubscriptionStats subStats = stats.getSubscriptions().get(subName);
+            assertEquals(subStats.getMsgBacklog(), 0);
+            for (ConsumerStats cs : subStats.getConsumers()) {
+                assertEquals(cs.getUnackedMessages(), 0);
             }
         });
 

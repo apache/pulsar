@@ -46,7 +46,9 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class TopicTerminationTest extends BrokerTestBase {
+
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
@@ -83,7 +85,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         }
     }
 
-    @Test
+    @Test(groups = "broker")
     public void testCreateProducerOnTerminatedTopic() throws Exception {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
@@ -153,7 +155,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         }
     }
 
-    @Test
+    @Test(groups = "broker")
     public void testDoubleTerminate() throws Exception {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
@@ -172,7 +174,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         assertEquals(lastMessageId, msgId3);
     }
 
-    @Test
+    @Test(groups = "broker")
     public void testTerminatePartitionedTopic() throws Exception {
         admin.topics().createPartitionedTopic(topicName, 4);
 

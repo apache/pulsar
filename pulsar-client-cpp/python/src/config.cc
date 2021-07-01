@@ -88,6 +88,106 @@ static ProducerConfiguration& ProducerConfiguration_setCryptoKeyReader(ProducerC
     return conf;
 }
 
+class LoggerWrapper: public Logger {
+    PyObject* _pyLogger;
+    int _currentPythonLogLevel = _getLogLevelValue(Logger::LEVEL_INFO);
+
+    void _updateCurrentPythonLogLevel() {
+        PyGILState_STATE state = PyGILState_Ensure();
+
+        try {
+            _currentPythonLogLevel = py::call_method<int>(_pyLogger, "getEffectiveLevel");
+        } catch (py::error_already_set e) {
+            PyErr_Print();
+        }
+
+        PyGILState_Release(state);
+    };
+
+    int _getLogLevelValue(Level level) {
+        return 10 + (level * 10);
+    }
+
+   public:
+
+    LoggerWrapper(const std::string &logger, PyObject* pyLogger) {
+        _pyLogger = pyLogger;
+        Py_XINCREF(_pyLogger);
+
+        _updateCurrentPythonLogLevel();
+    }
+
+    LoggerWrapper(const LoggerWrapper& other) {
+        _pyLogger = other._pyLogger;
+        Py_XINCREF(_pyLogger);
+    }
+
+    LoggerWrapper& operator=(const LoggerWrapper& other) {
+        _pyLogger = other._pyLogger;
+        Py_XINCREF(_pyLogger);
+        return *this;
+    }
+
+    virtual ~LoggerWrapper() {
+        Py_XDECREF(_pyLogger);
+    }
+
+    bool isEnabled(Level level) {
+        return _getLogLevelValue(level) >= _currentPythonLogLevel;
+    }
+
+    void log(Level level, int line, const std::string& message) {
+        PyGILState_STATE state = PyGILState_Ensure();
+
+        try {
+            switch (level) {
+                case Logger::LEVEL_DEBUG:
+                    py::call_method<void>(_pyLogger, "debug", message.c_str());
+                    break;
+                case Logger::LEVEL_INFO:
+                    py::call_method<void>(_pyLogger, "info", message.c_str());
+                    break;
+                case Logger::LEVEL_WARN:
+                    py::call_method<void>(_pyLogger, "warning", message.c_str());
+                    break;
+                case Logger::LEVEL_ERROR:
+                    py::call_method<void>(_pyLogger, "error", message.c_str());
+                    break;
+            }
+
+        } catch (py::error_already_set e) {
+            PyErr_Print();
+        }
+
+        PyGILState_Release(state);
+    }
+};
+
+class LoggerWrapperFactory : public LoggerFactory {
+    static LoggerWrapperFactory* _instance;
+    PyObject* _pyLogger;
+
+   public:
+    LoggerWrapperFactory(py::object pyLogger) {
+        _pyLogger = pyLogger.ptr();
+        Py_XINCREF(_pyLogger);
+    }
+
+    virtual ~LoggerWrapperFactory() {
+        Py_XDECREF(_pyLogger);
+    }
+
+    Logger* getLogger(const std::string &fileName) {
+        return new LoggerWrapper(fileName, _pyLogger);
+    }
+};
+
+static ClientConfiguration& ClientConfiguration_setLogger(ClientConfiguration& conf, py::object logger) {
+    conf.setLogger(new LoggerWrapperFactory(logger));
+    return conf;
+}
+
+
 void export_config() {
     using namespace boost::python;
 
@@ -95,6 +195,8 @@ void export_config() {
             .def("authentication", &ClientConfiguration_setAuthentication, return_self<>())
             .def("operation_timeout_seconds", &ClientConfiguration::getOperationTimeoutSeconds)
             .def("operation_timeout_seconds", &ClientConfiguration::setOperationTimeoutSeconds, return_self<>())
+            .def("connection_timeout", &ClientConfiguration::getConnectionTimeout)
+            .def("connection_timeout", &ClientConfiguration::setConnectionTimeout, return_self<>())
             .def("io_threads", &ClientConfiguration::getIOThreads)
             .def("io_threads", &ClientConfiguration::setIOThreads, return_self<>())
             .def("message_listener_threads", &ClientConfiguration::getMessageListenerThreads)
@@ -110,6 +212,7 @@ void export_config() {
             .def("tls_allow_insecure_connection", &ClientConfiguration::isTlsAllowInsecureConnection)
             .def("tls_allow_insecure_connection", &ClientConfiguration::setTlsAllowInsecureConnection, return_self<>())
             .def("tls_validate_hostname", &ClientConfiguration::setValidateHostName, return_self<>())
+            .def("set_logger", &ClientConfiguration_setLogger, return_self<>())
             ;
 
     class_<ProducerConfiguration>("ProducerConfiguration")
@@ -172,6 +275,8 @@ void export_config() {
             .def("subscription_initial_position", &ConsumerConfiguration::getSubscriptionInitialPosition)
             .def("subscription_initial_position", &ConsumerConfiguration::setSubscriptionInitialPosition)
             .def("crypto_key_reader", &ConsumerConfiguration_setCryptoKeyReader, return_self<>())
+            .def("replicate_subscription_state_enabled", &ConsumerConfiguration::setReplicateSubscriptionStateEnabled)
+            .def("replicate_subscription_state_enabled", &ConsumerConfiguration::isReplicateSubscriptionStateEnabled)
             ;
 
     class_<ReaderConfiguration>("ReaderConfiguration")

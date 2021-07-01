@@ -32,7 +32,7 @@ public class LocalDateSchema extends AbstractSchema<LocalDate> {
    private static final SchemaInfo SCHEMA_INFO;
 
    static {
-       SCHEMA_INFO = new SchemaInfo()
+       SCHEMA_INFO = new SchemaInfoImpl()
              .setName("LocalDate")
              .setType(SchemaType.LOCAL_DATE)
              .setSchema(new byte[0]);

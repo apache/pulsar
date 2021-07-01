@@ -31,6 +31,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import lombok.Cleanup;
 import org.apache.pulsar.client.api.TlsProducerConsumerBase;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.util.SecurityUtility;
@@ -50,6 +51,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "websocket")
 public class ProxyPublishConsumeTlsTest extends TlsProducerConsumerBase {
     protected String methodName;
 
@@ -95,7 +97,7 @@ public class ProxyPublishConsumeTlsTest extends TlsProducerConsumerBase {
     }
 
     @Test(timeOut = 30000)
-    public void socketTest() throws InterruptedException, GeneralSecurityException {
+    public void socketTest() throws GeneralSecurityException {
         String consumerUri =
                 "wss://localhost:" + proxyServer.getListenPortHTTPS().get() + "/ws/consumer/persistent/my-property/use/my-ns/my-topic/my-sub";
         String producerUri = "wss://localhost:" + proxyServer.getListenPortHTTPS().get() + "/ws/producer/persistent/my-property/use/my-ns/my-topic/";
@@ -132,6 +134,7 @@ public class ProxyPublishConsumeTlsTest extends TlsProducerConsumerBase {
             log.error(t.getMessage());
             Assert.fail(t.getMessage());
         } finally {
+            @Cleanup("shutdownNow")
             ExecutorService executor = newFixedThreadPool(1);
             try {
                 executor.submit(() -> {
@@ -146,7 +149,6 @@ public class ProxyPublishConsumeTlsTest extends TlsProducerConsumerBase {
             } catch (Exception e) {
                 log.error("failed to close clients ", e);
             }
-            executor.shutdownNow();
         }
     }
 

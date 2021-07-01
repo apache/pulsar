@@ -155,11 +155,32 @@ public class RateLimiterTest {
         // change rate-time from 1sec to 5sec
         rate.setRate(permits, 5 * rateTimeMSec, TimeUnit.MILLISECONDS, null);
         assertEquals(rate.getAvailablePermits(), 100);
-        assertEquals(rate.tryAcquire(permits), true);
+        assertTrue(rate.tryAcquire(permits));
         assertEquals(rate.getAvailablePermits(), 0);
         // check after a rate-time: permits can't be renewed
         Thread.sleep(rateTimeMSec);
         assertEquals(rate.getAvailablePermits(), 0);
+
+        rate.close();
+    }
+
+    @Test
+    public void testDispatchRate() throws Exception {
+        final long rateTimeMSec = 1000;
+        final int permits = 100;
+        RateLimiter rate = new RateLimiter(null, permits, rateTimeMSec, TimeUnit.MILLISECONDS, null, true);
+        rate.tryAcquire(100);
+        rate.tryAcquire(100);
+        rate.tryAcquire(100);
+        assertEquals(rate.getAvailablePermits(), 0);
+
+        Thread.sleep(rateTimeMSec * 2);
+        // check after two rate-time: acquiredPermits is 100
+        assertEquals(rate.getAvailablePermits(), 0);
+
+        Thread.sleep(rateTimeMSec);
+        // check after three rate-time: acquiredPermits is 0
+        assertEquals(rate.getAvailablePermits() > 0, true);
 
         rate.close();
     }

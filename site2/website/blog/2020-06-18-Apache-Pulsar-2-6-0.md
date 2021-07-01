@@ -47,7 +47,7 @@ Previously, the broker only tracked the acknowledged state in the batch message 
 This PIP adds support for acknowledging the local batch index of a batch. This feature is not enabled by default. You can enable it in the `broker.conf` as below.
 
 ```
-batchIndexAcknowledgeEnable=true
+acknowledgmentAtBatchIndexLevelEnabled=true
 ```
 
 For more information about PIP-54, see [here](https://github.com/apache/pulsar/wiki/PIP-54:-Support-acknowledgment-at-batch-index-level). <br> For more information about implementation details, see [PR-6052](https://github.com/apache/pulsar/pull/6052).
@@ -116,11 +116,11 @@ You can customize more parameters for the `ThresholdShedder` if needed as below.
 # The broker resource usage threshold.
 # When the broker resource usage is greater than the pulsar cluster average resource usage,
 # the threshold shedder will be triggered to offload bundles from the broker.
-# It only takes effect in ThresholdSheddler strategy.
+# It only takes effect in ThresholdShedder strategy.
 loadBalancerBrokerThresholdShedderPercentage=10
 
 # When calculating new resource usage, the history usage accounts for.
-# It only takes effect in ThresholdSheddler strategy.
+# It only takes effect in ThresholdShedder strategy.
 loadBalancerHistoryResourcePercentage=0.9
 
 # The BandWithIn usage weight when calculating new resource usage.

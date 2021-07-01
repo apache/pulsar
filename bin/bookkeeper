@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -121,7 +121,10 @@ add_maven_deps_to_classpath() {
     f="${BK_HOME}/distribution/server/target/classpath.txt"
     if [ ! -f "${f}" ]
     then
-	${MVN} -f "${BK_HOME}/pom.xml" dependency:build-classpath -Dmdep.outputFile="${f}" &> /dev/null
+    (
+      cd "${BK_HOME}"
+      ${MVN} -pl distribution/server generate-sources &> /dev/null
+    )
     fi
     BOOKIE_CLASSPATH=${CLASSPATH}:`cat "${f}"`
 }
@@ -159,6 +162,9 @@ fi
 BOOKIE_CLASSPATH="$BOOKIE_JAR:$BOOKIE_CLASSPATH:$BOOKIE_EXTRA_CLASSPATH"
 BOOKIE_CLASSPATH="`dirname $BOOKIE_LOG_CONF`:$BOOKIE_CLASSPATH"
 OPTS="$OPTS -Dlog4j.configurationFile=`basename $BOOKIE_LOG_CONF`"
+
+# Allow Netty to use reflection access
+OPTS="$OPTS -Dio.netty.tryReflectionSetAccessible=true"
 
 OPTS="-cp $BOOKIE_CLASSPATH $OPTS"
 

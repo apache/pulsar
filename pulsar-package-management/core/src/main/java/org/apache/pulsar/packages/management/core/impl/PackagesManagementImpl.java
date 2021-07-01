@@ -28,6 +28,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.packages.management.core.PackagesManagement;
 import org.apache.pulsar.packages.management.core.PackagesStorage;
 import org.apache.pulsar.packages.management.core.common.PackageMetadata;
+import org.apache.pulsar.packages.management.core.common.PackageMetadataUtil;
 import org.apache.pulsar.packages.management.core.common.PackageName;
 import org.apache.pulsar.packages.management.core.common.PackageType;
 import org.apache.pulsar.packages.management.core.exceptions.PackagesManagementException;
@@ -83,7 +84,7 @@ public class PackagesManagementImpl implements PackagesManagement {
                     future.completeExceptionally(throwable);
                     return;
                 }
-                try (ByteArrayInputStream inputStream = new ByteArrayInputStream(metadata.toBytes())) {
+                try (ByteArrayInputStream inputStream = new ByteArrayInputStream(PackageMetadataUtil.toBytes(metadata))) {
                     storage.deleteAsync(metadataPath)
                         .thenCompose(aVoid -> storage.writeAsync(metadataPath, inputStream))
                         .whenComplete((aVoid, t) -> {
@@ -105,7 +106,7 @@ public class PackagesManagementImpl implements PackagesManagement {
     private CompletableFuture<Void> writeMeta(PackageName packageName, PackageMetadata metadata) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         String metadataPath = metadataPath(packageName);
-        try (ByteArrayInputStream inputStream = new ByteArrayInputStream(metadata.toBytes())) {
+        try (ByteArrayInputStream inputStream = new ByteArrayInputStream(PackageMetadataUtil.toBytes(metadata))) {
             storage.writeAsync(metadataPath, inputStream)
                 .whenComplete((aVoid, t) -> {
                     if (t != null) {
@@ -234,7 +235,7 @@ public class PackagesManagementImpl implements PackagesManagement {
     private CompletableFuture<PackageMetadata> metadataReadFromStream(ByteArrayOutputStream outputStream) {
         CompletableFuture<PackageMetadata> future = new CompletableFuture<>();
         try {
-            PackageMetadata metadata = PackageMetadata.fromBytes(outputStream.toByteArray());
+            PackageMetadata metadata = PackageMetadataUtil.fromBytes(outputStream.toByteArray());
             future.complete(metadata);
         } catch (PackagesManagementException.MetadataFormatException e) {
             future.completeExceptionally(e);

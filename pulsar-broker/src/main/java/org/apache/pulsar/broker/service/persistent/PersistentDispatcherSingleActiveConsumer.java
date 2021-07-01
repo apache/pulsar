@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
 import java.util.Iterator;
 import java.util.List;
@@ -36,7 +35,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsExcep
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.AbstractDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
@@ -50,10 +48,8 @@ import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotSealedException;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -132,36 +128,9 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         }, serviceConfig.getActiveConsumerFailoverDelayTimeMillis(), TimeUnit.MILLISECONDS);
     }
 
+    @Override
     protected boolean isConsumersExceededOnSubscription() {
-        Policies policies = null;
-        Integer maxConsumersPerSubscription = null;
-        try {
-            maxConsumersPerSubscription = Optional.ofNullable(topic.getBrokerService()
-                    .getTopicPolicies(TopicName.get(topicName)))
-                    .map(TopicPolicies::getMaxConsumersPerSubscription)
-                    .orElse(null);
-            if (maxConsumersPerSubscription == null) {
-                // Use getDataIfPresent from zk cache to make the call non-blocking and prevent deadlocks in addConsumer
-                policies = topic.getBrokerService().pulsar().getConfigurationCache().policiesCache()
-                        .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic.getName()).getNamespace()));
-
-                if (policies == null) {
-                    policies = new Policies();
-                }
-            }
-        } catch (Exception e) {
-            policies = new Policies();
-        }
-
-        if (maxConsumersPerSubscription == null) {
-            maxConsumersPerSubscription = policies.max_consumers_per_subscription > 0
-                    ? policies.max_consumers_per_subscription : serviceConfig.getMaxConsumersPerSubscription();
-        }
-
-        if (maxConsumersPerSubscription > 0 && maxConsumersPerSubscription <= consumers.size()) {
-            return true;
-        }
-        return false;
+        return isConsumersExceededOnSubscription(topic.getBrokerService(), topic.getName(), consumers.size());
     }
 
     @Override
@@ -574,6 +543,22 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         IS_CLOSED_UPDATER.set(this, TRUE);
         dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
         return disconnectAllConsumers();
+    }
+
+    @Override
+    public boolean checkAndUnblockIfStuck() {
+        if (cursor.checkAndUpdateReadPositionChanged()) {
+            return false;
+        }
+        Consumer consumer = ACTIVE_CONSUMER_UPDATER.get(this);
+        int totalAvailablePermits = consumer.getAvailablePermits();
+        // consider dispatch is stuck if : dispatcher has backlog, available-permits and there is no pending read
+        if (totalAvailablePermits > 0 && !havePendingRead && cursor.getNumberOfEntriesInBacklog(false) > 0) {
+            log.warn("{}-{} Dispatcher is stuck and unblocking by issuing reads", topic.getName(), name);
+            readMoreEntries(consumer);
+            return true;
+        }
+        return false;
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentDispatcherSingleActiveConsumer.class);

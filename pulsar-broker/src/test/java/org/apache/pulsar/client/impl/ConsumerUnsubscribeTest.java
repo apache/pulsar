@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
 
+import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MockBrokerService;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -27,13 +28,12 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-/**
- */
+@Test(groups = "broker-impl")
 public class ConsumerUnsubscribeTest {
 
     MockBrokerService mockBrokerService;
 
-    @BeforeClass
+    @BeforeClass(alwaysRun = true)
     public void setup() {
         mockBrokerService = new MockBrokerService();
         mockBrokerService.start();
@@ -41,11 +41,15 @@ public class ConsumerUnsubscribeTest {
 
     @AfterClass(alwaysRun = true)
     public void teardown() {
-        mockBrokerService.stop();
+        if (mockBrokerService != null) {
+            mockBrokerService.stop();
+            mockBrokerService = null;
+        }
     }
 
     @Test
     public void testConsumerUnsubscribeReference() throws Exception {
+        @Cleanup
         PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
                 .serviceUrl(mockBrokerService.getBrokerAddress())
                 .build();
@@ -54,6 +58,5 @@ public class ConsumerUnsubscribeTest {
         consumer.unsubscribe();
 
         assertEquals(client.consumersCount(), 0);
-        client.close();
     }
 }

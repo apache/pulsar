@@ -143,7 +143,7 @@ public class FunctionActioner {
         } catch (Exception ex) {
             FunctionDetails details = functionRuntimeInfo.getFunctionInstance()
                     .getFunctionMetaData().getFunctionDetails();
-            log.info("{}/{}/{} Error starting function", details.getTenant(), details.getNamespace(),
+            log.error("{}/{}/{} Error starting function", details.getTenant(), details.getNamespace(),
                     details.getName(), ex);
             functionRuntimeInfo.setStartupException(ex);
         }
@@ -384,10 +384,10 @@ public class FunctionActioner {
                     SubscriptionStats sub = null;
                     try {
                         TopicStats stats = pulsarAdmin.topics().getStats(topic);
-                        sub = stats.subscriptions.get(subscriptionName);
+                        sub = stats.getSubscriptions().get(subscriptionName);
                         if (sub != null) {
-                            existingConsumers = sub.consumers.stream()
-                              .map(consumerStats -> consumerStats.metadata)
+                            existingConsumers = sub.getConsumers().stream()
+                              .map(consumerStats -> consumerStats.getMetadata())
                               .collect(Collectors.toList());
                         }
                     } catch (PulsarAdminException e1) {

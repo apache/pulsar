@@ -20,12 +20,10 @@ package org.apache.pulsar.functions.source;
 
 import java.util.Map;
 import java.util.Optional;
-
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
-
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
@@ -59,6 +57,11 @@ public class PulsarRecord<T> implements RecordWithEncryptionContext<T> {
     @Override
     public Optional<String> getTopicName() {
         return Optional.of(topicName);
+    }
+
+    @Override
+    public Optional<Integer> getPartitionIndex() {
+        return Optional.of(partition);
     }
 
     @Override

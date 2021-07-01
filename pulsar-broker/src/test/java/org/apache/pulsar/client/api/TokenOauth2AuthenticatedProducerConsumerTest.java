@@ -19,7 +19,8 @@
 package org.apache.pulsar.client.api;
 
 import static org.mockito.Mockito.spy;
-
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
 import com.google.common.collect.Sets;
 import java.net.URI;
 import java.net.URL;
@@ -35,9 +36,9 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationFactoryOAuth2;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
-import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -50,6 +51,7 @@ import org.testng.annotations.Test;
  *    client: org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2
  *    broker: org.apache.pulsar.broker.authentication.AuthenticationProviderToken
  */
+@Test(groups = "broker-api")
 public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(TokenOauth2AuthenticatedProducerConsumerTest.class);
 
@@ -61,7 +63,7 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
     // Credentials File, which contains "client_id" and "client_secret"
     private final String CREDENTIALS_FILE = "./src/test/resources/authentication/token/credentials_file.json";
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         conf.setAuthenticationEnabled(true);
@@ -118,7 +120,7 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         return new Object[][] { { 0 }, { 1000 } };
     }
 
-    public void testSyncProducerAndConsumer() throws Exception {
+    private void testSyncProducerAndConsumer() throws Exception {
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic")
                 .subscriptionName("my-subscriber-name").subscribe();
 
@@ -150,9 +152,9 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         clientSetup();
 
         // test rest by admin
-        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
         admin.tenants().createTenant("my-property",
-                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
 
         // test protocol by producer/consumer
@@ -167,9 +169,9 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         clientSetup();
 
         // test rest by admin
-        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
         admin.tenants().createTenant("my-property",
-            new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+            new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic")
@@ -207,12 +209,12 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
             .pollInterval(Duration.ofSeconds(1))
             .untilAsserted(() -> {
                 String accessTokenNew = producerImpl.getClientCnx().getAuthenticationDataProvider().getCommandData();
-                Assert.assertNotEquals(accessTokenOld, accessTokenNew);
+                assertNotEquals(accessTokenNew, accessTokenOld);
             });
 
         // get the lastDisconnectTime, it should be same with the before, because the connection shouldn't disconnect
         long lastDisconnectTimeAfterTokenExpired = producer.getLastDisconnectedTimestamp();
-        Assert.assertEquals(lastDisconnectTime, lastDisconnectTimeAfterTokenExpired);
+        assertEquals(lastDisconnectTimeAfterTokenExpired, lastDisconnectTime);
 
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;

@@ -36,7 +36,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.apache.pulsar.client.impl.*;
+import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
+import org.apache.pulsar.client.impl.PartitionedProducerImpl;
+import org.apache.pulsar.client.impl.TopicMessageIdImpl;
+import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,6 +53,7 @@ import com.google.common.collect.Sets;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 
+@Test(groups = "broker-api")
 public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(PartitionedProducerConsumerTest.class);
 
@@ -67,7 +72,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
-        executor.shutdown();
+        executor.shutdownNow();
     }
 
     @Test(timeOut = 30000)
@@ -899,7 +904,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
     }
 
 
-    private class AlwaysTwoMessageRouter implements MessageRouter {
+    private static class AlwaysTwoMessageRouter implements MessageRouter {
         @Override
         public int choosePartition(Message<?> msg, TopicMetadata metadata) {
             return 2;

@@ -33,6 +33,7 @@ import java.io.OutputStream;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.List;
@@ -105,6 +106,10 @@ public class PrometheusMetricsGenerator {
                 pulsar.getWorkerService().generateFunctionsStats(stream);
             }
 
+            if (pulsar.getConfiguration().isTransactionCoordinatorEnabled()) {
+                TransactionAggregator.generate(pulsar, stream, includeTopicMetrics);
+            }
+
             generateBrokerBasicMetrics(pulsar, stream);
 
             generateManagedLedgerBookieClientMetrics(pulsar, stream);
@@ -126,12 +131,20 @@ public class PrometheusMetricsGenerator {
         parseMetricsToPrometheusMetrics(new ManagedLedgerCacheMetrics(pulsar).generate(),
                 clusterName, Collector.Type.GAUGE, stream);
 
-        // generate managedLedger metrics
-        parseMetricsToPrometheusMetrics(new ManagedLedgerMetrics(pulsar).generate(),
+        if (pulsar.getConfiguration().isExposeManagedLedgerMetricsInPrometheus()) {
+            // generate managedLedger metrics
+            parseMetricsToPrometheusMetrics(new ManagedLedgerMetrics(pulsar).generate(),
                 clusterName, Collector.Type.GAUGE, stream);
+        }
 
-        // generate managedCursor metrics
-        parseMetricsToPrometheusMetrics(new ManagedCursorMetrics(pulsar).generate(),
+        if (pulsar.getConfiguration().isExposeManagedCursorMetricsInPrometheus()) {
+            // generate managedCursor metrics
+            parseMetricsToPrometheusMetrics(new ManagedCursorMetrics(pulsar).generate(),
+                clusterName, Collector.Type.GAUGE, stream);
+        }
+
+        parseMetricsToPrometheusMetrics(Collections.singletonList(pulsar.getBrokerService()
+                .getPulsarStats().getBrokerOperabilityMetrics().generateConnectionMetrics()),
                 clusterName, Collector.Type.GAUGE, stream);
 
         // generate loadBalance metrics

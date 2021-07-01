@@ -32,14 +32,26 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import io.prometheus.client.CollectorRegistry;
+import io.prometheus.client.hotspot.BufferPoolsExports;
+import io.prometheus.client.hotspot.ClassLoadingExports;
+import io.prometheus.client.hotspot.GarbageCollectorExports;
+import io.prometheus.client.hotspot.MemoryPoolsExports;
+import io.prometheus.client.hotspot.StandardExports;
+import io.prometheus.client.hotspot.ThreadExports;
+import io.prometheus.client.hotspot.VersionInfoExports;
+import io.prometheus.jmx.JmxCollector;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.common.functions.AuthenticationConfig;
+import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.go.GoInstanceConfig;
+import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.utils.FunctionCommon;
+
+import javax.management.MalformedObjectNameException;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -390,13 +402,19 @@ public class RuntimeUtils {
         }
         args.add("--max_buffered_tuples");
         args.add(String.valueOf(instanceConfig.getMaxBufferedTuples()));
-
+        
         args.add("--port");
         args.add(String.valueOf(grpcPort));
 
         args.add("--metrics_port");
         args.add(String.valueOf(instanceConfig.getMetricsPort()));
 
+        // only the Java instance supports --pending_async_requests right now.
+        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
+            args.add("--pending_async_requests");
+            args.add(String.valueOf(instanceConfig.getMaxPendingAsyncRequests()));
+        }
+        
         // state storage configs
         if (null != stateStorageServiceUrl) {
             args.add("--state_storage_serviceurl");
@@ -458,4 +476,20 @@ public class RuntimeUtils {
         return ObjectMapperFactory.getThreadLocal().convertValue(configMap, functionRuntimeConfigClass);
     }
 
+    public static void registerDefaultCollectors(FunctionCollectorRegistry registry) {
+        // Add the JMX exporter for functionality similar to the kafka connect JMX metrics
+        try {
+            new JmxCollector("{}").register(registry);
+        } catch (MalformedObjectNameException ex) {
+            System.err.println(ex);
+        }
+        // Add the default exports from io.prometheus.client.hotspot.DefaultExports
+        new StandardExports().register(registry);
+        new MemoryPoolsExports().register(registry);
+        new BufferPoolsExports().register(registry);
+        new GarbageCollectorExports().register(registry);
+        new ThreadExports().register(registry);
+        new ClassLoadingExports().register(registry);
+        new VersionInfoExports().register(registry);
+    }
 }

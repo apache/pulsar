@@ -26,14 +26,15 @@ import lombok.Cleanup;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class ReplicatedSubscriptionConfigTest extends ProducerConsumerBase {
+
     @Override
     @BeforeClass
     public void setup() throws Exception {
@@ -60,13 +61,13 @@ public class ReplicatedSubscriptionConfigTest extends ProducerConsumerBase {
                 .subscribe();
 
         TopicStats stats = admin.topics().getStats(topic);
-        assertTrue(stats.subscriptions.get("sub1").isReplicated);
+        assertTrue(stats.getSubscriptions().get("sub1").isReplicated());
 
         admin.topics().unload(topic);
 
         // Check that subscription is still marked replicated after reloading
         stats = admin.topics().getStats(topic);
-        assertTrue(stats.subscriptions.get("sub1").isReplicated);
+        assertTrue(stats.getSubscriptions().get("sub1").isReplicated());
     }
 
     @Test
@@ -81,7 +82,7 @@ public class ReplicatedSubscriptionConfigTest extends ProducerConsumerBase {
                 .subscribe();
 
         TopicStats stats = admin.topics().getStats(topic);
-        assertFalse(stats.subscriptions.get("sub").isReplicated);
+        assertFalse(stats.getSubscriptions().get("sub").isReplicated());
         consumer.close();
 
         consumer = pulsarClient.newConsumer(Schema.STRING)
@@ -91,7 +92,7 @@ public class ReplicatedSubscriptionConfigTest extends ProducerConsumerBase {
                 .subscribe();
 
         stats = admin.topics().getStats(topic);
-        assertTrue(stats.subscriptions.get("sub").isReplicated);
+        assertTrue(stats.getSubscriptions().get("sub").isReplicated());
         consumer.close();
     }
 
@@ -107,7 +108,7 @@ public class ReplicatedSubscriptionConfigTest extends ProducerConsumerBase {
                 .subscribe();
 
         TopicStats stats = admin.topics().getStats(topic);
-        assertFalse(stats.subscriptions.get("sub").isReplicated);
+        assertFalse(stats.getSubscriptions().get("sub").isReplicated());
         consumer.close();
 
         admin.topics().unload(topic);
@@ -119,7 +120,7 @@ public class ReplicatedSubscriptionConfigTest extends ProducerConsumerBase {
                 .subscribe();
 
         stats = admin.topics().getStats(topic);
-        assertTrue(stats.subscriptions.get("sub").isReplicated);
+        assertTrue(stats.getSubscriptions().get("sub").isReplicated());
         consumer.close();
     }
 
@@ -134,7 +135,7 @@ public class ReplicatedSubscriptionConfigTest extends ProducerConsumerBase {
                 .subscribe();
 
         TopicStats stats = admin.topics().getStats(topic);
-        assertFalse(stats.subscriptions.get("sub").isReplicated);
+        assertFalse(stats.getSubscriptions().get("sub").isReplicated());
         consumer.close();
     }
 }

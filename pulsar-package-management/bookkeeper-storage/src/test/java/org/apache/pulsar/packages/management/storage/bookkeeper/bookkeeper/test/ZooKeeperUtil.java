@@ -44,7 +44,7 @@ public class ZooKeeperUtil {
     static final Logger LOG = LoggerFactory.getLogger(org.apache.bookkeeper.test.ZooKeeperUtil.class);
 
     // ZooKeeper related variables
-    protected final static Integer zooKeeperPort = PortManager.nextFreePort();
+    protected static final Integer zooKeeperPort = PortManager.nextFreePort();
     private final InetSocketAddress zkaddr;
 
     protected ZooKeeperServer zks;

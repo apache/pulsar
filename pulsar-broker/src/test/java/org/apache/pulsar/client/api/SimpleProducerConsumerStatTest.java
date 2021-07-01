@@ -33,6 +33,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.google.gson.Gson;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.slf4j.Logger;
@@ -48,6 +49,7 @@ import com.google.common.util.concurrent.RateLimiter;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
+@Test(groups = "broker-api")
 public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(SimpleProducerConsumerStatTest.class);
 
@@ -296,7 +298,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
                 .topic("persistent://my-property/tp1/my-ns/my-topic5").sendTimeout(1, TimeUnit.SECONDS);
         if (batchMessageDelayMs != 0) {
-            producerBuilder.enableBatching(true).batchingMaxPublishDelay(2 * batchMessageDelayMs, TimeUnit.MILLISECONDS)
+            producerBuilder.enableBatching(true).batchingMaxPublishDelay(2L * batchMessageDelayMs, TimeUnit.MILLISECONDS)
                     .batchingMaxMessages(5);
         }
 
@@ -355,13 +357,13 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         Thread.sleep(2000); // Two seconds sleep
         runTest.set(false);
         pulsar.getBrokerService().updateRates();
-        double actualRate = admin.topics().getStats(topicName).msgRateOut;
+        double actualRate = admin.topics().getStats(topicName).getMsgRateOut();
         assertTrue(actualRate > (produceRate / batchSize));
         consumer.unsubscribe();
         log.info("-- Exiting {} test --", methodName);
     }
 
-    public void validatingLogInfo(Consumer<?> consumer, Producer<?> producer, boolean verifyAckCount)
+    private void validatingLogInfo(Consumer<?> consumer, Producer<?> producer, boolean verifyAckCount)
             throws InterruptedException {
         // Waiting for recording last stat info
         Thread.sleep(1000);
@@ -393,7 +395,8 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
 
         pulsar.getBrokerService().updateRates();
 
-        JsonArray metrics = admin.brokerStats().getMetrics();
+        String json = admin.brokerStats().getMetrics();
+        JsonArray metrics = new Gson().fromJson(json, JsonArray.class);
 
         boolean latencyCaptured = false;
         for (int i = 0; i < metrics.size(); i++) {

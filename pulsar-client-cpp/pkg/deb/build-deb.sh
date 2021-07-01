@@ -21,7 +21,7 @@
 set -e -x
 
 cd /pulsar
-SRC_ROOT_DIR=$(git rev-parse --show-toplevel)
+SRC_ROOT_DIR=$(pwd)
 cd $SRC_ROOT_DIR/pulsar-client-cpp/pkg/deb
 
 POM_VERSION=`$SRC_ROOT_DIR/src/get-project-version.py`
@@ -37,6 +37,7 @@ cd BUILD
 tar xfz $SRC_ROOT_DIR/target/apache-pulsar-$POM_VERSION-src.tar.gz
 pushd $CPP_DIR
 
+chmod +x $(find . -name "*.sh")
 cmake . -DBUILD_TESTS=OFF -DLINK_STATIC=ON
 make pulsarShared pulsarSharedNossl pulsarStatic pulsarStaticWithDeps  -j 3
 popd

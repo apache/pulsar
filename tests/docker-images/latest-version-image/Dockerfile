@@ -19,7 +19,7 @@
 
 # build go lang examples first in a separate layer
 
-FROM apachepulsar/pulsar-all:latest as pulsar-function-go
+FROM apachepulsar/pulsar:latest as pulsar-function-go
 
 USER root
 
@@ -28,8 +28,8 @@ RUN apt-get install -y procps curl git
 
 ENV GOLANG_VERSION 1.13.3
 
-RUN curl -sSL https://storage.googleapis.com/golang/go$GOLANG_VERSION.linux-amd64.tar.gz \
-		| tar -v -C /usr/local -xz
+RUN curl -sSL https://golang.org/dl/go$GOLANG_VERSION.linux-amd64.tar.gz \
+		| tar -C /usr/local -xz
 
 # RUN wget https://dl.google.com/go/go1.13.3.linux-amd64.tar.gz && tar -xvf go1.13.3.linux-amd64.tar.gz && mv go /usr/local
 # RUN export GOROOT=/usr/local/go && export GOPATH=$HOME/go && export PATH=$GOPATH/bin:$GOROOT/bin:$PATH
@@ -47,13 +47,13 @@ RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go && go install ./...
 RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go/pf && go install
 RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go/examples && go install ./...
 
-FROM apachepulsar/pulsar-all:latest
+# Reference pulsar-all to copy connectors from there
+FROM apachepulsar/pulsar-all:latest as pulsar-all
 
-# Switch to run as the root user to simplify building container and then running
-# supervisord. Each of the pulsar components are spawned by supervisord and their
-# process configuration files specify that the process will be run as the "pulsar" user
-# However, any processes exec'ing into the containers will run as root, by default.
-USER root
+########################################
+###### Main image build
+########################################
+FROM apachepulsar/pulsar:latest
 
 RUN rm -rf /var/lib/apt/lists/* && apt update
 
@@ -92,18 +92,16 @@ COPY target/java-test-functions.jar /pulsar/examples/
 # copy go test examples
 COPY --from=pulsar-function-go /go/bin /pulsar/examples/go-examples
 
-# change ownership of files
-RUN chown -R pulsar:0 /pulsar && chmod -R g=u /pulsar
+# Include all offloaders
+COPY --from=pulsar-all /pulsar/offloaders /pulsar/offloaders
 
-# remove static libpulsar*.a libraries to reduce image size
-RUN rm /usr/lib/libpulsar*.a
-# remove gcc
-RUN apt-get -y remove --autoremove --purge build-essential
-
-# cleanup
-RUN apt-get -y autoremove \
-    && apt-get clean \
-    && apt-get autoclean \
-    && rm -rf /var/lib/apt/lists/*
+# Include only the connectors needed by integration tests
+COPY --from=pulsar-all /pulsar/connectors/pulsar-io-cassandra-*.nar /pulsar/connectors/
+COPY --from=pulsar-all /pulsar/connectors/pulsar-io-debezium-*.nar /pulsar/connectors/
+COPY --from=pulsar-all /pulsar/connectors/pulsar-io-elastic-*.nar /pulsar/connectors/
+COPY --from=pulsar-all /pulsar/connectors/pulsar-io-hdfs*.nar /pulsar/connectors/
+COPY --from=pulsar-all /pulsar/connectors/pulsar-io-jdbc-postgres-*.nar /pulsar/connectors/
+COPY --from=pulsar-all /pulsar/connectors/pulsar-io-kafka-*.nar /pulsar/connectors/
+COPY --from=pulsar-all /pulsar/connectors/pulsar-io-rabbitmq-*.nar /pulsar/connectors/
 
 CMD bash

@@ -29,7 +29,8 @@ import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -42,6 +43,7 @@ import org.testng.annotations.Test;
  *    client: org.apache.pulsar.client.impl.auth.AuthenticationToken
  *    broker: org.apache.pulsar.broker.authentication.AuthenticationProviderToken
  */
+@Test(groups = "broker-api")
 public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(TokenAuthenticatedProducerConsumerTest.class);
 
@@ -96,7 +98,7 @@ public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         return new Object[][] { { 0 }, { 1000 } };
     }
 
-    public void testSyncProducerAndConsumer() throws Exception {
+    private void testSyncProducerAndConsumer() throws Exception {
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic")
                 .subscriptionName("my-subscriber-name").subscribe();
 
@@ -128,9 +130,9 @@ public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         clientSetup();
 
         // test rest by admin
-        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
         admin.tenants().createTenant("my-property",
-                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
 
         // test protocol by producer/consumer

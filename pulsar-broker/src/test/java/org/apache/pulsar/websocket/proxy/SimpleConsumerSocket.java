@@ -24,7 +24,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.commons.lang3.StringUtils;
 import org.eclipse.jetty.websocket.api.RemoteEndpoint;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketClose;
@@ -46,14 +45,20 @@ public class SimpleConsumerSocket {
     private Session session;
     private final ArrayList<String> consumerBuffer;
     private final AtomicInteger receivedMessages = new AtomicInteger();
+    // Custom message handler to override standard message processing, if it's needed
+    private SimpleConsumerMessageHandler customMessageHandler;
 
     public SimpleConsumerSocket() {
         this.closeLatch = new CountDownLatch(1);
-        consumerBuffer = new ArrayList<String>();
+        consumerBuffer = new ArrayList<>();
     }
 
     public boolean awaitClose(int duration, TimeUnit unit) throws InterruptedException {
         return this.closeLatch.await(duration, unit);
+    }
+
+    public void setMessageHandler(SimpleConsumerMessageHandler handler) {
+        customMessageHandler = handler;
     }
 
     @OnWebSocketClose
@@ -75,12 +80,16 @@ public class SimpleConsumerSocket {
         receivedMessages.incrementAndGet();
         JsonObject message = new Gson().fromJson(msg, JsonObject.class);
         if (message.get(X_PULSAR_MESSAGE_ID) != null) {
-            JsonObject ack = new JsonObject();
             String messageId = message.get(X_PULSAR_MESSAGE_ID).getAsString();
             consumerBuffer.add(messageId);
-            ack.add("messageId", new JsonPrimitive(messageId));
-            // Acking the proxy
-            this.getRemote().sendString(ack.toString());
+            if (customMessageHandler != null) {
+                this.getRemote().sendString(customMessageHandler.handle(messageId, message));
+            } else {
+                JsonObject ack = new JsonObject();
+                ack.add("messageId", new JsonPrimitive(messageId));
+                // Acking the proxy
+                this.getRemote().sendString(ack.toString());
+            }
         } else {
             consumerBuffer.add(message.toString());
         }

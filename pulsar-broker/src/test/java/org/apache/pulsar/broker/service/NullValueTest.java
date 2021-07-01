@@ -30,7 +30,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TopicMetadata;
-import org.apache.pulsar.client.impl.schema.KeyValueSchema;
+import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.testng.Assert;
@@ -43,6 +43,7 @@ import org.testng.annotations.Test;
  * Null value message produce and consume test.
  */
 @Slf4j
+@Test(groups = "broker")
 public class NullValueTest extends BrokerTestBase {
 
     @BeforeMethod
@@ -172,14 +173,14 @@ public class NullValueTest extends BrokerTestBase {
 
         @Cleanup
         Producer<KeyValue<String, String>> producer = pulsarClient
-                .newProducer(KeyValueSchema.of(Schema.STRING, Schema.STRING))
+                .newProducer(KeyValueSchemaImpl.of(Schema.STRING, Schema.STRING))
                 .topic(topic)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .create();
 
         @Cleanup
         Consumer<KeyValue<String, String>> consumer = pulsarClient
-                .newConsumer(KeyValueSchema.of(Schema.STRING, Schema.STRING))
+                .newConsumer(KeyValueSchemaImpl.of(Schema.STRING, Schema.STRING))
                 .topic(topic)
                 .subscriptionName("test")
                 .subscribe();
@@ -219,7 +220,7 @@ public class NullValueTest extends BrokerTestBase {
 
         @Cleanup
         Producer<KeyValue<String, String>> producer = pulsarClient
-                .newProducer(KeyValueSchema.of(Schema.STRING, Schema.STRING, KeyValueEncodingType.SEPARATED))
+                .newProducer(KeyValueSchemaImpl.of(Schema.STRING, Schema.STRING, KeyValueEncodingType.SEPARATED))
                 .topic(topic)
                 // The default SinglePartition routing mode will be affected by the key when the KeyValueEncodingType is
                 // SEPARATED so we need to define a message router to guarantee the message order.
@@ -233,7 +234,7 @@ public class NullValueTest extends BrokerTestBase {
 
         @Cleanup
         Consumer<KeyValue<String, String>> consumer = pulsarClient
-                .newConsumer(KeyValueSchema.of(Schema.STRING, Schema.STRING, KeyValueEncodingType.SEPARATED))
+                .newConsumer(KeyValueSchemaImpl.of(Schema.STRING, Schema.STRING, KeyValueEncodingType.SEPARATED))
                 .topic(topic)
                 .subscriptionName("test")
                 .subscribe();

@@ -22,6 +22,9 @@
 
 #include <memory>
 
+#include <utility>
+#include <vector>
+
 namespace pulsar {
 
 /**
@@ -44,6 +47,9 @@ enum KeySharedMode
 
 struct KeySharedPolicyImpl;
 
+typedef std::pair<int, int> StickyRange;
+typedef std::vector<StickyRange> StickyRanges;
+
 class PULSAR_PUBLIC KeySharedPolicy {
    public:
     KeySharedPolicy();
@@ -58,11 +64,45 @@ class PULSAR_PUBLIC KeySharedPolicy {
      */
     KeySharedPolicy clone() const;
 
+    /**
+     * Configure the KeyShared mode of KeyShared subscription
+     *
+     * @param KeyShared mode
+     * @see {@link #KeySharedMode}
+     */
     KeySharedPolicy& setKeySharedMode(KeySharedMode keySharedMode);
+
+    /**
+     * @return the KeySharedMode of KeyShared subscription
+     */
     KeySharedMode getKeySharedMode() const;
 
+    /**
+     * If it is enabled, it relaxes the ordering requirement and allows the broker to send out-of-order
+     * messages in case of failures. This makes it faster for new consumers to join without being stalled by
+     * an existing slow consumer.
+     *
+     * In this case, a single consumer still receives all keys, but they may come in different orders.
+     *
+     * @param allowOutOfOrderDelivery
+     *            whether to allow for out of order delivery
+     */
     KeySharedPolicy& setAllowOutOfOrderDelivery(bool allowOutOfOrderDelivery);
+
+    /**
+     * @return true if out of order delivery is enabled
+     */
     bool isAllowOutOfOrderDelivery() const;
+
+    /**
+     * @param ranges used with sticky mode
+     */
+    KeySharedPolicy& setStickyRanges(std::initializer_list<StickyRange> ranges);
+
+    /**
+     * @return ranges used with sticky mode
+     */
+    StickyRanges getStickyRanges() const;
 
    private:
     std::shared_ptr<KeySharedPolicyImpl> impl_;

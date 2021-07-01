@@ -18,10 +18,23 @@
  */
 package org.apache.pulsar.tests.integration;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import lombok.Cleanup;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
+import org.apache.pulsar.client.api.CryptoKeyReader;
+import org.apache.pulsar.client.api.EncryptionKeyInfo;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageCrypto;
+import org.apache.pulsar.client.api.MessageRoutingMode;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
@@ -34,6 +47,7 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.shade.io.netty.buffer.ByteBuf;
 import org.apache.pulsar.shade.io.netty.buffer.Unpooled;
+import org.apache.pulsar.tests.TestRetrySupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -43,7 +57,7 @@ import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
+import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.Security;
@@ -56,17 +70,17 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import static org.testng.Assert.*;
-
-public class SimpleProducerConsumerTest {
+public class SimpleProducerConsumerTest extends TestRetrySupport {
     private static final Logger log = LoggerFactory.getLogger(SimpleProducerConsumerTest.class);
 
     private PulsarContainer pulsarContainer;
     private URI lookupUrl;
     private PulsarClient pulsarClient;
 
-    @BeforeClass
-    public void setup() throws PulsarClientException, URISyntaxException, PulsarAdminException {
+    @Override
+    @BeforeClass(alwaysRun = true)
+    public void setup() throws Exception {
+        incrementSetupNumber();
         Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
         pulsarContainer = new PulsarContainer();
         pulsarContainer.start();
@@ -77,17 +91,26 @@ public class SimpleProducerConsumerTest {
 
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarContainer.getPulsarAdminUrl()).build();
         admin.tenants().createTenant("my-property",
-                new TenantInfo(new HashSet<>(Arrays.asList("appid1", "appid2")), Collections.singleton("standalone")));
+                TenantInfo.builder().adminRoles(new HashSet<>(Arrays.asList("appid1", "appid2")))
+                .allowedClusters(Collections.singleton("standalone")).build());
         admin.namespaces().createNamespace("my-property/my-ns");
         admin.namespaces().setNamespaceReplicationClusters("my-property/my-ns", Collections.singleton("standalone"));
         admin.close();
     }
 
+    @Override
     @AfterClass(alwaysRun = true)
-    public void cleanup() throws PulsarClientException {
-        pulsarClient.close();
-        pulsarContainer.stop();
-        pulsarContainer.close();
+    public void cleanup() throws Exception {
+        markCurrentSetupNumberCleaned();
+        if (pulsarClient != null) {
+            pulsarClient.close();
+            pulsarClient = null;
+        }
+        if (pulsarContainer != null) {
+            pulsarContainer.stop();
+            pulsarContainer.close();
+            pulsarContainer = null;
+        }
     }
 
     private PulsarClient newPulsarClient(String url, int intervalInSecs) throws PulsarClientException {
@@ -183,11 +206,11 @@ public class SimpleProducerConsumerTest {
     protected <T> void testMessageOrderAndDuplicates(Set<T> messagesReceived, T receivedMessage,
                                                      T expectedMessage) {
         // Make sure that messages are received in order
-        Assert.assertEquals(receivedMessage, expectedMessage,
+        assertEquals(receivedMessage, expectedMessage,
                 "Received message " + receivedMessage + " did not match the expected message " + expectedMessage);
 
         // Make sure that there are no duplicates
-        Assert.assertTrue(messagesReceived.add(receivedMessage), "Received duplicate message " + receivedMessage);
+        assertTrue(messagesReceived.add(receivedMessage), "Received duplicate message " + receivedMessage);
     }
 
     @Test
@@ -275,16 +298,19 @@ public class SimpleProducerConsumerTest {
                 .addEncryptionKey(encryptionKeyName).compressionType(CompressionType.LZ4)
                 .cryptoKeyReader(new EncKeyReader()).create();
 
+        @Cleanup
         PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
         Consumer<byte[]> consumer1 = newPulsarClient.newConsumer().topicsPattern(topicName)
                 .subscriptionName("my-subscriber-name").cryptoKeyReader(new EncKeyReader())
                 .subscriptionType(SubscriptionType.Shared).ackTimeout(1, TimeUnit.SECONDS).subscribe();
 
+        @Cleanup
         PulsarClient newPulsarClient1 = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
         Consumer<byte[]> consumer2 = newPulsarClient1.newConsumer().topicsPattern(topicName)
                 .subscriptionName("my-subscriber-name").cryptoKeyReader(new InvalidKeyReader())
                 .subscriptionType(SubscriptionType.Shared).ackTimeout(1, TimeUnit.SECONDS).subscribe();
 
+        @Cleanup
         PulsarClient newPulsarClient2 = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
         Consumer<byte[]> consumer3 = newPulsarClient2.newConsumer().topicsPattern(topicName)
                 .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Shared).ackTimeout(1, TimeUnit.SECONDS).subscribe();
@@ -325,9 +351,6 @@ public class SimpleProducerConsumerTest {
         consumer1.close();
         consumer2.close();
         consumer3.close();
-        newPulsarClient.close();
-        newPulsarClient1.close();
-        newPulsarClient2.close();
     }
 
     @Test
@@ -400,7 +423,7 @@ public class SimpleProducerConsumerTest {
         // 3. KeyReder is not set by consumer
         // Receive should fail since key reader is not setup
         msg = (MessageImpl<byte[]>) consumer.receive(5, TimeUnit.SECONDS);
-        Assert.assertNull(msg, "Receive should have failed with no keyreader");
+        assertNull(msg, "Receive should have failed with no keyreader");
 
         // 4. Set consumer config to consume even if decryption fails
         consumer.close();
@@ -451,7 +474,7 @@ public class SimpleProducerConsumerTest {
 
         // Receive should proceed and discard encrypted messages
         msg = (MessageImpl<byte[]>) consumer.receive(5, TimeUnit.SECONDS);
-        Assert.assertNull(msg, "Message received even aftet ConsumerCryptoFailureAction.DISCARD is set.");
+        assertNull(msg, "Message received even aftet ConsumerCryptoFailureAction.DISCARD is set.");
     }
 
     @Test
@@ -521,7 +544,7 @@ public class SimpleProducerConsumerTest {
     private String decryptMessage(TopicMessageImpl<byte[]> msg, String encryptionKeyName, CryptoKeyReader reader)
             throws Exception {
         Optional<EncryptionContext> ctx = msg.getEncryptionCtx();
-        Assert.assertTrue(ctx.isPresent());
+        assertTrue(ctx.isPresent());
         EncryptionContext encryptionCtx = ctx
                 .orElseThrow(() -> new IllegalStateException("encryption-ctx not present for encrypted message"));
 
@@ -539,7 +562,7 @@ public class SimpleProducerConsumerTest {
         String encAlgo = encryptionCtx.getAlgorithm();
         int batchSize = encryptionCtx.getBatchSize().orElse(0);
 
-        ByteBuf payloadBuf = Unpooled.wrappedBuffer(msg.getData());
+        ByteBuffer payloadBuf = ByteBuffer.wrap(msg.getData());
         // try to decrypt use default MessageCryptoBc
         MessageCrypto crypto = new MessageCryptoBc("test", false);
         MessageMetadata msgMetadata = new MessageMetadata()
@@ -558,11 +581,12 @@ public class SimpleProducerConsumerTest {
             .setKey(encryptionKeyName)
             .setValue(dataKey);
 
-        ByteBuf decryptedPayload = crypto.decrypt(() -> msgMetadata, payloadBuf, reader);
+        ByteBuffer decryptedPayload = ByteBuffer.allocate(crypto.getMaxOutputSize(payloadBuf.remaining()));
+        crypto.decrypt(() -> msgMetadata, payloadBuf, decryptedPayload, reader);
 
         // try to uncompress
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(compressionType);
-        ByteBuf uncompressedPayload = codec.decode(decryptedPayload, uncompressedSize);
+        ByteBuf uncompressedPayload = codec.decode(Unpooled.wrappedBuffer(decryptedPayload), uncompressedSize);
 
         if (batchSize > 0) {
             SingleMessageMetadata singleMessageMetadata = new SingleMessageMetadata();

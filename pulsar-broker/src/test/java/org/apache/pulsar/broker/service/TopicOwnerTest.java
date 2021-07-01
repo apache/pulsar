@@ -22,15 +22,14 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.powermock.api.mockito.PowerMockito.doAnswer;
 import static org.powermock.api.mockito.PowerMockito.spy;
-
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.collect.Sets;
-
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-
+import lombok.Cleanup;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.jute.Record;
@@ -41,23 +40,20 @@ import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.namespace.OwnedBundle;
 import org.apache.pulsar.broker.namespace.OwnershipCache;
-import org.apache.pulsar.broker.namespace.ServiceUnitZkUtils;
+import org.apache.pulsar.broker.namespace.ServiceUnitUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
-import org.apache.zookeeper.WatchedEvent;
-import org.apache.zookeeper.Watcher;
-import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
-import org.apache.zookeeper.proto.CreateRequest;
-import org.apache.zookeeper.proto.DeleteRequest;
 import org.apache.zookeeper.proto.ReplyHeader;
-import org.apache.zookeeper.server.ByteBufferInputStream;
 import org.apache.zookeeper.server.Request;
 import org.apache.zookeeper.server.ServerCnxn;
 import org.apache.zookeeper.server.ZooKeeperServer;
@@ -70,8 +66,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.util.Optional;
-
+@Test(groups = "broker")
 public class TopicOwnerTest {
 
     private static final Logger log = LoggerFactory.getLogger(TopicOwnerTest.class);
@@ -97,6 +92,7 @@ public class TopicOwnerTest {
         // start brokers
         for (int i = 0; i < BROKER_COUNT; i++) {
             ServiceConfiguration config = new ServiceConfiguration();
+            config.setBrokerShutdownTimeoutMs(0L);
             config.setBrokerServicePort(Optional.of(0));
             config.setClusterName("my-cluster");
             config.setAdvertisedAddress("localhost");
@@ -122,9 +118,10 @@ public class TopicOwnerTest {
         leaderAdmin = pulsarAdmins[0];
         Thread.sleep(1000);
 
-        pulsarAdmins[0].clusters().createCluster(testCluster, new ClusterData(pulsarServices[0].getWebServiceAddress()));
-        TenantInfo tenantInfo = new TenantInfo();
-        tenantInfo.setAllowedClusters(Sets.newHashSet(testCluster));
+        pulsarAdmins[0].clusters().createCluster(testCluster, ClusterData.builder().serviceUrl(pulsarServices[0].getWebServiceAddress()).build());
+        TenantInfo tenantInfo = TenantInfo.builder()
+                .allowedClusters(Sets.newHashSet(testCluster))
+                .build();
         pulsarAdmins[0].tenants().createTenant(testTenant, tenantInfo);
         pulsarAdmins[0].namespaces().createNamespace(testNamespace, 16);
     }
@@ -164,14 +161,14 @@ public class TopicOwnerTest {
         return leaderAuthorizedBroker;
     }
 
-    private CompletableFuture<Void> watchZookeeperReconnect(ZooKeeper zooKeeper) throws Exception {
+    private CompletableFuture<Void> watchMetadataStoreReconnect(MetadataStoreExtended store) {
         CompletableFuture<Void> reconnectedFuture = new CompletableFuture<>();
-        zooKeeper.exists("/", (WatchedEvent event) -> {
-            Watcher.Event.KeeperState state = event.getState();
-            if (state == Watcher.Event.KeeperState.SyncConnected) {
+        store.registerSessionListener(event -> {
+            if (event == SessionEvent.Reconnected || event == SessionEvent.SessionReestablished) {
                 reconnectedFuture.complete(null);
             }
         });
+
         return reconnectedFuture;
     }
 
@@ -240,103 +237,6 @@ public class TopicOwnerTest {
     }
 
     @Test
-    public void testAcquireOwnershipWithZookeeperDisconnectedBeforeOwnershipNodeCreated() throws Exception {
-        String topic1 = "persistent://my-tenant/my-ns/topic-1";
-        NamespaceService leaderNamespaceService = leaderPulsar.getNamespaceService();
-        NamespaceBundle namespaceBundle = leaderNamespaceService.getBundle(TopicName.get(topic1));
-
-        final MutableObject<PulsarService> leaderAuthorizedBroker = spyLeaderNamespaceServiceForAuthorizedBroker();
-
-        PulsarService pulsar1 = pulsarServices[1];
-        final ZooKeeper zooKeeper1 = pulsar1.getZkClient();
-
-        final CompletableFuture<Void> reconnectedFuture = watchZookeeperReconnect(zooKeeper1);
-
-        String namespaceBundlePath = ServiceUnitZkUtils.path(namespaceBundle);
-
-        spyZookeeperToDisconnectBeforePersist(zooKeeper1, request -> {
-            if (request.type != ZooDefs.OpCode.create) {
-                return false;
-            }
-
-            CreateRequest createRequest = new CreateRequest();
-            ByteBufferInputStream.byteBuffer2Record(request.request.duplicate(), createRequest);
-            return createRequest.getPath().contains(namespaceBundlePath);
-        });
-
-        leaderAuthorizedBroker.setValue(pulsar1);
-
-        try {
-            // Trigger ownership acquiring and zookeeper disconnecting before ownership node created.
-            //
-            // Ignore its execution result since whether it is fail or not depends on concrete implementation.
-            pulsarAdmins[1].lookups().lookupTopic(topic1);
-        } catch (Exception ex) {
-            // Ignored intentionally.
-        }
-
-        reconnectedFuture.join();
-
-        // We don't known whether previous lookup was successful or not, but now all lookups should succeed.
-        Assert.assertEquals(pulsarAdmins[0].lookups().lookupTopic(topic1), pulsar1.getBrokerServiceUrl());
-        Assert.assertEquals(pulsarAdmins[2].lookups().lookupTopic(topic1), pulsar1.getBrokerServiceUrl());
-        Assert.assertEquals(pulsarAdmins[3].lookups().lookupTopic(topic1), pulsar1.getBrokerServiceUrl());
-        Assert.assertEquals(pulsarAdmins[4].lookups().lookupTopic(topic1), pulsar1.getBrokerServiceUrl());
-
-        pulsar1.getBrokerService().getTopic(topic1, true).join();
-
-        Assert.assertEquals(pulsarAdmins[1].lookups().lookupTopic(topic1), pulsar1.getBrokerServiceUrl());
-    }
-
-    @Test
-    public void testAcquireOwnershipWithZookeeperDisconnectedAfterOwnershipNodeCreated() throws Exception {
-        String topic1 = "persistent://my-tenant/my-ns/topic-1";
-        NamespaceService leaderNamespaceService = leaderPulsar.getNamespaceService();
-        NamespaceBundle namespaceBundle = leaderNamespaceService.getBundle(TopicName.get(topic1));
-
-        final MutableObject<PulsarService> leaderAuthorizedBroker = spyLeaderNamespaceServiceForAuthorizedBroker();
-
-        PulsarService pulsar1 = pulsarServices[1];
-        final ZooKeeper zooKeeper1 = pulsar1.getZkClient();
-
-        final CompletableFuture<Void> reconnectedFuture = watchZookeeperReconnect(zooKeeper1);
-
-        String namespaceBundlePath = ServiceUnitZkUtils.path(namespaceBundle);
-
-        spyZookeeperToDisconnectAfterPersist(zooKeeper1, request -> {
-            if (request.type != ZooDefs.OpCode.create) {
-                return false;
-            }
-
-            CreateRequest createRequest = new CreateRequest();
-            ByteBufferInputStream.byteBuffer2Record(request.request.duplicate(), createRequest);
-            return createRequest.getPath().contains(namespaceBundlePath);
-        });
-
-        leaderAuthorizedBroker.setValue(pulsar1);
-
-        try {
-            // Trigger ownership acquiring and zookeeper disconnecting after ownership node created.
-            //
-            // Ignore its execution result since whether it is fail or not depends on concrete implementation.
-            pulsarAdmins[1].lookups().lookupTopic(topic1);
-        } catch (Exception ex) {
-            // Ignored intentionally.
-        }
-
-        reconnectedFuture.join();
-
-        Assert.assertEquals(pulsarAdmins[0].lookups().lookupTopic(topic1), pulsar1.getBrokerServiceUrl());
-        Assert.assertEquals(pulsarAdmins[2].lookups().lookupTopic(topic1), pulsar1.getBrokerServiceUrl());
-        Assert.assertEquals(pulsarAdmins[3].lookups().lookupTopic(topic1), pulsar1.getBrokerServiceUrl());
-        Assert.assertEquals(pulsarAdmins[4].lookups().lookupTopic(topic1), pulsar1.getBrokerServiceUrl());
-
-        pulsar1.getBrokerService().getTopic(topic1, true).join();
-
-        Assert.assertEquals(pulsarAdmins[1].lookups().lookupTopic(topic1), pulsar1.getBrokerServiceUrl());
-    }
-
-    @Test
     public void testReestablishOwnershipAfterInvalidateCache() throws Exception {
         String topic1 = "persistent://my-tenant/my-ns/topic-1";
         NamespaceService leaderNamespaceService = leaderPulsar.getNamespaceService();
@@ -358,7 +258,7 @@ public class TopicOwnerTest {
 
         leaderAuthorizedBroker.setValue(null);
 
-        ownedBundlesCache1.synchronous().invalidate(ServiceUnitZkUtils.path(namespaceBundle));
+        ownedBundlesCache1.synchronous().invalidate(ServiceUnitUtils.path(namespaceBundle));
         Assert.assertNull(ownershipCache1.getOwnedBundle(namespaceBundle));
 
         // pulsar1 is still owner in zk.
@@ -373,126 +273,20 @@ public class TopicOwnerTest {
         Assert.assertNotNull(ownershipCache1.getOwnedBundle(namespaceBundle));
 
         // Reestablish ownership through check ownership.
-        ownedBundlesCache1.synchronous().invalidate(ServiceUnitZkUtils.path(namespaceBundle));
+        ownedBundlesCache1.synchronous().invalidate(ServiceUnitUtils.path(namespaceBundle));
         ownershipCache1.checkOwnership(namespaceBundle).join();
         Assert.assertNotNull(ownershipCache1.getOwnedBundle(namespaceBundle));
 
         // Reestablish ownership through load topic.
-        ownedBundlesCache1.synchronous().invalidate(ServiceUnitZkUtils.path(namespaceBundle));
+        ownedBundlesCache1.synchronous().invalidate(ServiceUnitUtils.path(namespaceBundle));
         pulsar1.getBrokerService().getTopic(topic1, true).join();
         Assert.assertNotNull(ownershipCache1.getOwnedBundle(namespaceBundle));
         pulsar1.getBrokerService().deleteTopic(topic1, true).join();
 
         // Reestablish ownership through web.
-        ownedBundlesCache1.synchronous().invalidate(ServiceUnitZkUtils.path(namespaceBundle));
+        ownedBundlesCache1.synchronous().invalidate(ServiceUnitUtils.path(namespaceBundle));
         pulsarAdmins[0].topics().createNonPartitionedTopic(topic1);
         Assert.assertNotNull(ownershipCache1.getOwnedBundle(namespaceBundle));
-    }
-
-    @Test
-    public void testReleaseOwnershipWithZookeeperDisconnectedBeforeOwnershipNodeDeleted() throws Exception {
-        String topic1 = "persistent://my-tenant/my-ns/topic-1";
-        NamespaceService leaderNamespaceService = leaderPulsar.getNamespaceService();
-        NamespaceBundle namespaceBundle = leaderNamespaceService.getBundle(TopicName.get(topic1));
-
-        final MutableObject<PulsarService> leaderAuthorizedBroker = spyLeaderNamespaceServiceForAuthorizedBroker();
-
-        PulsarService pulsar1 = pulsarServices[1];
-        PulsarService pulsar2 = pulsarServices[2];
-
-        leaderAuthorizedBroker.setValue(pulsar1);
-        Assert.assertEquals(pulsarAdmins[0].lookups().lookupTopic(topic1), pulsar1.getBrokerServiceUrl());
-        Assert.assertEquals(pulsarAdmins[1].lookups().lookupTopic(topic1), pulsar1.getBrokerServiceUrl());
-        Assert.assertEquals(pulsarAdmins[2].lookups().lookupTopic(topic1), pulsar1.getBrokerServiceUrl());
-        Assert.assertEquals(pulsarAdmins[3].lookups().lookupTopic(topic1), pulsar1.getBrokerServiceUrl());
-        Assert.assertEquals(pulsarAdmins[4].lookups().lookupTopic(topic1), pulsar1.getBrokerServiceUrl());
-
-        ZooKeeper zooKeeper1 = pulsar1.getZkClient();
-
-        CompletableFuture<Void> reconnectedFuture = watchZookeeperReconnect(zooKeeper1);
-
-        String namespaceBundlePath = ServiceUnitZkUtils.path(namespaceBundle);
-
-        spyZookeeperToDisconnectBeforePersist(zooKeeper1, request -> {
-            if (request.type != ZooDefs.OpCode.delete) {
-                return false;
-            }
-            DeleteRequest deleteRequest = new DeleteRequest();
-            ByteBufferInputStream.byteBuffer2Record(request.request.duplicate(), deleteRequest);
-            return deleteRequest.getPath().contains(namespaceBundlePath);
-        });
-
-        try {
-            pulsarAdmins[1].namespaces().unloadNamespaceBundle(namespaceBundle.getNamespaceObject().toString(), namespaceBundle.getBundleRange());
-        } catch (Exception ex) {
-            // Ignored since whether failing unloading when zk connection-loss is an implementation detail.
-        }
-
-        reconnectedFuture.join();
-
-        leaderAuthorizedBroker.setValue(pulsar2);
-
-        // We don't known whether previous unload was successful or not, but now all lookups should return same result.
-        final String currentBrokerServiceUrl = pulsarAdmins[0].lookups().lookupTopic(topic1);
-        Assert.assertEquals(pulsarAdmins[1].lookups().lookupTopic(topic1), currentBrokerServiceUrl);
-        Assert.assertEquals(pulsarAdmins[2].lookups().lookupTopic(topic1), currentBrokerServiceUrl);
-        Assert.assertEquals(pulsarAdmins[3].lookups().lookupTopic(topic1), currentBrokerServiceUrl);
-        Assert.assertEquals(pulsarAdmins[4].lookups().lookupTopic(topic1), currentBrokerServiceUrl);
-
-        pulsarAdmins[0].topics().createNonPartitionedTopic(topic1);
-    }
-
-    @Test
-    public void testReleaseOwnershipWithZookeeperDisconnectedAfterOwnershipNodeDeleted() throws Exception {
-        String topic1 = "persistent://my-tenant/my-ns/topic-1";
-        NamespaceService leaderNamespaceService = leaderPulsar.getNamespaceService();
-        NamespaceBundle namespaceBundle = leaderNamespaceService.getBundle(TopicName.get(topic1));
-
-        final MutableObject<PulsarService> leaderAuthorizedBroker = spyLeaderNamespaceServiceForAuthorizedBroker();
-
-        PulsarService pulsar1 = pulsarServices[1];
-        PulsarService pulsar2 = pulsarServices[2];
-
-        leaderAuthorizedBroker.setValue(pulsar1);
-        Assert.assertEquals(pulsarAdmins[0].lookups().lookupTopic(topic1), pulsar1.getBrokerServiceUrl());
-        Assert.assertEquals(pulsarAdmins[1].lookups().lookupTopic(topic1), pulsar1.getBrokerServiceUrl());
-        Assert.assertEquals(pulsarAdmins[2].lookups().lookupTopic(topic1), pulsar1.getBrokerServiceUrl());
-        Assert.assertEquals(pulsarAdmins[3].lookups().lookupTopic(topic1), pulsar1.getBrokerServiceUrl());
-        Assert.assertEquals(pulsarAdmins[4].lookups().lookupTopic(topic1), pulsar1.getBrokerServiceUrl());
-
-        ZooKeeper zooKeeper1 = pulsar1.getZkClient();
-
-        CompletableFuture<Void> reconnectedFuture = watchZookeeperReconnect(zooKeeper1);
-
-        String namespaceBundlePath = ServiceUnitZkUtils.path(namespaceBundle);
-
-        spyZookeeperToDisconnectAfterPersist(zooKeeper1, request -> {
-            if (request.type != ZooDefs.OpCode.delete) {
-                return false;
-            }
-            DeleteRequest deleteRequest = new DeleteRequest();
-            ByteBufferInputStream.byteBuffer2Record(request.request.duplicate(), deleteRequest);
-            return deleteRequest.getPath().contains(namespaceBundlePath);
-        });
-
-        try {
-            pulsarAdmins[1].namespaces().unloadNamespaceBundle(namespaceBundle.getNamespaceObject().toString(), namespaceBundle.getBundleRange());
-        } catch (Exception ex) {
-            // Ignored since whether failing unloading when zk connection-loss is an implementation detail.
-        }
-
-        reconnectedFuture.join();
-
-        leaderAuthorizedBroker.setValue(pulsar2);
-
-        Assert.assertEquals(pulsarAdmins[0].lookups().lookupTopic(topic1), pulsar2.getBrokerServiceUrl());
-        Assert.assertEquals(pulsarAdmins[3].lookups().lookupTopic(topic1), pulsar2.getBrokerServiceUrl());
-        Assert.assertEquals(pulsarAdmins[4].lookups().lookupTopic(topic1), pulsar2.getBrokerServiceUrl());
-
-        pulsar2.getBrokerService().getTopic(topic1, true).join();
-
-        Assert.assertEquals(pulsarAdmins[2].lookups().lookupTopic(topic1), pulsar2.getBrokerServiceUrl());
-        Assert.assertEquals(pulsarAdmins[1].lookups().lookupTopic(topic1), pulsar2.getBrokerServiceUrl());
     }
 
     @Test
@@ -517,6 +311,7 @@ public class TopicOwnerTest {
                 pulsarServices[0].getNamespaceService().getBundle(TopicName.get(topic1)).getBundleRange(),
                 true, null);
 
+        @Cleanup
         PulsarClient client = PulsarClient.builder().
                 serviceUrl(serviceUrlForTopic1)
                 .build();
@@ -555,6 +350,7 @@ public class TopicOwnerTest {
         final String topicName = "non-persistent://my-tenant/my-ns/my-topic";
         pulsarAdmins[0].topics().createPartitionedTopic(topicName, 16);
 
+        @Cleanup
         PulsarClient client = PulsarClient.builder().
                 serviceUrl(pulsarServices[0].getBrokerServiceUrl())
                 .build();
@@ -572,6 +368,5 @@ public class TopicOwnerTest {
         }
 
         consumer.close();
-        client.close();
     }
 }

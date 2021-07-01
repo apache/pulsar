@@ -28,12 +28,13 @@ import java.util.regex.Matcher;
 import javax.validation.constraints.NotNull;
 import javax.ws.rs.client.ClientBuilder;
 import org.apache.bookkeeper.stats.NullStatsProvider;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.nar.NarClassLoader;
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.protocol.Commands;
 
 /**
@@ -42,11 +43,13 @@ import org.apache.pulsar.common.protocol.Commands;
 public class PulsarConnectorConfig implements AutoCloseable {
 
     private String brokerServiceUrl = "http://localhost:8080";
+    private String webServiceUrl = ""; //leave empty
     private String zookeeperUri = "localhost:2181";
     private int entryReadBatchSize = 100;
     private int targetNumSplits = 2;
     private int maxSplitMessageQueueSize = 10000;
     private int maxSplitEntryQueueSize = 1000;
+    private long maxSplitQueueSizeBytes = -1;
     private int maxMessageSize = Commands.DEFAULT_MAX_MESSAGE_SIZE;
     private String statsProvider = NullStatsProvider.class.getName();
 
@@ -85,13 +88,25 @@ public class PulsarConnectorConfig implements AutoCloseable {
 
     @NotNull
     public String getBrokerServiceUrl() {
-        return brokerServiceUrl;
+        if (StringUtils.isEmpty(webServiceUrl)){
+            return brokerServiceUrl;
+        } else {
+            return getWebServiceUrl();
+        }
     }
-
     @Config("pulsar.broker-service-url")
     public PulsarConnectorConfig setBrokerServiceUrl(String brokerServiceUrl) {
         this.brokerServiceUrl = brokerServiceUrl;
         return this;
+    }
+    @Config("pulsar.web-service-url")
+    public PulsarConnectorConfig setWebServiceUrl(String webServiceUrl) {
+        this.webServiceUrl = webServiceUrl;
+        return this;
+    }
+
+    public String getWebServiceUrl() {
+        return webServiceUrl;
     }
 
     @Config("pulsar.max-message-size")
@@ -156,6 +171,17 @@ public class PulsarConnectorConfig implements AutoCloseable {
     @Config("pulsar.max-split-entry-queue-size")
     public PulsarConnectorConfig setMaxSplitEntryQueueSize(int maxSplitEntryQueueSize) {
         this.maxSplitEntryQueueSize = maxSplitEntryQueueSize;
+        return this;
+    }
+
+    @NotNull
+    public long getMaxSplitQueueSizeBytes() {
+        return this.maxSplitQueueSizeBytes;
+    }
+
+    @Config("pulsar.max-split-queue-cache-size")
+    public PulsarConnectorConfig setMaxSplitQueueSizeBytes(long maxSplitQueueSizeBytes) {
+        this.maxSplitQueueSizeBytes = maxSplitQueueSizeBytes;
         return this;
     }
 
@@ -425,10 +451,10 @@ public class PulsarConnectorConfig implements AutoCloseable {
         return this.pulsarAdmin;
     }
 
-    public OffloadPolicies getOffloadPolices() {
+    public OffloadPoliciesImpl getOffloadPolices() {
         Properties offloadProperties = new Properties();
         offloadProperties.putAll(getOffloaderProperties());
-        OffloadPolicies offloadPolicies = OffloadPolicies.create(offloadProperties);
+        OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create(offloadProperties);
         offloadPolicies.setManagedLedgerOffloadDriver(getManagedLedgerOffloadDriver());
         offloadPolicies.setManagedLedgerOffloadMaxThreads(getManagedLedgerOffloadMaxThreads());
         offloadPolicies.setOffloadersDirectory(getOffloadersDirectory());
@@ -442,8 +468,14 @@ public class PulsarConnectorConfig implements AutoCloseable {
 
     @Override
     public String toString() {
-        return "PulsarConnectorConfig{"
+       if (StringUtils.isEmpty(webServiceUrl)){
+           return "PulsarConnectorConfig{"
             + "brokerServiceUrl='" + brokerServiceUrl + '\''
             + '}';
+        } else {
+            return "PulsarConnectorConfig{"
+            + "brokerServiceUrl='" + webServiceUrl + '\''
+            + '}';
+        }
     }
 }

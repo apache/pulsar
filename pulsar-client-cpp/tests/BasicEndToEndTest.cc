@@ -59,11 +59,11 @@ std::mutex mutex_;
 static int globalTestBatchMessagesCounter = 0;
 static int globalCount = 0;
 static long globalResendMessageCount = 0;
-static std::string lookupUrl = "pulsar://localhost:6650";
+std::string lookupUrl = "pulsar://localhost:6650";
 static std::string adminUrl = "http://localhost:8080/";
 static int uniqueCounter = 0;
 
-static std::string unique_str() {
+std::string unique_str() {
     long nanos = std::chrono::duration_cast<std::chrono::milliseconds>(
                      std::chrono::steady_clock::now().time_since_epoch())
                      .count();
@@ -603,10 +603,6 @@ TEST(BasicEndToEndTest, testMessageTooBig) {
     msg = MessageBuilder().setAllocatedContent(content, size).build();
     result = producer.send(msg);
     ASSERT_EQ(ResultOk, result);
-
-    for (const auto &q : PulsarFriend::getProducerMessageQueue(producer, NonPartitioned)) {
-        ASSERT_EQ(0, q->reservedSpots());
-    }
 
     delete[] content;
 }

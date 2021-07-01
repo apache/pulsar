@@ -26,6 +26,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import static org.testng.Assert.assertEquals;
@@ -80,6 +81,20 @@ public class SchemaInfoTest {
         + "    \"namespace\": \"org.apache.pulsar.client.impl.schema.SchemaTestUtils\",\n"
         + "    \"fields\": [\n"
         + "      {\n"
+        + "        \"name\": \"color\",\n"
+        + "        \"type\": [\n"
+        + "          \"null\",\n"
+        + "          {\n"
+        + "            \"type\": \"enum\",\n"
+        + "            \"name\": \"Color\",\n"
+        + "            \"symbols\": [\n"
+        + "              \"RED\",\n"
+        + "              \"BLUE\"\n"
+        + "            ]\n"
+        + "          }\n"
+        + "        ]\n"
+        + "      },\n"
+        + "      {\n"
         + "        \"name\": \"field1\",\n"
         + "        \"type\": [\n"
         + "          \"null\",\n"
@@ -114,20 +129,6 @@ public class SchemaInfoTest {
         + "        ]\n"
         + "      },\n"
         + "      {\n"
-        + "        \"name\": \"color\",\n"
-        + "        \"type\": [\n"
-        + "          \"null\",\n"
-        + "          {\n"
-        + "            \"type\": \"enum\",\n"
-        + "            \"name\": \"Color\",\n"
-        + "            \"symbols\": [\n"
-        + "              \"RED\",\n"
-        + "              \"BLUE\"\n"
-        + "            ]\n"
-        + "          }\n"
-        + "        ]\n"
-        + "      },\n"
-        + "      {\n"
         + "        \"name\": \"fieldUnableNull\",\n"
         + "        \"type\": \"string\",\n"
         + "        \"default\": \"defaultValue\"\n"
@@ -154,6 +155,20 @@ public class SchemaInfoTest {
         + "        \"name\": \"Foo\",\n"
         + "        \"namespace\": \"org.apache.pulsar.client.impl.schema.SchemaTestUtils\",\n"
         + "        \"fields\": [\n"
+        + "          {\n"
+        + "            \"name\": \"color\",\n"
+        + "            \"type\": [\n"
+        + "              \"null\",\n"
+        + "              {\n"
+        + "                \"type\": \"enum\",\n"
+        + "                \"name\": \"Color\",\n"
+        + "                \"symbols\": [\n"
+        + "                  \"RED\",\n"
+        + "                  \"BLUE\"\n"
+        + "                ]\n"
+        + "              }\n"
+        + "            ]\n"
+        + "          },\n"
         + "          {\n"
         + "            \"name\": \"field1\",\n"
         + "            \"type\": [\n"
@@ -184,20 +199,6 @@ public class SchemaInfoTest {
         + "                    \"name\": \"field1\",\n"
         + "                    \"type\": \"boolean\"\n"
         + "                  }\n"
-        + "                ]\n"
-        + "              }\n"
-        + "            ]\n"
-        + "          },\n"
-        + "          {\n"
-        + "            \"name\": \"color\",\n"
-        + "            \"type\": [\n"
-        + "              \"null\",\n"
-        + "              {\n"
-        + "                \"type\": \"enum\",\n"
-        + "                \"name\": \"Color\",\n"
-        + "                \"symbols\": [\n"
-        + "                  \"RED\",\n"
-        + "                  \"BLUE\"\n"
         + "                ]\n"
         + "              }\n"
         + "            ]\n"
@@ -288,7 +289,7 @@ public class SchemaInfoTest {
 
         @Test
         public void testUnsetProperties() {
-            final SchemaInfo schemaInfo = SchemaInfo.builder()
+            final SchemaInfo schemaInfo = SchemaInfoImpl.builder()
                     .type(SchemaType.STRING)
                     .schema(new byte[0])
                     .name("string")
@@ -304,7 +305,7 @@ public class SchemaInfoTest {
         public void testSetProperties() {
             final Map<String, String> map = Maps.newHashMap();
             map.put("test", "value");
-            final SchemaInfo schemaInfo = SchemaInfo.builder()
+            final SchemaInfo schemaInfo = SchemaInfoImpl.builder()
                     .type(SchemaType.STRING)
                     .schema(new byte[0])
                     .name("string")
@@ -317,5 +318,20 @@ public class SchemaInfoTest {
             assertEquals(schemaInfo.getProperties(), Maps.newHashMap(map));
         }
 
+        @Test
+        public void testNullPropertyValue() {
+            final Map<String, String> map = new HashMap<>();
+            map.put("key", null);
+
+            SchemaInfo si = SchemaInfoImpl.builder()
+                    .name("INT32")
+                    .schema(new byte[0])
+                    .type(SchemaType.INT32)
+                    .properties(map)
+                    .build();
+
+            // null key will be skipped by Gson when serializing JSON to String
+            assertEquals(si.toString(), INT32_SCHEMA_INFO);
+        }
     }
 }

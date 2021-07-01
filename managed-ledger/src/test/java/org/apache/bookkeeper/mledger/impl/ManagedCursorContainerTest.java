@@ -67,6 +67,16 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
+        public boolean putProperty(String key, Long value) {
+            return false;
+        }
+
+        @Override
+        public boolean removeProperty(String key) {
+            return false;
+        }
+
+        @Override
         public boolean isDurable() {
             return true;
         }
@@ -127,6 +137,11 @@ public class ManagedCursorContainerTest {
 
         @Override
         public Position getMarkDeletedPosition() {
+            return position;
+        }
+
+        @Override
+        public Position getPersistentMarkDeletedPosition() {
             return position;
         }
 
@@ -363,6 +378,11 @@ public class ManagedCursorContainerTest {
         public List<Entry> readEntriesOrWait(int maxEntries, long maxSizeBytes)
                 throws InterruptedException, ManagedLedgerException {
             return null;
+        }
+
+        @Override
+        public boolean checkAndUpdateReadPositionChanged() {
+            return false;
         }
     }
 

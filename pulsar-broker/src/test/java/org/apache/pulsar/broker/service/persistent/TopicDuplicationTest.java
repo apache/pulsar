@@ -18,12 +18,18 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -32,20 +38,13 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
-import org.junit.Assert;
+import org.awaitility.Awaitility;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import org.awaitility.Awaitility;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotEquals;
-import static org.testng.Assert.assertNotNull;
-
+@Test(groups = "broker")
 public class TopicDuplicationTest extends ProducerConsumerBase {
     private final String testTenant = "my-property";
     private final String testNamespace = "my-ns";
@@ -78,12 +77,12 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         assertNull(enabled);
 
         admin.topics().enableDeduplication(topicName, true);
-        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+        Awaitility.await()
                 .until(()-> admin.topics().getDeduplicationEnabled(topicName) != null);
-        Assert.assertEquals(admin.topics().getDeduplicationEnabled(topicName), true);
+        assertTrue(admin.topics().getDeduplicationEnabled(topicName));
 
         admin.topics().disableDeduplication(topicName);
-        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+        Awaitility.await()
                 .until(()-> admin.topics().getMaxUnackedMessagesOnSubscription(topicName) == null);
         assertNull(admin.topics().getDeduplicationEnabled(topicName));
     }
@@ -97,12 +96,12 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         assertNull(enabled);
 
         admin.topics().setDeduplicationStatus(topicName, true);
-        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+        Awaitility.await()
                 .until(() -> admin.topics().getDeduplicationStatus(topicName) != null);
-        Assert.assertEquals(admin.topics().getDeduplicationStatus(topicName), true);
+        assertTrue(admin.topics().getDeduplicationStatus(topicName));
 
         admin.topics().removeDeduplicationStatus(topicName);
-        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+        Awaitility.await()
                 .until(() -> admin.topics().getMaxUnackedMessagesOnSubscription(topicName) == null);
         assertNull(admin.topics().getDeduplicationStatus(topicName));
     }
@@ -212,18 +211,19 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         assertNull(interval);
 
         admin.topics().setDeduplicationSnapshotInterval(topicName, 1024);
-        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+        Awaitility.await()
                 .until(()-> admin.topics().getDeduplicationSnapshotInterval(topicName) != null);
         Assert.assertEquals(admin.topics().getDeduplicationSnapshotInterval(topicName).intValue(), 1024);
 
         admin.topics().removeDeduplicationSnapshotInterval(topicName);
-        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+        Awaitility.await()
                 .until(()-> admin.topics().getDeduplicationSnapshotInterval(topicName) == null);
         assertNull(admin.topics().getDeduplicationSnapshotInterval(topicName));
     }
 
     @Test(timeOut = 30000)
     public void testTopicPolicyTakeSnapshot() throws Exception {
+        super.internalCleanup();
         resetConfig();
         conf.setSystemTopicEnabled(true);
         conf.setTopicLevelPoliciesEnabled(true);
@@ -231,7 +231,6 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         conf.setBrokerDeduplicationSnapshotFrequencyInSeconds(1);
         conf.setBrokerDeduplicationSnapshotIntervalSeconds(7);
         conf.setBrokerDeduplicationEntriesInterval(20000);
-        super.internalCleanup();
         super.internalSetup();
         super.producerBaseSetup();
 
@@ -257,7 +256,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         assertEquals(seqId, msgNum - 1);
         assertEquals(position.getEntryId(), msgNum - 1);
         //The first time, use topic-leve policies, 1 second delay + 3 second interval
-        Awaitility.await().atMost(5000, TimeUnit.MILLISECONDS)
+        Awaitility.await()
                 .until(() -> ((PositionImpl) persistentTopic.getMessageDeduplication().getManagedCursor()
                         .getMarkDeletedPosition()).getEntryId() == msgNum - 1);
         ManagedCursor managedCursor = persistentTopic.getMessageDeduplication().getManagedCursor();
@@ -268,7 +267,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         admin.topics().removeDeduplicationSnapshotInterval(topicName);
         producer.newMessage().value("msg").send();
         //zk update time + 5 second interval time
-        Awaitility.await().atMost( 7, TimeUnit.SECONDS)
+        Awaitility.await()
                 .until(() -> ((PositionImpl) persistentTopic.getMessageDeduplication().getManagedCursor()
                         .getMarkDeletedPosition()).getEntryId() == msgNum);
         markDeletedPosition = (PositionImpl) managedCursor.getMarkDeletedPosition();
@@ -278,7 +277,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
 
         //4 remove namespace-level policies, broker-level should be used, interval becomes 3 seconds
         admin.namespaces().removeDeduplicationSnapshotInterval(myNamespace);
-        Awaitility.await().atMost(4, TimeUnit.SECONDS)
+        Awaitility.await()
                 .until(() -> (admin.namespaces().getDeduplicationSnapshotInterval(myNamespace) == null));
         producer.newMessage().value("msg").send();
         //ensure that the time exceeds the scheduling interval of ns and topic, but no snapshot is generated
@@ -289,7 +288,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         assertNotEquals(msgNum + 1, markDeletedPosition.getEntryId());
         assertNotEquals(position, markDeletedPosition);
         // wait for scheduler
-        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+        Awaitility.await()
                 .until(() -> ((PositionImpl) persistentTopic.getMessageDeduplication().getManagedCursor()
                         .getMarkDeletedPosition()).getEntryId() == msgNum + 1);
         markDeletedPosition = (PositionImpl) managedCursor.getMarkDeletedPosition();
@@ -318,7 +317,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         checkDeduplicationEnabled(producerName, messageDeduplication, maxSeq);
         //3) disable the deduplication check
         admin.topics().enableDeduplication(topicName, false);
-        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+        Awaitility.await()
                 .until(() -> admin.topics().getDeduplicationEnabled(topicName) != null);
         for (int i = 0; i < 100; i++) {
             producer.newMessage().value("msg-" + i).sequenceId(maxSeq + i).send();
@@ -335,12 +334,12 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
     }
 
     private void testTakeSnapshot(boolean enabledSnapshot) throws Exception {
+        super.internalCleanup();
         resetConfig();
         conf.setBrokerDeduplicationEnabled(true);
         conf.setBrokerDeduplicationSnapshotFrequencyInSeconds(enabledSnapshot ? 1 : 0);
         conf.setBrokerDeduplicationSnapshotIntervalSeconds(1);
         conf.setBrokerDeduplicationEntriesInterval(20000);
-        super.internalCleanup();
         super.internalSetup();
         super.producerBaseSetup();
 
@@ -412,12 +411,12 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
 
     @Test(timeOut = 30000)
     public void testNamespacePolicyTakeSnapshot() throws Exception {
+        super.internalCleanup();
         resetConfig();
         conf.setBrokerDeduplicationEnabled(true);
         conf.setBrokerDeduplicationSnapshotFrequencyInSeconds(1);
         conf.setBrokerDeduplicationSnapshotIntervalSeconds(3);
         conf.setBrokerDeduplicationEntriesInterval(20000);
-        super.internalCleanup();
         super.internalSetup();
         super.producerBaseSetup();
 
@@ -441,7 +440,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         assertEquals(seqId, msgNum - 1);
         assertEquals(position.getEntryId(), msgNum - 1);
         //The first time, 1 second delay + 1 second interval
-        Awaitility.await().atMost(2500,TimeUnit.MILLISECONDS).until(()-> ((PositionImpl) persistentTopic
+        Awaitility.await().until(()-> ((PositionImpl) persistentTopic
                 .getMessageDeduplication().getManagedCursor().getMarkDeletedPosition()).getEntryId() == msgNum -1);
         ManagedCursor managedCursor = persistentTopic.getMessageDeduplication().getManagedCursor();
         PositionImpl markDeletedPosition = (PositionImpl) managedCursor.getMarkDeletedPosition();
@@ -464,12 +463,12 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
 
     @Test(timeOut = 30000)
     public void testDisableNamespacePolicyTakeSnapshot() throws Exception {
+        super.internalCleanup();
         resetConfig();
         conf.setBrokerDeduplicationEnabled(true);
         conf.setBrokerDeduplicationSnapshotFrequencyInSeconds(1);
         conf.setBrokerDeduplicationSnapshotIntervalSeconds(1);
         conf.setBrokerDeduplicationEntriesInterval(20000);
-        super.internalCleanup();
         super.internalSetup();
         super.producerBaseSetup();
 
@@ -496,7 +495,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
                 .getManagedLedger().getLastConfirmedEntry();
         assertEquals(seqId, msgNum - 1);
         assertEquals(position.getEntryId(), msgNum - 1);
-        Awaitility.await().atMost(2,TimeUnit.SECONDS).until(()-> ((PositionImpl) persistentTopic
+        Awaitility.await().until(()-> ((PositionImpl) persistentTopic
                 .getMessageDeduplication().getManagedCursor().getMarkDeletedPosition()).getEntryId() == -1);
 
         // take snapshot is disabled, so markDeletedPosition should not change
@@ -509,7 +508,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
     private void waitCacheInit(String topicName) throws Exception {
         pulsarClient.newConsumer().topic(topicName).subscriptionName("my-sub").subscribe().close();
         TopicName topic = TopicName.get(topicName);
-        Awaitility.await().atMost(10, TimeUnit.SECONDS)
+        Awaitility.await()
                 .until(()-> pulsar.getTopicPoliciesService().cacheIsInitialized(topic));
     }
 

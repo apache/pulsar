@@ -82,6 +82,16 @@ public interface ManagedCursor {
     Map<String, Long> getProperties();
 
     /**
+     * Add a property associated with the last stored position.
+     */
+    boolean putProperty(String key, Long value);
+
+    /**
+     * Remove a property associated with the last stored position.
+     */
+    boolean removeProperty(String key);
+
+    /**
      * Read entries from the ManagedLedger, up to the specified number. The returned list can be smaller.
      *
      * @param numberOfEntriesToRead
@@ -393,6 +403,13 @@ public interface ManagedCursor {
     Position getMarkDeletedPosition();
 
     /**
+     * Get the persistent newest mark deleted position on this cursor.
+     *
+     * @return the persistent mark deleted position
+     */
+    Position getPersistentMarkDeletedPosition();
+
+    /**
      * Rewind the cursor to the mark deleted position to replay all the already read but not yet mark deleted messages.
      *
      * <p/>The next message to be read is the one after the current mark deleted message.
@@ -683,4 +700,10 @@ public interface ManagedCursor {
      */
     ManagedCursorMXBean getStats();
 
+    /**
+     * Checks if read position changed since this method was called last time.
+     *
+     * @return if read position changed
+     */
+    boolean checkAndUpdateReadPositionChanged();
 }

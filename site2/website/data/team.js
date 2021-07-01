@@ -28,6 +28,11 @@ module.exports = {
       roles: 'Committer, PMC'
     },
     {
+      name: 'Enrico Olivelli',
+      apacheId: 'eolivelli',
+      roles: 'Committer'
+    },
+    {
       name: 'Fangbin Sun',
       apacheId: 'sunfangbin',
       roles: 'Committer'
@@ -200,6 +205,12 @@ module.exports = {
       apacheId: 'yushiga',
       org: 'Yahoo Japan Corporation',
       roles: 'Committer, PMC'
+    },
+    {
+      name: 'Yuto Furuta',
+      apacheId: 'k2la',
+      org: 'Yahoo Japan Corporation',
+      roles: 'Committer'
     },
     {
       name: 'Yong Zhang',

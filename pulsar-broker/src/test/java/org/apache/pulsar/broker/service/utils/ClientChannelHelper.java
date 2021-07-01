@@ -45,12 +45,10 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 
-/**
- */
 public class ClientChannelHelper {
-    private EmbeddedChannel channel;
+    private final EmbeddedChannel channel;
 
-    private Queue<Object> queue = Queues.newArrayDeque();
+    private final Queue<Object> queue = Queues.newArrayDeque();
 
     public ClientChannelHelper() {
         int MaxMessageSize = 5 * 1024 * 1024;
@@ -62,7 +60,7 @@ public class ClientChannelHelper {
         return queue.poll();
     }
 
-    private PulsarDecoder decoder = new PulsarDecoder() {
+    private final PulsarDecoder decoder = new PulsarDecoder() {
 
         @Override
         protected void messageReceived() {

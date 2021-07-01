@@ -467,6 +467,18 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
             doc = "A set of the maximum amount of resources functions may request.  Support for this depends on function runtime."
     )
     private Resources functionInstanceMaxResources;
+    @FieldContext(
+            category = CATEGORY_FUNC_RUNTIME_MNG,
+            doc = "Granularities of requested resources. If the granularity of any type of resource is set," +
+                    " the requested resource of the type must be a multiple of the granularity."
+    )
+    private Resources functionInstanceResourceGranularities;
+    @FieldContext(
+            category = CATEGORY_FUNC_RUNTIME_MNG,
+            doc = "If this configuration is set to be true, the amount of requested resources of all type of resources" +
+                    " that have the granularity set must be the same multiples of their granularities."
+    )
+    private boolean functionInstanceResourceChangeInLockStep = false;
 
     @FieldContext(
             category = CATEGORY_FUNC_RUNTIME_MNG,
@@ -531,6 +543,12 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         doc = "The nar package for the function worker service"
     )
     private String functionsWorkerServiceNarPackage = "";
+
+    @FieldContext(
+            category = CATEGORY_WORKER,
+            doc = "The additional configs for the function worker service if functionsWorkerServiceNarPackage provided"
+    )
+    private Map<String, Object> functionsWorkerServiceCustomConfigs = Collections.emptyMap();
 
     @FieldContext(
             category = CATEGORY_WORKER,

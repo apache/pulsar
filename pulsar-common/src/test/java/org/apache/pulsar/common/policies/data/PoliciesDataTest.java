@@ -31,7 +31,6 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.annotations.Test;
 
 import com.fasterxml.jackson.core.JsonGenerationException;
-import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
@@ -46,29 +45,34 @@ public class PoliciesDataTest {
 
         assertEquals(policies, new Policies());
 
-        policies.auth_policies.namespace_auth.put("my-role", EnumSet.of(AuthAction.consume));
+        policies.auth_policies.getNamespaceAuthentication().put("my-role", EnumSet.of(AuthAction.consume));
 
         assertNotEquals(new Policies(), policies);
         assertNotEquals(new Object(), policies);
 
-        policies.auth_policies.namespace_auth.clear();
+        policies.auth_policies.getNamespaceAuthentication().clear();
         Map<String, Set<AuthAction>> permissions = Maps.newTreeMap();
         permissions.put("my-role", EnumSet.of(AuthAction.consume));
-        policies.auth_policies.destination_auth.put("persistent://my-dest", permissions);
+        policies.auth_policies.getTopicAuthentication().put("persistent://my-dest", permissions);
 
         assertNotEquals(new Policies(), policies);
     }
 
     @Test
     public void propertyAdmin() {
-        TenantInfo pa1 = new TenantInfo();
-        pa1.setAdminRoles(Sets.newHashSet("role1", "role2"));
-        pa1.setAllowedClusters(Sets.newHashSet("use", "usw"));
+        TenantInfo pa1 = TenantInfo.builder()
+                .adminRoles(Sets.newHashSet("role1", "role2"))
+                .allowedClusters(Sets.newHashSet("use", "usw"))
+                .build();
 
-        assertEquals(pa1, new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use", "usw")));
+        assertEquals(pa1, TenantInfo.builder()
+                .adminRoles(Sets.newHashSet("role1", "role2"))
+                .allowedClusters(Sets.newHashSet("use", "usw"))
+                .build());
         assertNotEquals(new Object(), pa1);
-        assertNotEquals(new TenantInfo(), pa1);
-        assertNotEquals(new TenantInfo(Sets.newHashSet("role1", "role3"), Sets.newHashSet("usc")), pa1);
+        assertNotEquals(TenantInfo.builder().build(), pa1);
+        assertNotEquals(TenantInfo.builder().adminRoles(Sets.newHashSet("role1", "role3"))
+                .allowedClusters(Sets.newHashSet("usc")).build(), pa1);
         assertEquals(pa1.getAdminRoles(), Lists.newArrayList("role1", "role2"));
     }
 
@@ -86,7 +90,7 @@ public class PoliciesDataTest {
     }
 
     @Test
-    public void bundlesData() throws JsonParseException, JsonMappingException, IOException {
+    public void bundlesData() throws IOException {
         ObjectMapper jsonMapper = ObjectMapperFactory.create();
         String newJsonPolicy = "{\"auth_policies\":{\"namespace_auth\":{},\"destination_auth\":{}},\"replication_clusters\":[],\"bundles\":{\"boundaries\":[\"0x00000000\",\"0xffffffff\"]},\"backlog_quota_map\":{},\"persistence\":null,\"latency_stats_sample_rate\":{}}";
 

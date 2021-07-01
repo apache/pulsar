@@ -1,0 +1,10 @@
+# contains pattern definitions used in workflows "changes" step
+# pattern syntax: https://github.com/micromatch/picomatch
+all:
+  - '**'
+docs:
+  - 'site2/**'
+  - 'deployment/**'
+  - '.asf.yaml'
+  - '*.md'
+  - '**/*.md'

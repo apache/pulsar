@@ -38,5 +38,4 @@ public interface TransactionLogReplayCallback {
      * @param transactionMetadataEntry the metadata entry of transaction
      */
     void handleMetadataEntry(Position position, TransactionMetadataEntry transactionMetadataEntry);
-
 }

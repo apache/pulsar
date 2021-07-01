@@ -50,4 +50,5 @@ message TransactionMetadataEntry {
   optional uint64 timeout_ms      = 8;
   optional uint64 start_time      = 9;
   optional uint64 last_modification_time = 10;
+  optional uint64 max_local_txn_id = 11;
 }

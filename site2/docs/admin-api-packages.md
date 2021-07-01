@@ -4,6 +4,16 @@ title: Manage packages
 sidebar_label: Packages
 ---
 
+> **Important**
+>
+> This page only shows **some frequently used operations**.
+>
+> - For the latest and complete information about `pulsar-admin`, including commands, flags, descriptions, and more, see [pulsar-admin doc](https://pulsar.apache.org/tools/pulsar-admin/).
+> 
+> - For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see [REST API doc]{@inject: rest:REST:/}.
+> 
+> - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](https://pulsar.apache.org/api/admin/).
+
 Package management enables version management and simplifies the upgrade and rollback processes for Functions, Sinks, and Sources. When you use the same function, sink and source in different namespaces, you can upload them to a common package management system.
 
 ## Package name
@@ -74,7 +84,7 @@ bin/pulsar-admin packages upload functions://public/default/example@v0.1 --path 
 
 <!--REST API-->
 
-{@inject: endpoint| POST |admin/v3/packages/:type/:tenant/:namespace/:packageName/:version/?version=[[pulsar:version_number]]}
+{@inject: endpoint|POST|/admin/v3/packages/:type/:tenant/:namespace/:packageName/:version/?version=[[pulsar:version_number]]}
 
 <!--JAVA-->
 Upload a package to the package management service synchronously.
@@ -99,7 +109,7 @@ bin/pulsar-admin packages download functions://public/default/example@v0.1 --pat
 
 <!--REST API-->
 
-{@inject: endpoint| GET |admin/v3/packages/:type/:tenant/:namespace/:packageName/:version/?version=[[pulsar:version_number]]}
+{@inject: endpoint|GET|/admin/v3/packages/:type/:tenant/:namespace/:packageName/:version/?version=[[pulsar:version_number]]}
 
 <!--JAVA-->
 Download a package to the package management service synchronously.
@@ -124,7 +134,7 @@ bin/pulsar-admin packages list --type function public/default
 
 <!--REST API-->
 
-{@inject: endpoint| GET |admin/v3/packages/:type/:tenant/:namespace/:packageName/?version=[[pulsar:version_number]]}
+{@inject: endpoint|GET|/admin/v3/packages/:type/:tenant/:namespace/:packageName/?version=[[pulsar:version_number]]}
 
 <!--JAVA-->
 List all versions of a package synchronously.
@@ -174,7 +184,7 @@ bin/pulsar-admin packages get-metadata function://public/default/test@v1
 
 <!--REST API-->
 
-{@inject: endpoint| GET |admin/v3/packages/:type/:tenant/:namespace/:packageName/:version/metadata/?version=[[pulsar:version_number]]}
+{@inject: endpoint|GET|/admin/v3/packages/:type/:tenant/:namespace/:packageName/:version/metadata/?version=[[pulsar:version_number]]}
 
 <!--JAVA-->
 Get the metadata of a package synchronously.
@@ -198,7 +208,7 @@ bin/pulsar-admin packages update-metadata function://public/default/example@v0.1
 
 <!--REST API-->
 
-{@inject: endpoint| PUT |admin/v3/packages/:type/:tenant/:namespace/:packageName/:version/metadata/?version=[[pulsar:version_number]]}
+{@inject: endpoint|PUT|/admin/v3/packages/:type/:tenant/:namespace/:packageName/:version/metadata/?version=[[pulsar:version_number]]}
 
 <!--JAVA-->
 Update a package metadata information synchronously.
@@ -225,7 +235,7 @@ bin/pulsar-admin packages delete functions://public/default/example@v0.1
 
 <!--REST API-->
 
-{@inject: endpoint| DELETE |admin/v3/packages/:type/:tenant/:namespace/:packageName/:version/?version=[[pulsar:version_number]]}
+{@inject: endpoint|DELETE|/admin/v3/packages/:type/:tenant/:namespace/:packageName/:version/?version=[[pulsar:version_number]]}
 
 <!--JAVA-->
 Delete a specified package synchronously.

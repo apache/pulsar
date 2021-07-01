@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.intercept;
 
+import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -45,9 +46,9 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 
+@Test(groups = "broker")
 public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
     private static final Logger log = LoggerFactory.getLogger(MangedLedgerInterceptorImplTest.class);
-
 
     @Test
     public void testAddBrokerEntryMetadata() throws Exception {
@@ -68,7 +69,6 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
             ledger.addEntry(("message" + i).getBytes(), MOCK_BATCH_SIZE);
         }
 
-
         assertEquals(19, ((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex());
         List<Entry> entryList = cursor.readEntries(numberOfEntries);
         for (int i = 0 ; i < numberOfEntries; i ++) {
@@ -78,11 +78,10 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
             assertEquals(metadata.getIndex(), (i + 1) * MOCK_BATCH_SIZE - 1);
         }
 
-        cursor.close();;
+        cursor.close();
         ledger.close();
         factory.shutdown();
     }
-
 
     @Test(timeOut = 20000)
     public void testRecoveryIndex() throws Exception {
@@ -106,7 +105,8 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
         log.info("Closing ledger and reopening");
 
         // / Reopen the same managed-ledger
-        ManagedLedgerFactoryImpl factory2 = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ledger = factory2.open("my_recovery_index_test_ledger", config);
 
         cursor = ledger.openCursor("c1");
@@ -121,7 +121,6 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
 
         cursor.close();
         ledger.close();
-        factory2.shutdown();
     }
 
     @Test
@@ -141,7 +140,7 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
 
         long firstLedgerId = -1;
         for (int i = 0; i < maxEntriesPerLedger; i++) {
-            firstLedgerId = ((PositionImpl) ledger.addEntry("dummy-entry".getBytes(StandardCharsets.UTF_8), MOCK_BATCH_SIZE)).getLedgerId();
+            firstLedgerId = ledger.addEntry("dummy-entry".getBytes(StandardCharsets.UTF_8), MOCK_BATCH_SIZE).getLedgerId();
         }
 
         assertEquals(((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex(), 9);
@@ -156,7 +155,7 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
         // roll over ledger
         long secondLedgerId = -1;
         for (int i = 0; i < maxEntriesPerLedger; i++) {
-            secondLedgerId = ((PositionImpl) ledger.addEntry("dummy-entry".getBytes(StandardCharsets.UTF_8), MOCK_BATCH_SIZE)).getLedgerId();
+            secondLedgerId = ledger.addEntry("dummy-entry".getBytes(StandardCharsets.UTF_8), MOCK_BATCH_SIZE).getLedgerId();
         }
         assertEquals(((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex(), 19);
         assertNotEquals(firstLedgerId, secondLedgerId);
@@ -169,12 +168,13 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
         // reopen ledger
         ledger.close();
         // / Reopen the same managed-ledger
-        ManagedLedgerFactoryImpl factory2 = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ledger = factory2.open("my_ml_broker_entry_metadata_test_ledger", managedLedgerConfig);
 
         long thirdLedgerId = -1;
         for (int i = 0; i < maxEntriesPerLedger; i++) {
-            thirdLedgerId = ((PositionImpl) ledger.addEntry("dummy-entry".getBytes(StandardCharsets.UTF_8), MOCK_BATCH_SIZE)).getLedgerId();
+            thirdLedgerId = ledger.addEntry("dummy-entry".getBytes(StandardCharsets.UTF_8), MOCK_BATCH_SIZE).getLedgerId();
         }
         assertEquals(((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex(), 29);
         assertNotEquals(secondLedgerId, thirdLedgerId);
@@ -185,7 +185,6 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
         }
         cursor.close();
         ledger.close();
-        factory2.shutdown();
     }
 
     public static Set<BrokerEntryMetadataInterceptor> getBrokerEntryMetadataInterceptors() {
@@ -196,7 +195,7 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
                 Thread.currentThread().getContextClassLoader());
     }
 
-    class IndexSearchPredicate implements com.google.common.base.Predicate<Entry> {
+    static class IndexSearchPredicate implements com.google.common.base.Predicate<Entry> {
 
         long indexToSearch = -1;
         public IndexSearchPredicate(long indexToSearch) {

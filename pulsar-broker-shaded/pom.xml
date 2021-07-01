@@ -26,7 +26,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>2.8.0-SNAPSHOT</version>
+    <version>2.9.0-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -46,10 +46,58 @@
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>unpack</id>
+            <phase>prepare-package</phase>
+            <goals>
+              <goal>unpack</goal>
+            </goals>
+            <configuration>
+              <artifactItems>
+                <artifactItem>
+                  <groupId>org.asynchttpclient</groupId>
+                  <artifactId>async-http-client</artifactId>
+                  <version>${asynchttpclient.version}</version>
+                  <type>jar</type>
+                  <overWrite>true</overWrite>
+                  <includes>org/asynchttpclient/config/ahc-default.properties</includes>
+                  <outputDirectory>${project.build.directory}/classes</outputDirectory>
+                </artifactItem>
+              </artifactItems>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>shade-ahc-properties</id>
+            <phase>prepare-package</phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <target>
+                <!-- shade the AsyncHttpClient ahc-default.properties files -->
+                <replace token= "org.asynchttpclient."
+                         value="org.apache.pulsar.shade.org.asynchttpclient."
+                         file="${project.build.directory}/classes/org/asynchttpclient/config/ahc-default.properties"/>
+              </target>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
         <executions>
           <execution>
-            <phase>package</phase>
+            <phase>${shadePluginPhase}</phase>
             <goals>
               <goal>shade</goal>
             </goals>
@@ -82,6 +130,7 @@
                   <include>net.java.dev.jna:*</include>
                   <include>com.carrotsearch:*</include>
                   <include>io.prometheus:*</include>
+                  <include>io.perfmark:*</include>
                   <include>com.github.ben-manes.caffeine:*</include>
                   <include>org.glassfish.jersey.*:*</include>
                   <include>org.rocksdb:*</include>
@@ -96,11 +145,8 @@
                   <include>org.yaml:snakeyaml</include>
                   <include>org.hdrhistogram:*</include>
                   <include>com.github.zafarkhaja:java-semver</include>
-                  <include>org.aspectj:*</include>
                   <include>org.apache.avro:avro</include>
                   <!-- Avro transitive dependencies-->
-                  <include>org.codehaus.jackson:jackson-core-asl</include>
-                  <include>org.codehaus.jackson:jackson-mapper-asl</include>
                   <include>com.thoughtworks.paranamer:paranamer</include>
                   <include>org.apache.commons:commons-compress</include>
                   <include>org.tukaani:xz</include>
@@ -259,14 +305,6 @@
                 <relocation>
                   <pattern>org.HdrHistogram</pattern>
                   <shadedPattern>org.apache.pulsar.shade.org.HdrHistogram</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>org.aspectj</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.org.aspectj</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>aj</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.aj</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>com.ea</pattern>

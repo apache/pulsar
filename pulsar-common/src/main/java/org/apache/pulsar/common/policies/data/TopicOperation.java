@@ -47,4 +47,9 @@ public enum TopicOperation {
     SUBSCRIBE,
     GET_SUBSCRIPTIONS,
     UNSUBSCRIBE,
+
+    GET_STATS,
+    GET_METADATA,
+
+    SET_REPLICATED_SUBSCRIPTION_STATUS,
 }

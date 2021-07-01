@@ -17,7 +17,7 @@
 # under the License.
 #
 
-FROM openjdk:8-jdk-slim
+FROM openjdk:11-jdk-slim
 
 RUN groupadd -g 10001 pulsar
 RUN adduser -u 10000 --gid 10001 --disabled-login --disabled-password --gecos '' pulsar
@@ -30,7 +30,7 @@ RUN chown -R root:root /pulsar
 COPY target/scripts /pulsar/bin
 RUN chmod a+rx /pulsar/bin/*
 
-RUN echo networkaddress.cache.ttl=1 >> $JAVA_HOME/jre/lib/security/java.security
+RUN echo networkaddress.cache.ttl=1 >> $JAVA_HOME/conf/security/java.security
 
 WORKDIR /pulsar
 
@@ -45,7 +45,7 @@ RUN sed -i '1 s/.*/#!\/usr\/bin\/python3/' /pulsar/bin/watch-znode.py /pulsar/bi
 # required by gen-yml-from-env.py
 RUN apt-get install -y python-yaml
 
-RUN apt-get install -y supervisor procps curl less
+RUN apt-get install -y supervisor procps curl less netcat dnsutils iputils-ping
 
 
 RUN mkdir -p /var/log/pulsar \

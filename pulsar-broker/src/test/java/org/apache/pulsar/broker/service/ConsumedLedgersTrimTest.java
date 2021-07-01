@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service;
 
-
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
@@ -40,6 +39,7 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class ConsumedLedgersTrimTest extends BrokerTestBase {
 
     private static final Logger LOG = LoggerFactory.getLogger(ConsumedLedgersTrimTest.class);
@@ -94,7 +94,7 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
 
         for (int i = 0; i < msgNum; i++) {
             Message<byte[]> msg = consumer.receive(2, TimeUnit.SECONDS);
-            Assert.assertTrue(msg != null);
+            assertNotNull(msg);
             consumer.acknowledge(msg);
         }
         Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), msgNum / 2);

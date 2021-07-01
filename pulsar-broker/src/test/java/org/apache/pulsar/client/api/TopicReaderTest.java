@@ -63,6 +63,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+@Test(groups = "flaky")
 public class TopicReaderTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(TopicReaderTest.class);
 
@@ -314,16 +315,16 @@ public class TopicReaderTest extends ProducerConsumerBase {
         Reader<byte[]> reader2 = pulsarClient.newReader().topic(topicName).startMessageId(MessageId.earliest).create();
 
         TopicStats stats = admin.topics().getStats(topicName);
-        assertEquals(stats.subscriptions.size(), 2);
+        assertEquals(stats.getSubscriptions().size(), 2);
 
         reader1.close();
         stats = admin.topics().getStats(topicName);
-        assertEquals(stats.subscriptions.size(), 1);
+        assertEquals(stats.getSubscriptions().size(), 1);
 
         reader2.close();
 
         stats = admin.topics().getStats(topicName);
-        assertEquals(stats.subscriptions.size(), 0);
+        assertEquals(stats.getSubscriptions().size(), 0);
     }
 
     @Test
@@ -336,16 +337,16 @@ public class TopicReaderTest extends ProducerConsumerBase {
         Reader<byte[]> reader2 = pulsarClient.newReader().topic(topicName).startMessageId(MessageId.earliest).create();
 
         TopicStats stats = admin.topics().getPartitionedStats(topicName,true);
-        assertEquals(stats.subscriptions.size(), 2);
+        assertEquals(stats.getSubscriptions().size(), 2);
 
         reader1.close();
         stats = admin.topics().getPartitionedStats(topicName, true);
-        assertEquals(stats.subscriptions.size(), 1);
+        assertEquals(stats.getSubscriptions().size(), 1);
 
         reader2.close();
 
         stats = admin.topics().getPartitionedStats(topicName, true);
-        assertEquals(stats.subscriptions.size(), 0);
+        assertEquals(stats.getSubscriptions().size(), 0);
     }
 
     @Test(dataProvider = "variationsForResetOnLatestMsg")
@@ -513,13 +514,13 @@ public class TopicReaderTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test(groups = "encryption")
+    @Test
     public void testECDSAEncryption() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         class EncKeyReader implements CryptoKeyReader {
 
-            EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
+            final EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
 
             @Override
             public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
@@ -583,13 +584,13 @@ public class TopicReaderTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(groups = "encryption")
+    @Test
     public void testMultiReaderECDSAEncryption() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         class EncKeyReader implements CryptoKeyReader {
 
-            EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
+            final EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
 
             @Override
             public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
@@ -652,7 +653,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         reader.close();
     }
 
-    @Test(groups = "encryption")
+    @Test
     public void testDefaultCryptoKeyReader() throws Exception {
         final String topic = "persistent://my-property/my-ns/test-reader-default-crypto-key-reader"
                 + System.currentTimeMillis();

@@ -60,7 +60,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 /**
@@ -102,31 +102,30 @@ public class PulsarSplitManager implements ConnectorSplitManager {
         TupleDomain<ColumnHandle> tupleDomain = layoutHandle.getTupleDomain();
 
         String namespace = restoreNamespaceDelimiterIfNeeded(tableHandle.getSchemaName(), pulsarConnectorConfig);
-        TopicName topicName = TopicName.get("persistent", NamespaceName.get(namespace),
-                tableHandle.getTableName());
+        TopicName topicName = TopicName.get("persistent", NamespaceName.get(namespace), tableHandle.getTopicName());
 
         SchemaInfo schemaInfo;
 
         try {
             schemaInfo = this.pulsarAdmin.schemas().getSchemaInfo(
-                    String.format("%s/%s", namespace, tableHandle.getTableName()));
+                    String.format("%s/%s", namespace, tableHandle.getTopicName()));
         } catch (PulsarAdminException e) {
             if (e.getStatusCode() == 401) {
                 throw new PrestoException(QUERY_REJECTED,
                         String.format("Failed to get pulsar topic schema for topic %s/%s: Unauthorized",
-                                namespace, tableHandle.getTableName()));
+                                namespace, tableHandle.getTopicName()));
             } else if (e.getStatusCode() == 404) {
                 schemaInfo = PulsarSqlSchemaInfoProvider.defaultSchema();
             } else {
                 throw new RuntimeException("Failed to get pulsar topic schema for topic "
-                        + String.format("%s/%s", namespace, tableHandle.getTableName())
+                        + String.format("%s/%s", namespace, tableHandle.getTopicName())
                         + ": " + ExceptionUtils.getRootCause(e).getLocalizedMessage(), e);
             }
         }
 
         Collection<PulsarSplit> splits;
         try {
-            OffloadPolicies offloadPolicies = this.pulsarAdmin.namespaces()
+            OffloadPoliciesImpl offloadPolicies = (OffloadPoliciesImpl) this.pulsarAdmin.namespaces()
                                                 .getOffloadPolicies(topicName.getNamespace());
             if (offloadPolicies != null) {
                 offloadPolicies.setOffloadersDirectory(pulsarConnectorConfig.getOffloadersDirectory());
@@ -152,7 +151,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
     @VisibleForTesting
     Collection<PulsarSplit> getSplitsPartitionedTopic(int numSplits, TopicName topicName, PulsarTableHandle
             tableHandle, SchemaInfo schemaInfo, TupleDomain<ColumnHandle> tupleDomain,
-              OffloadPolicies offloadPolicies) throws Exception {
+              OffloadPoliciesImpl offloadPolicies) throws Exception {
 
         List<Integer> predicatedPartitions = getPredicatedPartitions(topicName, tupleDomain);
         if (log.isDebugEnabled()) {
@@ -238,7 +237,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
     @VisibleForTesting
     Collection<PulsarSplit> getSplitsNonPartitionedTopic(int numSplits, TopicName topicName,
             PulsarTableHandle tableHandle, SchemaInfo schemaInfo, TupleDomain<ColumnHandle> tupleDomain,
-             OffloadPolicies offloadPolicies) throws Exception {
+             OffloadPoliciesImpl offloadPolicies) throws Exception {
         PulsarConnectorCache pulsarConnectorCache = PulsarConnectorCache.getConnectorCache(pulsarConnectorConfig);
         ManagedLedgerFactory managedLedgerFactory = pulsarConnectorCache.getManagedLedgerFactory();
         ManagedLedgerConfig managedLedgerConfig = pulsarConnectorCache.getManagedLedgerConfig(
@@ -251,7 +250,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                 numSplits,
                 tableHandle,
                 schemaInfo,
-                tableHandle.getTableName(),
+                topicName.getLocalName(),
                 tupleDomain,
                 offloadPolicies);
     }
@@ -264,7 +263,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                                               PulsarTableHandle tableHandle,
                                               SchemaInfo schemaInfo, String tableName,
                                               TupleDomain<ColumnHandle> tupleDomain,
-                                              OffloadPolicies offloadPolicies)
+                                              OffloadPoliciesImpl offloadPolicies)
             throws ManagedLedgerException, InterruptedException, IOException {
 
         ReadOnlyCursor readOnlyCursor = null;

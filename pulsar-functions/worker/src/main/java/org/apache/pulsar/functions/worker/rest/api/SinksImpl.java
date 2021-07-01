@@ -18,13 +18,32 @@
  */
 package org.apache.pulsar.functions.worker.rest.api;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
+import static org.apache.pulsar.functions.utils.FunctionCommon.isFunctionCodeBuiltin;
+import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
+
 import com.google.protobuf.ByteString;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Supplier;
+import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.common.functions.UpdateOptions;
+import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.io.ConfigFieldDefinition;
 import org.apache.pulsar.common.io.ConnectorDefinition;
@@ -45,22 +64,6 @@ import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.service.api.Sinks;
 import org.apache.pulsar.packages.management.core.common.PackageType;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
-
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.Response;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URI;
-import java.nio.file.Files;
-import java.util.*;
-import java.util.function.Supplier;
-
-import static org.apache.commons.lang3.StringUtils.isBlank;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
-import static org.apache.pulsar.functions.utils.FunctionCommon.isFunctionCodeBuiltin;
-import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
 
 @Slf4j
 public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerService> {
@@ -101,7 +104,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
                 log.warn("{}/{}/{} Client [{}] is not authorized to register {}", tenant, namespace,
                         sinkName, clientRole, ComponentTypeUtils.toString(componentType));
-                throw new RestException(Response.Status.UNAUTHORIZED, "client is not authorize to perform operation");
+                throw new RestException(Response.Status.UNAUTHORIZED, "Client is not authorized to perform operation");
             }
         } catch (PulsarAdminException e) {
             log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, sinkName, e);
@@ -125,7 +128,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
         } catch (PulsarAdminException.NotAuthorizedException e) {
             log.error("{}/{}/{} Client [{}] is not authorized to operate {} on tenant", tenant, namespace,
                     sinkName, clientRole, ComponentTypeUtils.toString(componentType));
-            throw new RestException(Response.Status.UNAUTHORIZED, "client is not authorize to perform operation");
+            throw new RestException(Response.Status.UNAUTHORIZED, "Client is not authorized to perform operation");
         } catch (PulsarAdminException.NotFoundException e) {
             log.error("{}/{}/{} Tenant {} does not exist", tenant, namespace, sinkName, tenant);
             throw new RestException(Response.Status.BAD_REQUEST, "Tenant does not exist");
@@ -249,7 +252,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
                            final SinkConfig sinkConfig,
                            final String clientRole,
                            AuthenticationDataHttps clientAuthenticationDataHttps,
-                           UpdateOptions updateOptions) {
+                           UpdateOptionsImpl updateOptions) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
@@ -272,7 +275,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
                 log.warn("{}/{}/{} Client [{}] is not authorized to update {}", tenant, namespace,
                         sinkName, clientRole, ComponentTypeUtils.toString(componentType));
-                throw new RestException(Response.Status.UNAUTHORIZED, "client is not authorize to perform operation");
+                throw new RestException(Response.Status.UNAUTHORIZED, "Client is not authorized to perform operation");
 
             }
         } catch (PulsarAdminException e) {
@@ -739,14 +742,11 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
         return SinkConfigUtils.convert(sinkConfig, sinkDetails);
     }
 
-
     private static boolean hasPackageTypePrefix(String destPkgUrl) {
         return Arrays.stream(PackageType.values()).anyMatch(type -> destPkgUrl.startsWith(type.toString()));
     }
 
     private File downloadPackageFile(String packageName) throws IOException, PulsarAdminException {
-        File file = Files.createTempFile("function", ".tmp").toFile();
-        worker().getBrokerAdmin().packages().download(packageName, file.toString());
-        return file;
+        return FunctionsImpl.downloadPackageFile(worker(), packageName);
     }
 }

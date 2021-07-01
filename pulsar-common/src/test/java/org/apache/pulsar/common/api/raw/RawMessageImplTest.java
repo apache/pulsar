@@ -18,26 +18,35 @@
  */
 package org.apache.pulsar.common.api.raw;
 
-import junit.framework.TestCase;
+import io.netty.buffer.ByteBuf;
 import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
+import org.mockito.Mockito;
+import org.testng.annotations.Test;
 
 import java.util.Map;
 
-public class RawMessageImplTest extends TestCase {
+import static org.testng.Assert.assertEquals;
+
+public class RawMessageImplTest {
 
     private static final String HARD_CODE_KEY = "__pfn_input_topic__";
     private static final String KEY_VALUE_FIRST= "persistent://first-tenant-value/first-namespace-value/first-topic-value";
     private static final String KEY_VALUE_SECOND = "persistent://second-tenant-value/second-namespace-value/second-topic-value";
     private static final String HARD_CODE_KEY_ID = "__pfn_input_msg_id__";
     private static final String HARD_CODE_KEY_ID_VALUE  = "__pfn_input_msg_id_value__";
+
+    @Test
     public void testGetProperties() {
-        ReferenceCountedMessageMetadata refCntMsgMetadata = ReferenceCountedMessageMetadata.get();
+        ReferenceCountedMessageMetadata refCntMsgMetadata =
+                ReferenceCountedMessageMetadata.get(Mockito.mock(ByteBuf.class));
         SingleMessageMetadata singleMessageMetadata = new SingleMessageMetadata();
         singleMessageMetadata.addProperty().setKey(HARD_CODE_KEY).setValue(KEY_VALUE_FIRST);
         singleMessageMetadata.addProperty().setKey(HARD_CODE_KEY).setValue(KEY_VALUE_SECOND);
         singleMessageMetadata.addProperty().setKey(HARD_CODE_KEY_ID).setValue(HARD_CODE_KEY_ID_VALUE);
         RawMessage msg = RawMessageImpl.get(refCntMsgMetadata, singleMessageMetadata, null , 0, 0, 0);
         Map<String, String> properties = msg.getProperties();
+        assertEquals(properties.get(HARD_CODE_KEY), KEY_VALUE_SECOND);
+        assertEquals(properties.get(HARD_CODE_KEY_ID), HARD_CODE_KEY_ID_VALUE);
         assertEquals(KEY_VALUE_SECOND, properties.get(HARD_CODE_KEY));
         assertEquals(HARD_CODE_KEY_ID_VALUE, properties.get(HARD_CODE_KEY_ID));
     }

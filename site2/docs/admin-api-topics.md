@@ -4,6 +4,16 @@ title: Manage topics
 sidebar_label: Topics
 ---
 
+> **Important**
+>
+> This page only shows **some frequently used operations**.
+>
+> - For the latest and complete information about `pulsar-admin`, including commands, flags, descriptions, and more, see [pulsar-admin doc](https://pulsar.apache.org/tools/pulsar-admin/).
+> 
+> - For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see [REST API doc]{@inject: rest:REST:/}.
+> 
+> - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](https://pulsar.apache.org/api/admin/).
+
 Pulsar has persistent and non-persistent topics. Persistent topic is a logical endpoint for publishing and consuming messages. The topic name structure for persistent topics is:
 
 ```shell
@@ -1019,6 +1029,8 @@ admin.topics().getList(namespace);
 
 You can check the current statistics of a given partitioned topic. The following is an example. For description of each stats, refer to [get stats](#get-stats).
 
+Note that in the subscription JSON object, `chuckedMessageRate` is deprecated. Please use `chunkedMessageRate`. Both will be sent in the JSON for now.
+
 ```json
 {
   "msgRateIn" : 999.992947159793,
@@ -1048,6 +1060,7 @@ You can check the current statistics of a given partitioned topic. The following
       "msgOutCounter" : 0,
       "msgRateRedeliver" : 0.0,
       "chuckedMessageRate" : 0,
+      "chunkedMessageRate" : 0,
       "msgBacklog" : 144318,
       "msgBacklogNoDelayed" : 144318,
       "blockedSubscriptionOnUnackedMsgs" : false,

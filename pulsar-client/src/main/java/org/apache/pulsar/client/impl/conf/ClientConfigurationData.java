@@ -20,7 +20,12 @@ package org.apache.pulsar.client.impl.conf;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Sets;
+
+import java.net.InetSocketAddress;
+import java.net.URI;
 import java.time.Clock;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -79,6 +84,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private int requestTimeoutMs = 60000;
     private long initialBackoffIntervalNanos = TimeUnit.MILLISECONDS.toNanos(100);
     private long maxBackoffIntervalNanos = TimeUnit.SECONDS.toNanos(60);
+    private boolean enableBusyWait = false;
     //
     private String listenerName;
 
@@ -104,9 +110,14 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     @JsonIgnore
     private Clock clock = Clock.systemDefaultZone();
 
+    // socks5
+    private InetSocketAddress socks5ProxyAddress;
+    private String socks5ProxyUsername;
+    private String socks5ProxyPassword;
+
     public Authentication getAuthentication() {
         if (authentication == null) {
-            this.authentication = new AuthenticationDisabled();
+            this.authentication = AuthenticationDisabled.INSTANCE;
         }
         return authentication;
     }
@@ -132,5 +143,26 @@ public class ClientConfigurationData implements Serializable, Cloneable {
         }
     }
 
+    public InetSocketAddress getSocks5ProxyAddress() {
+        if (Objects.nonNull(socks5ProxyAddress)) {
+            return socks5ProxyAddress;
+        }
+        String proxyAddress = System.getProperty("socks5Proxy.address");
+        return Optional.ofNullable(proxyAddress).map(address -> {
+            try {
+                URI uri = URI.create(address);
+                return new InetSocketAddress(uri.getHost(), uri.getPort());
+            } catch (Exception e) {
+                throw new RuntimeException("Invalid config [socks5Proxy.address]", e);
+            }
+        }).orElse(null);
+    }
 
+    public String getSocks5ProxyUsername() {
+        return Objects.nonNull(socks5ProxyUsername) ? socks5ProxyUsername : System.getProperty("socks5Proxy.username");
+    }
+
+    public String getSocks5ProxyPassword() {
+        return Objects.nonNull(socks5ProxyPassword) ? socks5ProxyPassword : System.getProperty("socks5Proxy.password");
+    }
 }

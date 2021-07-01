@@ -18,11 +18,13 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
+import com.google.protobuf.DynamicMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.ProtobufNativeSchema;
 import org.apache.pulsar.client.schema.proto.Test.TestMessage;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -64,8 +66,20 @@ public class GenericProtobufNativeReaderTest {
         assertEquals(genericRecordByWriterSchema.getField("doubleField"), DOUBLE_FIELD_VLUE);
 
     }
+    @Test
+    public void testGetNativeRecord() {
+        message = TestMessage.newBuilder().setStringField(STRING_FIELD_VLUE).setDoubleField(DOUBLE_FIELD_VLUE).build();
+        GenericProtobufNativeReader genericProtobufNativeReader = new GenericProtobufNativeReader(genericProtobufNativeSchema.getProtobufNativeSchema());
+        GenericRecord record = genericProtobufNativeReader.read(message.toByteArray());
+        assertEquals(record.getField("stringField"), STRING_FIELD_VLUE);
+        assertEquals(record.getField("doubleField"), DOUBLE_FIELD_VLUE);
+        assertEquals(SchemaType.PROTOBUF_NATIVE, record.getSchemaType());
+        DynamicMessage nativeRecord = (DynamicMessage) record.getNativeObject();
+        assertEquals(nativeRecord.getField(nativeRecord.getDescriptorForType().findFieldByName("stringField")), STRING_FIELD_VLUE);
+        assertEquals(nativeRecord.getField(nativeRecord.getDescriptorForType().findFieldByName("doubleField")), DOUBLE_FIELD_VLUE);
+    }
 
-    private final static String STRING_FIELD_VLUE = "stringFieldValue";
-    private final static double DOUBLE_FIELD_VLUE = 0.2D;
+    private static final String STRING_FIELD_VLUE = "stringFieldValue";
+    private static final double DOUBLE_FIELD_VLUE = 0.2D;
 
 }

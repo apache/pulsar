@@ -23,7 +23,18 @@ import io.netty.buffer.ByteBuf;
 import io.prestosql.decoder.DecoderColumnHandle;
 import io.prestosql.decoder.FieldValueProvider;
 import io.prestosql.spi.PrestoException;
-import io.prestosql.spi.type.*;
+import io.prestosql.spi.type.ArrayType;
+import io.prestosql.spi.type.BigintType;
+import io.prestosql.spi.type.RowType;
+import io.prestosql.spi.type.StandardTypes;
+import io.prestosql.spi.type.Type;
+import io.prestosql.spi.type.TypeSignatureParameter;
+import io.prestosql.spi.type.VarcharType;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericAvroRecord;
 import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
@@ -37,7 +48,6 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
-import java.util.*;
 
 import static io.prestosql.spi.type.BigintType.BIGINT;
 import static io.prestosql.spi.type.BooleanType.BOOLEAN;
@@ -140,12 +150,12 @@ public class TestAvroDecoder extends AbstractDecoderTester {
 
         Map<DecoderColumnHandle, FieldValueProvider> decodedRow = pulsarRowDecoder.decodeRow(payload).get();
         RowType columnType = RowType.from(ImmutableList.<RowType.Field>builder()
-                .add(RowType.field("stringField", VARCHAR))
                 .add(RowType.field("intField", INTEGER))
                 .add(RowType.field("nestedRow", RowType.from(ImmutableList.<RowType.Field>builder()
-                        .add(RowType.field("stringField", VARCHAR))
                         .add(RowType.field("longField", BIGINT))
+                        .add(RowType.field("stringField", VARCHAR))
                         .build())))
+                .add(RowType.field("stringField", VARCHAR))
                 .build());
 
         PulsarColumnHandle columnHandle = new PulsarColumnHandle(getPulsarConnectorId().toString(),
@@ -244,23 +254,23 @@ public class TestAvroDecoder extends AbstractDecoderTester {
         Map<DecoderColumnHandle, FieldValueProvider> decodedRow = pulsarRowDecoder.decodeRow(payload).get();
 
         RowType columnType = RowType.from(ImmutableList.<RowType.Field>builder()
-                .add(RowType.field("stringField", VARCHAR))
                 .add(RowType.field("arrayField", new ArrayType(
                         RowType.from(ImmutableList.<RowType.Field>builder()
-                                .add(RowType.field("stringField", VARCHAR))
                                 .add(RowType.field("longField", BIGINT))
+                                .add(RowType.field("stringField", VARCHAR))
                                 .build()))))
                 .add(RowType.field("mapField", decoderFactory.getTypeManager().getParameterizedType(StandardTypes.MAP,
                         ImmutableList.of(TypeSignatureParameter.typeParameter(VarcharType.VARCHAR.getTypeSignature()),
                                 TypeSignatureParameter.typeParameter(RowType.from(ImmutableList.<RowType.Field>builder()
-                                        .add(RowType.field("stringField", VARCHAR))
                                         .add(RowType.field("longField", BIGINT))
+                                        .add(RowType.field("stringField", VARCHAR))
                                         .build()).getTypeSignature())
                         ))))
                 .add(RowType.field("nestedRow", RowType.from(ImmutableList.<RowType.Field>builder()
-                        .add(RowType.field("stringField", VARCHAR))
                         .add(RowType.field("longField", BIGINT))
+                        .add(RowType.field("stringField", VARCHAR))
                         .build())))
+                .add(RowType.field("stringField", VARCHAR))
                 .add(RowType.field("structedField",
                         decoderFactory.getTypeManager().getParameterizedType(StandardTypes.MAP,
                                 ImmutableList.of(TypeSignatureParameter.typeParameter(VarcharType.VARCHAR.getTypeSignature()),

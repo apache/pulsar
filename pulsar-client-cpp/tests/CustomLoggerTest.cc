@@ -17,9 +17,9 @@
  * under the License.
  */
 #include <pulsar/Client.h>
+#include <pulsar/ConsoleLoggerFactory.h>
 #include <LogUtils.h>
 #include <gtest/gtest.h>
-#include <lib/SimpleLoggerImpl.h>
 #include <thread>
 
 using namespace pulsar;
@@ -66,4 +66,34 @@ TEST(CustomLoggerTest, testCustomLogger) {
     client.close();
     // custom logger didn't get any new lines
     ASSERT_EQ(logLines.size(), 2);
+}
+
+TEST(CustomLoggerTest, testConsoleLoggerFactory) {
+    std::unique_ptr<ConsoleLoggerFactory> factory(new ConsoleLoggerFactory);
+    std::unique_ptr<Logger> logger(factory->getLogger(__FILE__));
+    ASSERT_FALSE(logger->isEnabled(Logger::LEVEL_DEBUG));
+    ASSERT_TRUE(logger->isEnabled(Logger::LEVEL_INFO));
+    ASSERT_TRUE(logger->isEnabled(Logger::LEVEL_WARN));
+    ASSERT_TRUE(logger->isEnabled(Logger::LEVEL_ERROR));
+
+    factory.reset(new ConsoleLoggerFactory(Logger::LEVEL_DEBUG));
+    logger.reset(factory->getLogger(__FILE__));
+    ASSERT_TRUE(logger->isEnabled(Logger::LEVEL_DEBUG));
+    ASSERT_TRUE(logger->isEnabled(Logger::LEVEL_INFO));
+    ASSERT_TRUE(logger->isEnabled(Logger::LEVEL_WARN));
+    ASSERT_TRUE(logger->isEnabled(Logger::LEVEL_ERROR));
+
+    factory.reset(new ConsoleLoggerFactory(Logger::LEVEL_WARN));
+    logger.reset(factory->getLogger(__FILE__));
+    ASSERT_FALSE(logger->isEnabled(Logger::LEVEL_DEBUG));
+    ASSERT_FALSE(logger->isEnabled(Logger::LEVEL_INFO));
+    ASSERT_TRUE(logger->isEnabled(Logger::LEVEL_WARN));
+    ASSERT_TRUE(logger->isEnabled(Logger::LEVEL_ERROR));
+
+    factory.reset(new ConsoleLoggerFactory(Logger::LEVEL_ERROR));
+    logger.reset(factory->getLogger(__FILE__));
+    ASSERT_FALSE(logger->isEnabled(Logger::LEVEL_DEBUG));
+    ASSERT_FALSE(logger->isEnabled(Logger::LEVEL_INFO));
+    ASSERT_FALSE(logger->isEnabled(Logger::LEVEL_WARN));
+    ASSERT_TRUE(logger->isEnabled(Logger::LEVEL_ERROR));
 }

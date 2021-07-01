@@ -32,6 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
@@ -40,6 +41,8 @@ import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotSeal
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionSealedException;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionStatusException;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.policies.data.TransactionBufferStats;
+import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 
@@ -207,9 +210,10 @@ class InMemTransactionBuffer implements TransactionBuffer {
 
     final ConcurrentMap<TxnID, TxnBuffer> buffers;
     final Map<Long, Set<TxnID>> txnIndex;
-    public InMemTransactionBuffer() {
+    public InMemTransactionBuffer(Topic topic, CompletableFuture<Void> transactionBufferFuture) {
         this.buffers = new ConcurrentHashMap<>();
         this.txnIndex = new HashMap<>();
+        transactionBufferFuture.complete(null);
     }
 
     @Override
@@ -360,6 +364,16 @@ class InMemTransactionBuffer implements TransactionBuffer {
     @Override
     public PositionImpl getMaxReadPosition() {
         return PositionImpl.latest;
+    }
+
+    @Override
+    public TransactionInBufferStats getTransactionInBufferStats(TxnID txnID) {
+        return null;
+    }
+
+    @Override
+    public TransactionBufferStats getStats() {
+        return null;
     }
 
 }
