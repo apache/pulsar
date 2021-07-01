@@ -121,7 +121,9 @@ int|`connectionTimeoutMs`|Duration of waiting for a connection to a broker to be
 int|`requestTimeoutMs`|Maximum duration for completing a request |60000
 int|`defaultBackoffIntervalNanos`| Default duration for a backoff interval | TimeUnit.MILLISECONDS.toNanos(100);
 long|`maxBackoffIntervalNanos`|Maximum duration for a backoff interval|TimeUnit.SECONDS.toNanos(30)
-
+SocketAddress|`socks5ProxyAddress`|SOCKS5 proxy address | None
+String|`socks5ProxyUsername`|SOCKS5 proxy username | None
+String|`socks5ProxyPassword`|SOCKS5 proxy password | None
 Check out the Javadoc for the {@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient} class for a full list of configurable parameters.
 
 > In addition to client-level configuration, you can also apply [producer](#configuring-producers) and [consumer](#configuring-consumers) specific configuration as described in sections below.
