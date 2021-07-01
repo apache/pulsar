@@ -181,7 +181,7 @@ You need to create a configuration file before using the Pulsar Debezium connect
 
 ### Configuration
 
-You can use one of the following methods to create a configuration file.
+You can use one of the following methods to create a configuration file. *decoderbufs* is the default logical decoding output plug-in in Pulsar Debezium connector, you can change the the logical decoding by parameter *plugin.name* ,more about *plugin.name* information click [here](https://debezium.io/documentation/reference/1.6/connectors/postgresql.html)
 
 * JSON 
 
@@ -194,6 +194,7 @@ You can use one of the following methods to create a configuration file.
         "database.dbname": "postgres",
         "database.server.name": "dbserver1",
         "schema.whitelist": "inventory",
+        "plugin.name": "pgoutput",
         "pulsar.service.url": "pulsar://127.0.0.1:6650"
     }
     ```
@@ -220,6 +221,7 @@ You can use one of the following methods to create a configuration file.
         database.dbname: "postgres"
         database.server.name: "dbserver1"
         schema.whitelist: "inventory"
+         "plugin.name": "pgoutput",
 
         ## PULSAR_SERVICE_URL_CONFIG
         pulsar.service.url: "pulsar://127.0.0.1:6650"
