@@ -540,10 +540,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
             if (e == null && has) {
                 CompletableFuture<Message<Schemas.PersonOne>> future = reader.readNextAsync();
                 // Make sure the future completed
-                try {
-                    Thread.sleep(50);
-                } catch (Exception ignore) {
-                }
+                Awaitility.await().pollInterval(1, TimeUnit.MILLISECONDS).untilAsserted(future::isDone);
                 future.whenComplete((msg, ex) -> {
                     if (ex == null) {
                         received.add(msg.getValue());
