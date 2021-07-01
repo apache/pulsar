@@ -186,7 +186,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         Assert.assertFalse(future.isCompletedExceptionally());
         future.get();
         //wait for close
-        Awaitility.waitAtMost(Duration.ofDays(2000));
+        Awaitility.waitAtMost(Duration.ofMillis(2000));
         List<String> subscriptions = admin.topics().getSubscriptions(topicName);
         Assert.assertNotNull(subscriptions);
         Assert.assertEquals(subscriptions.size(), 1);
