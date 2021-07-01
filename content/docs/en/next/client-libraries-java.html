@@ -165,6 +165,9 @@ dependencies {
 <tr><td>int</td><td><code>requestTimeoutMs</code></td><td>Maximum duration for completing a request</td><td>60000</td></tr>
 <tr><td>int</td><td><code>defaultBackoffIntervalNanos</code></td><td>Default duration for a backoff interval</td><td>TimeUnit.MILLISECONDS.toNanos(100);</td></tr>
 <tr><td>long</td><td><code>maxBackoffIntervalNanos</code></td><td>Maximum duration for a backoff interval</td><td>TimeUnit.SECONDS.toNanos(30)</td></tr>
+<tr><td>SocketAddress</td><td><code>socks5ProxyAddress</code></td><td>SOCKS5 proxy address</td><td>None</td></tr>
+<tr><td>String</td><td><code>socks5ProxyUsername</code></td><td>SOCKS5 proxy username</td><td>None</td></tr>
+<tr><td>String</td><td><code>socks5ProxyPassword</code></td><td>SOCKS5 proxy password</td><td>None</td></tr>
 </tbody>
 </table>
 <p>Check out the Javadoc for the <a href="https://pulsar.incubator.apache.org/api/client/2.8.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
