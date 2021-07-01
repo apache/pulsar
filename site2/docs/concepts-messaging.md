@@ -149,12 +149,12 @@ Messages can be acknowledged in the following two ways:
 - Messages are acknowledged individually. With individual acknowledgement, the consumer needs to acknowledge each message and sends an acknowledgement request to the broker.
 - Messages are acknowledged cumulatively. With cumulative acknowledgement, the consumer only needs to acknowledge the last message it received. All messages in the stream up to (and including) the provided message are not re-delivered to that consumer.
 
-The following example shows how to call the API With individual acknowledgement:
+If you want to acknowledge messages individually, you can use the following API.
 
 ```java
 consumer.acknowledge(msg);
 ```
-If you are going to acknowledge messages cumulatively, you can use the following API:
+If you want to acknowledge messages cumulatively, you can use the following API.
 ```java
 consumer.acknowledgeCumulative(msg);
 ```
@@ -175,7 +175,7 @@ In the shared and Key_Shared subscription modes, you can negatively acknowledge 
 
 Be aware that negative acknowledgment on ordered subscription types, such as Exclusive, Failover and Key_Shared, can cause failed messages to arrive consumers out of the original order.
 
-The following example shows how to call the API :
+If you want to acknowledge messages negatively, you can use the following API.
 
 ```java
 //With calling this api, messages are negatively acknowledged 
@@ -260,7 +260,7 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
                 .subscribe();
 ```
 
-The following example shows how to call the API to put messages into the retrial queue:
+If you want to put messages into a retrial queue, you can use the following API.
 
 ```java
 consumer.reconsumeLater(msg,3,TimeUnit.SECONDS);
