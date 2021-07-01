@@ -19,16 +19,12 @@
 package org.apache.pulsar.common.policies.data;
 
 import java.util.Map;
-import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 
 /**
- * Statistics for a partitioned topic.
+ * Statistics for a non-persistent partitioned topic.
  */
-public interface PartitionedTopicStats extends TopicStats {
+public interface NonPersistentPartitionedTopicStats extends PartitionedTopicStats{
+    Map<String, ? extends NonPersistentTopicStats> getPartitions();
 
-    PartitionedTopicMetadata getMetadata();
-
-    Map<String, ? extends TopicStats> getPartitions();
-
-    TopicStats add(TopicStats ts);
+    NonPersistentTopicStats add(NonPersistentTopicStats ts);
 }

@@ -1031,6 +1031,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                     + "not to use when there's heavy traffic.")
             @QueryParam("subscriptionBacklogSize") @DefaultValue("false") boolean subscriptionBacklogSize) {
         try {
+            System.out.println("&&&&&&&&&&&&&&&&&");
             validatePartitionedTopicName(tenant, namespace, encodedTopic);
             internalGetPartitionedStats(asyncResponse, authoritative, perPartition, getPreciseBacklog,
                     subscriptionBacklogSize);

@@ -20,15 +20,11 @@ package org.apache.pulsar.common.policies.data.stats;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import lombok.AccessLevel;
-import lombok.Data;
 import lombok.Getter;
 import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
 import org.apache.pulsar.common.policies.data.NonPersistentReplicatorStats;
 import org.apache.pulsar.common.policies.data.NonPersistentSubscriptionStats;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
-import org.apache.pulsar.common.policies.data.PublisherStats;
-import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -107,15 +103,70 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
 
     public void reset() {
         super.reset();
+        this.nonPersistentPublishers.clear();
+        this.nonPersistentSubscriptions.clear();
+        this.nonPersistentReplicators.clear();
         this.msgDropRate = 0;
     }
 
     // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current
     // stats.
-    public NonPersistentTopicStatsImpl add(NonPersistentTopicStatsImpl stats) {
+    public NonPersistentTopicStatsImpl add(NonPersistentTopicStats ts) {
+        NonPersistentTopicStatsImpl stats = (NonPersistentTopicStatsImpl) ts;
         Objects.requireNonNull(stats);
         super.add(stats);
         this.msgDropRate += stats.msgDropRate;
+
+        if (this.getNonPersistentPublishers().size() != stats.getNonPersistentPublishers().size()) {
+            for (int i = 0; i < stats.getNonPersistentPublishers().size(); i++) {
+                NonPersistentPublisherStatsImpl publisherStats = new NonPersistentPublisherStatsImpl();
+                this.getNonPersistentPublishers().add(publisherStats
+                        .add((NonPersistentPublisherStatsImpl) stats.getNonPersistentPublishers().get(i)));
+            }
+        } else {
+            for (int i = 0; i < stats.getNonPersistentPublishers().size(); i++) {
+                ((NonPersistentPublisherStatsImpl) this.getNonPersistentPublishers().get(i))
+                        .add((NonPersistentPublisherStatsImpl) stats.getNonPersistentPublishers().get(i));
+            }
+        }
+
+        if (this.getNonPersistentSubscriptions().size() != stats.getNonPersistentSubscriptions().size()) {
+            for (String subscription : stats.getNonPersistentSubscriptions().keySet()) {
+                NonPersistentSubscriptionStatsImpl subscriptionStats = new NonPersistentSubscriptionStatsImpl();
+                this.getNonPersistentSubscriptions().put(subscription, subscriptionStats
+                        .add((NonPersistentSubscriptionStatsImpl) stats.getNonPersistentSubscriptions().get(subscription)));
+            }
+        } else {
+            for (String subscription : stats.getNonPersistentSubscriptions().keySet()) {
+                if (this.getNonPersistentSubscriptions().get(subscription) != null) {
+                    ((NonPersistentSubscriptionStatsImpl) this.getNonPersistentSubscriptions().get(subscription))
+                          .add((NonPersistentSubscriptionStatsImpl) stats.getNonPersistentSubscriptions().get(subscription));
+                } else {
+                    NonPersistentSubscriptionStatsImpl subscriptionStats = new NonPersistentSubscriptionStatsImpl();
+                    this.getNonPersistentSubscriptions().put(subscription, subscriptionStats
+                         .add((NonPersistentSubscriptionStatsImpl) stats.getNonPersistentSubscriptions().get(subscription)));
+                }
+            }
+        }
+
+        if (this.getNonPersistentReplicators().size() != stats.getNonPersistentReplicators().size()) {
+            for (String repl : stats.getNonPersistentReplicators().keySet()) {
+                NonPersistentReplicatorStatsImpl replStats = new NonPersistentReplicatorStatsImpl();
+                this.getNonPersistentReplicators().put(repl, replStats
+                        .add((NonPersistentReplicatorStatsImpl) stats.getNonPersistentReplicators().get(repl)));
+            }
+        } else {
+            for (String repl : stats.getNonPersistentReplicators().keySet()) {
+                if (this.getNonPersistentReplicators().get(repl) != null) {
+                    ((NonPersistentReplicatorStatsImpl) this.getNonPersistentReplicators().get(repl))
+                            .add((NonPersistentReplicatorStatsImpl) stats.getNonPersistentReplicators().get(repl));
+                } else {
+                    NonPersistentReplicatorStatsImpl replStats = new NonPersistentReplicatorStatsImpl();
+                    this.getNonPersistentReplicators().put(repl, replStats
+                            .add((NonPersistentReplicatorStatsImpl) stats.getNonPersistentReplicators().get(repl)));
+                }
+            }
+        }
         return this;
     }
 

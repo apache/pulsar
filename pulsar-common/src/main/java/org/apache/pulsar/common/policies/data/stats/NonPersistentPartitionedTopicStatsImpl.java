@@ -19,33 +19,35 @@
 package org.apache.pulsar.common.policies.data.stats;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import java.util.HashMap;
-import java.util.Map;
 import lombok.Getter;
 import lombok.ToString;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
-import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
+import org.apache.pulsar.common.policies.data.NonPersistentPartitionedTopicStats;
+import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
- * Statistics for a partitioned topic.
+ * Statistics for a non-persistent partitioned topic.
  */
 @SuppressFBWarnings("EQ_DOESNT_OVERRIDE_EQUALS")
-public class PartitionedTopicStatsImpl extends TopicStatsImpl implements PartitionedTopicStats {
+public class NonPersistentPartitionedTopicStatsImpl extends NonPersistentTopicStatsImpl
+        implements NonPersistentPartitionedTopicStats {
 
     @Getter
     public PartitionedTopicMetadata metadata;
 
+    public Map<String, NonPersistentTopicStatsImpl> partitions;
 
-    public Map<String, TopicStatsImpl> partitions;
-
-    public PartitionedTopicStatsImpl() {
+    public NonPersistentPartitionedTopicStatsImpl() {
         super();
         metadata = new PartitionedTopicMetadata();
         partitions = new HashMap<>();
     }
 
-    public PartitionedTopicStatsImpl(PartitionedTopicMetadata metadata) {
+    public NonPersistentPartitionedTopicStatsImpl(PartitionedTopicMetadata metadata) {
         this();
         this.metadata = metadata;
     }
@@ -58,7 +60,7 @@ public class PartitionedTopicStatsImpl extends TopicStatsImpl implements Partiti
     }
 
     @Override
-    public Map<String, TopicStatsImpl> getPartitions() {
+    public Map<String, NonPersistentTopicStatsImpl> getPartitions() {
         return partitions;
     }
 }

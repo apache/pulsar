@@ -72,6 +72,7 @@ import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
+import org.apache.pulsar.common.policies.data.NonPersistentPartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
@@ -848,6 +849,51 @@ public class TopicsImpl extends BaseResource implements Topics {
 
                     @Override
                     public void completed(PartitionedTopicStats response) {
+                        if (!perPartition) {
+                            response.getPartitions().clear();
+                        }
+                        future.complete(response);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
+    public NonPersistentPartitionedTopicStats getPartitionedStatsNonPersistent(String topic, boolean perPartition, boolean getPreciseBacklog,
+                                                                               boolean subscriptionBacklogSize)
+            throws PulsarAdminException {
+        try {
+            return getPartitionedStatsNonPersistentAsync(topic, perPartition, getPreciseBacklog, subscriptionBacklogSize)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<NonPersistentPartitionedTopicStats> getPartitionedStatsNonPersistentAsync(String topic,
+                                                                             boolean perPartition, boolean getPreciseBacklog, boolean subscriptionBacklogSize) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "partitioned-stats");
+        path = path.queryParam("perPartition", perPartition)
+                .queryParam("getPreciseBacklog", getPreciseBacklog)
+                .queryParam("subscriptionBacklogSize", subscriptionBacklogSize);
+        final CompletableFuture<NonPersistentPartitionedTopicStats> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<NonPersistentPartitionedTopicStats>() {
+
+                    @Override
+                    public void completed(NonPersistentPartitionedTopicStats response) {
                         if (!perPartition) {
                             response.getPartitions().clear();
                         }
