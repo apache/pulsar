@@ -440,13 +440,14 @@ public class PersistentSubscription implements Subscription {
                                                         AckType.Individual, properties);
                                             } else {
                                                 synchronized (waitObject) {
-                                                    if (deleteTransactionMarkerState ==
-                                                            DeleteTransactionMarkerState.Wait) {
+                                                    if (deleteTransactionMarkerState
+                                                            == DeleteTransactionMarkerState.Wait) {
                                                         deleteTransactionMarkerState =
                                                                 DeleteTransactionMarkerState.None;
                                                         deleteTransactionMarker(properties);
                                                     } else {
-                                                        deleteTransactionMarkerState = DeleteTransactionMarkerState.None;
+                                                        deleteTransactionMarkerState =
+                                                                DeleteTransactionMarkerState.None;
                                                     }
                                                 }
                                             }
