@@ -78,13 +78,25 @@
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar管理界面</h1></header><article><div><span><p>Pulsar 管理界面允许你管理 Pulsar 实例中的所有重要实体，例如租户（Tenant）、主题（Topic）和命名空间（Namespace）。</p>
 <p>你可以通过以下方式和管理界面交互：</p>
 <ul>
-<li><p>通过HTTP请求调用由 Pulsar Broker 提供的管理API <a href="https://pulsar.incubator.apache.org/admin-rest-api#/">REST</a>
- 对于某些RESTful风格接口，他们可能因<a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/307"><code>307 Temporary Redirect</code></a>被重定向到可以提供服务的所有者的Broker上，因此HTTP调用发起方需要能够处理<code>307 Temporary Redirect</code>返回。 如果你使用 <code>curl</code> 命令行，则应该指定 <code>-L</code> 来允许处理重定向。</p></li>
-<li><p>Java客户端接口。</p></li>
 <li><p><code>pulsar-admin</code> 命令行工具，它在 Pulsar 安装目录的 <code>bin</code> 文件夹中。</p>
-<pre><code class="hljs css language-shell"><span class="hljs-meta"> $</span><span class="bash"> bin/pulsar-admin</span>
+<pre><code class="hljs css language-shell">bin/pulsar-admin
 </code></pre>
-<p>关于 <code>pulsar-admin</code> 工具的完整命令，见 <a href="http://pulsar.apache.org/tools/pulsar-admin/">Pulsar admin snapshot</a>。</p></li>
+<blockquote>
+<p><strong>Important</strong></p>
+<p>For the latest and complete information about Java admin API, including commands, flags, descriptions, and more, see <a href="https://pulsar.apache.org/tools/pulsar-admin/">here</a>.</p>
+</blockquote></li>
+<li><p>通过HTTP请求调用由 Pulsar Broker 提供的管理API <a href="https://pulsar.incubator.apache.org/admin-rest-api#/">REST</a>
+ 对于某些RESTful风格接口，他们可能因<a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/307"><code>307 Temporary Redirect</code></a>被重定向到可以提供服务的所有者的Broker上，因此HTTP调用发起方需要能够处理<code>307 Temporary Redirect</code>返回。 如果你使用 <code>curl</code> 命令行，则应该指定 <code>-L</code> 来允许处理重定向。</p>
+<blockquote>
+<p><strong>Important</strong></p>
+<p>For the latest and complete information about REST API, including parameters, responses, samples, and more, see [REST API doc]<a href="https://pulsar.incubator.apache.org/admin-rest-api#/">REST</a>
+.</p>
+</blockquote></li>
+<li><p>Java客户端接口。</p>
+<blockquote>
+<p><strong>Important</strong></p>
+<p>For the latest and complete information about Java admin API, including classes, methods, descriptions, and more, see <a href="https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/">Java admin API doc</a>.</p>
+</blockquote></li>
 </ul>
 <blockquote>
 <p><strong>REST接口是底层的管理界面</strong>。 实际上，<code>pulsar-admin</code> 命令行工具和Java客户端都使用的是REST接口来完成工作。 如果你想要实现自定义的管理客户端，那么你也应该调用REST接口。</p>

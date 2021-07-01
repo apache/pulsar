@@ -99,7 +99,7 @@
 <p>As stated in <a href="#geo-replication-and-pulsar-properties">Geo-replication and Pulsar properties</a> section, geo-replication in Pulsar is managed at the <a href="/docs/ko/next/reference-terminology#tenant">tenant</a> level.</p>
 <p>The following example connects three clusters: <strong>us-east</strong>, <strong>us-west</strong>, and <strong>us-cent</strong>.</p>
 <h3><a class="anchor" aria-hidden="true" id="connect-replication-clusters"></a><a href="#connect-replication-clusters" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Connect replication clusters</h3>
-<p>To replicate data among clusters, you need to configure each cluster to connect to the other. You can use the <a href="http://pulsar.apache.org/tools/pulsar-admin/"><code>pulsar-admin</code></a> tool to create a connection.</p>
+<p>To replicate data among clusters, you need to configure each cluster to connect to the other. You can use the <a href="https://pulsar.apache.org/tools/pulsar-admin/"><code>pulsar-admin</code></a> tool to create a connection.</p>
 <p><strong>Example</strong></p>
 <p>Suppose that you have 3 replication clusters: <code>us-west</code>, <code>us-cent</code>, and <code>us-east</code>.</p>
 <ol>
@@ -113,7 +113,7 @@
 </code></pre>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="tip"></a><a href="#tip" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
-<p>If you want to use a secure connection for a cluster, you can use the flags <code>--broker-url-secure</code> and <code>--url-secure</code>. For more information, see <a href="http://pulsar.apache.org/tools/pulsar-admin/">pulsar-admin clusters create</a>.</p>
+<p>If you want to use a secure connection for a cluster, you can use the flags <code>--broker-url-secure</code> and <code>--url-secure</code>. For more information, see <a href="https://pulsar.apache.org/tools/pulsar-admin/">pulsar-admin clusters create</a>.</p>
 </blockquote>
 <ol>
 <li><p>Configure the connection from <code>us-west</code> to <code>us-cent</code>.</p>
