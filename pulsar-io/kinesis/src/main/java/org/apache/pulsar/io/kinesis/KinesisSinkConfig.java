@@ -64,6 +64,18 @@ public class KinesisSinkConfig extends BaseKinesisConfig implements Serializable
         help = "A flag to tell Pulsar IO to retain ordering when moving messages from Pulsar to Kinesis")
     private boolean retainOrdering = false;
 
+    @FieldDoc(
+            required = false,
+            defaultValue = "100",
+            help = "The initial delay(in milliseconds) between retries.")
+    private long retryInitialDelayInMillis = 100;
+
+    @FieldDoc(
+            required = false,
+            defaultValue = "60000",
+            help = "The maximum delay(in milliseconds) between retries.")
+    private long retryMaxDelayInMillis = 60000;
+
     public static KinesisSinkConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         return mapper.readValue(new File(yamlFile), KinesisSinkConfig.class);

@@ -449,16 +449,33 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                             return;
                         }
                     }
+
+                    // If the partition number of the partitioned topic having topic level policy is updated,
+                    // the new sub partitions may not inherit the policy of the partition topic.
+                    // We can also check the permission of partitioned topic.
+                    // For https://github.com/apache/pulsar/issues/10300
+                    if (topicName.isPartitioned()) {
+                        topicRoles = policies.get().auth_policies.destination_auth.get(topicName.getPartitionedTopicName());
+                        if (topicRoles != null) {
+                            // Topic has custom policy
+                            Set<AuthAction> topicActions = topicRoles.get(role);
+                            if (topicActions != null && topicActions.contains(action)) {
+                                // The role has topic level permission
+                                permissionFuture.complete(true);
+                                return;
+                            }
+                        }
+                    }
                 }
                 permissionFuture.complete(false);
             }).exceptionally(ex -> {
-                log.warn("Client  with Role - {} failed to get permissions for topic - {}. {}", role, topicName,
+                log.warn("Client with Role - {} failed to get permissions for topic - {}. {}", role, topicName,
                         ex.getMessage());
                 permissionFuture.completeExceptionally(ex);
                 return null;
             });
         } catch (Exception e) {
-            log.warn("Client  with Role - {} failed to get permissions for topic - {}. {}", role, topicName,
+            log.warn("Client with Role - {} failed to get permissions for topic - {}. {}", role, topicName,
                     e.getMessage());
             permissionFuture.completeExceptionally(e);
         }
@@ -564,20 +581,24 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                 break;
             case CONSUME: isAuthorizedFuture = canConsumeAsync(topicName, role, authData, authData.getSubscription());
                 break;
-            default: isAuthorizedFuture = FutureUtil.failedFuture(
-                    new IllegalStateException("TopicOperation is not supported."));
+            default:
+                return FutureUtil.failedFuture(new IllegalStateException("TopicOperation is not supported."));
         }
 
         CompletableFuture<Boolean> isSuperUserFuture = isSuperUser(role, authData, conf);
 
+        // check isSuperUser first
         return isSuperUserFuture
-                .thenCombine(isAuthorizedFuture, (isSuperUser, isAuthorized) -> {
+                .thenCompose(isSuperUser -> {
                     if (log.isDebugEnabled()) {
-                        log.debug("Verify if role {} is allowed to {} to topic {}:"
-                                + " isSuperUser={}, isAuthorized={}",
-                            role, operation, topicName, isSuperUser, isAuthorized);
+                        log.debug("Verify if role {} is allowed to {} to topic {}: isSuperUser={}",
+                                role, operation, topicName, isSuperUser);
                     }
-                    return isSuperUser || isAuthorized;
+                    if (isSuperUser) {
+                        return CompletableFuture.completedFuture(true);
+                    } else {
+                        return isAuthorizedFuture;
+                    }
                 });
     }
 

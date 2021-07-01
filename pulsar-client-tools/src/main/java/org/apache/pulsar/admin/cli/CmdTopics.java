@@ -884,6 +884,17 @@ public class CmdTopics extends CmdBase {
                 System.out.println("Cannot find any messages based on ledgerId:"
                         + ledgerId + " entryId:" + entryId);
             } else {
+                if (message.getMessageId() instanceof BatchMessageIdImpl) {
+                    BatchMessageIdImpl msgId = (BatchMessageIdImpl) message.getMessageId();
+                    System.out.println("Batch Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId() + ":" + msgId.getBatchIndex());
+                } else {
+                    MessageIdImpl msgId = (MessageIdImpl) message.getMessageId();
+                    System.out.println("Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId());
+                }
+                if (message.getProperties().size() > 0) {
+                    System.out.println("Properties:");
+                    print(message.getProperties());
+                }
                 ByteBuf date = Unpooled.wrappedBuffer(message.getData());
                 System.out.println(ByteBufUtil.prettyHexDump(date));
             }

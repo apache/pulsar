@@ -19,8 +19,13 @@
 package org.apache.pulsar.common.util;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * This class is aimed at simplifying work with {@code CompletableFuture}.
@@ -49,5 +54,34 @@ public class FutureUtil {
         } else {
             return t;
         }
+    }
+
+    public static <T> CompletableFuture<T> futureWithDeadline(ScheduledExecutorService executor, Long delay,
+            TimeUnit unit, Exception exp) {
+        CompletableFuture<T> future = new CompletableFuture<T>();
+        executor.schedule(() -> {
+            if (!future.isDone()) {
+                future.completeExceptionally(exp);
+            }
+        }, delay, unit);
+        return future;
+    }
+
+    public static <T> CompletableFuture<T> futureWithDeadline(ScheduledExecutorService executor) {
+        return futureWithDeadline(executor, 60000L, TimeUnit.MILLISECONDS,
+                new TimeoutException("Future didn't finish within deadline"));
+    }
+
+    public static <T> Optional<Throwable> getException(CompletableFuture<T> future) {
+        if (future != null && future.isCompletedExceptionally()) {
+            try {
+                future.get();
+            } catch (InterruptedException e) {
+                return Optional.ofNullable(e);
+            } catch (ExecutionException e) {
+                return Optional.ofNullable(e.getCause());
+            }
+        }
+        return Optional.empty();
     }
 }

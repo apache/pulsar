@@ -183,10 +183,11 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 readerCaches.put(namespace, readerCompletableFuture);
                 readerCompletableFuture.whenComplete((reader, ex) -> {
                     if (ex != null) {
+                        log.error("[{}] Failed to create reader on __change_events topic", namespace, ex);
                         result.completeExceptionally(ex);
                     } else {
                         initPolicesCache(reader, result);
-                        readMorePolicies(reader);
+                        result.thenRun(() -> readMorePolicies(reader));
                     }
                 });
             }
@@ -236,21 +237,42 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     private void initPolicesCache(SystemTopicClient.Reader reader, CompletableFuture<Void> future) {
         reader.hasMoreEventsAsync().whenComplete((hasMore, ex) -> {
             if (ex != null) {
+                log.error("[{}] Failed to check the move events for the system topic",
+                        reader.getSystemTopic().getTopicName(), ex);
                 future.completeExceptionally(ex);
                 readerCaches.remove(reader.getSystemTopic().getTopicName().getNamespaceObject());
             }
             if (hasMore) {
                 reader.readNextAsync().whenComplete((msg, e) -> {
                     if (e != null) {
+                        log.error("[{}] Failed to read event from the system topic.",
+                                reader.getSystemTopic().getTopicName(), ex);
                         future.completeExceptionally(e);
                         readerCaches.remove(reader.getSystemTopic().getTopicName().getNamespaceObject());
                     }
                     refreshTopicPoliciesCache(msg);
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Loop next event reading for system topic.",
+                                reader.getSystemTopic().getTopicName().getNamespaceObject());
+                    }
                     initPolicesCache(reader, future);
                 });
             } else {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Reach the end of the system topic.", reader.getSystemTopic().getTopicName());
+                }
+                policyCacheInitMap.computeIfPresent(
+                        reader.getSystemTopic().getTopicName().getNamespaceObject(), (k, v) -> true);
+
+                // replay policy message
+                policiesCache.forEach(((topicName, topicPolicies) -> {
+                    if (listeners.get(topicName) != null) {
+                        for (TopicPolicyListener<TopicPolicies> listener : listeners.get(topicName)) {
+                            listener.onUpdate(topicPolicies);
+                        }
+                    }
+                }));
                 future.complete(null);
-                policyCacheInitMap.computeIfPresent(reader.getSystemTopic().getTopicName().getNamespaceObject(), (k, v) -> true);
             }
         });
     }

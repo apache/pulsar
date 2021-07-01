@@ -181,7 +181,7 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
         return bundlesCache.synchronous().get(fqnn).getFullBundle();
     }
 
-    public CompletableFuture<NamespaceBundle> getFullBundleAsync(NamespaceName fqnn) throws Exception {
+    public CompletableFuture<NamespaceBundle> getFullBundleAsync(NamespaceName fqnn) {
         return bundlesCache.get(fqnn).thenApply(NamespaceBundles::getFullBundle);
     }
 

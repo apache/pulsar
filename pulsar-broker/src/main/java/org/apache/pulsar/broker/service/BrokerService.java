@@ -885,7 +885,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     private CompletableFuture<Optional<Topic>> createNonPersistentTopic(String topic) {
-        CompletableFuture<Optional<Topic>> topicFuture = futureWithDeadline();
+        CompletableFuture<Optional<Topic>> topicFuture = FutureUtil.futureWithDeadline(executor());
 
         if (!pulsar.getConfiguration().isEnableNonPersistentTopics()) {
             if (log.isDebugEnabled()) {
@@ -1108,8 +1108,15 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                                 PersistentTopic persistentTopic = isSystemTopic(topic)
                                         ? new SystemTopic(topic, ledger, BrokerService.this)
                                         : new PersistentTopic(topic, ledger, BrokerService.this);
+                                CompletableFuture<Void> preCreateSubForCompaction =
+                                        CompletableFuture.completedFuture(null);
+                                if (persistentTopic instanceof SystemTopic) {
+                                    preCreateSubForCompaction = ((SystemTopic) persistentTopic)
+                                            .preCreateSubForCompactionIfNeeded();
+                                }
                                 CompletableFuture<Void> replicationFuture = persistentTopic.checkReplication();
-                                replicationFuture.thenCompose(v -> {
+                                FutureUtil.waitForAll(Lists.newArrayList(preCreateSubForCompaction, replicationFuture))
+                                .thenCompose(v -> {
                                     // Also check dedup status
                                     return persistentTopic.checkDeduplicationStatus();
                                 }).thenRun(() -> {
@@ -1118,8 +1125,16 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                                     long topicLoadLatencyMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime())
                                             - topicCreateTimeMs;
                                     pulsarStats.recordTopicLoadTimeValue(topic, topicLoadLatencyMs);
-                                    addTopicToStatsMaps(topicName, persistentTopic);
-                                    topicFuture.complete(Optional.of(persistentTopic));
+                                    if (topicFuture.isCompletedExceptionally()) {
+                                        log.warn("{} future is already completed with failure {}, closing the topic",
+                                                topic, FutureUtil.getException(topicFuture));
+                                        persistentTopic.stopReplProducers().whenComplete((v, exception) -> {
+                                            topics.remove(topic, topicFuture);
+                                        });
+                                    } else {
+                                        addTopicToStatsMaps(topicName, persistentTopic);
+                                        topicFuture.complete(Optional.of(persistentTopic));
+                                    }
                                 }).exceptionally((ex) -> {
                                     log.warn(
                                             "Replication or dedup check failed. Removing topic from topics list {}, {}",
@@ -1131,7 +1146,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
                                     return null;
                                 });
-                            } catch (NamingException e) {
+                            } catch (NamingException | PulsarServerException e) {
                                 log.warn("Failed to create topic {}-{}", topic, e.getMessage());
                                 pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
                                 topicFuture.completeExceptionally(e);

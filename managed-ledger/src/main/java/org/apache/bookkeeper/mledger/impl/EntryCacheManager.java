@@ -60,9 +60,7 @@ public class EntryCacheManager {
 
     private static final double evictionTriggerThresholdPercent = 0.98;
 
-    /**
-     *
-     */
+
     public EntryCacheManager(ManagedLedgerFactoryImpl factory) {
         this.maxSize = factory.getConfig().getMaxCacheSize();
         this.evictionTriggerThreshold = (long) (maxSize * evictionTriggerThresholdPercent);
@@ -229,7 +227,7 @@ public class EntryCacheManager {
             lh.readAsync(position.getEntryId(), position.getEntryId()).whenCompleteAsync(
                     (ledgerEntries, exception) -> {
                         if (exception != null) {
-                            ml.invalidateLedgerHandle(lh, exception);
+                            ml.invalidateLedgerHandle(lh);
                             callback.readEntryFailed(createManagedLedgerException(exception), ctx);
                             return;
                         }

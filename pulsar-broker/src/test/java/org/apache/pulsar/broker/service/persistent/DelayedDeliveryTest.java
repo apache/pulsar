@@ -43,6 +43,7 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -330,9 +331,12 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
 
     @Test(timeOut = 20000)
     public void testEnableAndDisableTopicDelayedDelivery() throws Exception {
-        String topicName = "persistent://public/default/topic-" + UUID.randomUUID().toString();
+        String topicName = "persistent://public/default/topic-" + UUID.randomUUID();
 
         admin.topics().createPartitionedTopic(topicName, 3);
+        pulsarClient.newProducer().topic(topicName).create().close();
+        Awaitility.await().untilAsserted(() -> pulsar.getTopicPoliciesService()
+                .cacheIsInitialized(TopicName.get(topicName)));
         assertNull(admin.topics().getDelayedDeliveryPolicy(topicName));
         DelayedDeliveryPolicies delayedDeliveryPolicies = new DelayedDeliveryPolicies(2000, false);
         admin.topics().setDelayedDeliveryPolicy(topicName, delayedDeliveryPolicies);
@@ -363,6 +367,9 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         final String topicName = "persistent://public/default/test" + UUID.randomUUID().toString();
 
         admin.topics().createPartitionedTopic(topicName, 3);
+        pulsarClient.newProducer().topic(topicName).create().close();
+        Awaitility.await().untilAsserted(() -> pulsar.getTopicPoliciesService()
+                .cacheIsInitialized(TopicName.get(topicName)));
         assertNull(admin.topics().getDelayedDeliveryPolicy(topicName));
         //1 Set topic policy
         DelayedDeliveryPolicies delayedDeliveryPolicies = new DelayedDeliveryPolicies(2000, true);

@@ -40,6 +40,8 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import lombok.SneakyThrows;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
 import org.apache.bookkeeper.client.api.LedgerEntries;
@@ -112,6 +114,10 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         }
         verify(offloader, times(2))
                 .readOffloaded(anyLong(), any(), anyMap());
+
+        ledger.close();
+        // Ensure that all the read handles had been closed
+        assertEquals(offloader.openedReadHandles.get(), 0);
     }
 
     @Test
@@ -224,10 +230,11 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
             return promise;
         }
 
+        @SneakyThrows
         @Override
         public CompletableFuture<ReadHandle> readOffloaded(long ledgerId, UUID uuid,
                                                            Map<String, String> offloadDriverMetadata) {
-            return CompletableFuture.completedFuture(offloads.get(uuid));
+            return CompletableFuture.completedFuture(new VerifyClosingReadHandle(offloads.get(uuid)));
         }
 
         @Override
@@ -245,6 +252,21 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         @Override
         public void close() {
 
+        }
+
+        private final AtomicInteger openedReadHandles = new AtomicInteger(0);
+
+        class VerifyClosingReadHandle extends MockOffloadReadHandle {
+            VerifyClosingReadHandle(ReadHandle toCopy) throws Exception {
+                super(toCopy);
+                openedReadHandles.incrementAndGet();
+            }
+
+            @Override
+            public CompletableFuture<Void> closeAsync() {
+                openedReadHandles.decrementAndGet();
+                return super.closeAsync();
+            }
         }
     }
 

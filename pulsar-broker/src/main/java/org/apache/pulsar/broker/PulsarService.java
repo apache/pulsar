@@ -43,8 +43,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -66,9 +67,9 @@ import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.LedgerOffloaderFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
-import org.apache.bookkeeper.mledger.offload.OffloaderUtils;
 import org.apache.bookkeeper.mledger.offload.Offloaders;
 import org.apache.bookkeeper.util.ZkUtils;
+import org.apache.bookkeeper.mledger.offload.OffloadersCache;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
@@ -183,7 +184,7 @@ public class PulsarService implements AutoCloseable {
     private final ScheduledExecutorService loadManagerExecutor;
     private ScheduledExecutorService compactorExecutor;
     private OrderedScheduler offloaderScheduler;
-    private Offloaders offloaderManager = new Offloaders();
+    private OffloadersCache offloadersCache = new OffloadersCache();
     private LedgerOffloader defaultOffloader;
     private Map<NamespaceName, LedgerOffloader> ledgerOffloaderMap = new ConcurrentHashMap<>();
     private ScheduledFuture<?> loadReportTask = null;
@@ -241,20 +242,11 @@ public class PulsarService implements AutoCloseable {
         // Validate correctness of configuration
         PulsarConfigurationLoader.isComplete(config);
         // validate `advertisedAddress`, `advertisedListeners`, `internalListenerName`
-        Map<String, AdvertisedListener> result = MultipleListenerValidator.validateAndAnalysisAdvertisedListener(config);
-        if (result != null) {
-            this.advertisedListeners = Collections.unmodifiableMap(result);
-        } else {
-            this.advertisedListeners = Collections.unmodifiableMap(Collections.emptyMap());
-        }
+        this.advertisedListeners = MultipleListenerValidator.validateAndAnalysisAdvertisedListener(config);
+        this.advertisedAddress = ServiceConfigurationUtils.getAppliedAdvertisedAddress(config);
         state = State.Init;
         // use `internalListenerName` listener as `advertisedAddress`
         this.bindAddress = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getBindAddress());
-        if (!this.advertisedListeners.isEmpty()) {
-            this.advertisedAddress = this.advertisedListeners.get(config.getInternalListenerName()).getBrokerServiceUrl().getHost();
-        } else {
-            this.advertisedAddress = advertisedAddress(config);
-        }
         this.brokerVersion = PulsarVersion.getVersion();
         this.config = config;
         this.shutdownService = new MessagingServiceShutdownHook(this, processTerminator);
@@ -370,7 +362,7 @@ public class PulsarService implements AutoCloseable {
                 schemaRegistryService.close();
             }
 
-            offloaderManager.close();
+            offloadersCache.close();
 
             if (protocolHandlers != null) {
                 protocolHandlers.close();
@@ -482,8 +474,6 @@ public class PulsarService implements AutoCloseable {
             schemaRegistryService = SchemaRegistryService.create(
                     schemaStorage, config.getSchemaRegistryCompatibilityCheckers());
 
-            this.offloaderManager = OffloaderUtils.searchForOffloaders(
-                    config.getOffloadersDirectory(), config.getNarExtractionDirectory());
             this.defaultOffloader = createManagedLedgerOffloader(
                     OffloadPolicies.create(this.getConfiguration().getProperties()));
             this.brokerInterceptor = BrokerInterceptors.load(config);
@@ -869,8 +859,9 @@ public class PulsarService implements AutoCloseable {
         return this.nsService;
     }
 
-    public WorkerService getWorkerService() {
-        return functionWorkerService.orElse(null);
+    public WorkerService getWorkerService() throws UnsupportedOperationException {
+        return functionWorkerService.orElseThrow(() -> new UnsupportedOperationException("Pulsar Function Worker "
+                + "is not enabled, probably functionsWorkerEnabled is set to false"));
     }
 
     /**
@@ -932,7 +923,10 @@ public class PulsarService implements AutoCloseable {
                 checkNotNull(offloadPolicies.getOffloadersDirectory(),
                     "Offloader driver is configured to be '%s' but no offloaders directory is configured.",
                         offloadPolicies.getManagedLedgerOffloadDriver());
-                LedgerOffloaderFactory offloaderFactory = this.offloaderManager.getOffloaderFactory(
+                Offloaders offloaders = offloadersCache.getOrLoadOffloaders(
+                        offloadPolicies.getOffloadersDirectory(), config.getNarExtractionDirectory());
+
+                LedgerOffloaderFactory offloaderFactory = offloaders.getOffloaderFactory(
                         offloadPolicies.getManagedLedgerOffloadDriver());
                 try {
                     return offloaderFactory.create(
@@ -1136,18 +1130,10 @@ public class PulsarService implements AutoCloseable {
         return shutdownService;
     }
 
-    /**
-     * Advertised service address.
-     *
-     * @return Hostname or IP address the service advertises to the outside world.
-     */
-    public static String advertisedAddress(ServiceConfiguration config) {
-        return ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getAdvertisedAddress());
-    }
-
-    private String brokerUrl(ServiceConfiguration config) {
+    protected String brokerUrl(ServiceConfiguration config) {
         if (config.getBrokerServicePort().isPresent()) {
-            return brokerUrl(advertisedAddress(config), getBrokerListenPort().get());
+            return brokerUrl(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config),
+                    getBrokerListenPort().get());
         } else {
             return null;
         }
@@ -1159,7 +1145,8 @@ public class PulsarService implements AutoCloseable {
 
     public String brokerUrlTls(ServiceConfiguration config) {
         if (config.getBrokerServicePortTls().isPresent()) {
-            return brokerUrlTls(advertisedAddress(config), getBrokerListenPortTls().get());
+            return brokerUrlTls(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config),
+                    getBrokerListenPortTls().get());
         } else {
             return null;
         }
@@ -1171,7 +1158,8 @@ public class PulsarService implements AutoCloseable {
 
     public String webAddress(ServiceConfiguration config) {
         if (config.getWebServicePort().isPresent()) {
-            return webAddress(advertisedAddress(config), getListenPortHTTP().get());
+            return webAddress(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config),
+                    getListenPortHTTP().get());
         } else {
             return null;
         }
@@ -1183,7 +1171,8 @@ public class PulsarService implements AutoCloseable {
 
     public String webAddressTls(ServiceConfiguration config) {
         if (config.getWebServicePortTls().isPresent()) {
-            return webAddressTls(advertisedAddress(config), getListenPortHTTPS().get());
+            return webAddressTls(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config),
+                    getListenPortHTTPS().get());
         } else {
             return null;
         }
@@ -1364,5 +1353,9 @@ public class PulsarService implements AutoCloseable {
 
     public Optional<Integer> getBrokerListenPortTls() {
         return brokerService.getListenPortTls();
+    }
+
+    public CompletableFuture<Set<String>> getAvailableBookiesAsync() {
+        return this.localZkCacheService.availableBookiesCache().getAsync();
     }
 }

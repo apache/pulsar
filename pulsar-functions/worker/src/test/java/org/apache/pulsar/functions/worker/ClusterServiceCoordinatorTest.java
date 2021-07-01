@@ -30,6 +30,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+
 import org.apache.pulsar.functions.worker.executor.MockExecutorController;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
@@ -56,6 +58,7 @@ public class ClusterServiceCoordinatorTest {
     private ClusterServiceCoordinator coordinator;
     private ScheduledExecutorService mockExecutor;
     private MockExecutorController mockExecutorController;
+    private Supplier<Boolean> checkIsStillLeader;
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -71,7 +74,8 @@ public class ClusterServiceCoordinatorTest {
         ).thenReturn(mockExecutor);
 
         this.leaderService = mock(LeaderService.class);
-        this.coordinator = new ClusterServiceCoordinator("test-coordinator", leaderService);
+        this.checkIsStillLeader = () -> leaderService.isLeader();
+        this.coordinator = new ClusterServiceCoordinator("test-coordinator", leaderService, checkIsStillLeader);
     }
 
 

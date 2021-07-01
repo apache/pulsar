@@ -3585,7 +3585,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(timeOut = 5000)
+    @Test(timeOut = 10000)
     public void testReceiveAsyncCompletedWhenClosing() throws Exception {
         final String topic = "persistent://my-property/my-ns/testCompletedWhenClosing";
         final String partitionedTopic = "persistent://my-property/my-ns/testCompletedWhenClosing-partitioned";

@@ -131,6 +131,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.SafeCollectionUtils;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite;
+import org.apache.pulsar.functions.utils.Exceptions;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
 import org.slf4j.Logger;
@@ -1179,7 +1180,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 cause = new TopicNotFoundException("Topic Not Found.");
                             }
 
-                            if (!(cause instanceof ServiceUnitNotReadyException)) {
+                            if (!Exceptions.areExceptionsPresentInChain(cause,
+                                    ServiceUnitNotReadyException.class, ManagedLedgerException.class)) {
                                 // Do not print stack traces for expected exceptions
                                 log.error("[{}] Failed to create topic {}, producerId={}",
                                           remoteAddress, topicName, producerId, exception);
@@ -1581,8 +1583,20 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         batchSizeFuture.whenComplete((batchSize, e) -> {
             if (e != null) {
-                ctx.writeAndFlush(Commands.newError(
-                        requestId, ServerError.MetadataError, "Failed to get batch size for entry " + e.getMessage()));
+                if (e.getCause() instanceof ManagedLedgerException.NonRecoverableLedgerException) {
+                    // in this case, the ledgers been removed except the current ledger
+                    // and current ledger without any data
+                    ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId,
+                            MessageIdData.newBuilder().setLedgerId(-1).setEntryId(-1).build(),
+                            MessageIdData.newBuilder()
+                                    .setLedgerId(markDeletePosition != null ? markDeletePosition.getLedgerId() : -1)
+                                    .setEntryId(markDeletePosition != null ? markDeletePosition.getEntryId() : -1)
+                                    .build()));
+                } else {
+                    ctx.writeAndFlush(Commands.newError(
+                            requestId, ServerError.MetadataError,
+                            "Failed to get batch size for entry " + e.getMessage()));
+                }
             } else {
                 int largestBatchIndex = batchSize > 0 ? batchSize - 1 : -1;
 

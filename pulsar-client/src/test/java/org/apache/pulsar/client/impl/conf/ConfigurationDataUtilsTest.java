@@ -138,4 +138,16 @@ public class ConfigurationDataUtilsTest {
         assertEquals(pulsarClient.getConfiguration().getStatsIntervalSeconds(), 80,
                 "builder default should overrite if set explicitly");
     }
+
+    @Test
+    public void testEquals() {
+        ClientConfigurationData confData1 = new ClientConfigurationData();
+        confData1.setServiceUrl("pulsar://unknown:6650");
+
+        ClientConfigurationData confData2 = new ClientConfigurationData();
+        confData2.setServiceUrl("pulsar://unknown:6650");
+
+        assertEquals(confData1, confData2);
+        assertEquals(confData1.hashCode(), confData2.hashCode());
+    }
 }

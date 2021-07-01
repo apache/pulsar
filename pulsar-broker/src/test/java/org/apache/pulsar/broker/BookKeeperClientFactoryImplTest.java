@@ -205,4 +205,17 @@ public class BookKeeperClientFactoryImplTest {
         }
     }
 
+    @Test
+    public void testBookKeeperCustomConfiguration() {
+        BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
+        ServiceConfiguration conf = new ServiceConfiguration();
+        // default value
+        assertEquals(factory.createBkClientConfiguration(conf).getAddEntryQuorumTimeout(), -1);
+        conf.getProperties().setProperty("bookkeeper_addEntryQuorumTimeoutSec", "10");
+        assertEquals(factory.createBkClientConfiguration(conf).getAddEntryQuorumTimeout(), 10);
+        conf.getProperties().setProperty("bookkeeper_addEntryQuorumTimeoutSec", "20");
+        assertEquals(factory.createBkClientConfiguration(conf).getAddEntryQuorumTimeout(), 20);
+
+    }
+
 }

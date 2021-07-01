@@ -108,7 +108,7 @@ public class BrokerDiscoveryProvider implements Closeable {
         try {
             checkAuthorization(service, topicName, role, authenticationData);
             final String path = path(PARTITIONED_TOPIC_PATH_ZNODE,
-                    topicName.getNamespaceObject().toString(), "persistent", topicName.getEncodedLocalName());
+                    topicName.getNamespaceObject().toString(), topicName.getDomain().value(), topicName.getEncodedLocalName());
             // gets the number of partitions from the zk cache
             globalZkCache
                     .getDataAsync(path,

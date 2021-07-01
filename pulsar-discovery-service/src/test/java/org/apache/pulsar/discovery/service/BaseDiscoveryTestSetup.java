@@ -32,9 +32,11 @@ import org.apache.pulsar.discovery.service.server.ServiceConfig;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
 import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
+import org.apache.zookeeper.KeeperException.Code;
 
 
 public class BaseDiscoveryTestSetup {
@@ -85,4 +87,10 @@ public class BaseDiscoveryTestSetup {
         }
     };
 
+    protected void simulateStoreErrorForNonPersistentTopic(String string, Code sessionexpired) {
+        mockZooKeeper.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
+            return op == MockZooKeeper.Op.GET
+                    && path.equals("/admin/partitioned-topics/test/local/ns/non-persistent/my-topic-2");
+        });
+    }
 }

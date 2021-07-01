@@ -31,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 
@@ -64,6 +65,9 @@ public class PulsarAdminTool {
 
     @Parameter(names = { "--tls-enable-hostname-verification" }, description = "Enable TLS common name verification")
     Boolean tlsEnableHostnameVerification;
+
+    @Parameter(names = { "-v", "--version" }, description = "Get version of pulsar admin client")
+    boolean version;
 
     @Parameter(names = { "-h", "--help", }, help = true, description = "Show this help.")
     boolean help;
@@ -216,6 +220,11 @@ public class PulsarAdminTool {
             setupCommands(adminFactory);
             jcommander.usage();
             return false;
+        }
+
+        if (version) {
+            System.out.println("Current version of pulsar admin client is: " + PulsarVersion.getVersion());
+            return true;
         }
 
         if (help) {

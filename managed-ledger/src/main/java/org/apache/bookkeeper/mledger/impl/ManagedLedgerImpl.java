@@ -36,9 +36,11 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
+import io.netty.util.ReferenceCountUtil;
 import java.time.Clock;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +49,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -119,6 +122,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.OffloadContext;
 import org.apache.bookkeeper.mledger.util.CallbackMutex;
 import org.apache.bookkeeper.mledger.util.Futures;
+import org.apache.bookkeeper.net.BookieId;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
@@ -195,7 +199,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private long lastLedgerCreationInitiationTimestamp = 0;
 
     private static final Random random = new Random(System.currentTimeMillis());
-    private long maximumRolloverTimeMs;
+    private final long maximumRolloverTimeMs;
     protected final Supplier<Boolean> mlOwnershipChecker;
 
     volatile PositionImpl lastConfirmedEntry;
@@ -260,8 +264,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      */
     @VisibleForTesting
     Map<String, byte[]> createdLedgerCustomMetadata;
-
-    // //////////////////////////////////////////////////////////////////////
 
     public ManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
             ManagedLedgerConfig config, OrderedScheduler scheduledExecutor, OrderedExecutor orderedExecutor,
@@ -1209,6 +1211,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         factory.close(this);
         STATE_UPDATER.set(this, State.Closed);
 
+        if (this.timeoutTask != null) {
+            this.timeoutTask.cancel(false);
+        }
+
         LedgerHandle lh = currentLedger;
 
         if (lh == null) {
@@ -1232,12 +1238,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 return;
             }
 
+            ledgerCache.forEach((ledgerId, readHandle) -> {
+                invalidateReadHandle(ledgerId);
+            });
+
             closeAllCursors(callback, ctx);
         }, null);
-
-        if (this.timeoutTask != null) {
-            this.timeoutTask.cancel(false);
-        }
 
     }
 
@@ -1250,7 +1256,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             futures.add(closeFuture);
         }
 
-        Futures.waitForAll(futures).thenRun(() -> callback.closeComplete(ctx)).exceptionally(exception -> {
+        Futures.waitForAll(futures)
+                .thenRun(() -> callback.closeComplete(ctx))
+                .exceptionally(exception -> {
             callback.closeFailed(ManagedLedgerException.getManagedLedgerException(exception.getCause()), ctx);
             return null;
         });
@@ -1390,6 +1398,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 if (existsOp.ledger != null) {
                     existsOp.close();
                     existsOp = OpAddEntry.create(existsOp.ml, existsOp.data, existsOp.callback, existsOp.ctx);
+                    // release the extra retain
+                    ReferenceCountUtil.release(existsOp.data);
                 }
                 existsOp.setLedger(currentLedger);
                 pendingAddEntries.add(existsOp);
@@ -1472,7 +1482,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     synchronized void createLedgerAfterClosed() {
         STATE_UPDATER.set(this, State.CreatingLedger);
-        this.lastLedgerCreationInitiationTimestamp = System.nanoTime();
+        this.lastLedgerCreationInitiationTimestamp = System.currentTimeMillis();
         mbean.startDataLedgerCreateOp();
         asyncCreateLedger(bookKeeper, config, digestType, this, Collections.emptyMap());
     }
@@ -1567,7 +1577,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             CompletableFuture<ReadHandle> promise = new CompletableFuture<>();
 
             LedgerInfo info = ledgers.get(ledgerId);
-            CompletableFuture<ReadHandle> openFuture = new CompletableFuture<>();
+            CompletableFuture<ReadHandle> openFuture;
 
             if (config.getLedgerOffloader() != null
                     && config.getLedgerOffloader().getOffloadPolicies() != null
@@ -1606,17 +1616,35 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         });
     }
 
-    void invalidateLedgerHandle(ReadHandle ledgerHandle, Throwable t) {
+    void invalidateReadHandle(long ledgerId) {
+        CompletableFuture<ReadHandle> rhf = ledgerCache.remove(ledgerId);
+        if (rhf != null) {
+            rhf.thenAccept(ReadHandle::closeAsync)
+                    .exceptionally(ex -> {
+                        log.warn("[{}] Failed to close a Ledger ReadHandle:", name, ex);
+                        return null;
+                    });
+        }
+    }
+
+    void invalidateLedgerHandle(ReadHandle ledgerHandle) {
         long ledgerId = ledgerHandle.getId();
+        LedgerHandle currentLedger = this.currentLedger;
+
         if (currentLedger != null && ledgerId != currentLedger.getId()) {
             // remove handle from ledger cache since we got a (read) error
             ledgerCache.remove(ledgerId);
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Removed ledger {} from cache (after read error)", name, ledgerId, t);
+                log.debug("[{}] Removed ledger read handle {} from cache", name, ledgerId);
             }
+            ledgerHandle.closeAsync()
+                    .exceptionally(ex -> {
+                        log.warn("[{}] Failed to close a Ledger ReadHandle:", name, ex);
+                        return null;
+                    });
         } else {
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Ledger that encountered read error is current ledger", name, t);
+                log.debug("[{}] Ledger that encountered read error is current ledger", name);
             }
         }
     }
@@ -2173,7 +2201,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     log.info("[{}] Ledger {} contains the current last confirmed entry {}, and it is going to be deleted", name,
                             ls.getLedgerId(), currentLastConfirmedEntry);
                 }
-                ledgerCache.remove(ls.getLedgerId());
+
+                invalidateReadHandle(ls.getLedgerId());
 
                 ledgers.remove(ls.getLedgerId());
                 NUMBER_OF_ENTRIES_UPDATER.addAndGet(this, -ls.getEntries());
@@ -2609,7 +2638,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                         newFirstUnoffloaded,
                                         errorToReport);
                         } else {
-                            ledgerCache.remove(ledgerId);
+                            invalidateReadHandle(ledgerId);
                             offloadLoop(promise, ledgersToOffload, firstUnoffloaded, firstError);
                         }
                     });
@@ -3532,4 +3561,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private static final Logger log = LoggerFactory.getLogger(ManagedLedgerImpl.class);
 
+    public CompletableFuture<Set<BookieId>> getEnsemblesAsync(long ledgerId) {
+        LedgerInfo ledgerInfo = ledgers.get(ledgerId);
+        if (ledgerInfo != null && ledgerInfo.hasOffloadContext()) {
+            return CompletableFuture.completedFuture(Collections.emptySet());
+        }
+
+        return getLedgerHandle(ledgerId).thenCompose(lh -> {
+            Set<BookieId> ensembles = new HashSet<>();
+            lh.getLedgerMetadata().getAllEnsembles().values().forEach(ensembles::addAll);
+            return CompletableFuture.completedFuture(ensembles);
+        });
+    }
 }

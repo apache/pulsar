@@ -103,7 +103,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     public Authentication getAuthentication() {
         if (authentication == null) {
-            this.authentication = new AuthenticationDisabled();
+            this.authentication = AuthenticationDisabled.INSTANCE;
         }
         return authentication;
     }
