@@ -263,11 +263,8 @@ public class Producer {
     }
 
     private void publishOperationCompleted() {
-        long newPendingPublishAcks = this.pendingPublishAcks - 1;
-        pendingPublishAcksUpdater.lazySet(this, newPendingPublishAcks);
-
         // Check the close future to avoid grabbing the mutex every time the pending acks goes down to 0
-        if (newPendingPublishAcks == 0 && !closeFuture.isDone()) {
+        if (pendingPublishAcksUpdater.getAndDecrement(this) <= 1 && !closeFuture.isDone()) {
             synchronized (this) {
                 if (isClosed && !closeFuture.isDone()) {
                     closeNow(true);
