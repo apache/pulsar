@@ -109,11 +109,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
     private final TransactionPendingAckStoreProvider pendingAckStoreProvider;
 
-    private final BlockingQueue<Accept> acceptQueue = new LinkedBlockingDeque<>();
-
-    interface Accept {
-        void accept();
-    }
+    private final BlockingQueue<Runnable> acceptQueue = new LinkedBlockingDeque<>();
 
     public PendingAckHandleImpl(PersistentSubscription persistentSubscription) {
         super(State.None);
@@ -865,10 +861,10 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
     protected void handleCacheRequest() {
         while (true) {
-            Accept accept = acceptQueue.poll();
+            Runnable runnable = acceptQueue.poll();
 
-            if (accept != null) {
-                accept.accept();
+            if (runnable != null) {
+                runnable.run();
             } else {
                 break;
             }
