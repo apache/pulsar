@@ -268,6 +268,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
         case Modified:
             if (objCache.synchronous().getIfPresent(path) != null) {
                 // Trigger background refresh of the cached item
+                objCache.synchronous().invalidate(path);
                 objCache.synchronous().refresh(path);
             }
             break;
