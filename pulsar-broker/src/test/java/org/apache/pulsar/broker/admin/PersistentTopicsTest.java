@@ -32,12 +32,14 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.ws.rs.WebApplicationException;
@@ -839,6 +841,86 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         Thread.sleep(10);
         MessageId id2 = producer.send("test2".getBytes());
         long publish2 = publishTime.get();
+
+        Assert.assertTrue(publish1 < publish2);
+
+        Assert.assertEquals(admin.topics().getMessageIdByTimestamp(topicName, publish1 - 1), id1);
+        Assert.assertEquals(admin.topics().getMessageIdByTimestamp(topicName, publish1), id1);
+        Assert.assertEquals(admin.topics().getMessageIdByTimestamp(topicName, publish1 + 1), id2);
+        Assert.assertEquals(admin.topics().getMessageIdByTimestamp(topicName, publish2), id2);
+        Assert.assertTrue(admin.topics().getMessageIdByTimestamp(topicName, publish2 + 1)
+                .compareTo(id2) > 0);
+    }
+
+    @Test
+    public void testGetBatchMessageIdByTimestamp() throws Exception {
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        admin.tenants().createTenant("tenant-xyz", tenantInfo);
+        admin.namespaces().createNamespace("tenant-xyz/ns-abc", Sets.newHashSet("test"));
+        final String topicName = "persistent://tenant-xyz/ns-abc/testGetBatchMessageIdByTimestamp";
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        Map<MessageId, Long> publishTimeMap = new ConcurrentHashMap<>();
+
+        ProducerBase<byte[]> producer = (ProducerBase<byte[]>) pulsarClient.newProducer().topic(topicName)
+                .enableBatching(true)
+                .batchingMaxPublishDelay(1, TimeUnit.MINUTES)
+                .batchingMaxMessages(2)
+                .intercept(new ProducerInterceptor() {
+                    @Override
+                    public void close() {
+
+                    }
+
+                    @Override
+                    public boolean eligible(Message message) {
+                        return true;
+                    }
+
+                    @Override
+                    public Message beforeSend(Producer producer, Message message) {
+                        return message;
+                    }
+
+                    @Override
+                    public void onSendAcknowledgement(Producer producer, Message message, MessageId msgId,
+                                                      Throwable exception) {
+                        log.info("onSendAcknowledgement, message={}, msgId={},publish_time={},exception={}",
+                                message, msgId, message.getPublishTime(), exception);
+                        publishTimeMap.put(msgId, message.getPublishTime());
+
+                    }
+                })
+                .create();
+
+        List<CompletableFuture<MessageId>> idFutureList = new ArrayList<>();
+        for (int i = 0; i < 4; i++) {
+            idFutureList.add(producer.sendAsync(new byte[]{(byte) i}));
+            Thread.sleep(5);
+        }
+
+        List<MessageIdImpl> ids = new ArrayList<>();
+        for (CompletableFuture<MessageId> future : idFutureList) {
+            MessageId id = future.get();
+            ids.add((MessageIdImpl) id);
+        }
+
+        for (MessageIdImpl messageId : ids) {
+            Assert.assertTrue(publishTimeMap.containsKey(messageId));
+            log.info("MessageId={},PublishTime={}", messageId, publishTimeMap.get(messageId));
+        }
+
+        //message 0, 1 are in the same batch, as batchingMaxMessages is set to 2.
+        Assert.assertEquals(ids.get(0).getLedgerId(), ids.get(1).getLedgerId());
+        MessageIdImpl id1 =
+                new MessageIdImpl(ids.get(0).getLedgerId(), ids.get(0).getEntryId(), ids.get(0).getPartitionIndex());
+        long publish1 = publishTimeMap.get(ids.get(0));
+
+        Assert.assertEquals(ids.get(2).getLedgerId(), ids.get(3).getLedgerId());
+        MessageIdImpl id2 =
+                new MessageIdImpl(ids.get(2).getLedgerId(), ids.get(2).getEntryId(), ids.get(2).getPartitionIndex());
+        long publish2 = publishTimeMap.get(ids.get(2));
+
 
         Assert.assertTrue(publish1 < publish2);
 
