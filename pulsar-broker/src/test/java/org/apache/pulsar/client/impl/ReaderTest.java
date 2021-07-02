@@ -20,7 +20,16 @@ package org.apache.pulsar.client.impl;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -39,6 +48,8 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
+import org.apache.pulsar.schema.Schemas;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -48,15 +59,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 
 @Slf4j
 public class ReaderTest extends MockedPulsarServiceBaseTest {
@@ -396,5 +398,46 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
             assertTrue(Integer.valueOf(receivedMessage) <= StickyKeyConsumerSelector.DEFAULT_RANGE_SIZE / 2);
         }
 
+    }
+
+    @Test(timeOut = 30000)
+    public void testAvoidUsingIoThreadToGetValueOfMessage() throws Exception {
+        final String topic = "persistent://my-property/my-ns/testAvoidUsingIoThreadToGetValueOfMessage";
+
+        @Cleanup
+        Producer<Schemas.PersonOne> producer = pulsarClient.newProducer(Schema.AVRO(Schemas.PersonOne.class))
+                .topic(topic)
+                .create();
+
+        producer.send(new Schemas.PersonOne(1));
+
+        @Cleanup
+        Reader<Schemas.PersonOne> reader = pulsarClient.newReader(Schema.AVRO(Schemas.PersonOne.class))
+                .topic(topic)
+                .startMessageId(MessageId.earliest)
+                .create();
+
+        CountDownLatch latch = new CountDownLatch(1);
+        List<Schemas.PersonOne> received = new ArrayList<>(1);
+        // Make sure the message is added to the incoming queue
+        Awaitility.await().untilAsserted(() ->
+                assertTrue(((ReaderImpl<?>) reader).getConsumer().incomingMessages.size() > 0));
+        reader.hasMessageAvailableAsync().whenComplete((has, e) -> {
+            if (e == null && has) {
+                CompletableFuture<Message<Schemas.PersonOne>> future = reader.readNextAsync();
+                // Make sure the future completed
+                Awaitility.await().pollInterval(1, TimeUnit.MILLISECONDS).untilAsserted(future::isDone);
+                future.whenComplete((msg, ex) -> {
+                    if (ex == null) {
+                        received.add(msg.getValue());
+                    }
+                    latch.countDown();
+                });
+            } else {
+                latch.countDown();
+            }
+        });
+        latch.await();
+        Assert.assertEquals(received.size(), 1);
     }
 }
