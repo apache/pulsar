@@ -32,11 +32,18 @@
 #include <lib/HTTPLookupService.h>
 #include <lib/TopicName.h>
 #include <algorithm>
-#include <regex>
 #include <random>
 #include <mutex>
 #ifdef USE_LOG4CXX
 #include "Log4CxxLogger.h"
+#endif
+
+#ifdef PULSAR_USE_BOOST_REGEX
+#include <boost/regex.hpp>
+#define PULSAR_REGEX_NAMESPACE boost
+#else
+#include <regex>
+#define PULSAR_REGEX_NAMESPACE std
 #endif
 
 DECLARE_LOG_OBJECT()
@@ -267,7 +274,7 @@ void ClientImpl::createPatternMultiTopicsConsumer(const Result result, const Nam
     if (result == ResultOk) {
         ConsumerImplBasePtr consumer;
 
-        std::regex pattern(regexPattern);
+        PULSAR_REGEX_NAMESPACE::regex pattern(regexPattern);
 
         NamespaceTopicsPtr matchTopics =
             PatternMultiTopicsConsumerImpl::topicsPatternFilter(*topics, pattern);
