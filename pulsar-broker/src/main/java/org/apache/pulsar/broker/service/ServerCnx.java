@@ -905,14 +905,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         final String subscriptionName = subscribe.getSubscription();
         final SubType subType = subscribe.getSubType();
-        final String consumerName = subscribe.getConsumerName();
+        final String consumerName = subscribe.hasConsumerName() ? subscribe.getConsumerName() : "";
         final boolean isDurable = subscribe.isDurable();
         final MessageIdImpl startMessageId = subscribe.hasStartMessageId() ? new BatchMessageIdImpl(
                 subscribe.getStartMessageId().getLedgerId(), subscribe.getStartMessageId().getEntryId(),
                 subscribe.getStartMessageId().getPartition(), subscribe.getStartMessageId().getBatchIndex())
                 : null;
         final int priorityLevel = subscribe.hasPriorityLevel() ? subscribe.getPriorityLevel() : 0;
-        final boolean readCompacted = subscribe.isReadCompacted();
+        final boolean readCompacted = subscribe.hasReadCompacted() && subscribe.isReadCompacted();
         final Map<String, String> metadata = CommandUtils.metadataFromCommand(subscribe);
         final InitialPosition initialPosition = subscribe.getInitialPosition();
         final long startMessageRollbackDurationSec = subscribe.hasStartMessageRollbackDurationSec()
