@@ -174,13 +174,6 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
                 log.warn("Failed to close reader", e);
             }
         }
-        if (null != client) {
-            try {
-                client.close();
-            } catch (IOException e) {
-                log.warn("Failed to close client", e);
-            }
-        }
     }
 
     @Override
