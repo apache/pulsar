@@ -138,11 +138,10 @@ class Footer extends React.Component {
             '<li><a href="${contributingUrl}">Contributing</a></li>' +
             '<li><a href="${codingUrl}">Coding guide</a></li>' +
             '<li><a href="${eventsUrl}">Events</a></li>' +
-            '<li><a href="${twitterUrl}" target="_blank">Twitter &#x2750</a></li>' +
-            '<li><a href="${wikiUrl}" target="_blank">Wiki &#x2750</a></li>' +
-            '<li><a href="${issuesUrl}" target="_blank">Issue tracking &#x2750</a></li>' +
-            '<li><a href="${summitUrl}" target="_blank">Pulsar Summit &#x2750</a></li>' +
-            '<li>&nbsp;</li>' +
+            '<li><a href="${twitterUrl}" target="_blank">Twitter</a></li>' +
+            '<li><a href="${wikiUrl}" target="_blank">Wiki</a></li>' +
+            '<li><a href="${issuesUrl}" target="_blank">Issue tracking</a></li>' +
+            '<li><a href="${summitUrl}" target="_blank">Pulsar Summit</a></li>' +
             '<li><a href="${resourcesUrl}">Resources</a></li>' +
             '<li><a href="${teamUrl}">Team</a></li>' +
             '<li><a href="${poweredByUrl}">Powered By</a></li>' +
