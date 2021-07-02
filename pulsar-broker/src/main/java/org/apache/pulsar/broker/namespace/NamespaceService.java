@@ -220,7 +220,7 @@ public class NamespaceService implements AutoCloseable {
         return bundles.map(b -> b.findBundle(topicName));
     }
 
-    public NamespaceBundle getBundle(TopicName topicName) throws Exception {
+    public NamespaceBundle getBundle(TopicName topicName) {
         return bundleFactory.getBundles(topicName.getNamespaceObject()).findBundle(topicName);
     }
 
@@ -999,7 +999,7 @@ public class NamespaceService implements AutoCloseable {
 
     public CompletableFuture<Boolean> checkTopicOwnership(TopicName topicName) {
         return getBundleAsync(topicName)
-                .thenCompose(bundle -> ownershipCache.checkOwnership(bundle));
+                .thenApply(ownershipCache::checkOwnership);
     }
 
     public void removeOwnedServiceUnit(NamespaceBundle nsBundle) throws Exception {

@@ -383,16 +383,15 @@ public abstract class AbstractTopic implements Topic {
 
     @Override
     public CompletableFuture<Optional<Long>> addProducer(Producer producer,
-            CompletableFuture<Void> producerQueuedFuture) {
+                                                         CompletableFuture<Void> producerQueuedFuture) {
         checkArgument(producer.getTopic() == this);
 
-        CompletableFuture<Optional<Long>> future = new CompletableFuture<>();
-
-        incrementTopicEpochIfNeeded(producer, producerQueuedFuture)
-                .thenAccept(producerEpoch -> {
+        return brokerService.checkTopicNsOwnership(getName())
+                .thenCompose(__ ->
+                        incrementTopicEpochIfNeeded(producer, producerQueuedFuture))
+                .thenCompose(producerEpoch -> {
                     lock.writeLock().lock();
                     try {
-                        brokerService.checkTopicNsOwnership(getName());
                         checkTopicFenced();
                         if (isTerminated()) {
                             log.warn("[{}] Attempting to add producer to a terminated topic", topic);
@@ -406,18 +405,13 @@ public abstract class AbstractTopic implements Topic {
                                     USAGE_COUNT_UPDATER.get(this));
                         }
 
-                        future.complete(producerEpoch);
-                    } catch (Throwable e) {
-                        future.completeExceptionally(e);
+                        return CompletableFuture.completedFuture(producerEpoch);
+                    } catch (BrokerServiceException e) {
+                        return FutureUtil.failedFuture(e);
                     } finally {
                         lock.writeLock().unlock();
                     }
-                }).exceptionally(ex -> {
-                    future.completeExceptionally(ex);
-                    return null;
                 });
-
-        return future;
     }
 
     protected CompletableFuture<Optional<Long>> incrementTopicEpochIfNeeded(Producer producer,

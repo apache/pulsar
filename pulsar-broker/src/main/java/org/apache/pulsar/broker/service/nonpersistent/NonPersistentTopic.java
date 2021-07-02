@@ -228,92 +228,89 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                                                  long resetStartMessageBackInSec, boolean replicateSubscriptionState,
                                                  KeySharedMeta keySharedMeta) {
 
-        final CompletableFuture<Consumer> future = new CompletableFuture<>();
+        return brokerService.checkTopicNsOwnership(getName()).thenCompose(__ -> {
+            final CompletableFuture<Consumer> future = new CompletableFuture<>();
 
-        try {
-            brokerService.checkTopicNsOwnership(getName());
-        } catch (Exception e) {
-            future.completeExceptionally(e);
-            return future;
-        }
 
-        if (hasBatchMessagePublished && !cnx.isBatchMessageCompatibleVersion()) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Consumer doesn't support batch-message {}", topic, subscriptionName);
-            }
-            future.completeExceptionally(new UnsupportedVersionException("Consumer doesn't support batch-message"));
-            return future;
-        }
-
-        if (subscriptionName.startsWith(replicatorPrefix)) {
-            log.warn("[{}] Failed to create subscription for {}", topic, subscriptionName);
-            future.completeExceptionally(new NamingException("Subscription with reserved subscription name attempted"));
-            return future;
-        }
-
-        if (readCompacted) {
-            future.completeExceptionally(new NotAllowedException("readCompacted only valid on persistent topics"));
-            return future;
-        }
-
-        lock.readLock().lock();
-        try {
-            if (isFenced) {
-                log.warn("[{}] Attempting to subscribe to a fenced topic", topic);
-                future.completeExceptionally(new TopicFencedException("Topic is temporarily unavailable"));
+            if (hasBatchMessagePublished && !cnx.isBatchMessageCompatibleVersion()) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Consumer doesn't support batch-message {}", topic, subscriptionName);
+                }
+                future.completeExceptionally(new UnsupportedVersionException("Consumer doesn't support batch-message"));
                 return future;
             }
 
-            handleConsumerAdded(subscriptionName, consumerName);
-        } finally {
-            lock.readLock().unlock();
-        }
-
-        NonPersistentSubscription subscription = subscriptions.computeIfAbsent(subscriptionName,
-                name -> new NonPersistentSubscription(this, subscriptionName));
-        Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName, 0,
-                cnx, cnx.getAuthRole(), metadata, readCompacted, initialPosition, keySharedMeta);
-        addConsumerToSubscription(subscription, consumer).thenRun(() -> {
-            if (!cnx.isActive()) {
-                try {
-                    consumer.close();
-                } catch (BrokerServiceException e) {
-                    if (e instanceof ConsumerBusyException) {
-                        log.warn("[{}][{}] Consumer {} {} already connected", topic, subscriptionName, consumerId,
-                                consumerName);
-                    } else if (e instanceof SubscriptionBusyException) {
-                        log.warn("[{}][{}] {}", topic, subscriptionName, e.getMessage());
-                    }
-
-                    decrementUsageCount();
-                    future.completeExceptionally(e);
-                    return;
-                }
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] [{}] [{}] Subscribe failed -- count: {}", topic, subscriptionName,
-                            consumer.consumerName(), currentUsageCount());
-                }
+            if (subscriptionName.startsWith(replicatorPrefix)) {
+                log.warn("[{}] Failed to create subscription for {}", topic, subscriptionName);
                 future.completeExceptionally(
-                        new BrokerServiceException("Connection was closed while the opening the cursor "));
-            } else {
-                log.info("[{}][{}] Created new subscription for {}", topic, subscriptionName, consumerId);
-                future.complete(consumer);
-            }
-        }).exceptionally(e -> {
-            Throwable throwable = e.getCause();
-            if (throwable instanceof ConsumerBusyException) {
-                log.warn("[{}][{}] Consumer {} {} already connected", topic, subscriptionName, consumerId,
-                        consumerName);
-            } else if (throwable instanceof SubscriptionBusyException) {
-                log.warn("[{}][{}] {}", topic, subscriptionName, e.getMessage());
+                        new NamingException("Subscription with reserved subscription name attempted"));
+                return future;
             }
 
-            decrementUsageCount();
-            future.completeExceptionally(throwable);
-            return null;
+            if (readCompacted) {
+                future.completeExceptionally(new NotAllowedException("readCompacted only valid on persistent topics"));
+                return future;
+            }
+
+            lock.readLock().lock();
+            try {
+                if (isFenced) {
+                    log.warn("[{}] Attempting to subscribe to a fenced topic", topic);
+                    future.completeExceptionally(new TopicFencedException("Topic is temporarily unavailable"));
+                    return future;
+                }
+
+                handleConsumerAdded(subscriptionName, consumerName);
+            } finally {
+                lock.readLock().unlock();
+            }
+
+            NonPersistentSubscription subscription = subscriptions.computeIfAbsent(subscriptionName,
+                    name -> new NonPersistentSubscription(this, subscriptionName));
+            Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName, 0,
+                    cnx, cnx.getAuthRole(), metadata, readCompacted, initialPosition, keySharedMeta);
+            addConsumerToSubscription(subscription, consumer).thenRun(() -> {
+                if (!cnx.isActive()) {
+                    try {
+                        consumer.close();
+                    } catch (BrokerServiceException e) {
+                        if (e instanceof ConsumerBusyException) {
+                            log.warn("[{}][{}] Consumer {} {} already connected", topic, subscriptionName, consumerId,
+                                    consumerName);
+                        } else if (e instanceof SubscriptionBusyException) {
+                            log.warn("[{}][{}] {}", topic, subscriptionName, e.getMessage());
+                        }
+
+                        decrementUsageCount();
+                        future.completeExceptionally(e);
+                        return;
+                    }
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] [{}] [{}] Subscribe failed -- count: {}", topic, subscriptionName,
+                                consumer.consumerName(), currentUsageCount());
+                    }
+                    future.completeExceptionally(
+                            new BrokerServiceException("Connection was closed while the opening the cursor "));
+                } else {
+                    log.info("[{}][{}] Created new subscription for {}", topic, subscriptionName, consumerId);
+                    future.complete(consumer);
+                }
+            }).exceptionally(e -> {
+                Throwable throwable = e.getCause();
+                if (throwable instanceof ConsumerBusyException) {
+                    log.warn("[{}][{}] Consumer {} {} already connected", topic, subscriptionName, consumerId,
+                            consumerName);
+                } else if (throwable instanceof SubscriptionBusyException) {
+                    log.warn("[{}][{}] {}", topic, subscriptionName, e.getMessage());
+                }
+
+                decrementUsageCount();
+                future.completeExceptionally(throwable);
+                return null;
+            });
+
+            return future;
         });
-
-        return future;
     }
 
     @Override
