@@ -277,14 +277,9 @@ public class MessageImpl<T> implements Message<T> {
             return brokerEntryMetadata.getBrokerTimestamp();
         }
         // otherwise get the publish_time,
-        MessageImpl<byte[]> msg = (MessageImpl<byte[]>) RECYCLER.get();
-        try {
-            Commands.parseMessageMetadata(headersAndPayloadWithBrokerEntryMetadata, msg.msgMetadata);
-            return msg.getPublishTime();
-        } finally {
-            // make sure msg can be recycled
-            msg.recycle();
-        }
+        MessageMetadata messageMetadata = new MessageMetadata();
+        Commands.parseMessageMetadata(headersAndPayloadWithBrokerEntryMetadata, messageMetadata);
+        return messageMetadata.getPublishTime();
     }
 
     public static boolean isEntryExpired(int messageTTLInSeconds, long entryTimestamp) {
@@ -292,7 +287,7 @@ public class MessageImpl<T> implements Message<T> {
                 (System.currentTimeMillis() > entryTimestamp + TimeUnit.SECONDS.toMillis(messageTTLInSeconds));
     }
 
-    public static boolean isEntryPublishedEarlierThan(long timestamp, long entryTimestamp) {
+    public static boolean isEntryPublishedEarlierThan(long entryTimestamp, long timestamp) {
         return entryTimestamp < timestamp;
     }
 

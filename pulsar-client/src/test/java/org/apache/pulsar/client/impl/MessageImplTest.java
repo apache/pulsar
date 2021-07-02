@@ -452,6 +452,7 @@ public class MessageImplTest {
             compositeByteBuf.addComponents(true, brokerMeta, byteBuf);
             long entryTimestamp = MessageImpl.getEntryTimestamp(compositeByteBuf);
             assertTrue(MessageImpl.isEntryExpired(100, entryTimestamp));
+            assertEquals(entryTimestamp, 1);
 
             // test BrokerTimestamp set.
             byteBuf = PulsarByteBufAllocator.DEFAULT.buffer(data.length(), data.length());
@@ -461,8 +462,9 @@ public class MessageImplTest {
                     .setProducerName("test")
                     .setSequenceId(1);
             byteBuf = Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata, byteBuf);
+            long brokerEntryTimestamp = System.currentTimeMillis();
             brokerMetadata = new BrokerEntryMetadata()
-                    .setBrokerTimestamp(System.currentTimeMillis())
+                    .setBrokerTimestamp(brokerEntryTimestamp)
                     .setIndex(MOCK_BATCH_SIZE - 1);
 
             brokerMetaSize = brokerMetadata.getSerializedSize();
@@ -475,6 +477,7 @@ public class MessageImplTest {
             compositeByteBuf.addComponents(true, brokerMeta, byteBuf);
             entryTimestamp = MessageImpl.getEntryTimestamp(compositeByteBuf);
             assertFalse(MessageImpl.isEntryExpired(24 * 3600, entryTimestamp));
+            assertEquals(entryTimestamp, brokerEntryTimestamp);
         } catch (IOException e) {
             fail();
         }
