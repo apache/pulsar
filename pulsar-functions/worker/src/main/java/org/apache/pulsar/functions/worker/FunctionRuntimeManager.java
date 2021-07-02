@@ -944,6 +944,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
                 for (Function.FunctionState state : functionMetaData.getInstanceStatesMap().values()) {
                     if (state == Function.FunctionState.RUNNING) {
                         toStart = true;
+                        break;
                     }
                 }
             } else {

@@ -600,7 +600,6 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        validateTopicName(tenant, namespace, encodedTopic);
         validateTopicPolicyOperation(topicName, PolicyName.MAX_UNACKED, PolicyOperation.WRITE);
         preValidation(authoritative)
             .thenCompose(__ -> internalSetMaxUnackedMessagesOnSubscription(null))
@@ -1363,7 +1362,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Subscription to reset position on", required = true)
             @PathParam("subName") String encodedSubName,
-            @ApiParam(value = "time in minutes to reset back to (or minutes, hours, days, weeks eg:100m, 3h, 2d, 5w)")
+            @ApiParam(value = "the timestamp to reset back")
             @PathParam("timestamp") long timestamp,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
@@ -1767,7 +1766,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             .thenCompose(__ -> internalSetDeduplication(null))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
-                handleTopicPolicyException("setDeduplication", ex, asyncResponse);
+                handleTopicPolicyException("removeDeduplication", ex, asyncResponse);
                 return null;
             });
     }
@@ -1858,7 +1857,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                 asyncResponse.resume(Response.noContent().build());
             })
             .exceptionally(ex -> {
-                handleTopicPolicyException("setRetention", ex, asyncResponse);
+                handleTopicPolicyException("removeRetention", ex, asyncResponse);
                 return null;
             });
     }
