@@ -714,4 +714,86 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @Test
+    public void testSetReplicatedSubscriptionStatus() {
+        final String topicName = "topic-with-repl-sub";
+        final String partitionName = topicName + "-partition-0";
+        final String subName = "sub";
+
+        // 1) Return 404 if that the topic does not exist
+        AsyncResponse response = mock(AsyncResponse.class);
+        persistentTopics.setReplicatedSubscriptionStatus(response, testTenant, testNamespace, topicName, subName, true,
+                true);
+        ArgumentCaptor<RestException> errorCaptor = ArgumentCaptor.forClass(RestException.class);
+        verify(response, timeout(10000).times(1)).resume(errorCaptor.capture());
+        Assert.assertEquals(errorCaptor.getValue().getResponse().getStatus(),
+                Response.Status.NOT_FOUND.getStatusCode());
+
+        // 2) Return 404 if that the partitioned topic does not exist
+        response = mock(AsyncResponse.class);
+        persistentTopics.setReplicatedSubscriptionStatus(response, testTenant, testNamespace, partitionName, subName,
+                true, true);
+        errorCaptor = ArgumentCaptor.forClass(RestException.class);
+        verify(response, timeout(10000).times(1)).resume(errorCaptor.capture());
+        Assert.assertEquals(errorCaptor.getValue().getResponse().getStatus(),
+                Response.Status.NOT_FOUND.getStatusCode());
+
+        // 3) Create the partitioned topic
+        response = mock(AsyncResponse.class);
+        ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
+        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, topicName, 2,true);
+        verify(response, timeout(10000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+
+        // 4) Create a subscription
+        response = mock(AsyncResponse.class);
+        persistentTopics.createSubscription(response, testTenant, testNamespace, topicName, subName, true,
+                (MessageIdImpl) MessageId.latest, false);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        verify(response, timeout(10000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+
+        // 5) Enable replicated subscription on the partitioned topic
+        response = mock(AsyncResponse.class);
+        persistentTopics.setReplicatedSubscriptionStatus(response, testTenant, testNamespace, topicName, subName, true,
+                true);
+        verify(response, timeout(10000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+
+        // 6) Disable replicated subscription on the partitioned topic
+        response = mock(AsyncResponse.class);
+        persistentTopics.setReplicatedSubscriptionStatus(response, testTenant, testNamespace, topicName, subName, true,
+                false);
+        verify(response, timeout(10000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+
+        // 7) Enable replicated subscription on the partition
+        response = mock(AsyncResponse.class);
+        persistentTopics.setReplicatedSubscriptionStatus(response, testTenant, testNamespace, partitionName, subName,
+                true, true);
+        verify(response, timeout(10000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+
+        // 8) Disable replicated subscription on the partition
+        response = mock(AsyncResponse.class);
+        persistentTopics.setReplicatedSubscriptionStatus(response, testTenant, testNamespace, partitionName, subName,
+                true, false);
+        verify(response, timeout(10000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+
+        // 9) Delete the subscription
+        response = mock(AsyncResponse.class);
+        persistentTopics.deleteSubscription(response, testTenant, testNamespace, topicName, subName, false, true);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        verify(response, timeout(10000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+
+        // 10) Delete the partitioned topic
+        response = mock(AsyncResponse.class);
+        persistentTopics.deletePartitionedTopic(response, testTenant, testNamespace, topicName, true, true, false);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        verify(response, timeout(10000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+    }
+
 }

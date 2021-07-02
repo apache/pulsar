@@ -188,7 +188,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         result.completeExceptionally(ex);
                     } else {
                         initPolicesCache(reader, result);
-                        readMorePolicies(reader);
+                        result.thenRun(() -> readMorePolicies(reader));
                     }
                 });
             }
@@ -264,9 +264,18 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Reach the end of the system topic.", reader.getSystemTopic().getTopicName());
                 }
-                future.complete(null);
                 policyCacheInitMap.computeIfPresent(
                         reader.getSystemTopic().getTopicName().getNamespaceObject(), (k, v) -> true);
+
+                // replay policy message
+                policiesCache.forEach(((topicName, topicPolicies) -> {
+                    if (listeners.get(topicName) != null) {
+                        for (TopicPolicyListener<TopicPolicies> listener : listeners.get(topicName)) {
+                            listener.onUpdate(topicPolicies);
+                        }
+                    }
+                }));
+                future.complete(null);
             }
         });
     }

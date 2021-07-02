@@ -30,7 +30,7 @@ from pulsar import Client, MessageId, \
             AuthenticationTLS, Authentication, AuthenticationToken, InitialPosition, \
             CryptoKeyReader
 
-from _pulsar import ProducerConfiguration, ConsumerConfiguration
+from _pulsar import ProducerConfiguration, ConsumerConfiguration, ConnectError
 
 from schema_test import *
 
@@ -1146,6 +1146,22 @@ class PulsarTest(TestCase):
 
         with self.assertRaises(pulsar.Timeout):
             consumer.receive(100)
+        client.close()
+
+    def test_connect_timeout(self):
+        client = pulsar.Client(
+            service_url='pulsar://192.0.2.1:1234',
+            connection_timeout_ms=1000, # 1 second
+        )
+        t1 = time.time()
+        try:
+            producer = client.create_producer('test_connect_timeout')
+            self.fail('create_producer should not succeed')
+        except ConnectError as expected:
+            print('expected error: {} when create producer'.format(expected))
+        t2 = time.time()
+        self.assertGreater(t2 - t1, 1.0)
+        self.assertLess(t2 - t1, 1.5) # 1.5 seconds is long enough
         client.close()
 
     def _check_value_error(self, fun):
