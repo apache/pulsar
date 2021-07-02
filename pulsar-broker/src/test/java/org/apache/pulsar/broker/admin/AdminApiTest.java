@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.apache.pulsar.broker.admin.AdminResource.MANAGED_LEDGER_PATH_ZNODE;
+import static org.apache.pulsar.common.policies.path.PolicyPath.joinPath;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -1218,6 +1220,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                     assertFalse(admin.tenants().getTenants().contains(tenant));
                 });
 
+        final String managedLedgerPathForTenant = joinPath(MANAGED_LEDGER_PATH_ZNODE, tenant);
+        assertNull(pulsar.getLocalZkCache().getZooKeeper().exists(managedLedgerPathForTenant, false));
+
         admin.tenants().createTenant(tenant,
                 new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test")));
         assertTrue(admin.tenants().getTenants().contains(tenant));
@@ -1225,6 +1230,57 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // reset back to false
         pulsar.getConfiguration().setForceDeleteTenantAllowed(false);
+        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(false);
+
+    }
+
+    @Test
+    public void testDeleteNamespaceForcefully() throws Exception {
+        // allow forced deletion of namespaces
+        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
+
+        String tenant = "my-tenant";
+        assertFalse(admin.tenants().getTenants().contains(tenant));
+
+        // create tenant
+        admin.tenants().createTenant(tenant,
+                new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test")));
+
+        assertTrue(admin.tenants().getTenants().contains(tenant));
+
+        // create namespace
+        String namespace = tenant + "/my-ns";
+        admin.namespaces().createNamespace("my-tenant/my-ns", Sets.newHashSet("test"));
+
+        assertEquals(admin.namespaces().getNamespaces(tenant), Lists.newArrayList("my-tenant/my-ns"));
+
+        // create topic
+        String topic = namespace + "/my-topic";
+        admin.topics().createPartitionedTopic(topic, 10);
+
+        assertFalse(admin.topics().getList(namespace).isEmpty());
+
+        try {
+            admin.namespaces().deleteNamespace(namespace, false);
+            fail("should have failed due to namespace not empty");
+        } catch (PulsarAdminException e) {
+            // Expected: cannot delete non-empty tenant
+        }
+
+        // delete namespace forcefully
+        admin.namespaces().deleteNamespace(namespace, true);
+        assertFalse(admin.namespaces().getNamespaces(tenant).contains(namespace));
+        assertTrue(admin.namespaces().getNamespaces(tenant).isEmpty());
+
+        final String managedLedgerPath = joinPath(MANAGED_LEDGER_PATH_ZNODE, namespace);
+        final String persistentDomain = managedLedgerPath + "/" + TopicDomain.persistent.value();
+        final String nonPersistentDomain = managedLedgerPath + "/" + TopicDomain.non_persistent.value();
+
+        assertNull(pulsar.getLocalZkCache().getZooKeeper().exists(persistentDomain, false));
+        assertNull(pulsar.getLocalZkCache().getZooKeeper().exists(nonPersistentDomain, false));
+        assertNull(pulsar.getLocalZkCache().getZooKeeper().exists(managedLedgerPath, false));
+
+        // reset back to false
         pulsar.getConfiguration().setForceDeleteNamespaceAllowed(false);
     }
 
