@@ -28,6 +28,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -196,5 +197,36 @@ public class ConfigurationDataUtilsTest {
 
         assertEquals(confData1, confData2);
         assertEquals(confData1.hashCode(), confData2.hashCode());
+    }
+
+    @Test
+    public void testSocks5() throws PulsarClientException {
+        ClientConfigurationData clientConfig = new ClientConfigurationData();
+        clientConfig.setServiceUrl("pulsar://unknown:6650");
+        clientConfig.setSocks5ProxyAddress(new InetSocketAddress("localhost", 11080));
+        clientConfig.setSocks5ProxyUsername("test");
+        clientConfig.setSocks5ProxyPassword("test123");
+
+        PulsarClientImpl pulsarClient = new PulsarClientImpl(clientConfig);
+        assertEquals(pulsarClient.getConfiguration().getSocks5ProxyAddress(), new InetSocketAddress("localhost", 11080));
+        assertEquals(pulsarClient.getConfiguration().getSocks5ProxyUsername(), "test");
+        assertEquals(pulsarClient.getConfiguration().getSocks5ProxyPassword(), "test123");
+
+        ClientConfigurationData clientConfig2 = new ClientConfigurationData();
+        System.setProperty("socks5Proxy.address", "http://localhost:11080");
+        System.setProperty("socks5Proxy.username", "pulsar");
+        System.setProperty("socks5Proxy.password", "pulsar123");
+        assertEquals(clientConfig2.getSocks5ProxyAddress(), new InetSocketAddress("localhost", 11080));
+        assertEquals(clientConfig2.getSocks5ProxyUsername(), "pulsar");
+        assertEquals(clientConfig2.getSocks5ProxyPassword(), "pulsar123");
+
+        System.setProperty("socks5Proxy.address", "localhost:11080"); // invalid address, no scheme
+        try {
+            clientConfig2.getSocks5ProxyAddress();
+            fail("No exception thrown.");
+        } catch (Exception ex) {
+            assertTrue(ex.getMessage().contains("Invalid config [socks5Proxy.address]"));
+        }
+        System.clearProperty("socks5Proxy.address");
     }
 }
