@@ -46,10 +46,13 @@ import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.RawMessage;
+import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.RawMessageImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -305,5 +308,57 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         Assert.assertTrue(succeed);
 
         producer.close();
+    }
+
+    @Test(timeOut = 30000)
+    public void testReadMessageFromCompactedLedger() throws Exception {
+        final String key = "1";
+        String msg = "test compaction msg";
+        final String topic = "persistent://my-property/use/my-ns/testCompactWithEmptyMessage-" + UUID.randomUUID();
+        admin.topics().createPartitionedTopic(topic, 1);
+        final int numMessages = 10;
+
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).enableBatching(false).create();
+        for (int i = 0; i < numMessages; ++i) {
+            producer.newMessage().key(key).value(msg).send();
+        }
+
+        admin.topics().triggerCompaction(topic);
+        boolean succeed = retryStrategically((test) -> {
+            try {
+                return LongRunningProcessStatus.Status.SUCCESS.equals(admin.topics().compactionStatus(topic).status);
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 10, 200);
+
+        Assert.assertTrue(succeed);
+
+
+        final String newKey = "2";
+        String newMsg = "test compaction msg v2";
+        for (int i = 0; i < numMessages; ++i) {
+            producer.newMessage().key(newKey).value(newMsg).send();
+        }
+
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+                .topic(topic)
+                .readCompacted(true)
+                .startMessageId(MessageId.earliest)
+                .create();
+
+        int compactedMsgCount = 0;
+        int nonCompactedMsgCount = 0;
+        while (reader.hasMessageAvailable()) {
+            Message<String> message = reader.readNext();
+            if (key.equals(message.getKey()) && msg.equals(message.getValue())) {
+                compactedMsgCount++;
+            } else if (newKey.equals(message.getKey()) && newMsg.equals(message.getValue())) {
+                nonCompactedMsgCount++;
+            }
+        }
+
+        Assert.assertEquals(compactedMsgCount, 1);
+        Assert.assertEquals(nonCompactedMsgCount, numMessages);
     }
 }
