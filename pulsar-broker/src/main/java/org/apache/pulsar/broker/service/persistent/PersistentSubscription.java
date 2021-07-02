@@ -47,6 +47,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
@@ -59,7 +60,6 @@ import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
-import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleDisabled;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -77,7 +77,6 @@ import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -141,10 +140,7 @@ public class PersistentSubscription implements Subscription {
         this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, subscriptionName, cursor, this);
         this.setReplicated(replicated);
         if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
-                && !checkTopicIsEventsNames(TopicName.get(topicName))
-                && !topicName.startsWith(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getLocalName())
-                && !topicName.startsWith(MLTransactionLogImpl.TRANSACTION_LOG_PREFIX)
-                && !topicName.endsWith(MLPendingAckStore.PENDING_ACK_STORE_SUFFIX)) {
+                && !checkTopicIsEventsNames(TopicName.get(topicName))) {
             this.pendingAckHandle = new PendingAckHandleImpl(this);
         } else {
             this.pendingAckHandle = new PendingAckHandleDisabled();
@@ -177,12 +173,25 @@ public class PersistentSubscription implements Subscription {
         return replicatedSubscriptionSnapshotCache != null;
     }
 
-    void setReplicated(boolean replicated) {
-        this.replicatedSubscriptionSnapshotCache = replicated
-                ? new ReplicatedSubscriptionSnapshotCache(subName,
-                        topic.getBrokerService().pulsar().getConfiguration()
-                                .getReplicatedSubscriptionsSnapshotMaxCachedPerSubscription())
-                : null;
+    public boolean setReplicated(boolean replicated) {
+        ServiceConfiguration config = topic.getBrokerService().getPulsar().getConfig();
+
+        if (!replicated || !config.isEnableReplicatedSubscriptions()) {
+            this.replicatedSubscriptionSnapshotCache = null;
+        } else if (this.replicatedSubscriptionSnapshotCache == null) {
+            this.replicatedSubscriptionSnapshotCache = new ReplicatedSubscriptionSnapshotCache(subName,
+                    config.getReplicatedSubscriptionsSnapshotMaxCachedPerSubscription());
+        }
+
+        if (this.cursor != null) {
+            if (replicated) {
+                return this.cursor.putProperty(REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
+            } else {
+                return this.cursor.removeProperty(REPLICATED_SUBSCRIPTION_PROPERTY);
+            }
+        }
+
+        return false;
     }
 
     @Override

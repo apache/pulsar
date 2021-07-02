@@ -150,7 +150,7 @@ elseif(BUILD_STATIC_LIB)
     # Install regular libpulsar.a
     target_link_libraries(pulsarStatic ${COMMON_LIBS})
     install(TARGETS pulsarStatic DESTINATION lib)
-endif(LINK_STATIC)
+endif()
 
 if (BUILD_STATIC_LIB)
     install(TARGETS pulsarStatic DESTINATION lib)

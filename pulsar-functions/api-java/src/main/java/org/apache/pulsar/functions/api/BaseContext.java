@@ -16,73 +16,67 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.core;
+package org.apache.pulsar.functions.api;
+
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+import org.slf4j.Logger;
 
 import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.common.classification.InterfaceAudience;
-import org.apache.pulsar.common.classification.InterfaceStability;
-import org.apache.pulsar.functions.api.StateStore;
-import org.slf4j.Logger;
 
 /**
- * Interface for a connector providing information about environment where it is running.
- * It also allows to propagate information, such as logs, metrics, states, back to the Pulsar environment.
+ * BaseContext provides base contextual information to the executing function/source/sink.
+ * It allows to propagate information, such as pulsar environment, logs, metrics, states etc.
  */
 @InterfaceAudience.Public
 @InterfaceStability.Stable
-public interface ConnectorContext {
+public interface BaseContext {
+    /**
+     * The tenant this component belongs to.
+     *
+     * @return the tenant this component belongs to
+     */
+    String getTenant();
 
     /**
-     * The id of the instance that invokes this source.
+     * The namespace this component belongs to.
+     *
+     * @return the namespace this component belongs to
+     */
+    String getNamespace();
+
+    /**
+     * The id of the instance that invokes this component.
      *
      * @return the instance id
      */
     int getInstanceId();
 
     /**
-     * Get the number of instances that invoke this source.
+     * Get the number of instances that invoke this component.
      *
-     * @return the number of instances that invoke this source.
+     * @return the number of instances that invoke this component.
      */
     int getNumInstances();
-    
-    /**
-     * Record a user defined metric
-     * @param metricName The name of the metric
-     * @param value The value of the metric
-     */
-    void recordMetric(String metricName, double value);
-    
-    /**
-     * The tenant this source belongs to.
-     *
-     * @return the tenant this source belongs to
-     */
-    String getTenant();
 
     /**
-     * The namespace this source belongs to.
+     * The logger object that can be used to log in a component.
      *
-     * @return the namespace this source belongs to
-     */
-    String getNamespace();
-
-    /**
-     * The logger object that can be used to log in a sink
      * @return the logger object
      */
     Logger getLogger();
 
     /**
-     * Get the secret associated with this key
+     * Get the secret associated with this key.
+     *
      * @param secretName The name of the secret
      * @return The secret if anything was found or null
      */
     String getSecret(String secretName);
 
     /**
-     * Get the state store with the provided store name.
+     * Get the state store with the provided store name in the tenant & namespace.
      *
      * @param name the state store name
      * @param <S> the type of interface of the store to return
@@ -92,43 +86,24 @@ public interface ConnectorContext {
      * or interface of the actual returned store.
      */
     default <S extends StateStore> S getStateStore(String name) {
-        throw new UnsupportedOperationException("Not implemented");
+        throw new UnsupportedOperationException("Component cannot get state store");
     }
 
     /**
-     * Increment the builtin distributed counter referred by key.
+     * Get the state store with the provided store name.
      *
-     * @param key    The name of the key
-     * @param amount The amount to be incremented
-     */
-    void incrCounter(String key, long amount);
-
-
-    /**
-     * Increment the builtin distributed counter referred by key
-     * but dont wait for the completion of the increment operation
+     * @param tenant the state tenant name
+     * @param ns the state namespace name
+     * @param name the state store name
+     * @param <S> the type of interface of the store to return
+     * @return the state store instance.
      *
-     * @param key    The name of the key
-     * @param amount The amount to be incremented
+     * @throws ClassCastException if the return type isn't a type
+     * or interface of the actual returned store.
      */
-    CompletableFuture<Void> incrCounterAsync(String key, long amount);
-
-    /**
-     * Retrieve the counter value for the key.
-     *
-     * @param key name of the key
-     * @return the amount of the counter value for this key
-     */
-    long getCounter(String key);
-
-    /**
-     * Retrieve the counter value for the key, but don't wait
-     * for the operation to be completed
-     *
-     * @param key name of the key
-     * @return the amount of the counter value for this key
-     */
-    CompletableFuture<Long> getCounterAsync(String key);
+    default <S extends StateStore> S getStateStore(String tenant, String ns, String name) {
+        throw new UnsupportedOperationException("Component cannot get state store");
+    }
 
     /**
      * Update the state value for the key.
@@ -175,4 +150,45 @@ public interface ConnectorContext {
      * @param key   name of the key
      */
     CompletableFuture<Void> deleteStateAsync(String key);
+
+    /**
+     * Increment the builtin distributed counter referred by key.
+     *
+     * @param key    The name of the key
+     * @param amount The amount to be incremented
+     */
+    void incrCounter(String key, long amount);
+
+    /**
+     * Increment the builtin distributed counter referred by key
+     * but dont wait for the completion of the increment operation
+     *
+     * @param key    The name of the key
+     * @param amount The amount to be incremented
+     */
+    CompletableFuture<Void> incrCounterAsync(String key, long amount);
+
+    /**
+     * Retrieve the counter value for the key.
+     *
+     * @param key name of the key
+     * @return the amount of the counter value for this key
+     */
+    long getCounter(String key);
+
+    /**
+     * Retrieve the counter value for the key, but don't wait
+     * for the operation to be completed
+     *
+     * @param key name of the key
+     * @return the amount of the counter value for this key
+     */
+    CompletableFuture<Long> getCounterAsync(String key);
+
+    /**
+     * Record a user defined metric
+     * @param metricName The name of the metric
+     * @param value The value of the metric
+     */
+    void recordMetric(String metricName, double value);
 }

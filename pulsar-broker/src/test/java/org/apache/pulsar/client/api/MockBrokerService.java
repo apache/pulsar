@@ -276,7 +276,7 @@ public class MockBrokerService {
             log.info("Started web service on {}", getHttpAddress());
 
             startMockBrokerService();
-            log.info("Started mock Pulsar service on ", getBrokerAddress());
+            log.info("Started mock Pulsar service on {}", getBrokerAddress());
 
             lookupData = new LookupData(getBrokerAddress(), null,
                     getHttpAddress(), null);
