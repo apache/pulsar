@@ -465,11 +465,11 @@ public abstract class NamespacesBase extends AdminResource {
 
                 try {
                     LocalZooKeeperConnectionService.deleteIfExists(
-                            pulsar().getLocalZkCache().getZooKeeper(), persistentDomain, -1 );
+                            pulsar().getLocalZkCache().getZooKeeper(), persistentDomain, -1);
                     LocalZooKeeperConnectionService.deleteIfExists(
-                            pulsar().getLocalZkCache().getZooKeeper(), nonPersistentDomain, -1 );
+                            pulsar().getLocalZkCache().getZooKeeper(), nonPersistentDomain, -1);
                     LocalZooKeeperConnectionService.deleteIfExists(
-                            pulsar().getLocalZkCache().getZooKeeper(), managedLedgerPath, -1 );
+                            pulsar().getLocalZkCache().getZooKeeper(), managedLedgerPath, -1);
                 } catch (KeeperException | InterruptedException e) {
                     // warn level log here since this failure has no side effect besides left a un-used metadata
                     // and also will not affect the re-creation of namespace

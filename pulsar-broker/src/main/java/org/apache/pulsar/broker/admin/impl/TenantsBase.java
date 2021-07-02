@@ -333,7 +333,7 @@ public class TenantsBase extends PulsarWebResource {
             final String managedLedgerPath = joinPath(MANAGED_LEDGER_PATH_ZNODE, tenant);
             try {
                 LocalZooKeeperConnectionService.deleteIfExists(
-                        pulsar().getLocalZkCache().getZooKeeper(), managedLedgerPath, -1 );
+                        pulsar().getLocalZkCache().getZooKeeper(), managedLedgerPath, -1);
             } catch (KeeperException | InterruptedException e) {
                 // warn level log here since this failure has no side effect besides left a un-used metadata
                 // and also will not affect the re-creation of tenant
