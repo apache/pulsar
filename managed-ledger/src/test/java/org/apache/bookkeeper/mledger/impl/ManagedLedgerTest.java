@@ -2923,6 +2923,23 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testLedgerReachMaximumRolloverTime() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMinimumRolloverTime(1, TimeUnit.MILLISECONDS);
+        config.setMaximumRolloverTime(1, TimeUnit.SECONDS);
+
+        ManagedLedger ml = factory.open("ledger-reach-maximum-rollover-time", config);
+        long firstLedgerId = ml.addEntry("test".getBytes()).getLedgerId();
+
+        // the ledger rollover scheduled time is between 1000 and 1050 ms,
+        // wait 1100 ms, the ledger should be rolled over.
+        Awaitility.await()
+                .atMost(1100, TimeUnit.MILLISECONDS)
+                .pollInterval(100, TimeUnit.MILLISECONDS)
+                .until(() -> firstLedgerId != ml.addEntry("test".getBytes()).getLedgerId());
+    }
+
+    @Test
     public void testExpiredLedgerDeletionAfterManagedLedgerRestart() throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setRetentionTime(1, TimeUnit.SECONDS);
