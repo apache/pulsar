@@ -36,9 +36,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.connect.util.Callback;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import static org.mockito.Mockito.mock;
 
 /**
  * Test the implementation of {@link PulsarOffsetBackingStore}.
@@ -50,6 +53,7 @@ public class PulsarOffsetBackingStoreTest extends ProducerConsumerBase {
     private PulsarKafkaWorkerConfig distributedConfig;
     private String topicName;
     private PulsarOffsetBackingStore offsetBackingStore;
+    private PulsarClient client;
 
     @BeforeMethod
     @Override
@@ -58,10 +62,12 @@ public class PulsarOffsetBackingStoreTest extends ProducerConsumerBase {
         super.producerBaseSetup();
 
         this.topicName = "persistent://my-property/my-ns/offset-topic";
-        this.defaultProps.put(PulsarKafkaWorkerConfig.PULSAR_SERVICE_URL_CONFIG, brokerUrl.toString());
         this.defaultProps.put(PulsarKafkaWorkerConfig.OFFSET_STORAGE_TOPIC_CONFIG, topicName);
         this.distributedConfig = new PulsarKafkaWorkerConfig(this.defaultProps);
-        this.offsetBackingStore = new PulsarOffsetBackingStore();
+        this.client = PulsarClient.builder()
+                .serviceUrl(brokerUrl.toString())
+                .build();
+        this.offsetBackingStore = new PulsarOffsetBackingStore(client);
         this.offsetBackingStore.configure(distributedConfig);
         this.offsetBackingStore.start();
     }
