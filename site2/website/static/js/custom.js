@@ -16,11 +16,11 @@ window.addEventListener('load', function () {
         '<a id="apache-menu" href="#">Apache <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
         '<div id="apache-dropdown" class="hide">' +
         '<ul id="apache-dropdown-items">' +
-        '<li><a href="https://www.apache.org/" target="_blank" >Foundation &#x2750</a></li>' +
-        '<li><a href="https://www.apache.org/licenses/" target="_blank">License &#x2750</a></li>' +
-        '<li><a href="https://www.apache.org/foundation/sponsorship.html" target="_blank">Sponsorship &#x2750</a></li>' +
-        '<li><a href="https://www.apache.org/foundation/thanks.html" target="_blank">Thanks &#x2750</a></li>' +
-        '<li><a href="https://www.apache.org/security" target="_blank">Security &#x2750</a></li>' +
+        '<li><a href="https://www.apache.org/" target="_blank" >Foundation</a></li>' +
+        '<li><a href="https://www.apache.org/licenses/" target="_blank">License</a></li>' +
+        '<li><a href="https://www.apache.org/foundation/sponsorship.html" target="_blank">Sponsorship</a></li>' +
+        '<li><a href="https://www.apache.org/foundation/thanks.html" target="_blank">Thanks</a></li>' +
+        '<li><a href="https://www.apache.org/security" target="_blank">Security</a></li>' +
         '</ul>' +
         '</div>' +
         '</li>';
