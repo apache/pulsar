@@ -63,7 +63,7 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
             cursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries, entry -> {
                 try {
                     long entryTimestamp = MessageImpl.getEntryTimestamp(entry.getDataBuffer());
-                    return MessageImpl.isEntryPublishedEarlierThan(timestamp, entryTimestamp);
+                    return MessageImpl.isEntryPublishedEarlierThan(entryTimestamp, timestamp);
                 } catch (Exception e) {
                     log.error("[{}][{}] Error deserializing message for message position find", topicName, subName, e);
                 } finally {
