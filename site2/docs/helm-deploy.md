@@ -346,7 +346,7 @@ In this example, we name our Helm release `pulsar`.
 ```bash
 helm repo add apache https://pulsar.apache.org/charts
 helm repo update
-helm upgrade --install pulsar apache/pulsar \
+helm install pulsar apache/pulsar \
     --timeout 10m \
     --set [your configuration options]
 ```
