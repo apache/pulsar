@@ -255,16 +255,15 @@ public class Producer {
     }
 
     private void startPublishOperation(int batchSize, long msgSize) {
-        // A single thread is incrementing/decrementing this counter, so we can use lazySet which doesn't involve a mem
-        // barrier
-        pendingPublishAcksUpdater.lazySet(this, pendingPublishAcks + 1);
+        // Since different threads can start and complete the publish operation, we need a strong concurrency guarantee
+        pendingPublishAcksUpdater.incrementAndGet(this);
         // increment publish-count
         this.getTopic().incrementPublishCount(batchSize, msgSize);
     }
 
     private void publishOperationCompleted() {
         // Check the close future to avoid grabbing the mutex every time the pending acks goes down to 0
-        if (pendingPublishAcksUpdater.getAndDecrement(this) <= 1 && !closeFuture.isDone()) {
+        if (pendingPublishAcksUpdater.decrementAndGet(this) <= 0 && !closeFuture.isDone()) {
             synchronized (this) {
                 if (isClosed && !closeFuture.isDone()) {
                     closeNow(true);
