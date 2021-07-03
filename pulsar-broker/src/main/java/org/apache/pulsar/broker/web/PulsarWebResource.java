@@ -60,6 +60,7 @@ import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.BaseResources;
+import org.apache.pulsar.broker.resources.BookieResources;
 import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.resources.DynamicConfigurationResources;
 import org.apache.pulsar.broker.resources.LocalPoliciesResources;
@@ -898,6 +899,10 @@ public abstract class PulsarWebResource {
 
     protected ClusterResources clusterResources() {
         return pulsar().getPulsarResources().getClusterResources();
+    }
+
+    protected BookieResources bookieResources() {
+        return pulsar().getPulsarResources().getBookieResources();
     }
 
     protected NamespaceResources namespaceResources() {

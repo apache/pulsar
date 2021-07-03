@@ -38,6 +38,8 @@ public class PulsarResources {
     private DynamicConfigurationResources dynamicConfigResources;
     private LocalPoliciesResources localPolicies;
     private LoadManagerReportResources loadReportResources;
+    private BookieResources bookieResources;
+
     private Optional<MetadataStoreExtended> localMetadataStore;
     private Optional<MetadataStoreExtended> configurationMetadataStore;
 
@@ -56,6 +58,7 @@ public class PulsarResources {
             dynamicConfigResources = new DynamicConfigurationResources(localMetadataStore, operationTimeoutSec);
             localPolicies = new LocalPoliciesResources(localMetadataStore, operationTimeoutSec);
             loadReportResources = new LoadManagerReportResources(localMetadataStore, operationTimeoutSec);
+            bookieResources = new BookieResources(localMetadataStore, operationTimeoutSec);
         }
         this.localMetadataStore = Optional.ofNullable(localMetadataStore);
         this.configurationMetadataStore = Optional.ofNullable(configurationMetadataStore);
