@@ -38,6 +38,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
+import io.netty.util.concurrent.FastThreadLocal;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
@@ -48,6 +50,7 @@ import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.KeyValue;
+import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
@@ -276,10 +279,8 @@ public class MessageImpl<T> implements Message<T> {
         if (brokerEntryMetadata != null && brokerEntryMetadata.hasBrokerTimestamp()) {
             return brokerEntryMetadata.getBrokerTimestamp();
         }
-        // otherwise get the publish_time,
-        MessageMetadata messageMetadata = new MessageMetadata();
-        Commands.parseMessageMetadata(headersAndPayloadWithBrokerEntryMetadata, messageMetadata);
-        return messageMetadata.getPublishTime();
+        // otherwise get the publish_time
+        return Commands.parseMessageMetadata(headersAndPayloadWithBrokerEntryMetadata).getPublishTime();
     }
 
     public static boolean isEntryExpired(int messageTTLInSeconds, long entryTimestamp) {
