@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
@@ -268,31 +269,24 @@ public class MessageImpl<T> implements Message<T> {
         return msg;
     }
 
-    public static MessageImpl<byte[]> deserializeBrokerEntryMetaDataFirst(
-            ByteBuf headersAndPayloadWithBrokerEntryMetadata) throws IOException {
-        @SuppressWarnings("unchecked")
-        MessageImpl<byte[]> msg = (MessageImpl<byte[]>) RECYCLER.get();
-
-        msg.brokerEntryMetadata =
+    public static long getEntryTimestamp( ByteBuf headersAndPayloadWithBrokerEntryMetadata) throws IOException {
+        // get broker timestamp first if BrokerEntryMetadata is enabled with AppendBrokerTimestampMetadataInterceptor
+        BrokerEntryMetadata brokerEntryMetadata =
                 Commands.parseBrokerEntryMetadataIfExist(headersAndPayloadWithBrokerEntryMetadata);
-
-        if (msg.brokerEntryMetadata != null) {
-            msg.msgMetadata.clear();
-            msg.payload = null;
-            msg.messageId = null;
-            msg.topic = null;
-            msg.cnx = null;
-            msg.properties = Collections.emptyMap();
-            return msg;
+        if (brokerEntryMetadata != null && brokerEntryMetadata.hasBrokerTimestamp()) {
+            return brokerEntryMetadata.getBrokerTimestamp();
         }
+        // otherwise get the publish_time
+        return Commands.parseMessageMetadata(headersAndPayloadWithBrokerEntryMetadata).getPublishTime();
+    }
 
-        Commands.parseMessageMetadata(headersAndPayloadWithBrokerEntryMetadata, msg.msgMetadata);
-        msg.payload = headersAndPayloadWithBrokerEntryMetadata;
-        msg.messageId = null;
-        msg.topic = null;
-        msg.cnx = null;
-        msg.properties = Collections.emptyMap();
-        return msg;
+    public static boolean isEntryExpired(int messageTTLInSeconds, long entryTimestamp) {
+        return messageTTLInSeconds != 0 &&
+                (System.currentTimeMillis() > entryTimestamp + TimeUnit.SECONDS.toMillis(messageTTLInSeconds));
+    }
+
+    public static boolean isEntryPublishedEarlierThan(long entryTimestamp, long timestamp) {
+        return entryTimestamp < timestamp;
     }
 
     public static MessageImpl<byte[]> deserializeSkipBrokerEntryMetaData(
@@ -354,11 +348,6 @@ public class MessageImpl<T> implements Message<T> {
                     getPublishTime() + TimeUnit.SECONDS.toMillis(messageTTLInSeconds))
                 : (System.currentTimeMillis() >
                     brokerEntryMetadata.getBrokerTimestamp() + TimeUnit.SECONDS.toMillis(messageTTLInSeconds)));
-    }
-
-    public boolean publishedEarlierThan(long timestamp) {
-        return brokerEntryMetadata == null || !brokerEntryMetadata.hasBrokerTimestamp() ? getPublishTime() < timestamp
-                : brokerEntryMetadata.getBrokerTimestamp() < timestamp;
     }
 
     @Override
