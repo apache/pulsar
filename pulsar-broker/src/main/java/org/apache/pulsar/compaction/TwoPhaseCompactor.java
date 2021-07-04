@@ -21,6 +21,7 @@ package org.apache.pulsar.compaction;
 import com.google.common.collect.ImmutableMap;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -62,12 +63,14 @@ public class TwoPhaseCompactor extends Compactor {
     private static final Logger log = LoggerFactory.getLogger(TwoPhaseCompactor.class);
     private static final int MAX_OUTSTANDING = 500;
     private static final String COMPACTED_TOPIC_LEDGER_PROPERTY = "CompactedTopicLedger";
+    private final Duration phaseOneLoopReadTimeout;
 
     public TwoPhaseCompactor(ServiceConfiguration conf,
                              PulsarClient pulsar,
                              BookKeeper bk,
                              ScheduledExecutorService scheduler) {
         super(conf, pulsar, bk, scheduler);
+        phaseOneLoopReadTimeout = Duration.ofSeconds(conf.getBrokerServiceCompactionPhaseOneLoopTimeInSeconds());
     }
 
     @Override
@@ -175,7 +178,7 @@ public class TwoPhaseCompactor extends Compactor {
     private void scheduleTimeout(CompletableFuture<RawMessage> future) {
         Future<?> timeout = scheduler.schedule(() -> {
             future.completeExceptionally(new TimeoutException("Timeout"));
-        }, 10, TimeUnit.SECONDS);
+        }, phaseOneLoopReadTimeout.getSeconds(), TimeUnit.SECONDS);
         future.whenComplete((res, exception) -> {
             timeout.cancel(true);
         });
@@ -409,5 +412,9 @@ public class TwoPhaseCompactor extends Compactor {
             this.lastReadId = lastReadId;
             this.latestForKey = latestForKey;
         }
+    }
+
+    public long getPhaseOneLoopReadTimeoutInSeconds() {
+        return phaseOneLoopReadTimeout.getSeconds();
     }
 }

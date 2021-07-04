@@ -1735,6 +1735,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int brokerServiceCompactionMonitorIntervalInSeconds = 60;
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Timeout for the compaction phase one loop, If the execution time of the compaction " +
+                    "phase one loop exceeds this time, the compaction will not proceed."
+    )
+    private long brokerServiceCompactionPhaseOneLoopTimeInSeconds = 30;
+
+    @FieldContext(
         category = CATEGORY_SCHEMA,
         doc = "Enforce schema validation on following cases:\n\n"
             + " - if a producer without a schema attempts to produce to a topic with schema, the producer will be\n"
