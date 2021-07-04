@@ -411,25 +411,25 @@ String wotd = context.getUserConfigValueOrDefault(<span class="hljs-string">"wor
 <tr><th>Java API</th><th>说明</th></tr>
 </thead>
 <tbody>
-<tr><td><code>incrCounter</code></td><td>Increases a built-in distributed counter referred by key.</td></tr>
-<tr><td><code>getCounter</code></td><td>Gets the counter value for the key.</td></tr>
-<tr><td><code>putState</code></td><td>Updates the state value for the key.</td></tr>
+<tr><td><code>incrCounter</code></td><td>增加 key 引用的 counter 的值。</td></tr>
+<tr><td><code>getCounter</code></td><td>获取 key 引用的 counter 的值。</td></tr>
+<tr><td><code>putState</code></td><td>更新 key 的状态值。</td></tr>
 </tbody>
 </table>
-<p>You can use the following APIs to access, update, and manage states in Java window functions.</p>
+<p>你可以使用 API 访问、更新和管理 Java 窗口函数中的状态。</p>
 <h4><a class="anchor" aria-hidden="true" id="incrcounter"></a><a href="#incrcounter" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>incrCounter</h4>
-<p>The <code>incrCounter</code> API increases a built-in distributed counter referred by key.</p>
-<p>Applications use the <code>incrCounter</code> API to change the counter of a given <code>key</code> by the given <code>amount</code>. If the <code>key</code> does not exist, a new key is created.</p>
+<p>API <code>incrCounter</code> 用于增加 key 引用 counter 的值。</p>
+<p><code>incrCounter</code> 为应用提供了根据指定 <code>key</code> 增加指定 <code>amount</code> 的计数器功能。 If the <code>key</code> does not exist, a new key is created.</p>
 <pre><code class="hljs css language-java">    <span class="hljs-comment">/**
-     * Increment the builtin distributed counter referred by key
-     * <span class="hljs-doctag">@param</span> key The name of the key
-     * <span class="hljs-doctag">@param</span> amount The amount to be incremented
+     * 增加指定 key 引用的 counter 的值
+     * <span class="hljs-doctag">@param</span> key key 的名称
+     * <span class="hljs-doctag">@param</span> amount 需要增加的值
      */</span>
     <span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">incrCounter</span><span class="hljs-params">(String key, <span class="hljs-keyword">long</span> amount)</span></span>;
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="getcounter"></a><a href="#getcounter" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>getCounter</h4>
-<p>The <code>getCounter</code> API gets the counter value for the key.</p>
-<p>Applications uses the <code>getCounter</code> API to retrieve the counter of a given <code>key</code> changed by the <code>incrCounter</code> API.</p>
+<p>API <code>getCounter</code> 用于获取 key 引用 counter 的值。</p>
+<p>应用可以使用 API <code>getCounter</code> 根据 <code>key</code> 获取到 <code>incrCounter</code> 方法累加后的 counter 的值。</p>
 <pre><code class="hljs css language-java">    <span class="hljs-comment">/**
      * Retrieve the counter value for the key.
      *
@@ -438,9 +438,9 @@ String wotd = context.getUserConfigValueOrDefault(<span class="hljs-string">"wor
      */</span>
     <span class="hljs-function"><span class="hljs-keyword">long</span> <span class="hljs-title">getCounter</span><span class="hljs-params">(String key)</span></span>;
 </code></pre>
-<p>Except the <code>getCounter</code> API, Pulsar also exposes a general key/value API (<code>putState</code>) for functions to store general key/value state.</p>
+<p>除了API <code>getCounter</code>，Pulsar 还暴露了用于存储一般 key/value 状态的函数接口（<code>putState</code>）。</p>
 <h4><a class="anchor" aria-hidden="true" id="putstate"></a><a href="#putstate" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>putState</h4>
-<p>The <code>putState</code> API updates the state value for the key.</p>
+<p>API <code>putState</code> 用于更新 key 对应的值。</p>
 <pre><code class="hljs css language-java">    <span class="hljs-comment">/**
      * Update the state value for the key.
      *
@@ -449,11 +449,11 @@ String wotd = context.getUserConfigValueOrDefault(<span class="hljs-string">"wor
      */</span>
     <span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">putState</span><span class="hljs-params">(String key, ByteBuffer value)</span></span>;
 </code></pre>
-<p>This example demonstrates how applications store states in Pulsar window functions.</p>
-<p>The logic of the <code>WordCountWindowFunction</code> is simple and straightforward.</p>
+<p>以下代码演示了在应用中如何在 Pulsar 窗口函数中存储状态。</p>
+<p><code>WordCountWindowFunction</code> 的逻辑是简单和直接的。</p>
 <ol>
-<li><p>The function first splits the received string into multiple words using regex <code>\\.</code>.</p></li>
-<li><p>For each <code>word</code>, the function increments the corresponding <code>counter</code> by 1 via <code>incrCounter(key, amount)</code>.</p></li>
+<li><p>该函数首先使用正则表达式 <code>\\.</code> 将接收到的字符串拆分为多个单词。</p></li>
+<li><p>对于每个 <code>word</code>，该函数将相应的 <code>counter</code> 递增1（通过 <code>incr_counter(key, amount)</code>）。</p></li>
 </ol>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Context;
 <span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Function;
