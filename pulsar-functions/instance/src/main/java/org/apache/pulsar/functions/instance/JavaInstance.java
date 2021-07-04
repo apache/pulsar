@@ -32,7 +32,7 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.functions.api.Hook;
+import org.apache.pulsar.functions.api.HookFunction;
 import org.apache.pulsar.functions.api.Record;
 
 /**
@@ -76,17 +76,17 @@ public class JavaInstance implements AutoCloseable {
     }
 
     public void setup() throws Exception {
-        if (null != function && function instanceof Hook) {
+        if (null != function && function instanceof HookFunction) {
             try {
-                ((Hook) function).setup();
+                ((HookFunction) function).setup();
             } catch (Exception e) {
                 log.error("setup error:", e);
                 throw e;
             }
         }
-        if (null != javaUtilFunction && javaUtilFunction instanceof Hook) {
+        if (null != javaUtilFunction && javaUtilFunction instanceof HookFunction) {
             try {
-                ((Hook) javaUtilFunction).setup();
+                ((HookFunction) javaUtilFunction).setup();
             } catch (Exception e) {
                 log.error("setup error:", e);
                 throw e;
@@ -180,17 +180,17 @@ public class JavaInstance implements AutoCloseable {
     public void close() throws Exception {
         context.close();
         executor.shutdown();
-        if (null != function && function instanceof Hook) {
+        if (null != function && function instanceof HookFunction) {
             try {
-                ((Hook) function).cleanup();
+                ((HookFunction) function).cleanup();
             } catch (Exception e) {
                 log.error("function closeResource occurred exception", e);
                 throw e;
             }
         }
-        if (null != javaUtilFunction && javaUtilFunction instanceof Hook) {
+        if (null != javaUtilFunction && javaUtilFunction instanceof HookFunction) {
             try {
-                ((Hook) javaUtilFunction).cleanup();
+                ((HookFunction) javaUtilFunction).cleanup();
             } catch (Exception e) {
                 log.error("function closeResource occurred exception", e);
                 throw e;

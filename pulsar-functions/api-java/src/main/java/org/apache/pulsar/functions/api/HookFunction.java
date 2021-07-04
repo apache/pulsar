@@ -25,7 +25,7 @@ import org.apache.pulsar.common.classification.InterfaceAudience;
  * Initial and close of external resources
  */
 @InterfaceAudience.Public
-public interface Hook extends Function{
+public interface HookFunction extends Function{
 
     /**
      * InitialResource Function Hook
