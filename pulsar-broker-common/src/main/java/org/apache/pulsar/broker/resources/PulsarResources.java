@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.resources;
 
 import java.util.Optional;
 
+import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -40,13 +41,13 @@ public class PulsarResources {
     private LoadManagerReportResources loadReportResources;
     private BookieResources bookieResources;
 
-    private Optional<MetadataStoreExtended> localMetadataStore;
-    private Optional<MetadataStoreExtended> configurationMetadataStore;
+    private Optional<MetadataStore> localMetadataStore;
+    private Optional<MetadataStore> configurationMetadataStore;
 
-    public PulsarResources(MetadataStoreExtended localMetadataStore, MetadataStoreExtended configurationMetadataStore) {
+    public PulsarResources(MetadataStore localMetadataStore, MetadataStore configurationMetadataStore) {
         this(localMetadataStore, configurationMetadataStore, DEFAULT_OPERATION_TIMEOUT_SEC);
     }
-    public PulsarResources(MetadataStoreExtended localMetadataStore, MetadataStoreExtended configurationMetadataStore,
+    public PulsarResources(MetadataStore localMetadataStore, MetadataStore configurationMetadataStore,
             int operationTimeoutSec) {
         if (configurationMetadataStore != null) {
             tenantResources = new TenantResources(configurationMetadataStore, operationTimeoutSec);
