@@ -84,7 +84,7 @@
 <p>Skip to the <a href="#how-pulsar-uses-zookeeper-and-bookkeeper">How Pulsar uses ZooKeeper and BookKeeper</a> section below for a more schematic explanation of the role of these two systems in Pulsar.</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="zookeeper"></a><a href="#zookeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ZooKeeper</h2>
-<p>每个 Pulsar 实例需要两个独立的 ZooKeeper quorum 节点。</p>
+<p>每个 Pulsar 实例需要两个独立的 ZooKeeper 集群。</p>
 <ul>
 <li><a href="#deploy-local-zookeeper">本地集群</a>负责集群级别的操作，提供集群的配置管理和协调。 每个 Pulsar 集群都需要一个专用的 ZooKeeper 集群。</li>
 <li><a href="#deploy-configuration-store">Configuration Store</a> 在实例层面运行，为整个系统提供配置管理（从而实现跨集群）。 配置集群可以部署在独立的机器集群，也可以和本地 Zookeeper 集群部署在同一批机器。</li>
@@ -169,7 +169,7 @@
 <tr><td>syncLimit</td><td>The maximum time, in ticks, that a follower ZooKeeper server is allowed to sync with other ZooKeeper servers. The tick time is set in milliseconds using the tickTime parameter.</td><td>5</td></tr>
 <tr><td>dataDir</td><td>Zookeeper 存储内存数据库快照和数据库更新的日志的目录。</td><td>data/zookeeper</td></tr>
 <tr><td>clientPort</td><td>Zookeeper 服务器监听连接的端口。</td><td>2181</td></tr>
-<tr><td>autopurge.snapRetainCount</td><td>ZooKeeper 中有快照自动清理机制。该参数指定在 autopurge.purgeInterval 配置的时间间隔内，可以保留的快照文件的数量。</td><td>3</td></tr>
+<tr><td>autopurge.snapRetainCount</td><td>ZooKeeper 中自动清理决定了在 autopurge.purgeInterval 参数设定的时间间隔内，存储在 dataDir 中的数据库快照数（其他快照会被删除）。</td><td>3</td></tr>
 <tr><td>autopurge.purgeInterval</td><td>The time interval, in hours, which triggers the ZooKeeper database purge task. Setting to a non-zero number enables auto purge; setting to 0 disables. Read this guide before enabling auto purge.</td><td>1</td></tr>
 <tr><td>maxClientCnxns</td><td>The maximum number of client connections. Increase this if you need to handle more ZooKeeper clients.</td><td>60</td></tr>
 </tbody>
@@ -177,7 +177,7 @@
 <h4><a class="anchor" aria-hidden="true" id="configuration-store"></a><a href="#configuration-store" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration Store</h4>
 <p>配置存储服务集群使用的配置文件是<a href="/docs/zh-CN/2.5.2/reference-configuration#configuration-store"><code>conf/global-zookeeper.conf</code></a>。 下表是可用的配置项列表：</p>
 <h2><a class="anchor" aria-hidden="true" id="bookkeeper"></a><a href="#bookkeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>BookKeeper</h2>
-<p>Bookeeper 负责 Pulsar 集群所有消息的持久化存储。 Bookeeper 是一个分布式的<a href="https://en.wikipedia.org/wiki/Write-ahead_logging"> 预写日志</a> 系统。它保证了独立消息日志读取的一致性，称为 ledger。 Individual BookKeeper servers are also called <em>bookies</em>.</p>
+<p>Bookeeper 负责 Pulsar 集群所有消息的持久化存储。 BookKeeper 是一个分布式的<a href="https://en.wikipedia.org/wiki/Write-ahead_logging"> 预写日志（write-ahead log）</a> 系统。它保证了独立消息日志读取的一致性，称为 ledger。 Individual BookKeeper servers are also called <em>bookies</em>.</p>
 <blockquote>
 <p>在 Pulsar 中管理消息的持久性、保留和过期，请参阅 <a href="/docs/zh-CN/2.5.2/cookbooks-retention-expiry">本指南</a>。</p>
 </blockquote>
@@ -201,7 +201,7 @@
 <h3><a class="anchor" aria-hidden="true" id="硬件条件"></a><a href="#硬件条件" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>硬件条件</h3>
 <p>Bookie hosts are responsible for storing message data on disk. In order for bookies to provide optimal performance, ensuring that the bookies have a suitable hardware configuration is essential. You can choose two key dimensions to bookie hardware capacity:</p>
 <ul>
-<li>硬盘的读/写能力。</li>
+<li>硬盘 I/O 的读/写能力。</li>
 <li>存储容量</li>
 </ul>
 <p>Message entries written to bookies are always synced to disk before returning an acknowledgement to the Pulsar broker. To ensure low write latency, BookKeeper is designed to use multiple devices:</p>

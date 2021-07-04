@@ -84,7 +84,7 @@
 <p>Skip to the <a href="#how-pulsar-uses-zookeeper-and-bookkeeper">How Pulsar uses ZooKeeper and BookKeeper</a> section below for a more schematic explanation of the role of these two systems in Pulsar.</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="zookeeper"></a><a href="#zookeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ZooKeeper</h2>
-<p>每个 Pulsar 实例需要两个独立的 ZooKeeper quorum 节点。</p>
+<p>每个 Pulsar 实例需要两个独立的 ZooKeeper 集群。</p>
 <ul>
 <li><a href="#deploy-local-zookeeper">本地集群</a>负责集群级别的操作，提供集群的配置管理和协调。 每个 Pulsar 集群都需要一个专用的 ZooKeeper 集群。</li>
 <li><a href="#deploy-configuration-store">Configuration Store</a> 在实例层面运行，为整个系统提供配置管理（从而实现跨集群）。 配置集群可以部署在独立的机器集群，也可以和本地 Zookeeper 集群部署在同一批机器。</li>
@@ -169,7 +169,7 @@
 <tr><td>syncLimit</td><td>The maximum time, in ticks, that a follower ZooKeeper server is allowed to sync with other ZooKeeper servers. The tick time is set in milliseconds using the tickTime parameter.</td><td>5</td></tr>
 <tr><td>dataDir</td><td>Zookeeper 存储内存数据库快照和数据库更新的日志的目录。</td><td>data/zookeeper</td></tr>
 <tr><td>clientPort</td><td>Zookeeper 服务器监听连接的端口。</td><td>2181</td></tr>
-<tr><td>autopurge.snapRetainCount</td><td>ZooKeeper 中有快照自动清理机制。该参数指定在 autopurge.purgeInterval 配置的时间间隔内，可以保留的快照文件的数量。</td><td>3</td></tr>
+<tr><td>autopurge.snapRetainCount</td><td>ZooKeeper 中自动清理决定了在 autopurge.purgeInterval 参数设定的时间间隔内，存储在 dataDir 中的数据库快照数（其他快照会被删除）。</td><td>3</td></tr>
 <tr><td>autopurge.purgeInterval</td><td>The time interval, in hours, which triggers the ZooKeeper database purge task. Setting to a non-zero number enables auto purge; setting to 0 disables. Read this guide before enabling auto purge.</td><td>1</td></tr>
 <tr><td>maxClientCnxns</td><td>The maximum number of client connections. Increase this if you need to handle more ZooKeeper clients.</td><td>60</td></tr>
 </tbody>
@@ -177,24 +177,24 @@
 <h4><a class="anchor" aria-hidden="true" id="configuration-store"></a><a href="#configuration-store" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration Store</h4>
 <p>配置存储服务集群使用的配置文件是<a href="/docs/zh-CN/2.6.2/reference-configuration#configuration-store"><code>conf/global-zookeeper.conf</code></a>。 下表是可用的配置项列表：</p>
 <h2><a class="anchor" aria-hidden="true" id="bookkeeper"></a><a href="#bookkeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>BookKeeper</h2>
-<p>Pulsar 使用 BookKeeper 来存储所有的持久化消息。 Bookeeper 是一个分布式的<a href="https://en.wikipedia.org/wiki/Write-ahead_logging"> 预写日志</a> 系统。它保证了独立消息日志读取的一致性，称为 ledger。 Individual BookKeeper servers are also called <em>bookies</em>.</p>
+<p>Pulsar 使用 BookKeeper 来存储所有的持久化消息。 BookKeeper 是一个分布式的<a href="https://en.wikipedia.org/wiki/Write-ahead_logging"> 预写日志（write-ahead log）</a> 系统。它保证了独立消息日志读取的一致性，称为 ledger。 Individual BookKeeper servers are also called <em>bookies</em>.</p>
 <blockquote>
 <p>Pulsar 中管理消息的持久性，保留策略和过期时间，请参考<a href="/docs/zh-CN/2.6.2/cookbooks-retention-expiry">该指南</a>。</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="硬件要求"></a><a href="#硬件要求" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>硬件要求</h3>
-<p>Bookie 机器将数据存储在本机磁盘上。 为了确保最佳性能，需要确保 bookie 有合适的硬件配置。 以下是 Bookie 机器相关的两个关键的硬件指标：</p>
+<p>Bookie 机器将消息数据存储在硬盘上。 为了确保最佳性能，需要确保 bookie 有合适的硬件配置。 以下是 Bookie 机器相关的两个关键的硬件指标：</p>
 <ul>
-<li>硬盘的读/写能力。</li>
+<li>硬盘 I/O 的读/写能力。</li>
 <li>存储容量</li>
 </ul>
-<p>默认情况下，在向 Pulsar Broker 返回确认消息之前，消息条目总是同步的写入到磁盘的。 To ensure low write latency, BookKeeper is designed to use multiple devices:</p>
+<p>默认情况下，在向 Pulsar Broker 返回确认消息之前，写入 bookie 的消息条目总是同步到硬盘。 To ensure low write latency, BookKeeper is designed to use multiple devices:</p>
 <ul>
-<li>A <strong>journal</strong> to ensure durability. 对于连续的写入来说，bookie 机器的<a href="https://linux.die.net/man/2/fsync">fsync</a>操作必须是快速的。 通常情况下，使用容量小并且读写快速的<a href="https://en.wikipedia.org/wiki/Solid-state_drive">固态硬盘(SSDS)</a>设备就足够了。也可以是带有<a href="https://en.wikipedia.org/wiki/RAID">RAID</a>控制器和电池支持写入缓存的<a href="https://en.wikipedia.org/wiki/Hard_disk_drive">硬盘驱动(HDDs)</a>。 这两种方案 fsync 延时大约为0.4ms。</li>
+<li>A <strong>journal</strong> to ensure durability. 对于连续的写入来说，bookie 机器的<a href="https://linux.die.net/man/2/fsync">fsync</a>操作至关重要。 通常情况下，使用容量小并且读写快速的<a href="https://en.wikipedia.org/wiki/Solid-state_drive">固态硬盘(SSD)</a>设备就足够了，也可以是带有<a href="https://en.wikipedia.org/wiki/RAID">RAID</a>控制器和电池支持写入缓存的<a href="https://en.wikipedia.org/wiki/Hard_disk_drive">机械硬盘(HDD)</a>。 这两种方案 fsync 延时大约为0.4ms。</li>
 <li>A <strong>ledger storage device</strong> stores data. 写入操作是在后台运行的，所以写入的 I/O 性能不是一个大问题。 大部分的读取操作是连续的。backlog 只有在没有消费者的情况下，才会被删除。 要存储大量的数据，典型的配置是多块 HDD 硬盘和 一个RAID 控制器构建硬盘阵列。</li>
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="configure-bookkeeper"></a><a href="#configure-bookkeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure BookKeeper</h3>
 <p>你能够通过配置文件<a href="/docs/zh-CN/2.6.2/reference-configuration#bookkeeper"><code>conf/bookkeeper.conf</code></a>去配置 BookKeeper bookies。 配置bookie时，需要确保<a href="/docs/zh-CN/2.6.2/reference-configuration#bookkeeper-zkServers"><code>zkServers</code></a>参数设置的是 Pulsar 集群的本地 Zookeeper 的地址的。</p>
-<p>至少需要修改<code>conf/bookkeeper.conf</code>文件的如下四个配置：</p>
+<p>至少需要修改<code>conf/bookkeeper.conf</code>文件的如下配置：</p>
 <pre><code class="hljs css language-properties"><span class="hljs-comment"># Change to point to journal disk mount point</span>
 <span class="hljs-attr">journalDirectory</span>=<span class="hljs-string">data/bookkeeper/journal</span>
 <span class="hljs-comment">
@@ -204,7 +204,7 @@
 # Point to local ZK quorum</span>
 <span class="hljs-attr">zkServers</span>=<span class="hljs-string">zk1.example.com:2181,zk2.example.com:2181,zk3.example.com:2181</span>
 </code></pre>
-<p>如果需要更改 Bookeeper 在 Zookeeper 中的目录路径，需要使用<code>zkLedgersRootPath=/MY-PREFIX/ledgers</code>，而不是<code>zkServers=localhost:2181/MY-PREFIX</code>。</p>
+<p>如果需要更改 BookKeeper 使用的 ZooKeeper 中的根路径，需要使用<code>zkLedgersRootPath=/MY-PREFIX/ledgers</code>，而不是<code>zkServers=localhost:2181/MY-PREFIX</code>。</p>
 <blockquote>
 <p>需要了解更多 Bookeeper 的信息，请参考<a href="http://bookkeeper.apache.org">BookKeeper 官方文档</a>。</p>
 </blockquote>
@@ -236,7 +236,7 @@
 <li><p>运行下线命令。</p>
 <ul>
 <li>如果你已经登录到了目标节点，则不需要指定参数<code>-bookieid</code>。</li>
-<li>如果你已经登录到需要下线的节点，你就不需要添加<code>-bookieid</code>参数。如果你希望从其他节点远程执行下线命令，可以加上参数<code>-bookieid</code>。<code>$ bin/bookkeeper shell decommissionbookie</code> 或者 <code>$ bin/bookkeeper shell decommissionbookie -bookieid &lt;target bookieid&gt;</code></li>
+<li>如果你希望从其他 bookie 节点执行目标 bookie 节点下线命令，需要在 <code>-bookieid</code> 参数中指定目标 bookie ID：<code>$ bin/bookkeeper shell decommissionbookie</code> 或 <code>$ bin/bookkeeper shell decommissionbookie -bookieid &lt;target bookieid&gt;</code></li>
 </ul></li>
 <li><p>Validate that no ledgers are on the decommissioned bookie.<br>
 <code>$ bin/bookkeeper shell listledgers -bookieid &lt;target bookieid&gt;</code></p></li>

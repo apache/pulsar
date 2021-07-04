@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Window Functions Context · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="Java SDK 提供了对可用于窗口函数中的窗口上下文对象的访问。 该上下文对象为 Pulsar 窗口函数提供了各种各样的信息和功能，如下所示。"/><meta name="docsearch:version" content="2.7.1"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Window Functions Context · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="Java SDK 提供了对可用于窗口函数中的窗口上下文对象的访问。 该上下文对象为 Pulsar 窗口函数提供了各种各样的信息和功能，如下所示。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Window Functions Context · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="Java SDK 提供了对可用于窗口函数中的**窗口上下文对象**的访问。 该上下文对象为 Pulsar 窗口函数提供了各种各样的信息和功能，如下所示。"/><meta name="docsearch:version" content="2.7.1"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Window Functions Context · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="Java SDK 提供了对可用于窗口函数中的**窗口上下文对象**的访问。 该上下文对象为 Pulsar 窗口函数提供了各种各样的信息和功能，如下所示。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
               (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
               (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
               m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -74,7 +74,7 @@
                 };
               }
             });
-        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Window Functions Context</h1></header><article><div><span><p>Java SDK 提供了对可用于窗口函数中的窗口上下文对象的访问。 该上下文对象为 Pulsar 窗口函数提供了各种各样的信息和功能，如下所示。</p>
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Window Functions Context</h1></header><article><div><span><p>Java SDK 提供了对可用于窗口函数中的<strong>窗口上下文对象</strong>的访问。 该上下文对象为 Pulsar 窗口函数提供了各种各样的信息和功能，如下所示。</p>
 <ul>
 <li><p><a href="#spec">规格说明</a></p>
 <ul>
@@ -87,7 +87,7 @@
 </ul></li>
 <li><p><a href="#logger">Logger</a></p>
 <ul>
-<li>窗口函数使用 Logger 对象来创建窗口函数的日志信息。</li>
+<li>窗口函数使用的 Logger 对象，可创建窗口函数的日志信息。</li>
 </ul></li>
 <li><p><a href="#user-config">User config</a></p>
 <ul>
@@ -99,11 +99,11 @@
 </ul></li>
 <li><p><a href="#metrics">Metrics</a></p>
 <ul>
-<li>记录量测信息的接口。</li>
+<li>记录指标的接口。</li>
 </ul></li>
 <li><p><a href="#state-storage">State storage</a></p>
 <ul>
-<li>存储和检索状态的接口：<a href="#state-storage">state storage</a>。</li>
+<li>存储和检索状态的接口：<a href="#state-storage">状态存储</a>。</li>
 </ul></li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="规格说明"></a><a href="#规格说明" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>规格说明</h2>
@@ -275,7 +275,7 @@
   --<span class="hljs-built_in">log</span>-topic persistent://public/default/logging-function-logs \
   <span class="hljs-comment"># 其他函数配置</span>
 </code></pre>
-<p>你可以通过 <code>persistent://public/default/logging-function-logg-log-log-logs</code> 主题访问由 <code>LoggingFunction</code> 生成的所有日志。</p>
+<p>你可以通过 <code>persistent://public/default/logging-function-logs</code> 主题访问由 <code>LoggingFunction</code> 生成的所有日志。</p>
 <h2><a class="anchor" aria-hidden="true" id="metrics"></a><a href="#metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Metrics</h2>
 <p>Pulsar 窗口函数可以发布可查询的任意指标到指标接口。</p>
 <blockquote>
@@ -358,7 +358,7 @@
    --user-config <span class="hljs-string">'{"word-of-the-day":"verdure"}'</span> \
   <span class="hljs-comment"># 函数的其他配置</span>
 </code></pre>
-<p>以下代码示范如何在窗口函数中访问键/值对。</p>
+<p>以下代码示范如何在窗口函数中访问值。</p>
 <p>在每次调用本函数时，<code>UserConfigFunction</code> 方法都会去记录字符串 <code>&quot;The word of the day is verdure&quot;</code>（即在每次消息到达时）。 <strong>只有</strong>当函数使用一个新的配置值进行更新之后，用户配置项 <code>word-of-the-day</code> 的值才会被改变。更新函数值有多种方式，例如通过命令行或者 REST API。</p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Context;
 <span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Function;
@@ -388,7 +388,7 @@ String wotd = context.getUserConfigValueOrDefault(<span class="hljs-string">"wor
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="路由"></a><a href="#路由" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>路由</h2>
 <p>你可以使用 <code>context.publish()</code> 接口来发布尽可能多的结果。</p>
-<p>在下述 Java 代码中，<code>PublishWindowFunction</code> 类使用上下文对象的内置方法在函数中发布消息到 <code>publishTopic</code> 中。</p>
+<p>在下述 Java 代码中，<code>PublishFunction</code> 类使用上下文对象的内置方法在函数中发布消息到 <code>publishTopic</code> 中。</p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">PublishWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
     <span class="hljs-meta">@Override</span>
     <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; input, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
@@ -402,8 +402,8 @@ String wotd = context.getUserConfigValueOrDefault(<span class="hljs-string">"wor
 }
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="state-storage"></a><a href="#state-storage" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>State storage</h2>
-<p>Pulsar 窗口函数使用 <a href="https://bookkeeper.apache.org">Apache Bookerper</a> 存储状态。 在安装 Apache Pulsar 的时候（包含 Standalone 安装），都会同时包含部署 BookKeeper。</p>
-<p>Apache Pulsar 将 Apache BookKeeper 集成为 <code>table service</code> 用于存储函数的 <code>state</code> 信息。 例如， <code>WordCount</code> 函数可以通过 Pulsar 函数的 API 将其 <code>counters</code> 状态存储到 BookKeeper。</p>
+<p>Pulsar 窗口函数使用 <a href="https://bookkeeper.apache.org">Apache BookKeeper</a> 作为状态存储接口。 在安装 Apache Pulsar 的时候（包含 Standalone 安装），都会同时包含部署 BookKeeper。</p>
+<p>Apache Pulsar 集成了 Apache BookKeeper <code>table service</code> 用来存储函数的 <code>state</code> 信息。 例如， <code>WordCount</code> 函数可以通过 Pulsar Functions 的状态 API 将其 <code>counters</code> 状态存储到 BookKeeper table service 中。</p>
 <p>状态是以键值对形式存储的，key 是一个字符串，value 是任意的二进制数据：counters 是以64位大端二进制数值存储的。 key 的有效范围仅在 Pulsar 函数内，该函数的所有实例都会共享同一个 key。</p>
 <p>目前，Pulsar 窗口函数暴露了读取、更新和状态管理的 Java API。 当你使用 Java SDK 时，这些 API 都可以在 context 对象访问到。</p>
 <table>
@@ -453,7 +453,7 @@ String wotd = context.getUserConfigValueOrDefault(<span class="hljs-string">"wor
 <p><code>WordCountWindowFunction</code> 的逻辑是简单和直接的。</p>
 <ol>
 <li><p>该函数首先使用正则表达式 <code>\\.</code> 将接收到的字符串拆分为多个单词。</p></li>
-<li><p>对于每个 <code>word</code>，该函数将相应的 <code>counter</code> 递增1（通过 <code>incr_counter(key, amount)</code>）。</p></li>
+<li><p>对于每个 <code>word</code>，该函数将相应的 <code>counter</code> 递增1（通过 <code>incrCounter(key, amount)</code>）。</p></li>
 </ol>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Context;
 <span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Function;
