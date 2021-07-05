@@ -60,13 +60,14 @@ public class TwoPhaseCompactor extends Compactor {
     private static final Logger log = LoggerFactory.getLogger(TwoPhaseCompactor.class);
     private static final int MAX_OUTSTANDING = 500;
     private static final String COMPACTED_TOPIC_LEDGER_PROPERTY = "CompactedTopicLedger";
-    public static final Duration PHASE_ONE_LOOP_READ_TIMEOUT = Duration.ofSeconds(10);
+    private final Duration phaseOneLoopReadTimeout;
 
     public TwoPhaseCompactor(ServiceConfiguration conf,
                              PulsarClient pulsar,
                              BookKeeper bk,
                              ScheduledExecutorService scheduler) {
         super(conf, pulsar, bk, scheduler);
+        phaseOneLoopReadTimeout = Duration.ofSeconds(conf.getBrokerServiceCompactionPhaseOneLoopTimeInSeconds());
     }
 
     @Override
@@ -116,7 +117,7 @@ public class TwoPhaseCompactor extends Compactor {
         }
         CompletableFuture<RawMessage> future = reader.readNextAsync();
         FutureUtil.addTimeoutHandling(future,
-                PHASE_ONE_LOOP_READ_TIMEOUT, scheduler,
+                phaseOneLoopReadTimeout, scheduler,
                 () -> FutureUtil.createTimeoutException("Timeout", getClass(), "phaseOneLoop(...)"));
 
         future.thenAcceptAsync(m -> {
@@ -398,5 +399,9 @@ public class TwoPhaseCompactor extends Compactor {
             this.lastReadId = lastReadId;
             this.latestForKey = latestForKey;
         }
+    }
+
+    public long getPhaseOneLoopReadTimeoutInSeconds() {
+        return phaseOneLoopReadTimeout.getSeconds();
     }
 }

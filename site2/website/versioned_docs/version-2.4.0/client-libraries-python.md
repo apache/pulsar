@@ -70,6 +70,8 @@ This example creates a consumer with the `my-subscription` subscription on the `
 ```python
 import pulsar
 
+client = pulsar.Client('pulsar://localhost:6650')
+
 consumer = client.subscribe('my-topic', 'my-subscription')
 
 while True:
