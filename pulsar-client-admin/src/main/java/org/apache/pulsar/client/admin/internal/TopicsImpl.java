@@ -1216,6 +1216,44 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
+    public CompletableFuture<MessageId> getMessageIdByTimestampAsync(String topic, long timestamp) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "messageid", Long.toString(timestamp));
+        final CompletableFuture<MessageId> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<MessageIdImpl>() {
+                    @Override
+                    public void completed(MessageIdImpl response) {
+                        future.complete(response);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+
+    @Override
+    public MessageId getMessageIdByTimestamp(String topic, long timestamp)
+            throws PulsarAdminException {
+        try {
+            return getMessageIdByTimestampAsync(topic, timestamp).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+
+
+    @Override
     public void createSubscription(String topic, String subscriptionName, MessageId messageId)
             throws PulsarAdminException {
         try {
