@@ -75,7 +75,7 @@ import org.testng.annotations.Test;
 public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
     private static final long testTimeout = 90000; // 1.5 min
     private static final Logger log = LoggerFactory.getLogger(PatternTopicsConsumerImplAuthTest.class);
-    private static final String clientRole = "plugbleRole";
+    private static final String clientRole = "pluggableRole";
     private static final Set<String> clientAuthProviderSupportedRoles = Sets.newHashSet(clientRole);
 
     @Override
@@ -116,9 +116,10 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
                 .build();
     }
 
-    // verify consumer create success, and works well.
+    // verify binary proto with correct auth check
+    // if with invalid role, consumer for pattern topic subscription will fail
     @Test(timeOut = testTimeout)
-    public void testBinaryProtoToGetTopicsOfNamespacePersistent() throws Exception {
+    public void testBinaryProtoToGetTopicsOfNamespace() throws Exception {
         String key = "BinaryProtoToGetTopics";
         String subscriptionName = "my-ex-subscription-" + key;
         String topicName1 = "persistent://my-property/my-ns/pattern-topic-1-" + key;
@@ -157,7 +158,7 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
         admin.topics().createPartitionedTopic(topicName2, 2);
         admin.topics().createPartitionedTopic(topicName3, 3);
 
-        // 2. create producer
+        // 2. create producers and consumer
         String messagePredicate = "my-message-" + key + "-";
         int totalMessages = 30;
 
@@ -178,7 +179,7 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
                 .create();
 
         Consumer<byte[]> consumer;
-        // InValid user auth-role will be rejected by authorization service
+        // Invalid user auth-role will be rejected by authorization service
         try {
             consumer = pulsarClientInvalidRole.newConsumer()
                     .topicsPattern(pattern)
@@ -192,6 +193,7 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
             // Ok
         }
 
+        // create pattern topics consumer with correct role client
         consumer = pulsarClient.newConsumer()
                 .topicsPattern(pattern)
                 .patternAutoDiscoveryPeriod(2)
@@ -201,7 +203,7 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
                 .subscribe();
         assertTrue(consumer.getTopic().startsWith(PatternMultiTopicsConsumerImpl.DUMMY_TOPIC_NAME_PREFIX));
 
-        // 4. verify consumer get methods, to get right number of partitions and topics.
+        // 4. verify consumer
         assertSame(pattern, ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern());
         List<String> topics = ((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitions();
         List<ConsumerImpl<byte[]>> consumers = ((PatternMultiTopicsConsumerImpl<byte[]>) consumer).getConsumers();
@@ -246,20 +248,12 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
         producer4.close();
     }
 
-
     public static class TestAuthorizationProvider implements AuthorizationProvider {
         public ServiceConfiguration conf;
 
         @Override
         public void close() throws IOException {
             // No-op
-        }
-
-        @Override
-        public CompletableFuture<Boolean> isSuperUser(String role,
-                                                      ServiceConfiguration serviceConfiguration) {
-            Set<String> superUserRoles = serviceConfiguration.getSuperUserRoles();
-            return CompletableFuture.completedFuture(role != null && superUserRoles.contains(role) ? true : false);
         }
 
         @Override
@@ -347,7 +341,7 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
                 NamespaceName namespaceName, String role, NamespaceOperation operation, AuthenticationDataSource authData) {
             CompletableFuture<Boolean> isAuthorizedFuture;
 
-            if (role.equals("superUser") || role.equals("plugbleRole")) {
+            if (role.equals("superUser") || role.equals(clientRole)) {
                 isAuthorizedFuture = CompletableFuture.completedFuture(true);
             } else {
                 isAuthorizedFuture = CompletableFuture.completedFuture(false);
@@ -371,7 +365,7 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
                 TopicName topic, String role, TopicOperation operation, AuthenticationDataSource authData) {
             CompletableFuture<Boolean> isAuthorizedFuture;
 
-            if (role.equals("superUser") || role.equals("plugbleRole")) {
+            if (role.equals("superUser") || role.equals(clientRole)) {
                 isAuthorizedFuture = CompletableFuture.completedFuture(true);
             } else {
                 isAuthorizedFuture = CompletableFuture.completedFuture(false);
@@ -396,7 +390,7 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
                                                                          AuthenticationDataSource authData) {
             CompletableFuture<Boolean> isAuthorizedFuture;
 
-            if (role.equals("superUser") || role.equals("plugbleRole")) {
+            if (role.equals("superUser") || role.equals(clientRole)) {
                 isAuthorizedFuture = CompletableFuture.completedFuture(true);
             } else {
                 isAuthorizedFuture = CompletableFuture.completedFuture(false);
@@ -489,6 +483,5 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
         public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
             return authData.getCommandData() != null ? authData.getCommandData() : authData.getHttpHeader("user");
         }
-
     }
 }
