@@ -377,6 +377,8 @@ elif [ $COMMAND == "tokens" ]; then
     exec $JAVA $OPTS org.apache.pulsar.utils.auth.tokens.TokensCliUtils $@
 elif [ $COMMAND == "version" ]; then
     exec $JAVA $OPTS org.apache.pulsar.PulsarVersionStarter $@
+elif [ $COMMAND == "gen-doc" ]; then
+    exec $JAVA $OPTS org.apache.pulsar.PulsarTool $@
 elif [ $COMMAND == "help" -o $COMMAND == "--help" -o $COMMAND == "-h" ]; then
     pulsar_help;
 else

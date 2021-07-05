@@ -26,6 +26,7 @@ import static org.apache.pulsar.common.configuration.PulsarConfigurationLoader.c
 import static org.apache.pulsar.common.configuration.PulsarConfigurationLoader.isComplete;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.Parameters;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.File;
 import java.io.FileInputStream;
@@ -72,7 +73,8 @@ public class PulsarBrokerStarter {
     }
 
     @VisibleForTesting
-    private static class StarterArguments {
+    @Parameters(commandDescription = "Options")
+    protected static class StarterArguments {
         @Parameter(names = {"-c", "--broker-conf"}, description = "Configuration file for Broker")
         private String brokerConfigFile =
                 Paths.get("").toAbsolutePath().normalize().toString() + "/conf/broker.conf";

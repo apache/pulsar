@@ -1,6 +1,9 @@
 {
   "docs": [
     {
+      "filename": "broker.md"
+    },
+    {
       "filename": "broker-tool.md"
     }
   ],

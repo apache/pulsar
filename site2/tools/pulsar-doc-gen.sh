@@ -28,7 +28,10 @@ mkdir -p $DEST_DIR/tools/pulsar/${VERSION}
 mkdir -p $DEST_DIR/tools/pulsar/${VERSION}/node_modules
 mkdir -p $ROOT_DIR/site2/website/brodocs/documents
 
-$ROOT_DIR/bin/pulsar broker-tool gen-doc > $ROOT_DIR/site2/website/brodocs/documents/broker-tool.md
+#$ROOT_DIR/bin/pulsar broker-tool gen-doc > $ROOT_DIR/site2/website/brodocs/documents/broker-tool.md
+echo $ROOT_DIR/bin/pulsar
+$ROOT_DIR/bin/pulsar gen-doc broker > $ROOT_DIR/site2/website/brodocs/documents/broker.md
+$ROOT_DIR/bin/pulsar gen-doc broker-tool > $ROOT_DIR/site2/website/brodocs/documents/broker-tool.md
 
 cd $ROOT_DIR/site2/website/brodocs
 cp pulsar-manifest.json manifest.json
