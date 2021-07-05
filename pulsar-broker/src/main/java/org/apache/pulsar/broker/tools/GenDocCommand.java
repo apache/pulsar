@@ -103,19 +103,4 @@ public class GenDocCommand extends CliCommand<CliFlags, GenDocCommand.GenDocFlag
         });
         System.out.println(sb.toString());
     }
-
-    public static void main(String[] args) {
-        CliSpec.Builder<CliFlags> specBuilder = CliSpec.newBuilder()
-                .withName(NAME)
-                .withUsage("pulsar" + NAME + " [flags] [commands]")
-                .withDescription(NAME + " is used for generate documents of pulsar commands")
-                .withFlags(new CliFlags())
-                .withConsole(System.out)
-                .addCommand(new GenDocCommand());
-
-        CliSpec<CliFlags> spec = specBuilder.build();
-
-        int retCode = Cli.runCli(spec, args);
-        Runtime.getRuntime().exit(retCode);
-    }
 }
