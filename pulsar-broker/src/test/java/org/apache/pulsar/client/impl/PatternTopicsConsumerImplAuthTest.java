@@ -76,6 +76,7 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
     private static final long testTimeout = 90000; // 1.5 min
     private static final Logger log = LoggerFactory.getLogger(PatternTopicsConsumerImplAuthTest.class);
     private static final String clientRole = "pluggableRole";
+    private static final String superUserRole = "superUser";
     private static final Set<String> clientAuthProviderSupportedRoles = Sets.newHashSet(clientRole);
 
     @Override
@@ -88,7 +89,7 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
         conf.setAuthorizationEnabled(true);
 
         Set<String> superUserRoles = new HashSet<>();
-        superUserRoles.add("superUser");
+        superUserRoles.add(superUserRole);
         conf.setSuperUserRoles(superUserRoles);
 
         Set<String> providers = new HashSet<>();
@@ -109,7 +110,7 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
     }
 
     private PulsarAdmin buildAdminClient() throws Exception {
-        Authentication adminAuthentication = new ClientAuthentication("superUser");
+        Authentication adminAuthentication = new ClientAuthentication(superUserRole);
         return PulsarAdmin.builder()
                 .serviceHttpUrl(brokerUrl.toString())
                 .authentication(adminAuthentication)
@@ -341,7 +342,7 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
                 NamespaceName namespaceName, String role, NamespaceOperation operation, AuthenticationDataSource authData) {
             CompletableFuture<Boolean> isAuthorizedFuture;
 
-            if (role.equals("superUser") || role.equals(clientRole)) {
+            if (role.equals(superUserRole) || role.equals(clientRole)) {
                 isAuthorizedFuture = CompletableFuture.completedFuture(true);
             } else {
                 isAuthorizedFuture = CompletableFuture.completedFuture(false);
@@ -365,7 +366,7 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
                 TopicName topic, String role, TopicOperation operation, AuthenticationDataSource authData) {
             CompletableFuture<Boolean> isAuthorizedFuture;
 
-            if (role.equals("superUser") || role.equals(clientRole)) {
+            if (role.equals(superUserRole) || role.equals(clientRole)) {
                 isAuthorizedFuture = CompletableFuture.completedFuture(true);
             } else {
                 isAuthorizedFuture = CompletableFuture.completedFuture(false);
@@ -390,7 +391,7 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
                                                                          AuthenticationDataSource authData) {
             CompletableFuture<Boolean> isAuthorizedFuture;
 
-            if (role.equals("superUser") || role.equals(clientRole)) {
+            if (role.equals(superUserRole) || role.equals(clientRole)) {
                 isAuthorizedFuture = CompletableFuture.completedFuture(true);
             } else {
                 isAuthorizedFuture = CompletableFuture.completedFuture(false);
