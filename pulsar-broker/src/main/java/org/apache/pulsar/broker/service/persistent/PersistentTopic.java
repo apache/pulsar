@@ -1278,8 +1278,8 @@ public class PersistentTopic extends AbstractTopic
                     // if local cluster is removed from global namespace cluster-list : then delete topic forcefully
                     // because pulsar doesn't serve global topic without local repl-cluster configured.
                     if (TopicName.get(topic).isGlobal() && !configuredClusters.contains(localCluster)) {
-                        log.info("Deleting topic [{}] because local cluster is not part of " +
-                                " global namespace repl list {}", topic, configuredClusters);
+                        log.info("Deleting topic [{}] because local cluster is not part of "
+                                + " global namespace repl list {}", topic, configuredClusters);
                         return deleteForcefully();
                     }
 
