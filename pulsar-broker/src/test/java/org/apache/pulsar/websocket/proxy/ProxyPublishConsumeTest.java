@@ -845,6 +845,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
     private class CumulativeAckConsumerSocket extends SimpleConsumerSocket {
         @Override
         public synchronized void onMessage(String msg) throws JsonParseException, IOException {
+            receivedMessages.incrementAndGet();
             JsonObject message = new Gson().fromJson(msg, JsonObject.class);
             if (message.get(X_PULSAR_MESSAGE_ID) != null) {
                 String messageId = message.get(X_PULSAR_MESSAGE_ID).getAsString();
