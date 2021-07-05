@@ -28,15 +28,17 @@ import org.apache.bookkeeper.tools.framework.CliSpec;
 public class BrokerTool {
 
     public static final String NAME = "broker-tool";
+    public static final String DESC = NAME + " is used for operations on a specific broker";
 
     public static void main(String[] args) {
         CliSpec.Builder<CliFlags> specBuilder = CliSpec.newBuilder()
             .withName(NAME)
             .withUsage(NAME + " [flags] [commands]")
-            .withDescription(NAME + " is used for operations on a specific broker")
+            .withDescription(DESC)
             .withFlags(new CliFlags())
             .withConsole(System.out)
-            .addCommand(new LoadReportCommand());
+            .addCommand(new LoadReportCommand())
+            .addCommand(new GenDocCommand());
 
         CliSpec<CliFlags> spec = specBuilder.build();
 
