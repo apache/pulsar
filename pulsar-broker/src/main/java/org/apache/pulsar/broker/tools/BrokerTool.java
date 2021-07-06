@@ -36,7 +36,8 @@ public class BrokerTool {
             .withDescription(NAME + " is used for operations on a specific broker")
             .withFlags(new CliFlags())
             .withConsole(System.out)
-            .addCommand(new LoadReportCommand());
+            .addCommand(new LoadReportCommand())
+            .addCommand(new GenerateDocsCommand());
 
         CliSpec<CliFlags> spec = specBuilder.build();
 
