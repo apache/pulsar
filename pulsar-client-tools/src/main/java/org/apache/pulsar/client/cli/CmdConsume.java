@@ -209,7 +209,7 @@ public class CmdConsume {
             return new String(msgData);
         } else {
             HexDump.dump(msgData, 0, out, 0);
-            return  new String(out.toByteArray());
+            return out.toString();
         }
     }
 
@@ -424,8 +424,9 @@ public class CmdConsume {
                     LOG.debug("No message to consume after waiting for 5 seconds.");
                 } else {
                     try {
-                        System.out.println(Base64.getDecoder().decode(msg));
-                    }catch(Exception e) {
+                        String output = interpretByteArray(displayHex, Base64.getDecoder().decode(msg));
+                        System.out.println(output); // print decode
+                    } catch (Exception e) {
                         System.out.println(msg);
                     }
                     numMessagesConsumed += 1;
