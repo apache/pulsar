@@ -722,7 +722,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         positions.forEach(position -> {
             // TODO: We want to pass a sticky key hash as a third argument to guarantee the order of the messages
             // on Key_Shared subscription, but it's difficult to get the sticky key here
-            if (addMessageToReplay(position.getLedgerId(), position.getEntryId(), null)) {
+            if (addMessageToReplay(position.getLedgerId(), position.getEntryId())) {
                 redeliveryTracker.addIfAbsent(position);
             }
         });
@@ -868,19 +868,28 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         }
     }
 
-    protected boolean addMessageToReplay(long ledgerId, long entryId, Long stickyKeyHash) {
-        Position markDeletePosition = cursor.getMarkDeletedPosition();
-        if (markDeletePosition == null || ledgerId > markDeletePosition.getLedgerId()
-                || (ledgerId == markDeletePosition.getLedgerId() && entryId > markDeletePosition.getEntryId())) {
-            if (stickyKeyHash == null) {
-                redeliveryMessages.add(ledgerId, entryId);
-            } else {
-                redeliveryMessages.add(ledgerId, entryId, stickyKeyHash);
-            }
+    protected boolean addMessageToReplay(long ledgerId, long entryId, long stickyKeyHash) {
+        if (checkIfMessageIsUnacked(ledgerId, entryId)) {
+            redeliveryMessages.add(ledgerId, entryId, stickyKeyHash);
             return true;
         } else {
             return false;
         }
+    }
+
+    protected boolean addMessageToReplay(long ledgerId, long entryId) {
+        if (checkIfMessageIsUnacked(ledgerId, entryId)) {
+            redeliveryMessages.add(ledgerId, entryId);
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    private boolean checkIfMessageIsUnacked(long ledgerId, long entryId) {
+        Position markDeletePosition = cursor.getMarkDeletedPosition();
+        return (markDeletePosition == null || ledgerId > markDeletePosition.getLedgerId()
+                || (ledgerId == markDeletePosition.getLedgerId() && entryId > markDeletePosition.getEntryId()));
     }
 
     @Override
