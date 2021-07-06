@@ -108,6 +108,7 @@ import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -2871,4 +2872,22 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                 ", dataLength=" + dataLength +
                 '}';
     }
+
+    @Test
+    public void testLedgerReachMaximumRolloverTime() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMinimumRolloverTime(1, TimeUnit.MILLISECONDS);
+        config.setMaximumRolloverTime(1, TimeUnit.SECONDS);
+
+        ManagedLedger ml = factory.open("ledger-reach-maximum-rollover-time", config);
+        long firstLedgerId = ((PositionImpl) ml.addEntry("test".getBytes())).getLedgerId();
+
+        // the ledger rollover scheduled time is between 1000 and 1050 ms,
+        // wait 1100 ms, the ledger should be rolled over.
+        Awaitility.await()
+                .atMost(1100, TimeUnit.MILLISECONDS)
+                .pollInterval(100, TimeUnit.MILLISECONDS)
+                .until(() -> firstLedgerId != ((PositionImpl) ml.addEntry("test".getBytes())).getLedgerId());
+    }
+
 }
