@@ -15,7 +15,7 @@ and follow the instructions for your OS.
 * For MacOS, Linux, and Windows:
 
   ```shell
-  $ docker run -it -p 6650:6650  -p 8080:8080 --mount source=pulsardata,target=/pulsar/data --mount source=pulsarconf,target=/pulsar/conf apachepulsar/pulsar:2.8.0 bin/pulsar standalone
+  $ docker run -it -p 6650:6650  -p 8080:8080 --mount source=pulsardata,target=/pulsar/data --mount source=pulsarconf,target=/pulsar/conf apachepulsar/pulsar:{{pulsar:version}} bin/pulsar standalone
   ```
 
 A few things to note about this command:
