@@ -19,7 +19,7 @@
           }
         });
       </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">ElasticSearch sink 连接器</h1></header><article><div><span><p>ElasticSearch sink 连接器从 Pulsar 主题中拉取消息，并持久化到 ElasticSearch 的索引中。</p>
-<h2><a class="anchor" aria-hidden="true" id="configuration"></a><a href="#configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration</h2>
+<h2><a class="anchor" aria-hidden="true" id="配置"></a><a href="#配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置</h2>
 <p>ElasticSearch sink 连接器的配置具有以下属性。</p>
 <h3><a class="anchor" aria-hidden="true" id="属性"></a><a href="#属性" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>属性</h3>
 <table>
@@ -27,18 +27,18 @@
 <tr><th>配置项</th><th>类型</th><th>Required</th><th>默认值</th><th>说明</th></tr>
 </thead>
 <tbody>
-<tr><td><code>elasticSearchUrl</code></td><td>String</td><td>true</td><td>&quot; &quot;（空字符串）</td><td>Connector 要连接的 elastic search 集群的 URL。</td></tr>
-<tr><td><code>indexName</code></td><td>String</td><td>true</td><td>&quot; &quot;（空字符串）</td><td>Connector 要写入消息的索引名。</td></tr>
-<tr><td><code>typeName</code></td><td>String</td><td>false</td><td>&quot;_doc&quot;</td><td>连接器写入消息的类型。 <br /><br />对于 6.2 之前的 Elasticsearch 版本，该值应该显式设置为有效的类型名，否则使用默认值 &quot;_doc&quot;。</td></tr>
-<tr><td><code>indexNumberOfShards</code></td><td>int</td><td>false</td><td>1</td><td>索引的分片数.</td></tr>
-<tr><td><code>indexNumberOfReplicas</code></td><td>int</td><td>false</td><td>1</td><td>索引的副本数.</td></tr>
-<tr><td><code>username</code></td><td>String</td><td>false</td><td>&quot; &quot;（空字符串）</td><td>Connector 用于连接到 elastic search 集群的用户名。 <br /><br />如果设置了<code>用户名</code>，那么也应该设置<code>密码</code>。</td></tr>
-<tr><td><code>password</code></td><td>String</td><td>false</td><td>&quot; &quot;（空字符串）</td><td>Connector 用于连接到 elastic search 集群的密码。 <br /><br />如果设置了<code>用户名</code>，那么也应该设置<code>密码</code>。</td></tr>
+<tr><td><code>elasticSearchUrl</code></td><td>String</td><td>true</td><td>&quot; &quot;（空字符串）</td><td>连接器要连接的 Elasticsearch 集群的 URL。</td></tr>
+<tr><td><code>indexName</code></td><td>String</td><td>true</td><td>&quot; &quot;（空字符串）</td><td>连接器要写入消息的索引名。</td></tr>
+<tr><td><code>typeName</code></td><td>String</td><td>false</td><td>&quot;_doc&quot;</td><td>连接器写入消息的类型名称。 <br /><br />对于 6.2 之前的 Elasticsearch 版本，该值应该显式设置为有效的类型名，否则使用默认值 &quot;_doc&quot;。</td></tr>
+<tr><td><code>indexNumberOfShards</code></td><td>int</td><td>false</td><td>1</td><td>索引的分片数。</td></tr>
+<tr><td><code>indexNumberOfReplicas</code></td><td>int</td><td>false</td><td>1</td><td>索引的副本数。</td></tr>
+<tr><td><code>username</code></td><td>String</td><td>false</td><td>&quot; &quot;（空字符串）</td><td>Connector 用于连接到 elastic search 集群的用户名。 <br /><br />如果设置了 <code>username</code>，那么也应该设置 <code>password</code>。</td></tr>
+<tr><td><code>password</code></td><td>String</td><td>false</td><td>&quot; &quot;（空字符串）</td><td>Connector 用于连接到 elastic search 集群的密码。 <br /><br />如果设置了 <code>username</code>，那么也应该设置 <code>password</code>。</td></tr>
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="示例"></a><a href="#示例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>示例</h2>
-<p>在使用 Elasticsearch sink connector 之前，你需要通过以下方法之一创建一个配置文件。</p>
-<h3><a class="anchor" aria-hidden="true" id="configuration-1"></a><a href="#configuration-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration</h3>
+<p>在使用 Elasticsearch sink 连接器之前，你需要通过以下方法之一创建一个配置文件。</p>
+<h3><a class="anchor" aria-hidden="true" id="配置-1"></a><a href="#配置-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置</h3>
 <h4><a class="anchor" aria-hidden="true" id="elasticsearch-之后-62-版本"></a><a href="#elasticsearch-之后-62-版本" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Elasticsearch 之后 6.2 版本</h4>
 <ul>
 <li><p>JSON</p>
@@ -87,8 +87,8 @@
 <li><p>以 standalone 模式启动本地的 Pulsar 服务。</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar standalone
 </code></pre>
-<p>确保 nar 文件在 <code>connectors/pulsar-io-elastic-search-2.8.0.nar</code></p></li>
-<li><p>使用以下方法之一在本地运行模式中启动 Pulsar Elasticsearch connector。</p>
+<p>确保 nar 文件在 <code>connectors/pulsar-io-elastic-search-2.8.0.nar</code>。</p></li>
+<li><p>使用以下方法之一在本地运行模式中启动 Pulsar Elasticsearch 连接器。</p>
 <ul>
 <li><p>使用前面显示的 <strong>JSON</strong> 配置。</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks localrun \
@@ -127,7 +127,7 @@
 </code></pre></li>
 </ul></li>
 </ol>
-</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#configuration">Configuration</a><ul class="toc-headings"><li><a href="#属性">属性</a></li></ul></li><li><a href="#示例">示例</a><ul class="toc-headings"><li><a href="#configuration-1">Configuration</a></li><li><a href="#用法">用法</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#配置">配置</a><ul class="toc-headings"><li><a href="#属性">属性</a></li></ul></li><li><a href="#示例">示例</a><ul class="toc-headings"><li><a href="#配置-1">配置</a></li><li><a href="#用法">用法</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
