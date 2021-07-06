@@ -23,6 +23,7 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.resourcegroup.ResourceUsageTransportManager.DISABLE_RESOURCE_USAGE_TRANSPORT_MANAGER;
+import static org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl.TRANSACTION_LOG_PREFIX;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -111,6 +112,7 @@ import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
+import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.broker.validator.MultipleListenerValidator;
 import org.apache.pulsar.broker.web.WebService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -125,6 +127,7 @@ import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.configuration.VipStatus;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
@@ -972,7 +975,7 @@ public class PulsarService implements AutoCloseable {
         if (config.isLoadBalancerEnabled()) {
             LOG.info("Starting load balancer");
             if (this.loadReportTask == null) {
-                long loadReportMinInterval = LoadManagerShared.LOAD_REPORT_UPDATE_MIMIMUM_INTERVAL;
+                long loadReportMinInterval = LoadManagerShared.LOAD_REPORT_UPDATE_MINIMUM_INTERVAL;
                 this.loadReportTask = this.loadManagerExecutor.scheduleAtFixedRate(
                         new LoadReportUpdaterTask(loadManager), loadReportMinInterval, loadReportMinInterval,
                         TimeUnit.MILLISECONDS);
@@ -997,7 +1000,7 @@ public class PulsarService implements AutoCloseable {
             for (String topic : getNamespaceService().getListOfPersistentTopics(nsName).join()) {
                 try {
                     TopicName topicName = TopicName.get(topic);
-                    if (bundle.includes(topicName)) {
+                    if (bundle.includes(topicName) && !isTransactionSystemTopic(topicName)) {
                         CompletableFuture<Topic> future = brokerService.getOrCreateTopic(topic);
                         if (future != null) {
                             persistentTopics.add(future);
@@ -1589,6 +1592,15 @@ public class PulsarService implements AutoCloseable {
                         + "-" + (workerConfig.getTlsEnabled()
                         ? workerConfig.getWorkerPortTls() : workerConfig.getWorkerPort()));
         return workerConfig;
+    }
+
+
+    private static boolean isTransactionSystemTopic(TopicName topicName) {
+        String topic = topicName.toString();
+        return topic.startsWith(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString())
+                || topic.startsWith(TopicName.get(TopicDomain.persistent.value(),
+                NamespaceName.SYSTEM_NAMESPACE, TRANSACTION_LOG_PREFIX).toString())
+                || topic.endsWith(MLPendingAckStore.PENDING_ACK_STORE_SUFFIX);
     }
 
 }

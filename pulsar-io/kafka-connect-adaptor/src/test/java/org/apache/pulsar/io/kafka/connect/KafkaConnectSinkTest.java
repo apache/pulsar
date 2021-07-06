@@ -26,6 +26,7 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.schema.GenericObject;
@@ -73,6 +74,8 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
 
     private Path file;
     private Map<String, Object> props;
+    private SinkContext context;
+    private PulsarClient client;
 
     @BeforeMethod
     @Override
@@ -84,13 +87,19 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
 
         props = Maps.newHashMap();
         props.put("topic", "test-topic");
-        props.put("pulsarServiceUrl", brokerUrl.toString());
         props.put("offsetStorageTopic", offsetTopicName);
         props.put("kafkaConnectorSinkClass", "org.apache.kafka.connect.file.FileStreamSinkConnector");
 
         Map<String, String> kafkaConnectorProps = Maps.newHashMap();
         kafkaConnectorProps.put("file", file.toString());
         props.put("kafkaConnectorConfigProperties", kafkaConnectorProps);
+
+        this.context = mock(SinkContext.class);
+        this.client = PulsarClient.builder()
+                .serviceUrl(brokerUrl.toString())
+                .build();
+        when(context.getSubscriptionType()).thenReturn(SubscriptionType.Failover);
+        when(context.getPulsarClient()).thenReturn(client);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -100,15 +109,17 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
             Files.delete(file);
         }
 
+        if (this.client != null) {
+            client.close();
+        }
+
         super.internalCleanup();
     }
 
     @Test
     public void smokeTest() throws Exception {
         KafkaConnectSink sink = new KafkaConnectSink();
-        SinkContext mockCtx = Mockito.mock(SinkContext.class);
-        when(mockCtx.getSubscriptionType()).thenReturn(SubscriptionType.Failover);
-        sink.open(props, mockCtx);
+        sink.open(props, context);
 
         final GenericRecord rec = getGenericRecord("value", Schema.STRING);
         Message msg = mock(MessageImpl.class);
@@ -138,9 +149,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
     @Test
     public void seekPauseResumeTest() throws Exception {
         KafkaConnectSink sink = new KafkaConnectSink();
-        SinkContext mockCtx = Mockito.mock(SinkContext.class);
-        when(mockCtx.getSubscriptionType()).thenReturn(SubscriptionType.Failover);
-        sink.open(props, mockCtx);
+        sink.open(props, context);
 
         final GenericRecord rec = getGenericRecord("value", Schema.STRING);
         Message msg = mock(MessageImpl.class);
@@ -167,13 +176,13 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         assertEquals(MessageIdUtils.getOffset(msgId), sink.currentOffset(tp.topic(), tp.partition()));
 
         sink.taskContext.offset(tp, 0);
-        verify(mockCtx, times(1)).seek(Mockito.anyString(), Mockito.anyInt(), any());
+        verify(context, times(1)).seek(Mockito.anyString(), Mockito.anyInt(), any());
         assertEquals(0, sink.currentOffset(tp.topic(), tp.partition()));
 
         sink.taskContext.pause(tp);
-        verify(mockCtx, times(1)).pause(tp.topic(), tp.partition());
+        verify(context, times(1)).pause(tp.topic(), tp.partition());
         sink.taskContext.resume(tp);
-        verify(mockCtx, times(1)).resume(tp.topic(), tp.partition());
+        verify(context, times(1)).resume(tp.topic(), tp.partition());
 
         sink.close();
     }
@@ -181,41 +190,39 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
 
     @Test
     public void subscriptionTypeTest() throws Exception {
-        SinkContext mockCtx = Mockito.mock(SinkContext.class);
-        when(mockCtx.getSubscriptionType()).thenReturn(SubscriptionType.Exclusive);
-        try (KafkaConnectSink sink = new KafkaConnectSink()) {
-            log.info("Exclusive is allowed");
-            sink.open(props, mockCtx);
-        }
-
-        when(mockCtx.getSubscriptionType()).thenReturn(SubscriptionType.Failover);
         try (KafkaConnectSink sink = new KafkaConnectSink()) {
             log.info("Failover is allowed");
-            sink.open(props, mockCtx);
+            sink.open(props, context);
         }
 
-        when(mockCtx.getSubscriptionType()).thenReturn(SubscriptionType.Key_Shared);
+        when(context.getSubscriptionType()).thenReturn(SubscriptionType.Exclusive);
+        try (KafkaConnectSink sink = new KafkaConnectSink()) {
+            log.info("Exclusive is allowed");
+            sink.open(props, context);
+        }
+
+        when(context.getSubscriptionType()).thenReturn(SubscriptionType.Key_Shared);
         try (KafkaConnectSink sink = new KafkaConnectSink()) {
             log.info("Key_Shared is not allowed");
-            sink.open(props, mockCtx);
+            sink.open(props, context);
             fail("expected exception");
         } catch (IllegalArgumentException iae) {
             // pass
         }
 
-        when(mockCtx.getSubscriptionType()).thenReturn(SubscriptionType.Shared);
+        when(context.getSubscriptionType()).thenReturn(SubscriptionType.Shared);
         try (KafkaConnectSink sink = new KafkaConnectSink()) {
             log.info("Shared is not allowed");
-            sink.open(props, mockCtx);
+            sink.open(props, context);
             fail("expected exception");
         } catch (IllegalArgumentException iae) {
             // pass
         }
 
-        when(mockCtx.getSubscriptionType()).thenReturn(null);
+        when(context.getSubscriptionType()).thenReturn(null);
         try (KafkaConnectSink sink = new KafkaConnectSink()) {
             log.info("Type is required");
-            sink.open(props, mockCtx);
+            sink.open(props, context);
             fail("expected exception");
         } catch (IllegalArgumentException iae) {
             // pass
@@ -232,9 +239,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         props.put("kafkaConnectorSinkClass", SchemaedFileStreamSinkConnector.class.getCanonicalName());
 
         KafkaConnectSink sink = new KafkaConnectSink();
-        SinkContext mockCtx = Mockito.mock(SinkContext.class);
-        when(mockCtx.getSubscriptionType()).thenReturn(SubscriptionType.Failover);
-        sink.open(props, mockCtx);
+        sink.open(props, context);
 
         final GenericRecord rec = getGenericRecord(value, schema);
         Message msg = mock(MessageImpl.class);
@@ -357,9 +362,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         props.put("kafkaConnectorSinkClass", SchemaedFileStreamSinkConnector.class.getCanonicalName());
 
         KafkaConnectSink sink = new KafkaConnectSink();
-        SinkContext mockCtx = Mockito.mock(SinkContext.class);
-        when(mockCtx.getSubscriptionType()).thenReturn(SubscriptionType.Failover);
-        sink.open(props, mockCtx);
+        sink.open(props, context);
 
         final GenericRecord rec = getGenericRecord(obj, null);
         Message msg = mock(MessageImpl.class);
@@ -411,9 +414,8 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
                 .build();
 
         KafkaConnectSink sink = new KafkaConnectSink();
-        SinkContext mockCtx = Mockito.mock(SinkContext.class);
-        when(mockCtx.getSubscriptionType()).thenReturn(SubscriptionType.Exclusive);
-        sink.open(props, mockCtx);
+        when(context.getSubscriptionType()).thenReturn(SubscriptionType.Exclusive);
+        sink.open(props, context);
 
         // offset is -1 before any data is written (aka no offset)
         assertEquals(-1L, sink.currentOffset(topicName, partition));
@@ -433,7 +435,10 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
 
         // close the producer, open again
         sink = new KafkaConnectSink();
-        sink.open(props, mockCtx);
+        when(context.getPulsarClient()).thenReturn(PulsarClient.builder()
+                .serviceUrl(brokerUrl.toString())
+                .build());
+        sink.open(props, context);
 
         // offset is 1 after reopening the producer
         assertEquals(1, sink.currentOffset(topicName, partition));

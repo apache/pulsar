@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.resourcegroup;
 
 import com.google.common.collect.Sets;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.BytesAndMessagesCount;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.ResourceGroupMonitoringClass;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -45,6 +46,7 @@ import org.testng.annotations.Test;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+@Slf4j
 public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
     @BeforeClass
     @Override
@@ -109,16 +111,9 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
         Producer<byte[]> producer = null;
         Consumer<byte[]> consumer = null;
 
-        this.pulsar.getBrokerService().getOrCreateTopic(topicString);
-
-        try {
-            producer = pulsarClient.newProducer()
-                    .topic(topicString)
-                    .create();
-        } catch (PulsarClientException p) {
-            final String errMesg = String.format("Got exception while building producer: ex=%s", p.getMessage());
-            Assert.fail(errMesg);
-        }
+        producer = pulsarClient.newProducer()
+                .topic(topicString)
+                .create();
 
         try {
             consumer = pulsarClient.newConsumer()

@@ -32,13 +32,16 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
@@ -58,8 +61,10 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.interceptor.ProducerInterceptor;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.ProducerBase;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -67,7 +72,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
@@ -714,4 +718,217 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @Test
+    public void testSetReplicatedSubscriptionStatus() {
+        final String topicName = "topic-with-repl-sub";
+        final String partitionName = topicName + "-partition-0";
+        final String subName = "sub";
+
+        // 1) Return 404 if that the topic does not exist
+        AsyncResponse response = mock(AsyncResponse.class);
+        persistentTopics.setReplicatedSubscriptionStatus(response, testTenant, testNamespace, topicName, subName, true,
+                true);
+        ArgumentCaptor<RestException> errorCaptor = ArgumentCaptor.forClass(RestException.class);
+        verify(response, timeout(10000).times(1)).resume(errorCaptor.capture());
+        Assert.assertEquals(errorCaptor.getValue().getResponse().getStatus(),
+                Response.Status.NOT_FOUND.getStatusCode());
+
+        // 2) Return 404 if that the partitioned topic does not exist
+        response = mock(AsyncResponse.class);
+        persistentTopics.setReplicatedSubscriptionStatus(response, testTenant, testNamespace, partitionName, subName,
+                true, true);
+        errorCaptor = ArgumentCaptor.forClass(RestException.class);
+        verify(response, timeout(10000).times(1)).resume(errorCaptor.capture());
+        Assert.assertEquals(errorCaptor.getValue().getResponse().getStatus(),
+                Response.Status.NOT_FOUND.getStatusCode());
+
+        // 3) Create the partitioned topic
+        response = mock(AsyncResponse.class);
+        ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
+        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, topicName, 2,true);
+        verify(response, timeout(10000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+
+        // 4) Create a subscription
+        response = mock(AsyncResponse.class);
+        persistentTopics.createSubscription(response, testTenant, testNamespace, topicName, subName, true,
+                (MessageIdImpl) MessageId.latest, false);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        verify(response, timeout(10000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+
+        // 5) Enable replicated subscription on the partitioned topic
+        response = mock(AsyncResponse.class);
+        persistentTopics.setReplicatedSubscriptionStatus(response, testTenant, testNamespace, topicName, subName, true,
+                true);
+        verify(response, timeout(10000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+
+        // 6) Disable replicated subscription on the partitioned topic
+        response = mock(AsyncResponse.class);
+        persistentTopics.setReplicatedSubscriptionStatus(response, testTenant, testNamespace, topicName, subName, true,
+                false);
+        verify(response, timeout(10000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+
+        // 7) Enable replicated subscription on the partition
+        response = mock(AsyncResponse.class);
+        persistentTopics.setReplicatedSubscriptionStatus(response, testTenant, testNamespace, partitionName, subName,
+                true, true);
+        verify(response, timeout(10000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+
+        // 8) Disable replicated subscription on the partition
+        response = mock(AsyncResponse.class);
+        persistentTopics.setReplicatedSubscriptionStatus(response, testTenant, testNamespace, partitionName, subName,
+                true, false);
+        verify(response, timeout(10000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+
+        // 9) Delete the subscription
+        response = mock(AsyncResponse.class);
+        persistentTopics.deleteSubscription(response, testTenant, testNamespace, topicName, subName, false, true);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        verify(response, timeout(10000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+
+        // 10) Delete the partitioned topic
+        response = mock(AsyncResponse.class);
+        persistentTopics.deletePartitionedTopic(response, testTenant, testNamespace, topicName, true, true, false);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        verify(response, timeout(10000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+    }
+
+    @Test
+    public void testGetMessageIdByTimestamp() throws Exception {
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        admin.tenants().createTenant("tenant-xyz", tenantInfo);
+        admin.namespaces().createNamespace("tenant-xyz/ns-abc", Sets.newHashSet("test"));
+        final String topicName = "persistent://tenant-xyz/ns-abc/testGetMessageIdByTimestamp";
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        AtomicLong publishTime = new AtomicLong(0);
+        ProducerBase<byte[]> producer = (ProducerBase<byte[]>) pulsarClient.newProducer().topic(topicName)
+                .enableBatching(false)
+                .intercept(new ProducerInterceptor() {
+                    @Override
+                    public void close() {
+
+                    }
+
+                    @Override
+                    public boolean eligible(Message message) {
+                        return true;
+                    }
+
+                    @Override
+                    public Message beforeSend(Producer producer, Message message) {
+                        return message;
+                    }
+
+                    @Override
+                    public void onSendAcknowledgement(Producer producer, Message message, MessageId msgId,
+                                                      Throwable exception) {
+                        publishTime.set(message.getPublishTime());
+                    }
+                })
+                .create();
+
+        MessageId id1 = producer.send("test1".getBytes());
+        long publish1 = publishTime.get();
+
+        Thread.sleep(10);
+        MessageId id2 = producer.send("test2".getBytes());
+        long publish2 = publishTime.get();
+
+        Assert.assertTrue(publish1 < publish2);
+
+        Assert.assertEquals(admin.topics().getMessageIdByTimestamp(topicName, publish1 - 1), id1);
+        Assert.assertEquals(admin.topics().getMessageIdByTimestamp(topicName, publish1), id1);
+        Assert.assertEquals(admin.topics().getMessageIdByTimestamp(topicName, publish1 + 1), id2);
+        Assert.assertEquals(admin.topics().getMessageIdByTimestamp(topicName, publish2), id2);
+        Assert.assertTrue(admin.topics().getMessageIdByTimestamp(topicName, publish2 + 1)
+                .compareTo(id2) > 0);
+    }
+
+    @Test
+    public void testGetBatchMessageIdByTimestamp() throws Exception {
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        admin.tenants().createTenant("tenant-xyz", tenantInfo);
+        admin.namespaces().createNamespace("tenant-xyz/ns-abc", Sets.newHashSet("test"));
+        final String topicName = "persistent://tenant-xyz/ns-abc/testGetBatchMessageIdByTimestamp";
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        Map<MessageId, Long> publishTimeMap = new ConcurrentHashMap<>();
+
+        ProducerBase<byte[]> producer = (ProducerBase<byte[]>) pulsarClient.newProducer().topic(topicName)
+                .enableBatching(true)
+                .batchingMaxPublishDelay(1, TimeUnit.MINUTES)
+                .batchingMaxMessages(2)
+                .intercept(new ProducerInterceptor() {
+                    @Override
+                    public void close() {
+
+                    }
+
+                    @Override
+                    public boolean eligible(Message message) {
+                        return true;
+                    }
+
+                    @Override
+                    public Message beforeSend(Producer producer, Message message) {
+                        return message;
+                    }
+
+                    @Override
+                    public void onSendAcknowledgement(Producer producer, Message message, MessageId msgId,
+                                                      Throwable exception) {
+                        log.info("onSendAcknowledgement, message={}, msgId={},publish_time={},exception={}",
+                                message, msgId, message.getPublishTime(), exception);
+                        publishTimeMap.put(msgId, message.getPublishTime());
+
+                    }
+                })
+                .create();
+
+        List<CompletableFuture<MessageId>> idFutureList = new ArrayList<>();
+        for (int i = 0; i < 4; i++) {
+            idFutureList.add(producer.sendAsync(new byte[]{(byte) i}));
+            Thread.sleep(5);
+        }
+
+        List<MessageIdImpl> ids = new ArrayList<>();
+        for (CompletableFuture<MessageId> future : idFutureList) {
+            MessageId id = future.get();
+            ids.add((MessageIdImpl) id);
+        }
+
+        for (MessageIdImpl messageId : ids) {
+            Assert.assertTrue(publishTimeMap.containsKey(messageId));
+            log.info("MessageId={},PublishTime={}", messageId, publishTimeMap.get(messageId));
+        }
+
+        //message 0, 1 are in the same batch, as batchingMaxMessages is set to 2.
+        Assert.assertEquals(ids.get(0).getLedgerId(), ids.get(1).getLedgerId());
+        MessageIdImpl id1 =
+                new MessageIdImpl(ids.get(0).getLedgerId(), ids.get(0).getEntryId(), ids.get(0).getPartitionIndex());
+        long publish1 = publishTimeMap.get(ids.get(0));
+
+        Assert.assertEquals(ids.get(2).getLedgerId(), ids.get(3).getLedgerId());
+        MessageIdImpl id2 =
+                new MessageIdImpl(ids.get(2).getLedgerId(), ids.get(2).getEntryId(), ids.get(2).getPartitionIndex());
+        long publish2 = publishTimeMap.get(ids.get(2));
+
+
+        Assert.assertTrue(publish1 < publish2);
+
+        Assert.assertEquals(admin.topics().getMessageIdByTimestamp(topicName, publish1 - 1), id1);
+        Assert.assertEquals(admin.topics().getMessageIdByTimestamp(topicName, publish1), id1);
+        Assert.assertEquals(admin.topics().getMessageIdByTimestamp(topicName, publish1 + 1), id2);
+        Assert.assertEquals(admin.topics().getMessageIdByTimestamp(topicName, publish2), id2);
+        Assert.assertTrue(admin.topics().getMessageIdByTimestamp(topicName, publish2 + 1)
+                .compareTo(id2) > 0);
+    }
 }

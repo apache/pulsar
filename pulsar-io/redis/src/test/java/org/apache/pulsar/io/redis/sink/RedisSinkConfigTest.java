@@ -40,14 +40,14 @@ public class RedisSinkConfigTest {
         String path = yamlFile.getAbsolutePath();
         RedisSinkConfig config = RedisSinkConfig.load(path);
         assertNotNull(config);
-        assertEquals("localhost:6379", config.getRedisHosts());
-        assertEquals("fake@123", config.getRedisPassword());
-        assertEquals(Integer.parseInt("1"), config.getRedisDatabase());
-        assertEquals("Standalone", config.getClientMode());
-        assertEquals(Long.parseLong("2000"), config.getOperationTimeout());
-        assertEquals(Integer.parseInt("100"), config.getBatchSize());
-        assertEquals(Long.parseLong("1000"), config.getBatchTimeMs());
-        assertEquals(Long.parseLong("3000"), config.getConnectTimeout());
+        assertEquals(config.getRedisHosts(), "localhost:6379");
+        assertEquals(config.getRedisPassword(), "fake@123");
+        assertEquals(config.getRedisDatabase(), Integer.parseInt("1"));
+        assertEquals(config.getClientMode(), "Standalone");
+        assertEquals(config.getOperationTimeout(), Long.parseLong("2000"));
+        assertEquals(config.getBatchSize(), Integer.parseInt("100"));
+        assertEquals(config.getBatchTimeMs(), Long.parseLong("1000"));
+        assertEquals(config.getConnectTimeout(), Long.parseLong("3000"));
     }
 
     @Test
@@ -64,14 +64,14 @@ public class RedisSinkConfigTest {
 
         RedisSinkConfig config = RedisSinkConfig.load(map);
         assertNotNull(config);
-        assertEquals("localhost:6379", config.getRedisHosts());
-        assertEquals("fake@123", config.getRedisPassword());
-        assertEquals(Integer.parseInt("1"), config.getRedisDatabase());
-        assertEquals("Standalone", config.getClientMode());
-        assertEquals(Long.parseLong("2000"), config.getOperationTimeout());
-        assertEquals(Integer.parseInt("100"), config.getBatchSize());
-        assertEquals(Long.parseLong("1000"), config.getBatchTimeMs());
-        assertEquals(Long.parseLong("3000"), config.getConnectTimeout());
+        assertEquals(config.getRedisHosts(), "localhost:6379");
+        assertEquals(config.getRedisPassword(), "fake@123");
+        assertEquals(config.getRedisDatabase(), Integer.parseInt("1"));
+        assertEquals(config.getClientMode(), "Standalone");
+        assertEquals(config.getOperationTimeout(), Long.parseLong("2000"));
+        assertEquals(config.getBatchSize(), Integer.parseInt("100"));
+        assertEquals(config.getBatchTimeMs(), Long.parseLong("1000"));
+        assertEquals(config.getConnectTimeout(), Long.parseLong("3000"));
     }
 
     @Test

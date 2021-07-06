@@ -56,7 +56,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -108,7 +107,6 @@ import org.apache.pulsar.broker.resources.NamespaceResources.PartitionedTopicRes
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
-import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
@@ -1053,7 +1051,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                     log.info("Configuring proxy-url {} with protocol {}", data.getProxyServiceUrl(),
                             data.getProxyProtocol());
                 }
-                if (data.getListenerName() != null && StringUtils.isNotBlank(data.getListenerName())) {
+                if (StringUtils.isNotBlank(data.getListenerName())) {
                     clientBuilder.listenerName(data.getListenerName());
                     log.info("Configuring listenerName {}", data.getListenerName());
                 }
@@ -1151,29 +1149,25 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             return topicFuture;
         }
 
-        checkTopicNsOwnershipAsync(topic).whenComplete((ignored, throwable) -> {
-            if (throwable != null) {
-                topicFuture.completeExceptionally(throwable);
-                return;
-            }
+        checkTopicNsOwnership(topic)
+                .thenRun(() -> {
+                    final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
 
-            final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
-
-            if (topicLoadSemaphore.tryAcquire()) {
-                createPersistentTopic(topic, createIfMissing, topicFuture);
-                topicFuture.handle((persistentTopic, ex) -> {
-                    // release permit and process pending topic
-                    topicLoadSemaphore.release();
-                    createPendingLoadTopic();
-                    return null;
+                    if (topicLoadSemaphore.tryAcquire()) {
+                        createPersistentTopic(topic, createIfMissing, topicFuture);
+                        topicFuture.handle((persistentTopic, ex) -> {
+                            // release permit and process pending topic
+                            topicLoadSemaphore.release();
+                            createPendingLoadTopic();
+                            return null;
+                        });
+                    } else {
+                        pendingTopicLoadingQueue.add(new ImmutablePair<>(topic, topicFuture));
+                        if (log.isDebugEnabled()) {
+                            log.debug("topic-loading for {} added into pending queue", topic);
+                        }
+                    }
                 });
-            } else {
-                pendingTopicLoadingQueue.add(new ImmutablePair<>(topic, topicFuture));
-                if (log.isDebugEnabled()) {
-                    log.debug("topic-loading for {} added into pending queue", topic);
-                }
-            }
-        });
 
         return topicFuture;
     }
@@ -1627,36 +1621,21 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return false;
     }
 
-    public CompletableFuture<Void> checkTopicNsOwnershipAsync(final String topic) {
+    public CompletableFuture<Void> checkTopicNsOwnership(final String topic) {
         TopicName topicName = TopicName.get(topic);
-        CompletableFuture<Void> checkFuture = new CompletableFuture<>();
-        pulsar.getNamespaceService().checkTopicOwnership(topicName).whenComplete((ownedByThisInstance, throwable) -> {
-            if (throwable != null) {
-                log.debug("Failed to check the ownership of the topic: {}", topicName, throwable);
-                checkFuture.completeExceptionally(new ServerMetadataException(throwable));
-            } else if (!ownedByThisInstance) {
-                String msg = String.format("Namespace bundle for topic (%s) not served by this instance. "
-                        + "Please redo the lookup. Request is denied: namespace=%s", topic, topicName.getNamespace());
-                log.warn(msg);
-                checkFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
-            } else {
-                checkFuture.complete(null);
-            }
-        });
-        return checkFuture;
-    }
 
-    public void checkTopicNsOwnership(final String topic) throws BrokerServiceException {
-        try {
-            checkTopicNsOwnershipAsync(topic).join();
-        } catch (CompletionException ex) {
-            if (ex.getCause() instanceof BrokerServiceException) {
-                throw (BrokerServiceException) ex.getCause();
-            }
-            throw new BrokerServiceException(ex.getCause());
-        } catch (Exception ex) {
-            throw new BrokerServiceException(ex);
-        }
+        return pulsar.getNamespaceService().checkTopicOwnership(topicName)
+                .thenCompose(ownedByThisInstance -> {
+                    if (ownedByThisInstance) {
+                        return CompletableFuture.completedFuture(null);
+                    } else {
+                        String msg = String.format("Namespace bundle for topic (%s) not served by this instance. "
+                                        + "Please redo the lookup. Request is denied: namespace=%s", topic,
+                                topicName.getNamespace());
+                        log.warn(msg);
+                        return FutureUtil.failedFuture(new ServiceUnitNotReadyException(msg));
+                    }
+                });
     }
 
     public CompletableFuture<Integer> unloadServiceUnit(NamespaceBundle serviceUnit,

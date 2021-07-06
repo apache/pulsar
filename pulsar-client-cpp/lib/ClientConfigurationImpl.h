@@ -39,6 +39,7 @@ struct ClientConfigurationImpl {
     bool validateHostName{false};
     unsigned int partitionsUpdateInterval{60};  // 1 minute
     std::string listenerName;
+    int connectionTimeoutMs{10000};  // 10 seconds
 
     std::unique_ptr<LoggerFactory> takeLogger() { return std::move(loggerFactory); }
 };

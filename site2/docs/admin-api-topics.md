@@ -4,6 +4,16 @@ title: Manage topics
 sidebar_label: Topics
 ---
 
+> **Important**
+>
+> This page only shows **some frequently used operations**.
+>
+> - For the latest and complete information about `pulsar-admin`, including commands, flags, descriptions, and more, see [pulsar-admin doc](https://pulsar.apache.org/tools/pulsar-admin/).
+> 
+> - For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see [REST API doc]{@inject: rest:REST:/}.
+> 
+> - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](https://pulsar.apache.org/api/admin/).
+
 Pulsar has persistent and non-persistent topics. Persistent topic is a logical endpoint for publishing and consuming messages. The topic name structure for persistent topics is:
 
 ```shell
@@ -537,6 +547,31 @@ admin.topics().getMessageById(topic, ledgerId, entryId);
 ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
+
+### Get message ID 
+
+You can get message ID published at or just after the given datetime.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
+```shell
+./bin/pulsar-admin topics get-message-id \
+  persistent://public/default/my-topic \
+  -d 2021-06-28T19:01:17Z
+```
+
+<!--REST API-->
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/messageid/:timestamp|operation/getMessageIdByTimestamp?version=[[pulsar:version_number]]}
+
+<!--Java-->
+```java
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+long timestamp = System.currentTimeMillis()
+admin.topics().getMessageIdByTimestamp(topic, timestamp);
+```
+
+<!--END_DOCUSAURUS_CODE_TABS-->
+
 
 ### Skip messages
 

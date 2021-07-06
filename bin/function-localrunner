@@ -86,6 +86,9 @@ PULSAR_CLASSPATH="$PULSAR_JAR:$PULSAR_CLASSPATH:$PULSAR_EXTRA_CLASSPATH"
 PULSAR_CLASSPATH="`dirname $PULSAR_LOG_CONF`:$PULSAR_CLASSPATH"
 OPTS="$OPTS -Dlog4j.configurationFile=`basename $PULSAR_LOG_CONF`"
 
+# Allow Netty to use reflection access
+OPTS="$OPTS -Dio.netty.tryReflectionSetAccessible=true"
+
 # Ensure we can read bigger content from ZK. (It might be
 # rarely needed when trying to list many z-nodes under a
 # directory)

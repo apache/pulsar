@@ -623,13 +623,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         pulsar.getConfiguration().setBrokerShutdownTimeoutMs(initValue);
         // update configuration
         admin.brokers().updateDynamicConfiguration("brokerShutdownTimeoutMs", Long.toString(shutdownTime));
-        // sleep incrementally as zk-watch notification is async and may take some time
-        for (int i = 0; i < 5; i++) {
-            if (pulsar.getConfiguration().getBrokerShutdownTimeoutMs() == initValue) {
-                Thread.sleep(50 + (i * 10));
-            }
-        }
-
+        Awaitility.await().until(()
+                -> pulsar.getConfiguration().getBrokerShutdownTimeoutMs() != initValue);
         // verify value is updated
         assertEquals(pulsar.getConfiguration().getBrokerShutdownTimeoutMs(), shutdownTime);
     }
@@ -1219,7 +1214,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // delete tenant forcefully
         admin.tenants().deleteTenant(tenant, true);
-        assertFalse(admin.tenants().getTenants().contains(tenant));
+        Awaitility.await().untilAsserted(() -> {
+                    assertFalse(admin.tenants().getTenants().contains(tenant));
+                });
 
         admin.tenants().createTenant(tenant,
                 new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test")));
