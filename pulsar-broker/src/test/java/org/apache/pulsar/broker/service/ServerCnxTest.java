@@ -199,7 +199,7 @@ public class ServerCnxTest {
         doReturn(executor).when(pulsar).getOrderedExecutor();
 
         PulsarResources pulsarResources = spy(new PulsarResources(store, store));
-        namespaceResources = spy(new NamespaceResources(store, 30));
+        namespaceResources = spy(new NamespaceResources(store, store, 30));
         doReturn(namespaceResources).when(pulsarResources).getNamespaceResources();
         doReturn(pulsarResources).when(pulsar).getPulsarResources();
 
