@@ -23,6 +23,9 @@ import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMo
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.EventLoopGroup;
+import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.awaitility.Awaitility;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -136,6 +139,7 @@ public class ServerCnxTest {
     private ManagedLedgerFactory mlFactoryMock;
     private ClientChannelHelper clientChannelHelper;
     private PulsarService pulsar;
+    private MetadataStoreExtended store;
     private ConfigurationCacheService configCacheService;
     protected NamespaceService namespaceService;
     private final int currentProtocolVersion = ProtocolVersion.values()[ProtocolVersion.values().length - 1]
@@ -180,6 +184,8 @@ public class ServerCnxTest {
         doReturn(createMockBookKeeper(executor))
             .when(pulsar).getBookKeeperClient();
 
+        store = new ZKMetadataStore(mockZk);
+
         configCacheService = mock(ConfigurationCacheService.class);
         ZooKeeperDataCache<Policies> zkDataCache = mock(ZooKeeperDataCache.class);
         doReturn(Optional.empty()).when(zkDataCache).get(any());
@@ -197,6 +203,9 @@ public class ServerCnxTest {
         doReturn(interceptor).when(brokerService).getInterceptor();
         doReturn(brokerService).when(pulsar).getBrokerService();
         doReturn(executor).when(pulsar).getOrderedExecutor();
+
+        PulsarResources pulsarResources = spy(new PulsarResources(store, store));
+        doReturn(pulsarResources).when(pulsar).getPulsarResources();
 
         namespaceService = mock(NamespaceService.class);
         doReturn(CompletableFuture.completedFuture(null)).when(namespaceService).getBundleAsync(any());
@@ -222,6 +231,7 @@ public class ServerCnxTest {
         brokerService.close();
         executor.shutdownNow();
         eventLoopGroup.shutdownGracefully().get();
+        store.close();
     }
 
     @Test(timeOut = 30000)

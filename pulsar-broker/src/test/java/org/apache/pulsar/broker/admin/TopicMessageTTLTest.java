@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.admin;
 
 import com.google.common.collect.Sets;
+import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -219,7 +220,7 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         admin.topics().removeMessageTTL(topicName);
         Awaitility.await().untilAsserted(()
                 -> Assert.assertEquals(admin.topics().getMessageTTL(topicName, true).intValue(), 3600));
-        Assert.assertEquals((int)method.invoke(persistentTopic), 3600);
+        Assert.assertEquals((int) ((CompletableFuture<Integer>)method.invoke(persistentTopic)).join(), 3600);
     }
 
 }
