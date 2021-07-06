@@ -2355,17 +2355,13 @@ public class PersistentTopicsBase extends AdminResource {
 
             ManagedLedger ledger = ((PersistentTopic) topic).getManagedLedger();
             return ledger.asyncFindPosition(entry -> {
-                MessageImpl<byte[]> msg = null;
                 try {
-                    msg = MessageImpl.deserializeBrokerEntryMetaDataFirst(entry.getDataBuffer());
-                    return msg.publishedEarlierThan(timestamp);
+                    long entryTimestamp = MessageImpl.getEntryTimestamp(entry.getDataBuffer());
+                    return MessageImpl.isEntryPublishedEarlierThan(entryTimestamp, timestamp);
                 } catch (Exception e) {
                     log.error("[{}] Error deserializing message for message position find", topicName, e);
                 } finally {
                     entry.release();
-                    if (msg != null) {
-                        msg.recycle();
-                    }
                 }
                 return false;
             }).thenApply(position -> {
