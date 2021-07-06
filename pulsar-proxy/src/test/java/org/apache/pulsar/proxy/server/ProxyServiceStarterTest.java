@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.proxy.server;
 
-
 import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 
@@ -120,18 +119,6 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
         assertTrue(consumerSocket.getResponse().contains("ping"));
         ProducerMessage message = ObjectMapperFactory.getThreadLocal().readValue(consumerSocket.getResponse(), ProducerMessage.class);
         assertEquals(new String(Base64.getDecoder().decode(message.getPayload())), "my payload");
-    }
-
-    @Test
-    public void testEnableWebSocketServerWithErrorClusterData() throws Exception {
-        HttpClient httpClient = new HttpClient();
-        WebSocketClient webSocketClient = new WebSocketClient(httpClient);
-        webSocketClient.start();
-        MyWebSocket myWebSocket = new MyWebSocket();
-        String webSocketUri = "ws://localhost:8080/ws/pingpong";
-        Future<Session> sessionFuture = webSocketClient.connect(myWebSocket, URI.create(webSocketUri));
-        sessionFuture.get().getRemote().sendPing(ByteBuffer.wrap("ping".getBytes()));
-        assertTrue(myWebSocket.getResponse().contains("ping"));
     }
 
     @WebSocket
