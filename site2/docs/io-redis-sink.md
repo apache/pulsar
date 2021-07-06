@@ -35,7 +35,7 @@ The configuration of the Redis sink connector has the following properties.
 
 ### Example
 
-Before using the Redis sink connector, you need to create a configuration file through one of the following methods.
+Before using the Redis sink connector, you need to create a configuration file in the path you will start Pulsar service (i.e. `PULSAR_HOME`) through one of the following methods.
 
 * JSON
 
@@ -82,7 +82,7 @@ This example shows how to write records to a Redis database using the Pulsar Red
     ```bash
     $ bin/pulsar standalone
     ```
-    Make sure the nar file is available at `connectors/pulsar-io-redis-{{pulsar:version}}.nar`.
+    Make sure the NAR file is available at `connectors/pulsar-io-redis-{{pulsar:version}}.nar`.
    
 3. Start the Pulsar Redis connector in local run mode using one of the following methods.
 
@@ -119,7 +119,7 @@ This example shows how to write records to a Redis database using the Pulsar Red
         -m "Pulsar"
     ```     
 
-5. Start a Redis client in docker.
+5. Start a Redis client in Docker.
    
     ```bash
     $ docker exec -it my-redis redis-cli -a "mypassword"
