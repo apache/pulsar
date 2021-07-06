@@ -76,6 +76,15 @@ public class DispatchRateLimiter {
     }
 
     /**
+     * returns available byte-permit if msg-dispatch-throttling is enabled else it returns -1.
+     *
+     * @return
+     */
+    public long getAvailableDispatchRateLimitOnByte() {
+        return dispatchRateLimiterOnByte == null ? -1 : dispatchRateLimiterOnByte.getAvailablePermits();
+    }
+
+    /**
      * It acquires msg and bytes permits from rate-limiter and returns if acquired permits succeed.
      *
      * @param msgPermits
