@@ -406,7 +406,7 @@ String wotd = context.getUserConfigValueOrDefault(<span class="hljs-string">"wor
 <p>Pulsar 窗口函数使用 <a href="https://bookkeeper.apache.org">Apache BookKeeper</a> 作为状态存储接口。 在安装 Apache Pulsar 的时候（包含 Standalone 安装），都会同时包含部署 BookKeeper。</p>
 <p>Apache Pulsar 集成了 Apache BookKeeper <code>table service</code> 用来存储函数的 <code>state</code> 信息。 例如， <code>WordCount</code> 函数可以通过 Pulsar Functions 的状态 API 将其 <code>counters</code> 状态存储到 BookKeeper table service 中。</p>
 <p>状态是以键值对形式存储的，key 是一个字符串，value 是任意的二进制数据：counters 是以64位大端二进制数值存储的。 key 的有效范围仅在 Pulsar 函数内，该函数的所有实例都会共享同一个 key。</p>
-<p>目前，Pulsar 窗口函数暴露了读取、更新和状态管理的 Java API。 当你使用 Java SDK 时，这些 API 都可以在 context 对象访问到。</p>
+<p>目前，Pulsar 窗口函数暴露了读取、更新和状态管理的 Java API。 当你使用 Java SDK 函数时，这些 API 都可以在 context 对象访问到。</p>
 <table>
 <thead>
 <tr><th>Java API</th><th>说明</th></tr>
@@ -417,14 +417,14 @@ String wotd = context.getUserConfigValueOrDefault(<span class="hljs-string">"wor
 <tr><td><code>putState</code></td><td>更新 key 的状态值。</td></tr>
 </tbody>
 </table>
-<p>你可以使用 API 访问、更新和管理 Java 窗口函数中的状态。</p>
+<p>你可以使用下述 API 访问、更新和管理 Java 窗口函数中的状态。</p>
 <h4><a class="anchor" aria-hidden="true" id="incrcounter"></a><a href="#incrcounter" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>incrCounter</h4>
 <p>API <code>incrCounter</code> 用于增加 key 引用 counter 的值。</p>
-<p><code>incrCounter</code> 为应用提供了根据指定 <code>key</code> 增加指定 <code>amount</code> 的计数器功能。 If the <code>key</code> does not exist, a new key is created.</p>
+<p><code>incrCounter</code> 为应用提供了根据指定 <code>key</code> 增加指定 <code>amount</code> 的计数器功能。 如果 <code>key</code> 不存在，将创建一个新 key。</p>
 <pre><code class="hljs css language-java">    <span class="hljs-comment">/**
      * 增加指定 key 引用的 counter 的值
-     * <span class="hljs-doctag">@param</span> key key 的名称
-     * <span class="hljs-doctag">@param</span> amount 需要增加的值
+     * @参数 key - key 的名称
+     * @参数 amount - 需要增加的值
      */</span>
     <span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">incrCounter</span><span class="hljs-params">(String key, <span class="hljs-keyword">long</span> amount)</span></span>;
 </code></pre>
@@ -450,7 +450,7 @@ String wotd = context.getUserConfigValueOrDefault(<span class="hljs-string">"wor
      */</span>
     <span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">putState</span><span class="hljs-params">(String key, ByteBuffer value)</span></span>;
 </code></pre>
-<p>以下代码演示了在应用中如何在 Pulsar 窗口函数中存储状态。</p>
+<p>以下代码演示了应用如何存储 Pulsar 窗口函数的状态。</p>
 <p><code>WordCountWindowFunction</code> 的逻辑是简单和直接的。</p>
 <ol>
 <li><p>该函数首先使用正则表达式 <code>\\.</code> 将接收到的字符串拆分为多个单词。</p></li>
