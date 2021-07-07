@@ -38,7 +38,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadE
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.SafeRun;
-import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.AbstractDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.Consumer;
@@ -74,7 +74,6 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
 
     private volatile int readBatchSize;
     private final Backoff readFailureBackoff = new Backoff(15, TimeUnit.SECONDS, 1, TimeUnit.MINUTES, 0, TimeUnit.MILLISECONDS);
-    private final ServiceConfiguration serviceConfig;
     private volatile ScheduledFuture<?> readOnActiveConsumerTask = null;
 
     LongPairSet messagesToRedeliver;
@@ -83,12 +82,12 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
 
     public PersistentDispatcherSingleActiveConsumer(ManagedCursor cursor, SubType subscriptionType, int partitionIndex,
             PersistentTopic topic, Subscription subscription) {
-        super(subscriptionType, partitionIndex, topic.getName(), subscription);
+        super(subscriptionType, partitionIndex, topic.getName(), subscription,
+                topic.getBrokerService().pulsar().getConfiguration());
         this.topic = topic;
         this.name = topic.getName() + " / " + (cursor.getName() != null ? Codec.decode(cursor.getName())
                 : ""/* NonDurableCursor doesn't have name */);
         this.cursor = cursor;
-        this.serviceConfig = topic.getBrokerService().pulsar().getConfiguration();
         this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
         this.redeliveryTracker = RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
         this.initializeDispatchRateLimiterIfNeeded(Optional.empty());
@@ -383,6 +382,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
             }
 
             int messagesToRead = Math.min(availablePermits, readBatchSize);
+            long bytesToRead = serviceConfig.getDispatcherMaxReadSizeBytes();
             // if turn of precise dispatcher flow control, adjust the records to read
             if (consumer.isPreciseDispatcherFlowControl()) {
                 int avgMessagesPerEntry = consumer.getAvgMessagesPerEntry();
@@ -415,11 +415,12 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
                         }, MESSAGE_RATE_BACKOFF_MS, TimeUnit.MILLISECONDS);
                         return;
                     } else {
-                        // if dispatch-rate is in msg then read only msg according to available permit
-                        long availablePermitsOnMsg = topicRateLimiter.getAvailableDispatchRateLimitOnMsg();
-                        if (availablePermitsOnMsg > 0) {
-                            messagesToRead = Math.min(messagesToRead, (int) availablePermitsOnMsg);
-                        }
+                        Pair<Integer, Long> calculateResult = computeReadLimits(
+                                messagesToRead, (int) topicRateLimiter.getAvailableDispatchRateLimitOnMsg(),
+                                bytesToRead, topicRateLimiter.getAvailableDispatchRateLimitOnByte());
+
+                        messagesToRead = calculateResult.getLeft();
+                        bytesToRead = calculateResult.getRight();
                     }
                 }
 
@@ -443,18 +444,19 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
                         }, MESSAGE_RATE_BACKOFF_MS, TimeUnit.MILLISECONDS);
                         return;
                     } else {
-                        // if dispatch-rate is in msg then read only msg according to available permit
-                        long subPermitsOnMsg = dispatchRateLimiter.get().getAvailableDispatchRateLimitOnMsg();
-                        if (subPermitsOnMsg > 0) {
-                            messagesToRead = Math.min(messagesToRead, (int) subPermitsOnMsg);
-                        }
+                        Pair<Integer, Long> calculateResult = computeReadLimits(
+                                messagesToRead, (int) dispatchRateLimiter.get().getAvailableDispatchRateLimitOnMsg(),
+                                bytesToRead, dispatchRateLimiter.get().getAvailableDispatchRateLimitOnByte());
+
+                        messagesToRead = calculateResult.getLeft();
+                        bytesToRead = calculateResult.getRight();
                     }
                 }
             }
 
             // If messagesToRead is 0 or less, correct it to 1 to prevent IllegalArgumentException
             messagesToRead = Math.max(messagesToRead, 1);
-
+            bytesToRead = Math.max(bytesToRead, 1);
             // Schedule read
             if (log.isDebugEnabled()) {
                 log.debug("[{}-{}] Schedule read of {} messages", name, consumer, messagesToRead);
@@ -479,7 +481,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
             } else if (consumer.readCompacted()) {
                 topic.getCompactedTopic().asyncReadEntriesOrWait(cursor, messagesToRead, this, consumer);
             } else {
-                cursor.asyncReadEntriesOrWait(messagesToRead, serviceConfig.getDispatcherMaxReadSizeBytes(), this, consumer);
+                cursor.asyncReadEntriesOrWait(messagesToRead, bytesToRead, this, consumer);
             }
         } else {
             if (log.isDebugEnabled()) {

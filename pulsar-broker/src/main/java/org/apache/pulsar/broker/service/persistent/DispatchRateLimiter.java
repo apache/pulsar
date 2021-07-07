@@ -407,6 +407,15 @@ public class DispatchRateLimiter {
                 || dispatchRate.dispatchThrottlingRateInByte > 0);
     }
 
+    /**
+     * returns available byte-permit if msg-dispatch-throttling is enabled else it returns -1.
+     *
+     * @return
+     */
+    public long getAvailableDispatchRateLimitOnByte() {
+        return dispatchRateLimiterOnByte == null ? -1 : dispatchRateLimiterOnByte.getAvailablePermits();
+    }
+
     public void close() {
         // close rate-limiter
         if (dispatchRateLimiterOnMessage != null) {
