@@ -1535,8 +1535,17 @@ public class TopicsImpl extends BaseResource implements Topics {
             }
 
             tmp = headers.getFirst(BATCH_HEADER);
-            if (response.getHeaderString(BATCH_HEADER) != null) {
+            if (tmp != null) {
                 properties.put(BATCH_HEADER, (String) tmp);
+            }
+
+            boolean isEncrypted = false;
+            tmp = headers.getFirst("X-Pulsar-Is-Encrypted");
+            if (tmp != null) {
+                isEncrypted = Boolean.parseBoolean(tmp.toString());
+            }
+
+            if (!isEncrypted && response.getHeaderString(BATCH_HEADER) != null) {
                 return getIndividualMsgsFromBatch(topic, msgId, data, properties, messageMetadata);
             }
 

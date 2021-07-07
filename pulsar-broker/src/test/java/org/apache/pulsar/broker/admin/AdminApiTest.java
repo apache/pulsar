@@ -84,6 +84,7 @@ import org.apache.pulsar.client.admin.internal.TenantsImpl;
 import org.apache.pulsar.client.admin.internal.TopicsImpl;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
@@ -2988,6 +2989,48 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         final String topicName = "non-persistent://prop-xyz/ns1/testTruncateTopic-" + UUID.randomUUID().toString();
         admin.topics().createNonPartitionedTopic(topicName);
         assertThrows(() -> {admin.topics().truncate(topicName);});
+    }
 
+    @Test(timeOut = 20000)
+    public void testPeekEncryptedMessages() throws Exception {
+        final String topicName = "persistent://prop-xyz/ns1/testPeekEncryptedMessages-" + UUID.randomUUID().toString();
+        final String subName = "my-sub";
+
+        admin.topics().createNonPartitionedTopic(topicName);
+        admin.topics().createSubscription(topicName, subName, MessageId.latest);
+
+        final Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .enableBatching(true)
+                .addEncryptionKey("my-app-key")
+                .defaultCryptoKeyReader("file:./src/test/resources/certificate/public-key.client-rsa.pem")
+                .create();
+
+        for (int i = 0; i < 5; i++) {
+            producer.send(("message-" + i).getBytes());
+        }
+        producer.close();
+
+        final List<Message<byte[]>> peekedMessages = admin.topics().peekMessages(topicName, subName, 5);
+        assertEquals(peekedMessages.size(), 5);
+
+        final Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName(subName)
+                .cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)
+                .subscribe();
+
+        final List<Message<byte[]>> receivedMessages = new ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
+            receivedMessages.add(msg);
+            consumer.acknowledge(msg);
+        }
+        consumer.unsubscribe();
+
+        for (int i = 0; i < 5; i++) {
+            assertEquals(peekedMessages.get(i).getMessageId(), receivedMessages.get(i).getMessageId());
+            assertEquals(peekedMessages.get(i).getData(), receivedMessages.get(i).getData());
+        }
     }
 }
