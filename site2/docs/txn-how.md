@@ -82,7 +82,13 @@ Let’s walk through the steps for _beginning a transaction_.
    </td>
   </tr>
   <tr>
-   <td>1.3<br>Bring Txn ID
+   <td>1.3<br>Send Result
+   </td>
+   <td>The transaction log sends the result of persisting the transaction ID to the transaction coordinator.
+   </td>
+  </tr>
+  <tr>
+   <td>1.4<br>Bring Txn ID
    </td>
    <td>After the transaction status entry is logged, the transaction coordinator brings the transaction ID back to the Pulsar client.
    </td>
@@ -236,7 +242,7 @@ Let’s walk through the steps for _ending the transaction_.
 
 #### 4.2 Finalize a transaction
 
-The transaction coordinator starts the process of committing or aborting messages or acknowledgments to all the partitions involved in this transaction. 
+The transaction coordinator starts the process of committing or aborting messages to all the partitions involved in this transaction. 
 
 ![](assets/txn-7.png)
 

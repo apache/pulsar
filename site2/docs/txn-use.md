@@ -62,7 +62,7 @@ This section provides an example of how to use the transaction API to send and r
     .build();
     ```
 
-Now you can start using the transaction API to send and receive messages. Below is an example of a  `consume-process-produce` application written in Java.
+Now you can start using the transaction API to send and receive messages. Below is an example of a `consume-process-produce` application written in Java.
 
 ![](assets/txn-9.png)
 
@@ -84,7 +84,7 @@ Let’s walk through this example step by step.
   <tr>
    <td>2. Receive messages from topics.
    </td>
-   <td>The application creates two normal consumers to receive messages from topic input-topic-1 and input-topic-2 respectively. 
+   <td>The application creates two normal consumers to receive messages from topic input-topic-1 and input-topic-2 respectively.<br><br>If you want to enable batch messages ack in transactions, call the enableBatchIndexAcknowledgment(true) method in the consumer builder. For the example, see [1] below this table.
    </td>
   </tr>
   <tr>
@@ -103,7 +103,22 @@ Let’s walk through this example step by step.
    <td>5. Commit the transaction.
    </td>
    <td>The application commits the transaction by calling Transaction.commit() on the open transaction. The commit operation ensures the two input messages are marked as acknowledged and the two output messages are written successfully to the output topics. 
-   <br><br>Tip: You can also call `Transaction.abort()` to abort the open transaction.
+   <br><br>Tip: You can also call Transaction.abort() to abort the open transaction.
    </td>
   </tr>
 </table>
+
+[1] Example of enabling batch messages ack in transactions in the consumer builder.
+
+```
+Consumer<byte[]> sinkConsumer = pulsarClient
+    .newConsumer()
+    .topic(transferTopic)
+    .subscriptionName("sink-topic")
+
+.subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+    .subscriptionType(SubscriptionType.Shared)
+    .enableBatchIndexAcknowledgment(true) // enable batch index acknowledgement
+    .subscribe();
+```
+
