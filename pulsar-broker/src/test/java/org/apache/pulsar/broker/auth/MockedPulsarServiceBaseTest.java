@@ -466,6 +466,8 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         configuration.setWebServicePortTls(Optional.of(0));
         configuration.setBookkeeperClientExposeStatsToPrometheus(true);
         configuration.setNumExecutorThreadPoolSize(5);
+        configuration.setBrokerMaxConnections(0);
+        configuration.setBrokerMaxConnectionsPerIp(0);
         return configuration;
     }
 
