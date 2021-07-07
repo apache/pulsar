@@ -121,9 +121,10 @@ public class RedisSink implements Sink<byte[]> {
         if (CollectionUtils.isNotEmpty(recordsToFlush)) {
             for (Record<byte[]> record: recordsToFlush) {
                 try {
-                    // use the value of record as key when its key is null
+                    // use an empty string as key when the key is null
+                    String recordKey = record.getKey().isPresent() ? record.getKey().get() : "";
+                    byte[] key = recordKey.getBytes(StandardCharsets.UTF_8);
                     byte[] value = record.getValue();
-                    byte[] key = record.getKey().isPresent() ? record.getKey().get().getBytes(StandardCharsets.UTF_8) : value;
                     recordsToSet.put(key, value);
                 } catch (Exception e) {
                     record.fail();
