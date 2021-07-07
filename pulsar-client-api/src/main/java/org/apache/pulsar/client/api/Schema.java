@@ -435,7 +435,7 @@ public interface Schema<T> extends Cloneable{
      * @since 2.9.0
      * @see #AUTO_PRODUCE_BYTES()
      */
-    static Schema<byte[]> AUTO_PRODUCE_VALIDATED_AVRO_BYTES(Schema<?> schema) {
+    static Schema<byte[]> NATIVE_AVRO(Object schema) {
         return DefaultImplementation.newAutoProduceValidatedAvroSchema(schema);
     }
 

@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkState;
 
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
-import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
@@ -38,21 +37,25 @@ public class AutoProduceValidatedAvroBytesSchema<T> extends AutoProduceBytesSche
     
     public AutoProduceValidatedAvroBytesSchema(org.apache.avro.Schema schema) {
         SchemaDefinition schemaDefinition = SchemaDefinition.builder().withJsonDef(schema.toString(false)).build();
-        
-        setSchema(DefaultImplementation.newAvroSchema(schemaDefinition));
+        this.schema = AvroSchema.of(schemaDefinition);
     }
 
-    public AutoProduceValidatedAvroBytesSchema(Schema<T> schema) {
-        this.schema = null;
-        setSchema(schema);
+    public AutoProduceValidatedAvroBytesSchema(Object schema) {
+        this(validateSchema(schema));
     }
 
     public void setSchema(Schema<T> schema) {
         if (SchemaType.AVRO != schema.getSchemaInfo().getType()) {
-            throw new IllegalArgumentException("Provided schema is not an Avro type.");
+            throw new IllegalArgumentException("The type of input schema is not 'SchemaType.AVRO'.");
         }
         this.schema = schema;
     }
+
+    private static org.apache.avro.Schema validateSchema (Object schema) {
+        if (! (schema instanceof org.apache.avro.Schema)) throw new IllegalArgumentException("The input schema is not of type 'org.apache.avro.Schema'.");
+        return (org.apache.avro.Schema) schema;
+    }
+        
 
     private void ensureSchemaInitialized() {
         checkState(schemaInitialized(), "Schema is not initialized before used");
