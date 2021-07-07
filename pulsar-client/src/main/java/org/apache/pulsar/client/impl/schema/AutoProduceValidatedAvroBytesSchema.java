@@ -43,6 +43,7 @@ public class AutoProduceValidatedAvroBytesSchema<T> extends AutoProduceBytesSche
     }
 
     public AutoProduceValidatedAvroBytesSchema(Schema<T> schema) {
+        this.schema = null;
         setSchema(schema);
     }
 
