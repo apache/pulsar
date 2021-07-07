@@ -32,8 +32,18 @@
 </thead>
 <tbody>
 <tr>
-<td><code>-n</code></td>
-<td>Number of producers (per topic)</td>
+<td><code>-s, --size</code></td>
+<td>Message size (bytes)</td>
+<td>1024</td>
+</tr>
+<tr>
+<td><code>-ch, --chunking</code></td>
+<td>Should split the message and publish in chunks if message size is larger than allowed max size</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-threads, --num-test-threads</code></td>
+<td>Number of test threads</td>
 <td>1</td>
 </tr>
 <tr>
@@ -42,89 +52,9 @@
 <td>-</td>
 </tr>
 <tr>
-<td><code>-o</code></td>
-<td>Max number of outstanding messages</td>
-<td>1000</td>
-</tr>
-<tr>
-<td><code>--listener-name</code></td>
-<td>Listener name for the broker.</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>-p</code></td>
-<td>Max number of outstanding messages across partitions</td>
-<td>50000</td>
-</tr>
-<tr>
-<td><code>--format-class</code></td>
-<td>Custom Formatter class name</td>
-<td>org.apache.pulsar.testclient.DefaultMessageFormatter</td>
-</tr>
-<tr>
-<td><code>-r</code></td>
-<td>Publish rate msg/s across topics</td>
-<td>100</td>
-</tr>
-<tr>
-<td><code>--max-outstanding-across-partitions</code></td>
-<td>Max number of outstanding messages across partitions</td>
-<td>50000</td>
-</tr>
-<tr>
-<td><code>-s</code></td>
-<td>Message size (bytes)</td>
-<td>1024</td>
-</tr>
-<tr>
-<td><code>-t</code></td>
-<td>Number of topics</td>
-<td>1</td>
-</tr>
-<tr>
-<td><code>-u</code></td>
-<td>Pulsar Service URL</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>--auth_plugin</code></td>
 <td>Authentication plugin class name</td>
 <td>null</td>
-</tr>
-<tr>
-<td><code>-v</code></td>
-<td>The file which contains the public key to encrypt payload</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--encryption-key-value-file</code></td>
-<td>The file which contains the public key to encrypt payload</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>-pn</code></td>
-<td>Producer Name</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>-z</code></td>
-<td>Compress messages payload</td>
-<td>NONE</td>
-</tr>
-<tr>
-<td><code>--max-connections</code></td>
-<td>Max number of TCP connections to a single broker</td>
-<td>100</td>
-</tr>
-<tr>
-<td><code>--format-payload</code></td>
-<td>Format %i as a message index in the stream from producer and/or %t as the timestamp nanoseconds.</td>
-<td>false</td>
-</tr>
-<tr>
-<td><code>--batch-time-window</code></td>
-<td>Batch messages in &#39;x&#39; ms window (Default: 1ms)</td>
-<td>1.0</td>
 </tr>
 <tr>
 <td><code>--trust-cert-file</code></td>
@@ -132,42 +62,162 @@
 <td></td>
 </tr>
 <tr>
-<td><code>--busy-wait</code></td>
-<td>Enable Busy-Wait on the Pulsar client</td>
-<td>false</td>
+<td><code>-d, --delay</code></td>
+<td>Mark messages with a given delay in seconds</td>
+<td>0</td>
 </tr>
 <tr>
-<td><code>--access-mode</code></td>
-<td>Producer access mode</td>
-<td>Shared</td>
+<td><code>-b, --batch-time-window</code></td>
+<td>Batch messages in &#39;x&#39; ms window (Default: 1ms)</td>
+<td>1.0</td>
 </tr>
 <tr>
-<td><code>--exit-on-failure</code></td>
-<td>Exit from the process on publish failure (default: disable)</td>
-<td>false</td>
-</tr>
-<tr>
-<td><code>-ioThreads</code></td>
-<td>Set the number of threads to be used for handling connections to brokers, default is 1 thread</td>
-<td>1</td>
-</tr>
-<tr>
-<td><code>--max-outstanding</code></td>
-<td>Max number of outstanding messages</td>
-<td>1000</td>
-</tr>
-<tr>
-<td><code>--admin-url</code></td>
+<td><code>-au, --admin-url</code></td>
 <td>Pulsar Admin URL</td>
 <td>null</td>
 </tr>
 <tr>
-<td><code>-time</code></td>
+<td><code>-h, --help</code></td>
+<td>Help message</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-am, --access-mode</code></td>
+<td>Producer access mode</td>
+<td>Shared</td>
+</tr>
+<tr>
+<td><code>-time, --test-duration</code></td>
 <td>Test duration in secs. If 0, it will keep publishing</td>
 <td>0</td>
 </tr>
 <tr>
-<td><code>-mk</code></td>
+<td><code>-pn, --producer-name</code></td>
+<td>Producer Name</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-fc, --format-class</code></td>
+<td>Custom Formatter class name</td>
+<td>org.apache.pulsar.testclient.DefaultMessageFormatter</td>
+</tr>
+<tr>
+<td><code>-k, --encryption-key-name</code></td>
+<td>The public key name to encrypt payload</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-n, --num-producers</code></td>
+<td>Number of producers (per topic)</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>-np, --partitions</code></td>
+<td>Create partitioned topics with the given number of partitions, set 0 to not try to create the topic</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-m, --num-messages</code></td>
+<td>Number of messages to publish in total. If 0, it will keep publishing</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>-z, --compression</code></td>
+<td>Compress messages payload</td>
+<td>NONE</td>
+</tr>
+<tr>
+<td><code>--warmup-time</code></td>
+<td>Warm-up time in seconds (Default: 1 sec)</td>
+<td>1.0</td>
+</tr>
+<tr>
+<td><code>-fp, --format-payload</code></td>
+<td>Format %i as a message index in the stream from producer and/or %t as the timestamp nanoseconds.</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-bm, --batch-max-messages</code></td>
+<td>Maximum number of messages per batch</td>
+<td>1000</td>
+</tr>
+<tr>
+<td><code>--send-timeout</code></td>
+<td>Set the sendTimeout value default 0 to keep compatibility with previous version of pulsar-perf</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>-u, --service-url</code></td>
+<td>Pulsar Service URL</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--auth-params</code></td>
+<td>Authentication parameters, whose format is determined by the implementation of method <code>configure</code> in authentication plugin class, for example &quot;key1:val1,key2:val2&quot; or &quot;{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}.</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-o, --max-outstanding</code></td>
+<td>Max number of outstanding messages</td>
+<td>1000</td>
+</tr>
+<tr>
+<td><code>-t, --num-topic</code></td>
+<td>Number of topics</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>--listener-name</code></td>
+<td>Listener name for the broker.</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-bw, --busy-wait</code></td>
+<td>Enable Busy-Wait on the Pulsar client</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-i, --stats-interval-seconds</code></td>
+<td>Statistics Interval Seconds. If 0, statistics will be disabled</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>-v, --encryption-key-value-file</code></td>
+<td>The file which contains the public key to encrypt payload</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-bb, --batch-max-bytes</code></td>
+<td>Maximum number of bytes per batch</td>
+<td>4194304</td>
+</tr>
+<tr>
+<td><code>-r, --rate</code></td>
+<td>Publish rate msg/s across topics</td>
+<td>100</td>
+</tr>
+<tr>
+<td><code>-ef, --exit-on-failure</code></td>
+<td>Exit from the process on publish failure (default: disable)</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>--conf-file</code></td>
+<td>Configuration file</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-p, --max-outstanding-across-partitions</code></td>
+<td>Max number of outstanding messages across partitions</td>
+<td>50000</td>
+</tr>
+<tr>
+<td><code>-f, --payload-file</code></td>
+<td>Use payload from an UTF-8 encoded text file and a payload will be randomly selected when publishing messages</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-mk, --message-key-generation-mode</code></td>
 <td>The generation mode of message key, valid options are: [autoIncrement, random]</td>
 <td>null</td>
 </tr>
@@ -177,234 +227,19 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>-ef</code></td>
-<td>Exit from the process on publish failure (default: disable)</td>
-<td>false</td>
-</tr>
-<tr>
-<td><code>-threads</code></td>
-<td>Number of test threads</td>
-<td>1</td>
-</tr>
-<tr>
-<td><code>--num-io-threads</code></td>
+<td><code>-ioThreads, --num-io-threads</code></td>
 <td>Set the number of threads to be used for handling connections to brokers, default is 1 thread</td>
 <td>1</td>
 </tr>
 <tr>
-<td><code>-am</code></td>
-<td>Producer access mode</td>
-<td>Shared</td>
-</tr>
-<tr>
-<td><code>--size</code></td>
-<td>Message size (bytes)</td>
-<td>1024</td>
-</tr>
-<tr>
-<td><code>--num-producers</code></td>
-<td>Number of producers (per topic)</td>
-<td>1</td>
-</tr>
-<tr>
-<td><code>--test-duration</code></td>
-<td>Test duration in secs. If 0, it will keep publishing</td>
-<td>0</td>
-</tr>
-<tr>
-<td><code>--payload-file</code></td>
-<td>Use payload from an UTF-8 encoded text file and a payload will be randomly selected when publishing messages</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>-au</code></td>
-<td>Pulsar Admin URL</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--send-timeout</code></td>
-<td>Set the sendTimeout value default 0 to keep compatibility with previous version of pulsar-perf</td>
-<td>0</td>
-</tr>
-<tr>
-<td><code>-fc</code></td>
-<td>Custom Formatter class name</td>
-<td>org.apache.pulsar.testclient.DefaultMessageFormatter</td>
-</tr>
-<tr>
-<td><code>-bb</code></td>
-<td>Maximum number of bytes per batch</td>
-<td>4194304</td>
-</tr>
-<tr>
-<td><code>-np</code></td>
-<td>Create partitioned topics with the given number of partitions, set 0 to not try to create the topic</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--auth-params</code></td>
-<td>Authentication parameters, whose format is determined by the implementation of method <code>configure</code> in authentication plugin class, for example &quot;key1:val1,key2:val2&quot; or &quot;{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}.</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--num-messages</code></td>
-<td>Number of messages to publish in total. If 0, it will keep publishing</td>
-<td>0</td>
-</tr>
-<tr>
-<td><code>-fp</code></td>
-<td>Format %i as a message index in the stream from producer and/or %t as the timestamp nanoseconds.</td>
-<td>false</td>
-</tr>
-<tr>
-<td><code>-bm</code></td>
-<td>Maximum number of messages per batch</td>
-<td>1000</td>
-</tr>
-<tr>
-<td><code>--producer-name</code></td>
-<td>Producer Name</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--batch-max-bytes</code></td>
-<td>Maximum number of bytes per batch</td>
-<td>4194304</td>
-</tr>
-<tr>
-<td><code>--partitions</code></td>
-<td>Create partitioned topics with the given number of partitions, set 0 to not try to create the topic</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--warmup-time</code></td>
-<td>Warm-up time in seconds (Default: 1 sec)</td>
-<td>1.0</td>
-</tr>
-<tr>
-<td><code>--conf-file</code></td>
-<td>Configuration file</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--chunking</code></td>
-<td>Should split the message and publish in chunks if message size is larger than allowed max size</td>
-<td>false</td>
-</tr>
-<tr>
-<td><code>-bw</code></td>
-<td>Enable Busy-Wait on the Pulsar client</td>
-<td>false</td>
-</tr>
-<tr>
-<td><code>--batch-max-messages</code></td>
-<td>Maximum number of messages per batch</td>
-<td>1000</td>
-</tr>
-<tr>
-<td><code>--payload-delimiter</code></td>
-<td>The delimiter used to split lines when using payload from a file</td>
-<td>\n</td>
-</tr>
-<tr>
-<td><code>--rate</code></td>
-<td>Publish rate msg/s across topics</td>
-<td>100</td>
-</tr>
-<tr>
-<td><code>--service-url</code></td>
-<td>Pulsar Service URL</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--num-test-threads</code></td>
-<td>Number of test threads</td>
-<td>1</td>
-</tr>
-<tr>
-<td><code>--message-key-generation-mode</code></td>
-<td>The generation mode of message key, valid options are: [autoIncrement, random]</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>-ch</code></td>
-<td>Should split the message and publish in chunks if message size is larger than allowed max size</td>
-<td>false</td>
-</tr>
-<tr>
-<td><code>--delay</code></td>
-<td>Mark messages with a given delay in seconds</td>
-<td>0</td>
-</tr>
-<tr>
-<td><code>--num-topic</code></td>
-<td>Number of topics</td>
-<td>1</td>
-</tr>
-<tr>
-<td><code>-b</code></td>
-<td>Batch messages in &#39;x&#39; ms window (Default: 1ms)</td>
-<td>1.0</td>
-</tr>
-<tr>
-<td><code>--help</code></td>
-<td>Help message</td>
-<td>false</td>
-</tr>
-<tr>
-<td><code>-c</code></td>
+<td><code>-c, --max-connections</code></td>
 <td>Max number of TCP connections to a single broker</td>
 <td>100</td>
 </tr>
 <tr>
-<td><code>--encryption-key-name</code></td>
-<td>The public key name to encrypt payload</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--stats-interval-seconds</code></td>
-<td>Statistics Interval Seconds. If 0, statistics will be disabled</td>
-<td>0</td>
-</tr>
-<tr>
-<td><code>-d</code></td>
-<td>Mark messages with a given delay in seconds</td>
-<td>0</td>
-</tr>
-<tr>
-<td><code>-e</code></td>
+<td><code>-e, --payload-delimiter</code></td>
 <td>The delimiter used to split lines when using payload from a file</td>
 <td>\n</td>
-</tr>
-<tr>
-<td><code>-f</code></td>
-<td>Use payload from an UTF-8 encoded text file and a payload will be randomly selected when publishing messages</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--compression</code></td>
-<td>Compress messages payload</td>
-<td>NONE</td>
-</tr>
-<tr>
-<td><code>-h</code></td>
-<td>Help message</td>
-<td>false</td>
-</tr>
-<tr>
-<td><code>-i</code></td>
-<td>Statistics Interval Seconds. If 0, statistics will be disabled</td>
-<td>0</td>
-</tr>
-<tr>
-<td><code>-k</code></td>
-<td>The public key name to encrypt payload</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>-m</code></td>
-<td>Number of messages to publish in total. If 0, it will keep publishing</td>
-<td>0</td>
 </tr>
 </tbody>
 </table>
@@ -426,83 +261,13 @@
 </thead>
 <tbody>
 <tr>
-<td><code>-n</code></td>
-<td>Number of consumers (per subscription), only one consumer is allowed when subscriptionType is Exclusive</td>
-<td>1</td>
+<td><code>-sp, --subscription-position</code></td>
+<td>Subscription position</td>
+<td>Latest</td>
 </tr>
 <tr>
-<td><code>-p</code></td>
-<td>Max total size of the receiver queue across partitions</td>
-<td>50000</td>
-</tr>
-<tr>
-<td><code>--listener-name</code></td>
-<td>Listener name for the broker.</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>-q</code></td>
-<td>Size of the receiver queue</td>
-<td>1000</td>
-</tr>
-<tr>
-<td><code>-r</code></td>
-<td>Simulate a slow message consumer (rate in msg/s)</td>
-<td>0.0</td>
-</tr>
-<tr>
-<td><code>-s</code></td>
-<td>Subscriber name prefix</td>
-<td>sub</td>
-</tr>
-<tr>
-<td><code>-t</code></td>
-<td>Number of topics</td>
-<td>1</td>
-</tr>
-<tr>
-<td><code>-u</code></td>
-<td>Pulsar Service URL</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--auth_plugin</code></td>
-<td>Authentication plugin class name</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>-v</code></td>
-<td>The file which contains the private key to decrypt payload</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--num-consumers</code></td>
-<td>Number of consumers (per subscription), only one consumer is allowed when subscriptionType is Exclusive</td>
-<td>1</td>
-</tr>
-<tr>
-<td><code>--encryption-key-value-file</code></td>
-<td>The file which contains the private key to decrypt payload</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>-pm</code></td>
-<td>Use the pooled message</td>
-<td>true</td>
-</tr>
-<tr>
-<td><code>--receiver-queue-size-across-partitions</code></td>
-<td>Max total size of the receiver queue across partitions</td>
-<td>50000</td>
-</tr>
-<tr>
-<td><code>--max-connections</code></td>
-<td>Max number of TCP connections to a single broker</td>
-<td>100</td>
-</tr>
-<tr>
-<td><code>--batch-index-ack</code></td>
-<td>Enable or disable the batch index acknowledgment</td>
+<td><code>-h, --help</code></td>
+<td>Help message</td>
 <td>false</td>
 </tr>
 <tr>
@@ -511,79 +276,34 @@
 <td>false</td>
 </tr>
 <tr>
-<td><code>--acks-delay-millis</code></td>
-<td>Acknowledgements grouping delay in millis</td>
-<td>100</td>
-</tr>
-<tr>
-<td><code>--subscriber-name</code></td>
-<td>Subscriber name prefix</td>
-<td>sub</td>
-</tr>
-<tr>
-<td><code>--trust-cert-file</code></td>
-<td>Path for the trusted TLS certificate file</td>
-<td></td>
-</tr>
-<tr>
-<td><code>--subscription-type</code></td>
-<td>Subscription type</td>
-<td>Exclusive</td>
-</tr>
-<tr>
-<td><code>--busy-wait</code></td>
-<td>Enable Busy-Wait on the Pulsar client</td>
-<td>false</td>
-</tr>
-<tr>
-<td><code>-mc</code></td>
+<td><code>-mc, --max_chunked_msg</code></td>
 <td>Max pending chunk messages</td>
 <td>0</td>
 </tr>
 <tr>
-<td><code>-ioThreads</code></td>
+<td><code>-st, --subscription-type</code></td>
+<td>Subscription type</td>
+<td>Exclusive</td>
+</tr>
+<tr>
+<td><code>-t, --num-topics</code></td>
+<td>Number of topics</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>-ioThreads, --num-io-threads</code></td>
 <td>Set the number of threads to be used for handling connections to brokers, default is 1 thread</td>
 <td>1</td>
 </tr>
 <tr>
-<td><code>-time</code></td>
-<td>Test duration in secs. If 0, it will keep consuming</td>
-<td>0</td>
+<td><code>-r, --rate</code></td>
+<td>Simulate a slow message consumer (rate in msg/s)</td>
+<td>0.0</td>
 </tr>
 <tr>
-<td><code>--tls-allow-insecure</code></td>
-<td>Allow insecure TLS connection</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>-ac</code></td>
-<td>Auto ack for oldest message on queue is full</td>
-<td>false</td>
-</tr>
-<tr>
-<td><code>--num-io-threads</code></td>
-<td>Set the number of threads to be used for handling connections to brokers, default is 1 thread</td>
-<td>1</td>
-</tr>
-<tr>
-<td><code>--expire_time_incomplete_chunked_messages</code></td>
+<td><code>-e, --expire_time_incomplete_chunked_messages</code></td>
 <td>Expire time in ms for incomplete chunk messages</td>
 <td>0</td>
-</tr>
-<tr>
-<td><code>--subscription-position</code></td>
-<td>Subscription position</td>
-<td>Latest</td>
-</tr>
-<tr>
-<td><code>--test-duration</code></td>
-<td>Test duration in secs. If 0, it will keep consuming</td>
-<td>0</td>
-</tr>
-<tr>
-<td><code>--auto_ack_chunk_q_full</code></td>
-<td>Auto ack for oldest message on queue is full</td>
-<td>false</td>
 </tr>
 <tr>
 <td><code>--auth-params</code></td>
@@ -591,24 +311,19 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>-ns</code></td>
+<td><code>--tls-allow-insecure</code></td>
+<td>Allow insecure TLS connection</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-ns, --num-subscriptions</code></td>
 <td>Number of subscriptions (per topic)</td>
 <td>1</td>
 </tr>
 <tr>
-<td><code>--num-topics</code></td>
-<td>Number of topics</td>
-<td>1</td>
-</tr>
-<tr>
-<td><code>--pool-messages</code></td>
-<td>Use the pooled message</td>
-<td>true</td>
-</tr>
-<tr>
-<td><code>--receiver-queue-size</code></td>
-<td>Size of the receiver queue</td>
-<td>1000</td>
+<td><code>--acks-delay-millis</code></td>
+<td>Acknowledgements grouping delay in millis</td>
+<td>100</td>
 </tr>
 <tr>
 <td><code>--conf-file</code></td>
@@ -616,79 +331,89 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>-bw</code></td>
-<td>Enable Busy-Wait on the Pulsar client</td>
-<td>false</td>
+<td><code>-n, --num-consumers</code></td>
+<td>Number of consumers (per subscription), only one consumer is allowed when subscriptionType is Exclusive</td>
+<td>1</td>
 </tr>
 <tr>
-<td><code>--rate</code></td>
-<td>Simulate a slow message consumer (rate in msg/s)</td>
-<td>0.0</td>
+<td><code>-time, --test-duration</code></td>
+<td>Test duration in secs. If 0, it will keep consuming</td>
+<td>0</td>
 </tr>
 <tr>
-<td><code>-sp</code></td>
-<td>Subscription position</td>
-<td>Latest</td>
+<td><code>--auth_plugin</code></td>
+<td>Authentication plugin class name</td>
+<td>null</td>
 </tr>
 <tr>
-<td><code>--service-url</code></td>
+<td><code>-i, --stats-interval-seconds</code></td>
+<td>Statistics Interval Seconds. If 0, statistics will be disabled</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>-ss, --subscriptions</code></td>
+<td>A list of subscriptions to consume on (e.g. sub1,sub2)</td>
+<td>[sub]</td>
+</tr>
+<tr>
+<td><code>-pm, --pool-messages</code></td>
+<td>Use the pooled message</td>
+<td>true</td>
+</tr>
+<tr>
+<td><code>-u, --service-url</code></td>
 <td>Pulsar Service URL</td>
 <td>null</td>
 </tr>
 <tr>
-<td><code>-ss</code></td>
-<td>A list of subscriptions to consume on (e.g. sub1,sub2)</td>
-<td>[sub]</td>
+<td><code>-s, --subscriber-name</code></td>
+<td>Subscriber name prefix</td>
+<td>sub</td>
 </tr>
 <tr>
-<td><code>--max_chunked_msg</code></td>
-<td>Max pending chunk messages</td>
-<td>0</td>
-</tr>
-<tr>
-<td><code>-st</code></td>
-<td>Subscription type</td>
-<td>Exclusive</td>
-</tr>
-<tr>
-<td><code>--num-subscriptions</code></td>
-<td>Number of subscriptions (per topic)</td>
-<td>1</td>
-</tr>
-<tr>
-<td><code>--help</code></td>
-<td>Help message</td>
+<td><code>--batch-index-ack</code></td>
+<td>Enable or disable the batch index acknowledgment</td>
 <td>false</td>
 </tr>
 <tr>
-<td><code>-c</code></td>
+<td><code>-c, --max-connections</code></td>
 <td>Max number of TCP connections to a single broker</td>
 <td>100</td>
 </tr>
 <tr>
-<td><code>--stats-interval-seconds</code></td>
-<td>Statistics Interval Seconds. If 0, statistics will be disabled</td>
-<td>0</td>
+<td><code>-p, --receiver-queue-size-across-partitions</code></td>
+<td>Max total size of the receiver queue across partitions</td>
+<td>50000</td>
 </tr>
 <tr>
-<td><code>--subscriptions</code></td>
-<td>A list of subscriptions to consume on (e.g. sub1,sub2)</td>
-<td>[sub]</td>
+<td><code>--trust-cert-file</code></td>
+<td>Path for the trusted TLS certificate file</td>
+<td></td>
 </tr>
 <tr>
-<td><code>-e</code></td>
-<td>Expire time in ms for incomplete chunk messages</td>
-<td>0</td>
+<td><code>-q, --receiver-queue-size</code></td>
+<td>Size of the receiver queue</td>
+<td>1000</td>
 </tr>
 <tr>
-<td><code>-h</code></td>
-<td>Help message</td>
+<td><code>-v, --encryption-key-value-file</code></td>
+<td>The file which contains the private key to decrypt payload</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-bw, --busy-wait</code></td>
+<td>Enable Busy-Wait on the Pulsar client</td>
 <td>false</td>
 </tr>
 <tr>
-<td><code>-i</code></td>
-<td>Statistics Interval Seconds. If 0, statistics will be disabled</td>
-<td>0</td>
+<td><code>--listener-name</code></td>
+<td>Listener name for the broker.</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-ac, --auto_ack_chunk_q_full</code></td>
+<td>Auto ack for oldest message on queue is full</td>
+<td>false</td>
 </tr>
 </tbody>
 </table>
@@ -710,33 +435,53 @@
 </thead>
 <tbody>
 <tr>
-<td><code>--auth-plugin</code></td>
-<td>Authentication plugin class name</td>
+<td><code>--trust-cert-file</code></td>
+<td>Path for the trusted TLS certificate file</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--tls-allow-insecure</code></td>
+<td>Allow insecure TLS connection</td>
 <td>null</td>
 </tr>
 <tr>
-<td><code>--listener-name</code></td>
-<td>Listener name for the broker.</td>
+<td><code>-time, --test-duration</code></td>
+<td>Test duration in secs. If 0, it will keep consuming</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>--auth-params</code></td>
+<td>Authentication parameters, whose format is determined by the implementation of method <code>configure</code> in authentication plugin class, for example &quot;key1:val1,key2:val2&quot; or &quot;{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}.</td>
 <td>null</td>
 </tr>
 <tr>
-<td><code>-q</code></td>
+<td><code>-q, --receiver-queue-size</code></td>
 <td>Size of the receiver queue</td>
 <td>1000</td>
 </tr>
 <tr>
-<td><code>-r</code></td>
-<td>Simulate a slow message reader (rate in msg/s)</td>
-<td>0.0</td>
+<td><code>-h, --help</code></td>
+<td>Help message</td>
+<td>false</td>
 </tr>
 <tr>
-<td><code>-t</code></td>
-<td>Number of topics</td>
+<td><code>-c, --max-connections</code></td>
+<td>Max number of TCP connections to a single broker</td>
+<td>100</td>
+</tr>
+<tr>
+<td><code>-ioThreads, --num-io-threads</code></td>
+<td>Set the number of threads to be used for handling connections to brokers, default is 1 thread</td>
 <td>1</td>
 </tr>
 <tr>
-<td><code>-u</code></td>
-<td>Pulsar Service URL</td>
+<td><code>-m, --start-message-id</code></td>
+<td>Start message id. This can be either &#39;earliest&#39;, &#39;latest&#39; or a specific message id by using &#39;lid:eid&#39;</td>
+<td>earliest</td>
+</tr>
+<tr>
+<td><code>--auth-plugin</code></td>
+<td>Authentication plugin class name</td>
 <td>null</td>
 </tr>
 <tr>
@@ -745,104 +490,34 @@
 <td>false</td>
 </tr>
 <tr>
-<td><code>--max-connections</code></td>
-<td>Max number of TCP connections to a single broker</td>
-<td>100</td>
-</tr>
-<tr>
-<td><code>--auth-params</code></td>
-<td>Authentication parameters, whose format is determined by the implementation of method <code>configure</code> in authentication plugin class, for example &quot;key1:val1,key2:val2&quot; or &quot;{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}.</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--num-topics</code></td>
-<td>Number of topics</td>
-<td>1</td>
-</tr>
-<tr>
-<td><code>--trust-cert-file</code></td>
-<td>Path for the trusted TLS certificate file</td>
-<td></td>
-</tr>
-<tr>
-<td><code>--receiver-queue-size</code></td>
-<td>Size of the receiver queue</td>
-<td>1000</td>
-</tr>
-<tr>
 <td><code>--conf-file</code></td>
 <td>Configuration file</td>
 <td>null</td>
 </tr>
 <tr>
-<td><code>-ioThreads</code></td>
-<td>Set the number of threads to be used for handling connections to brokers, default is 1 thread</td>
-<td>1</td>
-</tr>
-<tr>
-<td><code>--rate</code></td>
+<td><code>-r, --rate</code></td>
 <td>Simulate a slow message reader (rate in msg/s)</td>
 <td>0.0</td>
 </tr>
 <tr>
-<td><code>--service-url</code></td>
-<td>Pulsar Service URL</td>
+<td><code>--listener-name</code></td>
+<td>Listener name for the broker.</td>
 <td>null</td>
 </tr>
 <tr>
-<td><code>-time</code></td>
-<td>Test duration in secs. If 0, it will keep consuming</td>
-<td>0</td>
-</tr>
-<tr>
-<td><code>--start-message-id</code></td>
-<td>Start message id. This can be either &#39;earliest&#39;, &#39;latest&#39; or a specific message id by using &#39;lid:eid&#39;</td>
-<td>earliest</td>
-</tr>
-<tr>
-<td><code>--tls-allow-insecure</code></td>
-<td>Allow insecure TLS connection</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--num-io-threads</code></td>
-<td>Set the number of threads to be used for handling connections to brokers, default is 1 thread</td>
+<td><code>-t, --num-topics</code></td>
+<td>Number of topics</td>
 <td>1</td>
 </tr>
 <tr>
-<td><code>--help</code></td>
-<td>Help message</td>
-<td>false</td>
-</tr>
-<tr>
-<td><code>-c</code></td>
-<td>Max number of TCP connections to a single broker</td>
-<td>100</td>
-</tr>
-<tr>
-<td><code>--stats-interval-seconds</code></td>
+<td><code>-i, --stats-interval-seconds</code></td>
 <td>Statistics Interval Seconds. If 0, statistics will be disabled</td>
 <td>0</td>
 </tr>
 <tr>
-<td><code>-h</code></td>
-<td>Help message</td>
-<td>false</td>
-</tr>
-<tr>
-<td><code>-i</code></td>
-<td>Statistics Interval Seconds. If 0, statistics will be disabled</td>
-<td>0</td>
-</tr>
-<tr>
-<td><code>--test-duration</code></td>
-<td>Test duration in secs. If 0, it will keep consuming</td>
-<td>0</td>
-</tr>
-<tr>
-<td><code>-m</code></td>
-<td>Start message id. This can be either &#39;earliest&#39;, &#39;latest&#39; or a specific message id by using &#39;lid:eid&#39;</td>
-<td>earliest</td>
+<td><code>-u, --service-url</code></td>
+<td>Pulsar Service URL</td>
+<td>null</td>
 </tr>
 </tbody>
 </table>
@@ -865,7 +540,7 @@ their topic and bundle counts, their message rates, and other metrics.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>--help</code></td>
+<td><code>-h, --help</code></td>
 <td>Help message</td>
 <td>false</td>
 </tr>
@@ -873,11 +548,6 @@ their topic and bundle counts, their message rates, and other metrics.</p>
 <td><code>--connect-string</code></td>
 <td>Zookeeper connect string</td>
 <td>null</td>
-</tr>
-<tr>
-<td><code>-h</code></td>
-<td>Help message</td>
-<td>false</td>
 </tr>
 </tbody>
 </table>
@@ -899,7 +569,7 @@ their topic and bundle counts, their message rates, and other metrics.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>--help</code></td>
+<td><code>-h, --help</code></td>
 <td>Help message</td>
 <td>false</td>
 </tr>
@@ -912,11 +582,6 @@ their topic and bundle counts, their message rates, and other metrics.</p>
 <td><code>--service-url</code></td>
 <td>Pulsar Service URL</td>
 <td>null</td>
-</tr>
-<tr>
-<td><code>-h</code></td>
-<td>Help message</td>
-<td>false</td>
 </tr>
 </tbody>
 </table>
@@ -938,14 +603,14 @@ their topic and bundle counts, their message rates, and other metrics.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>--clients</code></td>
-<td>Comma separated list of client hostnames</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--help</code></td>
+<td><code>-h, --help</code></td>
 <td>Help message</td>
 <td>false</td>
+</tr>
+<tr>
+<td><code>--cluster</code></td>
+<td>Cluster to test on</td>
+<td>null</td>
 </tr>
 <tr>
 <td><code>--client-port</code></td>
@@ -953,13 +618,8 @@ their topic and bundle counts, their message rates, and other metrics.</p>
 <td>0</td>
 </tr>
 <tr>
-<td><code>-h</code></td>
-<td>Help message</td>
-<td>false</td>
-</tr>
-<tr>
-<td><code>--cluster</code></td>
-<td>Cluster to test on</td>
+<td><code>--clients</code></td>
+<td>Comma separated list of client hostnames</td>
 <td>null</td>
 </tr>
 </tbody>
@@ -982,34 +642,9 @@ their topic and bundle counts, their message rates, and other metrics.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>--proxy-url</code></td>
-<td>Pulsar Proxy URL, e.g., &quot;ws://localhost:8080/&quot;</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>-r</code></td>
-<td>Publish rate msg/s across topics</td>
-<td>100</td>
-</tr>
-<tr>
-<td><code>-s</code></td>
+<td><code>-s, --size</code></td>
 <td>Message size in byte</td>
 <td>1024</td>
-</tr>
-<tr>
-<td><code>--rate</code></td>
-<td>Publish rate msg/s across topics</td>
-<td>100</td>
-</tr>
-<tr>
-<td><code>-t</code></td>
-<td>Number of topics</td>
-<td>1</td>
-</tr>
-<tr>
-<td><code>-u</code></td>
-<td>Pulsar Proxy URL, e.g., &quot;ws://localhost:8080/&quot;</td>
-<td>null</td>
 </tr>
 <tr>
 <td><code>--auth_plugin</code></td>
@@ -1017,54 +652,29 @@ their topic and bundle counts, their message rates, and other metrics.</p>
 <td>null</td>
 </tr>
 <tr>
-<td><code>-time</code></td>
-<td>Test duration in secs. If 0, it will keep publishing</td>
-<td>0</td>
-</tr>
-<tr>
 <td><code>--auth-params</code></td>
 <td>Authentication parameters, whose format is determined by the implementation of method <code>configure</code> in authentication plugin class, for example &quot;key1:val1,key2:val2&quot; or &quot;{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}.</td>
 <td>null</td>
 </tr>
 <tr>
-<td><code>--num-topic</code></td>
-<td>Number of topics</td>
-<td>1</td>
-</tr>
-<tr>
-<td><code>--num-messages</code></td>
-<td>Number of messages to publish in total. If 0, it will keep publishing</td>
-<td>0</td>
-</tr>
-<tr>
-<td><code>--help</code></td>
-<td>Help message</td>
-<td>false</td>
-</tr>
-<tr>
-<td><code>-f</code></td>
-<td>Use payload from a file instead of empty buffer</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>-h</code></td>
-<td>Help message</td>
-<td>false</td>
-</tr>
-<tr>
-<td><code>--size</code></td>
-<td>Message size in byte</td>
-<td>1024</td>
-</tr>
-<tr>
-<td><code>--test-duration</code></td>
+<td><code>-time, --test-duration</code></td>
 <td>Test duration in secs. If 0, it will keep publishing</td>
 <td>0</td>
 </tr>
 <tr>
-<td><code>--payload-file</code></td>
-<td>Use payload from a file instead of empty buffer</td>
+<td><code>-h, --help</code></td>
+<td>Help message</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-u, --proxy-url</code></td>
+<td>Pulsar Proxy URL, e.g., &quot;ws://localhost:8080/&quot;</td>
 <td>null</td>
+</tr>
+<tr>
+<td><code>-r, --rate</code></td>
+<td>Publish rate msg/s across topics</td>
+<td>100</td>
 </tr>
 <tr>
 <td><code>--conf-file</code></td>
@@ -1072,9 +682,19 @@ their topic and bundle counts, their message rates, and other metrics.</p>
 <td>null</td>
 </tr>
 <tr>
-<td><code>-m</code></td>
+<td><code>-m, --num-messages</code></td>
 <td>Number of messages to publish in total. If 0, it will keep publishing</td>
 <td>0</td>
+</tr>
+<tr>
+<td><code>-t, --num-topic</code></td>
+<td>Number of topics</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>-f, --payload-file</code></td>
+<td>Use payload from a file instead of empty buffer</td>
+<td>null</td>
 </tr>
 </tbody>
 </table>
@@ -1096,99 +716,29 @@ their topic and bundle counts, their message rates, and other metrics.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>-o</code></td>
-<td>Max number of outstanding requests</td>
-<td>1000</td>
-</tr>
-<tr>
-<td><code>-r</code></td>
-<td>Write rate msg/s across managed ledgers</td>
-<td>100</td>
-</tr>
-<tr>
-<td><code>--digest-type</code></td>
-<td>BookKeeper digest type</td>
-<td>CRC32C</td>
-</tr>
-<tr>
-<td><code>-s</code></td>
-<td>Message size</td>
-<td>1024</td>
-</tr>
-<tr>
-<td><code>-t</code></td>
-<td>Number of managed ledgers</td>
-<td>1</td>
-</tr>
-<tr>
-<td><code>-w</code></td>
-<td>Ledger write quorum</td>
-<td>1</td>
-</tr>
-<tr>
-<td><code>--max-connections</code></td>
-<td>Max number of TCP connections to a single bookie</td>
-<td>1</td>
-</tr>
-<tr>
-<td><code>--ensemble-size</code></td>
+<td><code>-e, --ensemble-size</code></td>
 <td>Ledger ensemble size</td>
 <td>1</td>
 </tr>
 <tr>
-<td><code>--num-messages</code></td>
-<td>Number of messages to publish in total. If 0, it will keep publishing</td>
-<td>0</td>
-</tr>
-<tr>
-<td><code>--write-quorum</code></td>
+<td><code>-w, --write-quorum</code></td>
 <td>Ledger write quorum</td>
 <td>1</td>
 </tr>
 <tr>
-<td><code>-dt</code></td>
-<td>BookKeeper digest type</td>
-<td>CRC32C</td>
-</tr>
-<tr>
-<td><code>--max-outstanding</code></td>
-<td>Max number of outstanding requests</td>
-<td>1000</td>
-</tr>
-<tr>
-<td><code>--ack-quorum</code></td>
-<td>Ledger ack quorum</td>
-<td>1</td>
-</tr>
-<tr>
-<td><code>--rate</code></td>
+<td><code>-r, --rate</code></td>
 <td>Write rate msg/s across managed ledgers</td>
 <td>100</td>
 </tr>
 <tr>
-<td><code>--zookeeperServers</code></td>
-<td>ZooKeeper connection string</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>-time</code></td>
-<td>Test duration in secs. If 0, it will keep publishing</td>
+<td><code>-m, --num-messages</code></td>
+<td>Number of messages to publish in total. If 0, it will keep publishing</td>
 <td>0</td>
 </tr>
 <tr>
-<td><code>--num-topic</code></td>
-<td>Number of managed ledgers</td>
-<td>1</td>
-</tr>
-<tr>
-<td><code>-a</code></td>
+<td><code>-a, --ack-quorum</code></td>
 <td>Ledger ack quorum</td>
 <td>1</td>
-</tr>
-<tr>
-<td><code>--help</code></td>
-<td>Help message</td>
-<td>false</td>
 </tr>
 <tr>
 <td><code>--threads</code></td>
@@ -1196,39 +746,44 @@ their topic and bundle counts, their message rates, and other metrics.</p>
 <td>1</td>
 </tr>
 <tr>
-<td><code>-c</code></td>
-<td>Max number of TCP connections to a single bookie</td>
-<td>1</td>
-</tr>
-<tr>
-<td><code>-e</code></td>
-<td>Ledger ensemble size</td>
-<td>1</td>
-</tr>
-<tr>
-<td><code>-h</code></td>
-<td>Help message</td>
-<td>false</td>
-</tr>
-<tr>
-<td><code>--size</code></td>
+<td><code>-s, --size</code></td>
 <td>Message size</td>
 <td>1024</td>
 </tr>
 <tr>
-<td><code>--test-duration</code></td>
-<td>Test duration in secs. If 0, it will keep publishing</td>
-<td>0</td>
+<td><code>-c, --max-connections</code></td>
+<td>Max number of TCP connections to a single bookie</td>
+<td>1</td>
 </tr>
 <tr>
-<td><code>-zk</code></td>
+<td><code>-zk, --zookeeperServers</code></td>
 <td>ZooKeeper connection string</td>
 <td>null</td>
 </tr>
 <tr>
-<td><code>-m</code></td>
-<td>Number of messages to publish in total. If 0, it will keep publishing</td>
+<td><code>-time, --test-duration</code></td>
+<td>Test duration in secs. If 0, it will keep publishing</td>
 <td>0</td>
+</tr>
+<tr>
+<td><code>-o, --max-outstanding</code></td>
+<td>Max number of outstanding requests</td>
+<td>1000</td>
+</tr>
+<tr>
+<td><code>-h, --help</code></td>
+<td>Help message</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-t, --num-topic</code></td>
+<td>Number of managed ledgers</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>-dt, --digest-type</code></td>
+<td>BookKeeper digest type</td>
+<td>CRC32C</td>
 </tr>
 </tbody>
 </table>

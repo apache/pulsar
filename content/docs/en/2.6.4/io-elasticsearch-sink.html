@@ -87,7 +87,7 @@
 <li><p>Start a Pulsar service locally in standalone mode.</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar standalone
 </code></pre>
-<p>Make sure the nar file is available at <code>connectors/pulsar-io-elastic-search-2.6.4.nar</code>.</p></li>
+<p>Make sure the NAR file is available at <code>connectors/pulsar-io-elastic-search-2.6.4.nar</code>.</p></li>
 <li><p>Start the Pulsar Elasticsearch connector in local run mode using one of the following methods.</p>
 <ul>
 <li><p>Use the <strong>JSON</strong> configuration as shown previously.</p>
@@ -96,7 +96,6 @@
     --tenant public \
     --namespace default \
     --name elasticsearch-test-sink \
-    --sink-type elastic_search \
     --sink-config <span class="hljs-string">'{"elasticSearchUrl":"http://localhost:9200","indexName": "my_index","username": "scooby","password": "doobie"}'</span> \
     --inputs elasticsearch_test
 </code></pre></li>
@@ -106,7 +105,6 @@
     --tenant public \
     --namespace default \
     --name elasticsearch-test-sink \
-    --sink-type elastic_search \
     --sink-config-file elasticsearch-sink.yml \
     --inputs elasticsearch_test
 </code></pre></li>
