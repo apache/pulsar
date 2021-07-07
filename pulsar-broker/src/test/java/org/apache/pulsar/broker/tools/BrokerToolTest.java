@@ -27,7 +27,7 @@ import java.util.Arrays;
 import org.testng.annotations.Test;
 
 /**
- * Holds util methods used in test.
+ * Broker Tool Tests.
  */
 public class BrokerToolTest {
 
