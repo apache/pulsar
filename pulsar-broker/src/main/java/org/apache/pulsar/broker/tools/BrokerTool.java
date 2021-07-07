@@ -29,7 +29,7 @@ public class BrokerTool {
 
     public static final String NAME = "broker-tool";
 
-    public static void main(String[] args) {
+    public static int run(String[] args) {
         CliSpec.Builder<CliFlags> specBuilder = CliSpec.newBuilder()
             .withName(NAME)
             .withUsage(NAME + " [flags] [commands]")
@@ -41,8 +41,11 @@ public class BrokerTool {
 
         CliSpec<CliFlags> spec = specBuilder.build();
 
-        int retCode = Cli.runCli(spec, args);
-        Runtime.getRuntime().exit(retCode);
+        return Cli.runCli(spec, args);
     }
 
+    public static void main(String[] args) {
+        int retCode = run(args);
+        Runtime.getRuntime().exit(retCode);
+    }
 }
