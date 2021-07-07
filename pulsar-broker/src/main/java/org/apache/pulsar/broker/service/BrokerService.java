@@ -95,6 +95,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.cache.BundlesQuotas;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerLoader;
@@ -250,6 +251,9 @@ public class BrokerService implements Closeable {
     private final DelayedDeliveryTrackerFactory delayedDeliveryTrackerFactory;
     private final ServerBootstrap defaultServerBootstrap;
 
+    @Getter
+    private final BundlesQuotas bundlesQuotas;
+
     private Channel listenChannel;
     private Channel listenChannelTls;
 
@@ -353,6 +357,8 @@ public class BrokerService implements Closeable {
         this.brokerEntryMetadataInterceptors = BrokerEntryMetadataUtils
                 .loadBrokerEntryMetadataInterceptors(pulsar.getConfiguration().getBrokerEntryMetadataInterceptors(),
                         BrokerService.class.getClassLoader());
+
+        this.bundlesQuotas = new BundlesQuotas(pulsar.getLocalMetadataStore());
     }
 
     // This call is used for starting additional protocol handlers
