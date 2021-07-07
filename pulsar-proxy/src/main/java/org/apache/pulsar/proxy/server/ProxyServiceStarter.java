@@ -28,6 +28,7 @@ import static org.slf4j.bridge.SLF4JBridgeHandler.removeHandlersForRootLogger;
 
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithClassLoader;
@@ -85,6 +86,10 @@ public class ProxyServiceStarter {
     private boolean help = false;
 
     private ProxyConfiguration config;
+
+    private ProxyService proxyService;
+
+    private WebServer server;
 
     public ProxyServiceStarter(String[] args) throws Exception {
         try {
@@ -155,17 +160,12 @@ public class ProxyServiceStarter {
         AuthenticationService authenticationService = new AuthenticationService(
                 PulsarConfigurationLoader.convertFrom(config));
         // create proxy service
-        ProxyService proxyService = new ProxyService(config, authenticationService);
+        proxyService = new ProxyService(config, authenticationService);
         // create a web-service
-        final WebServer server = new WebServer(config, authenticationService);
+        server = new WebServer(config, authenticationService);
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            try {
-                proxyService.close();
-                server.stop();
-            } catch (Exception e) {
-                log.warn("server couldn't stop gracefully {}", e.getMessage(), e);
-            }
+            close();
         }));
 
         proxyService.start();
@@ -192,6 +192,19 @@ public class ProxyServiceStarter {
 
         // start web-service
         server.start();
+    }
+
+    public void close() {
+        try {
+            if(proxyService != null) {
+                proxyService.close();
+            }
+            if(server != null) {
+                server.stop();
+            }
+        } catch (Exception e) {
+            log.warn("server couldn't stop gracefully {}", e.getMessage(), e);
+        }
     }
 
     public static void addWebServerHandlers(WebServer server,
@@ -232,7 +245,9 @@ public class ProxyServiceStarter {
         if (config.isWebSocketServiceEnabled()) {
             // add WebSocket servlet
             // Use local broker address to avoid different IP address when using a VIP for service discovery
-            WebSocketService webSocketService = new WebSocketService(createClusterData(config), PulsarConfigurationLoader.convertFrom(config));
+            ServiceConfiguration serviceConfiguration = PulsarConfigurationLoader.convertFrom(config);
+            serviceConfiguration.setBrokerClientTlsEnabled(config.isTlsEnabledWithBroker());
+            WebSocketService webSocketService = new WebSocketService(createClusterData(config), serviceConfiguration);
             webSocketService.start();
             final WebSocketServlet producerWebSocketServlet = new WebSocketProducerServlet(webSocketService);
             server.addServlet(WebSocketProducerServlet.SERVLET_PATH,
