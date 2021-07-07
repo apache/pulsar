@@ -539,6 +539,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int maxTopicsPerNamespace = 0;
 
     @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "The maximum number of connections in the broker. If it exceeds, new connections are rejected."
+    )
+    private int brokerMaxConnections = 0;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "The maximum number of connections per IP. If it exceeds, new connections are rejected."
+    )
+    private int brokerMaxConnectionsPerIp = 0;
+
+    @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
         doc = "Enable check for minimum allowed client library version"

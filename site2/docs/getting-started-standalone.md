@@ -168,9 +168,9 @@ $ bin/pulsar standalone
 If you have started Pulsar successfully, you will see `INFO`-level log messages like this:
 
 ```bash
-2017-06-01 14:46:29,192 - INFO  - [main:WebSocketService@95] - Configuration Store cache started
-2017-06-01 14:46:29,192 - INFO  - [main:AuthenticationService@61] - Authentication is disabled
-2017-06-01 14:46:29,192 - INFO  - [main:WebSocketService@108] - Pulsar WebSocket Service started
+21:59:29.327 [DLM-/stream/storage-OrderedScheduler-3-0] INFO  org.apache.bookkeeper.stream.storage.impl.sc.StorageContainerImpl - Successfully started storage container (0).
+21:59:34.576 [main] INFO  org.apache.pulsar.broker.authentication.AuthenticationService - Authentication is disabled
+21:59:34.576 [main] INFO  org.apache.pulsar.websocket.WebSocketService - Pulsar WebSocket Service started
 ```
 
 > #### Tip
@@ -197,7 +197,7 @@ $ bin/pulsar-client consume my-topic -s "first-subscription"
 If the message has been successfully consumed, you will see a confirmation like the following in the `pulsar-client` logs:
 
 ```
-09:56:55.566 [pulsar-client-io-1-1] INFO  org.apache.pulsar.client.impl.MultiTopicsConsumerImpl - [TopicsConsumerFakeTopicNamee2df9] [first-subscription] Success subscribe new topic my-topic in topics consumer, partitions: 4, allTopicPartitionsNumber: 4
+22:17:16.781 [main] INFO  org.apache.pulsar.client.cli.PulsarClientTool - 1 messages successfully consumed
 ```
 
 > #### Tip
@@ -215,7 +215,7 @@ $ bin/pulsar-client produce my-topic --messages "hello-pulsar"
 If the message has been successfully published to the topic, you will see a confirmation like the following in the `pulsar-client` logs:
 
 ```
-13:09:39.356 [main] INFO  org.apache.pulsar.client.cli.PulsarClientTool - 1 messages successfully produced
+22:21:08.693 [main] INFO  org.apache.pulsar.client.cli.PulsarClientTool - 1 messages successfully produced
 ```
 
 ## Stop Pulsar standalone
