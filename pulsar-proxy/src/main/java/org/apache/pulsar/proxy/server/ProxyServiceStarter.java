@@ -271,17 +271,10 @@ public class ProxyServiceStarter {
 
     private static ClusterData createClusterData(ProxyConfiguration config) {
         if (isNotBlank(config.getBrokerServiceURL()) || isNotBlank(config.getBrokerServiceURLTLS())) {
-            return ClusterData.builder()
-                    .serviceUrl(config.getBrokerWebServiceURL())
-                    .serviceUrlTls(config.getBrokerWebServiceURLTLS())
-                    .brokerServiceUrl(config.getBrokerServiceURL())
-                    .brokerServiceUrlTls(config.getBrokerServiceURLTLS())
-                    .build();
+            return new ClusterData(config.getBrokerWebServiceURL(), config.getBrokerWebServiceURLTLS(),
+                    config.getBrokerServiceURL(), config.getBrokerServiceURLTLS());
         } else if (isNotBlank(config.getBrokerWebServiceURL()) || isNotBlank(config.getBrokerWebServiceURLTLS())) {
-            return ClusterData.builder()
-                    .serviceUrl(config.getBrokerWebServiceURL())
-                    .serviceUrlTls(config.getBrokerWebServiceURLTLS())
-                    .build();
+            return new ClusterData(config.getBrokerWebServiceURL(), config.getBrokerWebServiceURLTLS());
         } else {
             return null;
         }
