@@ -2304,6 +2304,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 && TOTAL_SIZE_UPDATER.get(this) > config.getRetentionSizeInMB() * 1024 * 1024;
     }
 
+    private boolean isLedgerRetentionOverSizeQuotaAfterDelete(long sizeToDelete) {
+        // Handle the -1 size limit as "infinite" size quota
+        return config.getRetentionSizeInMB() >= 0
+                &&  TOTAL_SIZE_UPDATER.get(this) - sizeToDelete > config.getRetentionSizeInMB() * 1024 * 1024;
+    }
+
     private boolean isOffloadedNeedsDelete(OffloadContext offload) {
         long elapsedMs = clock.millis() - offload.getTimestamp();
 
@@ -2369,33 +2375,52 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Slowest consumer ledger id: {}", name, slowestReaderLedgerId);
             }
+
+
+            long totalSizeToDelete = 0;
+            boolean retentionSizeQuotaMet = false;
             // skip ledger if retention constraint met
             for (LedgerInfo ls : ledgers.headMap(slowestReaderLedgerId, false).values()) {
-                boolean expired = hasLedgerRetentionExpired(ls.getTimestamp());
-                boolean overRetentionQuota = isLedgerRetentionOverSizeQuota();
-
-                if (log.isDebugEnabled()) {
-                    log.debug(
-                            "[{}] Checking ledger {} -- time-old: {} sec -- "
-                                    + "expired: {} -- over-quota: {} -- current-ledger: {}",
-                            name, ls.getLedgerId(), (clock.millis() - ls.getTimestamp()) / 1000.0, expired,
-                            overRetentionQuota, currentLedger.getId());
-                }
+                // currentLedger can not be deleted
                 if (ls.getLedgerId() == currentLedger.getId()) {
                     log.debug("[{}] Ledger {} skipped for deletion as it is currently being written to", name,
                             ls.getLedgerId());
                     break;
-                } else if (expired || isTruncate) {
-                    log.debug("[{}] Ledger {} has expired or be truncated, expired is {}, isTruncate is {}, ts {}", name, ls.getLedgerId(), expired,  isTruncate, ls.getTimestamp());
+                }
+                // if truncate, all ledgers besides currentLedger are going to be deleted
+                if (isTruncate){
+                    log.debug("[{}] Ledger {} has been truncated, , ts {}", name, ls.getLedgerId(), ls.getTimestamp());
                     ledgersToDelete.add(ls);
-                } else if (overRetentionQuota || isTruncate) {
-                    log.debug("[{}] Ledger {} is over quota or be truncated, overRetentionQuota is {}, isTruncate is {}", name, ls.getLedgerId(), overRetentionQuota, isTruncate);
+                    continue;
+                }
+
+                // if neither currentLedger nor truncate
+                if (!retentionSizeQuotaMet) {
+                    totalSizeToDelete += ls.getSize();
+                    boolean overRetentionQuota = isLedgerRetentionOverSizeQuota();
+                    boolean overRetentionQuotaAfterDelete = isLedgerRetentionOverSizeQuotaAfterDelete(totalSizeToDelete);
+                    if (overRetentionQuota) {
+                        if (overRetentionQuotaAfterDelete) {
+                            log.debug("[{}] Ledger {} is over quota", name, ls.getLedgerId());
+                            ledgersToDelete.add(ls);
+                            continue;
+                        } else {
+                            retentionSizeQuotaMet = true;
+                            ledgersToDelete.add(ls);
+                            continue;
+                        }
+                    } else {
+                        retentionSizeQuotaMet = true;
+                    }
+                }
+
+                if (hasLedgerRetentionExpired(ls.getTimestamp())) {
+                    log.debug("[{}] Ledger {} has expired, expired is {}, ts {}", name, ls.getLedgerId(), ls.getTimestamp());
                     ledgersToDelete.add(ls);
-                } else {
-                    log.debug("[{}] Ledger {} not deleted. Neither expired nor over-quota", name, ls.getLedgerId());
-                    break;
+                    continue;
                 }
             }
+
             for (LedgerInfo ls : ledgers.values()) {
                 if (isOffloadedNeedsDelete(ls.getOffloadContext()) && !ledgersToDelete.contains(ls)) {
                     log.debug("[{}] Ledger {} has been offloaded, bookkeeper ledger needs to be deleted", name,
