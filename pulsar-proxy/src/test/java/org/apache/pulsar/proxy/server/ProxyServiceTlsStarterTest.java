@@ -20,7 +20,6 @@ package org.apache.pulsar.proxy.server;
 
 import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -43,13 +42,15 @@ import java.util.Optional;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Future;
 
+import static org.apache.pulsar.proxy.server.ProxyServiceStarterTest.ARGS;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
-public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
+public class ProxyServiceTlsStarterTest extends MockedPulsarServiceBaseTest {
 
-    static final String[] ARGS = new String[]{"-c", "./src/test/resources/proxy.conf"};
-
+    private final String TLS_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/cacert.pem";
+    private final String TLS_PROXY_CERT_FILE_PATH = "./src/test/resources/authentication/tls/server-cert.pem";
+    private final String TLS_PROXY_KEY_FILE_PATH = "./src/test/resources/authentication/tls/server-key.pem";
     private ProxyServiceStarter serviceStarter;
 
     @Override
@@ -58,10 +59,21 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
         internalSetup();
         serviceStarter = new ProxyServiceStarter(ARGS);
         serviceStarter.getConfig().setBrokerServiceURL(pulsar.getBrokerServiceUrl());
+        serviceStarter.getConfig().setBrokerServiceURLTLS(pulsar.getBrokerServiceUrlTls());
         serviceStarter.getConfig().setBrokerWebServiceURL(pulsar.getWebServiceAddress());
-        serviceStarter.getConfig().setServicePort(Optional.of(11000));
+        serviceStarter.getConfig().setBrokerClientTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
+        serviceStarter.getConfig().setServicePortTls(Optional.of(11043));
+        serviceStarter.getConfig().setTlsEnabledWithBroker(true);
         serviceStarter.getConfig().setWebSocketServiceEnabled(true);
+        serviceStarter.getConfig().setTlsCertificateFilePath(TLS_PROXY_CERT_FILE_PATH);
+        serviceStarter.getConfig().setTlsKeyFilePath(TLS_PROXY_KEY_FILE_PATH);
         serviceStarter.start();
+    }
+
+    protected void doInitConf() throws Exception {
+        super.doInitConf();
+        this.conf.setTlsCertificateFilePath(TLS_PROXY_CERT_FILE_PATH);
+        this.conf.setTlsKeyFilePath(TLS_PROXY_KEY_FILE_PATH);
     }
 
     @Override
@@ -72,21 +84,10 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testEnableWebSocketServer() throws Exception {
-        HttpClient httpClient = new HttpClient();
-        WebSocketClient webSocketClient = new WebSocketClient(httpClient);
-        webSocketClient.start();
-        MyWebSocket myWebSocket = new MyWebSocket();
-        String webSocketUri = "ws://localhost:8080/ws/pingpong";
-        Future<Session> sessionFuture = webSocketClient.connect(myWebSocket, URI.create(webSocketUri));
-        sessionFuture.get().getRemote().sendPing(ByteBuffer.wrap("ping".getBytes()));
-        assertTrue(myWebSocket.getResponse().contains("ping"));
-    }
-
-    @Test
     public void testProducer() throws Exception {
         @Cleanup
-        PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:11000")
+        PulsarClient client = PulsarClient.builder().serviceUrl("pulsar+ssl://localhost:11043")
+                .allowTlsInsecureConnection(false).tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH)
                 .build();
 
         @Cleanup
