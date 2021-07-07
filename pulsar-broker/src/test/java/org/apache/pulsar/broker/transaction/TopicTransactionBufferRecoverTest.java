@@ -180,7 +180,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         // can't receive message
         message = consumer.receive(2, TimeUnit.SECONDS);
         assertNull(message);
-        admin.topics().unload(RECOVER_COMMIT);
+        admin.topics().unload(testTopic);
 
         Awaitility.await().until(() -> {
             for (int i = 0; i < getPulsarServiceList().size(); i++) {

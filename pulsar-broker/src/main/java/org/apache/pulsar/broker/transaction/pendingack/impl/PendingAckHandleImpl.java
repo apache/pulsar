@@ -130,18 +130,22 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
     private void initPendingAckStore() {
         if (changeToInitializingState()) {
-            this.pendingAckStoreFuture =
-                    pendingAckStoreProvider.newPendingAckStore(persistentSubscription);
-            this.pendingAckStoreFuture.thenAccept(pendingAckStore -> {
-                pendingAckStore.replayAsync(this,
-                        ((PersistentTopic) persistentSubscription.getTopic()).getBrokerService()
-                                .getPulsar().getTransactionReplayExecutor());
-            }).exceptionally(e -> {
-                acceptQueue.clear();
-                changeToErrorState();
-                log.error("PendingAckHandleImpl init fail! TopicName : {}, SubName: {}", topicName, subName, e);
-                return null;
-            });
+            synchronized (PendingAckHandleImpl.this) {
+                if (!checkIfClose()) {
+                    this.pendingAckStoreFuture =
+                            pendingAckStoreProvider.newPendingAckStore(persistentSubscription);
+                    this.pendingAckStoreFuture.thenAccept(pendingAckStore -> {
+                        pendingAckStore.replayAsync(this,
+                                ((PersistentTopic) persistentSubscription.getTopic()).getBrokerService()
+                                        .getPulsar().getTransactionReplayExecutor());
+                    }).exceptionally(e -> {
+                        acceptQueue.clear();
+                        changeToErrorState();
+                        log.error("PendingAckHandleImpl init fail! TopicName : {}, SubName: {}", topicName, subName, e);
+                        return null;
+                    });
+                }
+            }
         }
     }
 
@@ -884,7 +888,14 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
     @Override
     public CompletableFuture<Void> close() {
-        return this.pendingAckStoreFuture.thenAccept(PendingAckStore::closeAsync);
+        changeToCloseState();
+        synchronized (PendingAckHandleImpl.this) {
+            if (this.pendingAckStoreFuture != null) {
+                return this.pendingAckStoreFuture.thenAccept(PendingAckStore::closeAsync);
+            } else {
+                return CompletableFuture.completedFuture(null);
+            }
+        }
     }
 
     @Override

@@ -55,10 +55,8 @@ public abstract class PendingAckHandleState {
         return STATE_UPDATER.compareAndSet(this, State.None, State.Initializing);
     }
 
-    protected boolean changeToCloseState() {
-        return (STATE_UPDATER.compareAndSet(this, State.Ready, State.Close)
-                || STATE_UPDATER.compareAndSet(this, State.None, State.Close)
-                || STATE_UPDATER.compareAndSet(this, State.Initializing, State.Close));
+    protected void changeToCloseState() {
+        STATE_UPDATER.set(this, State.Close);
     }
 
     protected void changeToErrorState() {
@@ -67,6 +65,10 @@ public abstract class PendingAckHandleState {
 
     public boolean checkIfReady() {
         return STATE_UPDATER.get(this) == State.Ready;
+    }
+
+    public boolean checkIfClose() {
+        return STATE_UPDATER.get(this) == State.Close;
     }
 
     public State getState() {
