@@ -28,7 +28,10 @@ import org.apache.pulsar.common.schema.SchemaType;
 import java.util.Optional;
 
 /**
- * Auto detect schema.
+ * Schema from a native Apache Avro schema.
+ * This class is supposed to be used for working with existing data serialized in Avro, possibly stored in another system like Kafka.
+ * For this reason, it will not perform bytes validation against the schema in encoding and decoding, which are just identify functions.
+ * This class also makes it possible for users to bring in their own Avro serializer/deserializer. 
  */
 public class AutoProduceValidatedAvroBytesSchema<T> extends AutoProduceBytesSchema<T> {
 
