@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import static org.apache.pulsar.broker.admin.AdminResource.MANAGED_LEDGER_PATH_ZNODE;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import com.google.common.collect.Lists;
 import io.swagger.annotations.ApiOperation;
@@ -29,6 +28,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
@@ -51,8 +51,6 @@ import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.zookeeper.LocalZooKeeperConnectionService;
-import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -330,11 +328,11 @@ public class TenantsBase extends PulsarWebResource {
                 }
                 return null;
             }
-            final String managedLedgerPath = joinPath(MANAGED_LEDGER_PATH_ZNODE, tenant);
+
+
             try {
-                LocalZooKeeperConnectionService.deleteIfExists(
-                        pulsar().getLocalZkCache().getZooKeeper(), managedLedgerPath, -1);
-            } catch (KeeperException | InterruptedException e) {
+                pulsar().getPulsarResources().getTopicResources().clearTennantPersistence(tenant).get();
+            } catch (ExecutionException | InterruptedException e) {
                 // warn level log here since this failure has no side effect besides left a un-used metadata
                 // and also will not affect the re-creation of tenant
                 log.warn("[{}] Failed to remove managed-ledger for {}", clientAppId(), tenant, e);

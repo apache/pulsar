@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import static org.apache.pulsar.broker.admin.AdminResource.MANAGED_LEDGER_PATH_ZNODE;
-import static org.apache.pulsar.common.policies.path.PolicyPath.joinPath;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -1221,8 +1219,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                     assertFalse(admin.tenants().getTenants().contains(tenant));
                 });
 
-        final String managedLedgerPathForTenant = joinPath(MANAGED_LEDGER_PATH_ZNODE, tenant);
-        assertNull(pulsar.getLocalZkCache().getZooKeeper().exists(managedLedgerPathForTenant, false));
+        final String managedLedgerPathForTenant = "/managed-ledgers/" + tenant;
+        assertFalse(pulsar.getLocalMetadataStore().exists(managedLedgerPathForTenant).join());
 
         admin.tenants().createTenant(tenant,
                 new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test")));
@@ -1273,13 +1271,13 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertFalse(admin.namespaces().getNamespaces(tenant).contains(namespace));
         assertTrue(admin.namespaces().getNamespaces(tenant).isEmpty());
 
-        final String managedLedgerPath = joinPath(MANAGED_LEDGER_PATH_ZNODE, namespace);
+        final String managedLedgerPath = "/managed-ledgers/" + namespace;
         final String persistentDomain = managedLedgerPath + "/" + TopicDomain.persistent.value();
         final String nonPersistentDomain = managedLedgerPath + "/" + TopicDomain.non_persistent.value();
 
-        assertNull(pulsar.getLocalZkCache().getZooKeeper().exists(persistentDomain, false));
-        assertNull(pulsar.getLocalZkCache().getZooKeeper().exists(nonPersistentDomain, false));
-        assertNull(pulsar.getLocalZkCache().getZooKeeper().exists(managedLedgerPath, false));
+        assertFalse(pulsar.getLocalMetadataStore().exists(managedLedgerPath).join());
+        assertFalse(pulsar.getLocalMetadataStore().exists(persistentDomain).join());
+        assertFalse(pulsar.getLocalMetadataStore().exists(nonPersistentDomain).join());
 
         // reset back to false
         pulsar.getConfiguration().setForceDeleteNamespaceAllowed(false);
