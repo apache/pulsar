@@ -196,7 +196,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "initialBackoffIntervalNanos",
-            value = "Initial backoff interval, the unit is nanos."
+            value = "Initial backoff interval (in nanosecond)."
     )
     private long initialBackoffIntervalNanos = TimeUnit.MILLISECONDS.toNanos(100);
 
