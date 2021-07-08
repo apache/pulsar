@@ -114,7 +114,6 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         persistentTopics = spy(new PersistentTopics());
         persistentTopics.setServletContext(new MockServletContext());
         persistentTopics.setPulsar(pulsar);
-        doReturn(mockZooKeeper).when(persistentTopics).localZk();
         doReturn(false).when(persistentTopics).isRequestHttps();
         doReturn(null).when(persistentTopics).originalPrincipal();
         doReturn("test").when(persistentTopics).clientAppId();
@@ -125,7 +124,6 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         nonPersistentTopic = spy(new NonPersistentTopics());
         nonPersistentTopic.setServletContext(new MockServletContext());
         nonPersistentTopic.setPulsar(pulsar);
-        doReturn(mockZooKeeper).when(nonPersistentTopic).localZk();
         doReturn(false).when(nonPersistentTopic).isRequestHttps();
         doReturn(null).when(nonPersistentTopic).originalPrincipal();
         doReturn("test").when(nonPersistentTopic).clientAppId();
