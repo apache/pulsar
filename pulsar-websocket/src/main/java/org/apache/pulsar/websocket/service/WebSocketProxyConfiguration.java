@@ -45,7 +45,7 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(required = true, doc = "Name of the cluster to which this broker belongs to")
     private String clusterName;
 
-    @FieldContext(doc = "The HTTPS rest service url to connect to broker")
+    @FieldContext(doc = "The HTTPS REST service URL to connect to broker")
     private String serviceUrl;
 
     @FieldContext(doc = "The HTTPS rest service TLS URL")
