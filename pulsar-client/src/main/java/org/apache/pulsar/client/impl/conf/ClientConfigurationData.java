@@ -57,7 +57,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private String serviceUrl;
     @ApiModelProperty(
             name = "serviceUrlProvider",
-            value = "The implementation class of ServiceUrlProvider, used to generate ServiceUrl."
+            value = "The implementation class of ServiceUrlProvider used to generate ServiceUrl."
     )
     @JsonIgnore
     private transient ServiceUrlProvider serviceUrlProvider;
