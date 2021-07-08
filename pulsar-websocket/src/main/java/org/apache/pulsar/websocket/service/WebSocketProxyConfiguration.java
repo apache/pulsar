@@ -86,7 +86,7 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(doc = "Hostname or IP address the service binds on, default is 0.0.0.0.")
     private String bindAddress;
 
-    @FieldContext(doc = "The maximum size of a text message during parsing in WebSocket proxy")
+    @FieldContext(doc = "Maximum size of a text message during parsing in WebSocket proxy")
     private int webSocketMaxTextFrameSize = 1024 * 1024;
     // --- Authentication ---
     @FieldContext(doc = "Enable authentication")
@@ -98,11 +98,11 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(doc = "Enforce authorization")
     private boolean authorizationEnabled;
 
-    @FieldContext(doc = "Authorization provider fully qualified class-name")
+    @FieldContext(doc = "Authorization provider fully qualified class name")
     private String authorizationProvider = PulsarAuthorizationProvider.class.getName();
 
     @FieldContext(doc = "Role names that are treated as \"super-user\", "
-            + "meaning they will be able to do all admin operations and publish/consume from all topics")
+            + "which means they can do all admin operations and publish to or consume from all topics")
     private Set<String> superUserRoles = Sets.newTreeSet();
 
     @FieldContext(doc = "Allow wildcard matching in authorization "
@@ -110,7 +110,7 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
             + "presents at first or last position. For example: *.pulsar.service,pulsar.service.*)")
     private boolean authorizationAllowWildcardsMatching = false;
 
-    @FieldContext(doc = "Authentication settings of the proxy itself. Used to connect to brokers")
+    @FieldContext(doc = "Proxy authentication settings used to connect to brokers")
     private String brokerClientAuthenticationPlugin;
 
     @FieldContext(doc = "Proxy authentication parameters used to connect to brokers")
@@ -128,7 +128,7 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(doc = "Number of connections per broker in Pulsar client used in WebSocket proxy")
     private int webSocketConnectionsPerBroker = Runtime.getRuntime().availableProcessors();
 
-    @FieldContext(doc = "Time in milliseconds that idle WebSocket session times out")
+    @FieldContext(doc = "Timeout of idling WebSocket session (in millisecond)")
     private int webSocketSessionIdleTimeoutMillis = 300000;
 
     @FieldContext(doc = "When this parameter is not empty, unauthenticated users perform as anonymousUserRole")
@@ -157,9 +157,9 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
             + "TLS Reject the Connection if the client Certificate is not trusted")
     private boolean tlsRequireTrustedClientCertOnConnect = false;
 
-    @FieldContext(doc = "Tls cert refresh duration in seconds (set 0 to check on every new connection)")
+    @FieldContext(doc = "TLS cert refresh duration (in second). 0 means checking every new connection.")
     private long tlsCertRefreshCheckDurationSec = 300;
 
-    @FieldContext(doc = "key-value properties, types are all String")
+    @FieldContext(doc = "Key-value properties. Types are all String")
     private Properties properties = new Properties();
 }
