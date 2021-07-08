@@ -24,6 +24,7 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.gson.JsonParseException;
@@ -265,14 +266,28 @@ public class CmdProduce {
     }
 
     @SuppressWarnings("deprecation")
+    @VisibleForTesting
+    public String getProduceBaseEndPoint(String topic) {
+        TopicName topicName = TopicName.get(topic);
+        String produceBaseEndPoint;
+        if (topicName.isV2()) {
+            String wsTopic = String.format("%s/%s/%s/%s", topicName.getDomain(), topicName.getTenant(),
+                    topicName.getNamespacePortion(), topicName.getLocalName());
+            produceBaseEndPoint = serviceURL + (serviceURL.endsWith("/") ? "" : "/") + "ws/v2/producer/" + wsTopic;
+        } else {
+            String wsTopic = String.format("%s/%s/%s/%s/%s", topicName.getDomain(), topicName.getTenant(),
+                    topicName.getCluster(), topicName.getNamespacePortion(), topicName.getLocalName());
+            produceBaseEndPoint = serviceURL + (serviceURL.endsWith("/") ? "" : "/") + "ws/producer/" + wsTopic;
+        }
+        return produceBaseEndPoint;
+    }
+
+    @SuppressWarnings("deprecation")
     private int publishToWebSocket(String topic) {
         int numMessagesSent = 0;
         int returnCode = 0;
 
-        TopicName topicName = TopicName.get(topic);
-        String wsTopic = String.format("%s/%s/"+(StringUtils.isEmpty(topicName.getCluster()) ? "" : topicName.getCluster()+"/")+"%s/%s", topicName.getDomain(),topicName.getTenant(),topicName.getNamespacePortion(),topicName.getLocalName()); 
-        String produceBaseEndPoint = serviceURL + (serviceURL.endsWith("/") ? "" : "/") + "ws/producer/" + wsTopic;
-        URI produceUri = URI.create(produceBaseEndPoint);
+        URI produceUri = URI.create(getProduceBaseEndPoint(topic));
 
         WebSocketClient produceClient = new WebSocketClient(new SslContextFactory(true));
         ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
