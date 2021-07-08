@@ -178,23 +178,23 @@
 <h3><a class="anchor" aria-hidden="true" id="数据"></a><a href="#数据" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>数据</h3>
 <p>The data monitored by the modular load manager is contained in the <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/loadbalance/LoadData.java"><code>LoadData</code></a> class. 在这里，可用数据被细分为 bundle 数据和 broker 数据。</p>
 <h4><a class="anchor" aria-hidden="true" id="broker"></a><a href="#broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker</h4>
-<p>The broker data is contained in the <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/BrokerData.java"><code>BrokerData</code></a> class. It is further subdivided into two parts, one being the local data which every broker individually writes to ZooKeeper, and the other being the historical broker data which is written to ZooKeeper by the leader broker.</p>
-<h5><a class="anchor" aria-hidden="true" id="local-broker-data"></a><a href="#local-broker-data" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Local Broker Data</h5>
+<p>The broker data is contained in the <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/BrokerData.java"><code>BrokerData</code></a> class. 这些数据分为两部分，一部分是由每个 broker 单独写入 ZooKeeper 的本地数据，另一部分是由 leader broker 写入 ZooKeeper 的历史 broker 数据。</p>
+<h5><a class="anchor" aria-hidden="true" id="本地-broker-数据"></a><a href="#本地-broker-数据" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>本地 Broker 数据</h5>
 <p>The local broker data is contained in the class <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-common/src/main/java/org/apache/pulsar/policies/data/loadbalancer/LocalBrokerData.java"><code>LocalBrokerData</code></a> and provides information about the following resources:</p>
 <ul>
-<li>CPU usage</li>
-<li>JVM heap memory usage</li>
-<li>Direct memory usage</li>
-<li>Bandwidth in/out usage</li>
-<li>Most recent total message rate in/out across all bundles</li>
-<li>Total number of topics, bundles, producers, and consumers</li>
-<li>Names of all bundles assigned to this broker</li>
-<li>Most recent changes in bundle assignments for this broker</li>
+<li>CPU 利用率</li>
+<li>JVM 堆内存使用情况</li>
+<li>直接内存使用情况</li>
+<li>带宽输入/输出使用情况</li>
+<li>所有包最新消息的输入/输出总速率</li>
+<li>主题、包、生产者和消费者总数</li>
+<li>分配给此 broker 所有包的名称</li>
+<li>分配给此 broker 最新更改的包</li>
 </ul>
-<p>The local broker data is updated periodically according to the service configuration &quot;loadBalancerReportUpdateMaxIntervalMinutes&quot;. After any broker updates their local broker data, the leader broker will receive the update immediately via a ZooKeeper watch, where the local data is read from the ZooKeeper node <code>/loadbalance/brokers/&lt;broker host/port&gt;</code></p>
-<h5><a class="anchor" aria-hidden="true" id="historical-broker-data"></a><a href="#historical-broker-data" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Historical Broker Data</h5>
+<p>本地 broker 数据根据服务配置 &quot;loadBalancerReportUpdateMaxIntervalMinutes&quot; 定期更新。 任何 broker 更新其本地 broker 数据后，leader broker 立即 通过 ZooKeeper watch 接收更新，并从 ZooKeeper 节点 <code>/loadbalance/brokers/&lt;broker host/port&gt;</code> 读取本地数据。</p>
+<h5><a class="anchor" aria-hidden="true" id="历史-broker-数据"></a><a href="#历史-broker-数据" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>历史 Broker 数据</h5>
 <p>The historical broker data is contained in the <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/TimeAverageBrokerData.java"><code>TimeAverageBrokerData</code></a> class.</p>
-<p>In order to reconcile the need to make good decisions in a steady-state scenario and make reactive decisions in a critical scenario, the historical data is split into two parts: the short-term data for reactive decisions, and the long-term data for steady-state decisions. Both time frames maintain the following information:</p>
+<p>为了协调在稳态场景中做出正确决策以及在关键场景下做出反应性决策的需求，历史数据分为两部分：反应性决策的短期数据和稳态决策的长期数据。 这两个时间框架都保留了以下信息：</p>
 <ul>
 <li>Message rate in/out for the entire broker</li>
 <li>Message throughput in/out for the entire broker</li>
