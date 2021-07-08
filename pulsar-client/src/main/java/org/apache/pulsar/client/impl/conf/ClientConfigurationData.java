@@ -214,7 +214,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "listenerName",
-            value = "ListenerName for lookup."
+            value = "Listener name for lookup."
     )
     private String listenerName;
 
