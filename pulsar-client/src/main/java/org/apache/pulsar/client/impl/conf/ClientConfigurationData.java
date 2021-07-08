@@ -77,7 +77,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "authParams",
-            value = "Authentication params of the client."
+            value = "Authentication parameter of the client."
     )
     @Secret
     private String authParams;
