@@ -91,7 +91,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "operationTimeoutMs",
-            value = "Client operation timeout, the unit is milliseconds."
+            value = "Client operation timeout (in millisecond)."
     )
     private long operationTimeoutMs = 30000;
 
