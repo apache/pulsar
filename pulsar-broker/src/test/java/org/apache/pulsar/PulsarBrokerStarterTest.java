@@ -347,4 +347,45 @@ public class PulsarBrokerStarterTest {
             // code should reach here.
         }
     }
+
+    /**
+     * Verifies arguments that can be overwritten.
+     */
+    @Test
+    public void testMainWithArgumentOverwritten() throws Exception {
+        // create config file with required parameter 'clusterName'
+        File testConfigFile = createValidBrokerConfigFile();
+
+        File testInvalidConfigFile = new File("tmp." + System.currentTimeMillis() + ".properties");
+        if (testInvalidConfigFile.exists()) {
+            testInvalidConfigFile.delete();
+        }
+        // create config file without required parameter 'clusterName'
+        PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testInvalidConfigFile)));
+        printWriter.println("zookeeperServers=zk.example.com");
+        printWriter.println("configurationStoreServers=");
+        printWriter.println("brokerDeleteInactiveTopicsEnabled=false");
+        printWriter.println("statusFilePath=/tmp/status.html");
+        printWriter.println("managedLedgerDefaultEnsembleSize=1");
+        printWriter.println("managedLedgerDefaultWriteQuorum=1");
+        printWriter.println("managedLedgerDefaultAckQuorum=1");
+        printWriter.println("managedLedgerMaxEntriesPerLedger=25");
+        printWriter.println("managedLedgerCursorMaxEntriesPerLedger=50");
+        printWriter.println("managedLedgerCursorRolloverTimeInSeconds=3000");
+        printWriter.println("backlogQuotaDefaultLimitGB=18");
+
+        printWriter.close();
+        testInvalidConfigFile.deleteOnExit();
+
+        // the second config file doesn't contain parameter 'clusterName'
+        String[] args = {"-c", testConfigFile.getAbsolutePath(), "-c", testInvalidConfigFile.getAbsolutePath()};
+
+        try {
+            PulsarBrokerStarter.main(args);
+            fail("No parameter 'clusterName' for broker should've raised IllegalArgumentException!");
+        } catch (IllegalArgumentException e) {
+            // code should reach here.
+            assertEquals(e.getMessage(), "Required clusterName is null");
+        }
+    }
 }

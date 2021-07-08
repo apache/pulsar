@@ -138,6 +138,7 @@ public class PulsarBrokerStarter {
             StarterArguments starterArguments = new StarterArguments();
             JCommander jcommander = new JCommander(starterArguments);
             jcommander.setProgramName("PulsarBrokerStarter");
+            jcommander.setAllowParameterOverwriting(true);
 
             // parse args by JCommander
             jcommander.parse(args);
