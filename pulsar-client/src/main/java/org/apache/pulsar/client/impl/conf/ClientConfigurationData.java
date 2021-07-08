@@ -70,7 +70,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private Authentication authentication;
 
     @ApiModelProperty(
-            name = "authentication",
+            name = "authPluginClassName",
             value = "Class name of authentication plugin of the client."
     )
     private String authPluginClassName;
@@ -144,7 +144,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private boolean tlsAllowInsecureConnection = false;
 
     @ApiModelProperty(
-            name = "tlsAllowInsecureConnection",
+            name = "tlsHostnameVerificationEnable",
             value = "Whether the hostname is validated when the proxy creates a TLS connection with brokers."
     )
     private boolean tlsHostnameVerificationEnable = false;
@@ -214,7 +214,9 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "listenerName",
-            value = "Listener name for lookup."
+            value = "Listener name for lookup. Clients can use listenerName to choose one of the listeners "
+                    + "as the service URL to create a connection to the broker as long as the network is accessible."
+                    + "\"advertisedListeners\" must enabled in broker side."
     )
     private String listenerName;
 
@@ -224,14 +226,14 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     )
     private boolean useKeyStoreTls = false;
     @ApiModelProperty(
-            name = "useKeyStoreTls",
+            name = "sslProvider",
             value = "The TLS provider used by an internal client to authenticate with other Pulsar brokers."
     )
     private String sslProvider = null;
 
     @ApiModelProperty(
             name = "tlsTrustStoreType",
-            value = "TLS TrustStore type configuration. You need to set this configurationn when client authentication is required."
+            value = "TLS TrustStore type configuration. You need to set this configuration when client authentication is required."
     )
     private String tlsTrustStoreType = "JKS";
 
