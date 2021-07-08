@@ -237,6 +237,12 @@ class TopicStats {
                         replStats.msgThroughputOut);
                 metricWithRemoteCluster(stream, cluster, namespace, topic, "pulsar_replication_backlog", remoteCluster,
                         replStats.replicationBacklog);
+                metricWithRemoteCluster(stream, cluster, namespace, topic, "pulsar_replication_connected_count",
+                        remoteCluster, replStats.connectedCount);
+                metricWithRemoteCluster(stream, cluster, namespace, topic, "pulsar_replication_rate_expired",
+                        remoteCluster, replStats.msgRateExpired);
+                metricWithRemoteCluster(stream, cluster, namespace, topic, "pulsar_replication_delay_in_seconds",
+                        remoteCluster, replStats.replicationDelayInSeconds);
             });
         }
 

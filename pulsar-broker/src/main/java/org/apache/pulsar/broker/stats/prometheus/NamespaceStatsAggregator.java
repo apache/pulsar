@@ -210,6 +210,11 @@ public class NamespaceStatsAggregator {
             aggReplStats.msgRateOut += replStats.msgRateOut;
             aggReplStats.msgThroughputOut += replStats.msgThroughputOut;
             aggReplStats.replicationBacklog += replStats.replicationBacklog;
+            aggReplStats.msgRateIn += replStats.msgRateIn;
+            aggReplStats.msgThroughputIn += replStats.msgThroughputIn;
+            aggReplStats.msgRateExpired += replStats.msgRateExpired;
+            aggReplStats.connectedCount += replStats.connected ? 1 : 0;
+            aggReplStats.replicationDelayInSeconds += replStats.replicationDelayInSeconds;
         });
     }
 
@@ -327,6 +332,12 @@ public class NamespaceStatsAggregator {
                         replStats.msgThroughputOut);
                 metricWithRemoteCluster(stream, cluster, namespace, "pulsar_replication_backlog", remoteCluster,
                         replStats.replicationBacklog);
+                metricWithRemoteCluster(stream, cluster, namespace, "pulsar_replication_connected_count", remoteCluster,
+                        replStats.connectedCount);
+                metricWithRemoteCluster(stream, cluster, namespace, "pulsar_replication_rate_expired", remoteCluster,
+                        replStats.msgRateExpired);
+                metricWithRemoteCluster(stream, cluster, namespace, "pulsar_replication_delay_in_seconds",
+                        remoteCluster, replStats.replicationDelayInSeconds);
             });
         }
     }
