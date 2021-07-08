@@ -151,7 +151,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     @ApiModelProperty(
             name = "concurrentLookupRequest",
             value = "The number of concurrent lookup requests that can be sent on each broker connection. "
-                    + "Setting a maximum helps to keep from overloading brokers."
+                    + "Setting a maximum prevents overloading a broker."
     )
     private int concurrentLookupRequest = 5000;
 
