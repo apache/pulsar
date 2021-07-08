@@ -267,7 +267,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "proxyServiceUrl",
-            value = "Url of proxy Service, proxyServiceUrl and proxyProtocol must be mutually inclusive."
+            value = "URL of proxy service. proxyServiceUrl and proxyProtocol must be mutually inclusive."
     )
     private String proxyServiceUrl;
 
