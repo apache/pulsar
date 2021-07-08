@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.stats.prometheus;
 
 public class AggregatedReplicationStats {
+
+    /** Total rate of messages received from the remote cluster (msg/s). */
     public double msgRateIn;
 
     /** Total throughput received from the remote cluster. bytes/s */
@@ -30,9 +32,16 @@ public class AggregatedReplicationStats {
     /** Total throughput delivered to the replication-subscriber. bytes/s */
     public double msgThroughputOut;
 
-    /**
-     * Number of messages pending to be replicated to remote cluster.
-     */
+    /** Total rate of messages expired (msg/s). */
+    public double msgRateExpired;
+
+    /** Number of messages pending to be replicated to remote cluster. */
     public long replicationBacklog;
+
+    /** The count of replication-subscriber up and running to replicate to remote cluster. */
+    public long connectedCount;
+
+    /** Time in seconds from the time a message was produced to the time when it is about to be replicated. */
+    public long replicationDelayInSeconds;
 
 }
