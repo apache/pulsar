@@ -2383,13 +2383,17 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             for (LedgerInfo ls : ledgers.headMap(slowestReaderLedgerId, false).values()) {
                 // currentLedger can not be deleted
                 if (ls.getLedgerId() == currentLedger.getId()) {
-                    log.debug("[{}] Ledger {} skipped for deletion as it is currently being written to", name,
-                            ls.getLedgerId());
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Ledger {} skipped for deletion as it is currently being written to", name,
+                                ls.getLedgerId());
+                    }
                     break;
                 }
                 // if truncate, all ledgers besides currentLedger are going to be deleted
                 if (isTruncate){
-                    log.debug("[{}] Ledger {} has been truncated, , ts {}", name, ls.getLedgerId(), ls.getTimestamp());
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Ledger {} has been truncated with ts {}", name, ls.getLedgerId(), ls.getTimestamp());
+                    }
                     ledgersToDelete.add(ls);
                     continue;
                 }
@@ -2401,7 +2405,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     boolean overRetentionQuotaAfterDelete = isLedgerRetentionOverSizeQuotaAfterDelete(totalSizeToDelete);
                     if (overRetentionQuota) {
                         if (overRetentionQuotaAfterDelete) {
-                            log.debug("[{}] Ledger {} is over quota", name, ls.getLedgerId());
+                            if (log.isDebugEnabled()) {
+                                log.debug("[{}] Ledger {} is over quota", name, ls.getLedgerId());
+                            }
                             ledgersToDelete.add(ls);
                             continue;
                         } else {
@@ -2415,9 +2421,17 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 }
 
                 if (hasLedgerRetentionExpired(ls.getTimestamp())) {
-                    log.debug("[{}] Ledger {} has expired, expired is {}, ts {}", name, ls.getLedgerId(), ls.getTimestamp());
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Ledger {} has expired, expired is {}, ts {}", name, ls.getLedgerId(), ls.getTimestamp());
+                    }
                     ledgersToDelete.add(ls);
                     continue;
+                } else {
+                    // once retention constraint has been met, skip check
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Ledger {} not deleted. Neither expired nor over-quota", name, ls.getLedgerId());
+                    }
+                    break;
                 }
             }
 
