@@ -196,8 +196,8 @@
 <p>The historical broker data is contained in the <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/TimeAverageBrokerData.java"><code>TimeAverageBrokerData</code></a> class.</p>
 <p>为了协调在稳态场景中做出正确决策以及在关键场景下做出反应性决策的需求，历史数据分为两部分：反应性决策的短期数据和稳态决策的长期数据。 这两个时间框架都保留了以下信息：</p>
 <ul>
-<li>Message rate in/out for the entire broker</li>
-<li>Message throughput in/out for the entire broker</li>
+<li>整个 broker 消息输入/输出的速率</li>
+<li>整个 broker 消息输入/输出的吞吐量</li>
 </ul>
 <p>Unlike the bundle data, the broker data does not maintain samples for the global broker message rates and throughputs, which is not expected to remain steady as new bundles are removed or added. Instead, this data is aggregated over the short-term and long-term data for the bundles. See the section on bundle data to understand how that data is collected and maintained.</p>
 <p>The historical broker data is updated for each broker in memory by the leader broker whenever any broker writes their local data to ZooKeeper. Then, the historical data is written to ZooKeeper by the leader broker periodically according to the configuration <code>loadBalancerResourceQuotaUpdateIntervalMinutes</code>.</p>
