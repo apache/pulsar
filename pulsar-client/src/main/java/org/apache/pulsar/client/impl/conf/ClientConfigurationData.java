@@ -71,7 +71,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "authentication",
-            value = "Class name od authentication plugin of the client."
+            value = "Class name of authentication plugin of the client."
     )
     private String authPluginClassName;
 
@@ -295,7 +295,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "socks5ProxyUsername",
-            value = "User name of socks5 proxy."
+            value = "User name of SOCKS5 proxy."
     )
     private String socks5ProxyUsername;
 
