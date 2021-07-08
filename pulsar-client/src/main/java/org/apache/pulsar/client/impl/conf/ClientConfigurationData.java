@@ -231,7 +231,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "tlsTrustStoreType",
-            value = "TLS TrustStore type configuration. Needed when client auth is required."
+            value = "TLS TrustStore type configuration. You need to set this configurationn when client authentication is required."
     )
     private String tlsTrustStoreType = "JKS";
 
