@@ -121,7 +121,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "useTcpNoDelay",
-            value = "Whether to use Tcp NoDelay option."
+            value = "Whether to use TCP NoDelay option."
     )
     private boolean useTcpNoDelay = true;
 
