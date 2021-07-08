@@ -33,10 +33,9 @@ import java.util.Optional;
  * For this reason, it will not perform bytes validation against the schema in encoding and decoding, which are just identify functions.
  * This class also makes it possible for users to bring in their own Avro serializer/deserializer. 
  */
-public class AutoProduceValidatedAvroBytesSchema<T> extends AutoProduceBytesSchema<T> {
+public class AutoProduceValidatedAvroBytesSchema<T> implements Schema<byte[]> {
 
     private Schema<T> schema;
-
     
     public AutoProduceValidatedAvroBytesSchema(org.apache.avro.Schema schema) {
         SchemaDefinition schemaDefinition = SchemaDefinition.builder().withJsonDef(schema.toString(false)).build();
@@ -54,11 +53,14 @@ public class AutoProduceValidatedAvroBytesSchema<T> extends AutoProduceBytesSche
         this.schema = schema;
     }
 
+    public boolean schemaInitialized() {
+        return schema != null;
+    }
+
     private static org.apache.avro.Schema validateSchema (Object schema) {
         if (! (schema instanceof org.apache.avro.Schema)) throw new IllegalArgumentException("The input schema is not of type 'org.apache.avro.Schema'.");
         return (org.apache.avro.Schema) schema;
     }
-        
 
     private void ensureSchemaInitialized() {
         checkState(schemaInitialized(), "Schema is not initialized before used");
@@ -76,6 +78,23 @@ public class AutoProduceValidatedAvroBytesSchema<T> extends AutoProduceBytesSche
         ensureSchemaInitialized();
         
         return bytes;
+    }
+
+    @Override
+    public SchemaInfo getSchemaInfo() {
+        ensureSchemaInitialized();
+
+        return schema.getSchemaInfo();
+    }
+
+    @Override
+    public Optional<Object> getNativeSchema() {
+        return Optional.ofNullable(schema);
+    }
+
+    @Override
+    public Schema<byte[]> clone() {
+        return new AutoProduceBytesSchema<>(schema.clone());
     }
 
 }
