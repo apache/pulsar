@@ -291,13 +291,13 @@ public class PulsarBrokerStarter {
             }
         }
 
-        public void shutdown() {
+        public void shutdown() throws Exception {
             if (null != functionsWorkerService) {
                 functionsWorkerService.stop();
                 log.info("Shut down functions worker service successfully.");
             }
 
-            pulsarService.getShutdownService().run();
+            pulsarService.close();
             log.info("Shut down broker service successfully.");
 
             if (bookieStatsProvider != null) {
@@ -329,7 +329,11 @@ public class PulsarBrokerStarter {
         BrokerStarter starter = new BrokerStarter(args);
         Runtime.getRuntime().addShutdownHook(
             new Thread(() -> {
-                starter.shutdown();
+                try {
+                    starter.shutdown();
+                } catch (Throwable t) {
+                    log.error("Error while shutting down Pulsar service", t);
+                }
             })
         );
 
@@ -338,7 +342,7 @@ public class PulsarBrokerStarter {
                 log.error("-- Received OOM exception: {}", oomException.getMessage(), oomException);
             } else {
                 log.error("-- Shutting down - Received OOM exception: {}", oomException.getMessage(), oomException);
-                starter.shutdown();
+                starter.pulsarService.shutdownNow();
             }
         });
 

@@ -20,21 +20,21 @@
 package org.apache.pulsar.functions.worker;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.zookeeper.ZooKeeperSessionWatcher;
+import org.apache.pulsar.broker.ShutdownService;
 
 @Slf4j
 public class ErrorNotifierShutdownServiceImpl implements ErrorNotifier {
     private static final long serialVersionUID = 1L;
-    private final ZooKeeperSessionWatcher.ShutdownService shutdownService;
+    private final ShutdownService shutdownService;
 
-    public ErrorNotifierShutdownServiceImpl(ZooKeeperSessionWatcher.ShutdownService shutdownService) {
+    public ErrorNotifierShutdownServiceImpl(ShutdownService shutdownService) {
         this.shutdownService = shutdownService;
     }
 
     @Override
     public void triggerError(Throwable th) {
         log.error("Encountered fatal error. Shutting down.", th);
-        shutdownService.shutdown(-1);
+        shutdownService.shutdownNow();
     }
 
     @Override

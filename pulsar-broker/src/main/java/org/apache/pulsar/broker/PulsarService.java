@@ -80,7 +80,6 @@ import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 import org.apache.pulsar.PulsarVersion;
-import org.apache.pulsar.ZookeeperSessionExpiredHandlers;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
@@ -152,6 +151,7 @@ import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
 import org.apache.pulsar.packages.management.core.PackagesManagement;
 import org.apache.pulsar.packages.management.core.PackagesStorage;
@@ -167,9 +167,7 @@ import org.apache.pulsar.websocket.WebSocketReaderServlet;
 import org.apache.pulsar.websocket.WebSocketService;
 import org.apache.pulsar.zookeeper.LocalZooKeeperConnectionService;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
-import org.apache.pulsar.zookeeper.ZooKeeperSessionWatcher.ShutdownService;
 import org.apache.pulsar.zookeeper.ZookeeperBkClientFactoryImpl;
-import org.apache.pulsar.zookeeper.ZookeeperSessionExpiredHandler;
 import org.apache.zookeeper.ZooKeeper;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.websocket.servlet.WebSocketServlet;
@@ -182,7 +180,7 @@ import org.slf4j.LoggerFactory;
 
 @Getter(AccessLevel.PUBLIC)
 @Setter(AccessLevel.PROTECTED)
-public class PulsarService implements AutoCloseable {
+public class PulsarService implements AutoCloseable, ShutdownService {
     private static final Logger LOG = LoggerFactory.getLogger(PulsarService.class);
     private static final double GRACEFUL_SHUTDOWN_TIMEOUT_RATIO_OF_TOTAL_TIMEOUT = 0.5d;
     private ServiceConfiguration config = null;
@@ -229,7 +227,7 @@ public class PulsarService implements AutoCloseable {
     private final Optional<WorkerService> functionWorkerService;
     private ProtocolHandlers protocolHandlers = null;
 
-    private final ShutdownService shutdownService;
+    private final Consumer<Integer> processTerminator;
     protected final EventLoopGroup ioEventLoopGroup;
 
     private MetricsGenerator metricsGenerator;
@@ -295,7 +293,7 @@ public class PulsarService implements AutoCloseable {
         this.bindAddress = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getBindAddress());
         this.brokerVersion = PulsarVersion.getVersion();
         this.config = config;
-        this.shutdownService = new MessagingServiceShutdownHook(this, processTerminator);
+        this.processTerminator = processTerminator;
         this.loadManagerExecutor = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-load-manager"));
         this.workerConfig = workerConfig;
@@ -606,6 +604,8 @@ public class PulsarService implements AutoCloseable {
             }
 
             localMetadataStore = createLocalMetadataStore();
+            localMetadataStore.registerSessionListener(this::handleMetadataSessionEvent);
+
             coordinationService = new CoordinationServiceImpl(localMetadataStore);
 
             configurationMetadataStore = createConfigurationMetadataStore();
@@ -626,19 +626,7 @@ public class PulsarService implements AutoCloseable {
             // Now we are ready to start services
             localZooKeeperConnectionProvider = new LocalZooKeeperConnectionService(getZooKeeperClientFactory(),
                     config.getZookeeperServers(), config.getZooKeeperSessionTimeoutMillis());
-            ZookeeperSessionExpiredHandler sessionExpiredHandler = null;
-            if (ZookeeperSessionExpiredHandlers.RECONNECT_POLICY.equals(config.getZookeeperSessionExpiredPolicy())) {
-                sessionExpiredHandler = ZookeeperSessionExpiredHandlers.reconnectWhenZookeeperSessionExpired(
-                        this, shutdownService);
-            } else if (ZookeeperSessionExpiredHandlers.SHUTDOWN_POLICY.equals(
-                    config.getZookeeperSessionExpiredPolicy())) {
-                sessionExpiredHandler = ZookeeperSessionExpiredHandlers.shutdownWhenZookeeperSessionExpired(
-                        shutdownService);
-            } else {
-                throw new IllegalArgumentException("Invalid zookeeper session expired policy "
-                        + config.getZookeeperSessionExpiredPolicy());
-            }
-            localZooKeeperConnectionProvider.start(sessionExpiredHandler);
+            localZooKeeperConnectionProvider.start();
 
             this.bkClientFactory = newBookKeeperClientFactory();
 
@@ -832,6 +820,15 @@ public class PulsarService implements AutoCloseable {
 
         // Add broker additional servlets
         addBrokerAdditionalServlets(webService, attributeMap, config);
+    }
+
+    private void handleMetadataSessionEvent(SessionEvent e) {
+        LOG.info("Received metadata service session event: {}", e);
+        if (e == SessionEvent.SessionLost
+                && config.getZookeeperSessionExpiredPolicy() == MetadataSessionExpiredPolicy.shutdown) {
+            LOG.warn("The session with metdata service was lost. Shutting down.");
+            shutdownNow();
+        }
     }
 
     private void addBrokerAdditionalServlets(WebService webService,
@@ -1396,10 +1393,6 @@ public class PulsarService implements AutoCloseable {
         return transactionBufferClient;
     }
 
-    public ShutdownService getShutdownService() {
-        return shutdownService;
-    }
-
     protected String brokerUrl(ServiceConfiguration config) {
         if (config.getBrokerServicePort().isPresent()) {
             return brokerUrl(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config, true),
@@ -1533,7 +1526,7 @@ public class PulsarService implements AutoCloseable {
             functionWorkerService.get().start(
                 authenticationService,
                 authorizationService,
-                ErrorNotifier.getShutdownServiceImpl(shutdownService));
+                ErrorNotifier.getShutdownServiceImpl(this));
             LOG.info("Function worker service started");
         }
     }
@@ -1621,6 +1614,24 @@ public class PulsarService implements AutoCloseable {
                         + "-" + (workerConfig.getTlsEnabled()
                         ? workerConfig.getWorkerPortTls() : workerConfig.getWorkerPort()));
         return workerConfig;
+    }
+
+    /**
+     * Shutdown the broker immediately, without waiting for all resources to be released.
+     * This possibly is causing the JVM process to exit, depending on how th PulsarService
+     * was constructed.
+     */
+    @Override
+    public void shutdownNow() {
+        LOG.info("Invoking Pulsar service immediate shutdown");
+        try {
+            // Try to close metadata service session to ensure all ephemeral locks get released immediately
+            closeMetadataServiceSession();
+        } catch (Exception e) {
+            LOG.warn("Failed to close metadata service session: {}", e.getMessage());
+        }
+
+        processTerminator.accept(-1);
     }
 
 
