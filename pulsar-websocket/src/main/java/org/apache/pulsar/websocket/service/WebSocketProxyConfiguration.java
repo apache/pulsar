@@ -98,7 +98,7 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(doc = "Enforce authorization")
     private boolean authorizationEnabled;
 
-    @FieldContext(doc = "Authorization provider fully qualified class-name")
+    @FieldContext(doc = "Authorization provider fully qualified class name")
     private String authorizationProvider = PulsarAuthorizationProvider.class.getName();
 
     @FieldContext(doc = "Role names that are treated as \"super-user\", "
