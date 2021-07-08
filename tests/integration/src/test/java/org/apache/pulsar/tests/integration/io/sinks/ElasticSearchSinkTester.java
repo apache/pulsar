@@ -21,6 +21,7 @@ package org.apache.pulsar.tests.integration.io.sinks;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -31,8 +32,10 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.tests.integration.containers.ElasticSearchContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
+import org.awaitility.Awaitility;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.RequestOptions;
@@ -87,28 +90,26 @@ public class ElasticSearchSinkTester extends SinkTester<ElasticSearchContainer> 
     public void validateSinkResult(Map<String, String> kvs) {
         SearchRequest searchRequest = new SearchRequest("test-index");
         searchRequest.types("doc");
-        
-        try {
+
+        Awaitility.await().untilAsserted(() -> {
             SearchResponse searchResult = elasticClient.search(searchRequest, RequestOptions.DEFAULT);
             assertTrue(searchResult.getHits().getTotalHits().value > 0, searchResult.toString());
-        } catch (Exception e) {
-            fail("Encountered exception on validating elastic search results", e);
-        }
+        });
     }
 
-    public void produceMessage(int i, Producer<String> producer, LinkedHashMap<String, String> kvs) throws PulsarClientException {
+    public void produceMessage(int i, Producer<String> producer, LinkedHashMap<String, String> kvs) throws Exception {
         if (schemaEnable) {
             String key = "key-" + i;
-            // this is a JSON document, written to ElasticSearch
-            String value = "{\"key" + i + "\"=\"value\"";
-            kvs.put(key, value);
+            kvs.put(key, key);
             producer.newMessage(schema)
                     .value(new KeyValue<>(new ValuePojo(), new ValuePojo()))
                     .send();
         } else {
             String key = "key-" + i;
             // this is a JSON document, written to ElasticSearch
-            String value = "{\"key" + i + "\"=\"value\"";
+            Map<String, String> valueMap = new HashMap<>();
+            valueMap.put("key" + i, "value" + i);
+            String value = ObjectMapperFactory.getThreadLocal().writeValueAsString(valueMap);
             kvs.put(key, value);
             producer.newMessage()
                     .key(key)

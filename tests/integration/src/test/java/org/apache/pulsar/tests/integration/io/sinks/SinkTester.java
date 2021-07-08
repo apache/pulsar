@@ -104,7 +104,7 @@ public abstract class SinkTester<ServiceContainerT extends GenericContainer> {
 
     public abstract void validateSinkResult(Map<String, String> kvs);
 
-    public void produceMessage(int i, Producer<String> producer, LinkedHashMap<String, String> kvs) throws PulsarClientException {
+    public void produceMessage(int i, Producer<String> producer, LinkedHashMap<String, String> kvs) throws Exception {
         String key = "key-" + i;
         String value = "value-" + i;
         kvs.put(key, value);
