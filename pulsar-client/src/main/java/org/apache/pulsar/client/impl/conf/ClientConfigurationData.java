@@ -52,7 +52,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "serviceUrl",
-            value = "Pulsar cluster http url to connect to broker."
+            value = "Pulsar cluster HTTP URL to connect to a broker."
     )
     private String serviceUrl;
     @ApiModelProperty(
