@@ -39,6 +39,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+
 import org.apache.pulsar.client.admin.Bookies;
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.Brokers;
@@ -46,6 +47,7 @@ import org.apache.pulsar.client.admin.Clusters;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.Lookup;
 import org.apache.pulsar.client.admin.Namespaces;
+import org.apache.pulsar.client.admin.NonPersistentTopics;
 import org.apache.pulsar.client.admin.ProxyStats;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.ResourceQuotas;
@@ -73,11 +75,9 @@ import org.apache.pulsar.common.policies.data.BookiesClusterInfo;
 import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.FailureDomain;
-import org.apache.pulsar.common.policies.data.FailureDomainImpl;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.LedgerInfo;
@@ -1385,9 +1385,12 @@ public class PulsarAdminToolTest {
         topics.run(split("list myprop/ns1"));
         verify(mockTopics).getList("myprop/ns1", null);
 
-        topics.run(split("list-in-bundle myprop/ns1 --bundle 0x23d70a30_0x26666658"));
-        verify(mockTopics).getListInBundle("myprop/ns1", "0x23d70a30_0x26666658");
+        NonPersistentTopics mockNonPersistentTopics = mock(NonPersistentTopics.class);
+        when(admin.nonPersistentTopics()).thenReturn(mockNonPersistentTopics);
 
+        CmdNonPersistentTopics nonPersistentTopics = new CmdNonPersistentTopics(() -> admin);
+        nonPersistentTopics.run(split("list-in-bundle myprop/clust/ns1 --bundle 0x23d70a30_0x26666658"));
+        verify(mockNonPersistentTopics).getListInBundle("myprop/clust/ns1", "0x23d70a30_0x26666658");
     }
 
     @Test
