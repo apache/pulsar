@@ -18,8 +18,11 @@
  */
 package org.apache.pulsar.tests.integration.io.sinks;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 import lombok.Getter;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testcontainers.containers.GenericContainer;
@@ -100,5 +103,16 @@ public abstract class SinkTester<ServiceContainerT extends GenericContainer> {
     public abstract void prepareSink() throws Exception;
 
     public abstract void validateSinkResult(Map<String, String> kvs);
+
+    public void produceMessage(int i, Producer<String> producer, LinkedHashMap<String, String> kvs) throws PulsarClientException {
+        String key = "key-" + i;
+        String value = "value-" + i;
+        kvs.put(key, value);
+        producer.newMessage()
+                .key(key)
+                .value(value)
+                .send();
+    }
+
 
 }

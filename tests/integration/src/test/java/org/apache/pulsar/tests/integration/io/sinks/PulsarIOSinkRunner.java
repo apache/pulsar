@@ -112,7 +112,7 @@ public class PulsarIOSinkRunner extends PulsarIOTestRunner {
             tester.validateSinkResult(kvs);
 
         } else {
-            kvs = produceMessagesToInputTopic(inputTopicName, numMessages);
+            kvs = produceMessagesToInputTopic(inputTopicName, numMessages, tester);
             // wait for sink to process messages
             Failsafe.with(statusRetryPolicy).run(() ->
                     waitForProcessingSinkMessages(tenant, namespace, sinkName, numMessages));
