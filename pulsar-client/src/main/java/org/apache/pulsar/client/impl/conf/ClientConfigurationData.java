@@ -225,7 +225,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private boolean useKeyStoreTls = false;
     @ApiModelProperty(
             name = "useKeyStoreTls",
-            value = "The TLS Provider used by internal client to authenticate with other Pulsar brokers."
+            value = "The TLS provider used by an internal client to authenticate with other Pulsar brokers."
     )
     private String sslProvider = null;
 
