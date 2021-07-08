@@ -19,11 +19,11 @@
 package org.apache.pulsar.broker.resources;
 
 import org.apache.pulsar.common.policies.data.LocalPolicies;
-import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.api.MetadataStore;
 
 public class LocalPoliciesResources extends BaseResources<LocalPolicies> {
 
-    public LocalPoliciesResources(MetadataStoreExtended configurationStore, int operationTimeoutSec) {
+    public LocalPoliciesResources(MetadataStore configurationStore, int operationTimeoutSec) {
         super(configurationStore, LocalPolicies.class, operationTimeoutSec);
     }
 }

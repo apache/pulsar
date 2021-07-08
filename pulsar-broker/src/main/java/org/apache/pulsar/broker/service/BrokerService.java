@@ -968,37 +968,36 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     private CompletableFuture<Optional<Topic>> createNonPersistentTopic(String topic) {
-        CompletableFuture<Optional<Topic>> topicFuture = futureWithDeadline();
-
         if (!pulsar.getConfiguration().isEnableNonPersistentTopics()) {
             if (log.isDebugEnabled()) {
                 log.debug("Broker is unable to load non-persistent topic {}", topic);
             }
-            topicFuture.completeExceptionally(
+            return FutureUtil.failedFuture(
                     new NotAllowedException("Broker is not unable to load non-persistent topic"));
-            return topicFuture;
         }
         final long topicCreateTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
         NonPersistentTopic nonPersistentTopic = new NonPersistentTopic(topic, this);
-        CompletableFuture<Void> replicationFuture = nonPersistentTopic.checkReplication();
-        replicationFuture.thenRun(() -> {
+
+        CompletableFuture<Optional<Topic>> future = nonPersistentTopic.initialize()
+                .thenCompose(__ -> nonPersistentTopic.checkReplication())
+                .thenApply(__ -> {
             log.info("Created topic {}", nonPersistentTopic);
             long topicLoadLatencyMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime()) - topicCreateTimeMs;
             pulsarStats.recordTopicLoadTimeValue(topic, topicLoadLatencyMs);
             addTopicToStatsMaps(TopicName.get(topic), nonPersistentTopic);
-            topicFuture.complete(Optional.of(nonPersistentTopic));
+            return Optional.of(nonPersistentTopic);
         });
-        replicationFuture.exceptionally((ex) -> {
+
+        future.exceptionally((ex) -> {
             log.warn("Replication check failed. Removing topic from topics list {}, {}", topic, ex);
             nonPersistentTopic.stopReplProducers().whenComplete((v, exception) -> {
-                pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
-                topicFuture.completeExceptionally(ex);
+                pulsar.getExecutor().execute(() -> topics.remove(topic, future));
             });
 
             return null;
         });
 
-        return topicFuture;
+        return future;
     }
 
     private <T> CompletableFuture<T> futureWithDeadline() {
@@ -1223,7 +1222,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                                     preCreateSubForCompaction = ((SystemTopic) persistentTopic)
                                             .preCreateSubForCompactionIfNeeded();
                                 }
-                                CompletableFuture<Void> replicationFuture = persistentTopic.checkReplication();
+                                CompletableFuture<Void> replicationFuture = persistentTopic
+                                        .initialize()
+                                        .thenCompose(__ -> persistentTopic.checkReplication());
                                 FutureUtil.waitForAll(Lists.newArrayList(preCreateSubForCompaction, replicationFuture))
                                 .thenCompose(v -> {
                                     // Also check dedup status

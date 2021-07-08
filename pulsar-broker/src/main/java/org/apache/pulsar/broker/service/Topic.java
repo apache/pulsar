@@ -96,6 +96,8 @@ public interface Topic {
         }
     }
 
+    CompletableFuture<Void> initialize();
+
     void publishMessage(ByteBuf headersAndPayload, PublishContext callback);
 
     /**
