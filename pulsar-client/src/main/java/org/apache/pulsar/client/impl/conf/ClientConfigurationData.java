@@ -97,7 +97,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "statsIntervalSeconds",
-            value = "The Interval to print client stats, the unit is seconds."
+            value = " Interval to print client stats (in second)."
     )
     private long statsIntervalSeconds = 60;
 
