@@ -102,7 +102,7 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     private String authorizationProvider = PulsarAuthorizationProvider.class.getName();
 
     @FieldContext(doc = "Role names that are treated as \"super-user\", "
-            + "meaning they will be able to do all admin operations and publish/consume from all topics")
+            + "which means they can do all admin operations and publish to or consume from all topics")
     private Set<String> superUserRoles = Sets.newTreeSet();
 
     @FieldContext(doc = "Allow wildcard matching in authorization "
