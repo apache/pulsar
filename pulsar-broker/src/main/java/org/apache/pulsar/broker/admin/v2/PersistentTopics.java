@@ -949,8 +949,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                     + "not to use when there's heavy traffic.")
             @QueryParam("subscriptionBacklogSize") @DefaultValue("false") boolean subscriptionBacklogSize) {
         validateTopicName(tenant, namespace, encodedTopic);
-        TopicStats stats = internalGetStats(authoritative, getPreciseBacklog, subscriptionBacklogSize);
-        return stats;
+        return internalGetStats(authoritative, getPreciseBacklog, subscriptionBacklogSize);
     }
 
     @GET

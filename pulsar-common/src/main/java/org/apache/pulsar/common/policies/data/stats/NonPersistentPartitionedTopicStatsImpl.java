@@ -39,6 +39,7 @@ public class NonPersistentPartitionedTopicStatsImpl extends NonPersistentTopicSt
     @Getter
     public PartitionedTopicMetadata metadata;
 
+    @Getter
     public Map<String, NonPersistentTopicStatsImpl> partitions;
 
     public NonPersistentPartitionedTopicStatsImpl() {
@@ -59,8 +60,4 @@ public class NonPersistentPartitionedTopicStatsImpl extends NonPersistentTopicSt
         metadata.partitions = 0;
     }
 
-    @Override
-    public Map<String, NonPersistentTopicStatsImpl> getPartitions() {
-        return partitions;
-    }
 }

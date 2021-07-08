@@ -22,7 +22,6 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.Getter;
-import lombok.ToString;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
@@ -36,8 +35,8 @@ public class PartitionedTopicStatsImpl extends TopicStatsImpl implements Partiti
     @Getter
     public PartitionedTopicMetadata metadata;
 
-
-    public Map<String, TopicStatsImpl> partitions;
+    @Getter
+    public Map<String, TopicStats> partitions;
 
     public PartitionedTopicStatsImpl() {
         super();
@@ -57,8 +56,4 @@ public class PartitionedTopicStatsImpl extends TopicStatsImpl implements Partiti
         metadata.partitions = 0;
     }
 
-    @Override
-    public Map<String, TopicStatsImpl> getPartitions() {
-        return partitions;
-    }
 }

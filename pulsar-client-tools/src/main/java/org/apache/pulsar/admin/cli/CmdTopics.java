@@ -66,7 +66,6 @@ import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
-import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 
 @Parameters(commandDescription = "Operations on persistent topics")
@@ -76,7 +75,6 @@ public class CmdTopics extends CmdBase {
         super("topics", admin);
 
         jcommander.addCommand("list", new ListCmd());
-        jcommander.addCommand("list-in-bundle", new GetListInBundle());
         jcommander.addCommand("list-partitioned-topics", new PartitionedTopicListCmd());
         jcommander.addCommand("permissions", new Permissions());
         jcommander.addCommand("grant-permission", new GrantPermissions());
@@ -262,22 +260,6 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
             print(getTopics().getList(namespace, topicDomain));
-        }
-    }
-
-    @Parameters(commandDescription = "Get list of non-persistent topics present under a namespace bundle")
-    private class GetListInBundle extends CliCommand {
-        @Parameter(description = "property/cluster/namespace", required = true)
-        private java.util.List<String> params;
-
-        @Parameter(names = { "-b",
-                "--bundle" }, description = "bundle range", required = true)
-        private String bundleRange;
-
-        @Override
-        void run() throws PulsarAdminException {
-            String namespace = validateNamespace(params);
-            print(getTopics().getListInBundle(namespace, bundleRange));
         }
     }
 
@@ -582,13 +564,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
-//            if (topic.startsWith(TopicDomain.non_persistent.value())) {
-//                print(getTopics().getStatsNonPersistent(topic, getPreciseBacklog, subscriptionBacklogSize));
-//            } else {
-                TopicStats stats = getTopics().getStats(topic, getPreciseBacklog, subscriptionBacklogSize);
-                System.out.println("***" + stats.getClass());
-                print(stats);
-//            }
+            print(getTopics().getStats(topic, getPreciseBacklog, subscriptionBacklogSize));
         }
     }
 
