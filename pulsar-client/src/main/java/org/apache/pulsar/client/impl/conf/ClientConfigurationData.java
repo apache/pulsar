@@ -289,7 +289,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     // socks5
     @ApiModelProperty(
             name = "socks5ProxyAddress",
-            value = "Address of socks5 proxy."
+            value = "Address of SOCKS5 proxy."
     )
     private InetSocketAddress socks5ProxyAddress;
 
