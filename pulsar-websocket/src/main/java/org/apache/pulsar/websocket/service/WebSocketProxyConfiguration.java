@@ -160,6 +160,6 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(doc = "TLS cert refresh duration (in second). 0 means checking every new connection.")
     private long tlsCertRefreshCheckDurationSec = 300;
 
-    @FieldContext(doc = "key-value properties, types are all String")
+    @FieldContext(doc = "Key-value properties. Types are all String")
     private Properties properties = new Properties();
 }
