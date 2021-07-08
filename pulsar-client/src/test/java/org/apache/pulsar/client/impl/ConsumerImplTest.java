@@ -50,13 +50,14 @@ import org.testng.annotations.Test;
 public class ConsumerImplTest {
 
 
-    private ExecutorProvider executorProvider = new ExecutorProvider(1, new DefaultThreadFactory("ConsumerImplTest"));
+    private ExecutorProvider executorProvider;
     private ConsumerImpl<byte[]> consumer;
     private ConsumerConfigurationData consumerConf;
     private ExecutorService executorService;
 
     @BeforeMethod
     public void setUp() {
+        executorProvider = new ExecutorProvider(1, new DefaultThreadFactory("ConsumerImplTest"));
         consumerConf = new ConsumerConfigurationData<>();
         PulsarClientImpl client = ClientTestFixtures.createPulsarClientMock();
         executorService = Executors.newSingleThreadExecutor();
