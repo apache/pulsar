@@ -37,7 +37,7 @@ public class TopicResources {
     }
 
     public CompletableFuture<List<String>> getExistingPartitions(TopicName topic) {
-        String topicPartitionPath = MANAGED_LEDGER_PATH + "/" + topic.getNamespace()
+        String topicPartitionPath = MANAGED_LEDGER_PATH + "/" + topic.getNamespace() + "/"
                 + topic.getDomain();
         return store.getChildren(topicPartitionPath).thenApply(topics ->
                 topics.stream()
