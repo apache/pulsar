@@ -20,13 +20,15 @@ package org.apache.pulsar.broker.resources;
 
 import static org.apache.pulsar.common.util.Codec.decode;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.metadata.api.MetadataStore;
 
 public class TopicResources {
-    public static final String MANAGED_LEDGER_PATH = "/managed-ledgers";
+    private static final String MANAGED_LEDGER_PATH = "/managed-ledgers";
 
     private final MetadataStore store;
 
@@ -43,5 +45,25 @@ public class TopicResources {
                                 topic.getDomain().value(), topic.getNamespace(), decode(s)))
                         .collect(Collectors.toList())
         );
+    }
+
+    public CompletableFuture<Boolean> persistentTopicExists(TopicName topic) {
+        String path = MANAGED_LEDGER_PATH + "/" + topic.getPersistenceNamingEncoding();;
+        return store.exists(path);
+    }
+
+    public CompletableFuture<Void> clearNamespacePersistence(NamespaceName ns) {
+        String path = MANAGED_LEDGER_PATH + "/" + ns;
+        return store.delete(path, Optional.empty());
+    }
+
+    public CompletableFuture<Void> clearDomainPersistence(NamespaceName ns) {
+        String path = MANAGED_LEDGER_PATH + "/" + ns + "/persistent";
+        return store.delete(path, Optional.empty());
+    }
+
+    public CompletableFuture<Void> clearTennantPersistence(String tenant) {
+        String path = MANAGED_LEDGER_PATH + "/" + tenant;
+        return store.delete(path, Optional.empty());
     }
 }
