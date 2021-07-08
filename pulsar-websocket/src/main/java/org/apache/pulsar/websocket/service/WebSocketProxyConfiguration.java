@@ -154,7 +154,7 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     private boolean tlsAllowInsecureConnection = false;
 
     @FieldContext(doc = "Specify whether client certificates are required for "
-            + "TLS Reject the Connection if the client Certificate is not trusted")
+            + "TLS rejecting the connection if the client certificate is not trusted")
     private boolean tlsRequireTrustedClientCertOnConnect = false;
 
     @FieldContext(doc = "TLS cert refresh duration (in second). 0 means checking every new connection.")
