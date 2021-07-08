@@ -90,7 +90,7 @@ Before using the ElasticSearch sink connector, you need to create a configuratio
     ```bash
     $ bin/pulsar standalone
     ```
-    Make sure the nar file is available at `connectors/pulsar-io-elastic-search-{{pulsar:version}}.nar`.
+    Make sure the NAR file is available at `connectors/pulsar-io-elastic-search-{{pulsar:version}}.nar`.
 
 3. Start the Pulsar Elasticsearch connector in local run mode using one of the following methods.
     * Use the **JSON** configuration as shown previously. 
@@ -100,7 +100,6 @@ Before using the ElasticSearch sink connector, you need to create a configuratio
             --tenant public \
             --namespace default \
             --name elasticsearch-test-sink \
-            --sink-type elastic_search \
             --sink-config '{"elasticSearchUrl":"http://localhost:9200","indexName": "my_index","username": "scooby","password": "doobie"}' \
             --inputs elasticsearch_test
         ```
@@ -112,7 +111,6 @@ Before using the ElasticSearch sink connector, you need to create a configuratio
             --tenant public \
             --namespace default \
             --name elasticsearch-test-sink \
-            --sink-type elastic_search \
             --sink-config-file elasticsearch-sink.yml \
             --inputs elasticsearch_test
         ```

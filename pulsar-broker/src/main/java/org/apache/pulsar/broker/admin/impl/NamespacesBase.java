@@ -105,6 +105,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
+import org.apache.pulsar.zookeeper.LocalZooKeeperConnectionService;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
@@ -456,6 +457,23 @@ public abstract class NamespacesBase extends AdminResource {
                 // check whether partitioned topics znode exist
                 if (namespaceResources().exists(globalPartitionedPath)) {
                     deleteRecursive(namespaceResources(), globalPartitionedPath);
+                }
+
+                final String managedLedgerPath = joinPath(MANAGED_LEDGER_PATH_ZNODE, namespaceName.toString());
+                final String persistentDomain = managedLedgerPath + "/" + TopicDomain.persistent.value();
+                final String nonPersistentDomain = managedLedgerPath +  "/" + TopicDomain.non_persistent.value();
+
+                try {
+                    LocalZooKeeperConnectionService.deleteIfExists(
+                            pulsar().getLocalZkCache().getZooKeeper(), persistentDomain, -1);
+                    LocalZooKeeperConnectionService.deleteIfExists(
+                            pulsar().getLocalZkCache().getZooKeeper(), nonPersistentDomain, -1);
+                    LocalZooKeeperConnectionService.deleteIfExists(
+                            pulsar().getLocalZkCache().getZooKeeper(), managedLedgerPath, -1);
+                } catch (KeeperException | InterruptedException e) {
+                    // warn level log here since this failure has no side effect besides left a un-used metadata
+                    // and also will not affect the re-creation of namespace
+                    log.warn("[{}] Failed to remove managed-ledger for {}", clientAppId(), namespaceName, e);
                 }
 
                 // we have successfully removed all the ownership for the namespace, the policies znode can be deleted
