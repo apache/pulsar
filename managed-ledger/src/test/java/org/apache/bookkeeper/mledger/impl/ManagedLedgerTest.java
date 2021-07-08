@@ -1996,7 +1996,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         for (int i = 0; i < totalMessage; i++) {
             position = ml.addEntry(message);
         }
-        // all ledgers are not delete yet since not entry has been acked for c1
+        // all ledgers are not delete yet since no entry has been acked for c1
         assertEquals(ml.getLedgersInfoAsList().size(), totalMessage);
 
         List<Entry> entryList = c1.readEntries(totalMessage);
