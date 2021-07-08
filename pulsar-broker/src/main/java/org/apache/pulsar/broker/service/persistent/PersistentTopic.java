@@ -1120,8 +1120,8 @@ public class PersistentTopic extends AbstractTopic
 
                                         @Override
                                         public void deleteLedgerFailed(ManagedLedgerException exception, Object ctx) {
-                                            if (exception.getCause() instanceof
-                                                    MetadataStoreException.NotFoundException) {
+                                            if (exception.getCause()
+                                                    instanceof MetadataStoreException.NotFoundException) {
                                                 log.info("[{}] Topic is already deleted {}",
                                                         topic, exception.getMessage());
                                                 deleteLedgerComplete(ctx);
