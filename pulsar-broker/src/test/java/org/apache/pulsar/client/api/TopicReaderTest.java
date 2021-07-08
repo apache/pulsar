@@ -1376,24 +1376,23 @@ public class TopicReaderTest extends ProducerConsumerBase {
         final int halfMessages = numOfMessage / 2;
         admin.topics().createPartitionedTopic(topicName, 3);
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
-
-        long l = System.currentTimeMillis();
+        long halfTime = 0;
         for (int i = 0; i < numOfMessage; i++) {
+            if (i == numOfMessage / 2) {
+                halfTime = System.currentTimeMillis();
+            }
             producer.send(String.format("msg num %d", i).getBytes());
         }
-
+        Assert.assertTrue(halfTime != 0);
         Reader<byte[]> reader = pulsarClient.newReader().topic(topicName).startMessageId(MessageId.earliest).create();
 
-        int plusTime = (halfMessages + 1) * 100;
-        reader.seek(l + plusTime);
-
+        reader.seek(halfTime);
         Set<String> messageSet = Sets.newHashSet();
         for (int i = halfMessages + 1; i < numOfMessage; i++) {
-            Message<byte[]> message = reader.readNext();
+            Message<byte[]> message = reader.readNext(10, TimeUnit.SECONDS);
             String receivedMessage = new String(message.getData());
             Assert.assertTrue(messageSet.add(receivedMessage), "Received duplicate message " + receivedMessage);
         }
-
         reader.close();
         producer.close();
     }
