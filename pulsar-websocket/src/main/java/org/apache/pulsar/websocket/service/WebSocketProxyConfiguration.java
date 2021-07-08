@@ -128,7 +128,7 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(doc = "Number of connections per Broker in Pulsar Client used in WebSocket proxy")
     private int webSocketConnectionsPerBroker = Runtime.getRuntime().availableProcessors();
 
-    @FieldContext(doc = "Time in milliseconds that idle WebSocket session times out")
+    @FieldContext(doc = "Timeout of idling WebSocket session (in millisecond)")
     private int webSocketSessionIdleTimeoutMillis = 300000;
 
     @FieldContext(doc = "When this parameter is not empty, unauthenticated users perform as anonymousUserRole")
