@@ -164,7 +164,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "maxLookupRedirects",
-            value = "Limit the number of times lookup requests are redirected."
+            value = "Maximum times of redirected lookup requests."
     )
     private int maxLookupRedirects = 20;
 
