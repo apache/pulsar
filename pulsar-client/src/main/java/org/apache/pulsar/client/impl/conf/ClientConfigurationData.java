@@ -261,7 +261,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "memoryLimitBytes",
-            value = "Limit the memory usage of client, the unit is Bytes."
+            value = "Limit of client memory usage (in byte)."
     )
     private long memoryLimitBytes = 0;
 
