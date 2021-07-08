@@ -66,6 +66,7 @@ import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 
 @Parameters(commandDescription = "Operations on persistent topics")
@@ -581,11 +582,13 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
-            if (topic.startsWith(TopicDomain.non_persistent.value())) {
-                print(getTopics().getStatsNonPersistent(topic, getPreciseBacklog, subscriptionBacklogSize));
-            } else {
-                print(getTopics().getStats(topic, getPreciseBacklog, subscriptionBacklogSize));
-            }
+//            if (topic.startsWith(TopicDomain.non_persistent.value())) {
+//                print(getTopics().getStatsNonPersistent(topic, getPreciseBacklog, subscriptionBacklogSize));
+//            } else {
+                TopicStats stats = getTopics().getStats(topic, getPreciseBacklog, subscriptionBacklogSize);
+                System.out.println("***" + stats.getClass());
+                print(stats);
+//            }
         }
     }
 

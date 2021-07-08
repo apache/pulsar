@@ -337,7 +337,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
         publishMessagesOnTopic(nonPersistentTopicName, 10, 0);
 
-        NonPersistentTopicStats topicStats = admin.topics().getStatsNonPersistent(nonPersistentTopicName);
+        NonPersistentTopicStats topicStats = (NonPersistentTopicStats) admin.topics().getStats(nonPersistentTopicName);
         assertEquals(topicStats.getSubscriptions().keySet(), Sets.newTreeSet(Lists.newArrayList("my-sub")));
         assertEquals(topicStats.getSubscriptions().get("my-sub").getConsumers().size(), 1);
         assertEquals(topicStats.getSubscriptions().get("my-sub").getMsgDropRate(), 0);
@@ -348,7 +348,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         assertEquals(internalStats.cursors.keySet(), Sets.newTreeSet(Lists.newArrayList("my-sub")));
 
         consumer.close();
-        topicStats = admin.topics().getStatsNonPersistent(nonPersistentTopicName);
+        topicStats = (NonPersistentTopicStats) admin.topics().getStats(nonPersistentTopicName);
         assertTrue(topicStats.getSubscriptions().containsKey("my-sub"));
         assertEquals(topicStats.getPublishers().size(), 0);
         // test partitioned-topic

@@ -57,6 +57,7 @@ import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicOperation;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentPartitionedTopicStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentTopicStatsImpl;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -234,7 +235,6 @@ public class NonPersistentTopics extends PersistentTopics {
                     + "not to use when there's heavy traffic.")
             @QueryParam("subscriptionBacklogSize") @DefaultValue("false") boolean subscriptionBacklogSize) {
         try {
-            System.out.println("@@@@@@@@@@@@@@@@@@@@@");
             validatePartitionedTopicName(tenant, namespace, encodedTopic);
             if (topicName.isGlobal()) {
                 try {
@@ -251,12 +251,13 @@ public class NonPersistentTopics extends PersistentTopics {
                     asyncResponse.resume(new RestException(Status.NOT_FOUND, "Partitioned Topic not found"));
                     return;
                 }
-                NonPersistentPartitionedTopicStatsImpl stats = new NonPersistentPartitionedTopicStatsImpl(partitionMetadata);
-                List<CompletableFuture<NonPersistentTopicStats>> topicStatsFutureList = Lists.newArrayList();
+                NonPersistentPartitionedTopicStatsImpl stats =
+                        new NonPersistentPartitionedTopicStatsImpl(partitionMetadata);
+                List<CompletableFuture<TopicStats>> topicStatsFutureList = Lists.newArrayList();
                 for (int i = 0; i < partitionMetadata.partitions; i++) {
                     try {
                         topicStatsFutureList
-                                .add(pulsar().getAdminClient().topics().getStatsNonPersistentAsync(
+                                .add(pulsar().getAdminClient().topics().getStatsAsync(
                                         (topicName.getPartition(i).toString()), getPreciseBacklog,
                                         subscriptionBacklogSize));
                     } catch (PulsarServerException e) {
@@ -266,14 +267,15 @@ public class NonPersistentTopics extends PersistentTopics {
                 }
 
                 FutureUtil.waitForAll(topicStatsFutureList).handle((result, exception) -> {
-                    CompletableFuture<NonPersistentTopicStats> statFuture = null;
+                    CompletableFuture<TopicStats> statFuture = null;
                     for (int i = 0; i < topicStatsFutureList.size(); i++) {
                         statFuture = topicStatsFutureList.get(i);
                         if (statFuture.isDone() && !statFuture.isCompletedExceptionally()) {
                             try {
-                                stats.add(statFuture.get());
+                                stats.add((NonPersistentTopicStatsImpl) statFuture.get());
                                 if (perPartition) {
-                                    stats.getPartitions().put(topicName.getPartition(i).toString(), (NonPersistentTopicStatsImpl) statFuture.get());
+                                    stats.getPartitions().put(topicName.getPartition(i).toString(),
+                                            (NonPersistentTopicStatsImpl) statFuture.get());
                                 }
                             } catch (Exception e) {
                                 asyncResponse.resume(new RestException(e));

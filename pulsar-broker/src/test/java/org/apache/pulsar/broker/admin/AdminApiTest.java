@@ -921,16 +921,13 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         } catch (NotFoundException expected) {
         }
 
-        PartitionedTopicStats topicStats = topicType.equals(TopicDomain.non_persistent.value()) ?
-                admin.topics().getPartitionedStatsNonPersistent(partitionedTopicName,false) :
-                admin.topics().getPartitionedStats(partitionedTopicName,false);
+        PartitionedTopicStats topicStats = admin.topics().getPartitionedStats(partitionedTopicName,false);
 
                 // check the getPartitionedStats for PartitionedTopic returns only partitions metadata, and no partitions info
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions,
                 topicStats.getMetadata().partitions);
 
-        assertEquals(topicStats.getPartitions().size(),
-                0);
+        assertEquals(topicStats.getPartitions().size(), 0);
 
         List<String> subscriptions = admin.topics().getSubscriptions(partitionedTopicName);
         assertEquals(subscriptions.size(), 0);
@@ -992,12 +989,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                         partitionedTopicName + "-partition-2", partitionedTopicName + "-partition-3"));
 
         // test cumulative stats for partitioned topic
-        topicStats = topicType.equals(TopicDomain.non_persistent.value()) ?
-                admin.topics().getPartitionedStatsNonPersistent(partitionedTopicName,false) :
-                admin.topics().getPartitionedStats(partitionedTopicName,false);
-        System.out.println("********");
-        System.out.println(topicStats.getClass());
-        System.out.println(topicStats);
+        topicStats = admin.topics().getPartitionedStats(partitionedTopicName,false);
         if (isPersistent) {
             // TODO: for non-persistent topics, the subscription doesn't exist
             assertEquals(topicStats.getSubscriptions().keySet(), Sets.newTreeSet(Lists.newArrayList("my-sub")));
@@ -1008,12 +1000,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(topicStats.getPartitions(), Maps.newHashMap());
 
         // test per partition stats for partitioned topic
-        topicStats = topicType.equals(TopicDomain.non_persistent.value()) ?
-                admin.topics().getPartitionedStatsNonPersistent(partitionedTopicName,true) :
-                admin.topics().getPartitionedStats(partitionedTopicName,true);
-        System.out.println("^^^^^^^^^");
-        System.out.println(topicStats.getClass());
-        System.out.println(topicStats);
+        topicStats = admin.topics().getPartitionedStats(partitionedTopicName,true);
         assertEquals(topicStats.getMetadata().partitions, 4);
         assertEquals(topicStats.getPartitions().keySet(),
                 Sets.newHashSet(partitionedTopicName + "-partition-0", partitionedTopicName + "-partition-1",

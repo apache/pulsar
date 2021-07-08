@@ -679,8 +679,7 @@ public class TopicsImpl extends BaseResource implements Topics {
                 .queryParam("subscriptionBacklogSize", subscriptionBacklogSize);
         final CompletableFuture<TopicStats> future = new CompletableFuture<>();
 
-        asyncGetRequest(path, new InvocationCallback<TopicStats>() {
-
+        InvocationCallback<TopicStats> persistentCB = new InvocationCallback<TopicStats>() {
             @Override
             public void completed(TopicStats response) {
                 future.complete(response);
@@ -690,40 +689,10 @@ public class TopicsImpl extends BaseResource implements Topics {
             public void failed(Throwable throwable) {
                 future.completeExceptionally(getApiException(throwable.getCause()));
             }
-        });
+        };
 
-        return future;
-    }
-
-    @Override
-    public NonPersistentTopicStats getStatsNonPersistent(String topic,
-                                                         boolean getPreciseBacklog,
-                                                         boolean subscriptionBacklogSize) throws PulsarAdminException {
-        try {
-            return getStatsNonPersistentAsync(topic, getPreciseBacklog, subscriptionBacklogSize)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-         } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
-    }
-
-    @Override
-    public CompletableFuture<NonPersistentTopicStats> getStatsNonPersistentAsync(String topic,
-                                                                                 boolean getPreciseBacklog,
-                                                                                 boolean subscriptionBacklogSize) {
-        TopicName tn = validateTopic(topic);
-        WebTarget path = topicPath(tn, "stats")
-                .queryParam("getPreciseBacklog", getPreciseBacklog)
-                .queryParam("subscriptionBacklogSize", subscriptionBacklogSize);
-        final CompletableFuture<NonPersistentTopicStats> future = new CompletableFuture<>();
-
-        asyncGetRequest(path, new InvocationCallback<NonPersistentTopicStats>() {
-
+        InvocationCallback<NonPersistentTopicStats> nonpersistentCB =
+                new InvocationCallback<NonPersistentTopicStats>() {
             @Override
             public void completed(NonPersistentTopicStats response) {
                 future.complete(response);
@@ -733,7 +702,13 @@ public class TopicsImpl extends BaseResource implements Topics {
             public void failed(Throwable throwable) {
                 future.completeExceptionally(getApiException(throwable.getCause()));
             }
-        });
+        };
+
+        if (topic.startsWith(TopicDomain.non_persistent.value())) {
+            asyncGetRequest(path, nonpersistentCB);
+        } else {
+            asyncGetRequest(path, persistentCB);
+        }
 
         return future;
     }
@@ -844,67 +819,45 @@ public class TopicsImpl extends BaseResource implements Topics {
                 .queryParam("getPreciseBacklog", getPreciseBacklog)
                 .queryParam("subscriptionBacklogSize", subscriptionBacklogSize);
         final CompletableFuture<PartitionedTopicStats> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<PartitionedTopicStats>() {
 
-                    @Override
-                    public void completed(PartitionedTopicStats response) {
-                        if (!perPartition) {
-                            response.getPartitions().clear();
-                        }
-                        future.complete(response);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
-    }
-
-    @Override
-    public NonPersistentPartitionedTopicStats getPartitionedStatsNonPersistent(String topic, boolean perPartition, boolean getPreciseBacklog,
-                                                                               boolean subscriptionBacklogSize)
-            throws PulsarAdminException {
-        try {
-            return getPartitionedStatsNonPersistentAsync(topic, perPartition, getPreciseBacklog, subscriptionBacklogSize)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
-    }
-
-    @Override
-    public CompletableFuture<NonPersistentPartitionedTopicStats> getPartitionedStatsNonPersistentAsync(String topic,
-                                                                             boolean perPartition, boolean getPreciseBacklog, boolean subscriptionBacklogSize) {
-        TopicName tn = validateTopic(topic);
-        WebTarget path = topicPath(tn, "partitioned-stats");
-        path = path.queryParam("perPartition", perPartition)
-                .queryParam("getPreciseBacklog", getPreciseBacklog)
-                .queryParam("subscriptionBacklogSize", subscriptionBacklogSize);
-        final CompletableFuture<NonPersistentPartitionedTopicStats> future = new CompletableFuture<>();
-        asyncGetRequest(path,
+        InvocationCallback<NonPersistentPartitionedTopicStats> nonpersistentCB =
                 new InvocationCallback<NonPersistentPartitionedTopicStats>() {
 
-                    @Override
-                    public void completed(NonPersistentPartitionedTopicStats response) {
-                        if (!perPartition) {
-                            response.getPartitions().clear();
-                        }
-                        future.complete(response);
-                    }
+            @Override
+            public void completed(NonPersistentPartitionedTopicStats response) {
+                if (!perPartition) {
+                    response.getPartitions().clear();
+                }
+                future.complete(response);
+            }
 
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
+            @Override
+            public void failed(Throwable throwable) {
+                future.completeExceptionally(getApiException(throwable.getCause()));
+            }
+        };
+
+        InvocationCallback<PartitionedTopicStats> persistentCB = new InvocationCallback<PartitionedTopicStats>() {
+
+            @Override
+            public void completed(PartitionedTopicStats response) {
+                if (!perPartition) {
+                    response.getPartitions().clear();
+                }
+                future.complete(response);
+            }
+
+            @Override
+            public void failed(Throwable throwable) {
+                future.completeExceptionally(getApiException(throwable.getCause()));
+            }
+        };
+
+        if (topic.startsWith(TopicDomain.non_persistent.value())) {
+            asyncGetRequest(path, nonpersistentCB);
+        } else {
+            asyncGetRequest(path, persistentCB);
+        }
         return future;
     }
 

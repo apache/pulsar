@@ -37,8 +37,6 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
-import org.apache.pulsar.common.policies.data.NonPersistentPartitionedTopicStats;
-import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
@@ -851,61 +849,6 @@ public interface Topics {
         return getStatsAsync(topic, false, false);
     }
 
-
-    /**
-     * Get the stats for non-persistent topic.
-     * All the rates are computed over a 1 minute window and are relative the last completed 1 minute period.
-     *
-     * @param topic
-     *            topic name
-     * @param getPreciseBacklog
-     *            Set to true to get precise backlog, Otherwise get imprecise backlog.
-     * @param subscriptionBacklogSize
-     *            Whether to get backlog size for each subscription.
-     * @return the topic statistics
-     *
-     * @throws NotAuthorizedException
-     *             Don't have admin permission
-     * @throws NotFoundException
-     *             Topic does not exist
-     * @throws PulsarAdminException
-     *             Unexpected error
-     */
-    NonPersistentTopicStats getStatsNonPersistent(String topic, boolean getPreciseBacklog,
-                                                  boolean subscriptionBacklogSize) throws PulsarAdminException;
-
-    default NonPersistentTopicStats getStatsNonPersistent(String topic) throws PulsarAdminException {
-        return getStatsNonPersistent(topic, false, false);
-    }
-
-    /**
-     * Get the stats for non persistent topic asynchronously.
-     * All the rates are computed over a 1 minute window and are relative the last completed 1 minute period.
-     *
-     * @param topic
-     *            topic name
-     * @param getPreciseBacklog
-     *            Set to true to get precise backlog, Otherwise get imprecise backlog.
-     * @param subscriptionBacklogSize
-     *            Whether to get backlog size for each subscription.
-     *
-     * @throws NotAuthorizedException
-     *             Don't have admin permission
-     * @throws NotFoundException
-     *             Topic does not exist
-     * @throws PulsarAdminException
-     *             Unexpected error
-     *
-     * @return a future that can be used to track when the topic statistics are returned
-     *
-     */
-    CompletableFuture<NonPersistentTopicStats> getStatsNonPersistentAsync(String topic, boolean getPreciseBacklog,
-                                                  boolean subscriptionBacklogSize);
-
-    default CompletableFuture<NonPersistentTopicStats> getStatsNonPersistentAsync(String topic) {
-        return getStatsNonPersistentAsync(topic, false, false);
-    }
-
     /**
      * Get the internal stats for the topic.
      * <p/>
@@ -1094,55 +1037,6 @@ public interface Topics {
 
     default CompletableFuture<PartitionedTopicStats> getPartitionedStatsAsync(String topic, boolean perPartition) {
         return getPartitionedStatsAsync(topic, perPartition, false, false);
-    }
-
-    /**
-     * Get the stats for a non-persistent partitioned topic
-     * <p>All the rates are computed over a 1 minute window and are relative the last completed 1 minute period.
-     *
-     * @param topic
-     *            topic name
-     * @param perPartition
-     *            flag to get stats per partition
-     * @param getPreciseBacklog
-     *            Set to true to get precise backlog, Otherwise get imprecise backlog.
-     * @param subscriptionBacklogSize
-     *            Whether to get backlog size for each subscription.
-     * @return the non-persistent partitioned topic statistics
-     * @throws NotAuthorizedException
-     *             Don't have admin permission
-     * @throws NotFoundException
-     *             Topic does not exist
-     * @throws PulsarAdminException
-     *             Unexpected error
-     *
-     */
-    NonPersistentPartitionedTopicStats getPartitionedStatsNonPersistent(String topic, boolean perPartition, boolean getPreciseBacklog,
-                                                           boolean subscriptionBacklogSize)
-            throws PulsarAdminException;
-
-    default NonPersistentPartitionedTopicStats getPartitionedStatsNonPersistent(String topic, boolean perPartition) throws PulsarAdminException {
-        return getPartitionedStatsNonPersistent(topic, perPartition, false, false);
-    }
-
-    /**
-     * Get the stats for a non-persistent partitioned topic asynchronously.
-     *
-     * @param topic
-     *            topic Name
-     * @param perPartition
-     *            flag to get stats per partition
-     * @param getPreciseBacklog
-     *            Set to true to get precise backlog, Otherwise get imprecise backlog.
-     * @param subscriptionBacklogSize
-     *            Whether to get backlog size for each subscription.
-     * @return a future that can be used to track when the non-persistent partitioned topic statistics are returned
-     */
-    CompletableFuture<NonPersistentPartitionedTopicStats> getPartitionedStatsNonPersistentAsync(
-            String topic, boolean perPartition, boolean getPreciseBacklog, boolean subscriptionBacklogSize);
-
-    default CompletableFuture<NonPersistentPartitionedTopicStats> getPartitionedStatsNonPersistentAsync(String topic, boolean perPartition) {
-        return getPartitionedStatsNonPersistentAsync(topic, perPartition, false, false);
     }
 
     /**
