@@ -86,7 +86,7 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(doc = "Hostname or IP address the service binds on, default is 0.0.0.0.")
     private String bindAddress;
 
-    @FieldContext(doc = "The maximum size of a text message during parsing in WebSocket proxy")
+    @FieldContext(doc = "Maximum size of a text message during parsing in WebSocket proxy")
     private int webSocketMaxTextFrameSize = 1024 * 1024;
     // --- Authentication ---
     @FieldContext(doc = "Enable authentication")
