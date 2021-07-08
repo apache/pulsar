@@ -44,7 +44,7 @@ public class ElasticSearchSinkTester extends SinkTester<ElasticSearchContainer> 
 
     private RestHighLevelClient elasticClient;
     private boolean schemaEnable;
-    private final Schema<?> schema;
+    private final Schema<KeyValue<ValuePojo, ValuePojo>> schema;
 
     @Data
     public static final class ValuePojo {
@@ -63,7 +63,7 @@ public class ElasticSearchSinkTester extends SinkTester<ElasticSearchContainer> 
             schema = Schema.KeyValue(Schema.JSON(ValuePojo.class), Schema.AVRO(ValuePojo.class), KeyValueEncodingType.SEPARATED);
         } else {
             // default behaviour, it must be enabled the default, in order to preserve compatibility with Pulsar 2.8.x
-            schema = Schema.STRING;
+            schema = null;
         }
     }
 
@@ -103,7 +103,7 @@ public class ElasticSearchSinkTester extends SinkTester<ElasticSearchContainer> 
             String value = "{\"key" + i + "\"=\"value\"";
             kvs.put(key, value);
             producer.newMessage(schema)
-                    .value(new KeyValue<>(new ValuePojo(), new ValuePojo());
+                    .value(new KeyValue<>(new ValuePojo(), new ValuePojo()))
                     .send();
         } else {
             String key = "key-" + i;
