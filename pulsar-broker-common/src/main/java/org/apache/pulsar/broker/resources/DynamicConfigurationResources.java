@@ -20,12 +20,11 @@ package org.apache.pulsar.broker.resources;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.Map;
-
-import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.api.MetadataStore;
 
 public class DynamicConfigurationResources extends BaseResources<Map<String, String>> {
 
-    public DynamicConfigurationResources(MetadataStoreExtended store, int operationTimeoutSec) {
+    public DynamicConfigurationResources(MetadataStore store, int operationTimeoutSec) {
         super(store, new TypeReference<Map<String, String>>() {
         }, operationTimeoutSec);
     }

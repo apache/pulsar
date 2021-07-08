@@ -48,7 +48,7 @@ A producer is a process that attaches to a topic and publishes messages to a Pul
 
 Producers send messages to brokers synchronously (sync) or asynchronously (async).
 
-| Mode       | Description |            
+| Mode       | Description |
 |:-----------|-----------|
 | Sync send  | The producer waits for an acknowledgement from the broker after sending every message. If the acknowledgment is not received, the producer treats the sending operation as a failure.                                                                                                                                                                                    |
 | Async send | The producer puts a message in a blocking queue and returns immediately. The client library sends the message to the broker in the background. If the queue is full (you can [configure](reference-configuration.md#broker) the maximum size), the producer is blocked or fails immediately when calling the API, depending on arguments passed to the producer. |
@@ -149,6 +149,17 @@ Messages can be acknowledged in the following two ways:
 - Messages are acknowledged individually. With individual acknowledgement, the consumer needs to acknowledge each message and sends an acknowledgement request to the broker.
 - Messages are acknowledged cumulatively. With cumulative acknowledgement, the consumer only needs to acknowledge the last message it received. All messages in the stream up to (and including) the provided message are not re-delivered to that consumer.
 
+If you want to acknowledge messages individually, you can use the following API.
+
+```java
+consumer.acknowledge(msg);
+```
+If you want to acknowledge messages cumulatively, you can use the following API.
+```java
+consumer.acknowledgeCumulative(msg);
+```
+
+
 > **Note**
 > Cumulative acknowledgement cannot be used in the [shared subscription mode](#subscription-modes), because the shared subscription mode involves multiple consumers who have access to the same subscription. In the shared subscription mode, messages are acknowledged individually.
 
@@ -163,6 +174,13 @@ In the exclusive and failover subscription modes, consumers only negatively ackn
 In the shared and Key_Shared subscription modes, you can negatively acknowledge messages individually.
 
 Be aware that negative acknowledgment on ordered subscription types, such as Exclusive, Failover and Key_Shared, can cause failed messages to arrive consumers out of the original order.
+
+If you want to acknowledge messages negatively, you can use the following API.
+
+```java
+//With calling this api, messages are negatively acknowledged 
+consumer.negativeAcknowledge(msg);
+```
 
 > **Note**
 > If batching is enabled, other messages and the negatively acknowledged messages in the same batch are redelivered to the consumer.
@@ -198,7 +216,7 @@ The default dead letter topic uses this format:
 ```
 <topicname>-<subscriptionname>-DLQ
 ```
-  
+
 If you want to specify the name of the dead letter topic, use this Java client example:
 
 ```java
@@ -213,7 +231,7 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
               .subscribe();
                 
 ```
-  
+
 Dead letter topic depends on message re-delivery. Messages are redelivered either due to [acknowledgement timeout](#acknowledgement-timeout) or [negative acknowledgement](#negative-acknowledgement). If you are going to use negative acknowledgement on a message, make sure it is negatively acknowledged before the acknowledgement timeout. 
 
 > **Note**    
@@ -241,6 +259,14 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
 ```
+
+If you want to put messages into a retrial queue, you can use the following API.
+
+```java
+consumer.reconsumeLater(msg,3,TimeUnit.SECONDS);
+```
+
+
 
 ## Topics
 

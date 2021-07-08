@@ -401,8 +401,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         });
 
         scheduleTimeoutTask();
-
-        scheduleRollOverLedgerTask();
     }
 
     private synchronized void initializeBookKeeper(final ManagedLedgerInitializeLedgerCallback callback) {
@@ -467,7 +465,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
                 log.info("[{}] Created ledger {}", name, lh.getId());
                 STATE_UPDATER.set(this, State.LedgerOpened);
-                lastLedgerCreatedTimestamp = clock.millis();
+                updateLastLedgerCreatedTimeAndScheduleRolloverTask();
                 currentLedger = lh;
 
                 lastConfirmedEntry = new PositionImpl(lh.getId(), -1);
@@ -1488,7 +1486,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     public synchronized void updateLedgersIdsComplete(Stat stat) {
         STATE_UPDATER.set(this, State.LedgerOpened);
-        lastLedgerCreatedTimestamp = clock.millis();
+        updateLastLedgerCreatedTimeAndScheduleRolloverTask();
 
         if (log.isDebugEnabled()) {
             log.debug("[{}] Resending {} pending messages", name, pendingAddEntries.size());
@@ -2306,6 +2304,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 && TOTAL_SIZE_UPDATER.get(this) > config.getRetentionSizeInMB() * 1024 * 1024;
     }
 
+    private boolean isLedgerRetentionOverSizeQuotaAfterDelete(long sizeToDelete) {
+        // Handle the -1 size limit as "infinite" size quota
+        return config.getRetentionSizeInMB() >= 0
+                &&  TOTAL_SIZE_UPDATER.get(this) - sizeToDelete > config.getRetentionSizeInMB() * 1024 * 1024;
+    }
+
     private boolean isOffloadedNeedsDelete(OffloadContext offload) {
         long elapsedMs = clock.millis() - offload.getTimestamp();
 
@@ -2371,33 +2375,66 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Slowest consumer ledger id: {}", name, slowestReaderLedgerId);
             }
+
+
+            long totalSizeToDelete = 0;
+            boolean retentionSizeQuotaMet = false;
             // skip ledger if retention constraint met
             for (LedgerInfo ls : ledgers.headMap(slowestReaderLedgerId, false).values()) {
-                boolean expired = hasLedgerRetentionExpired(ls.getTimestamp());
-                boolean overRetentionQuota = isLedgerRetentionOverSizeQuota();
-
-                if (log.isDebugEnabled()) {
-                    log.debug(
-                            "[{}] Checking ledger {} -- time-old: {} sec -- "
-                                    + "expired: {} -- over-quota: {} -- current-ledger: {}",
-                            name, ls.getLedgerId(), (clock.millis() - ls.getTimestamp()) / 1000.0, expired,
-                            overRetentionQuota, currentLedger.getId());
-                }
+                // currentLedger can not be deleted
                 if (ls.getLedgerId() == currentLedger.getId()) {
-                    log.debug("[{}] Ledger {} skipped for deletion as it is currently being written to", name,
-                            ls.getLedgerId());
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Ledger {} skipped for deletion as it is currently being written to", name,
+                                ls.getLedgerId());
+                    }
                     break;
-                } else if (expired || isTruncate) {
-                    log.debug("[{}] Ledger {} has expired or be truncated, expired is {}, isTruncate is {}, ts {}", name, ls.getLedgerId(), expired,  isTruncate, ls.getTimestamp());
+                }
+                // if truncate, all ledgers besides currentLedger are going to be deleted
+                if (isTruncate){
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Ledger {} has been truncated with ts {}", name, ls.getLedgerId(), ls.getTimestamp());
+                    }
                     ledgersToDelete.add(ls);
-                } else if (overRetentionQuota || isTruncate) {
-                    log.debug("[{}] Ledger {} is over quota or be truncated, overRetentionQuota is {}, isTruncate is {}", name, ls.getLedgerId(), overRetentionQuota, isTruncate);
+                    continue;
+                }
+
+                // if neither currentLedger nor truncate
+                if (!retentionSizeQuotaMet) {
+                    totalSizeToDelete += ls.getSize();
+                    boolean overRetentionQuota = isLedgerRetentionOverSizeQuota();
+                    boolean overRetentionQuotaAfterDelete = isLedgerRetentionOverSizeQuotaAfterDelete(totalSizeToDelete);
+                    if (overRetentionQuota) {
+                        if (overRetentionQuotaAfterDelete) {
+                            if (log.isDebugEnabled()) {
+                                log.debug("[{}] Ledger {} is over quota", name, ls.getLedgerId());
+                            }
+                            ledgersToDelete.add(ls);
+                            continue;
+                        } else {
+                            retentionSizeQuotaMet = true;
+                            ledgersToDelete.add(ls);
+                            continue;
+                        }
+                    } else {
+                        retentionSizeQuotaMet = true;
+                    }
+                }
+
+                if (hasLedgerRetentionExpired(ls.getTimestamp())) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Ledger {} has expired, expired is {}, ts {}", name, ls.getLedgerId(), ls.getTimestamp());
+                    }
                     ledgersToDelete.add(ls);
+                    continue;
                 } else {
-                    log.debug("[{}] Ledger {} not deleted. Neither expired nor over-quota", name, ls.getLedgerId());
+                    // once retention constraint has been met, skip check
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Ledger {} not deleted. Neither expired nor over-quota", name, ls.getLedgerId());
+                    }
                     break;
                 }
             }
+
             for (LedgerInfo ls : ledgers.values()) {
                 if (isOffloadedNeedsDelete(ls.getOffloadContext()) && !ledgersToDelete.contains(ls)) {
                     log.debug("[{}] Ledger {} has been offloaded, bookkeeper ledger needs to be deleted", name,
@@ -3361,7 +3398,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 || currentLedgerSize >= (config.getMaxSizePerLedgerMb() * MegaByte));
 
         long timeSinceLedgerCreationMs = clock.millis() - lastLedgerCreatedTimestamp;
-        boolean maxLedgerTimeReached = timeSinceLedgerCreationMs >= maximumRolloverTimeMs;
+        boolean maxLedgerTimeReached = timeSinceLedgerCreationMs >= config.getMaximumRolloverTimeMs();
 
         if (spaceQuotaReached || maxLedgerTimeReached) {
             if (config.getMinimumRolloverTimeMs() > 0) {
@@ -3663,15 +3700,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    private void scheduleRollOverLedgerTask() {
-        if (config.getMaximumRolloverTimeMs() > 0) {
-            long interval = config.getMaximumRolloverTimeMs();
-            this.checkLedgerRollTask = this.scheduledExecutor.scheduleAtFixedRate(safeRun(() -> {
-                rollCurrentLedgerIfFull();
-            }), interval, interval, TimeUnit.MILLISECONDS);
-        }
-    }
-
     private void checkAddTimeout() {
         long timeoutSec = config.getAddEntryTimeoutSeconds();
         if (timeoutSec < 1) {
@@ -3929,4 +3957,18 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return CompletableFuture.completedFuture(ensembles);
         });
     }
+
+    private void updateLastLedgerCreatedTimeAndScheduleRolloverTask() {
+        this.lastLedgerCreatedTimestamp = clock.millis();
+        if (config.getMaximumRolloverTimeMs() > 0) {
+            if (checkLedgerRollTask != null && !checkLedgerRollTask.isDone()) {
+                // new ledger has been created successfully
+                // and the previous checkLedgerRollTask is not done, we could cancel it
+                checkLedgerRollTask.cancel(true);
+            }
+            this.checkLedgerRollTask = this.scheduledExecutor.schedule(
+                    safeRun(this::rollCurrentLedgerIfFull), getMaximumRolloverTimeMs(config), TimeUnit.MILLISECONDS);
+        }
+    }
+
 }

@@ -73,17 +73,13 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
                     messageTTLInSeconds);
 
             cursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchActiveEntries, entry -> {
-                MessageImpl<byte[]> msg = null;
                 try {
-                    msg = MessageImpl.deserializeBrokerEntryMetaDataFirst(entry.getDataBuffer());
-                    return msg.isExpired(messageTTLInSeconds);
+                    long entryTimestamp = MessageImpl.getEntryTimestamp(entry.getDataBuffer());
+                    return MessageImpl.isEntryExpired(messageTTLInSeconds, entryTimestamp);
                 } catch (Exception e) {
                     log.error("[{}][{}] Error deserializing message for expiry check", topicName, subName, e);
                 } finally {
                     entry.release();
-                    if (msg != null) {
-                        msg.recycle();
-                    }
                 }
                 return false;
             }, this, null);

@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.apache.pulsar.broker.admin.AdminResource.MANAGED_LEDGER_PATH_ZNODE;
+import static org.apache.pulsar.common.policies.path.PolicyPath.joinPath;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -84,6 +86,7 @@ import org.apache.pulsar.client.admin.internal.TenantsImpl;
 import org.apache.pulsar.client.admin.internal.TopicsImpl;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
@@ -1218,6 +1221,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                     assertFalse(admin.tenants().getTenants().contains(tenant));
                 });
 
+        final String managedLedgerPathForTenant = joinPath(MANAGED_LEDGER_PATH_ZNODE, tenant);
+        assertNull(pulsar.getLocalZkCache().getZooKeeper().exists(managedLedgerPathForTenant, false));
+
         admin.tenants().createTenant(tenant,
                 new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test")));
         assertTrue(admin.tenants().getTenants().contains(tenant));
@@ -1225,6 +1231,57 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // reset back to false
         pulsar.getConfiguration().setForceDeleteTenantAllowed(false);
+        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(false);
+
+    }
+
+    @Test
+    public void testDeleteNamespaceForcefully() throws Exception {
+        // allow forced deletion of namespaces
+        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
+
+        String tenant = "my-tenant";
+        assertFalse(admin.tenants().getTenants().contains(tenant));
+
+        // create tenant
+        admin.tenants().createTenant(tenant,
+                new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test")));
+
+        assertTrue(admin.tenants().getTenants().contains(tenant));
+
+        // create namespace
+        String namespace = tenant + "/my-ns";
+        admin.namespaces().createNamespace("my-tenant/my-ns", Sets.newHashSet("test"));
+
+        assertEquals(admin.namespaces().getNamespaces(tenant), Lists.newArrayList("my-tenant/my-ns"));
+
+        // create topic
+        String topic = namespace + "/my-topic";
+        admin.topics().createPartitionedTopic(topic, 10);
+
+        assertFalse(admin.topics().getList(namespace).isEmpty());
+
+        try {
+            admin.namespaces().deleteNamespace(namespace, false);
+            fail("should have failed due to namespace not empty");
+        } catch (PulsarAdminException e) {
+            // Expected: cannot delete non-empty tenant
+        }
+
+        // delete namespace forcefully
+        admin.namespaces().deleteNamespace(namespace, true);
+        assertFalse(admin.namespaces().getNamespaces(tenant).contains(namespace));
+        assertTrue(admin.namespaces().getNamespaces(tenant).isEmpty());
+
+        final String managedLedgerPath = joinPath(MANAGED_LEDGER_PATH_ZNODE, namespace);
+        final String persistentDomain = managedLedgerPath + "/" + TopicDomain.persistent.value();
+        final String nonPersistentDomain = managedLedgerPath + "/" + TopicDomain.non_persistent.value();
+
+        assertNull(pulsar.getLocalZkCache().getZooKeeper().exists(persistentDomain, false));
+        assertNull(pulsar.getLocalZkCache().getZooKeeper().exists(nonPersistentDomain, false));
+        assertNull(pulsar.getLocalZkCache().getZooKeeper().exists(managedLedgerPath, false));
+
+        // reset back to false
         pulsar.getConfiguration().setForceDeleteNamespaceAllowed(false);
     }
 
@@ -2988,6 +3045,48 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         final String topicName = "non-persistent://prop-xyz/ns1/testTruncateTopic-" + UUID.randomUUID().toString();
         admin.topics().createNonPartitionedTopic(topicName);
         assertThrows(() -> {admin.topics().truncate(topicName);});
+    }
 
+    @Test(timeOut = 20000)
+    public void testPeekEncryptedMessages() throws Exception {
+        final String topicName = "persistent://prop-xyz/ns1/testPeekEncryptedMessages-" + UUID.randomUUID().toString();
+        final String subName = "my-sub";
+
+        admin.topics().createNonPartitionedTopic(topicName);
+        admin.topics().createSubscription(topicName, subName, MessageId.latest);
+
+        final Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .enableBatching(true)
+                .addEncryptionKey("my-app-key")
+                .defaultCryptoKeyReader("file:./src/test/resources/certificate/public-key.client-rsa.pem")
+                .create();
+
+        for (int i = 0; i < 5; i++) {
+            producer.send(("message-" + i).getBytes());
+        }
+        producer.close();
+
+        final List<Message<byte[]>> peekedMessages = admin.topics().peekMessages(topicName, subName, 5);
+        assertEquals(peekedMessages.size(), 5);
+
+        final Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName(subName)
+                .cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)
+                .subscribe();
+
+        final List<Message<byte[]>> receivedMessages = new ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
+            receivedMessages.add(msg);
+            consumer.acknowledge(msg);
+        }
+        consumer.unsubscribe();
+
+        for (int i = 0; i < 5; i++) {
+            assertEquals(peekedMessages.get(i).getMessageId(), receivedMessages.get(i).getMessageId());
+            assertEquals(peekedMessages.get(i).getData(), receivedMessages.get(i).getData());
+        }
     }
 }
