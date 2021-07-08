@@ -90,9 +90,6 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
         pulsarAdmins[0].tenants().createTenant("public", new TenantInfoImpl(Sets.newHashSet(), Sets.newHashSet("my-cluster")));
         pulsarAdmins[0].namespaces().createNamespace(namespace, 10);
         pulsarAdmins[0].topics().createPartitionedTopic(partitionedTopicName.getPartitionedTopicName(), partitions);
-        pulsarClient.newConsumer()
-                .topic(partitionedTopicName.getPartitionedTopicName())
-                .subscriptionName("test").subscribe();
         tbClient = TransactionBufferClientImpl.create(
                 ((PulsarClientImpl) pulsarClient),
                 new HashedWheelTimer(new DefaultThreadFactory("transaction-buffer")));
