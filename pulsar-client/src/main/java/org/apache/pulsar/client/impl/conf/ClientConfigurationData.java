@@ -115,7 +115,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "connectionsPerBroker",
-            value = "The number of connections established between the client and each Broker."
+            value = "Number of connections established between the client and each Broker."
     )
     private int connectionsPerBroker = 1;
 
