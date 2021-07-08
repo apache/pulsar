@@ -81,9 +81,9 @@ import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.utils.StatsOutputStream;
-import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -134,28 +134,31 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
     public NonPersistentTopic(String topic, BrokerService brokerService) {
         super(topic, brokerService);
+
         this.subscriptions = new ConcurrentOpenHashMap<>(16, 1);
         this.replicators = new ConcurrentOpenHashMap<>(16, 1);
         this.isFenced = false;
+    }
 
-        try {
-            Policies policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                    .get(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
-                    .orElseThrow(() -> new KeeperException.NoNodeException());
-            isEncryptionRequired = policies.encryption_required;
-            isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
-            if (policies.inactive_topic_policies != null) {
-                inactiveTopicPolicies = policies.inactive_topic_policies;
-            }
-            setSchemaCompatibilityStrategy(policies);
+    public CompletableFuture<Void> initialize() {
+        return brokerService.pulsar().getPulsarResources().getNamespaceResources()
+                .getAsync(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
+                .thenAccept(optPolicies -> {
+                    if (!optPolicies.isPresent()) {
+                        log.warn("[{}] Policies not present {} and isEncryptionRequired will be set to false", topic);
+                        isEncryptionRequired = false;
+                    } else {
+                        Policies policies = optPolicies.get();
+                        isEncryptionRequired = policies.encryption_required;
+                        isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
+                        if (policies.inactive_topic_policies != null) {
+                            inactiveTopicPolicies = policies.inactive_topic_policies;
+                        }
+                        setSchemaCompatibilityStrategy(policies);
 
-            schemaValidationEnforced = policies.schema_validation_enforced;
-
-        } catch (Exception e) {
-            log.warn("[{}] Error getting policies {} and isEncryptionRequired will be set to false", topic,
-                    e.getMessage());
-            isEncryptionRequired = false;
-        }
+                        schemaValidationEnforced = policies.schema_validation_enforced;
+                    }
+                });
     }
 
     @Override
@@ -482,53 +485,57 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
             log.debug("[{}] Checking replication status", name);
         }
 
-        Policies policies = null;
-        try {
-            policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                    .get(AdminResource.path(POLICIES, name.getNamespace()))
-                    .orElseThrow(() -> new KeeperException.NoNodeException());
-        } catch (Exception e) {
-            CompletableFuture<Void> future = new CompletableFuture<>();
-            future.completeExceptionally(new ServerMetadataException(e));
-            return future;
-        }
+        return brokerService.pulsar().getPulsarResources().getNamespaceResources()
+                .getAsync(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
+                .thenCompose(optPolicies -> {
+                    if (!optPolicies.isPresent()) {
+                        return FutureUtil.failedFuture(
+                                new ServerMetadataException(
+                                        new MetadataStoreException.NotFoundException()));
+                    }
 
-        Set<String> configuredClusters;
-        if (policies.replication_clusters != null) {
-            configuredClusters = policies.replication_clusters;
-        } else {
-            configuredClusters = Collections.emptySet();
-        }
+                    Policies policies = optPolicies.get();
+                    Set<String> configuredClusters;
+                    if (policies.replication_clusters != null) {
+                        configuredClusters = policies.replication_clusters;
+                    } else {
+                        configuredClusters = Collections.emptySet();
+                    }
 
-        String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
+                    String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
 
-        List<CompletableFuture<Void>> futures = Lists.newArrayList();
+                    List<CompletableFuture<Void>> futures = Lists.newArrayList();
 
-        // Check for missing replicators
-        for (String cluster : configuredClusters) {
-            if (cluster.equals(localCluster)) {
-                continue;
-            }
+                    // Check for missing replicators
+                    for (String cluster : configuredClusters) {
+                        if (cluster.equals(localCluster)) {
+                            continue;
+                        }
 
-            if (!replicators.containsKey(cluster)) {
-                if (!startReplicator(cluster)) {
-                    // it happens when global topic is a partitioned topic and replicator can't start on original
-                    // non partitioned-topic (topic without partition prefix)
-                    return FutureUtil
-                            .failedFuture(new NamingException(topic + " failed to start replicator for " + cluster));
-                }
-            }
-        }
+                        if (!replicators.containsKey(cluster)) {
+                            if (!startReplicator(cluster)) {
+                                // it happens when global topic is a partitioned topic and replicator can't start on
+                                // original
+                                // non partitioned-topic (topic without partition prefix)
+                                return FutureUtil
+                                        .failedFuture(new NamingException(
+                                                topic + " failed to start replicator for " + cluster));
+                            }
+                        }
+                    }
 
-        // Check for replicators to be stopped
-        replicators.forEach((cluster, replicator) -> {
-            if (!cluster.equals(localCluster)) {
-                if (!configuredClusters.contains(cluster)) {
-                    futures.add(removeReplicator(cluster));
-                }
-            }
-        });
-        return FutureUtil.waitForAll(futures);
+                    // Check for replicators to be stopped
+                    replicators.forEach((cluster, replicator) -> {
+                        if (!cluster.equals(localCluster)) {
+                            if (!configuredClusters.contains(cluster)) {
+                                futures.add(removeReplicator(cluster));
+                            }
+                        }
+                    });
+                    return FutureUtil.waitForAll(futures);
+                });
+
+
     }
 
     boolean startReplicator(String remoteCluster) {
@@ -886,7 +893,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         try {
             Policies policies = brokerService.pulsar().getConfigurationCache().policiesCache()
                     .get(AdminResource.path(POLICIES, name.getNamespace()))
-                    .orElseThrow(KeeperException.NoNodeException::new);
+                    .orElseThrow(MetadataStoreException.NotFoundException::new);
             final int defaultExpirationTime = brokerService.pulsar().getConfiguration()
                     .getSubscriptionExpirationTimeMinutes();
             final long expirationTimeMillis = TimeUnit.MINUTES
