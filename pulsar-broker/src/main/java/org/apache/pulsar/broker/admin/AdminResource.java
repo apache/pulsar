@@ -80,7 +80,7 @@ public abstract class AdminResource extends PulsarWebResource {
     private static final Logger log = LoggerFactory.getLogger(AdminResource.class);
     public static final String POLICIES_READONLY_FLAG_PATH = "/admin/flags/policies-readonly";
     public static final String PARTITIONED_TOPIC_PATH_ZNODE = "partitioned-topics";
-    private static final String MANAGED_LEDGER_PATH_ZNODE = "/managed-ledgers";
+    public static final String MANAGED_LEDGER_PATH_ZNODE = "/managed-ledgers";
 
     protected BookKeeper bookKeeper() {
         return pulsar().getBookKeeperClient();
