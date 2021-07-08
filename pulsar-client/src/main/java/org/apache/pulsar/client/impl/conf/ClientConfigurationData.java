@@ -157,8 +157,8 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "maxLookupRequest",
-            value = "The maximum number of lookup requests allowed on "
-                    + "each broker connection to prevent overload on broker."
+            value = "Maximum number of lookup requests allowed on "
+                    + "each broker connection to prevent overloading a broker."
     )
     private int maxLookupRequest = 50000;
 
