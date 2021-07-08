@@ -301,7 +301,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "socks5ProxyUsername",
-            value = "password of socks5 proxy."
+            value = "Password of SOCKS5 proxy."
     )
     private String socks5ProxyPassword;
 
