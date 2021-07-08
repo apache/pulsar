@@ -2417,6 +2417,16 @@ flexible messaging model and an intuitive client API.</description>
       </snapshots>
     </repository>
     <repository>
+      <id>datastax-releases</id>
+      <url>https://repo.sjc.dsinternal.org/artifactory/datastax-releases-local</url>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+    </repository>
+    <repository>
       <id>datastax-snapshots-local</id>
       <url>https://repo.sjc.dsinternal.org/artifactory/datastax-snapshots-local</url>
       <snapshots>
