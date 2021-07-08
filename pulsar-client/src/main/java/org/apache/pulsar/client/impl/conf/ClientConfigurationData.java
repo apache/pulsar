@@ -202,7 +202,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "maxBackoffIntervalNanos",
-            value = "Max backoff interval, the unit is nanos."
+            value = "Max backoff interval (in nanosecond)."
     )
     private long maxBackoffIntervalNanos = TimeUnit.SECONDS.toNanos(60);
 
