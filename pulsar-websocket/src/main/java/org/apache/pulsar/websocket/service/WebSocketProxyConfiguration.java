@@ -110,7 +110,7 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
             + "presents at first or last position eg: *.pulsar.service,pulsar.service.*)")
     private boolean authorizationAllowWildcardsMatching = false;
 
-    @FieldContext(doc = "Authentication settings of the proxy itself. Used to connect to brokers")
+    @FieldContext(doc = "Proxy authentication settings used to connect to brokers")
     private String brokerClientAuthenticationPlugin;
 
     @FieldContext(doc = "Authentication parameters of the proxy itself. Used to connect to brokers")
