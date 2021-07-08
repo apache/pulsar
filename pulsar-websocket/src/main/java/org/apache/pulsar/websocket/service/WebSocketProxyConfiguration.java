@@ -45,16 +45,16 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(required = true, doc = "Name of the cluster to which this broker belongs to")
     private String clusterName;
 
-    @FieldContext(doc = "The HTTPS rest service url to connect to broker")
+    @FieldContext(doc = "The HTTPS REST service URL to connect to broker")
     private String serviceUrl;
 
-    @FieldContext(doc = "The HTTPS rest service TLS URL")
+    @FieldContext(doc = "The HTTPS REST service TLS URL")
     private String serviceUrlTls;
 
-    @FieldContext(doc = "The broker binary service url (for produce and consume operations)")
+    @FieldContext(doc = "The broker binary service URL (for produce and consume operations)")
     private String brokerServiceUrl;
 
-    @FieldContext(doc = "The secured broker binary service url (for produce and consume operations)")
+    @FieldContext(doc = "The secured broker binary service URL (for produce and consume operations)")
     private String brokerServiceUrlTls;
 
     @FieldContext(doc = "Path for the file used to determine the rotation status for the broker "
@@ -71,7 +71,7 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(doc = "Connection string of configuration store servers")
     private String configurationStoreServers;
 
-    @FieldContext(doc = "Zookeeper session timeout in milliseconds")
+    @FieldContext(doc = "ZooKeeper session timeout in milliseconds")
     private long zooKeeperSessionTimeoutMillis = 30000;
 
     @FieldContext(doc = "ZooKeeper cache expiry time in seconds")
@@ -107,25 +107,25 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(doc = "Allow wildcard matching in authorization "
             + "(wildcard matching only applicable if wildcard-char: "
-            + "presents at first or last position eg: *.pulsar.service,pulsar.service.*)")
+            + "presents at first or last position. For example: *.pulsar.service,pulsar.service.*)")
     private boolean authorizationAllowWildcardsMatching = false;
 
     @FieldContext(doc = "Authentication settings of the proxy itself. Used to connect to brokers")
     private String brokerClientAuthenticationPlugin;
 
-    @FieldContext(doc = "Authentication parameters of the proxy itself. Used to connect to brokers")
+    @FieldContext(doc = "Proxy authentication parameters used to connect to brokers")
     private String brokerClientAuthenticationParameters;
 
     @FieldContext(doc = "Path for the trusted TLS certificate file for outgoing connection to a server (broker)")
     private String brokerClientTrustCertsFilePath = "";
 
-    @FieldContext(doc = "Number of IO threads in Pulsar Client used in WebSocket proxy")
+    @FieldContext(doc = "Number of IO threads in Pulsar client used in WebSocket proxy")
     private int webSocketNumIoThreads = Runtime.getRuntime().availableProcessors();
 
-    @FieldContext(doc = "Number of threads to use in HTTP server")
+    @FieldContext(doc = "Number of threads to used in HTTP server")
     private int numHttpServerThreads = Math.max(6, Runtime.getRuntime().availableProcessors());
 
-    @FieldContext(doc = "Number of connections per Broker in Pulsar Client used in WebSocket proxy")
+    @FieldContext(doc = "Number of connections per broker in Pulsar client used in WebSocket proxy")
     private int webSocketConnectionsPerBroker = Runtime.getRuntime().availableProcessors();
 
     @FieldContext(doc = "Time in milliseconds that idle WebSocket session times out")
@@ -153,8 +153,8 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(doc = "Accept untrusted TLS certificate from client")
     private boolean tlsAllowInsecureConnection = false;
 
-    @FieldContext(doc = "Specify whether Client certificates are required for "
-            + "TLS Reject the Connection if the Client Certificate is not trusted")
+    @FieldContext(doc = "Specify whether client certificates are required for "
+            + "TLS Reject the Connection if the client Certificate is not trusted")
     private boolean tlsRequireTrustedClientCertOnConnect = false;
 
     @FieldContext(doc = "Tls cert refresh duration in seconds (set 0 to check on every new connection)")
