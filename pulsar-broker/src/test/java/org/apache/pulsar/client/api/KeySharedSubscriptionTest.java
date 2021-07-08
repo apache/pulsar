@@ -46,6 +46,7 @@ import org.apache.curator.shaded.com.google.common.collect.Lists;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentStickyKeyDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
+import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 import org.awaitility.Awaitility;
@@ -669,6 +670,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
         c1.close();
 
+        ((ConsumerImpl<Integer>) c2).clearIncomingMessagesAndGetMessageNumber();
         // Now C2 will get all messages
         for (int i = 0; i < 20; i++) {
             Message<Integer> msg = c2.receive();

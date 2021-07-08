@@ -18,9 +18,9 @@
  */
 package org.apache.pulsar.proxy.server;
 
+import io.prometheus.client.CollectorRegistry;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -35,14 +35,12 @@ import org.eclipse.jetty.websocket.client.WebSocketClient;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.Base64;
 import java.util.Optional;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Future;
-
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
@@ -61,6 +59,7 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
         serviceStarter.getConfig().setBrokerWebServiceURL(pulsar.getWebServiceAddress());
         serviceStarter.getConfig().setServicePort(Optional.of(11000));
         serviceStarter.getConfig().setWebSocketServiceEnabled(true);
+        CollectorRegistry.defaultRegistry.clear();
         serviceStarter.start();
     }
 
