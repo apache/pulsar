@@ -32,6 +32,7 @@ import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.policies.path.PolicyPath;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -52,7 +53,11 @@ public class NamespaceResources extends BaseResources<Policies> {
         isolationPolicies = new IsolationPolicyResources(configurationStore, operationTimeoutSec);
         partitionedTopicResources = new PartitionedTopicResources(configurationStore, operationTimeoutSec);
 
-        localPoliciesCache = localStore.getMetadataCache(LocalPolicies.class);
+        if (localStore != null) {
+            localPoliciesCache = localStore.getMetadataCache(LocalPolicies.class);
+        } else {
+            localPoliciesCache = null;
+        }
     }
 
     public CompletableFuture<Optional<Policies>> getPolicies(NamespaceName ns) {
@@ -60,7 +65,11 @@ public class NamespaceResources extends BaseResources<Policies> {
     }
 
     public CompletableFuture<Optional<LocalPolicies>> getLocalPolicies(NamespaceName ns) {
-        return localPoliciesCache.get(PolicyPath.joinPath(LOCAL_POLICIES_ROOT, ns.toString()));
+        if (localPoliciesCache == null) {
+            return FutureUtil.failedFuture(new IllegalStateException("Local metadata store not setup"));
+        } else {
+            return localPoliciesCache.get(PolicyPath.joinPath(LOCAL_POLICIES_ROOT, ns.toString()));
+        }
     }
 
     public static class IsolationPolicyResources extends BaseResources<Map<String, NamespaceIsolationDataImpl>> {

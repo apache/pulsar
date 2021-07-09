@@ -1721,8 +1721,11 @@ public class BrokerService implements Closeable {
 
     private void handleMetadataChanges(Notification n) {
         if (n.getPath().startsWith(ConfigurationCacheService.POLICIES_ROOT)) {
-            NamespaceName ns = NamespaceName.get(NamespaceBundleFactory.getNamespaceFromPoliciesPath(n.getPath()));
-            handlePoliciesUpdates(ns);
+            Optional<NamespaceName> ns = NamespaceName.getIfValid(
+                    NamespaceBundleFactory.getNamespaceFromPoliciesPath(n.getPath()));
+            if (ns.isPresent()) {
+                handlePoliciesUpdates(ns.get());
+            }
         } else if (n.getPath().equals(BROKER_SERVICE_CONFIGURATION_PATH)) {
             handleDynamicConfigurationUpdates();
         }
@@ -1802,9 +1805,8 @@ public class BrokerService implements Closeable {
         }
         final String localCluster = this.pulsar.getConfiguration().getClusterName();
         if (!data.replication_clusters.contains(localCluster)) {
-            try {
-                NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory()
-                        .getBundles(namespace);
+            pulsar().getNamespaceService().getNamespaceBundleFactory()
+                    .getBundlesAsync(namespace).thenAccept(bundles -> {
                 bundles.getBundles().forEach(bundle -> {
                     pulsar.getNamespaceService().isNamespaceBundleOwned(bundle).thenAccept(isExist -> {
                         if (isExist) {
@@ -1820,9 +1822,7 @@ public class BrokerService implements Closeable {
                         }
                     });
                 });
-            } catch (Exception e) {
-                log.error("Failed to unload locally not owned bundles {}", e.getMessage(), e);
-            }
+            });
         }
     }
 
