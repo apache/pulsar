@@ -59,7 +59,7 @@ BookKeeper is a replicated log storage system that Pulsar uses for durable stora
 |compactionRateByEntries|The rate at which compaction will read entries, in adds per second.|1000|
 |compactionRateByBytes|Set the rate at which compaction will readd entries. The unit is bytes added per second.|1000000|
 |journalMaxSizeMB|Max file size of journal file, in megabytes. A new journal file will be created when the old one reaches the file size limitation.|2048|
-|journalMaxBackups|The max number of old journal filse to keep. Keeping a number of old journal files would help data recovery in special cases.|5|
+|journalMaxBackups|The max number of old journal files to keep. Keeping a number of old journal files would help data recovery in special cases.|5|
 |journalPreAllocSizeMB|How space to pre-allocate at a time in the journal.|16|
 |journalWriteBufferSizeKB|The of the write buffers used for the journal.|64|
 |journalRemoveFromPageCache|Whether pages should be removed from the page cache after force write.|true|
@@ -699,12 +699,6 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 | brokerWebServiceURLTLS | The TLS Web service URL pointing to the broker cluster | |
 | functionWorkerWebServiceURL | The Web service URL pointing to the function worker cluster. It is only configured when you setup function workers in a separate cluster. | |
 | functionWorkerWebServiceURLTLS | The TLS Web service URL pointing to the function worker cluster. It is only configured when you setup function workers in a separate cluster. | |
-|brokerServiceURL|If service discovery is disabled, this url should point to the discovery service provider.|N/A|
-|brokerServiceURLTLS|If service discovery is disabled, this url should point to the discovery service provider.|N/A|
-|brokerWebServiceURL|This settings are unnecessary if `zookeeperServers` is specified.|N/A|
-|brokerWebServiceURLTLS|This settings are unnecessary if `zookeeperServers` is specified.|N/A|
-|functionWorkerWebServiceURL|If function workers are setup in a separate cluster, configure the this setting to point to the function workers cluster.|N/A|
-|functionWorkerWebServiceURLTLS|If function workers are setup in a separate cluster, configure the this setting to point to the function workers cluster.|N/A|
 |zookeeperSessionTimeoutMs| ZooKeeper session timeout (in milliseconds) |30000|
 |zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds|300|
 |advertisedAddress|Hostname or IP address the service advertises to the outside world. If not set, the value of `InetAddress.getLocalHost().getHostname()` is used.|N/A|
@@ -723,7 +717,6 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 |brokerClientAuthenticationParameters|  The authentication parameters used by the Pulsar proxy to authenticate with Pulsar brokers  ||
 |brokerClientTrustCertsFilePath|  The path to trusted certificates used by the Pulsar proxy to authenticate with Pulsar brokers ||
 |superUserRoles|  Role names that are treated as “super-users,” meaning that they will be able to perform all admin ||
-|forwardAuthorizationCredentials| Whether client authorization credentials are forwared to the broker for re-authorization. Authentication must be enabled via authenticationEnabled=true for this to take effect.  |false|
 |maxConcurrentInboundConnections| Max concurrent inbound connections. The proxy will reject requests beyond that. |10000|
 |maxConcurrentLookupRequests| Max concurrent outbound connections. The proxy will error out requests beyond that. |50000|
 |tlsEnabledInProxy| Deprecated - use `servicePortTls` and `webServicePortTls` instead. |false|
@@ -744,7 +737,6 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 |tokenAuthClaim| Specify the token claim that will be used as the authentication "principal" or "role". The "subject" field will be used if this is left blank ||
 |tokenAudienceClaim| The token audience "claim" name, e.g. "aud". It is used to get the audience from token. If it is not set, the audience is not verified. ||
 | tokenAudience | The token audience stands for this broker. The field `tokenAudienceClaim` of a valid token need contains this parameter.| |
-| proxyLogLevel | Set the Pulsar Proxy log level. <li> If the value is set to 0, no TCP channel information is logged. <li> If the value is set to 1, only the TCP channel information and command information (without message body) are parsed and logged. <li> If the value is set to 2, all TCP channel information, command information, and message body are parsed and logged. | 0 |
 |haProxyProtocolEnabled | Enable or disable the [HAProxy](http://www.haproxy.org/) protocol. |false|
 
 ## ZooKeeper
