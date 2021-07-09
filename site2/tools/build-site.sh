@@ -98,6 +98,7 @@ node ./scripts/split-swagger-by-version.js
 ${ROOT_DIR}/site2/tools/pulsar-admin-doc-gen.sh
 ${ROOT_DIR}/site2/tools/pulsar-client-doc-gen.sh
 ${ROOT_DIR}/site2/tools/pulsar-perf-doc-gen.sh
+${ROOT_DIR}/site2/tools/pulsar-doc-gen.sh
 cd ${ROOT_DIR}/site2/website
 
 rm -rf ${ROOT_DIR}/generated-site/content
