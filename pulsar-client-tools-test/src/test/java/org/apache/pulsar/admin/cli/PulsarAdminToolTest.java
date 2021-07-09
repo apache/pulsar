@@ -517,6 +517,9 @@ public class PulsarAdminToolTest {
         namespaces.run(split("get-subscription-expiration-time myprop/clust/ns1"));
         verify(mockNamespaces).getSubscriptionExpirationTime("myprop/clust/ns1");
 
+        namespaces.run(split("remove-subscription-expiration-time myprop/clust/ns1"));
+        verify(mockNamespaces).removeSubscriptionExpirationTime("myprop/clust/ns1");
+
         namespaces.run(split("set-anti-affinity-group myprop/clust/ns1 -g group"));
         verify(mockNamespaces).setNamespaceAntiAffinityGroup("myprop/clust/ns1", "group");
 

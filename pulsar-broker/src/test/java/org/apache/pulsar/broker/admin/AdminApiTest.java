@@ -2822,19 +2822,27 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     public void testSubscriptionExpiry() throws Exception {
         final String namespace1 = "prop-xyz/sub-gc1";
         final String namespace2 = "prop-xyz/sub-gc2";
+        final String namespace3 = "prop-xyz/sub-gc3";
         final String topic1 = "persistent://" + namespace1 + "/testSubscriptionExpiry";
         final String topic2 = "persistent://" + namespace2 + "/testSubscriptionExpiry";
+        final String topic3 = "persistent://" + namespace3 + "/testSubscriptionExpiry";
         final String sub = "sub1";
 
         admin.namespaces().createNamespace(namespace1, Sets.newHashSet("test"));
         admin.namespaces().createNamespace(namespace2, Sets.newHashSet("test"));
+        admin.namespaces().createNamespace(namespace3, Sets.newHashSet("test"));
         admin.topics().createSubscription(topic1, sub, MessageId.latest);
         admin.topics().createSubscription(topic2, sub, MessageId.latest);
+        admin.topics().createSubscription(topic3, sub, MessageId.latest);
         admin.namespaces().setSubscriptionExpirationTime(namespace1, 0);
         admin.namespaces().setSubscriptionExpirationTime(namespace2, 1);
+        admin.namespaces().setSubscriptionExpirationTime(namespace3, 1);
+        admin.namespaces().removeSubscriptionExpirationTime(namespace3);
 
-        Assert.assertEquals(admin.namespaces().getSubscriptionExpirationTime(namespace1), 0);
-        Assert.assertEquals(admin.namespaces().getSubscriptionExpirationTime(namespace2), 1);
+        Assert.assertEquals((int) admin.namespaces().getSubscriptionExpirationTime(namespace1), 0);
+        Assert.assertEquals((int) admin.namespaces().getSubscriptionExpirationTime(namespace2), 1);
+        Assert.assertNull(admin.namespaces().getSubscriptionExpirationTime(namespace3));
+
         Thread.sleep(60000);
         for (int i = 0; i < 60; i++) {
             if (admin.topics().getSubscriptions(topic2).size() == 0) {
@@ -2844,11 +2852,14 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         }
         Assert.assertEquals(admin.topics().getSubscriptions(topic1).size(), 1);
         Assert.assertEquals(admin.topics().getSubscriptions(topic2).size(), 0);
+        Assert.assertEquals(admin.topics().getSubscriptions(topic3).size(), 1);
 
         admin.topics().delete(topic1);
         admin.topics().delete(topic2);
+        admin.topics().delete(topic3);
         admin.namespaces().deleteNamespace(namespace1);
         admin.namespaces().deleteNamespace(namespace2);
+        admin.namespaces().deleteNamespace(namespace3);
     }
 
     @Test
