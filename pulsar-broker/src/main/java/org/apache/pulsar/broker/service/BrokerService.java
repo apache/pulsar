@@ -289,6 +289,7 @@ public class BrokerService implements Closeable {
         this.authorizationService = new AuthorizationService(
                 pulsar.getConfiguration(), pulsar.getConfigurationCache());
 
+        pulsar.getLocalMetadataStore().registerListener(this::handleMetadataChanges);
         pulsar.getConfigurationMetadataStore().registerListener(this::handleMetadataChanges);
 
         this.inactivityMonitor = Executors
@@ -305,7 +306,7 @@ public class BrokerService implements Closeable {
         this.backlogQuotaChecker = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-backlog-quota-checker"));
         this.authenticationService = new AuthenticationService(pulsar.getConfiguration());
-        this.dynamicConfigurationCache = pulsar.getConfigurationMetadataStore().getMetadataCache(
+        this.dynamicConfigurationCache = pulsar.getLocalMetadataStore().getMetadataCache(
                 new TypeReference<Map<String, String>>() {
                 });
         this.blockedDispatchers = new ConcurrentOpenHashSet<>();
