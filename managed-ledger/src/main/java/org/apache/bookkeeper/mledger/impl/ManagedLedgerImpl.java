@@ -180,6 +180,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     final EntryCache entryCache;
 
     private ScheduledFuture<?> timeoutTask;
+    private ScheduledFuture<?> checkLedgerRollTask;
 
     /**
      * This lock is held while the ledgers list or propertiesMap is updated asynchronously on the metadata store. Since we use the store
@@ -199,7 +200,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private long lastLedgerCreationInitiationTimestamp = 0;
 
     private static final Random random = new Random(System.currentTimeMillis());
-    private final long maximumRolloverTimeMs;
     protected final Supplier<Boolean> mlOwnershipChecker;
 
     volatile PositionImpl lastConfirmedEntry;
@@ -293,8 +293,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.uninitializedCursors = Maps.newHashMap();
         this.clock = config.getClock();
 
-        // Get the next rollover time. Add a random value upto 5% to avoid rollover multiple ledgers at the same time
-        this.maximumRolloverTimeMs = (long) (config.getMaximumRolloverTimeMs() * (1 + random.nextDouble() * 5 / 100.0));
         this.mlOwnershipChecker = mlOwnershipChecker;
         this.propertiesMap = Maps.newHashMap();
     }
@@ -437,7 +435,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
                 log.info("[{}] Created ledger {}", name, lh.getId());
                 STATE_UPDATER.set(this, State.LedgerOpened);
-                lastLedgerCreatedTimestamp = clock.millis();
+                updateLastLedgerCreatedTimeAndScheduleRolloverTask();
                 currentLedger = lh;
 
                 lastConfirmedEntry = new PositionImpl(lh.getId(), -1);
@@ -1215,6 +1213,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             this.timeoutTask.cancel(false);
         }
 
+        if (this.checkLedgerRollTask != null) {
+            this.checkLedgerRollTask.cancel(false);
+        }
+
         LedgerHandle lh = currentLedger;
 
         if (lh == null) {
@@ -1382,7 +1384,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     public synchronized void updateLedgersIdsComplete(Stat stat) {
         STATE_UPDATER.set(this, State.LedgerOpened);
-        lastLedgerCreatedTimestamp = clock.millis();
+        updateLastLedgerCreatedTimeAndScheduleRolloverTask();
 
         if (log.isDebugEnabled()) {
             log.debug("[{}] Resending {} pending messages", name, pendingAddEntries.size());
@@ -3122,7 +3124,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 || currentLedgerSize >= (config.getMaxSizePerLedgerMb() * MegaByte));
 
         long timeSinceLedgerCreationMs = clock.millis() - lastLedgerCreatedTimestamp;
-        boolean maxLedgerTimeReached = timeSinceLedgerCreationMs >= maximumRolloverTimeMs;
+        boolean maxLedgerTimeReached = timeSinceLedgerCreationMs >= config.getMaximumRolloverTimeMs();
 
         if (spaceQuotaReached || maxLedgerTimeReached) {
             if (config.getMinimumRolloverTimeMs() > 0) {
@@ -3573,4 +3575,21 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return CompletableFuture.completedFuture(ensembles);
         });
     }
+
+    private void updateLastLedgerCreatedTimeAndScheduleRolloverTask() {
+        this.lastLedgerCreatedTimestamp = clock.millis();
+        if (config.getMaximumRolloverTimeMs() > 0) {
+            if (checkLedgerRollTask != null && !checkLedgerRollTask.isDone()) {
+                // new ledger has been created successfully
+                // and the previous checkLedgerRollTask is not done, we could cancel it
+                checkLedgerRollTask.cancel(true);
+            }
+            // Add a random value upto 5% to avoid rollover multiple ledgers at the same time
+            long schedulerMaxRolloverTime =
+                    (long) (config.getMaximumRolloverTimeMs() * (1 + random.nextDouble() * 5 / 100.0));
+            this.checkLedgerRollTask = this.scheduledExecutor.schedule(
+                    safeRun(this::rollCurrentLedgerIfFull), schedulerMaxRolloverTime, TimeUnit.MILLISECONDS);
+        }
+    }
+
 }
