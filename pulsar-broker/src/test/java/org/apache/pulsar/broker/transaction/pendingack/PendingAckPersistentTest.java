@@ -51,6 +51,7 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -324,6 +325,8 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         admin.topics().deleteSubscription(topic, subName);
 
         List<String> topics = admin.namespaces().getTopics(NAMESPACE);
+
+        TopicStats topicStats = admin.topics().getStats(topic, false);
 
         assertFalse(topics.contains(MLPendingAckStore.getTransactionPendingAckStoreSuffix(topic, subName)));
 
