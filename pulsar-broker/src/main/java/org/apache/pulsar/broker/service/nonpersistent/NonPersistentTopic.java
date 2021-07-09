@@ -892,10 +892,9 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                     .orElseThrow(KeeperException.NoNodeException::new);
             final int defaultExpirationTime = brokerService.pulsar().getConfiguration()
                     .getSubscriptionExpirationTimeMinutes();
+            final Integer nsExpirationTime = policies.subscription_expiration_time_minutes;
             final long expirationTimeMillis = TimeUnit.MINUTES
-                    .toMillis((policies.subscription_expiration_time_minutes <= 0 && defaultExpirationTime > 0)
-                            ? defaultExpirationTime
-                            : policies.subscription_expiration_time_minutes);
+                    .toMillis(nsExpirationTime == null ? defaultExpirationTime : nsExpirationTime);
             if (expirationTimeMillis > 0) {
                 subscriptions.forEach((subName, sub) -> {
                     if (sub.getDispatcher() != null
