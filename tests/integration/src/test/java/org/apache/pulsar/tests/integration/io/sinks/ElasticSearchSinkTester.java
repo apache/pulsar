@@ -25,10 +25,12 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import lombok.AllArgsConstructor;
+import lombok.Cleanup;
 import lombok.Data;
 import org.apache.http.HttpHost;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
@@ -47,12 +49,27 @@ public class ElasticSearchSinkTester extends SinkTester<ElasticSearchContainer> 
 
     private RestHighLevelClient elasticClient;
     private boolean schemaEnable;
-    private final Schema<KeyValue<ValuePojo, ValuePojo>> schema;
+    private final Schema<KeyValue<SimplePojo, SimplePojo>> kvSchema;
 
     @Data
-    public static final class ValuePojo {
+    @AllArgsConstructor
+    public static final class SimplePojo {
         private String field1;
         private String field2;
+    }
+
+    /**
+     * This method is used to pre create the subscription for the Sink.
+     * @return the schema for the subscription
+     */
+    public Schema<?> getInputTopicSchema() {
+        if (schemaEnable) {
+            // we do not want to enforce a Schema
+            // at the beginning of the test
+            return Schema.AUTO_CONSUME();
+        } else {
+            return Schema.STRING;
+        }
     }
 
     public ElasticSearchSinkTester(boolean schemaEnable) {
@@ -63,10 +80,11 @@ public class ElasticSearchSinkTester extends SinkTester<ElasticSearchContainer> 
         this.schemaEnable = schemaEnable;
         if (schemaEnable) {
             sinkConfig.put("schemaEnable", "true");
-            schema = Schema.KeyValue(Schema.JSON(ValuePojo.class), Schema.AVRO(ValuePojo.class), KeyValueEncodingType.SEPARATED);
+            kvSchema = Schema.KeyValue(Schema.JSON(SimplePojo.class),
+                    Schema.AVRO(SimplePojo.class), KeyValueEncodingType.SEPARATED);
         } else {
             // default behaviour, it must be enabled the default, in order to preserve compatibility with Pulsar 2.8.x
-            schema = null;
+            kvSchema = null;
         }
     }
 
@@ -89,7 +107,6 @@ public class ElasticSearchSinkTester extends SinkTester<ElasticSearchContainer> 
     @Override
     public void validateSinkResult(Map<String, String> kvs) {
         SearchRequest searchRequest = new SearchRequest("test-index");
-        searchRequest.types("doc");
 
         Awaitility.await().untilAsserted(() -> {
             SearchResponse searchResult = elasticClient.search(searchRequest, RequestOptions.DEFAULT);
@@ -97,24 +114,45 @@ public class ElasticSearchSinkTester extends SinkTester<ElasticSearchContainer> 
         });
     }
 
-    public void produceMessage(int i, Producer<String> producer, LinkedHashMap<String, String> kvs) throws Exception {
+    @Override
+    public void produceMessage(int numMessages, PulsarClient client,
+                               String inputTopicName, LinkedHashMap<String, String> kvs) throws Exception {
         if (schemaEnable) {
-            String key = "key-" + i;
-            kvs.put(key, key);
-            producer.newMessage(schema)
-                    .value(new KeyValue<>(new ValuePojo(), new ValuePojo()))
-                    .send();
+
+            @Cleanup
+            Producer<KeyValue<SimplePojo, SimplePojo>> producer = client.newProducer(kvSchema)
+                    .topic(inputTopicName)
+                    .create();
+
+            for (int i = 0; i < numMessages; i++) {
+                String key = "key-" + i;
+                kvs.put(key, key);
+                producer.newMessage()
+                        .value(new KeyValue<>(new SimplePojo("f1_" + i, "f2_" + i),
+                                new SimplePojo("v1_" + i, "v2_" + i)))
+                        .send();
+            }
+
         } else {
-            String key = "key-" + i;
-            // this is a JSON document, written to ElasticSearch
-            Map<String, String> valueMap = new HashMap<>();
-            valueMap.put("key" + i, "value" + i);
-            String value = ObjectMapperFactory.getThreadLocal().writeValueAsString(valueMap);
-            kvs.put(key, value);
-            producer.newMessage()
-                    .key(key)
-                    .value(value)
-                    .send();
+
+            @Cleanup
+            Producer<String> producer = client.newProducer(Schema.STRING)
+                    .topic(inputTopicName)
+                    .create();
+
+            for (int i = 0; i < numMessages; i++) {
+                String key = "key-" + i;
+                // this is a JSON document, written to ElasticSearch
+                Map<String, String> valueMap = new HashMap<>();
+                valueMap.put("key" + i, "value" + i);
+                String value = ObjectMapperFactory.getThreadLocal().writeValueAsString(valueMap);
+                kvs.put(key, value);
+                producer.newMessage()
+                        .key(key)
+                        .value(value)
+                        .send();
+            }
+
         }
     }
 

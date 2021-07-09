@@ -59,6 +59,7 @@
       <groupId>org.apache.avro</groupId>
       <artifactId>avro</artifactId>
       <version>${avro.version}</version>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>

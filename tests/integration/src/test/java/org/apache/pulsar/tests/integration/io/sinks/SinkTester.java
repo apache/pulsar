@@ -20,8 +20,11 @@ package org.apache.pulsar.tests.integration.io.sinks;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+
+import lombok.Cleanup;
 import lombok.Getter;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
@@ -104,14 +107,25 @@ public abstract class SinkTester<ServiceContainerT extends GenericContainer> {
 
     public abstract void validateSinkResult(Map<String, String> kvs);
 
-    public void produceMessage(int i, Producer<String> producer, LinkedHashMap<String, String> kvs) throws Exception {
-        String key = "key-" + i;
-        String value = "value-" + i;
-        kvs.put(key, value);
-        producer.newMessage()
-                .key(key)
-                .value(value)
-                .send();
+    public void produceMessage(int numMessages,
+                               PulsarClient client,
+                               String inputTopicName,
+                               LinkedHashMap<String, String> kvs) throws Exception {
+
+        @Cleanup
+        Producer<String> producer = client.newProducer(Schema.STRING)
+                .topic(inputTopicName)
+                .create();
+
+        for (int i = 0; i < numMessages; i++) {
+            String key = "key-" + i;
+            String value = "value-" + i;
+            kvs.put(key, value);
+            producer.newMessage()
+                    .key(key)
+                    .value(value)
+                    .send();
+        }
     }
 
 

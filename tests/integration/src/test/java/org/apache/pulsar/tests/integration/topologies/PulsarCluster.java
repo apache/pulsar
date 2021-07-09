@@ -39,6 +39,7 @@ import java.util.stream.Collectors;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.IOUtils;
 import org.apache.pulsar.tests.integration.containers.BKContainer;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.containers.CSContainer;
@@ -551,6 +552,10 @@ public class PulsarCluster {
         return getAnyContainer(workerContainers, "pulsar-functions-worker");
     }
 
+    public synchronized List<WorkerContainer> getAlWorkers() {
+        return new ArrayList<WorkerContainer>(workerContainers.values());
+    }
+
     public BrokerContainer getBroker(int index) {
         return getAnyContainer(brokerContainers, "pulsar-broker", index);
     }
@@ -647,4 +652,20 @@ public class PulsarCluster {
             enabled ? "--enable" : "--disable");
     }
 
+    public void dumpFunctionLogs(String name) {
+        for (WorkerContainer container : getAlWorkers()) {
+            log.info("Trying to get function {} logs from container {}", name, container.getContainerName());
+            try {
+                String logFile = "/pulsar/logs/functions/public/default/" + name + "/" + name + "-0.log";
+                String logs = container.<String>copyFileFromContainer(logFile, (inputStream) -> {
+                    return IOUtils.toString(inputStream, "utf-8");
+                });
+                log.info("Function {} logs {}", name, logs);
+            } catch (com.github.dockerjava.api.exception.NotFoundException notFound) {
+                log.info("Cannot download {} logs from {}", name, container.getContainerName(), notFound.toString());
+            } catch (Throwable err) {
+                log.info("Cannot download {} logs from {}", name, container.getContainerName(), err);
+            }
+        }
+    }
 }

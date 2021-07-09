@@ -84,20 +84,13 @@ public abstract class PulsarIOTestRunner {
     
     protected Map<String, String> produceMessagesToInputTopic(String inputTopicName,
                                                               int numMessages, SinkTester<?> tester) throws Exception {
+
         @Cleanup
         PulsarClient client = PulsarClient.builder()
-            .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
-            .build();
-
-        @Cleanup
-        Producer<String> producer = client.newProducer(Schema.STRING)
-            .topic(inputTopicName)
-            .create();
-
+                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+                .build();
         LinkedHashMap<String, String> kvs = new LinkedHashMap<>();
-        for (int i = 0; i < numMessages; i++) {
-            tester.produceMessage(i, producer, kvs);
-        }
+        tester.produceMessage(numMessages, client, inputTopicName, kvs);
         return kvs;
     }  
 }
