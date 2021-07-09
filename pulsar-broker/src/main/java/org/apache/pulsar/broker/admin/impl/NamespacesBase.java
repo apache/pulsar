@@ -789,11 +789,11 @@ public abstract class NamespacesBase extends AdminResource {
         });
     }
 
-    protected void internalSetSubscriptionExpirationTime(int expirationTime) {
+    protected void internalSetSubscriptionExpirationTime(Integer expirationTime) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.SUBSCRIPTION_EXPIRATION_TIME, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
-        if (expirationTime < 0) {
+        if (expirationTime != null && expirationTime < 0) {
             throw new RestException(Status.PRECONDITION_FAILED, "Invalid value for subscription expiration time");
         }
         updatePolicies(path(POLICIES, namespaceName.toString()), (policies) -> {
