@@ -80,7 +80,7 @@ public class NamespaceName implements ServiceUnitId {
             return Optional.of(ns);
         }
 
-        if (namespace == null || namespace.length() == 0) {
+        if (namespace.length() == 0) {
             return Optional.empty();
         }
 
