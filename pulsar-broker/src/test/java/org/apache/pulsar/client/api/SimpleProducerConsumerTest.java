@@ -3996,6 +3996,49 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         assertEquals(1, res.getFields().size());
     }
 
+    @Test(dataProvider = "enableBatching")
+    public void testNativeAvroSendCompressedWithDeferredSchemaSetup(boolean enableBatching) throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        final String topic = "persistent://my-property/my-ns/deferredSchemaCompressed";
+        Consumer<GenericRecord> consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+                .topic(topic)
+                .subscriptionName("testsub")
+                .subscribe();
+
+        // initially we are not setting a Schema in the producer
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
+                .enableBatching(enableBatching)
+                .compressionType(CompressionType.LZ4)
+                .create();
+        MyBean payload = new MyBean();
+        payload.setField("aaaaaaaaaaaaaaaaaaaaaaaaa");
+
+        // now we send with a schema, but we have enabled compression and batching
+        // the producer will have to setup the schema and resume the send
+        Schema<MyBean> schema = Schema.AVRO(MyBean.class);
+        byte[] schemaBytes = schema.getSchemaInfo().getSchema();
+        org.apache.avro.Schema schemaAvroNative = new Parser().parse(new ByteArrayInputStream(schemaBytes));
+        AvroWriter<MyBean> writer = new AvroWriter<>(schemaAvroNative);
+        byte[] content = writer.write(payload);
+        producer.newMessage(Schema.NATIVE_AVRO(schemaAvroNative)).value(content).send();
+        producer.close();
+
+        GenericRecord res = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS).getValue();
+        consumer.close();
+        assertEquals(SchemaType.AVRO, res.getSchemaType());
+        org.apache.avro.generic.GenericRecord nativeRecord = (org.apache.avro.generic.GenericRecord) res.getNativeObject();
+        org.apache.avro.Schema schema = nativeRecord.getSchema();
+        for (org.apache.pulsar.client.api.schema.Field f : res.getFields()) {
+            log.info("field {} {}", f.getName(), res.getField(f));
+            assertEquals("field", f.getName());
+            assertEquals("aaaaaaaaaaaaaaaaaaaaaaaaa", res.getField(f));
+            assertEquals("aaaaaaaaaaaaaaaaaaaaaaaaa", nativeRecord.get(f.getName()).toString());
+        }
+
+        assertEquals(1, res.getFields().size());
+    }
+
     @DataProvider(name = "avroSchemaProvider")
     public static Object[] avroSchemaProvider() {
         return new Object[]{Schema.AVRO(MyBean.class), Schema.JSON(MyBean.class)};

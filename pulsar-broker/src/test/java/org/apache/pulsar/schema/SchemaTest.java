@@ -744,6 +744,13 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         producer.newMessage(Schema.BYTES).value("test".getBytes(StandardCharsets.UTF_8)).send();
         producer.newMessage(Schema.BYTES).value("test".getBytes(StandardCharsets.UTF_8)).send();
         producer.newMessage(Schema.BOOL).value(true).send();
+        
+        Schema<MyBean> personThreeSchema = Schema.AVRO(Schemas.PersonThree.class);
+        byte[] personThreeSchemaBytes = personThreeSchema.getSchemaInfo().getSchema();
+        org.apache.avro.Schema personThreeSchemaAvroNative = new Parser().parse(new ByteArrayInputStream(personThreeSchemaBytes));
+        AvroWriter<Schemas.PersonThree> writer = new AvroWriter<>(personThreeSchemaAvroNative);
+        byte[] content = writer.write(new Schemas.PersonThree(0, "ran"));
+        producer.newMessage(Schema.NATIVE_AVRO(personThreeSchemaAvroNative)).value(content).send();
 
         List<SchemaInfo> allSchemas = admin.schemas().getAllSchemas(topic);
         Assert.assertEquals(allSchemas.size(), 5);
@@ -752,6 +759,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(allSchemas.get(2), Schema.AVRO(Schemas.PersonThree.class).getSchemaInfo());
         Assert.assertEquals(allSchemas.get(3), Schema.AVRO(Schemas.PersonOne.class).getSchemaInfo());
         Assert.assertEquals(allSchemas.get(4), Schema.BOOL.getSchemaInfo());
+        Assert.assertEquals(allSchemas.get(4), Schema.AVRO(Schemas.PersonThree.class).getSchemaInfo());
     }
 
     @Test
