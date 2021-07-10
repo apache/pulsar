@@ -21,11 +21,12 @@ package org.apache.pulsar.functions.api;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 
 /**
- * An interface for hook
+ * An interface for richFunction
+ * Extension for Function interface
  * Initial and close of external resources
  */
 @InterfaceAudience.Public
-public interface HookFunction extends Function{
+public interface RichFunction extends Function{
 
     /**
      * InitialResource Function Hook
@@ -40,5 +41,5 @@ public interface HookFunction extends Function{
      *
      * @throws Exception
      */
-    void cleanup() throws Exception;
+    void tearDown() throws Exception;
 }
