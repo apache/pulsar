@@ -143,7 +143,7 @@
   }
 }
 </code></pre></li>
-<li><p>不同的负载管理器在命令行 <a href="/docs/zh-CN/2.6.1/reference-cli-tools#monitor-brokers">broker monitor</a> 中会有不同的输出格式。</p>
+<li><p>根据所用的负载管理器不同，命令行 <a href="/docs/zh-CN/2.6.1/reference-cli-tools#monitor-brokers">broker monitor</a> 会有不同的输出格式。</p>
 <p>这是模块化负载管理器的示例：</p>
 <pre><code class="hljs">===================================================================================================================
 ||<span class="hljs-string">SYSTEM         </span>|<span class="hljs-string">CPU %          </span>|<span class="hljs-string">MEMORY %       </span>|<span class="hljs-string">DIRECT %       </span>|<span class="hljs-string">BW IN %        </span>|<span class="hljs-string">BW OUT %       </span>|<span class="hljs-string">MAX %          </span>||
@@ -186,10 +186,10 @@
 <li>JVM 堆内存使用情况</li>
 <li>直接内存使用情况</li>
 <li>带宽输入/输出使用情况</li>
-<li>所有包最新消息的输入/输出总速率</li>
-<li>主题、包、生产者和消费者总数</li>
-<li>分配给此 broker 所有包的名称</li>
-<li>分配给此 broker 最新更改的包</li>
+<li>所有包（bundle）最新消息的输入/输出总速率</li>
+<li>主题（topic）、包（bundle）、生产者（producer）和消费者（consumer）总数</li>
+<li>分配给此 broker 所有包(bundle) 的名称</li>
+<li>分配给此 broker 的包(bundle) 的最新更改情况</li>
 </ul>
 <p>本地 broker 数据根据服务配置 &quot;loadBalancerReportUpdateMaxIntervalMinutes&quot; 定期更新。 任何 broker 更新其本地 broker 数据后，leader broker 立即 通过 ZooKeeper watch 接收更新，并从 ZooKeeper 节点 <code>/loadbalance/brokers/&lt;broker host/port&gt;</code> 读取本地数据。</p>
 <h5><a class="anchor" aria-hidden="true" id="历史-broker-数据"></a><a href="#历史-broker-数据" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>历史 Broker 数据</h5>
@@ -213,11 +213,11 @@
 <li>输入/输出的消息速率：皆为每秒 50 条消息</li>
 <li>输入/输出的消息吞吐量：皆为每秒 50KB</li>
 </ul>
-<p>当任何 broker 将其本地数据写入 ZooKeeper 时，bundle 数据就会在 leader broker 的内存中更新。 然后，根据配置<code>loadBalancerResourceQuotaUpdateIntervalMinutes</code>，leader broker 会定期将 bundle 与 历史 broker 数据同时写入 ZooKeeper。</p>
+<p>当任何 broker 将其本地数据写入 ZooKeeper 时，bundle 数据就会在 leader broker 的内存中更新。 然后，根据配置<code>loadBalancerResourceQuotaUpdateIntervalMinutes</code>，leader broker 会定期将 bundle 数据与历史 broker 数据同时写入 ZooKeeper。</p>
 <h3><a class="anchor" aria-hidden="true" id="流量分布"></a><a href="#流量分布" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>流量分布</h3>
 <p>模块化负载管理器使用 <a href="https://github.com/apache/pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/loadbalance/ModularLoadManagerStrategy.java"><code>ModularLoadManagerStrategy</code></a> 提供的抽象概念来决定 bundle 的分配。 该策略通过考虑服务配置、整个负载数据以及要分配的 bundle 的 bundle 数据来做出决定。 目前，唯一支持的策略是 <a href="https://github.com/apache/pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/loadbalance/impl/LeastLongTermMessageRate.java"><code>LastLongTermMessageRate</code></a>，不过用户很快就能够根据需要注入自己的策略。</p>
 <h4><a class="anchor" aria-hidden="true" id="最小长期消息速率策略"></a><a href="#最小长期消息速率策略" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>最小长期消息速率策略</h4>
-<p>顾名思义，最小长期消息速率策略尝试在 brokers 之间分配 bundles，以便每个 broker 在长期时间窗口中的消息速率大致相同。 然而，简单地基于消息速率平衡负载并不能解决每个 broker 上每条消息的资源负担不对称的问题。 因此，在分配过程中还会考虑系统资源的使用情况，即CPU、内存、直接内存、带宽输入和带宽输出。 这是通过根据 <code>1 / (overload_threshold - max_usage)</code> 对最终消息速率进行加权来完成的，其中<code>overload_threshold</code> 对应配置 <code>loadBalancerBrokerOverloadedThresholdPercentage</code>，而 <code>max_usage</code> 是候选 broker 正在使用的系统资源的最大比例。 这个倍数可确保机器在相同消息速率下承受更高的负荷，从而减少负载。 特别的，它确保了如果有一台机器过载，那么说明所有机器都近乎超载。 在 broker 的最大使用量超过过载阈值的情况下，不考虑为该 broker 分配 bundle。 如果所有 broker 都过载，bundle 会随机分配。</p>
+<p>顾名思义，最小长期消息速率策略尝试在 broker 之间分配 bundle，以便每个 broker 在长期时间窗口中的消息速率大致相同。 然而，简单地基于消息速率平衡负载并不能解决每个 broker 上每条消息的资源负担不对称的问题。 因此，在分配过程中还会考虑系统资源的使用情况，即CPU、内存、直接内存、带宽输入和带宽输出。 这是通过根据 <code>1 / (overload_threshold - max_usage)</code> 对最终消息速率进行加权来完成的，其中<code>overload_threshold</code> 对应配置 <code>loadBalancerBrokerOverloadedThresholdPercentage</code>，而 <code>max_usage</code> 是候选 broker 正在使用的系统资源的最大比例。 这个倍数可确保机器在相同消息速率下承受更高的负荷，从而减少负载。 特别的，它确保了如果有一台机器过载，那么说明所有机器都近乎超载。 在 broker 的最大使用量超过过载阈值的情况下，不考虑为该 broker 分配 bundle。 如果所有 broker 都过载，bundle 会随机分配。</p>
 </span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.6.1/develop-schema"><span class="arrow-prev">← </span><span>上一页</span></a><a class="docs-next button" href="/docs/zh-CN/2.6.1/develop-cpp"><span>下一页</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#用法">用法</a></li><li><a href="#校验">校验</a></li><li><a href="#应用">应用</a><ul class="toc-headings"><li><a href="#数据">数据</a></li><li><a href="#流量分布">流量分布</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
