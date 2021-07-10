@@ -33,16 +33,16 @@ import java.util.Optional;
  * For this reason, it will not perform bytes validation against the schema in encoding and decoding, which are just identify functions.
  * This class also makes it possible for users to bring in their own Avro serializer/deserializer. 
  */
-public class AutoProduceValidatedAvroBytesSchema<T> implements Schema<byte[]> {
+public class NativeAvroBytesSchema<T> implements Schema<byte[]> {
 
     private Schema<T> schema;
     
-    public AutoProduceValidatedAvroBytesSchema(org.apache.avro.Schema schema) {
+    public NativeAvroBytesSchema(org.apache.avro.Schema schema) {
         SchemaDefinition schemaDefinition = SchemaDefinition.builder().withJsonDef(schema.toString(false)).build();
         this.schema = AvroSchema.of(schemaDefinition);
     }
 
-    public AutoProduceValidatedAvroBytesSchema(Object schema) {
+    public NativeAvroBytesSchema(Object schema) {
         this(validateSchema(schema));
     }
 

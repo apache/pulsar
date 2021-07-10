@@ -301,7 +301,7 @@ public class DefaultImplementation {
     public static Schema<byte[]> newAutoProduceValidatedAvroSchema(Object schema) {
         return catchExceptions(
                 () -> (Schema<byte[]>) getConstructor(
-                    "org.apache.pulsar.client.impl.schema.AutoProduceValidatedAvroBytesSchema", Object.class)
+                    "org.apache.pulsar.client.impl.schema.NativeAvroBytesSchema", Object.class)
                         .newInstance(schema));
     }
 
