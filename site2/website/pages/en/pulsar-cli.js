@@ -5,7 +5,7 @@ const Container = CompLibrary.Container;
 const CWD = process.cwd();
 const releases = require(`${CWD}/releases.json`);
 
-class PulsarPerfCli extends React.Component {
+class PulsarCli extends React.Component {
     render() {
         const latestVersion = releases[0];
         const url = "../js/getCliByVersion.js?latestVersion=" + latestVersion;
@@ -13,7 +13,7 @@ class PulsarPerfCli extends React.Component {
             <div className="pageContainer">
                 <Container className="mainContainer documentContainer postContainer" >
                     <span id="latestVersion" style={{display:'none'}}>{latestVersion}</span>
-                    <span id="clientModule" style={{display: 'none'}}>pulsar-perf</span>
+                    <span id="clientModule" style={{display: 'none'}}>pulsar</span>
                     <script src={url}></script>
                 </Container>
             </div>
@@ -21,4 +21,4 @@ class PulsarPerfCli extends React.Component {
     }
 }
 
-module.exports = PulsarPerfCli;
+module.exports = PulsarCli;
