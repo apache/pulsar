@@ -79,9 +79,9 @@
 <p><strong>Important</strong></p>
 <p>This page only shows <strong>some frequently used operations</strong>.</p>
 <ul>
-<li><p>For the latest and complete information about <code>pulsar-admin</code>, including commands, flags, descriptions, and more, see <a href="https://pulsar.apache.org/tools/pulsar-admin/">pulsar-admin doc</a>.</p></li>
-<li><p>For the latest and complete information about <code>REST API</code>, including parameters, responses, samples, and more, see [REST API doc]<a href="https://pulsar.incubator.apache.org/admin-rest-api#/">REST</a>
-.</p></li>
+<li><p>For the latest and complete information about <code>Pulsar admin</code>, including commands, flags, descriptions, and more, see <a href="https://pulsar.apache.org/tools/pulsar-admin/">Pulsar admin doc</a></p></li>
+<li><p>For the latest and complete information about <code>REST API</code>, including parameters, responses, samples, and more, see <a href="https://pulsar.incubator.apache.org/admin-rest-api#/">REST</a>
+ API doc.</p></li>
 <li><p>For the latest and complete information about <code>Java admin API</code>, including classes, methods, descriptions, and more, see <a href="https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/">Java admin API doc</a>.</p></li>
 </ul>
 </blockquote>
@@ -150,15 +150,31 @@ REST API 中 <code>:schema</code> 分为 persistent（持久化）和 non-persis
 <li><p><strong>msgThroughputOut</strong>：所有本地和副本消费者每秒调度消息字节数之和（byte/s）。</p></li>
 <li><p><strong>averageMsgSize</strong>：在最近时间间隔内发布消息的平均大小（以字节为单位）。</p></li>
 <li><p><strong>storageSize</strong>：当前 topic 对应 ledger 存储大小之和。 用于存储该主题消息的空间。</p></li>
-<li><p><strong>publishers</strong>：该主题下所有本地发布者的列表。 该列表的范围从零到千不等。</p>
+<li><p><strong>bytesInCounter</strong>: Total bytes published to the topic.</p></li>
+<li><p><strong>msgInCounter</strong>: Total messages published to the topic.</p></li>
+<li><p><strong>bytesOutCounter</strong>: Total bytes delivered to consumers.</p></li>
+<li><p><strong>msgOutCounter</strong>: Total messages delivered to consumers.</p></li>
+<li><p><strong>msgChunkPublished</strong>: Topic has chunked message published on it.</p></li>
+<li><p><strong>backlogSize</strong>: Estimated total unconsumed or backlog size (in bytes).</p></li>
+<li><p><strong>offloadedStorageSize</strong>: Space used to store the offloaded messages for the topic (in bytes).</p></li>
+<li><p><strong>waitingPublishers</strong>: The number of publishers waiting in a queue in exclusive access mode.</p></li>
+<li><p><strong>deduplicationStatus</strong>: The status of message deduplication for the topic.</p></li>
+<li><p><strong>topicEpoch</strong>: The topic epoch or empty if not set.</p></li>
+<li><p><strong>nonContiguousDeletedMessagesRanges</strong>: The number of non-contiguous deleted messages ranges.</p></li>
+<li><p><strong>nonContiguousDeletedMessagesRangesSerializedSize</strong>: The serialized size of non-contiguous deleted messages ranges.</p></li>
+<li><p><strong>publishers</strong>: The list of all local publishers into the topic. 该列表的范围从零到千不等。</p>
 <ul>
+<li><p><strong>accessMode</strong>: The type of access to the topic that the producer requires.</p></li>
 <li><p><strong>msgRateIn</strong>：发布者每秒发布消息的总速率（msg/s）。</p></li>
 <li><p><strong>msgThroughputIn</strong>：发布者发布消息的总吞吐量（byte/s）。</p></li>
 <li><p><strong>averageMsgSize</strong>：发布者在最近时间间隔内发布消息的平均大小（以字节为单位）。</p></li>
+<li><p><strong>chunkedMessageRate</strong>: Total chunked message count received for this producer on this topic.</p></li>
 <li><p><strong>producerId</strong>：该主题对应的生产者内部识别号。</p></li>
 <li><p><strong>producerName</strong>：由客户端生成的生产者内部识别名称。</p></li>
 <li><p><strong>address</strong>：连接生产者所需的 IP 地址和端口号。</p></li>
 <li><p><strong>connectedSince</strong>：生产者上次创建或者重新连接时的时间戳。</p></li>
+<li><p><strong>clientVersion</strong>: The client library version of this producer.</p></li>
+<li><p><strong>metadata</strong>: Metadata (key/value strings) associated with this publisher.</p></li>
 </ul></li>
 <li><p><strong>subscriptions</strong>：该主题下的所有本地订阅列表。</p>
 <ul>
@@ -173,6 +189,23 @@ REST API 中 <code>:schema</code> 分为 persistent（持久化）和 non-persis
 <li><p><strong>lastConsumedFlowTimestamp</strong>：收到的最后一条流量指令的时间戳。</p></li>
 <li><p><strong>lastConsumedTimestamp</strong>：消费者所有已消费消息的最新时间戳。</p></li>
 <li><p><strong>lastAckedTimestamp</strong>：消费者所有已被 ack 消息的最新时间戳</p></li>
+<li><p><strong>bytesOutCounter</strong>: Total bytes delivered to consumer.</p></li>
+<li><p><strong>msgOutCounter</strong>: Total messages delivered to consumer.</p></li>
+<li><p><strong>msgRateRedeliver</strong>: Total rate of messages redelivered on this subscription (msg/s).</p></li>
+<li><p><strong>chunkedMessageRate</strong>: Chunked message dispatch rate.</p></li>
+<li><p><strong>backlogSize</strong>: Size of backlog for this subscription (in bytes).</p></li>
+<li><p><strong>msgBacklogNoDelayed</strong>: Number of messages in the subscription backlog that do not contain the delay messages.</p></li>
+<li><p><strong>blockedSubscriptionOnUnackedMsgs</strong>: Flag to verify if a subscription is blocked due to reaching threshold of unacked messages.</p></li>
+<li><p><strong>msgDelayed</strong>: Number of delayed messages currently being tracked.</p></li>
+<li><p><strong>unackedMessages</strong>: Number of unacknowledged messages for the subscription.</p></li>
+<li><p><strong>activeConsumerName</strong>: The name of the consumer that is active for single active consumer subscriptions. For example, failover or exclusive.</p></li>
+<li><p><strong>totalMsgExpired</strong>: Total messages expired on this subscription.</p></li>
+<li><p><strong>lastMarkDeleteAdvancedTimestamp</strong>: Last MarkDelete position advanced timestamp.</p></li>
+<li><p><strong>durable</strong>: Whether the subscription is durable or ephemeral (for example, from a reader).</p></li>
+<li><p><strong>replicated</strong>: Mark that the subscription state is kept in sync across different regions.</p></li>
+<li><p><strong>consumersAfterMarkDeletePosition</strong>: This is for Key_Shared subscription to get the recentJoinedConsumers in the Key_Shared subscription.</p></li>
+<li><p><strong>nonContiguousDeletedMessagesRanges</strong>: The number of non-contiguous deleted messages ranges.</p></li>
+<li><p><strong>nonContiguousDeletedMessagesRangesSerializedSize</strong>: The serialized size of non-contiguous deleted messages ranges.</p></li>
 <li><p><strong>consumers</strong>：连接到此订阅的消费者列表。</p>
 <ul>
 <li><p><strong>msgRateOut</strong>：发送给消费者的消息总速率（msg/s）。</p></li>
@@ -183,10 +216,21 @@ REST API 中 <code>:schema</code> 分为 persistent（持久化）和 non-persis
 <li><p><strong>blockedConsumerOnUnackedMsgs</strong>：验证消费者是否因达到未确认消息数的阀值而被阻塞。</p></li>
 <li><p><strong>lastConsumedTimestamp</strong>：消费者最后一次读取消息的时间戳。</p></li>
 <li><p><strong>lastAckedTimestamp</strong>：消费者最后一次确认消息的时间戳。</p></li>
+<li><p><strong>address</strong>: The IP address and source port for the connection of this consumer.</p></li>
+<li><p><strong>connectedSince</strong>: The timestamp when this consumer is created or reconnected last time.</p></li>
+<li><p><strong>clientVersion</strong>: The client library version of this consumer.</p></li>
+<li><p><strong>bytesOutCounter</strong>: Total bytes delivered to consumer.</p></li>
+<li><p><strong>msgOutCounter</strong>: Total messages delivered to consumer.</p></li>
+<li><p><strong>msgRateRedeliver</strong>: Total rate of messages redelivered by this consumer (msg/s).</p></li>
+<li><p><strong>chunkedMessageRate</strong>: Total chunked messages dispatched.</p></li>
+<li><p><strong>avgMessagesPerEntry</strong>: Number of average messages per entry for the consumer consumed.</p></li>
+<li><p><strong>readPositionWhenJoining</strong>: The read position of the cursor when the consumer joining.</p></li>
+<li><p><strong>keyHashRanges</strong>: Hash ranges assigned to this consumer if is Key_Shared sub mode.</p></li>
+<li><p><strong>metadata</strong>: Metadata (key/value strings) associated with this consumer.</p></li>
 </ul></li>
 </ul></li>
 </ul></li>
-<li><p><strong>replication</strong>：展示该主题跨区域复制的统计信息。</p>
+<li><p><strong>replication</strong>: This section gives the stats for cross-colo replication of this topic</p>
 <ul>
 <li><p><strong>msgRateIn</strong>：从远程集群中收到消息的总速率（msg/s）。</p></li>
 <li><p><strong>msgThroughputIn</strong>：从远程集群中收到消息的总吞吐量（byte/s）。</p></li>
@@ -197,41 +241,93 @@ REST API 中 <code>:schema</code> 分为 persistent（持久化）和 non-persis
 <li><p><strong>connected</strong>：验证外部副本连接器是否已经连接。</p></li>
 <li><p><strong>replicationDelayInSeconds</strong>：如果连接是 <code>true</code> 的话，最早消息的已等待被发送的时长。</p></li>
 <li><p><strong>inboundConnection</strong>：远程集群中的 broker 要连接到此 broker 的 IP 和端口。</p></li>
-<li><p><strong>inboundConnectedSince</strong>：用于发布消息到远程集群的 TCP 连接。 如果没有连接到本地发布者，一分钟后连接将自动关闭。</p></li>
+<li><p><strong>inboundConnectedSince</strong>: The TCP connection being used to publish messages to the remote cluster. 如果没有连接到本地发布者，一分钟后连接将自动关闭。</p></li>
 <li><p><strong>outboundConnection</strong>：外部副本连接的地址。</p></li>
 <li><p><strong>outboundConnectedSince</strong>：建立对外连接时的时间戳。</p></li>
 </ul></li>
 </ul>
 <p>下面是主题状态的示例：</p>
 <pre><code class="hljs css language-json">{
-  <span class="hljs-attr">"msgRateIn"</span>: <span class="hljs-number">4641.528542257553</span>,
-  <span class="hljs-attr">"msgThroughputIn"</span>: <span class="hljs-number">44663039.74947473</span>,
-  <span class="hljs-attr">"msgRateOut"</span>: <span class="hljs-number">0</span>,
-  <span class="hljs-attr">"msgThroughputOut"</span>: <span class="hljs-number">0</span>,
-  <span class="hljs-attr">"averageMsgSize"</span>: <span class="hljs-number">1232439.816728665</span>,
-  <span class="hljs-attr">"storageSize"</span>: <span class="hljs-number">135532389160</span>,
-  <span class="hljs-attr">"publishers"</span>: [
-    {
-      <span class="hljs-attr">"msgRateIn"</span>: <span class="hljs-number">57.855383881403576</span>,
-      <span class="hljs-attr">"msgThroughputIn"</span>: <span class="hljs-number">558994.7078932219</span>,
-      <span class="hljs-attr">"averageMsgSize"</span>: <span class="hljs-number">613135</span>,
-      <span class="hljs-attr">"producerId"</span>: <span class="hljs-number">0</span>,
-      <span class="hljs-attr">"producerName"</span>: <span class="hljs-literal">null</span>,
-      <span class="hljs-attr">"address"</span>: <span class="hljs-literal">null</span>,
-      <span class="hljs-attr">"connectedSince"</span>: <span class="hljs-literal">null</span>
-    }
-  ],
-  <span class="hljs-attr">"subscriptions"</span>: {
-    <span class="hljs-attr">"my-topic_subscription"</span>: {
-      <span class="hljs-attr">"msgRateOut"</span>: <span class="hljs-number">0</span>,
-      <span class="hljs-attr">"msgThroughputOut"</span>: <span class="hljs-number">0</span>,
-      <span class="hljs-attr">"msgBacklog"</span>: <span class="hljs-number">116632</span>,
-      <span class="hljs-attr">"type"</span>: <span class="hljs-literal">null</span>,
-      <span class="hljs-attr">"msgRateExpired"</span>: <span class="hljs-number">36.98245516804671</span>,
-      <span class="hljs-attr">"consumers"</span>: []
+  <span class="hljs-attr">"msgRateIn"</span> : <span class="hljs-number">0.0</span>,
+  <span class="hljs-attr">"msgThroughputIn"</span> : <span class="hljs-number">0.0</span>,
+  <span class="hljs-attr">"msgRateOut"</span> : <span class="hljs-number">0.0</span>,
+  <span class="hljs-attr">"msgThroughputOut"</span> : <span class="hljs-number">0.0</span>,
+  <span class="hljs-attr">"bytesInCounter"</span> : <span class="hljs-number">504</span>,
+  <span class="hljs-attr">"msgInCounter"</span> : <span class="hljs-number">9</span>,
+  <span class="hljs-attr">"bytesOutCounter"</span> : <span class="hljs-number">2296</span>,
+  <span class="hljs-attr">"msgOutCounter"</span> : <span class="hljs-number">41</span>,
+  <span class="hljs-attr">"averageMsgSize"</span> : <span class="hljs-number">0.0</span>,
+  <span class="hljs-attr">"msgChunkPublished"</span> : <span class="hljs-literal">false</span>,
+  <span class="hljs-attr">"storageSize"</span> : <span class="hljs-number">504</span>,
+  <span class="hljs-attr">"backlogSize"</span> : <span class="hljs-number">0</span>,
+  <span class="hljs-attr">"offloadedStorageSize"</span> : <span class="hljs-number">0</span>,
+  <span class="hljs-attr">"publishers"</span> : [ {
+    <span class="hljs-attr">"accessMode"</span> : <span class="hljs-string">"Shared"</span>,
+    <span class="hljs-attr">"msgRateIn"</span> : <span class="hljs-number">0.0</span>,
+    <span class="hljs-attr">"msgThroughputIn"</span> : <span class="hljs-number">0.0</span>,
+    <span class="hljs-attr">"averageMsgSize"</span> : <span class="hljs-number">0.0</span>,
+    <span class="hljs-attr">"chunkedMessageRate"</span> : <span class="hljs-number">0.0</span>,
+    <span class="hljs-attr">"producerId"</span> : <span class="hljs-number">0</span>,
+    <span class="hljs-attr">"metadata"</span> : { },
+    <span class="hljs-attr">"address"</span> : <span class="hljs-string">"/127.0.0.1:65402"</span>,
+    <span class="hljs-attr">"connectedSince"</span> : <span class="hljs-string">"2021-06-09T17:22:55.913+08:00"</span>,
+    <span class="hljs-attr">"clientVersion"</span> : <span class="hljs-string">"2.9.0-SNAPSHOT"</span>,
+    <span class="hljs-attr">"producerName"</span> : <span class="hljs-string">"standalone-1-0"</span>
+  } ],
+  <span class="hljs-attr">"waitingPublishers"</span> : <span class="hljs-number">0</span>,
+  <span class="hljs-attr">"subscriptions"</span> : {
+    <span class="hljs-attr">"sub-demo"</span> : {
+      <span class="hljs-attr">"msgRateOut"</span> : <span class="hljs-number">0.0</span>,
+      <span class="hljs-attr">"msgThroughputOut"</span> : <span class="hljs-number">0.0</span>,
+      <span class="hljs-attr">"bytesOutCounter"</span> : <span class="hljs-number">2296</span>,
+      <span class="hljs-attr">"msgOutCounter"</span> : <span class="hljs-number">41</span>,
+      <span class="hljs-attr">"msgRateRedeliver"</span> : <span class="hljs-number">0.0</span>,
+      <span class="hljs-attr">"chunkedMessageRate"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"msgBacklog"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"backlogSize"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"msgBacklogNoDelayed"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"blockedSubscriptionOnUnackedMsgs"</span> : <span class="hljs-literal">false</span>,
+      <span class="hljs-attr">"msgDelayed"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"unackedMessages"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"type"</span> : <span class="hljs-string">"Exclusive"</span>,
+      <span class="hljs-attr">"activeConsumerName"</span> : <span class="hljs-string">"20b81"</span>,
+      <span class="hljs-attr">"msgRateExpired"</span> : <span class="hljs-number">0.0</span>,
+      <span class="hljs-attr">"totalMsgExpired"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"lastExpireTimestamp"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"lastConsumedFlowTimestamp"</span> : <span class="hljs-number">1623230565356</span>,
+      <span class="hljs-attr">"lastConsumedTimestamp"</span> : <span class="hljs-number">1623230583946</span>,
+      <span class="hljs-attr">"lastAckedTimestamp"</span> : <span class="hljs-number">1623230584033</span>,
+      <span class="hljs-attr">"lastMarkDeleteAdvancedTimestamp"</span> : <span class="hljs-number">1623230584033</span>,
+      <span class="hljs-attr">"consumers"</span> : [ {
+        <span class="hljs-attr">"msgRateOut"</span> : <span class="hljs-number">0.0</span>,
+        <span class="hljs-attr">"msgThroughputOut"</span> : <span class="hljs-number">0.0</span>,
+        <span class="hljs-attr">"bytesOutCounter"</span> : <span class="hljs-number">2296</span>,
+        <span class="hljs-attr">"msgOutCounter"</span> : <span class="hljs-number">41</span>,
+        <span class="hljs-attr">"msgRateRedeliver"</span> : <span class="hljs-number">0.0</span>,
+        <span class="hljs-attr">"chunkedMessageRate"</span> : <span class="hljs-number">0.0</span>,
+        <span class="hljs-attr">"consumerName"</span> : <span class="hljs-string">"20b81"</span>,
+        <span class="hljs-attr">"availablePermits"</span> : <span class="hljs-number">959</span>,
+        <span class="hljs-attr">"unackedMessages"</span> : <span class="hljs-number">0</span>,
+        <span class="hljs-attr">"avgMessagesPerEntry"</span> : <span class="hljs-number">314</span>,
+        <span class="hljs-attr">"blockedConsumerOnUnackedMsgs"</span> : <span class="hljs-literal">false</span>,
+        <span class="hljs-attr">"lastAckedTimestamp"</span> : <span class="hljs-number">1623230584033</span>,
+        <span class="hljs-attr">"lastConsumedTimestamp"</span> : <span class="hljs-number">1623230583946</span>,
+        <span class="hljs-attr">"metadata"</span> : { },
+        <span class="hljs-attr">"address"</span> : <span class="hljs-string">"/127.0.0.1:65172"</span>,
+        <span class="hljs-attr">"connectedSince"</span> : <span class="hljs-string">"2021-06-09T17:22:45.353+08:00"</span>,
+        <span class="hljs-attr">"clientVersion"</span> : <span class="hljs-string">"2.9.0-SNAPSHOT"</span>
+      } ],
+      <span class="hljs-attr">"consumersAfterMarkDeletePosition"</span> : { },
+      <span class="hljs-attr">"nonContiguousDeletedMessagesRanges"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"nonContiguousDeletedMessagesRangesSerializedSize"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"durable"</span> : <span class="hljs-literal">true</span>,
+      <span class="hljs-attr">"replicated"</span> : <span class="hljs-literal">false</span>
     }
   },
-  <span class="hljs-attr">"replication"</span>: {}
+  <span class="hljs-attr">"replication"</span> : { },
+  <span class="hljs-attr">"deduplicationStatus"</span> : <span class="hljs-string">"Disabled"</span>,
+  <span class="hljs-attr">"nonContiguousDeletedMessagesRanges"</span> : <span class="hljs-number">0</span>,
+  <span class="hljs-attr">"nonContiguousDeletedMessagesRangesSerializedSize"</span> : <span class="hljs-number">0</span>
 }
 </code></pre>
 <p>使用以下方式来获取一个主题的状态：</p>

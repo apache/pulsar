@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Docs</title>
+<link rel="shortcut icon" href="favicon.ico" type="image/vnd.microsoft.icon">
+<!-- Latest compiled and minified CSS -->
+<link rel="stylesheet" href="node_modules/bootstrap/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="node_modules/font-awesome/css/font-awesome.min.css" type="text/css">
+<link rel="stylesheet" href="node_modules/highlight.js/styles/default.css" type="text/css">
+<link rel="stylesheet" href="stylesheet.css" type="text/css">
+</head>
+<body>
+<div id="sidebar-wrapper" class="side-nav side-bar-nav"><ul><li class="nav-level-1"><a href="#broker" class="nav-item">broker</a></li></ul><ul><li class="nav-level-1"><a href="#broker-tool" class="nav-item">broker-tool</a></li><ul id="broker-tool-nav" style="display: none;"><li class="nav-level-2"><a href="#-em-load-report-em-" class="nav-item"><em>load-report</em></a></li></ul></ul><ul><li class="nav-level-1"><a href="#compact-topic" class="nav-item">compact-topic</a></li></ul><ul><li class="nav-level-1"><a href="#tokens" class="nav-item">tokens</a></li><ul id="tokens-nav" style="display: none;"><li class="nav-level-2"><a href="#-em-create-secret-key-em-" class="nav-item"><em>create-secret-key</em></a></li><li class="nav-level-2"><a href="#-em-create-key-pair-em-" class="nav-item"><em>create-key-pair</em></a></li><li class="nav-level-2"><a href="#-em-create-em-" class="nav-item"><em>create</em></a></li><li class="nav-level-2"><a href="#-em-show-em-" class="nav-item"><em>show</em></a></li><li class="nav-level-2"><a href="#-em-validate-em-" class="nav-item"><em>validate</em></a></li></ul></ul><br/><div class="copyright"><a href='http://pulsar.apache.org/'>Apache Pulsar</a></div></div>
+<div id="wrapper">
+<div id="code-tabs-wrapper" class="code-tabs"><ul class="code-tab-list"><li class="code-tab" id="example">example</li></ul></div>
+<div id="page-content-wrapper" class="body-content container-fluid"><hr>
+<h1 id="broker">broker</h1>
+<h3 id="usage">Usage</h3>
+<p><code>$broker</code></p>
+<hr>
+<p>Options</p>
+<pre class="code-block example"><code class="lang-shell"><span class="hljs-symbol">$</span> pulsar broker <span class="hljs-keyword">options</span>
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-h, --help</code></td>
+<td>Show this help message</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-ra, --run-bookie-autorecovery</code></td>
+<td>Run Bookie Autorecovery together with broker</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-g, --generate-docs</code></td>
+<td>Generate docs</td>
+<td>true</td>
+</tr>
+<tr>
+<td><code>-rfw, --run-functions-worker</code></td>
+<td>Run functions worker with Broker</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-c, --broker-conf</code></td>
+<td>Configuration file for Broker</td>
+<td>/pulsar/conf/broker.conf</td>
+</tr>
+<tr>
+<td><code>-rb, --run-bookie</code></td>
+<td>Run Bookie together with Broker</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-bc, --bookie-conf</code></td>
+<td>Configuration file for Bookie</td>
+<td>/pulsar/conf/bookkeeper.conf</td>
+</tr>
+<tr>
+<td><code>-fwc, --functions-worker-conf</code></td>
+<td>Configuration file for Functions Worker</td>
+<td>/pulsar/conf/functions_worker.yml</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h1 id="broker-tool">broker-tool</h1>
+<h3 id="usage">Usage</h3>
+<p><code>$broker-tool</code></p>
+<hr>
+<pre class="code-block example"><code class="lang-shell">$ pulsar <span class="hljs-keyword">broker-tool </span><span class="hljs-keyword">subcommand</span>
+</code></pre>
+<ul>
+<li><code>load-report</code></li>
+</ul>
+<h2 id="-em-load-report-em-"><em>load-report</em></h2>
+<h3 id="usage">Usage</h3>
+<hr>
+<pre class="code-block example"><code class="lang-shell">$ pulsar broker-tool load-re<span class="hljs-keyword">port</span> options
+</code></pre>
+<p>Options</p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-h, --help</code></td>
+<td>Display help information</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-i, --interval-ms</code></td>
+<td>Interval to collect load report, in milliseconds</td>
+<td>100</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h1 id="compact-topic">compact-topic</h1>
+<h3 id="usage">Usage</h3>
+<p><code>$compact-topic</code></p>
+<hr>
+<pre class="code-block example"><code class="lang-shell"><span class="hljs-symbol">$</span> pulsar compact-topic <span class="hljs-keyword">options</span>
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-g, --generate-docs</code></td>
+<td>Generate docs</td>
+<td>true</td>
+</tr>
+<tr>
+<td><code>-c, --broker-conf</code></td>
+<td>Configuration file for Broker</td>
+<td>/pulsar/conf/broker.conf</td>
+</tr>
+<tr>
+<td><code>-h, --help</code></td>
+<td>Show this help message</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-t, --topic</code></td>
+<td>Topic to compact</td>
+<td>tmp</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h1 id="tokens">tokens</h1>
+<h3 id="usage">Usage</h3>
+<p><code>$tokens</code></p>
+<hr>
+<pre class="code-block example"><code class="lang-shell"><span class="hljs-variable">$ </span>pulsar tokens subcommand
+</code></pre>
+<ul>
+<li><code>create-secret-key</code></li>
+<li><code>create-key-pair</code></li>
+<li><code>create</code></li>
+<li><code>show</code></li>
+<li><code>validate</code></li>
+</ul>
+<h2 id="-em-create-secret-key-em-"><em>create-secret-key</em></h2>
+<p>Create a new secret key</p>
+<h3 id="usage">Usage</h3>
+<hr>
+<pre class="code-block example"><code class="lang-shell">$ <span class="hljs-string">pulsar </span><span class="hljs-string">tokens </span><span class="hljs-built_in">create-secret-key</span> <span class="hljs-string">options</span>
+</code></pre>
+<p>Options</p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-a, --signature-algorithm</code></td>
+<td>The signature algorithm for the new secret key.</td>
+<td>HS256</td>
+</tr>
+<tr>
+<td><code>-o, --output</code></td>
+<td>Write the secret key to a file instead of stdout</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-b, --base64</code></td>
+<td>Encode the key in base64</td>
+<td>false</td>
+</tr>
+</tbody>
+</table>
+<h2 id="-em-create-key-pair-em-"><em>create-key-pair</em></h2>
+<p>Create a new or pair of keys public/private</p>
+<h3 id="usage">Usage</h3>
+<hr>
+<pre class="code-block example"><code class="lang-shell">$ <span class="hljs-string">pulsar </span><span class="hljs-string">tokens </span><span class="hljs-built_in">create-key-pair</span> <span class="hljs-string">options</span>
+</code></pre>
+<p>Options</p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-a, --signature-algorithm</code></td>
+<td>The signature algorithm for the new key pair.</td>
+<td>RS256</td>
+</tr>
+<tr>
+<td><code>--output-private-key</code></td>
+<td>File where to write the private key</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--output-public-key</code></td>
+<td>File where to write the public key</td>
+<td>null</td>
+</tr>
+</tbody>
+</table>
+<h2 id="-em-create-em-"><em>create</em></h2>
+<p>Create a new token</p>
+<h3 id="usage">Usage</h3>
+<hr>
+<pre class="code-block example"><code class="lang-shell"><span class="hljs-symbol">$</span> pulsar tokens create <span class="hljs-keyword">options</span>
+</code></pre>
+<p>Options</p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-s, --subject</code></td>
+<td>Specify the &#39;subject&#39; or &#39;principal&#39; associate with this token</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-pk, --private-key</code></td>
+<td>Pass the private key for signing the token. This can either be: data:, file:, etc..</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-e, --expiry-time</code></td>
+<td>Relative expiry time for the token (eg: 1h, 3d, 10y). (m=minutes) Default: no expiration</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-sk, --secret-key</code></td>
+<td>Pass the secret key for signing the token. This can either be: data:, file:, etc..</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-a, --signature-algorithm</code></td>
+<td>The signature algorithm for the new key pair.</td>
+<td>RS256</td>
+</tr>
+</tbody>
+</table>
+<h2 id="-em-show-em-"><em>show</em></h2>
+<p>Show the content of token</p>
+<h3 id="usage">Usage</h3>
+<hr>
+<pre class="code-block example"><code class="lang-shell"><span class="hljs-symbol">$</span> pulsar tokens show <span class="hljs-keyword">options</span>
+</code></pre>
+<p>Options</p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-i, --stdin</code></td>
+<td>Read token from standard input</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-f, --token-file</code></td>
+<td>Read token from a file</td>
+<td>null</td>
+</tr>
+</tbody>
+</table>
+<h2 id="-em-validate-em-"><em>validate</em></h2>
+<p>Validate a token against a key</p>
+<h3 id="usage">Usage</h3>
+<hr>
+<pre class="code-block example"><code class="lang-shell"><span class="hljs-symbol">$</span> pulsar tokens validate <span class="hljs-keyword">options</span>
+</code></pre>
+<p>Options</p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-f, --token-file</code></td>
+<td>Read token from a file</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-pk, --public-key</code></td>
+<td>Pass the public key for validating the token. This can either be: data:, file:, etc..</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-i, --stdin</code></td>
+<td>Read token from standard input</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-sk, --secret-key</code></td>
+<td>Pass the secret key for validating the token. This can either be: data:, file:, etc..</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-a, --signature-algorithm</code></td>
+<td>The signature algorithm for the key pair if using public key.</td>
+<td>RS256</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<script src="node_modules/jquery/dist/jquery.min.js"></script>
+<script src="node_modules/jquery.scrollto/jquery.scrollTo.min.js"></script>
+<script src="navData.js"></script>
+<script src="scroll.js"></script>
+<!--<script src="actions.js"></script>-->
+<script src="tabvisibility.js"></script>
+</body>
+</html>

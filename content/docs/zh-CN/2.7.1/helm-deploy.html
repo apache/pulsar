@@ -323,8 +323,9 @@ helm install pulsar-<span class="hljs-keyword">storage</span>-provisioner stream
 <p>在本例中，我们将 Helm 命名为 <code>pulsar</code>。</p>
 <pre><code class="hljs css language-bash">helm repo add apache https://pulsar.apache.org/charts
 helm repo update
-helm upgrade --install pulsar apache/pulsar \
+helm install pulsar apache/pulsar \
     --timeout 10m \
+    --<span class="hljs-built_in">set</span> initialize=<span class="hljs-literal">true</span> \
     --<span class="hljs-built_in">set</span> [your configuration options]
 </code></pre>
 <blockquote>

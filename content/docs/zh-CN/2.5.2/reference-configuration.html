@@ -119,7 +119,7 @@
 <tr><td>compactionRateByEntries</td><td>压缩过程中读取条目的频率，以每秒添加数为单位。</td><td>1000</td></tr>
 <tr><td>compactionRateByBytes</td><td>设置做压缩时读取数据的速率。 单位是每秒读取的字节数。</td><td>1000000</td></tr>
 <tr><td>journalMaxSizeMB</td><td>日志（journal）文件的最大大小，单位是MB。 当日志（journal）文件达到本参数设置的大小后，会自动创建一个新的日志文件。</td><td>2048</td></tr>
-<tr><td>journalMaxBackups</td><td>保留的最多日志文件个数。 保留一定数量的日志文件，可以方便某些特殊情况下的数据恢复。</td><td>5</td></tr>
+<tr><td>journalMaxBackups</td><td>The max number of old journal files to keep. 保留一定数量的日志文件，可以方便某些特殊情况下的数据恢复。</td><td>5</td></tr>
 <tr><td>journalPreAllocSizeMB</td><td>每次在日志中预分配的空间大小。</td><td>16</td></tr>
 <tr><td>journalWriteBufferSizeKB</td><td>日志使用的写缓冲区大小。</td><td>64</td></tr>
 <tr><td>journalRemoveFromPageCache</td><td>强制写入后，页是否应从页缓存中删除。</td><td>true</td></tr>

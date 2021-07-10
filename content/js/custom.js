@@ -116,6 +116,7 @@ window.addEventListener('load', function () {
         '<li><a href="/pulsar-admin-cli?version=' + version + '">Pulsar Admin</a></li>' +
         '<li><a href="/pulsar-client-cli?version=' + version + '">Pulsar Client</a></li>' +
         '<li><a href="/pulsar-perf-cli?version=' + version + '">Pulsar Perf</a></li>' +
+        '<li><a href="/pulsar-cli?version=' + version + '">Pulsar</a></li>' +
       '</ul>' +
         '</div>' +
         '</li>';

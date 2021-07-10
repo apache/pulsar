@@ -133,7 +133,7 @@
 <tr><td style="text-align:left"><code>publish_time</code></td><td style="text-align:left">生产者发布消息的时间，Unix 时间戳格式(即自1970年1月1日起的毫秒数)</td></tr>
 <tr><td style="text-align:left"><code>properties</code></td><td style="text-align:left">键/值对序列(使用<a href="https://github.com/apache/pulsar/blob/master/pulsar-common/src/main/proto/PulsarApi.proto#L32"><code>Key Value</code></a>格式的消息)。 这是应用指定的键和值，在 Pulsar 中没有特殊的意义。</td></tr>
 <tr><td style="text-align:left"><code>replicated_from</code> <em>(可选)</em></td><td style="text-align:left">发送消息的时候，指定消息能被复制的<a href="/docs/zh-CN/next/reference-terminology#cluster">目标集群</a>的集群名称。</td></tr>
-<tr><td style="text-align:left"><code>partition_key</code> <em>(可选)</em></td><td style="text-align:left">当发布消息到分区主题的时候，如果key存在，将根据该 key 的哈希值来选择消息存储的目标分区。</td></tr>
+<tr><td style="text-align:left"><code>partition_key</code> <em>(可选)</em></td><td style="text-align:left">While publishing on a partition topic, if the key is present, the hash of the key is used to determine which partition to choose. Partition key is used as the message key.</td></tr>
 <tr><td style="text-align:left"><code>compression</code> <em>(可选)</em></td><td style="text-align:left">表示消息内容将被哪种压缩协议进行压缩。</td></tr>
 <tr><td style="text-align:left"><code>uncompressed_size</code> <em>(可选)</em></td><td style="text-align:left">如果使用压缩，生产者必须用原始有效载荷大小填充未压缩的大小字段</td></tr>
 <tr><td style="text-align:left"><code>num_messages_in_batch</code> <em>(可选)</em></td><td style="text-align:left">如果消息是多个消息组成的<a href="#batch-messages">批量</a>消息，则这个字段必须指定这个批消息里面包含的消息的数量。</td></tr>

@@ -30,6 +30,9 @@ function getCliByVersion(){
     } else if(clientModule === "pulsar-perf") {
         minMinorVersion = 8
         referenceLink = "/reference-cli-tools/#pulsar-perf"
+    } else if(clientModule === "pulsar") {
+        minMinorVersion = 8
+        referenceLink = "/reference-cli-tools/#pulsar"
     }
     if ((majorVersion > 1 && minorVersion <= minMinorVersion) || majorVersion === 1) {
         if (version === latestVersion) {

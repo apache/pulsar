@@ -126,7 +126,7 @@
 <tr><td>compactionRateByEntries</td><td>The rate at which compaction will read entries, in adds per second.</td><td>1000</td></tr>
 <tr><td>compactionRateByBytes</td><td>Set the rate at which compaction will readd entries. The unit is bytes added per second.</td><td>1000000</td></tr>
 <tr><td>journalMaxSizeMB</td><td>Max file size of journal file, in megabytes. A new journal file will be created when the old one reaches the file size limitation.</td><td>2048</td></tr>
-<tr><td>journalMaxBackups</td><td>The max number of old journal filse to keep. Keeping a number of old journal files would help data recovery in special cases.</td><td>5</td></tr>
+<tr><td>journalMaxBackups</td><td>The max number of old journal files to keep. Keeping a number of old journal files would help data recovery in special cases.</td><td>5</td></tr>
 <tr><td>journalPreAllocSizeMB</td><td>How space to pre-allocate at a time in the journal.</td><td>16</td></tr>
 <tr><td>journalWriteBufferSizeKB</td><td>The of the write buffers used for the journal.</td><td>64</td></tr>
 <tr><td>journalRemoveFromPageCache</td><td>Whether pages should be removed from the page cache after force write.</td><td>true</td></tr>
@@ -776,12 +776,6 @@
 <tr><td>brokerWebServiceURLTLS</td><td>The TLS Web service URL pointing to the broker cluster</td><td></td></tr>
 <tr><td>functionWorkerWebServiceURL</td><td>The Web service URL pointing to the function worker cluster. It is only configured when you setup function workers in a separate cluster.</td><td></td></tr>
 <tr><td>functionWorkerWebServiceURLTLS</td><td>The TLS Web service URL pointing to the function worker cluster. It is only configured when you setup function workers in a separate cluster.</td><td></td></tr>
-<tr><td>brokerServiceURL</td><td>If service discovery is disabled, this url should point to the discovery service provider.</td><td>N/A</td></tr>
-<tr><td>brokerServiceURLTLS</td><td>If service discovery is disabled, this url should point to the discovery service provider.</td><td>N/A</td></tr>
-<tr><td>brokerWebServiceURL</td><td>This settings are unnecessary if <code>zookeeperServers</code> is specified.</td><td>N/A</td></tr>
-<tr><td>brokerWebServiceURLTLS</td><td>This settings are unnecessary if <code>zookeeperServers</code> is specified.</td><td>N/A</td></tr>
-<tr><td>functionWorkerWebServiceURL</td><td>If function workers are setup in a separate cluster, configure the this setting to point to the function workers cluster.</td><td>N/A</td></tr>
-<tr><td>functionWorkerWebServiceURLTLS</td><td>If function workers are setup in a separate cluster, configure the this setting to point to the function workers cluster.</td><td>N/A</td></tr>
 <tr><td>zookeeperSessionTimeoutMs</td><td>ZooKeeper session timeout (in milliseconds)</td><td>30000</td></tr>
 <tr><td>zooKeeperCacheExpirySeconds</td><td>ZooKeeper cache expiry time in seconds</td><td>300</td></tr>
 <tr><td>advertisedAddress</td><td>Hostname or IP address the service advertises to the outside world. If not set, the value of <code>InetAddress.getLocalHost().getHostname()</code> is used.</td><td>N/A</td></tr>
@@ -800,7 +794,6 @@
 <tr><td>brokerClientAuthenticationParameters</td><td>The authentication parameters used by the Pulsar proxy to authenticate with Pulsar brokers</td><td></td></tr>
 <tr><td>brokerClientTrustCertsFilePath</td><td>The path to trusted certificates used by the Pulsar proxy to authenticate with Pulsar brokers</td><td></td></tr>
 <tr><td>superUserRoles</td><td>Role names that are treated as “super-users,” meaning that they will be able to perform all admin</td><td></td></tr>
-<tr><td>forwardAuthorizationCredentials</td><td>Whether client authorization credentials are forwared to the broker for re-authorization. Authentication must be enabled via authenticationEnabled=true for this to take effect.</td><td>false</td></tr>
 <tr><td>maxConcurrentInboundConnections</td><td>Max concurrent inbound connections. The proxy will reject requests beyond that.</td><td>10000</td></tr>
 <tr><td>maxConcurrentLookupRequests</td><td>Max concurrent outbound connections. The proxy will error out requests beyond that.</td><td>50000</td></tr>
 <tr><td>tlsEnabledInProxy</td><td>Deprecated - use <code>servicePortTls</code> and <code>webServicePortTls</code> instead.</td><td>false</td></tr>
@@ -821,7 +814,6 @@
 <tr><td>tokenAuthClaim</td><td>Specify the token claim that will be used as the authentication &quot;principal&quot; or &quot;role&quot;. The &quot;subject&quot; field will be used if this is left blank</td><td></td></tr>
 <tr><td>tokenAudienceClaim</td><td>The token audience &quot;claim&quot; name, e.g. &quot;aud&quot;. It is used to get the audience from token. If it is not set, the audience is not verified.</td><td></td></tr>
 <tr><td>tokenAudience</td><td>The token audience stands for this broker. The field <code>tokenAudienceClaim</code> of a valid token need contains this parameter.</td><td></td></tr>
-<tr><td>proxyLogLevel</td><td>Set the Pulsar Proxy log level. <li> If the value is set to 0, no TCP channel information is logged. <li> If the value is set to 1, only the TCP channel information and command information (without message body) are parsed and logged. <li> If the value is set to 2, all TCP channel information, command information, and message body are parsed and logged.</td><td>0</td></tr>
 <tr><td>haProxyProtocolEnabled</td><td>Enable or disable the <a href="http://www.haproxy.org/">HAProxy</a> protocol.</td><td>false</td></tr>
 </tbody>
 </table>
