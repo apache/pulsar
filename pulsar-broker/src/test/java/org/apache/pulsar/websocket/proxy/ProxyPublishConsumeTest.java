@@ -878,8 +878,8 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
                 "?allowCumulativeAck=true";
 
         final String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() +
-                "/ws/v2/producer/persistent/" + consumerTopic;
-
+                "/ws/v2/producer/persistent/" + consumerTopic+
+                "?consumerCumulativeAck=true";
         WebSocketClient consumeClient1 = new WebSocketClient();
         SimpleConsumerSocket consumeSocket1 = new CumulativeAckConsumerSocket();
         WebSocketClient produceClient = new WebSocketClient();
@@ -923,12 +923,12 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             Awaitility.await().atMost(1000, TimeUnit.MILLISECONDS)
                     .untilAsserted(() -> assertEquals(admin.topics().getStats(TopicDomain.persistent + "://" + consumerTopic, true, true).getSubscriptions().get(subscription).getMsgBacklogNoDelayed(), 5));
 
-            produceSocket.sendMessage(10);
+            produceSocket.sendMessage(70);
 
             Awaitility.await().atMost(1000, TimeUnit.MILLISECONDS)
-                    .untilAsserted(() -> assertEquals(consumeSocket1.getReceivedMessagesCount(), 40));
+                    .untilAsserted(() -> assertEquals(consumeSocket1.getReceivedMessagesCount(), 100));
 
-            assertEquals(admin.topics().getStats(TopicDomain.persistent + "://" + consumerTopic, true, true).getSubscriptions().get(subscription).getConsumers().get(0).getMsgOutCounter(), 40);
+            assertEquals(admin.topics().getStats(TopicDomain.persistent + "://" + consumerTopic, true, true).getSubscriptions().get(subscription).getConsumers().get(0).getMsgOutCounter(), 100);
             // all messages acked by cumulative ack
             Awaitility.await().atMost(1000, TimeUnit.MILLISECONDS)
                     .untilAsserted(() -> assertEquals(admin.topics().getStats(TopicDomain.persistent + "://" + consumerTopic, true, true).getSubscriptions().get(subscription).getMsgBacklogNoDelayed(), 0));

@@ -83,6 +83,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     private int maxPendingMessages = 0;
     private final AtomicInteger pendingMessages = new AtomicInteger();
     private final ReadWriteLock pendingMessagesLock = new ReentrantReadWriteLock();
+    private final ReadWriteLock producerConsumerSyncLock;
     private final boolean pullMode;
     private final boolean allowCumulativeAck;
 
@@ -103,6 +104,8 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         this.numMsgsAcked = new LongAdder();
         this.pullMode = Boolean.valueOf(queryParams.get("pullMode"));
         this.allowCumulativeAck = Boolean.valueOf(queryParams.get("allowCumulativeAck"));
+        this.producerConsumerSyncLock = service.getCumulativeAckLocks()
+                .computeIfAbsent(topic.toString(), (ignored) -> new ReentrantReadWriteLock());
 
         try {
             // checkAuth() and getConsumerConfiguration() should be called after assigning a value to this.subscription
@@ -119,7 +122,6 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             if (!checkAuth(response)) {
                 return;
             }
-
             this.consumer = builder.topic(topic.toString()).subscriptionName(subscription).subscribe();
             if (!this.service.addConsumer(this)) {
                 log.warn("[{}:{}] Failed to add consumer handler for topic {}", request.getRemoteAddr(),
@@ -292,6 +294,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                 if (!this.pullMode) {
                     try {
                         pendingMessagesLock.writeLock().lock();
+                        producerConsumerSyncLock.writeLock().lock();
                         TopicStats stats = service.getAdminClient().topics().getStats(topic.toString(), true, true);
                         Long backlogBefore = stats.getSubscriptions().get(subscription).getMsgBacklogNoDelayed();
                         consumer.acknowledgeCumulative(msgId);
@@ -302,10 +305,12 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                         if (pending >= maxPendingMessages) {
                             // Resume delivery
                             receiveMessage();
-                        }                    } catch (PulsarAdminException e) {
+                        }
+                    } catch (PulsarAdminException e) {
                         log.warn("[{}] Fail to handle websocket consumer cumulative ack request: {}", consumer.getTopic(), e.getMessage());
                     } finally {
                         pendingMessagesLock.writeLock().unlock();
+                        producerConsumerSyncLock.writeLock().unlock();
                     }
                 } else {
                     // for pull mode no need to keep track of how many messages to dispatch, so simply do cumulative ack.
@@ -321,6 +326,8 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             if (allowCumulativeAck) {
                 // multiple individual acks can happen at the same time, but individual ack and cumulative ack can't
                 // happen at the same time, as it'll interfere calculation of pending message, hence use a readlock.
+                // if not pull mode, produce request can also change backlog msg count so can't happen at the same
+                // time as cumulative ack.
                 try {
                     pendingMessagesLock.readLock().lock();
                     consumer.acknowledge(msgId);
