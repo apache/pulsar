@@ -46,6 +46,7 @@ import org.apache.pulsar.client.impl.BinaryProtoLookupService;
 import org.apache.pulsar.client.impl.HttpLookupService;
 import org.apache.pulsar.client.impl.LookupService;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.schema.reader.AvroReader;
 import org.apache.pulsar.client.impl.schema.writer.AvroWriter;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
@@ -541,11 +542,16 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
     @Test
     public void newNativeAvroProducerForMessageSchemaWithBatch() throws Exception {
         String topic = "my-property/my-ns/schema-test";
+        Schema<V1Data> v1Schema = Schema.AVRO(V1Data.class);
+        byte[] v1SchemaBytes = v1Schema.getSchemaInfo().getSchema();
+        org.apache.avro.Schema v1SchemaAvroNative = new Parser().parse(new ByteArrayInputStream(v1SchemaBytes));
+        AvroWriter<V1Data> v1Writer = new AvroWriter<>(v1SchemaAvroNative);
         Schema<V2Data> v2Schema = Schema.AVRO(V2Data.class);
         byte[] v2SchemaBytes = v2Schema.getSchemaInfo().getSchema();
         org.apache.avro.Schema v2SchemaAvroNative = new Parser().parse(new ByteArrayInputStream(v2SchemaBytes));
+        AvroWriter<V2Data> v2Writer = new AvroWriter<>(v2SchemaAvroNative);
 
-        Consumer<V2Data> c = pulsarClient.newConsumer(Schema.NATIVE_AVRO(v2SchemaAvroNative))
+        Consumer<byte[]> c = pulsarClient.newConsumer(Schema.NATIVE_AVRO(v2SchemaAvroNative))
                 .topic(topic)
                 .subscriptionName("sub1").subscribe();
         Producer<byte[]> p = pulsarClient.newProducer()
@@ -585,8 +591,11 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
             }
         }
         p.flush();
+        
+        AvroReader<V2Data> v2Reader = new AvroReader<>(v2SchemaAvroNative);
         for (int i = 0; i < total; ++i) {
-            V2Data value = c.receive().getValue();
+            byte[] raw = c.receive().getValue();
+            V2Data value = v2Reader.read(raw);
             if (i / batch % 2 == 0) {
                 assertNull(value.j);
                 Assert.assertEquals(value.i, i);
