@@ -166,7 +166,9 @@ else()
 
     find_library(LIB_ZSTD zstd)
     find_library(LIB_SNAPPY NAMES snappy libsnappy)
-    find_library(CURL_LIBRARIES NAMES curl libcurl)
+
+    find_package(CURL REQUIRED)
+    set(COMMON_LIBS ${COMMON_LIBS} CURL::libcurl)
 
     if (USE_LOG4CXX)
         find_library(LOG4CXX_LIBRARY_PATH log4cxx)
