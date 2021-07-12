@@ -52,6 +52,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -837,18 +838,36 @@ public class CmdTopics extends CmdBase {
             List<Message<byte[]>> messages = getTopics().peekMessages(persistentTopic, subName, numMessages);
             int position = 0;
             for (Message<byte[]> msg : messages) {
+                MessageImpl message = (MessageImpl) msg;
                 if (++position != 1) {
                     System.out.println("-------------------------------------------------------------------------\n");
                 }
-                if (msg.getMessageId() instanceof BatchMessageIdImpl) {
-                    BatchMessageIdImpl msgId = (BatchMessageIdImpl) msg.getMessageId();
+                if (message.getMessageId() instanceof BatchMessageIdImpl) {
+                    BatchMessageIdImpl msgId = (BatchMessageIdImpl) message.getMessageId();
                     System.out.println("Batch Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId() + ":" + msgId.getBatchIndex());
                 } else {
                     MessageIdImpl msgId = (MessageIdImpl) msg.getMessageId();
                     System.out.println("Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId());
                 }
-                if (msg.getProperties().size() > 0) {
-                    System.out.println("Tenants:");
+
+                System.out.println("Publish time: " + message.getPublishTime());
+                System.out.println("Event time: " + message.getEventTime());
+
+                if (message.getDeliverAtTime() != 0) {
+                    System.out.println("Deliver at time: " + message.getDeliverAtTime());
+                }
+
+                if (message.getBrokerEntryMetadata() != null) {
+                    if (message.getBrokerEntryMetadata().hasBrokerTimestamp()) {
+                        System.out.println("Broker entry metadata timestamp: " + message.getBrokerEntryMetadata().getBrokerTimestamp());
+                    }
+                    if (message.getBrokerEntryMetadata().hasIndex()) {
+                        System.out.println("Broker entry metadata index: " + message.getBrokerEntryMetadata().getIndex());
+                    }
+                }
+
+                if (message.getProperties().size() > 0) {
+                    System.out.println("Properties:");
                     print(msg.getProperties());
                 }
                 ByteBuf data = Unpooled.wrappedBuffer(msg.getData());
