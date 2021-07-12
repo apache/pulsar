@@ -168,7 +168,9 @@ else()
     find_library(LIB_SNAPPY NAMES snappy libsnappy)
 
     find_package(CURL REQUIRED)
-    set(COMMON_LIBS ${COMMON_LIBS} CURL::libcurl)
+    if (${CMAKE_VERSION} VERSION_GREATER "3.12")
+        set(COMMON_LIBS ${COMMON_LIBS} CURL::libcurl)
+    endif ()
 
     if (USE_LOG4CXX)
         find_library(LOG4CXX_LIBRARY_PATH log4cxx)
