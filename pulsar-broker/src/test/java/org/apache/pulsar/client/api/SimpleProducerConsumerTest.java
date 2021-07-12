@@ -1986,8 +1986,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             for (int i = 0; i < totalProducedMsgs; i++) {
                 String message = "my-message-" + i;
                 producer.send(message.getBytes());
+                Thread.sleep(10);
             }
-            producer.flush();
 
             // (2) try to consume messages: but will be able to consume number of messages = unAckedMessagesBufferSize
             Message<byte[]> msg;
