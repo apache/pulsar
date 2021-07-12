@@ -85,7 +85,7 @@ endif(MSVC)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-set(Protobuf_LITE_LIBRARY $ENV{PROTOBUF_LIBRARIES})
+set(Protobuf_LITE_LIBRARIES $ENV{PROTOBUF_LIBRARIES})
 set(LOG_CATEGORY_NAME $ENV{LOG_CATEGORY_NAME})
 
 if (NOT LOG_CATEGORY_NAME)
@@ -119,7 +119,7 @@ unset(OPENSSL_VERSION CACHE)
 
 if (LINK_STATIC)
     find_library(ZLIB_LIBRARIES REQUIRED NAMES libz.a z zlib)
-    find_library(Protobuf_LITE_LIBRARY NAMES libprotobuf-lite.a libprotobuf-lite)
+    find_library(Protobuf_LITE_LIBRARIES NAMES libprotobuf-lite.a libprotobuf-lite)
     find_library(CURL_LIBRARIES NAMES libcurl.a curl curl_a libcurl_a)
     find_library(LIB_ZSTD NAMES libzstd.a)
     find_library(LIB_SNAPPY NAMES libsnappy.a)
@@ -158,9 +158,9 @@ else()
     set(ZLIB_LIBRARIES ${ZLIB_LIBRARIES})
     if (NOT PROTOBUF_LIBRARIES)
         find_package(Protobuf CONFIG)
-        if (NOT Protobuf_FOUND OR NOT Protobuf_LITE_LIBRARY)
-            find_library(Protobuf_LITE_LIBRARY protobuf-lite libprotobuf-lite)
-            find_path(Protobuf_INCLUDE_DIR google/protobuf/stubs/common.h)
+        if (NOT Protobuf_FOUND OR NOT Protobuf_LITE_LIBRARIES)
+            find_library(Protobuf_LITE_LIBRARIES protobuf-lite libprotobuf-lite)
+            find_path(Protobuf_INCLUDE_DIRS google/protobuf/stubs/common.h)
         endif()
     endif (NOT PROTOBUF_LIBRARIES)
 
@@ -293,7 +293,7 @@ include_directories(
   ${OPENSSL_INCLUDE_DIR}
   ${ZLIB_INCLUDE_DIRS}
   ${CURL_INCLUDE_DIRS}
-  ${Protobuf_INCLUDE_DIR}
+  ${Protobuf_INCLUDE_DIRS}
   ${LOG4CXX_INCLUDE_PATH}
   ${GTEST_INCLUDE_PATH}
   ${GMOCK_INCLUDE_PATH}
@@ -313,7 +313,7 @@ set(COMMON_LIBS
 if (${Protobuf_FOUND} AND (${CMAKE_VERSION} VERSION_GREATER 3.8))
     set(COMMON_LIBS protobuf::libprotobuf-lite ${COMMON_LIBS})
 else ()
-    set(COMMON_LIBS ${Protobuf_LITE_LIBRARY} ${COMMON_LIBS})
+    set(COMMON_LIBS ${Protobuf_LITE_LIBRARIES} ${COMMON_LIBS})
 endif ()
 
 if (MSVC)
