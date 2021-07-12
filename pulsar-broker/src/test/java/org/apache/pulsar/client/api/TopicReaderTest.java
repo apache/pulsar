@@ -1358,8 +1358,8 @@ public class TopicReaderTest extends ProducerConsumerBase {
         long l = System.currentTimeMillis();
         for (int i = 0; i < numOfMessage; i++) {
             producer.send(String.format("msg num %d", i).getBytes());
+            Thread.sleep(100);
         }
-        producer.flush();
 
         Reader<byte[]> reader = pulsarClient.newReader().topic(topicName)
                 .startMessageId(MessageId.earliest).create();
