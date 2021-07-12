@@ -339,7 +339,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                 .topic(topic).create()) {
             p.send(contentV2);
         }
-        try (Producer<byte[]> p = pulsarClient.newProducer()
+        try (Producer<byte[]> p = pulsarClient.newProducer(Schema.NATIVE_AVRO(v1SchemaAvroNative))
                 .topic(topic).create();
              Consumer<V2Data> c = pulsarClient.newConsumer(v2Schema)
                      .topic(topic)
