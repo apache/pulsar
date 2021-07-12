@@ -344,7 +344,6 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
              Consumer<V2Data> c = pulsarClient.newConsumer(v2Schema)
                      .topic(topic)
                      .subscriptionName("sub1").subscribe()) {
-            Assert.expectThrows(SchemaSerializationException.class, () -> p.send(contentV1));
 
             p.newMessage(Schema.NATIVE_AVRO(v1SchemaAvroNative))
                     .value(contentV1).send();
