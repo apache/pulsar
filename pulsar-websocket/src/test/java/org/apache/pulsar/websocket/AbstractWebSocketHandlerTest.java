@@ -49,6 +49,7 @@ import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
 import org.mockito.Mock;
 import org.testng.annotations.AfterClass;
@@ -276,6 +277,7 @@ public class AbstractWebSocketHandlerTest {
         when(service.isAuthenticationEnabled()).thenReturn(false);
         when(service.isAuthorizationEnabled()).thenReturn(false);
         when(service.getPulsarClient()).thenReturn(newPulsarClient());
+        when(service.getCumulativeAckLocks()).thenReturn(new ConcurrentOpenHashMap<>());
 
         MockedServletUpgradeResponse response = new MockedServletUpgradeResponse(null);
 
@@ -346,6 +348,7 @@ public class AbstractWebSocketHandlerTest {
         when(service.isAuthenticationEnabled()).thenReturn(false);
         when(service.isAuthorizationEnabled()).thenReturn(false);
         when(service.getPulsarClient()).thenReturn(newPulsarClient());
+        when(service.getCumulativeAckLocks()).thenReturn(new ConcurrentOpenHashMap<>());
 
         MockedServletUpgradeResponse response = new MockedServletUpgradeResponse(null);
 
