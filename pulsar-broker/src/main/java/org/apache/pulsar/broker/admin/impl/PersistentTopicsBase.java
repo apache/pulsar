@@ -2509,7 +2509,7 @@ public class PersistentTopicsBase extends AdminResource {
                         DateFormatter.format(brokerEntryMetadata.getBrokerTimestamp()));
             }
             if (brokerEntryMetadata.hasIndex()) {
-                responseBuilder.header("X-Pulsar-Broker-Entry-METADATA-index",brokerEntryMetadata.getIndex());
+                responseBuilder.header("X-Pulsar-Broker-Entry-METADATA-index", brokerEntryMetadata.getIndex());
             }
         }
         if (metadata.hasPublishTime()) {
