@@ -263,9 +263,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                         .build());
 
         admin.clusters().deleteCluster("usw");
-        Thread.sleep(300);
-
-        assertEquals(admin.clusters().getClusters(), Lists.newArrayList("test"));
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(admin.clusters().getClusters(), Lists.newArrayList("test")));
 
         admin.namespaces().deleteNamespace("prop-xyz/ns1");
         admin.clusters().deleteCluster("test");
@@ -594,13 +593,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         mockZooKeeper.setData(BrokerService.BROKER_SERVICE_CONFIGURATION_PATH,
                 ObjectMapperFactory.getThreadLocal().writeValueAsBytes(configMap), -1);
         // wait config to be updated
-        for (int i = 0; i < 5; i++) {
-            if (pulsar.getConfiguration().getBrokerShutdownTimeoutMs() != newValue) {
-                Thread.sleep(100 + (i * 10));
-            } else {
-                break;
-            }
-        }
+        Awaitility.await().until(() -> pulsar.getConfiguration().getBrokerShutdownTimeoutMs() == newValue);
         // verify value is updated
         assertEquals(pulsar.getConfiguration().getBrokerShutdownTimeoutMs(), newValue);
     }
@@ -1584,15 +1577,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         LOG.info("--- RELOAD ---");
 
         // Force reload of namespace and wait for topic to be ready
-        for (int i = 0; i < 30; i++) {
-            try {
-                admin.topics().getStats("persistent://prop-xyz/ns1/ds2");
-                break;
-            } catch (PulsarAdminException e) {
-                LOG.warn("Failed to get topic stats.. {}", e.getMessage());
-                Thread.sleep(1000);
-            }
-        }
+        Awaitility.await().timeout(30, TimeUnit.SECONDS).ignoreExceptionsInstanceOf(PulsarAdminException.class)
+                .until(() -> admin.topics().getStats("persistent://prop-xyz/ns1/ds2") != null);
 
         admin.topics().deleteSubscription("persistent://prop-xyz/ns1/ds2", "my-sub");
         admin.topics().delete("persistent://prop-xyz/ns1/ds2");
@@ -1642,15 +1628,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         LOG.info("--- RELOAD ---");
 
         // Force reload of namespace and wait for topic to be ready
-        for (int i = 0; i < 30; i++) {
-            try {
-                admin.topics().getStats("persistent://prop-xyz/ns1-bundles/ds2");
-                break;
-            } catch (PulsarAdminException e) {
-                LOG.warn("Failed to get topic stats.. {}", e.getMessage());
-                Thread.sleep(1000);
-            }
-        }
+        Awaitility.await().timeout(30, TimeUnit.SECONDS).ignoreExceptionsInstanceOf(PulsarAdminException.class)
+                .until(() -> admin.topics().getStats("persistent://prop-xyz/ns1-bundles/ds2") != null);
 
         admin.topics().deleteSubscription("persistent://prop-xyz/ns1-bundles/ds2", "my-sub");
         admin.topics().delete("persistent://prop-xyz/ns1-bundles/ds2");
@@ -2843,13 +2822,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals((int) admin.namespaces().getSubscriptionExpirationTime(namespace2), 1);
         Assert.assertNull(admin.namespaces().getSubscriptionExpirationTime(namespace3));
 
-        Thread.sleep(60000);
-        for (int i = 0; i < 60; i++) {
-            if (admin.topics().getSubscriptions(topic2).size() == 0) {
-                break;
-            }
-            Thread.sleep(1000);
-        }
+
+        Awaitility.await().timeout(120, TimeUnit.SECONDS)
+                .until(() -> admin.topics().getSubscriptions(topic2).size() == 0);
         Assert.assertEquals(admin.topics().getSubscriptions(topic1).size(), 1);
         Assert.assertEquals(admin.topics().getSubscriptions(topic2).size(), 0);
         Assert.assertEquals(admin.topics().getSubscriptions(topic3).size(), 1);
