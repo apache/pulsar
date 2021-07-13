@@ -18,21 +18,19 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 
 import java.lang.reflect.Field;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -207,12 +205,11 @@ public class PersistentTopicTest extends BrokerTestBase {
 
         // stats are at zero before any activity
         TopicStats stats = topic.getStats(false, false);
-        assertEquals(stats.bytesInCounter, 0);
-        assertEquals(stats.msgInCounter, 0);
-        assertEquals(stats.bytesOutCounter, 0);
-        assertEquals(stats.msgOutCounter, 0);
+        assertEquals(stats.getBytesInCounter(), 0);
+        assertEquals(stats.getMsgInCounter(), 0);
+        assertEquals(stats.getBytesOutCounter(), 0);
+        assertEquals(stats.getMsgOutCounter(), 0);
 
-        producer.newMessage().value("test").eventTime(5).send();
         producer.newMessage().value("test").eventTime(5).send();
 
         Message<String> msg = consumer1.receive();
@@ -222,10 +219,10 @@ public class PersistentTopicTest extends BrokerTestBase {
 
         // send/receive result in non-zero stats
         TopicStats statsBeforeUnsubscribe = topic.getStats(false, false);
-        assertTrue(statsBeforeUnsubscribe.bytesInCounter > 0);
-        assertTrue(statsBeforeUnsubscribe.msgInCounter > 0);
-        assertTrue(statsBeforeUnsubscribe.bytesOutCounter > 0);
-        assertTrue(statsBeforeUnsubscribe.msgOutCounter > 0);
+        assertTrue(statsBeforeUnsubscribe.getBytesInCounter() > 0);
+        assertTrue(statsBeforeUnsubscribe.getMsgInCounter() > 0);
+        assertTrue(statsBeforeUnsubscribe.getBytesOutCounter() > 0);
+        assertTrue(statsBeforeUnsubscribe.getMsgOutCounter() > 0);
 
         consumer1.unsubscribe();
         consumer2.unsubscribe();
@@ -235,9 +232,9 @@ public class PersistentTopicTest extends BrokerTestBase {
 
         // consumer unsubscribe/producer removal does not result in stats loss
         TopicStats statsAfterUnsubscribe = topic.getStats(false, false);
-        assertEquals(statsAfterUnsubscribe.bytesInCounter, statsBeforeUnsubscribe.bytesInCounter);
-        assertEquals(statsAfterUnsubscribe.msgInCounter, statsBeforeUnsubscribe.msgInCounter);
-        assertEquals(statsAfterUnsubscribe.bytesOutCounter, statsBeforeUnsubscribe.bytesOutCounter);
-        assertEquals(statsAfterUnsubscribe.msgOutCounter, statsBeforeUnsubscribe.msgOutCounter);
+        assertEquals(statsAfterUnsubscribe.getBytesInCounter(), statsBeforeUnsubscribe.getBytesInCounter());
+        assertEquals(statsAfterUnsubscribe.getMsgInCounter(), statsBeforeUnsubscribe.getMsgInCounter());
+        assertEquals(statsAfterUnsubscribe.getBytesOutCounter(), statsBeforeUnsubscribe.getBytesOutCounter());
+        assertEquals(statsAfterUnsubscribe.getMsgOutCounter(), statsBeforeUnsubscribe.getMsgOutCounter());
     }
 }

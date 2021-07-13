@@ -64,7 +64,9 @@ import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
@@ -272,8 +274,9 @@ public class WebServiceTest {
                 .setHeader("Content-Type", "application/json");
 
         // HTTP server is configured to reject everything > 10K
-        TenantInfo info1 = new TenantInfo();
-        info1.setAdminRoles(Collections.singleton(StringUtils.repeat("*", 20 * 1024)));
+        TenantInfo info1 = TenantInfo.builder()
+                .adminRoles(Collections.singleton(StringUtils.repeat("*", 20 * 1024)))
+                .build();
         builder.setBody(ObjectMapperFactory.getThreadLocal().writeValueAsBytes(info1));
         Response res = builder.execute().get();
 
@@ -283,10 +286,11 @@ public class WebServiceTest {
         // Create local cluster
         String localCluster = "test";
         String clusterPath = PulsarWebResource.path("clusters", localCluster);
-        pulsar.getPulsarResources().getClusterResources().create(clusterPath, new ClusterData());
-        TenantInfo info2 = new TenantInfo();
-        info2.setAdminRoles(Collections.singleton(StringUtils.repeat("*", 1 * 1024)));
-        info2.setAllowedClusters(Sets.newHashSet(localCluster));
+        pulsar.getPulsarResources().getClusterResources().create(clusterPath, ClusterDataImpl.builder().build());
+        TenantInfo info2 = TenantInfo.builder()
+                .adminRoles(Collections.singleton(StringUtils.repeat("*", 1 * 1024)))
+                .allowedClusters(Sets.newHashSet(localCluster))
+                .build();
         builder.setBody(ObjectMapperFactory.getThreadLocal().writeValueAsBytes(info2));
 
         Response res2 = builder.execute().get();
@@ -434,7 +438,7 @@ public class WebServiceTest {
 
         try {
             pulsarAdmin.clusters().createCluster(config.getClusterName(),
-                    new ClusterData(pulsar.getSafeWebServiceAddress()));
+                    ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         } catch (ConflictException ce) {
             // This is OK.
         } finally {

@@ -90,7 +90,7 @@ import org.apache.pulsar.common.api.proto.CommandSuccess;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
-import org.apache.pulsar.common.protocol.schema.SchemaInfoUtil;
+import org.apache.pulsar.client.impl.schema.SchemaInfoUtil;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -685,6 +685,10 @@ public class ClientCnx extends PulsarHandler {
         if (error.getError() == ServerError.AuthenticationError) {
             connectionFuture.completeExceptionally(new PulsarClientException.AuthenticationException(error.getMessage()));
             log.error("{} Failed to authenticate the client", ctx.channel());
+        }
+        if (error.getError() == ServerError.NotAllowedError) {
+            log.error("Get not allowed error, {}", error.getMessage());
+            connectionFuture.completeExceptionally(new PulsarClientException.NotAllowedException(error.getMessage()));
         }
         CompletableFuture<?> requestFuture = pendingRequests.remove(requestId);
         if (requestFuture != null) {

@@ -28,6 +28,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
@@ -48,6 +49,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -115,7 +117,7 @@ public class TenantsBase extends PulsarWebResource {
             @ApiResponse(code = 412, message = "Clusters do not exist") })
     public void createTenant(@Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "The tenant name") @PathParam("tenant") String tenant,
-            @ApiParam(value = "TenantInfo") TenantInfo tenantInfo) {
+            @ApiParam(value = "TenantInfo") TenantInfoImpl tenantInfo) {
 
         final String clientAppId = clientAppId();
         try {
@@ -181,7 +183,7 @@ public class TenantsBase extends PulsarWebResource {
             @ApiResponse(code = 412, message = "Clusters do not exist") })
     public void updateTenant(@Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "The tenant name") @PathParam("tenant") String tenant,
-            @ApiParam(value = "TenantInfo") TenantInfo newTenantAdmin) {
+            @ApiParam(value = "TenantInfo") TenantInfoImpl newTenantAdmin) {
         try {
             validateSuperUserAccess();
             validatePoliciesReadOnlyAccess();
@@ -325,6 +327,15 @@ public class TenantsBase extends PulsarWebResource {
                     asyncResponse.resume(new RestException(exception.getCause()));
                 }
                 return null;
+            }
+
+
+            try {
+                pulsar().getPulsarResources().getTopicResources().clearTennantPersistence(tenant).get();
+            } catch (ExecutionException | InterruptedException e) {
+                // warn level log here since this failure has no side effect besides left a un-used metadata
+                // and also will not affect the re-creation of tenant
+                log.warn("[{}] Failed to remove managed-ledger for {}", clientAppId(), tenant, e);
             }
             // delete tenant normally
             internalDeleteTenant(asyncResponse, tenant);

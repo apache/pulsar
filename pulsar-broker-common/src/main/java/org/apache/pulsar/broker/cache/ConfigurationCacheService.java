@@ -24,12 +24,11 @@ import org.apache.bookkeeper.util.ZkUtils;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.resources.PulsarResources;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.FailureDomain;
-import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.FailureDomainImpl;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.ResourceGroup;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
@@ -55,13 +54,13 @@ public class ConfigurationCacheService {
     private static final Logger LOG = LoggerFactory.getLogger(ConfigurationCacheService.class);
 
     private final ZooKeeperCache cache;
-    private ZooKeeperDataCache<TenantInfo> propertiesCache;
+    private ZooKeeperDataCache<TenantInfoImpl> propertiesCache;
     private ZooKeeperDataCache<Policies> policiesCache;
-    private ZooKeeperDataCache<ClusterData> clustersCache;
+    private ZooKeeperDataCache<ClusterDataImpl> clustersCache;
     private ZooKeeperChildrenCache clustersListCache;
     private ZooKeeperChildrenCache failureDomainListCache;
     private ZooKeeperDataCache<NamespaceIsolationPolicies> namespaceIsolationPoliciesCache;
-    private ZooKeeperDataCache<FailureDomain> failureDomainCache;
+    private ZooKeeperDataCache<FailureDomainImpl> failureDomainCache;
     @Getter
     private PulsarResources pulsarResources;
 
@@ -89,10 +88,10 @@ public class ConfigurationCacheService {
 
         initZK();
 
-        this.propertiesCache = new ZooKeeperDataCache<TenantInfo>(cache) {
+        this.propertiesCache = new ZooKeeperDataCache<TenantInfoImpl>(cache) {
             @Override
-            public TenantInfo deserialize(String path, byte[] content) throws Exception {
-                return ObjectMapperFactory.getThreadLocal().readValue(content, TenantInfo.class);
+            public TenantInfoImpl deserialize(String path, byte[] content) throws Exception {
+                return ObjectMapperFactory.getThreadLocal().readValue(content, TenantInfoImpl.class);
             }
         };
 
@@ -103,10 +102,10 @@ public class ConfigurationCacheService {
             }
         };
 
-        this.clustersCache = new ZooKeeperDataCache<ClusterData>(cache) {
+        this.clustersCache = new ZooKeeperDataCache<ClusterDataImpl>(cache) {
             @Override
-            public ClusterData deserialize(String path, byte[] content) throws Exception {
-                return ObjectMapperFactory.getThreadLocal().readValue(content, ClusterData.class);
+            public ClusterDataImpl deserialize(String path, byte[] content) throws Exception {
+                return ObjectMapperFactory.getThreadLocal().readValue(content, ClusterDataImpl.class);
             }
         };
 
@@ -122,15 +121,15 @@ public class ConfigurationCacheService {
             @SuppressWarnings("unchecked")
             public NamespaceIsolationPolicies deserialize(String path, byte[] content) throws Exception {
                 return new NamespaceIsolationPolicies(ObjectMapperFactory
-                        .getThreadLocal().readValue(content, new TypeReference<Map<String, NamespaceIsolationData>>() {
+                        .getThreadLocal().readValue(content, new TypeReference<Map<String, NamespaceIsolationDataImpl>>() {
                         }));
             }
         };
 
-        this.failureDomainCache = new ZooKeeperDataCache<FailureDomain>(cache) {
+        this.failureDomainCache = new ZooKeeperDataCache<FailureDomainImpl>(cache) {
             @Override
-            public FailureDomain deserialize(String path, byte[] content) throws Exception {
-                return ObjectMapperFactory.getThreadLocal().readValue(content, FailureDomain.class);
+            public FailureDomainImpl deserialize(String path, byte[] content) throws Exception {
+                return ObjectMapperFactory.getThreadLocal().readValue(content, FailureDomainImpl.class);
             }
         };
     }
@@ -183,7 +182,7 @@ public class ConfigurationCacheService {
         return cache;
     }
 
-    public ZooKeeperDataCache<TenantInfo> propertiesCache() {
+    public ZooKeeperDataCache<TenantInfoImpl> propertiesCache() {
         return this.propertiesCache;
     }
 
@@ -191,7 +190,7 @@ public class ConfigurationCacheService {
         return this.policiesCache;
     }
 
-    public ZooKeeperDataCache<ClusterData> clustersCache() {
+    public ZooKeeperDataCache<ClusterDataImpl> clustersCache() {
         return this.clustersCache;
     }
 
@@ -211,7 +210,7 @@ public class ConfigurationCacheService {
         return this.namespaceIsolationPoliciesCache;
     }
 
-    public ZooKeeperDataCache<FailureDomain> failureDomainCache() {
+    public ZooKeeperDataCache<FailureDomainImpl> failureDomainCache() {
         return this.failureDomainCache;
     }
 }

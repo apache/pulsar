@@ -35,7 +35,7 @@ import org.apache.bookkeeper.mledger.impl.ReadOnlyCursorImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.impl.schema.KeyValueSchema;
+import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
@@ -153,7 +153,7 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
         for (KeyValueEncodingType encodingType :
                 Arrays.asList(KeyValueEncodingType.INLINE, KeyValueEncodingType.SEPARATED)) {
 
-            KeyValueSchema schema = (KeyValueSchema) Schema.KeyValue(Schema.JSON(Foo.class), Schema.AVRO(Boo.class),
+            KeyValueSchemaImpl schema = (KeyValueSchemaImpl) Schema.KeyValue(Schema.JSON(Foo.class), Schema.AVRO(Boo.class),
                     encodingType);
 
             Foo foo = new Foo();
@@ -218,7 +218,7 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
         for (KeyValueEncodingType encodingType :
                 Arrays.asList(KeyValueEncodingType.INLINE, KeyValueEncodingType.SEPARATED)) {
 
-            KeyValueSchema schema = (KeyValueSchema) Schema.KeyValue(Schema.INT32, Schema.STRING,
+            KeyValueSchemaImpl schema = (KeyValueSchemaImpl) Schema.KeyValue(Schema.INT32, Schema.STRING,
                     encodingType);
 
             String value = "primitive_message_value";
@@ -271,7 +271,7 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
      * @throws Exception
      */
     private PulsarRecordCursor mockKeyValueSchemaPulsarRecordCursor(final Long entriesNum, final TopicName topicName,
-                                                                    final KeyValueSchema schema, KeyValue message, List<PulsarColumnHandle> ColumnHandles) throws Exception {
+                                                                    final KeyValueSchemaImpl schema, KeyValue message, List<PulsarColumnHandle> ColumnHandles) throws Exception {
 
         ManagedLedgerFactory managedLedgerFactory = mock(ManagedLedgerFactory.class);
 
@@ -400,8 +400,8 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
     }
 
 
-    final static String KEY_SCHEMA_COLUMN_PREFIX = "__key.";
-    final static String PRIMITIVE_COLUMN_NAME = "__value__";
+    static final String KEY_SCHEMA_COLUMN_PREFIX = "__key.";
+    static final String PRIMITIVE_COLUMN_NAME = "__value__";
 
     @Data
     static class Foo {

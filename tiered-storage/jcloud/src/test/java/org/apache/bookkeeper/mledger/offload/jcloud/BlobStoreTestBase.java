@@ -31,7 +31,7 @@ import org.testng.annotations.BeforeMethod;
 public abstract class BlobStoreTestBase {
 
     private static final Logger log = LoggerFactory.getLogger(BlobStoreTestBase.class);
-    public final static String BUCKET = "pulsar-unittest";
+    public static final String BUCKET = "pulsar-unittest";
 
     protected BlobStoreContext context = null;
     protected BlobStore blobStore = null;

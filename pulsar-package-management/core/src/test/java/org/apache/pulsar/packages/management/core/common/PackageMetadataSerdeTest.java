@@ -35,10 +35,10 @@ public class PackageMetadataSerdeTest {
             .modificationTime(System.currentTimeMillis() + 1000)
             .properties(properties).build();
 
-        byte[] metadataSerialized = metadata.toBytes();
+        byte[] metadataSerialized = PackageMetadataUtil.toBytes(metadata);
 
         try {
-            PackageMetadata deSerializedMetadata = PackageMetadata.fromBytes(metadataSerialized);
+            PackageMetadata deSerializedMetadata = PackageMetadataUtil.fromBytes(metadataSerialized);
             Assert.assertEquals(metadata, deSerializedMetadata);
         } catch (PackagesManagementException.MetadataFormatException e) {
             Assert.fail("should not throw any exception");
@@ -46,7 +46,7 @@ public class PackageMetadataSerdeTest {
 
         try {
             byte[] failedMetadataSerialized = "wrong package metadata".getBytes();
-            PackageMetadata deSerializedMetadata = PackageMetadata.fromBytes(failedMetadataSerialized);
+            PackageMetadata deSerializedMetadata = PackageMetadataUtil.fromBytes(failedMetadataSerialized);
             Assert.fail("should throw the metadata format exception");
         } catch (PackagesManagementException.MetadataFormatException e) {
             // expected error

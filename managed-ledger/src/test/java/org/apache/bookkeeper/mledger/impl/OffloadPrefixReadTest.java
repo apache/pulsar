@@ -58,8 +58,8 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.Ledge
 import org.apache.bookkeeper.mledger.util.MockClock;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
-import org.apache.pulsar.common.policies.data.OffloadPolicies.OffloadedReadPriority;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
+import org.apache.pulsar.common.policies.data.OffloadedReadPriority;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -202,14 +202,14 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         ConcurrentHashMap<UUID, ReadHandle> offloads = new ConcurrentHashMap<UUID, ReadHandle>();
 
 
-        OffloadPolicies offloadPolicies = OffloadPolicies.create("S3", "", "", "",
+        OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create("S3", "", "", "",
                 null, null,
                 null, null,
-                OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
-                OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
-                OffloadPolicies.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES,
-                OffloadPolicies.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS,
-                OffloadPolicies.DEFAULT_OFFLOADED_READ_PRIORITY);
+                OffloadPoliciesImpl.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
+                OffloadPoliciesImpl.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
+                OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES,
+                OffloadPoliciesImpl.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS,
+                OffloadPoliciesImpl.DEFAULT_OFFLOADED_READ_PRIORITY);
 
 
         @Override
@@ -246,7 +246,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         };
 
         @Override
-        public OffloadPolicies getOffloadPolicies() {
+        public OffloadPoliciesImpl getOffloadPolicies() {
             return offloadPolicies;
         }
 

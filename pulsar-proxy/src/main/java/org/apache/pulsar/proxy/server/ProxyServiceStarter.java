@@ -21,14 +21,18 @@ package org.apache.pulsar.proxy.server;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
 import static org.slf4j.bridge.SLF4JBridgeHandler.install;
 import static org.slf4j.bridge.SLF4JBridgeHandler.removeHandlersForRootLogger;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithClassLoader;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.websocket.WebSocketConsumerServlet;
 import org.apache.pulsar.websocket.WebSocketPingPongServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
@@ -82,6 +86,12 @@ public class ProxyServiceStarter {
     @Parameter(names = { "-h", "--help" }, description = "Show this help message")
     private boolean help = false;
 
+    private ProxyConfiguration config;
+
+    private ProxyService proxyService;
+
+    private WebServer server;
+
     public ProxyServiceStarter(String[] args) throws Exception {
         try {
 
@@ -108,7 +118,7 @@ public class ProxyServiceStarter {
             }
 
             // load config file
-            final ProxyConfiguration config = PulsarConfigurationLoader.create(configFile, ProxyConfiguration.class);
+            config = PulsarConfigurationLoader.create(configFile, ProxyConfiguration.class);
 
             if (!isBlank(zookeeperServers)) {
                 // Use zookeeperServers from command line
@@ -136,47 +146,6 @@ public class ProxyServiceStarter {
                 checkArgument(!isEmpty(config.getZookeeperServers()), "zookeeperServers must be provided");
             }
 
-            AuthenticationService authenticationService = new AuthenticationService(
-                    PulsarConfigurationLoader.convertFrom(config));
-            // create proxy service
-            ProxyService proxyService = new ProxyService(config, authenticationService);
-            // create a web-service
-            final WebServer server = new WebServer(config, authenticationService);
-
-            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                try {
-                    proxyService.close();
-                    server.stop();
-                } catch (Exception e) {
-                    log.warn("server couldn't stop gracefully {}", e.getMessage(), e);
-                }
-            }));
-
-            proxyService.start();
-
-            // Setup metrics
-            DefaultExports.initialize();
-
-            // Report direct memory from Netty counters
-            Gauge.build("jvm_memory_direct_bytes_used", "-").create().setChild(new Child() {
-                @Override
-                public double get() {
-                    return getJvmDirectMemoryUsed();
-                }
-            }).register(CollectorRegistry.defaultRegistry);
-
-            Gauge.build("jvm_memory_direct_bytes_max", "-").create().setChild(new Child() {
-                @Override
-                public double get() {
-                    return PlatformDependent.maxDirectMemory();
-                }
-            }).register(CollectorRegistry.defaultRegistry);
-
-            addWebServerHandlers(server, config, proxyService, proxyService.getDiscoveryProvider());
-
-            // start web-service
-            server.start();
-
         } catch (Exception e) {
             log.error("Failed to start pulsar proxy service. error msg " + e.getMessage(), e);
             throw new PulsarServerException(e);
@@ -184,7 +153,59 @@ public class ProxyServiceStarter {
     }
 
     public static void main(String[] args) throws Exception {
-        new ProxyServiceStarter(args);
+        ProxyServiceStarter serviceStarter = new ProxyServiceStarter(args);
+        serviceStarter.start();
+    }
+
+    public void start() throws Exception {
+        AuthenticationService authenticationService = new AuthenticationService(
+                PulsarConfigurationLoader.convertFrom(config));
+        // create proxy service
+        proxyService = new ProxyService(config, authenticationService);
+        // create a web-service
+        server = new WebServer(config, authenticationService);
+
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            close();
+        }));
+
+        proxyService.start();
+
+        // Setup metrics
+        DefaultExports.initialize();
+
+        // Report direct memory from Netty counters
+        Gauge.build("jvm_memory_direct_bytes_used", "-").create().setChild(new Child() {
+            @Override
+            public double get() {
+                return getJvmDirectMemoryUsed();
+            }
+        }).register(CollectorRegistry.defaultRegistry);
+
+        Gauge.build("jvm_memory_direct_bytes_max", "-").create().setChild(new Child() {
+            @Override
+            public double get() {
+                return PlatformDependent.maxDirectMemory();
+            }
+        }).register(CollectorRegistry.defaultRegistry);
+
+        addWebServerHandlers(server, config, proxyService, proxyService.getDiscoveryProvider());
+
+        // start web-service
+        server.start();
+    }
+
+    public void close() {
+        try {
+            if(proxyService != null) {
+                proxyService.close();
+            }
+            if(server != null) {
+                server.stop();
+            }
+        } catch (Exception e) {
+            log.warn("server couldn't stop gracefully {}", e.getMessage(), e);
+        }
     }
 
     public static void addWebServerHandlers(WebServer server,
@@ -225,7 +246,9 @@ public class ProxyServiceStarter {
         if (config.isWebSocketServiceEnabled()) {
             // add WebSocket servlet
             // Use local broker address to avoid different IP address when using a VIP for service discovery
-            WebSocketService webSocketService = new WebSocketService(null, PulsarConfigurationLoader.convertFrom(config));
+            ServiceConfiguration serviceConfiguration = PulsarConfigurationLoader.convertFrom(config);
+            serviceConfiguration.setBrokerClientTlsEnabled(config.isTlsEnabledWithBroker());
+            WebSocketService webSocketService = new WebSocketService(createClusterData(config), serviceConfiguration);
             webSocketService.start();
             final WebSocketServlet producerWebSocketServlet = new WebSocketProducerServlet(webSocketService);
             server.addServlet(WebSocketProducerServlet.SERVLET_PATH,
@@ -251,6 +274,29 @@ public class ProxyServiceStarter {
             server.addServlet(WebSocketPingPongServlet.SERVLET_PATH_V2,
                     new ServletHolder(pingPongWebSocketServlet));
         }
+    }
+
+    private static ClusterData createClusterData(ProxyConfiguration config) {
+        if (isNotBlank(config.getBrokerServiceURL()) || isNotBlank(config.getBrokerServiceURLTLS())) {
+            return ClusterData.builder()
+                    .serviceUrl(config.getBrokerWebServiceURL())
+                    .serviceUrlTls(config.getBrokerWebServiceURLTLS())
+                    .brokerServiceUrl(config.getBrokerServiceURL())
+                    .brokerServiceUrlTls(config.getBrokerServiceURLTLS())
+                    .build();
+        } else if (isNotBlank(config.getBrokerWebServiceURL()) || isNotBlank(config.getBrokerWebServiceURLTLS())) {
+            return ClusterData.builder()
+                    .serviceUrl(config.getBrokerWebServiceURL())
+                    .serviceUrlTls(config.getBrokerWebServiceURLTLS())
+                    .build();
+        } else {
+            return null;
+        }
+    }
+
+    @VisibleForTesting
+    public ProxyConfiguration getConfig() {
+        return config;
     }
 
     private static final Logger log = LoggerFactory.getLogger(ProxyServiceStarter.class);

@@ -147,11 +147,7 @@ public abstract class AbstractTopic implements Topic {
     }
 
     protected boolean isProducersExceeded() {
-        Integer maxProducers = null;
-        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
-        if (topicPolicies != null) {
-            maxProducers = topicPolicies.getMaxProducerPerTopic();
-        }
+        Integer maxProducers = getTopicPolicies().map(TopicPolicies::getMaxProducerPerTopic).orElse(null);
 
         if (maxProducers == null) {
             Policies policies;
@@ -197,11 +193,7 @@ public abstract class AbstractTopic implements Topic {
     }
 
     protected boolean isConsumersExceededOnTopic() {
-        Integer maxConsumers = null;
-        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
-        if (topicPolicies != null) {
-            maxConsumers = topicPolicies.getMaxConsumerPerTopic();
-        }
+        Integer maxConsumers = getTopicPolicies().map(TopicPolicies::getMaxConsumerPerTopic).orElse(null);
         if (maxConsumers == null) {
             Policies policies;
             try {
@@ -391,16 +383,15 @@ public abstract class AbstractTopic implements Topic {
 
     @Override
     public CompletableFuture<Optional<Long>> addProducer(Producer producer,
-            CompletableFuture<Void> producerQueuedFuture) {
+                                                         CompletableFuture<Void> producerQueuedFuture) {
         checkArgument(producer.getTopic() == this);
 
-        CompletableFuture<Optional<Long>> future = new CompletableFuture<>();
-
-        incrementTopicEpochIfNeeded(producer, producerQueuedFuture)
-                .thenAccept(producerEpoch -> {
+        return brokerService.checkTopicNsOwnership(getName())
+                .thenCompose(__ ->
+                        incrementTopicEpochIfNeeded(producer, producerQueuedFuture))
+                .thenCompose(producerEpoch -> {
                     lock.writeLock().lock();
                     try {
-                        brokerService.checkTopicNsOwnership(getName());
                         checkTopicFenced();
                         if (isTerminated()) {
                             log.warn("[{}] Attempting to add producer to a terminated topic", topic);
@@ -414,18 +405,13 @@ public abstract class AbstractTopic implements Topic {
                                     USAGE_COUNT_UPDATER.get(this));
                         }
 
-                        future.complete(producerEpoch);
-                    } catch (Throwable e) {
-                        future.completeExceptionally(e);
+                        return CompletableFuture.completedFuture(producerEpoch);
+                    } catch (BrokerServiceException e) {
+                        return FutureUtil.failedFuture(e);
                     } finally {
                         lock.writeLock().unlock();
                     }
-                }).exceptionally(ex -> {
-                    future.completeExceptionally(ex);
-                    return null;
                 });
-
-        return future;
     }
 
     protected CompletableFuture<Optional<Long>> incrementTopicEpochIfNeeded(Producer producer,
@@ -779,11 +765,11 @@ public abstract class AbstractTopic implements Topic {
 
     private void updatePublishDispatcher(Policies policies) {
         //if topic-level policy exists, try to use topic-level publish rate policy
-        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
-        if (topicPolicies != null && topicPolicies.isPublishRateSet()) {
+        Optional<PublishRate> topicPublishRate = getTopicPolicies().map(TopicPolicies::getPublishRate);
+        if (topicPublishRate.isPresent()) {
             log.info("Using topic policy publish rate instead of namespace level topic publish rate on topic {}",
                     this.topic);
-            updatePublishDispatcher(topicPolicies.getPublishRate());
+            updatePublishDispatcher(topicPublishRate.get());
             return;
         }
 
@@ -850,24 +836,10 @@ public abstract class AbstractTopic implements Topic {
 
     /**
      * Get {@link TopicPolicies} for this topic.
-     * @param topicName
-     * @return TopicPolicies is exist else return null.
+     * @return TopicPolicies, if they exist. Otherwise, the value will not be present.
      */
-    public TopicPolicies getTopicPolicies(TopicName topicName) {
-        TopicName cloneTopicName = topicName;
-        if (topicName.isPartitioned()) {
-            cloneTopicName = TopicName.get(topicName.getPartitionedTopicName());
-        }
-        try {
-            return brokerService.pulsar().getTopicPoliciesService().getTopicPolicies(cloneTopicName);
-        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-            log.debug("Topic {} policies have not been initialized yet.", topicName.getPartitionedTopicName());
-            return null;
-        } catch (NullPointerException e) {
-            log.debug("Topic level policies are not enabled. "
-                    + "Please refer to systemTopicEnabled and topicLevelPoliciesEnabled on broker.conf");
-            return null;
-        }
+    public Optional<TopicPolicies> getTopicPolicies() {
+        return brokerService.getTopicPolicies(TopicName.get(topic));
     }
 
     protected int getWaitingProducersCount() {
@@ -875,18 +847,14 @@ public abstract class AbstractTopic implements Topic {
     }
 
     protected boolean isExceedMaximumMessageSize(int size) {
-        Integer maxMessageSize = null;
-        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
-        if (topicPolicies != null && topicPolicies.isMaxMessageSizeSet()) {
-            maxMessageSize = topicPolicies.getMaxMessageSize();
-        }
-        if (maxMessageSize != null) {
-            if (maxMessageSize == 0) {
-                return false;
-            }
-            return size > maxMessageSize;
-        }
-        return false;
+        return getTopicPolicies()
+                .map(TopicPolicies::getMaxMessageSize)
+                .map(maxMessageSize -> {
+                    if (maxMessageSize == 0) {
+                        return false;
+                    }
+                    return size > maxMessageSize;
+                }).orElse(false);
     }
 
     /**

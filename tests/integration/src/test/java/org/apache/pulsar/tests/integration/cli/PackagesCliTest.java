@@ -38,7 +38,7 @@ import java.util.Map;
 
 public class PackagesCliTest extends TestRetrySupport {
 
-    private final static String clusterNamePrefix = "packages-service";
+    private static final String clusterNamePrefix = "packages-service";
     private PulsarCluster pulsarCluster;
 
     @BeforeClass(alwaysRun = true)

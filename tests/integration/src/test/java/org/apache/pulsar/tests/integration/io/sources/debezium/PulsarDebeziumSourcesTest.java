@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.tests.integration.containers.DebeziumMongoDbContainer;
 import org.apache.pulsar.tests.integration.containers.DebeziumMySQLContainer;
@@ -191,7 +191,7 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
     protected void initNamespace(PulsarAdmin admin) {
         log.info("[initNamespace] start.");
         try {
-            admin.tenants().createTenant("debezium", new TenantInfo(Sets.newHashSet(),
+            admin.tenants().createTenant("debezium", new TenantInfoImpl(Sets.newHashSet(),
                     Sets.newHashSet(pulsarCluster.getClusterName())));
             admin.namespaces().createNamespace("debezium/mysql-json");
             admin.namespaces().createNamespace("debezium/mysql-avro");

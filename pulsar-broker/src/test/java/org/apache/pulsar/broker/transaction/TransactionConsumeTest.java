@@ -43,7 +43,8 @@ import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -58,9 +59,9 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class TransactionConsumeTest extends TransactionTestBase {
 
-    private final static String CONSUME_TOPIC = "persistent://public/txn/txn-consume-test";
-    private final static String NORMAL_MSG_CONTENT = "Normal - ";
-    private final static String TXN_MSG_CONTENT = "Txn - ";
+    private static final String CONSUME_TOPIC = "persistent://public/txn/txn-consume-test";
+    private static final String NORMAL_MSG_CONTENT = "Normal - ";
+    private static final String TXN_MSG_CONTENT = "Txn - ";
 
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
@@ -69,9 +70,9 @@ public class TransactionConsumeTest extends TransactionTestBase {
 
         String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
         String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length -1];
-        admin.clusters().createCluster(CLUSTER_NAME, new ClusterData("http://localhost:" + webServicePort));
+        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl("http://localhost:" + webServicePort).build());
         admin.tenants().createTenant("public",
-                new TenantInfo(Sets.newHashSet(), Sets.newHashSet(CLUSTER_NAME)));
+                new TenantInfoImpl(Sets.newHashSet(), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace("public/txn", 10);
         admin.topics().createNonPartitionedTopic(CONSUME_TOPIC);
     }

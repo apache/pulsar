@@ -173,12 +173,12 @@ public class ThreadRuntime implements Runtime {
                 secretsProvider,
                 collectorRegistry,
                 functionClassLoader);
+
         log.info("ThreadContainer starting function with instance config {}", instanceConfig);
         this.fnThread = new Thread(threadGroup, javaInstanceRunnable,
                 String.format("%s-%s",
                         FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails()),
                         instanceConfig.getInstanceId()));
-        this.fnThread.setContextClassLoader(functionClassLoader);
         this.fnThread.setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
             @Override
             public void uncaughtException(Thread t, Throwable e) {

@@ -29,7 +29,7 @@ import java.util.function.Supplier;
 
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 
 @Parameters(commandDescription = "Operations about tenants")
 public class CmdTenants extends CmdBase {
@@ -79,7 +79,7 @@ public class CmdTenants extends CmdBase {
                 allowedClusters = getAdmin().clusters().getClusters();
             }
 
-            TenantInfo tenantInfo = new TenantInfo(new HashSet<>(adminRoles), new HashSet<>(allowedClusters));
+            TenantInfoImpl tenantInfo = new TenantInfoImpl(new HashSet<>(adminRoles), new HashSet<>(allowedClusters));
             getAdmin().tenants().createTenant(tenant, tenantInfo);
         }
     }
@@ -109,7 +109,7 @@ public class CmdTenants extends CmdBase {
                 allowedClusters = new ArrayList<>(getAdmin().tenants().getTenantInfo(tenant).getAllowedClusters());
             }
 
-            TenantInfo tenantInfo = new TenantInfo(new HashSet<>(adminRoles), new HashSet<>(allowedClusters));
+            TenantInfoImpl tenantInfo = new TenantInfoImpl(new HashSet<>(adminRoles), new HashSet<>(allowedClusters));
             getAdmin().tenants().updateTenant(tenant, tenantInfo);
         }
     }

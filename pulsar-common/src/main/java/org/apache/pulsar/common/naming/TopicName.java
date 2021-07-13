@@ -29,15 +29,11 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.util.Codec;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Encapsulate the parsing of the completeTopicName name.
  */
 public class TopicName implements ServiceUnitId {
-
-    private static final Logger log = LoggerFactory.getLogger(TopicName.class);
 
     public static final String PUBLIC_TENANT = "public";
     public static final String DEFAULT_NAMESPACE = "default";
@@ -78,7 +74,7 @@ public class TopicName implements ServiceUnitId {
     }
 
     public static TopicName get(String domain, String tenant, String cluster, String namespace,
-            String topic) {
+                                String topic) {
         String name = domain + "://" + tenant + '/' + cluster + '/' + namespace + '/' + topic;
         return TopicName.get(name);
     }
@@ -272,9 +268,17 @@ public class TopicName implements ServiceUnitId {
         int partitionIndex = -1;
         if (topic.contains(PARTITIONED_TOPIC_SUFFIX)) {
             try {
-                partitionIndex = Integer.parseInt(topic.substring(topic.lastIndexOf('-') + 1));
+                String idx = StringUtils.substringAfterLast(topic, PARTITIONED_TOPIC_SUFFIX);
+                partitionIndex = Integer.parseInt(idx);
+                if (partitionIndex < 0) {
+                    // for the "topic-partition--1"
+                    partitionIndex = -1;
+                } else if (StringUtils.length(idx) != String.valueOf(partitionIndex).length()) {
+                    // for the "topic-partition-01"
+                    partitionIndex = -1;
+                }
             } catch (NumberFormatException nfe) {
-                log.warn("Could not get the partition index from the topic {}", topic);
+                // ignore exception
             }
         }
 

@@ -64,9 +64,11 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.FunctionStats;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.FunctionStatsImpl;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
@@ -176,7 +178,7 @@ public class PulsarFunctionPublishTest {
         primaryHost = pulsar.getWebServiceAddress();
 
         // update cluster metadata
-        ClusterData clusterData = new ClusterData(urlTls.toString());
+        ClusterData clusterData = ClusterData.builder().serviceUrl(urlTls.toString()).build();
         admin.clusters().updateCluster(config.getClusterName(), clusterData);
 
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(this.workerConfig.getPulsarServiceUrl());
@@ -192,9 +194,10 @@ public class PulsarFunctionPublishTest {
         }
         pulsarClient = clientBuilder.build();
 
-        TenantInfo propAdmin = new TenantInfo();
-        propAdmin.getAdminRoles().add("superUser");
-        propAdmin.setAllowedClusters(Sets.newHashSet(Lists.newArrayList("use")));
+        TenantInfo propAdmin = TenantInfo.builder()
+                .adminRoles(Collections.singleton("superUser"))
+                .allowedClusters(Collections.singleton("use"))
+                .build();
         admin.tenants().updateTenant(tenant, propAdmin);
 
         System.setProperty(JAVA_INSTANCE_JAR_PROPERTY,
@@ -309,13 +312,13 @@ public class PulsarFunctionPublishTest {
 
         retryStrategically((test) -> {
             try {
-                return admin.topics().getStats(sourceTopic).subscriptions.size() == 1;
+                return admin.topics().getStats(sourceTopic).getSubscriptions().size() == 1;
             } catch (PulsarAdminException e) {
                 return false;
             }
         }, 50, 150);
         // validate pulsar sink consumer has started on the topic
-        assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 1);
+        assertEquals(admin.topics().getStats(sourceTopic).getSubscriptions().size(), 1);
 
         int totalMsgs = 5;
         for (int i = 0; i < totalMsgs; i++) {
@@ -324,8 +327,8 @@ public class PulsarFunctionPublishTest {
         }
         retryStrategically((test) -> {
             try {
-                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).subscriptions.get(subscriptionName);
-                return subStats.unackedMessages == 0;
+                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
+                return subStats.getUnackedMessages() == 0;
             } catch (PulsarAdminException e) {
                 return false;
             }
@@ -333,7 +336,8 @@ public class PulsarFunctionPublishTest {
 
         retryStrategically((test) -> {
             try {
-                FunctionStats functionStat = admin.functions().getFunctionStats(tenant, namespacePortion, functionName);
+                FunctionStatsImpl functionStat = (FunctionStatsImpl)
+                        admin.functions().getFunctionStats(tenant, namespacePortion, functionName);
                 return functionStat.getProcessedSuccessfullyTotal() == 5;
             } catch (PulsarAdminException e) {
                 return false;
@@ -350,7 +354,7 @@ public class PulsarFunctionPublishTest {
 
         // validate pulsar-sink consumer has consumed all messages and delivered to Pulsar sink but unacked messages
         // due to publish failure
-        assertNotEquals(admin.topics().getStats(sourceTopic).subscriptions.values().iterator().next().unackedMessages,
+        assertNotEquals(admin.topics().getStats(sourceTopic).getSubscriptions().values().iterator().next().getUnackedMessages(),
                 totalMsgs);
 
         // delete functions
@@ -358,14 +362,14 @@ public class PulsarFunctionPublishTest {
 
         retryStrategically((test) -> {
             try {
-                return admin.topics().getStats(sourceTopic).subscriptions.size() == 0;
+                return admin.topics().getStats(sourceTopic).getSubscriptions().size() == 0;
             } catch (PulsarAdminException e) {
                 return false;
             }
         }, 50, 150);
 
         // make sure subscriptions are cleanup
-        assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 0);
+        assertEquals(admin.topics().getStats(sourceTopic).getSubscriptions().size(), 0);
 
         tempDirectory.assertThatFunctionDownloadTempFilesHaveBeenDeleted();
     }
@@ -403,16 +407,16 @@ public class PulsarFunctionPublishTest {
         pulsarAdmin.functions().createFunction(functionConfig, jarFile.getAbsolutePath());
         retryStrategically((test) -> {
             try {
-                return admin.topics().getStats(sourceTopic).subscriptions.size() == 1;
+                return admin.topics().getStats(sourceTopic).getSubscriptions().size() == 1;
             } catch (PulsarAdminException e) {
                 return false;
             }
         }, 50, 150);
-        assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 1);
+        assertEquals(admin.topics().getStats(sourceTopic).getSubscriptions().size(), 1);
         admin.functions().deleteFunction(tenant, namespacePortion, functionName);
         retryStrategically((test) -> {
             try {
-                return admin.topics().getStats(sourceTopic).subscriptions.size() == 0;
+                return admin.topics().getStats(sourceTopic).getSubscriptions().size() == 0;
             } catch (PulsarAdminException e) {
                 return false;
             }
@@ -446,13 +450,13 @@ public class PulsarFunctionPublishTest {
 
         retryStrategically((test) -> {
             try {
-                return admin.topics().getStats(sourceTopic).subscriptions.size() == 1;
+                return admin.topics().getStats(sourceTopic).getSubscriptions().size() == 1;
             } catch (PulsarAdminException e) {
                 return false;
             }
         }, 50, 150);
         // validate pulsar sink consumer has started on the topic
-        assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 1);
+        assertEquals(admin.topics().getStats(sourceTopic).getSubscriptions().size(), 1);
 
         int totalMsgs = 5;
         for (int i = 0; i < totalMsgs; i++) {
@@ -461,8 +465,8 @@ public class PulsarFunctionPublishTest {
         }
         retryStrategically((test) -> {
             try {
-                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).subscriptions.get(subscriptionName);
-                return subStats.unackedMessages == 0;
+                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
+                return subStats.getUnackedMessages() == 0;
             } catch (PulsarAdminException e) {
                 return false;
             }
@@ -470,7 +474,8 @@ public class PulsarFunctionPublishTest {
 
         retryStrategically((test) -> {
             try {
-                FunctionStats functionStat = admin.functions().getFunctionStats(tenant, namespacePortion, functionName);
+                FunctionStatsImpl functionStat = (FunctionStatsImpl)
+                        admin.functions().getFunctionStats(tenant, namespacePortion, functionName);
                 return functionStat.getProcessedSuccessfullyTotal() == 5;
             } catch (PulsarAdminException e) {
                 return false;
@@ -487,7 +492,7 @@ public class PulsarFunctionPublishTest {
 
         // validate pulsar-sink consumer has consumed all messages and delivered to Pulsar sink but unacked messages
         // due to publish failure
-        assertNotEquals(admin.topics().getStats(sourceTopic).subscriptions.values().iterator().next().unackedMessages,
+        assertNotEquals(admin.topics().getStats(sourceTopic).getSubscriptions().values().iterator().next().getUnackedMessages(),
           totalMsgs);
 
         // delete functions
@@ -495,14 +500,14 @@ public class PulsarFunctionPublishTest {
 
         retryStrategically((test) -> {
             try {
-                return admin.topics().getStats(sourceTopic).subscriptions.size() == 0;
+                return admin.topics().getStats(sourceTopic).getSubscriptions().size() == 0;
             } catch (PulsarAdminException e) {
                 return false;
             }
         }, 50, 150);
 
         // make sure subscriptions are cleanup
-        assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 0);
+        assertEquals(admin.topics().getStats(sourceTopic).getSubscriptions().size(), 0);
 
         tempDirectory.assertThatFunctionDownloadTempFilesHaveBeenDeleted();
 

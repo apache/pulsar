@@ -40,12 +40,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -64,11 +66,13 @@ import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
+import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -83,12 +87,12 @@ import org.testng.annotations.Test;
 @Test(groups = "flaky")
 public class TransactionEndToEndTest extends TransactionTestBase {
 
-    private final static int TOPIC_PARTITION = 3;
+    private static final int TOPIC_PARTITION = 3;
 
-    private final static String TENANT = "tnx";
-    private final static String NAMESPACE1 = TENANT + "/ns1";
-    private final static String TOPIC_OUTPUT = NAMESPACE1 + "/output";
-    private final static String TOPIC_MESSAGE_ACK_TEST = NAMESPACE1 + "/message-ack-test";
+    private static final String TENANT = "tnx";
+    private static final String NAMESPACE1 = TENANT + "/ns1";
+    private static final String TOPIC_OUTPUT = NAMESPACE1 + "/output";
+    private static final String TOPIC_MESSAGE_ACK_TEST = NAMESPACE1 + "/message-ack-test";
 
     @BeforeMethod
     protected void setup() throws Exception {
@@ -96,15 +100,15 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
         String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length -1];
-        admin.clusters().createCluster(CLUSTER_NAME, new ClusterData("http://localhost:" + webServicePort));
+        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl("http://localhost:" + webServicePort).build());
         admin.tenants().createTenant(TENANT,
-                new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
+                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(NAMESPACE1);
         admin.topics().createPartitionedTopic(TOPIC_OUTPUT, TOPIC_PARTITION);
         admin.topics().createPartitionedTopic(TOPIC_MESSAGE_ACK_TEST, 1);
 
         admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
-                new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
+                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
         admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), 16);
 
@@ -898,5 +902,62 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         }
         txn.abort().get();
         assertTrue(exist);
+    }
+
+    @Test
+    public void oneTransactionOneTopicWithMultiSubTest() throws Exception {
+        String topic = NAMESPACE1 + "/oneTransactionOneTopicWithMultiSubTest";
+        final String subName1 = "test1";
+        final String subName2 = "test2";
+        @Cleanup
+        Consumer<byte[]> consumer1 = pulsarClient
+                .newConsumer()
+                .topic(topic)
+                .subscriptionName(subName1)
+                .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS)
+                .subscribe();
+        Awaitility.await().until(consumer1::isConnected);
+
+        @Cleanup
+        Consumer<byte[]> consumer2 = pulsarClient
+                .newConsumer()
+                .topic(topic)
+                .subscriptionName(subName2)
+                .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS)
+                .subscribe();
+        Awaitility.await().until(consumer2::isConnected);
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topic)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .enableBatching(false)
+                .create();
+
+        MessageId messageId = producer.send(("Hello Pulsar").getBytes(UTF_8));
+        TransactionImpl txn = (TransactionImpl) getTxn();
+        consumer1.acknowledgeAsync(messageId, txn).get();
+        consumer2.acknowledgeAsync(messageId, txn).get();
+
+        boolean flag = false;
+        for (int i = 0; i < getPulsarServiceList().size(); i++) {
+            TransactionMetadataStoreService transactionMetadataStoreService =
+                    getPulsarServiceList().get(i).getTransactionMetadataStoreService();
+            if (transactionMetadataStoreService.getStores()
+                    .containsKey(TransactionCoordinatorID.get(txn.getTxnIdMostBits()))) {
+                List<TransactionSubscription> list = transactionMetadataStoreService
+                        .getTxnMeta(new TxnID(txn.getTxnIdMostBits(), txn.getTxnIdLeastBits())).get().ackedPartitions();
+                flag = true;
+                assertEquals(list.size(), 2);
+                if (list.get(0).getSubscription().equals(subName1)) {
+                    assertEquals(list.get(1).getSubscription(), subName2);
+                } else {
+                    assertEquals(list.get(0).getSubscription(), subName2);
+                    assertEquals(list.get(1).getSubscription(), subName1);
+                }
+            }
+        }
+        assertTrue(flag);
     }
 }

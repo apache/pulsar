@@ -46,9 +46,10 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.internal.JacksonConfigurator;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls;
-import org.apache.pulsar.common.tls.NoopHostnameVerifier;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.tls.NoopHostnameVerifier;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
@@ -177,9 +178,9 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
     @Test
     public void testSuperUserCanListTenants() throws Exception {
         try (PulsarAdmin admin = buildAdminClient()) {
-            admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+            admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
             admin.tenants().createTenant("tenant1",
-                                         new TenantInfo(ImmutableSet.of("foobar"),
+                                         new TenantInfoImpl(ImmutableSet.of("foobar"),
                                                         ImmutableSet.of("test")));
             Assert.assertEquals(ImmutableSet.of("tenant1"), admin.tenants().getTenants());
         }
@@ -188,9 +189,9 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
     @Test
     public void testSuperUserCantListNamespaces() throws Exception {
         try (PulsarAdmin admin = buildAdminClient()) {
-            admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+            admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
             admin.tenants().createTenant("tenant1",
-                                         new TenantInfo(ImmutableSet.of("proxy"),
+                                         new TenantInfoImpl(ImmutableSet.of("proxy"),
                                                         ImmutableSet.of("test")));
             admin.namespaces().createNamespace("tenant1/ns1");
             Assert.assertTrue(admin.namespaces().getNamespaces("tenant1").contains("tenant1/ns1"));
@@ -200,9 +201,9 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
     @Test
     public void testAuthorizedUserAsOriginalPrincipal() throws Exception {
         try (PulsarAdmin admin = buildAdminClient()) {
-            admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+            admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
             admin.tenants().createTenant("tenant1",
-                                         new TenantInfo(ImmutableSet.of("proxy", "user1"),
+                                         new TenantInfoImpl(ImmutableSet.of("proxy", "user1"),
                                                         ImmutableSet.of("test")));
             admin.namespaces().createNamespace("tenant1/ns1");
         }
@@ -219,9 +220,9 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         try (PulsarAdmin admin = buildAdminClient()) {
-            admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+            admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
             admin.tenants().createTenant("tenant1",
-                    new TenantInfo(ImmutableSet.of("foobar"),
+                    new TenantInfoImpl(ImmutableSet.of("foobar"),
                             ImmutableSet.of("test")));
             Assert.assertEquals(ImmutableSet.of("tenant1"), admin.tenants().getTenants());
 

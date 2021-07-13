@@ -76,7 +76,6 @@ import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.data.Stat;
-import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -156,7 +155,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         // (3) validate ownership of new split bundles by local owner
         bundleList.forEach(b -> {
             try {
-                byte[] data = this.pulsar.getLocalZkCache().getZooKeeper().getData(ServiceUnitZkUtils.path(b), null,
+                byte[] data = this.pulsar.getLocalZkCache().getZooKeeper().getData(ServiceUnitUtils.path(b), null,
                         new Stat());
                 NamespaceEphemeralData node = ObjectMapperFactory.getThreadLocal().readValue(data,
                         NamespaceEphemeralData.class);
@@ -188,6 +187,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         NamespaceBundle originalBundle = bundles.findBundle(topicName);
 
         PersistentTopic topic = new PersistentTopic(topicName.toString(), ledger, pulsar.getBrokerService());
+        topic.initialize().join();
         Method method = pulsar.getBrokerService().getClass().getDeclaredMethod("addTopicToStatsMaps",
                 TopicName.class, Topic.class);
         method.setAccessible(true);
@@ -281,20 +281,17 @@ public class NamespaceServiceTest extends BrokerTestBase {
         CompletableFuture<Optional<Topic>> topicFuture = CompletableFuture.completedFuture(Optional.of(spyTopic));
         // add mock topic
         topics.put(topicName, topicFuture);
-        doAnswer(new Answer<CompletableFuture<Void>>() {
-            @Override
-            public CompletableFuture<Void> answer(InvocationOnMock invocation) {
-                CompletableFuture<Void> result = new CompletableFuture<>();
-                result.completeExceptionally(new RuntimeException("first time failed"));
-                return result;
-            }
+        doAnswer((Answer<CompletableFuture<Void>>) invocation -> {
+            CompletableFuture<Void> result = new CompletableFuture<>();
+            result.completeExceptionally(new RuntimeException("first time failed"));
+            return result;
         }).when(spyTopic).close(false);
         NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
 
         pulsar.getNamespaceService().unloadNamespaceBundle(bundle).join();
 
         try {
-            pulsar.getLocalZkCache().getZooKeeper().getData(ServiceUnitZkUtils.path(bundle), null, null);
+            pulsar.getLocalZkCache().getZooKeeper().getData(ServiceUnitUtils.path(bundle), null, null);
             fail("it should fail as node is not present");
         } catch (org.apache.zookeeper.KeeperException.NoNodeException e) {
             // ok
@@ -319,19 +316,14 @@ public class NamespaceServiceTest extends BrokerTestBase {
         // add mock topic
         topics.put(topicName, topicFuture);
         // return uncompleted future as close-topic result.
-        doAnswer(new Answer<CompletableFuture<Void>>() {
-            @Override
-            public CompletableFuture<Void> answer(InvocationOnMock invocation) throws Throwable {
-                return new CompletableFuture<Void>();
-            }
-        }).when(spyTopic).close(false);
+        doAnswer((Answer<CompletableFuture<Void>>) invocation -> new CompletableFuture<Void>()).when(spyTopic).close(false);
         NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
 
         // try to unload bundle whose topic will be stuck
         pulsar.getNamespaceService().unloadNamespaceBundle(bundle, 1, TimeUnit.SECONDS).join();
 
         try {
-            pulsar.getLocalZkCache().getZooKeeper().getData(ServiceUnitZkUtils.path(bundle), null, null);
+            pulsar.getLocalZkCache().getZooKeeper().getData(ServiceUnitUtils.path(bundle), null, null);
             fail("it should fail as node is not present");
         } catch (org.apache.zookeeper.KeeperException.NoNodeException e) {
             // ok
@@ -454,7 +446,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         // (3) validate ownership of new split bundles by local owner
         bundleList.forEach(b -> {
             try {
-                byte[] data = this.pulsar.getLocalZkCache().getZooKeeper().getData(ServiceUnitZkUtils.path(b), null,
+                byte[] data = this.pulsar.getLocalZkCache().getZooKeeper().getData(ServiceUnitUtils.path(b), null,
                         new Stat());
                 NamespaceEphemeralData node = ObjectMapperFactory.getThreadLocal().readValue(data,
                         NamespaceEphemeralData.class);
@@ -516,7 +508,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         bCacheField.setAccessible(true);
         ((AsyncLoadingCache<NamespaceName, NamespaceBundles>) bCacheField.get(utilityFactory)).put(nsname,
                 CompletableFuture.completedFuture(bundles));
-        return utilityFactory.splitBundles(targetBundle, 2, null);
+        return utilityFactory.splitBundles(targetBundle, 2, null).join();
     }
 
     private static final Logger log = LoggerFactory.getLogger(NamespaceServiceTest.class);

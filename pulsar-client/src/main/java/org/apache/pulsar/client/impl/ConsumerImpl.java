@@ -167,7 +167,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private final DeadLetterPolicy deadLetterPolicy;
 
-    private volatile CompletableFuture<Producer<T>> deadLetterProducer;
+    private volatile CompletableFuture<Producer<byte[]>> deadLetterProducer;
 
     private volatile Producer<T> retryLetterProducer;
     private final ReadWriteLock createProducerLock = new ReentrantReadWriteLock();
@@ -590,9 +590,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     initDeadLetterProducerIfNeeded();
                     MessageId finalMessageId = messageId;
                     deadLetterProducer.thenAccept(dlqProducer -> {
-                        TypedMessageBuilder<T> typedMessageBuilderNew = dlqProducer.newMessage()
-                                .value(retryMessage.getValue())
-                                .properties(propertiesMap);
+                        TypedMessageBuilder<byte[]> typedMessageBuilderNew =
+                                dlqProducer.newMessage(Schema.AUTO_PRODUCE_BYTES(retryMessage.getReaderSchema().get()))
+                                        .value(retryMessage.getData())
+                                        .properties(propertiesMap);
                         typedMessageBuilderNew.sendAsync().thenAccept(msgId -> {
                             doAcknowledge(finalMessageId, ackType, properties, null).thenAccept(v -> {
                                 result.complete(null);
@@ -1691,12 +1692,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             initDeadLetterProducerIfNeeded();
             List<MessageImpl<T>> finalDeadLetterMessages = deadLetterMessages;
             MessageIdImpl finalMessageId = messageId;
-            deadLetterProducer.thenAccept(producerDLQ -> {
+            deadLetterProducer.thenAcceptAsync(producerDLQ -> {
                 for (MessageImpl<T> message : finalDeadLetterMessages) {
                     String originMessageIdStr = getOriginMessageIdStr(message);
                     String originTopicNameStr = getOriginTopicNameStr(message);
-                    producerDLQ.newMessage()
-                            .value(message.getValue())
+                    producerDLQ.newMessage(Schema.AUTO_PRODUCE_BYTES(message.getReaderSchema().get()))
+                            .value(message.getData())
                             .properties(getPropertiesMap(message, originMessageIdStr, originTopicNameStr))
                             .sendAsync()
                             .thenAccept(messageIdInDLQ -> {
@@ -1733,7 +1734,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             createProducerLock.writeLock().lock();
             try {
                 if (deadLetterProducer == null) {
-                    deadLetterProducer = client.newProducer(schema)
+                    deadLetterProducer = client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema))
                             .topic(this.deadLetterPolicy.getDeadLetterTopic())
                             .blockIfQueueFull(false)
                             .createAsync();
@@ -1905,14 +1906,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                 .compare(markDeletePosition.getEntryId(), lastMessageId.getEntryId())
                                 .result();
                         if (lastMessageId.getEntryId() < 0) {
-                            booleanFuture.complete(false);
+                            completehasMessageAvailableWithValue(booleanFuture, false);
                         } else {
-                            booleanFuture.complete(resetIncludeHead ? result <= 0 : result < 0);
+                            completehasMessageAvailableWithValue(booleanFuture,
+                                    resetIncludeHead ? result <= 0 : result < 0);
                         }
                     } else if (lastMessageId == null || lastMessageId.getEntryId() < 0) {
-                        booleanFuture.complete(false);
+                        completehasMessageAvailableWithValue(booleanFuture, false);
                     } else {
-                        booleanFuture.complete(resetIncludeHead);
+                        completehasMessageAvailableWithValue(booleanFuture, resetIncludeHead);
                     }
                 }).exceptionally(ex -> {
                     log.error("[{}][{}] Failed getLastMessageId command", topic, subscription, ex);
@@ -1924,16 +1926,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
 
             if (hasMoreMessages(lastMessageIdInBroker, startMessageId, resetIncludeHead)) {
-                booleanFuture.complete(true);
+                completehasMessageAvailableWithValue(booleanFuture, true);
                 return booleanFuture;
             }
 
             getLastMessageIdAsync().thenAccept(messageId -> {
                 lastMessageIdInBroker = messageId;
                 if (hasMoreMessages(lastMessageIdInBroker, startMessageId, resetIncludeHead)) {
-                    booleanFuture.complete(true);
+                    completehasMessageAvailableWithValue(booleanFuture, true);
                 } else {
-                    booleanFuture.complete(false);
+                    completehasMessageAvailableWithValue(booleanFuture, false);
                 }
             }).exceptionally(e -> {
                 log.error("[{}][{}] Failed getLastMessageId command", topic, subscription);
@@ -1944,16 +1946,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         } else {
             // read before, use lastDequeueMessage for comparison
             if (hasMoreMessages(lastMessageIdInBroker, lastDequeuedMessageId, false)) {
-                booleanFuture.complete(true);
+                completehasMessageAvailableWithValue(booleanFuture, true);
                 return booleanFuture;
             }
 
             getLastMessageIdAsync().thenAccept(messageId -> {
                 lastMessageIdInBroker = messageId;
                 if (hasMoreMessages(lastMessageIdInBroker, lastDequeuedMessageId, false)) {
-                    booleanFuture.complete(true);
+                    completehasMessageAvailableWithValue(booleanFuture, true);
                 } else {
-                    booleanFuture.complete(false);
+                    completehasMessageAvailableWithValue(booleanFuture, false);
                 }
             }).exceptionally(e -> {
                 log.error("[{}][{}] Failed getLastMessageId command", topic, subscription);
@@ -1963,6 +1965,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         return booleanFuture;
+    }
+
+    private void completehasMessageAvailableWithValue(CompletableFuture<Boolean> future, boolean value) {
+        internalPinnedExecutor.execute(() -> {
+            future.complete(value);
+        });
     }
 
     private boolean hasMoreMessages(MessageId lastMessageIdInBroker, MessageId messageId, boolean inclusive) {
@@ -2026,6 +2034,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         String.format("The command `GetLastMessageId` is not supported for the protocol version %d. " +
                                 "The consumer is %s, topic %s, subscription %s", cnx.getRemoteEndpointProtocolVersion(),
                             consumerName, topicName.toString(), subscription)));
+                return;
             }
 
             long requestId = client.newRequestId();

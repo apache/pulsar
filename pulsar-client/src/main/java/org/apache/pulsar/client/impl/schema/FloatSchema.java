@@ -32,7 +32,7 @@ public class FloatSchema extends AbstractSchema<Float> {
     private static final SchemaInfo SCHEMA_INFO;
 
     static {
-        SCHEMA_INFO = new SchemaInfo()
+        SCHEMA_INFO = new SchemaInfoImpl()
                 .setName("Float")
                 .setType(SchemaType.FLOAT)
                 .setSchema(new byte[0]);

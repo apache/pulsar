@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -45,6 +46,8 @@ import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
+import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
@@ -695,12 +698,65 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         return pendingAckHandleCompletableFuture;
     }
 
+    @Override
+    public TransactionPendingAckStats getStats() {
+        TransactionPendingAckStats transactionPendingAckStats = new TransactionPendingAckStats();
+        transactionPendingAckStats.state = this.getState().name();
+        return transactionPendingAckStats;
+    }
+
     public void completeHandleFuture() {
         this.pendingAckHandleCompletableFuture.complete(PendingAckHandleImpl.this);
     }
 
     @Override
+    public TransactionInPendingAckStats getTransactionInPendingAckStats(TxnID txnID) {
+        TransactionInPendingAckStats transactionInPendingAckStats = new TransactionInPendingAckStats();
+        if (cumulativeAckOfTransaction != null && cumulativeAckOfTransaction.getLeft().equals(txnID)) {
+            PositionImpl position = cumulativeAckOfTransaction.getRight();
+            StringBuilder stringBuilder = new StringBuilder()
+                    .append(position.getLedgerId())
+                    .append(':')
+                    .append(position.getEntryId());
+            if (cumulativeAckOfTransaction.getRight().hasAckSet()) {
+                BitSetRecyclable bitSetRecyclable =
+                        BitSetRecyclable.valueOf(cumulativeAckOfTransaction.getRight().getAckSet());
+                if (!bitSetRecyclable.isEmpty()) {
+                    stringBuilder.append(":").append(bitSetRecyclable.nextSetBit(0) - 1);
+                }
+            }
+            transactionInPendingAckStats.cumulativeAckPosition = stringBuilder.toString();
+        }
+        return transactionInPendingAckStats;
+    }
+
+    @Override
     public CompletableFuture<Void> close() {
         return this.pendingAckStoreFuture.thenAccept(PendingAckStore::closeAsync);
+    }
+
+    @Override
+    public boolean isTransactionAckPresent() {
+        if ((this.cumulativeAckOfTransaction == null
+                && (this.individualAckOfTransaction == null || this.individualAckOfTransaction.isEmpty()))) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    public CompletableFuture<ManagedLedger> getStoreManageLedger() {
+        if (this.pendingAckStoreFuture.isDone()) {
+            return this.pendingAckStoreFuture.thenCompose(pendingAckStore -> {
+                if (pendingAckStore instanceof MLPendingAckStore) {
+                    return ((MLPendingAckStore) pendingAckStore).getManagedLedger();
+                } else {
+                    return FutureUtil.failedFuture(
+                            new NotAllowedException("Pending ack handle don't use managedLedger!"));
+                }
+            });
+        } else {
+            return FutureUtil.failedFuture(new ServiceUnitNotReadyException("Pending ack have not init success!"));
+        }
     }
 }

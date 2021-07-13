@@ -24,37 +24,22 @@
 namespace pulsar {
 
 struct ClientConfigurationImpl {
-    AuthenticationPtr authenticationPtr;
-    uint64_t memoryLimit;
-    int ioThreads;
-    int operationTimeoutSeconds;
-    int messageListenerThreads;
-    int concurrentLookupRequest;
+    AuthenticationPtr authenticationPtr{AuthFactory::Disabled()};
+    uint64_t memoryLimit{0ull};
+    int ioThreads{1};
+    int operationTimeoutSeconds{30};
+    int messageListenerThreads{1};
+    int concurrentLookupRequest{50000};
     std::string logConfFilePath;
-    bool useTls;
+    bool useTls{false};
     std::string tlsTrustCertsFilePath;
-    bool tlsAllowInsecureConnection;
-    unsigned int statsIntervalInSeconds;
+    bool tlsAllowInsecureConnection{false};
+    unsigned int statsIntervalInSeconds{600};  // 10 minutes
     std::unique_ptr<LoggerFactory> loggerFactory;
-    bool validateHostName;
-    unsigned int partitionsUpdateInterval;
+    bool validateHostName{false};
+    unsigned int partitionsUpdateInterval{60};  // 1 minute
     std::string listenerName;
-
-    ClientConfigurationImpl()
-        : authenticationPtr(AuthFactory::Disabled()),
-          memoryLimit(0ull),
-          ioThreads(1),
-          operationTimeoutSeconds(30),
-          messageListenerThreads(1),
-          concurrentLookupRequest(50000),
-          logConfFilePath(),
-          useTls(false),
-          tlsAllowInsecureConnection(false),
-          statsIntervalInSeconds(600),  // 10 minutes
-          loggerFactory(),
-          validateHostName(false),
-          partitionsUpdateInterval(60)  // 1 minute
-    {}
+    int connectionTimeoutMs{10000};  // 10 seconds
 
     std::unique_ptr<LoggerFactory> takeLogger() { return std::move(loggerFactory); }
 };

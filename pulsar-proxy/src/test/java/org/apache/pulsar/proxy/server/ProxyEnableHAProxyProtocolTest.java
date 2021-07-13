@@ -105,15 +105,15 @@ public class ProxyEnableHAProxyProtocolTest extends MockedPulsarServiceBaseTest 
         Assert.assertEquals(received, messages);
 
         TopicStats topicStats = admin.topics().getStats(topicName);
-        Assert.assertEquals(topicStats.subscriptions.size(), 1);
-        SubscriptionStats subscriptionStats = topicStats.subscriptions.get(subName);
-        Assert.assertEquals(subscriptionStats.consumers.size(), 1);
-        Assert.assertEquals(subscriptionStats.consumers.get(0).getAddress(),
+        Assert.assertEquals(topicStats.getSubscriptions().size(), 1);
+        SubscriptionStats subscriptionStats = topicStats.getSubscriptions().get(subName);
+        Assert.assertEquals(subscriptionStats.getConsumers().size(), 1);
+        Assert.assertEquals(subscriptionStats.getConsumers().get(0).getAddress(),
                 ((ConsumerImpl) consumer).getClientCnx().ctx().channel().localAddress().toString().replaceFirst("/", ""));
 
         topicStats = admin.topics().getStats(topicName);
-        Assert.assertEquals(topicStats.publishers.size(), 1);
-        Assert.assertEquals(topicStats.publishers.get(0).getAddress(),
+        Assert.assertEquals(topicStats.getPublishers().size(), 1);
+        Assert.assertEquals(topicStats.getPublishers().get(0).getAddress(),
                 ((ProducerImpl) producer).getClientCnx().ctx().channel().localAddress().toString().replaceFirst("/", ""));
     }
 }

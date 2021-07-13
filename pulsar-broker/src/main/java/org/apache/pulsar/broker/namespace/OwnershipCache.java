@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.broker.namespace;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.AsyncCacheLoader;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
@@ -29,31 +27,23 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
-import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.metadata.api.coordination.LockManager;
+import org.apache.pulsar.metadata.api.coordination.ResourceLock;
 import org.apache.pulsar.stats.CacheMetricsCollector;
-import org.apache.pulsar.zookeeper.ZooKeeperCache;
-import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.ZooDefs.Ids;
-import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * This class provides a cache service for all the service unit ownership among the brokers. It provide a cache service
- * as well as ZooKeeper read/write functions for a) lookup of a service unit ownership to a broker; b) take ownership of
- * a service unit by the local broker
- *
- *
+ * as well as MetadataStore read/write functions for a) lookup of a service unit ownership to a broker; b) take
+ * ownership of a service unit by the local broker
  */
 public class OwnershipCache {
 
@@ -79,26 +69,14 @@ public class OwnershipCache {
      */
     private final NamespaceEphemeralData selfOwnerInfoDisabled;
 
-    /**
-     * Service unit ownership cache of <code>ZooKeeper</code> data of ephemeral nodes showing all known ownership of
-     * service unit to active brokers.
-     */
-    private final ZooKeeperDataCache<NamespaceEphemeralData> ownershipReadOnlyCache;
+    private final LockManager<NamespaceEphemeralData> lockManager;
+
+    private final Map<NamespaceBundle, ResourceLock> locallyAcquiredLocks;
 
     /**
      * The loading cache of locally owned <code>NamespaceBundle</code> objects.
      */
-    private final AsyncLoadingCache<String, OwnedBundle> ownedBundlesCache;
-
-    /**
-     * The <code>ObjectMapper</code> to deserialize/serialize JSON objects.
-     */
-    private final ObjectMapper jsonMapper = ObjectMapperFactory.create();
-
-    /**
-     * The <code>ZooKeeperCache</code> connecting to the local ZooKeeper.
-     */
-    private final ZooKeeperCache localZkCache;
+    private final AsyncLoadingCache<NamespaceBundle, OwnedBundle> ownedBundlesCache;
 
     /**
      * The <code>NamespaceBundleFactory</code> to construct <code>NamespaceBundles</code>.
@@ -112,40 +90,20 @@ public class OwnershipCache {
 
     private final PulsarService pulsar;
 
-    private class OwnedServiceUnitCacheLoader implements AsyncCacheLoader<String, OwnedBundle> {
+    private class OwnedServiceUnitCacheLoader implements AsyncCacheLoader<NamespaceBundle, OwnedBundle> {
 
-        @SuppressWarnings("deprecation")
         @Override
-        public CompletableFuture<OwnedBundle> asyncLoad(String namespaceBundleZNode, Executor executor) {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Acquiring zk lock on namespace {}", namespaceBundleZNode);
-            }
-
-            byte[] znodeContent;
-            try {
-                znodeContent = jsonMapper.writeValueAsBytes(selfOwnerInfo);
-            } catch (JsonProcessingException e) {
-                // Failed to serialize to JSON
-                return FutureUtil.failedFuture(e);
-            }
-
-            CompletableFuture<OwnedBundle> future = new CompletableFuture<>();
-            ZkUtils.asyncCreateFullPathOptimistic(localZkCache.getZooKeeper(), namespaceBundleZNode, znodeContent,
-                    Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL, (rc, path, ctx, name) -> {
-                        if (rc == KeeperException.Code.OK.intValue()) {
-                            if (LOG.isDebugEnabled()) {
-                                LOG.debug("Successfully acquired zk lock on {}", namespaceBundleZNode);
-                            }
-                            ownershipReadOnlyCache.invalidate(namespaceBundleZNode);
-                            future.complete(new OwnedBundle(
-                                    ServiceUnitZkUtils.suBundleFromPath(namespaceBundleZNode, bundleFactory)));
-                        } else {
-                            // Failed to acquire lock
-                            future.completeExceptionally(KeeperException.create(rc));
-                        }
-                    }, null);
-
-            return future;
+        public CompletableFuture<OwnedBundle> asyncLoad(NamespaceBundle namespaceBundle, Executor executor) {
+            return lockManager.acquireLock(ServiceUnitUtils.path(namespaceBundle), selfOwnerInfo)
+                    .thenApply(rl -> {
+                        locallyAcquiredLocks.put(namespaceBundle, rl);
+                        rl.getLockExpiredFuture()
+                                .thenRun(() -> {
+                                    ownedBundlesCache.synchronous().invalidate(namespaceBundle);
+                                    namespaceService.onNamespaceBundleUnload(namespaceBundle);
+                                });
+                        return new OwnedBundle(namespaceBundle);
+                    });
         }
     }
 
@@ -167,8 +125,8 @@ public class OwnershipCache {
                 pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
                 true, pulsar.getAdvertisedListeners());
         this.bundleFactory = bundleFactory;
-        this.localZkCache = pulsar.getLocalZkCache();
-        this.ownershipReadOnlyCache = pulsar.getLocalZkCacheService().ownerInfoCache();
+        this.lockManager = pulsar.getCoordinationService().getLockManager(NamespaceEphemeralData.class);
+        this.locallyAcquiredLocks = new ConcurrentHashMap<>();
         // ownedBundlesCache contains all namespaces that are owned by the local broker
         this.ownedBundlesCache = Caffeine.newBuilder()
                 .executor(MoreExecutors.directExecutor())
@@ -177,43 +135,14 @@ public class OwnershipCache {
         CacheMetricsCollector.CAFFEINE.addCache("owned-bundles", this.ownedBundlesCache);
     }
 
-    private CompletableFuture<Optional<Map.Entry<NamespaceEphemeralData, Stat>>> resolveOwnership(String path) {
-        return ownershipReadOnlyCache.getWithStatAsync(path).thenApply(optionalOwnerDataWithStat -> {
-            if (optionalOwnerDataWithStat.isPresent()) {
-                Map.Entry<NamespaceEphemeralData, Stat> ownerDataWithStat = optionalOwnerDataWithStat.get();
-                Stat stat = ownerDataWithStat.getValue();
-                if (stat.getEphemeralOwner() == localZkCache.getZooKeeper().getSessionId()) {
-                    LOG.info("Successfully reestablish ownership of {}", path);
-                    OwnedBundle ownedBundle = new OwnedBundle(ServiceUnitZkUtils.suBundleFromPath(path, bundleFactory));
-                    if (selfOwnerInfo.getNativeUrl().equals(ownerDataWithStat.getKey().getNativeUrl())) {
-                        ownedBundlesCache.put(path, CompletableFuture.completedFuture(ownedBundle));
-                    }
-                    ownershipReadOnlyCache.invalidate(path);
-                }
-            }
-            return optionalOwnerDataWithStat;
-        });
-    }
-
     /**
      * Check whether this broker owns given namespace bundle.
      *
      * @param bundle namespace bundle
      * @return future that will complete with check result
      */
-    public CompletableFuture<Boolean> checkOwnership(NamespaceBundle bundle) {
-        OwnedBundle ownedBundle = getOwnedBundle(bundle);
-        if (ownedBundle != null) {
-            return CompletableFuture.completedFuture(true);
-        }
-        String bundlePath = ServiceUnitZkUtils.path(bundle);
-        return resolveOwnership(bundlePath).thenApply(optionalOwnedDataWithStat -> {
-            if (!optionalOwnedDataWithStat.isPresent()) {
-                return false;
-            }
-            Stat stat = optionalOwnedDataWithStat.get().getValue();
-            return stat.getEphemeralOwner() == localZkCache.getZooKeeper().getSessionId();
-        });
+    public boolean checkOwnership(NamespaceBundle bundle) {
+        return getOwnedBundle(bundle) != null;
     }
 
     /**
@@ -226,9 +155,7 @@ public class OwnershipCache {
      *             throws exception if no ownership info is found
      */
     public CompletableFuture<Optional<NamespaceEphemeralData>> getOwnerAsync(NamespaceBundle suName) {
-        String path = ServiceUnitZkUtils.path(suName);
-
-        CompletableFuture<OwnedBundle> ownedBundleFuture = ownedBundlesCache.getIfPresent(path);
+        CompletableFuture<OwnedBundle> ownedBundleFuture = ownedBundlesCache.getIfPresent(suName);
         if (ownedBundleFuture != null) {
             // Either we're the owners or we're trying to become the owner.
             return ownedBundleFuture.thenApply(serviceUnit -> {
@@ -238,7 +165,8 @@ public class OwnershipCache {
         }
 
         // If we're not the owner, we need to check if anybody else is
-        return resolveOwnership(path).thenApply(optional -> optional.map(Map.Entry::getKey));
+        String path = ServiceUnitUtils.path(suName);
+        return lockManager.readLock(path);
     }
 
     /**
@@ -250,59 +178,21 @@ public class OwnershipCache {
      * @throws Exception
      */
     public CompletableFuture<NamespaceEphemeralData> tryAcquiringOwnership(NamespaceBundle bundle) throws Exception {
-        String path = ServiceUnitZkUtils.path(bundle);
-
-        CompletableFuture<NamespaceEphemeralData> future = new CompletableFuture<>();
-
         if (!refreshSelfOwnerInfo()) {
-            future.completeExceptionally(
+            return FutureUtil.failedFuture(
                     new RuntimeException("Namespace service does not ready for acquiring ownership"));
-            return future;
         }
 
         LOG.info("Trying to acquire ownership of {}", bundle);
 
-        // Doing a get() on the ownedBundlesCache will trigger an async ZK write to acquire the lock over the
+        // Doing a get() on the ownedBundlesCache will trigger an async metatada write to acquire the lock over the
         // service unit
-        ownedBundlesCache.get(path).thenAccept(namespaceBundle -> {
-            LOG.info("Successfully acquired ownership of {}", path);
+        return ownedBundlesCache.get(bundle)
+                .thenApply(namespaceBundle -> {
+            LOG.info("Successfully acquired ownership of {}", namespaceBundle);
             namespaceService.onNamespaceBundleOwned(bundle);
-            future.complete(selfOwnerInfo);
-        }).exceptionally(exception -> {
-            // Failed to acquire ownership
-            if (exception instanceof CompletionException
-                    && exception.getCause() instanceof KeeperException.NodeExistsException) {
-                resolveOwnership(path).thenAccept(optionalOwnerDataWithStat -> {
-                    if (optionalOwnerDataWithStat.isPresent()) {
-                        Map.Entry<NamespaceEphemeralData, Stat> ownerDataWithStat = optionalOwnerDataWithStat.get();
-                        NamespaceEphemeralData ownerData = ownerDataWithStat.getKey();
-                        Stat stat = ownerDataWithStat.getValue();
-                        if (stat.getEphemeralOwner() != localZkCache.getZooKeeper().getSessionId()) {
-                            LOG.info("Failed to acquire ownership of {} -- Already owned by broker {}",
-                                    path, ownerData);
-                        }
-                        future.complete(ownerData);
-                    } else {
-                        // Strange scenario: we couldn't create a z-node because it was already existing, but when we
-                        // try to read it, it's not there anymore
-                        LOG.info("Failed to acquire ownership of {} -- Already owned by unknown broker", path);
-                        future.completeExceptionally(exception);
-                    }
-                }).exceptionally(ex -> {
-                    LOG.warn("Failed to check ownership of {}: {}", bundle, ex.getMessage(), ex);
-                    future.completeExceptionally(exception);
-                    return null;
-                });
-            } else {
-                // Other ZK error, bailing out for now
-                LOG.warn("Failed to acquire ownership of {}: {}", bundle, exception.getMessage(), exception);
-                future.completeExceptionally(exception);
-            }
-
-            return null;
+            return selfOwnerInfo;
         });
-
-        return future;
     }
 
     /**
@@ -310,23 +200,13 @@ public class OwnershipCache {
      *
      */
     public CompletableFuture<Void> removeOwnership(NamespaceBundle bundle) {
-        CompletableFuture<Void> result = new CompletableFuture<>();
-        String key = ServiceUnitZkUtils.path(bundle);
-        localZkCache.getZooKeeper().delete(key, -1, (rc, path, ctx) -> {
-            // Invalidate cache even in error since this operation may succeed in server side.
-            ownedBundlesCache.synchronous().invalidate(key);
-            ownershipReadOnlyCache.invalidate(key);
-            namespaceService.onNamespaceBundleUnload(bundle);
-            if (rc == KeeperException.Code.OK.intValue() || rc == KeeperException.Code.NONODE.intValue()) {
-                LOG.info("[{}] Removed zk lock for service unit: {}", key, KeeperException.Code.get(rc));
-                result.complete(null);
-            } else {
-                LOG.warn("[{}] Failed to delete the namespace ephemeral node. key={}", key,
-                        KeeperException.Code.get(rc));
-                result.completeExceptionally(KeeperException.create(rc));
-            }
-        }, null);
-        return result;
+        ResourceLock<NamespaceEphemeralData> lock = locallyAcquiredLocks.get(bundle);
+        if (lock == null) {
+            // We don't own the specified bundle anymore
+            return CompletableFuture.completedFuture(null);
+        }
+
+        return lock.release();
     }
 
     /**
@@ -353,7 +233,7 @@ public class OwnershipCache {
      *
      * @return a map of owned <code>ServiceUnit</code> objects
      */
-    public Map<String, OwnedBundle> getOwnedBundles() {
+    public Map<NamespaceBundle, OwnedBundle> getOwnedBundles() {
         return this.ownedBundlesCache.synchronous().asMap();
     }
 
@@ -375,7 +255,8 @@ public class OwnershipCache {
      * @return
      */
     public OwnedBundle getOwnedBundle(NamespaceBundle bundle) {
-        CompletableFuture<OwnedBundle> future = ownedBundlesCache.getIfPresent(ServiceUnitZkUtils.path(bundle));
+        CompletableFuture<OwnedBundle> future = ownedBundlesCache.getIfPresent(bundle);
+
         if (future != null && future.isDone() && !future.isCompletedExceptionally()) {
             return future.join();
         } else {
@@ -390,35 +271,15 @@ public class OwnershipCache {
      * @throws Exception
      */
     public CompletableFuture<Void> disableOwnership(NamespaceBundle bundle) {
-        String path = ServiceUnitZkUtils.path(bundle);
-        CompletableFuture<Void> future = new CompletableFuture<>();
-
-        updateBundleState(bundle, false)
-                .thenRun(() -> {
-                    byte[] value;
-                    try {
-                        value = jsonMapper.writeValueAsBytes(selfOwnerInfoDisabled);
-                    } catch (JsonProcessingException e) {
-                        future.completeExceptionally(e);
-                        return;
+        return updateBundleState(bundle, false)
+                .thenCompose(__ -> {
+                    ResourceLock<NamespaceEphemeralData> lock = locallyAcquiredLocks.get(bundle);
+                    if (lock == null) {
+                        return CompletableFuture.completedFuture(null);
+                    } else {
+                        return lock.updateValue(selfOwnerInfoDisabled);
                     }
-
-                    localZkCache.getZooKeeper().setData(path, value, -1, (rc, path1, ctx, stat) -> {
-                        if (rc == KeeperException.Code.OK.intValue()) {
-                            ownershipReadOnlyCache.invalidate(path1);
-                            future.complete(null);
-                        } else {
-                            future.completeExceptionally(KeeperException.create(rc));
-                        }
-                    }, null);
-                })
-                .exceptionally(ex -> {
-                    LOG.warn("Failed to update state on namespace bundle {}: {}", bundle, ex.getMessage(), ex);
-                    future.completeExceptionally(ex);
-                    return null;
                 });
-
-        return future;
     }
 
     /**
@@ -428,9 +289,8 @@ public class OwnershipCache {
      * @throws Exception
      */
     public CompletableFuture<Void> updateBundleState(NamespaceBundle bundle, boolean isActive) {
-        String path = ServiceUnitZkUtils.path(bundle);
         // Disable owned instance in local cache
-        CompletableFuture<OwnedBundle> f = ownedBundlesCache.getIfPresent(path);
+        CompletableFuture<OwnedBundle> f = ownedBundlesCache.getIfPresent(bundle);
         if (f != null && f.isDone() && !f.isCompletedExceptionally()) {
             return f.thenAccept(ob -> ob.setActive(isActive));
         } else {
@@ -440,10 +300,6 @@ public class OwnershipCache {
 
     public void invalidateLocalOwnerCache() {
         this.ownedBundlesCache.synchronous().invalidateAll();
-    }
-
-    public NamespaceEphemeralData getSelfOwnerInfo() {
-        return selfOwnerInfo;
     }
 
     public synchronized boolean refreshSelfOwnerInfo() {

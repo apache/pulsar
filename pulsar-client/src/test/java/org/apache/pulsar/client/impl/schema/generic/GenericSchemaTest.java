@@ -24,19 +24,22 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
-import org.apache.pulsar.client.impl.schema.KeyValueSchema;
+import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Bar;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Foo;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.testng.annotations.Test;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
@@ -85,7 +88,7 @@ public class GenericSchemaTest {
     public void testAutoJsonSchema() {
         // configure the schema info provider
         MultiVersionSchemaInfoProvider multiVersionSchemaInfoProvider = mock(MultiVersionSchemaInfoProvider.class);
-        GenericSchema genericAvroSchema = GenericAvroSchema.of(Schema.AVRO(Foo.class).getSchemaInfo());
+        GenericSchema genericAvroSchema = GenericAvroSchema.of(Schema.JSON(Foo.class).getSchemaInfo());
         when(multiVersionSchemaInfoProvider.getSchemaByVersion(any(byte[].class)))
                 .thenReturn(CompletableFuture.completedFuture(genericAvroSchema.getSchemaInfo()));
 
@@ -111,7 +114,7 @@ public class GenericSchemaTest {
 
             GenericRecord record;
             if (decodeSchema instanceof AutoConsumeSchema) {
-                record = decodeSchema.decode(data, new byte[0]);
+                record = decodeSchema.decode(data, new LongSchemaVersion(0L).bytes());
             } else {
                 record = decodeSchema.decode(data);
             }
@@ -123,15 +126,6 @@ public class GenericSchemaTest {
     public void testKeyValueSchema() {
         // configure the schema info provider
         MultiVersionSchemaInfoProvider multiVersionSchemaInfoProvider = mock(MultiVersionSchemaInfoProvider.class);
-        GenericSchema genericAvroSchema = GenericAvroSchema.of(Schema.AVRO(Foo.class).getSchemaInfo());
-        when(multiVersionSchemaInfoProvider.getSchemaByVersion(any(byte[].class)))
-                .thenReturn(CompletableFuture.completedFuture(
-                    KeyValueSchemaInfo.encodeKeyValueSchemaInfo(
-                        genericAvroSchema,
-                        genericAvroSchema,
-                        KeyValueEncodingType.INLINE
-                    )
-                ));
 
         List<Schema<Foo>> encodeSchemas = Lists.newArrayList(
             Schema.JSON(Foo.class),
@@ -141,17 +135,27 @@ public class GenericSchemaTest {
         for (Schema<Foo> keySchema : encodeSchemas) {
             for (Schema<Foo> valueSchema : encodeSchemas) {
                 // configure encode schema
-                Schema<KeyValue<Foo, Foo>> kvSchema = KeyValueSchema.of(
+                Schema<KeyValue<Foo, Foo>> kvSchema = KeyValueSchemaImpl.of(
                     keySchema, valueSchema
                 );
 
                 // configure decode schema
-                Schema<KeyValue<GenericRecord, GenericRecord>> decodeSchema = KeyValueSchema.of(
+                Schema<KeyValue<GenericRecord, GenericRecord>> decodeSchema = KeyValueSchemaImpl.of(
                     Schema.AUTO_CONSUME(), Schema.AUTO_CONSUME()
                 );
                 decodeSchema.configureSchemaInfo(
                     "test-topic", "topic",kvSchema.getSchemaInfo()
                 );
+
+                when(multiVersionSchemaInfoProvider.getSchemaByVersion(any(byte[].class)))
+                        .thenReturn(CompletableFuture.completedFuture(
+                                KeyValueSchemaInfo.encodeKeyValueSchemaInfo(
+                                        keySchema,
+                                        valueSchema,
+                                        KeyValueEncodingType.INLINE
+                                )
+                        ));
+
                 decodeSchema.setSchemaInfoProvider(multiVersionSchemaInfoProvider);
 
                 testEncodeAndDecodeKeyValues(kvSchema, decodeSchema);
@@ -167,7 +171,7 @@ public class GenericSchemaTest {
             Foo foo = newFoo(i);
             byte[] data = encodeSchema.encode(new KeyValue<>(foo, foo));
 
-            KeyValue<GenericRecord, GenericRecord> kv = decodeSchema.decode(data, new byte[0]);
+            KeyValue<GenericRecord, GenericRecord> kv = decodeSchema.decode(data, new LongSchemaVersion(1L).bytes());
             verifyFooRecord(kv.getKey(), i);
             verifyFooRecord(kv.getValue(), i);
         }

@@ -31,7 +31,7 @@ public class BytesSchema extends AbstractSchema<byte[]> {
     private static final SchemaInfo SCHEMA_INFO;
 
     static {
-        SCHEMA_INFO = new SchemaInfo()
+        SCHEMA_INFO = new SchemaInfoImpl()
             .setName("Bytes")
             .setType(SchemaType.BYTES)
             .setSchema(new byte[0]);

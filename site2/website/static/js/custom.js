@@ -110,11 +110,14 @@ window.addEventListener('load', function () {
     const cli = document.querySelector("a[href='#cli']").parentNode;
     const cliMenu =
         '<li>' +
-        '<a id="cli-menu" href="#">Cli <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<a id="cli-menu" href="#">CLI <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
         '<div id="cli-dropdown" class="hide">' +
         '<ul id="cli-dropdown-items">' +
         '<li><a href="/pulsar-admin-cli?version=' + version + '">Pulsar Admin</a></li>' +
-        '</ul>' +
+        '<li><a href="/pulsar-client-cli?version=' + version + '">Pulsar Client</a></li>' +
+        '<li><a href="/pulsar-perf-cli?version=' + version + '">Pulsar Perf</a></li>' +
+        '<li><a href="/pulsar-cli?version=' + version + '">Pulsar</a></li>' +
+      '</ul>' +
         '</div>' +
         '</li>';
 

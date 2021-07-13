@@ -34,6 +34,12 @@
             <outputDirectory>.</outputDirectory>
             <fileMode>644</fileMode>
         </file>
+        <file>
+            <source>${basedir}/src/main/resources/launcher.properties</source>
+            <destName>launcher.properties</destName>
+            <outputDirectory>bin/</outputDirectory>
+            <fileMode>644</fileMode>
+        </file>
     </files>
     <fileSets>
         <fileSet>

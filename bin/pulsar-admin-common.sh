@@ -65,7 +65,10 @@ add_maven_deps_to_classpath() {
     f="${PULSAR_HOME}/distribution/server/target/classpath.txt"
     if [ ! -f "${f}" ]
     then
-	${MVN} -f "${PULSAR_HOME}/pom.xml" dependency:build-classpath -DincludeScope=compile -Dmdep.outputFile="${f}" &> /dev/null
+    (
+      cd "${PULSAR_HOME}"
+      ${MVN} -pl distribution/server generate-sources &> /dev/null
+    )
     fi
     PULSAR_CLASSPATH=${CLASSPATH}:`cat "${f}"`
 }

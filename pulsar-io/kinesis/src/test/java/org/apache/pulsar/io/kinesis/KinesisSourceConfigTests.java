@@ -30,6 +30,9 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.pulsar.io.common.IOConfigUtils;
+import org.apache.pulsar.io.core.SourceContext;
+import org.mockito.Mockito;
 import org.testng.annotations.Test;
 import software.amazon.kinesis.common.InitialPositionInStream;
 
@@ -37,7 +40,7 @@ import software.amazon.kinesis.common.InitialPositionInStream;
 public class KinesisSourceConfigTests {
 
     private static final Date DAY;
-    
+
     static {
         Calendar then = Calendar.getInstance();
         then.set(Calendar.YEAR, 2019);
@@ -67,14 +70,14 @@ public class KinesisSourceConfigTests {
         assertEquals(config.getNumRetries(), 3);
         assertEquals(config.getReceiveQueueSize(), 2000);
         assertEquals(config.getInitialPositionInStream(), InitialPositionInStream.TRIM_HORIZON);
-        
+
         Calendar cal = Calendar.getInstance();
         cal.setTime(config.getStartAtTime());
         ZonedDateTime actual = ZonedDateTime.ofInstant(cal.toInstant(), ZoneOffset.UTC);
         ZonedDateTime expected = ZonedDateTime.ofInstant(DAY.toInstant(), ZoneOffset.UTC);
         assertEquals(actual, expected);
     }
-    
+
     @Test
     public final void loadFromMapTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object> ();
@@ -89,9 +92,10 @@ public class KinesisSourceConfigTests {
         map.put("applicationName", "My test application");
         map.put("initialPositionInStream", InitialPositionInStream.TRIM_HORIZON);
         map.put("startAtTime", DAY);
-        
-        KinesisSourceConfig config = KinesisSourceConfig.load(map);
-        
+
+        SourceContext sourceContext = Mockito.mock(SourceContext.class);
+        KinesisSourceConfig config = IOConfigUtils.loadWithSecrets(map, KinesisSourceConfig.class, sourceContext);
+
         assertNotNull(config);
         assertEquals(config.getAwsEndpoint(), "https://some.endpoint.aws");
         assertEquals(config.getAwsRegion(), "us-east-1");
@@ -104,41 +108,80 @@ public class KinesisSourceConfigTests {
         assertEquals(config.getNumRetries(), 3);
         assertEquals(config.getReceiveQueueSize(), 2000);
         assertEquals(config.getInitialPositionInStream(), InitialPositionInStream.TRIM_HORIZON);
-        
+
         Calendar cal = Calendar.getInstance();
         cal.setTime(config.getStartAtTime());
         ZonedDateTime actual = ZonedDateTime.ofInstant(cal.toInstant(), ZoneOffset.UTC);
         ZonedDateTime expected = ZonedDateTime.ofInstant(DAY.toInstant(), ZoneOffset.UTC);
         assertEquals(actual, expected);
     }
-    
-    @Test(expectedExceptions = IllegalArgumentException.class, 
+
+    @Test
+    public final void loadFromMapCredentialFromSecretTest() throws IOException {
+        Map<String, Object> map = new HashMap<String, Object> ();
+        map.put("awsEndpoint", "https://some.endpoint.aws");
+        map.put("awsRegion", "us-east-1");
+        map.put("awsKinesisStreamName", "my-stream");
+        map.put("checkpointInterval", "30000");
+        map.put("backoffTime", "4000");
+        map.put("numRetries", "3");
+        map.put("receiveQueueSize", 2000);
+        map.put("applicationName", "My test application");
+        map.put("initialPositionInStream", InitialPositionInStream.TRIM_HORIZON);
+        map.put("startAtTime", DAY);
+
+        SourceContext sourceContext = Mockito.mock(SourceContext.class);
+        Mockito.when(sourceContext.getSecret("awsCredentialPluginParam"))
+                .thenReturn("{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}");
+        KinesisSourceConfig config = IOConfigUtils.loadWithSecrets(map, KinesisSourceConfig.class, sourceContext);
+
+        assertNotNull(config);
+        assertEquals(config.getAwsEndpoint(), "https://some.endpoint.aws");
+        assertEquals(config.getAwsRegion(), "us-east-1");
+        assertEquals(config.getAwsKinesisStreamName(), "my-stream");
+        assertEquals(config.getAwsCredentialPluginParam(),
+                "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}");
+        assertEquals(config.getApplicationName(), "My test application");
+        assertEquals(config.getCheckpointInterval(), 30000);
+        assertEquals(config.getBackoffTime(), 4000);
+        assertEquals(config.getNumRetries(), 3);
+        assertEquals(config.getReceiveQueueSize(), 2000);
+        assertEquals(config.getInitialPositionInStream(), InitialPositionInStream.TRIM_HORIZON);
+
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(config.getStartAtTime());
+        ZonedDateTime actual = ZonedDateTime.ofInstant(cal.toInstant(), ZoneOffset.UTC);
+        ZonedDateTime expected = ZonedDateTime.ofInstant(DAY.toInstant(), ZoneOffset.UTC);
+        assertEquals(actual, expected);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class,
             expectedExceptionsMessageRegExp = "empty aws-credential param")
     public final void missingCredentialsTest() throws Exception {
         Map<String, Object> map = new HashMap<String, Object> ();
         map.put("awsEndpoint", "https://some.endpoint.aws");
         map.put("awsRegion", "us-east-1");
         map.put("awsKinesisStreamName", "my-stream");
-     
+
         KinesisSource source = new KinesisSource();
         source.open(map, null);
     }
-    
-    @Test(expectedExceptions = IllegalArgumentException.class, 
+
+    @Test(expectedExceptions = IllegalArgumentException.class,
             expectedExceptionsMessageRegExp = "Timestamp must be specified")
     public final void missingStartTimeTest() throws Exception {
         Map<String, Object> map = new HashMap<String, Object> ();
         map.put("awsEndpoint", "https://some.endpoint.aws");
         map.put("awsRegion", "us-east-1");
         map.put("awsKinesisStreamName", "my-stream");
-        map.put("awsCredentialPluginParam", 
+        map.put("awsCredentialPluginParam",
                 "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}");
         map.put("initialPositionInStream", InitialPositionInStream.AT_TIMESTAMP);
-     
+
         KinesisSource source = new KinesisSource();
         source.open(map, null);
     }
-    
+
     private File getFile(String name) {
         ClassLoader classLoader = getClass().getClassLoader();
         return new File(classLoader.getResource(name).getFile());

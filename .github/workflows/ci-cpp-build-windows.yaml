@@ -52,6 +52,13 @@ jobs:
             suffix: 'windows-win64'
             generator: 'Visual Studio 16 2019'
             arch: '-A x64'
+          - name: 'Windows x86'
+            os: windows-latest
+            triplet: x86-windows
+            vcpkg_dir: 'C:\vcpkg'
+            suffix: 'windows-win32'
+            generator: 'Visual Studio 16 2019'
+            arch: '-A Win32'
 
     steps:
       - name: checkout
@@ -73,7 +80,7 @@ jobs:
         run: |
           cd pulsar-client-cpp && vcpkg install --triplet ${{ matrix.triplet }}
 
-      - name: Configure
+      - name: Configure (default)
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         shell: bash
         run: |
@@ -95,4 +102,29 @@ jobs:
           if [ "$RUNNER_OS" == "Windows" ]; then
             cd pulsar-client-cpp && \
             cmake --build ./build
+          fi
+
+      - name: Configure (dynamic library only)
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            cd pulsar-client-cpp && \
+            cmake \
+              -B ./build-1 \
+              -G "${{ matrix.generator }}" ${{ matrix.arch }} \
+              -DBUILD_PYTHON_WRAPPER=OFF -DBUILD_TESTS=OFF \
+              -DVCPKG_TRIPLET=${{ matrix.triplet }} \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DBUILD_STATIC_LIB=OFF \
+              -S .
+          fi
+
+      - name: Compile
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            cd pulsar-client-cpp && \
+            cmake --build ./build-1
           fi

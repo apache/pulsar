@@ -27,9 +27,9 @@ import org.eclipse.jetty.websocket.servlet.UpgradeHttpServletRequest;
  */
 public class WebSocketHttpServletRequestWrapper extends HttpServletRequestWrapper {
 
-    final static String HTTP_HEADER_NAME = "Authorization";
-    final static String HTTP_HEADER_VALUE_PREFIX = "Bearer ";
-    final static String TOKEN = "token";
+    static final String HTTP_HEADER_NAME = "Authorization";
+    static final String HTTP_HEADER_VALUE_PREFIX = "Bearer ";
+    static final String TOKEN = "token";
 
     public WebSocketHttpServletRequestWrapper(HttpServletRequest request) {
         super(request);

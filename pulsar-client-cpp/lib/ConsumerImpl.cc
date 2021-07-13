@@ -566,6 +566,7 @@ void ConsumerImpl::internalListener() {
         // This will only happen when the connection got reset and we cleared the queue
         return;
     }
+    trackMessage(msg);
     try {
         consumerStatsBasePtr_->receivedMessage(msg, ResultOk);
         lastDequedMessage_ = Optional<MessageId>::of(msg.getMessageId());
@@ -573,7 +574,7 @@ void ConsumerImpl::internalListener() {
     } catch (const std::exception& e) {
         LOG_ERROR(getName() << "Exception thrown from listener" << e.what());
     }
-    messageProcessed(msg);
+    messageProcessed(msg, false);
 }
 
 Result ConsumerImpl::fetchSingleMessageFromBroker(Message& msg) {
@@ -701,7 +702,7 @@ Result ConsumerImpl::receiveHelper(Message& msg, int timeout) {
     }
 }
 
-void ConsumerImpl::messageProcessed(Message& msg) {
+void ConsumerImpl::messageProcessed(Message& msg, bool track) {
     Lock lock(mutex_);
     lastDequedMessage_ = Optional<MessageId>::of(msg.getMessageId());
 
@@ -712,7 +713,9 @@ void ConsumerImpl::messageProcessed(Message& msg) {
     }
 
     increaseAvailablePermits(currentCnx);
-    trackMessage(msg);
+    if (track) {
+        trackMessage(msg);
+    }
 }
 
 /**

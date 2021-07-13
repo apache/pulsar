@@ -37,13 +37,6 @@ public class PulsarKafkaWorkerConfig extends WorkerConfig {
     public static final String OFFSET_STORAGE_TOPIC_CONFIG = "offset.storage.topic";
     private static final String OFFSET_STORAGE_TOPIC_CONFIG_DOC = "pulsar topic to store kafka connector offsets in";
 
-
-    /**
-     * <code>pulsar.service.url</code>
-     */
-    public static final String PULSAR_SERVICE_URL_CONFIG = "pulsar.service.url";
-    private static final String PULSAR_SERVICE_URL_CONFIG_DOC = "pulsar service url";
-
     /**
      * <code>topic.namespace</code>
      */
@@ -56,10 +49,6 @@ public class PulsarKafkaWorkerConfig extends WorkerConfig {
                 Type.STRING,
                 Importance.HIGH,
                 OFFSET_STORAGE_TOPIC_CONFIG_DOC)
-            .define(PULSAR_SERVICE_URL_CONFIG,
-                Type.STRING,
-                Importance.HIGH,
-                PULSAR_SERVICE_URL_CONFIG_DOC)
             .define(TOPIC_NAMESPACE_CONFIG,
                 Type.STRING,
                 "public/default",

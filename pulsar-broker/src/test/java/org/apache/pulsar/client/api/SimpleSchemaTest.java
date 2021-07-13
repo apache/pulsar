@@ -36,7 +36,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.Schema.Parser;
 import org.apache.pulsar.client.impl.MessageImpl;
-import org.apache.pulsar.client.impl.schema.KeyValueSchema;
+import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException.IncompatibleSchemaException;
@@ -79,6 +79,17 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                 { false }
         };
     }
+
+    @DataProvider(name = "batchingModesAndValueEncodingType")
+    public static Object[][] batchingModesAndValueEncodingType() {
+        return new Object[][] {
+                { true, KeyValueEncodingType.INLINE },
+                { true, KeyValueEncodingType.SEPARATED },
+                { false, KeyValueEncodingType.INLINE },
+                { false, KeyValueEncodingType.SEPARATED }
+        };
+    }
+
 
     @DataProvider(name = "schemaValidationModes")
     public static Object[][] schemaValidationModes() {
@@ -546,126 +557,160 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(dataProvider = "batchingModes")
-    public void testAutoKeyValueConsume(boolean batching) throws Exception {
-        String topic = "my-property/my-ns/schema-test-auto-keyvalue-consume-" + batching;
+    @Test(dataProvider = "batchingModesAndValueEncodingType")
+    public void testAutoKeyValueConsume(boolean batching, KeyValueEncodingType keyValueEncodingType) throws Exception {
+        String topic = "my-property/my-ns/schema-test-auto-keyvalue-consume-" + batching+"-"+keyValueEncodingType;
 
         Schema<KeyValue<V1Data, V1Data>> pojoSchema = Schema.KeyValue(
                 Schema.AVRO(V1Data.class),
                 Schema.AVRO(V1Data.class),
-                KeyValueEncodingType.SEPARATED);
+                keyValueEncodingType);
 
-        try (Producer<KeyValue<V1Data, V1Data>> p = pulsarClient.newProducer(pojoSchema)
+        try (Consumer<KeyValue<GenericRecord, V1Data>> c3before = pulsarClient.newConsumer(
+                // this consumer is the same as 'c3' Consumer below, but it subscribes to the
+                // topic before that the Producer writes messages and set the Schema
+                // so the Consumer starts on a non existing topic (that will be autocreated)
+                // without a schema
+                // in fact a KeyValue schema with a AutoConsumeSchema component
+                // is to be treated like an AutoConsumeSchema because it downloads
+                // automatically the schema when needed
+                Schema.KeyValue(
+                        Schema.AUTO_CONSUME(),
+                        Schema.AVRO(V1Data.class),
+                        keyValueEncodingType))
                 .topic(topic)
-                .enableBatching(batching)
-                .create();
-             Consumer<GenericRecord> c0 = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
-                     .topic(topic)
-                     .subscriptionName("sub0")
-                     .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                     .subscribe();
-             Consumer<KeyValue<GenericRecord, GenericRecord>> c1 = pulsarClient.newConsumer(
-                     Schema.KeyValue(
-                             Schema.AUTO_CONSUME(),
-                             Schema.AUTO_CONSUME(),
-                             KeyValueEncodingType.SEPARATED))
-                     .topic(topic)
-                     .subscriptionName("sub1")
-                     .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                     .subscribe();
-             Consumer<KeyValue<V1Data, V1Data>> c2 = pulsarClient.newConsumer(
-                     Schema.KeyValue(
-                             Schema.AVRO(V1Data.class),
-                             Schema.AVRO(V1Data.class),
-                             KeyValueEncodingType.SEPARATED))
-                     .topic(topic)
-                     .subscriptionName("sub2")
-                     .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                     .subscribe();
-             Consumer<KeyValue<GenericRecord, V1Data>> c3 = pulsarClient.newConsumer(
-                     Schema.KeyValue(
-                             Schema.AUTO_CONSUME(),
-                             Schema.AVRO(V1Data.class),
-                             KeyValueEncodingType.SEPARATED))
-                     .topic(topic)
-                     .subscriptionName("sub3")
-                     .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                     .subscribe();
-             Consumer<KeyValue<V1Data, GenericRecord>> c4 = pulsarClient.newConsumer(
-                     Schema.KeyValue(
-                             Schema.AVRO(V1Data.class),
-                             Schema.AUTO_CONSUME(),
-                             KeyValueEncodingType.SEPARATED))
-                     .topic(topic)
-                     .subscriptionName("sub4")
-                     .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                     .subscribe()
-        ) {
+                .subscriptionName("sub3b")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();) {
 
-            int numMessages = 10;
+            List<SchemaInfo> allSchemas = getPulsar().getAdminClient().schemas().getAllSchemas(topic);
+            // verify that the Consumer did not set a schema on the topic
+            assertTrue(allSchemas.isEmpty());
 
-            for (int i = 0; i < numMessages; i++) {
-                p.sendAsync(new KeyValue<>(new V1Data(i * 100), new V1Data(i * 1000)));
-            }
-            p.flush();
+            try (Producer<KeyValue<V1Data, V1Data>> p = pulsarClient.newProducer(pojoSchema)
+                    .topic(topic)
+                    .enableBatching(batching)
+                    .create();
+                 Consumer<GenericRecord> c0 = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+                         .topic(topic)
+                         .subscriptionName("sub0")
+                         .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                         .subscribe();
+                 Consumer<KeyValue<GenericRecord, GenericRecord>> c1 = pulsarClient.newConsumer(
+                         Schema.KeyValue(
+                                 Schema.AUTO_CONSUME(),
+                                 Schema.AUTO_CONSUME(),
+                                 keyValueEncodingType))
+                         .topic(topic)
+                         .subscriptionName("sub1")
+                         .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                         .subscribe();
+                 Consumer<KeyValue<V1Data, V1Data>> c2 = pulsarClient.newConsumer(
+                         Schema.KeyValue(
+                                 Schema.AVRO(V1Data.class),
+                                 Schema.AVRO(V1Data.class),
+                                 keyValueEncodingType))
+                         .topic(topic)
+                         .subscriptionName("sub2")
+                         .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                         .subscribe();
+                 Consumer<KeyValue<GenericRecord, V1Data>> c3 = pulsarClient.newConsumer(
+                         Schema.KeyValue(
+                                 Schema.AUTO_CONSUME(),
+                                 Schema.AVRO(V1Data.class),
+                                 keyValueEncodingType))
+                         .topic(topic)
+                         .subscriptionName("sub3")
+                         .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                         .subscribe();
+                 Consumer<KeyValue<V1Data, GenericRecord>> c4 = pulsarClient.newConsumer(
+                         Schema.KeyValue(
+                                 Schema.AVRO(V1Data.class),
+                                 Schema.AUTO_CONSUME(),
+                                 keyValueEncodingType))
+                         .topic(topic)
+                         .subscriptionName("sub4")
+                         .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                         .subscribe()
+            ) {
 
-            // verify c0
-            for (int i = 0; i < numMessages; i++) {
-                Message<GenericRecord> wrapper = c0.receive();
-                KeyValue<GenericRecord, GenericRecord> data = (KeyValue<GenericRecord, GenericRecord>) wrapper.getValue().getNativeObject();
-                assertNotNull(wrapper.getSchemaVersion());
-                assertEquals(data.getKey().getField("i"), i * 100);
-                assertEquals(data.getValue().getField("i"), i * 1000);
-                c0.acknowledge(wrapper);
-                Schema<?> schema = wrapper.getReaderSchema().get();
-                KeyValueSchema keyValueSchema = (KeyValueSchema) schema;
-                assertEquals(SchemaType.AVRO, keyValueSchema.getKeySchema().getSchemaInfo().getType());
-                assertEquals(SchemaType.AVRO, keyValueSchema.getValueSchema().getSchemaInfo().getType());
-                assertNotNull(schema.getSchemaInfo());
-            }
-            // verify c1
-            for (int i = 0; i < numMessages; i++) {
-                Message<KeyValue<GenericRecord, GenericRecord>> data = c1.receive();
-                assertNotNull(data.getSchemaVersion());
-                assertEquals(data.getValue().getKey().getField("i"), i * 100);
-                assertEquals(data.getValue().getValue().getField("i"), i * 1000);
-                c1.acknowledge(data);
-                KeyValueSchema keyValueSchema = (KeyValueSchema) data.getReaderSchema().get();
-                assertNotNull(keyValueSchema.getKeySchema());
-                assertNotNull(keyValueSchema.getValueSchema());
-            }
+                int numMessages = 10;
 
-            // verify c2
-            for (int i = 0; i < numMessages; i++) {
-                Message<KeyValue<V1Data, V1Data>> data = c2.receive();
-                assertNotNull(data.getSchemaVersion());
-                assertEquals(data.getValue().getKey().i, i * 100);
-                assertEquals(data.getValue().getValue().i, i * 1000);
-                c2.acknowledge(data);
-                KeyValueSchema keyValueSchema = (KeyValueSchema) data.getReaderSchema().get();
-                assertNotNull(keyValueSchema.getKeySchema());
-                assertNotNull(keyValueSchema.getValueSchema());
-            }
+                for (int i = 0; i < numMessages; i++) {
+                    p.sendAsync(new KeyValue<>(new V1Data(i * 100), new V1Data(i * 1000)));
+                }
+                p.flush();
 
-            // verify c3
-            for (int i = 0; i < numMessages; i++) {
-                Message<KeyValue<GenericRecord, V1Data>> data = c3.receive();
-                assertNotNull(data.getSchemaVersion());
-                assertEquals(data.getValue().getKey().getField("i"), i * 100);
-                assertEquals(data.getValue().getValue().i, i * 1000);
-                c3.acknowledge(data);
-                KeyValueSchema keyValueSchema = (KeyValueSchema) data.getReaderSchema().get();
-                assertNotNull(keyValueSchema.getKeySchema());
-                assertNotNull(keyValueSchema.getValueSchema());
-            }
+                // verify c0
+                for (int i = 0; i < numMessages; i++) {
+                    Message<GenericRecord> wrapper = c0.receive();
+                    KeyValue<GenericRecord, GenericRecord> data = (KeyValue<GenericRecord, GenericRecord>) wrapper.getValue().getNativeObject();
+                    assertNotNull(wrapper.getSchemaVersion());
+                    assertEquals(data.getKey().getField("i"), i * 100);
+                    assertEquals(data.getValue().getField("i"), i * 1000);
+                    c0.acknowledge(wrapper);
+                    Schema<?> schema = wrapper.getReaderSchema().get();
+                    KeyValueSchemaImpl keyValueSchema = (KeyValueSchemaImpl) schema;
+                    assertEquals(SchemaType.AVRO, keyValueSchema.getKeySchema().getSchemaInfo().getType());
+                    assertEquals(SchemaType.AVRO, keyValueSchema.getValueSchema().getSchemaInfo().getType());
+                    assertNotNull(schema.getSchemaInfo());
+                }
+                // verify c1
+                for (int i = 0; i < numMessages; i++) {
+                    Message<KeyValue<GenericRecord, GenericRecord>> data = c1.receive();
+                    assertNotNull(data.getSchemaVersion());
+                    assertEquals(data.getValue().getKey().getField("i"), i * 100);
+                    assertEquals(data.getValue().getValue().getField("i"), i * 1000);
+                    c1.acknowledge(data);
+                    KeyValueSchemaImpl keyValueSchema = (KeyValueSchemaImpl) data.getReaderSchema().get();
+                    assertNotNull(keyValueSchema.getKeySchema());
+                    assertNotNull(keyValueSchema.getValueSchema());
+                }
 
-            // verify c4
-            for (int i = 0; i < numMessages; i++) {
-                Message<KeyValue<V1Data, GenericRecord>> data = c4.receive();
-                assertNotNull(data.getSchemaVersion());
-                assertEquals(data.getValue().getKey().i, i * 100);
-                assertEquals(data.getValue().getValue().getField("i"), i * 1000);
-                c4.acknowledge(data);
+                // verify c2
+                for (int i = 0; i < numMessages; i++) {
+                    Message<KeyValue<V1Data, V1Data>> data = c2.receive();
+                    assertNotNull(data.getSchemaVersion());
+                    assertEquals(data.getValue().getKey().i, i * 100);
+                    assertEquals(data.getValue().getValue().i, i * 1000);
+                    c2.acknowledge(data);
+                    KeyValueSchemaImpl keyValueSchema = (KeyValueSchemaImpl) data.getReaderSchema().get();
+                    assertNotNull(keyValueSchema.getKeySchema());
+                    assertNotNull(keyValueSchema.getValueSchema());
+                }
+
+                // verify c3
+                for (int i = 0; i < numMessages; i++) {
+                    Message<KeyValue<GenericRecord, V1Data>> data = c3.receive();
+                    assertNotNull(data.getSchemaVersion());
+                    assertEquals(data.getValue().getKey().getField("i"), i * 100);
+                    assertEquals(data.getValue().getValue().i, i * 1000);
+                    c3.acknowledge(data);
+                    KeyValueSchemaImpl keyValueSchema = (KeyValueSchemaImpl) data.getReaderSchema().get();
+                    assertNotNull(keyValueSchema.getKeySchema());
+                    assertNotNull(keyValueSchema.getValueSchema());
+                }
+
+                // verify c3before
+                for (int i = 0; i < numMessages; i++) {
+                    Message<KeyValue<GenericRecord, V1Data>> data = c3before.receive();
+                    assertNotNull(data.getSchemaVersion());
+                    assertEquals(data.getValue().getKey().getField("i"), i * 100);
+                    assertEquals(data.getValue().getValue().i, i * 1000);
+                    c3before.acknowledge(data);
+                    KeyValueSchemaImpl keyValueSchema = (KeyValueSchemaImpl) data.getReaderSchema().get();
+                    assertNotNull(keyValueSchema.getKeySchema());
+                    assertNotNull(keyValueSchema.getValueSchema());
+                }
+
+                // verify c4
+                for (int i = 0; i < numMessages; i++) {
+                    Message<KeyValue<V1Data, GenericRecord>> data = c4.receive();
+                    assertNotNull(data.getSchemaVersion());
+                    assertEquals(data.getValue().getKey().i, i * 100);
+                    assertEquals(data.getValue().getValue().getField("i"), i * 1000);
+                    c4.acknowledge(data);
+                }
             }
         }
 
@@ -674,9 +719,17 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         Schema<KeyValue<V2Data, V2Data>> pojoSchemaV2 = Schema.KeyValue(
                 Schema.AVRO(V2Data.class),
                 Schema.AVRO(V2Data.class),
-                KeyValueEncodingType.SEPARATED);
+                keyValueEncodingType);
 
-        try (Producer<KeyValue<V2Data, V2Data>> p = pulsarClient.newProducer(pojoSchemaV2)
+        try (Consumer<KeyValue<GenericRecord, V2Data>> c3before = pulsarClient.newConsumer(
+                Schema.KeyValue(
+                        Schema.AUTO_CONSUME(),
+                        Schema.AVRO(V2Data.class),
+                        keyValueEncodingType))
+                .topic(topic)
+                .subscriptionName("sub3b")
+                .subscribe();
+                Producer<KeyValue<V2Data, V2Data>> p = pulsarClient.newProducer(pojoSchemaV2)
                 .topic(topic)
                 .enableBatching(batching)
                 .create();
@@ -688,7 +741,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                      Schema.KeyValue(
                              Schema.AUTO_CONSUME(),
                              Schema.AUTO_CONSUME(),
-                             KeyValueEncodingType.SEPARATED))
+                             keyValueEncodingType))
                      .topic(topic)
                      .subscriptionName("sub1")
                      .subscribe();
@@ -696,7 +749,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                      Schema.KeyValue(
                              Schema.AVRO(V2Data.class),
                              Schema.AVRO(V2Data.class),
-                             KeyValueEncodingType.SEPARATED))
+                             keyValueEncodingType))
                      .topic(topic)
                      .subscriptionName("sub2")
                      .subscribe();
@@ -704,7 +757,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                      Schema.KeyValue(
                              Schema.AUTO_CONSUME(),
                              Schema.AVRO(V2Data.class),
-                             KeyValueEncodingType.SEPARATED))
+                             keyValueEncodingType))
                      .topic(topic)
                      .subscriptionName("sub3")
                      .subscribe();
@@ -712,7 +765,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                      Schema.KeyValue(
                              Schema.AVRO(V2Data.class),
                              Schema.AUTO_CONSUME(),
-                             KeyValueEncodingType.SEPARATED))
+                             keyValueEncodingType))
                      .topic(topic)
                      .subscriptionName("sub4")
                      .subscribe()
@@ -758,6 +811,16 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
             // verify c3
             for (int i = 0; i < numMessages; i++) {
                 Message<KeyValue<GenericRecord, V2Data>> data = c3.receive();
+                assertNotNull(data.getSchemaVersion());
+                assertEquals(data.getValue().getKey().getField("i"), i * 100);
+                assertEquals(data.getValue().getValue().i, i * 1000);
+                assertEquals(data.getValue().getKey().getField("j"), (Integer) i);
+                assertEquals(data.getValue().getValue().j, (Integer) (i * 20));
+            }
+
+            // verify c3before
+            for (int i = 0; i < numMessages; i++) {
+                Message<KeyValue<GenericRecord, V2Data>> data = c3before.receive();
                 assertNotNull(data.getSchemaVersion());
                 assertEquals(data.getValue().getKey().getField("i"), i * 100);
                 assertEquals(data.getValue().getValue().i, i * 1000);
@@ -812,7 +875,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                 assertEquals(data.getKey().getField("i"), i * 100);
                 assertEquals(data.getValue().getField("i"), i * 1000);
                 c0.acknowledge(wrapper);
-                KeyValueSchema keyValueSchema = (KeyValueSchema) wrapper.getReaderSchema().get();
+                KeyValueSchemaImpl keyValueSchema = (KeyValueSchemaImpl) wrapper.getReaderSchema().get();
                 assertNotNull(keyValueSchema.getKeySchema());
                 assertNotNull(keyValueSchema.getValueSchema());
                 assertTrue(keyValueSchema.getKeySchema().getSchemaInfo().getSchemaDefinition().contains("V1Data"));
@@ -848,7 +911,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                     assertEquals(data.getValue().getField("i"), i * 1000);
                     assertEquals(data.getKey().getField("j"), i);
                     assertEquals(data.getValue().getField("j"), i * 20);
-                    KeyValueSchema keyValueSchema = (KeyValueSchema) wrapper.getReaderSchema().get();
+                    KeyValueSchemaImpl keyValueSchema = (KeyValueSchemaImpl) wrapper.getReaderSchema().get();
                     assertNotNull(keyValueSchema.getKeySchema());
                     assertNotNull(keyValueSchema.getValueSchema());
                     assertTrue(keyValueSchema.getKeySchema().getSchemaInfo().getSchemaDefinition().contains("V2Data"));
@@ -987,7 +1050,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
             p.send(new KeyValue<>(null, null));
 
             Message<GenericRecord> wrapper = c0.receive();
-            assertEquals(encodingType, ((KeyValueSchema) wrapper.getReaderSchema().get()).getKeyValueEncodingType());
+            assertEquals(encodingType, ((KeyValueSchemaImpl) wrapper.getReaderSchema().get()).getKeyValueEncodingType());
             KeyValue<GenericRecord, GenericRecord> data1 = (KeyValue<GenericRecord, GenericRecord>) wrapper.getValue().getNativeObject();
             assertEquals(1, data1.getKey().getField("i"));
             assertEquals(2, data1.getValue().getField("i"));
