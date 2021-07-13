@@ -33,7 +33,6 @@ import java.util.concurrent.Semaphore;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferHandlerImpl;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClientException;
@@ -49,9 +48,7 @@ import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
-import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import java.lang.reflect.Field;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -236,12 +233,6 @@ public class TransactionBufferClientTest extends TransactionTestBase {
     @Test
     public void testTransactionBufferLookUp() throws Exception {
         String topic = "persistent://" + namespace + "/testTransactionBufferLookUp";
-        String subName = "test";
-        admin.topics().createNonPartitionedTopic(topic + "_abort_sub");
-        admin.topics().createSubscription(topic + "_abort_sub", subName, MessageId.earliest);
-
-        admin.topics().createNonPartitionedTopic(topic + "_commit_sub");
-        admin.topics().createSubscription(topic + "_commit_sub", subName, MessageId.earliest);
 
         Awaitility.await().until(() -> {
             try {
@@ -277,14 +268,6 @@ public class TransactionBufferClientTest extends TransactionTestBase {
 
 
         String topic = "persistent://" + namespace + "/testTransactionBufferHandlerSemaphore";
-        String subName = "test";
-
-        admin.topics().createNonPartitionedTopic(topic + "_abort_sub");
-        admin.topics().createSubscription(topic + "_abort_sub", subName, MessageId.earliest);
-
-        admin.topics().createNonPartitionedTopic(topic + "_commit_sub");
-        admin.topics().createSubscription(topic + "_commit_sub", subName, MessageId.earliest);
-
 
         Awaitility.await().until(() -> {
             try {
