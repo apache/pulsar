@@ -2146,7 +2146,6 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testSubscriptionTypesWithPartitionedTopic() throws Exception {
         final String topic = "persistent://" + myNamespace + "/test-" + UUID.randomUUID();
-        System.out.println(TopicName.get(topic).getLocalName());
         admin.topics().createPartitionedTopic(topic, 1);
         pulsarClient.newConsumer().topic(topic).subscriptionName("test").subscribe().close();
         Awaitility.await()
@@ -2159,11 +2158,13 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
                 .getTopicReference(TopicName.get(topic).getPartition(0).toString()).get();
         Set<String> old = new HashSet<>(pulsar.getConfiguration().getSubscriptionTypesEnabled());
-        pulsar.getConfiguration().getSubscriptionTypesEnabled().clear();
-        boolean res = persistentTopic.checkSubscriptionTypesEnable(CommandSubscribe.SubType.Key_Shared);
-        //restore
-        pulsar.getConfiguration().getSubscriptionTypesEnabled().addAll(old);
-        assertTrue(res);
+        try {
+            pulsar.getConfiguration().getSubscriptionTypesEnabled().clear();
+            assertTrue(persistentTopic.checkSubscriptionTypesEnable(CommandSubscribe.SubType.Key_Shared));
+        } finally {
+            //restore
+            pulsar.getConfiguration().getSubscriptionTypesEnabled().addAll(old);
+        }
     }
 
     @Test(timeOut = 30000)
