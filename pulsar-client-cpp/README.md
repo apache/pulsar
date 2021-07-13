@@ -214,8 +214,10 @@ cmake --build ./build --config Release
 
 Then all artifacts will be built into `build` subdirectory.
 
-> NOTE: For Windows 32-bit, you need to use `-A Win32` and `-DVCPKG_TRIPLET=x86-windows`.
+> **NOTE**
 >
+> 1. For Windows 32-bit, you need to use `-A Win32` and `-DVCPKG_TRIPLET=x86-windows`.
+> 2. For MSVC Debug mode, you need to replace `Release` with `Debug` for both `CMAKE_BUILD_TYPE` variable and `--config` option.
 
 #### Install dependencies manually
 
