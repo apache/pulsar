@@ -71,6 +71,7 @@ class ProducerImpl : public HandlerBase,
     void flushAsync(FlushCallback callback) override;
     bool isConnected() const override;
     uint64_t getNumberOfConnectedProducer() override;
+    bool isStarted() const;
 
     bool removeCorruptMessage(uint64_t sequenceId);
 

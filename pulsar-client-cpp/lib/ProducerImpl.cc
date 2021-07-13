@@ -109,7 +109,7 @@ ProducerImpl::~ProducerImpl() {
     LOG_DEBUG(getName() << "~ProducerImpl");
     cancelTimers();
     printStats();
-    if (state_ == Ready) {
+    if (state_ == Ready || state_ == Pending) {
         LOG_WARN(getName() << "Destroyed producer which was not properly closed");
     }
 }
@@ -159,7 +159,11 @@ void ProducerImpl::connectionFailed(Result result) {
     // Keep a reference to ensure object is kept alive
     ProducerImplPtr ptr = shared_from_this();
 
-    if (producerCreatedPromise_.setFailed(result)) {
+    if (conf_.getLazyStartPartitionedProducers()) {
+        // if producers are lazy, then they should always try to restart
+        // so don't change the state and allow reconnections
+        return;
+    } else if (producerCreatedPromise_.setFailed(result)) {
         Lock lock(mutex_);
         state_ = Failed;
     }
@@ -168,6 +172,17 @@ void ProducerImpl::connectionFailed(Result result) {
 void ProducerImpl::handleCreateProducer(const ClientConnectionPtr& cnx, Result result,
                                         const ResponseData& responseData) {
     LOG_DEBUG(getName() << "ProducerImpl::handleCreateProducer res: " << strResult(result));
+
+    // make sure we're still in the Pending/Ready state, closeAsync could have been invoked
+    // while waiting for this response if using lazy producers
+    Lock lock(mutex_);
+    if (state_ != Ready && state_ != Pending) {
+        lock.unlock();
+        LOG_DEBUG("Producer created response received but producer already closed");
+        failPendingMessages(ResultAlreadyClosed);
+        return;
+    }
+    lock.unlock();
 
     if (result == ResultOk) {
         // We are now reconnected to broker and clear to send messages. Re-send all pending messages and
@@ -320,9 +335,14 @@ void ProducerImpl::statsCallBackHandler(Result res, const MessageId& msgId, Send
 void ProducerImpl::flushAsync(FlushCallback callback) {
     if (batchMessageContainer_) {
         Lock lock(mutex_);
-        auto failures = batchMessageAndSend(callback);
-        lock.unlock();
-        failures.complete();
+
+        if (state_ == Ready) {
+            auto failures = batchMessageAndSend(callback);
+            lock.unlock();
+            failures.complete();
+        } else {
+            callback(ResultAlreadyClosed);
+        }
     } else {
         callback(ResultOk);
     }
@@ -331,9 +351,11 @@ void ProducerImpl::flushAsync(FlushCallback callback) {
 void ProducerImpl::triggerFlush() {
     if (batchMessageContainer_) {
         Lock lock(mutex_);
-        auto failures = batchMessageAndSend();
-        lock.unlock();
-        failures.complete();
+        if (state_ == Ready) {
+            auto failures = batchMessageAndSend();
+            lock.unlock();
+            failures.complete();
+        }
     }
 }
 
@@ -389,7 +411,8 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
     }
 
     Lock lock(mutex_);
-    if (state_ != Ready) {
+    // producers may be lazily starting and be in the pending state
+    if (state_ != Ready && state_ != Pending) {
         lock.unlock();
         releaseSemaphore(payloadSize);
         cb(ResultAlreadyClosed, msg.getMessageId());
@@ -550,10 +573,14 @@ void ProducerImpl::batchMessageTimeoutHandler(const boost::system::error_code& e
         return;
     }
     LOG_DEBUG(getName() << " - Batch Message Timer expired");
+
+    // ignore if the producer is already closing/closed
     Lock lock(mutex_);
-    auto failures = batchMessageAndSend();
-    lock.unlock();
-    failures.complete();
+    if (state_ == Pending || state_ == Ready) {
+        auto failures = batchMessageAndSend();
+        lock.unlock();
+        failures.complete();
+    }
 }
 
 void ProducerImpl::printStats() {
@@ -568,16 +595,25 @@ void ProducerImpl::printStats() {
 void ProducerImpl::closeAsync(CloseCallback callback) {
     Lock lock(mutex_);
 
+    // if the producer was never started then there is nothing to clean up
+    if (state_ == NotStarted) {
+        state_ = Closed;
+        callback(ResultOk);
+        return;
+    }
+
     // Keep a reference to ensure object is kept alive
     ProducerImplPtr ptr = shared_from_this();
 
     cancelTimers();
 
-    if (state_ != Ready) {
+    if (state_ != Ready && state_ != Pending) {
+        state_ = Closed;
         lock.unlock();
         if (callback) {
             callback(ResultAlreadyClosed);
         }
+
         return;
     }
     LOG_INFO(getName() << "Closing producer for topic " << topic_);
@@ -631,6 +667,10 @@ void ProducerImpl::handleClose(Result result, ResultCallback callback, ProducerI
     } else {
         LOG_ERROR(getName() << "Failed to close producer: " << strResult(result));
     }
+
+    // ensure any remaining send callbacks are called before calling the close callback
+    failPendingMessages(ResultAlreadyClosed);
+
     if (callback) {
         callback(result);
     }
@@ -827,6 +867,11 @@ bool ProducerImpl::isConnected() const {
 }
 
 uint64_t ProducerImpl::getNumberOfConnectedProducer() { return isConnected() ? 1 : 0; }
+
+bool ProducerImpl::isStarted() const {
+    Lock lock(mutex_);
+    return state_ != NotStarted;
+}
 
 }  // namespace pulsar
 /* namespace pulsar */

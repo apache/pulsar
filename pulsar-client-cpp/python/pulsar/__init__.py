@@ -464,6 +464,7 @@ class Client:
                         batching_max_allowed_size_in_bytes=128*1024,
                         batching_max_publish_delay_ms=10,
                         message_routing_mode=PartitionsRoutingMode.RoundRobinDistribution,
+                        lazy_start_partitioned_producers=False,
                         properties=None,
                         batching_type=BatchingType.Default,
                         encryption_key=None,
@@ -518,6 +519,15 @@ class Client:
         * `message_routing_mode`:
           Set the message routing mode for the partitioned producer. Default is `PartitionsRoutingMode.RoundRobinDistribution`,
           other option is `PartitionsRoutingMode.UseSinglePartition`
+        * `lazy_start_partitioned_producers`:
+          This config affects producers of partitioned topics only. It controls whether
+          producers register and connect immediately to the owner broker of each partition
+          or start lazily on demand. Lazy starts occur when a message needs to be routed
+          to a partition that the producer has not yet registered and connected to.
+          Using this mode can reduce the strain on brokers for topics with large numbers of
+          partitions and when the SinglePartition routing policy is used without keyed messages.
+          Because producer registration and connection is on demand, this can produce extra
+          latency while the registration is being carried out.
         * `properties`:
           Sets the properties for the producer. The properties associated with a producer
           can be used for identify a producer at broker side.
@@ -558,6 +568,7 @@ class Client:
         _check_type(BatchingType, batching_type, 'batching_type')
         _check_type_or_none(str, encryption_key, 'encryption_key')
         _check_type_or_none(CryptoKeyReader, crypto_key_reader, 'crypto_key_reader')
+        _check_type(bool, lazy_start_partitioned_producers, 'lazy_start_partitioned_producers')
 
         conf = _pulsar.ProducerConfiguration()
         conf.send_timeout_millis(send_timeout_millis)
@@ -571,6 +582,7 @@ class Client:
         conf.batching_max_publish_delay_ms(batching_max_publish_delay_ms)
         conf.partitions_routing_mode(message_routing_mode)
         conf.batching_type(batching_type)
+        conf.lazy_start_partitioned_producers(lazy_start_partitioned_producers)
         if producer_name:
             conf.producer_name(producer_name)
         if initial_sequence_id:

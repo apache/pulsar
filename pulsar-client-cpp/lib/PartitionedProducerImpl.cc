@@ -87,13 +87,18 @@ unsigned int PartitionedProducerImpl::getNumPartitionsWithLock() const {
     return getNumPartitions();
 }
 
-ProducerImplPtr PartitionedProducerImpl::newInternalProducer(unsigned int partition) const {
+ProducerImplPtr PartitionedProducerImpl::newInternalProducer(unsigned int partition) {
     using namespace std::placeholders;
     std::string topicPartitionName = topicName_->getTopicPartitionName(partition);
     auto producer = std::make_shared<ProducerImpl>(client_, topicPartitionName, conf_, partition);
-    producer->getProducerCreatedFuture().addListener(
-        std::bind(&PartitionedProducerImpl::handleSinglePartitionProducerCreated,
-                  const_cast<PartitionedProducerImpl*>(this)->shared_from_this(), _1, _2, partition));
+
+    if (conf_.getLazyStartPartitionedProducers()) {
+        createLazyPartitionProducer(partition);
+    } else {
+        producer->getProducerCreatedFuture().addListener(
+            std::bind(&PartitionedProducerImpl::handleSinglePartitionProducerCreated,
+                      const_cast<PartitionedProducerImpl*>(this)->shared_from_this(), _1, _2, partition));
+    }
 
     LOG_DEBUG("Creating Producer for single Partition - " << topicPartitionName);
     return producer;
@@ -108,8 +113,10 @@ void PartitionedProducerImpl::start() {
         producers_.push_back(newInternalProducer(i));
     }
 
-    for (ProducerList::const_iterator prod = producers_.begin(); prod != producers_.end(); prod++) {
-        (*prod)->start();
+    if (!conf_.getLazyStartPartitionedProducers()) {
+        for (ProducerList::const_iterator prod = producers_.begin(); prod != producers_.end(); prod++) {
+            (*prod)->start();
+        }
     }
 }
 
@@ -147,6 +154,20 @@ void PartitionedProducerImpl::handleSinglePartitionProducerCreated(Result result
     }
 }
 
+void PartitionedProducerImpl::createLazyPartitionProducer(unsigned int partitionIndex) {
+    const auto numPartitions = getNumPartitions();
+    assert(numProducersCreated_ <= numPartitions);
+    assert(partitionIndex <= numPartitions);
+    numProducersCreated_++;
+    if (numProducersCreated_ == numPartitions) {
+        state_ = Ready;
+        if (partitionsUpdateTimer_) {
+            runPartitionUpdateTask();
+        }
+        partitionedProducerCreatedPromise_.setValue(shared_from_this());
+    }
+}
+
 // override
 void PartitionedProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
     // get partition for this message from router policy
@@ -161,7 +182,19 @@ void PartitionedProducerImpl::sendAsync(const Message& msg, SendCallback callbac
     }
     // find a producer for that partition, index should start from 0
     ProducerImplPtr producer = producers_[partition];
+
+    // if the producer is not started (lazy producer), then kick-off the start process
+    // but only if we're still in the Ready state (i.e not closing or closed)
+    if (!producer->isStarted()) {
+        if (assertState(Ready)) {
+            producer->start();
+        } else {
+            callback(ResultAlreadyClosed, msg.getMessageId());
+        }
+    }
+
     producersLock.unlock();
+
     // send message on that partition
     producer->sendAsync(msg, callback);
 }
@@ -173,6 +206,11 @@ void PartitionedProducerImpl::setState(const PartitionedProducerState state) {
     Lock lock(mutex_);
     state_ = state;
     lock.unlock();
+}
+
+bool PartitionedProducerImpl::assertState(const PartitionedProducerState state) {
+    Lock lock(mutex_);
+    return state_ == state;
 }
 
 const std::string& PartitionedProducerImpl::getProducerName() const {
@@ -285,7 +323,9 @@ bool PartitionedProducerImpl::isClosed() { return state_ == Closed; }
 void PartitionedProducerImpl::triggerFlush() {
     Lock producersLock(producersMutex_);
     for (ProducerList::const_iterator prod = producers_.begin(); prod != producers_.end(); prod++) {
-        (*prod)->triggerFlush();
+        if ((*prod)->isStarted()) {
+            (*prod)->triggerFlush();
+        }
     }
 }
 
@@ -322,7 +362,11 @@ void PartitionedProducerImpl::flushAsync(FlushCallback callback) {
     };
 
     for (ProducerList::const_iterator prod = producers_.begin(); prod != producers_.end(); prod++) {
-        (*prod)->flushAsync(subFlushCallback);
+        if ((*prod)->isStarted()) {
+            (*prod)->flushAsync(subFlushCallback);
+        } else {
+            subFlushCallback(ResultOk);
+        }
     }
 }
 
@@ -356,7 +400,10 @@ void PartitionedProducerImpl::handleGetPartitions(Result result,
 
             for (unsigned int i = currentNumPartitions; i < newNumPartitions; i++) {
                 auto producer = newInternalProducer(i);
-                producer->start();
+
+                if (!conf_.getLazyStartPartitionedProducers()) {
+                    producer->start();
+                }
                 producers_.push_back(producer);
             }
             // `runPartitionUpdateTask()` will be called in `handleSinglePartitionProducerCreated()`
@@ -379,8 +426,8 @@ bool PartitionedProducerImpl::isConnected() const {
     Lock producersLock(producersMutex_);
     const auto producers = producers_;
     producersLock.unlock();
-    for (const auto& producer : producers_) {
-        if (!producer->isConnected()) {
+    for (const auto& producer : producers) {
+        if (producer->isStarted() && !producer->isConnected()) {
             return false;
         }
     }

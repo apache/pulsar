@@ -233,6 +233,8 @@ void export_config() {
             .def("block_if_queue_full", &ProducerConfiguration::setBlockIfQueueFull, return_self<>())
             .def("partitions_routing_mode", &ProducerConfiguration::getPartitionsRoutingMode)
             .def("partitions_routing_mode", &ProducerConfiguration::setPartitionsRoutingMode, return_self<>())
+            .def("lazy_start_partitioned_producers", &ProducerConfiguration::getLazyStartPartitionedProducers)
+            .def("lazy_start_partitioned_producers", &ProducerConfiguration::setLazyStartPartitionedProducers, return_self<>())
             .def("batching_enabled", &ProducerConfiguration::getBatchingEnabled, return_value_policy<copy_const_reference>())
             .def("batching_enabled", &ProducerConfiguration::setBatchingEnabled, return_self<>())
             .def("batching_max_messages", &ProducerConfiguration::getBatchingMaxMessages, return_value_policy<copy_const_reference>())
