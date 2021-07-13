@@ -155,6 +155,7 @@ else()
     # Link to shared libraries
     find_package(ZLIB REQUIRED)
     set(ZLIB_LIBRARIES ${ZLIB_LIBRARIES})
+    # NOTE: The default MODULE mode may not find debug libraries so use CONFIG mode here
     find_package(Protobuf QUIET CONFIG)
     if (Protobuf_FOUND)
         message(STATUS "Found Protobuf in config mode")
