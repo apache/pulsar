@@ -40,7 +40,8 @@ import org.testng.annotations.Test;
  */
 @Test(groups = "broker")
 public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
-
+    private static final String BATCH_HEADER = "X-Pulsar-num-batch-message";
+    private static final String BATCH_SIZE_HEADER = "X-Pulsar-batch-size";
 
     @DataProvider(name = "subscriptionTypes")
     public static Object[] subscriptionTypes() {
@@ -193,6 +194,66 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
         BrokerEntryMetadata entryMetadata = message.getBrokerEntryMetadata();
         Assert.assertEquals(entryMetadata.getIndex(), 0);
         Assert.assertTrue(entryMetadata.getBrokerTimestamp() >= sendTime);
+    }
+
+    @Test(timeOut = 20000)
+    public void testBatchMessage() throws Exception {
+        final String topic = newTopicName();
+        final String subscription = "my-sub";
+        final long eventTime= 200;
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .enableBatching(true)
+                .create();
+
+        long sendTime = System.currentTimeMillis();
+        // send message which is batch message and only contains one message, so do not set the deliverAtTime
+        MessageIdImpl messageId  = (MessageIdImpl) producer.newMessage()
+                .eventTime(eventTime)
+                .value(("hello").getBytes())
+                .send();
+
+        // 1. test for peekMessages
+        admin.topics().createSubscription(topic, subscription, MessageId.earliest);
+        final List<Message<byte[]>> messages = admin.topics().peekMessages(topic, subscription, 1);
+        Assert.assertEquals(messages.size(), 1);
+
+        MessageImpl message = (MessageImpl) messages.get(0);
+        Assert.assertEquals(message.getData(), ("hello").getBytes());
+        Assert.assertTrue(message.getPublishTime() >= sendTime);
+        BrokerEntryMetadata entryMetadata = message.getBrokerEntryMetadata();
+        Assert.assertTrue(entryMetadata.getBrokerTimestamp() >= sendTime);
+        Assert.assertEquals(entryMetadata.getIndex(), 0);
+        System.out.println(message.getProperties());
+        Assert.assertEquals(Integer.parseInt(message.getProperty(BATCH_HEADER)), 1);
+        // make sure BATCH_SIZE_HEADER > 0
+        Assert.assertTrue(Integer.parseInt(message.getProperty(BATCH_SIZE_HEADER)) > 0);
+
+        // 2. test for getMessagesById
+        message = (MessageImpl) admin.topics().getMessageById(topic, messageId.getLedgerId(), messageId.getEntryId());
+        Assert.assertEquals(message.getData(), ("hello").getBytes());
+        Assert.assertTrue(message.getPublishTime() >= sendTime);
+        entryMetadata = message.getBrokerEntryMetadata();
+        Assert.assertTrue(entryMetadata.getBrokerTimestamp() >= sendTime);
+        Assert.assertEquals(entryMetadata.getIndex(), 0);
+        System.out.println(message.getProperties());
+        Assert.assertEquals(Integer.parseInt(message.getProperty(BATCH_HEADER)), 1);
+        // make sure BATCH_SIZE_HEADER > 0
+        Assert.assertTrue(Integer.parseInt(message.getProperty(BATCH_SIZE_HEADER)) > 0);
+
+        // 3. test for examineMessage
+        message = (MessageImpl) admin.topics().examineMessage(topic, "earliest", 1);
+        Assert.assertEquals(message.getData(), ("hello").getBytes());
+        Assert.assertTrue(message.getPublishTime() >= sendTime);
+        entryMetadata = message.getBrokerEntryMetadata();
+        Assert.assertTrue(entryMetadata.getBrokerTimestamp() >= sendTime);
+        Assert.assertEquals(entryMetadata.getIndex(), 0);
+        System.out.println(message.getProperties());
+        Assert.assertEquals(Integer.parseInt(message.getProperty(BATCH_HEADER)), 1);
+        // make sure BATCH_SIZE_HEADER > 0
+        Assert.assertTrue(Integer.parseInt(message.getProperty(BATCH_SIZE_HEADER)) > 0);
     }
 
     @Test(timeOut = 20000)
