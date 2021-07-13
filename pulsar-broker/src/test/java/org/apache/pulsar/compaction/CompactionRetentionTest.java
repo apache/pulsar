@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -154,14 +155,14 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
         log.info(" ---- X 2: {}", mapper.writeValueAsString(
                 admin.topics().getInternalStats(topic, false)));
 
-        validateMessages(pulsarClient, topic, round, allKeys);
+        validateMessages(pulsarClient, true, topic, round, allKeys);
 
         compactor.compact(topic).join();
 
         log.info(" ---- X 3: {}", mapper.writeValueAsString(
                 admin.topics().getInternalStats(topic, false)));
 
-        validateMessages(pulsarClient, topic, round, allKeys);
+        validateMessages(pulsarClient, true, topic, round, allKeys);
 
         round = 2;
 
@@ -174,32 +175,33 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
 
         compactor.compact(topic).join();
 
-        validateMessages(pulsarClient, topic, round, allKeys);
+        validateMessages(pulsarClient, true, topic, round, allKeys);
 
-        // Now explicitely remove the expiring keys
+        // Now explicitly remove the expiring keys
         for (String key : keysToExpire) {
             producer.newMessage()
                     .key(key)
                     .send();
         }
 
-        System.err.println("--------------------");
         compactor.compact(topic).join();
-        System.err.println("--------------------");
 
         log.info(" ---- X 4: {}", mapper.writeValueAsString(
                 admin.topics().getInternalStats(topic, false)));
 
-        validateMessages(pulsarClient, topic, round, keys);
+        validateMessages(pulsarClient, true, topic, round, keys);
+
+        // In the raw topic there should be no messages
+        validateMessages(pulsarClient, false, topic, round, Collections.emptySet());
     }
 
-    private void validateMessages(PulsarClient client, String topic, int round, Set<String> expectedKeys)
+    private void validateMessages(PulsarClient client, boolean readCompacted, String topic, int round, Set<String> expectedKeys)
             throws Exception {
         @Cleanup
         Reader<Integer> reader = client.newReader(Schema.INT32)
                 .topic(topic)
                 .startMessageId(MessageId.earliest)
-                .readCompacted(true)
+                .readCompacted(readCompacted)
                 .create();
 
         Map<String, Integer> receivedValues = new HashMap<>();
@@ -210,10 +212,11 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
                 break;
             }
 
-            assertTrue(expectedKeys.contains(msg.getKey()), "Unexpected key: " + msg.getKey());
-
-            System.err.println("Received: " + msg.getKey());
-            receivedValues.put(msg.getKey(), msg.getValue());
+            Integer value = msg.size() > 0 ? msg.getValue() : null;
+            log.info("Received: {} -- value: {}", msg.getKey(), value);
+            if (value != null) {
+                receivedValues.put(msg.getKey(), value);
+            }
         }
 
         Map<String, Integer> expectedReceivedValues = new HashMap<>();
