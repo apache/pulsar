@@ -50,6 +50,7 @@ import org.apache.pulsar.compaction.TwoPhaseCompactor;
 import org.apache.pulsar.functions.LocalRunner;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.worker.PulsarFunctionTestUtils;
+import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
@@ -74,12 +75,19 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
         final int messageNum = 20;
         final int maxKeys = 10;
         // 1 Setup producer
+        @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .topic(sourceTopic)
                 .enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .create();
-        pulsarClient.newConsumer().topic(sourceTopic).subscriptionName(subscriptionName).readCompacted(true).subscribe().close();
+        pulsarClient.newConsumer()
+                .topic(sourceTopic)
+                .subscriptionName(subscriptionName)
+                .readCompacted(true)
+                .subscribe()
+                .close();
+
         // 2 Send messages and record the expected values after compaction
         Map<String, String> expected = new HashMap<>();
         for (int j = 0; j < messageNum; j++) {
@@ -107,18 +115,12 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
         admin.sink().createSinkWithUrl(sinkConfig, jarFilePathUrl);
 
         // 5 Sink should only read compacted value，so we will only receive compacted messages
-        retryStrategically((test) -> {
-            try {
-                String prometheusMetrics = PulsarFunctionTestUtils.getPrometheusMetrics(pulsar.getListenPortHTTP().get());
-                Map<String, PulsarFunctionTestUtils.Metric> metrics = PulsarFunctionTestUtils.parseMetrics(prometheusMetrics);
-                PulsarFunctionTestUtils.Metric m = metrics.get("pulsar_sink_received_total");
-                return m.value == (double) maxKeys;
-            } catch (Exception e) {
-                return false;
-            }
-        }, 50, 1000);
-
-        producer.close();
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+            String prometheusMetrics = PulsarFunctionTestUtils.getPrometheusMetrics(pulsar.getListenPortHTTP().get());
+            Map<String, PulsarFunctionTestUtils.Metric> metrics = PulsarFunctionTestUtils.parseMetrics(prometheusMetrics);
+            PulsarFunctionTestUtils.Metric m = metrics.get("pulsar_sink_received_total");
+            assertEquals(m.value, maxKeys);
+        });
     }
 
     @Test(timeOut = 30000)
