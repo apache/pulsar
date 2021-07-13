@@ -164,6 +164,11 @@ else()
     set(ZLIB_LIBRARIES ${ZLIB_LIBRARIES})
     # NOTE: The default MODULE mode may not find debug libraries so use CONFIG mode here
     find_package(Protobuf QUIET CONFIG)
+    # NOTE: On Windows x86 platform, Protobuf_FOUND might be set false but Protobuf_INCLUDE_DIRS and
+    # Protobuf_LITE_LIBRARIES are both found.
+    if (Protobuf_INCLUDE_DIRS AND Protobuf_LITE_LIBRARIES AND NOT Protobuf_FOUND)
+        set(Protobuf_FOUND TRUE)
+    endif ()
     if (Protobuf_FOUND)
         message("Found Protobuf in config mode")
         message(STATUS "Protobuf_LITE_LIBRARIES: ${Protobuf_LITE_LIBRARIES}")
