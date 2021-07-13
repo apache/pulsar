@@ -127,6 +127,8 @@ if (LINK_STATIC)
     find_library(CURL_LIBRARIES NAMES libcurl.a curl curl_a libcurl_a)
     find_library(LIB_ZSTD NAMES libzstd.a)
     find_library(LIB_SNAPPY NAMES libsnappy.a)
+    message(STATUS "Protobuf_LITE_LIBRARIES: ${Protobuf_LITE_LIBRARIES}")
+    set(COMMON_LIBS ${Protobuf_LITE_LIBRARIES} ${COMMON_LIBS})
 
     if (USE_LOG4CXX)
         if (LOG4CXX_USE_DYNAMIC_LIBS)
@@ -172,6 +174,12 @@ else()
         find_path(Protobuf_INCLUDE_DIRS google/protobuf/stubs/common.h)
         message(STATUS "Protobuf_LITE_LIBRARIES: ${Protobuf_LITE_LIBRARIES}")
         message(STATUS "Protobuf_INCLUDE_DIRS: ${Protobuf_INCLUDE_DIRS}")
+    endif ()
+
+    if (${Protobuf_FOUND} AND (${CMAKE_VERSION} VERSION_GREATER 3.8))
+        set(COMMON_LIBS protobuf::libprotobuf-lite ${COMMON_LIBS})
+    else ()
+        set(COMMON_LIBS ${Protobuf_LITE_LIBRARIES} ${COMMON_LIBS})
     endif ()
 
     if (MSVC AND (${CMAKE_BUILD_TYPE} STREQUAL Debug))
@@ -320,11 +328,6 @@ set(COMMON_LIBS
   ${ADDITIONAL_LIBRARIES}
   ${CMAKE_DL_LIBS}
 )
-if (${Protobuf_FOUND} AND (${CMAKE_VERSION} VERSION_GREATER 3.8))
-    set(COMMON_LIBS protobuf::libprotobuf-lite ${COMMON_LIBS})
-else ()
-    set(COMMON_LIBS ${Protobuf_LITE_LIBRARIES} ${COMMON_LIBS})
-endif ()
 
 if (MSVC)
   set(COMMON_LIBS
