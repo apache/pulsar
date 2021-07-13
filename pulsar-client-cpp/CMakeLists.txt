@@ -158,7 +158,7 @@ else()
     # NOTE: The default MODULE mode may not find debug libraries so use CONFIG mode here
     find_package(Protobuf QUIET CONFIG)
     if (Protobuf_FOUND)
-        message(STATUS "Found Protobuf in config mode")
+        message("Found Protobuf in config mode")
         message(STATUS "Protobuf_LITE_LIBRARIES: ${Protobuf_LITE_LIBRARIES}")
         message(STATUS "Protobuf_INCLUDE_DIRS: ${Protobuf_INCLUDE_DIRS}")
     else ()
