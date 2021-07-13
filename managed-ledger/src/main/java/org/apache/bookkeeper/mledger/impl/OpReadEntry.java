@@ -48,7 +48,6 @@ class OpReadEntry implements ReadEntriesCallback {
     public static OpReadEntry create(ManagedCursorImpl cursor, PositionImpl readPositionRef, int count,
             ReadEntriesCallback callback, Object ctx, PositionImpl maxPosition) {
         OpReadEntry op = RECYCLER.get();
-        op.readPosition = cursor.ledger.startReadOperationOnLedger(readPositionRef, op);
         op.cursor = cursor;
         op.count = count;
         op.callback = callback;
@@ -58,8 +57,20 @@ class OpReadEntry implements ReadEntriesCallback {
         }
         op.maxPosition = maxPosition;
         op.ctx = ctx;
+        op.readPosition = readPositionRef;
         op.nextReadPosition = PositionImpl.get(op.readPosition);
         return op;
+    }
+
+    public boolean checkReadPositionValidation() {
+        readPosition = cursor.ledger.startReadOperationOnLedger(readPosition);
+        if (null == readPosition) {
+            readEntriesFailed(new ManagedLedgerException.NoMoreEntriesToReadException(
+                    "The readPosition is larger than current's max ledgeId"), ctx);
+            return false;
+        }
+        nextReadPosition = PositionImpl.get(readPosition);
+        return true;
     }
 
     @Override
@@ -138,12 +149,21 @@ class OpReadEntry implements ReadEntriesCallback {
                 ((PositionImpl) cursor.getReadPosition()).compareTo(maxPosition) < 0) {
             // We still have more entries to read from the next ledger, schedule a new async operation
             if (nextReadPosition.getLedgerId() != readPosition.getLedgerId()) {
-                cursor.ledger.startReadOperationOnLedger(nextReadPosition, OpReadEntry.this);
+                if (null == cursor.ledger.startReadOperationOnLedger(nextReadPosition)) {
+                    readEntriesFailed(new ManagedLedgerException.NoMoreEntriesToReadException(
+                            "nextReadPosition is larger than current's max ledgeId"), ctx);
+                    return;
+                }
             }
 
             // Schedule next read in a different thread
             cursor.ledger.getExecutor().execute(safeRun(() -> {
-                readPosition = cursor.ledger.startReadOperationOnLedger(nextReadPosition, OpReadEntry.this);
+                readPosition = cursor.ledger.startReadOperationOnLedger(nextReadPosition);
+                if (null == readPosition) {
+                    readEntriesFailed(new ManagedLedgerException.NoMoreEntriesToReadException(
+                            "nextReadPosition is larger than current's max ledgeId"), ctx);
+                    return;
+                }
                 cursor.ledger.asyncReadEntries(OpReadEntry.this);
             }));
         } else {

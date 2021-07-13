@@ -623,7 +623,9 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         PENDING_READ_OPS_UPDATER.incrementAndGet(this);
         OpReadEntry op = OpReadEntry.create(this, readPosition, numOfEntriesToRead, callback, ctx, maxPosition);
-        ledger.asyncReadEntries(op);
+        if (op.checkReadPositionValidation()) {
+            ledger.asyncReadEntries(op);
+        }
     }
 
     @Override
@@ -761,7 +763,9 @@ public class ManagedCursorImpl implements ManagedCursor {
         } else {
             OpReadEntry op = OpReadEntry.create(this, readPosition, numberOfEntriesToRead, callback,
                     ctx, maxPosition);
-
+            if (!op.checkReadPositionValidation()) {
+                return;
+            }
             if (!WAITING_READ_OP_UPDATER.compareAndSet(this, null, op)) {
                 callback.readEntriesFailed(new ManagedLedgerException("We can only have a single waiting callback"),
                         ctx);
