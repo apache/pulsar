@@ -29,13 +29,18 @@ import io.debezium.relational.history.DatabaseHistoryException;
 import io.debezium.relational.history.DatabaseHistoryListener;
 import io.debezium.relational.history.HistoryRecord;
 import io.debezium.relational.history.HistoryRecordComparator;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.ObjectInputStream;
 import java.util.UUID;
 import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.codec.binary.Base64;
 import org.apache.kafka.common.config.ConfigDef.Importance;
 import org.apache.kafka.common.config.ConfigDef.Type;
 import org.apache.kafka.common.config.ConfigDef.Width;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -61,25 +66,33 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
         .withValidation(Field::isRequired);
 
     public static final Field SERVICE_URL = Field.create(CONFIGURATION_FIELD_PREFIX_STRING + "pulsar.service.url")
-        .withDisplayName("Pulsar broker addresses")
+        .withDisplayName("Pulsar service url")
         .withType(Type.STRING)
         .withWidth(Width.LONG)
         .withImportance(Importance.HIGH)
         .withDescription("Pulsar service url")
         .withValidation(Field::isRequired);
 
+    public static final Field CLIENT_BUILDER = Field.create(CONFIGURATION_FIELD_PREFIX_STRING + "pulsar.client.builder")
+        .withDisplayName("Pulsar client builder")
+        .withType(Type.STRING)
+        .withWidth(Width.LONG)
+        .withImportance(Importance.HIGH)
+        .withDescription("Pulsar client builder")
+        .withValidation(Field::isRequired);
+
     public static Field.Set ALL_FIELDS = Field.setOf(
         TOPIC,
         SERVICE_URL,
+        CLIENT_BUILDER,
         DatabaseHistory.NAME);
 
     private final DocumentReader reader = DocumentReader.defaultReader();
     private String topicName;
-    private String serviceUrl;
     private String dbHistoryName;
+    private ClientBuilder clientBuilder;
     private volatile PulsarClient pulsarClient;
     private volatile Producer<String> producer;
-
 
     @Override
     public void configure(
@@ -93,12 +106,28 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
                 + getClass().getSimpleName() + "; check the logs for details");
         }
         this.topicName = config.getString(TOPIC);
-        this.serviceUrl = config.getString(SERVICE_URL);
+
+        String clientBuilderBase64Encoded = config.getString(CLIENT_BUILDER);
+        if (null == clientBuilderBase64Encoded) {
+            this.clientBuilder = PulsarClient.builder()
+                .serviceUrl(config.getString(SERVICE_URL));
+        } else {
+            byte[] data = Base64.decodeBase64(clientBuilderBase64Encoded);
+            InputStream bai = new ByteArrayInputStream(data);
+            try (ObjectInputStream ois = new ObjectInputStream(bai)) {
+                this.clientBuilder = (ClientBuilder) ois.readObject();
+            } catch (Exception e) {
+                log.error("Failed initialize the pulsar client to store debezium database history", e);
+                throw new RuntimeException(
+                    "Failed to initialize the pulsar client to store debezium database history", e);
+            }
+        }
+
         // Copy the relevant portions of the configuration and add useful defaults ...
         this.dbHistoryName = config.getString(DatabaseHistory.NAME, UUID.randomUUID().toString());
 
-        log.info("Configure to store the debezium database history {} to pulsar topic {} at {}",
-            dbHistoryName, topicName, serviceUrl);
+        log.info("Configure to store the debezium database history {} to pulsar topic {}",
+            dbHistoryName, topicName);
     }
 
     @Override
@@ -117,12 +146,9 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
     void setupClientIfNeeded() {
         if (null == this.pulsarClient) {
             try {
-                pulsarClient = PulsarClient.builder()
-                    .serviceUrl(serviceUrl)
-                    .build();
+                pulsarClient = clientBuilder.build();
             } catch (PulsarClientException e) {
-                throw new RuntimeException("Failed to create pulsar client to pulsar cluster at "
-                    + serviceUrl, e);
+                throw new RuntimeException("Failed to create pulsar client to pulsar cluster", e);
             }
         }
     }
@@ -137,9 +163,9 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
                     .blockIfQueueFull(true)
                     .create();
             } catch (PulsarClientException e) {
-                log.error("Failed to create pulsar producer to topic '{}' at cluster '{}'", topicName, serviceUrl);
+                log.error("Failed to create pulsar producer to topic '{}'", topicName);
                 throw new RuntimeException("Failed to create pulsar producer to topic '"
-                    + topicName + "' at cluster '" + serviceUrl + "'", e);
+                    + topicName, e);
             }
         }
     }
@@ -258,7 +284,7 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
     @Override
     public String toString() {
         if (topicName != null) {
-            return "Pulsar topic (" + topicName + ") at " + serviceUrl;
+            return "Pulsar topic (" + topicName + ")";
         }
         return "Pulsar topic";
     }

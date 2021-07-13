@@ -18,10 +18,15 @@
  */
 package org.apache.pulsar.io.debezium;
 
+import io.debezium.relational.history.DatabaseHistory;
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectOutputStream;
 import java.util.Map;
 
 import io.debezium.relational.HistorizedRelationalDatabaseConnectorConfig;
+import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.kafka.connect.KafkaConnectSource;
@@ -95,6 +100,16 @@ public abstract class DebeziumSource extends KafkaConnectSource {
         // offset.storage.topic: offset topic name
         setConfigIfNull(config, PulsarKafkaWorkerConfig.OFFSET_STORAGE_TOPIC_CONFIG,
             topicNamespace + "/" + sourceName + "-" + DEFAULT_OFFSET_TOPIC);
+
+        ClientBuilder clientBuilder = sourceContext.getPulsarClientBuilder();
+        ByteArrayOutputStream bao = new ByteArrayOutputStream();
+        try (ObjectOutputStream oos = new ObjectOutputStream(bao)) {
+            oos.writeObject(clientBuilder);
+            oos.flush();
+            byte[] data = bao.toByteArray();
+            config.put(DatabaseHistory.CONFIGURATION_FIELD_PREFIX_STRING + "pulsar.client.builder",
+                Base64.encodeBase64String(data));
+        }
 
         super.open(config, sourceContext);
     }

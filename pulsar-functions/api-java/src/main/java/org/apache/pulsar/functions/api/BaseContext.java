@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.api;
 
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
@@ -201,4 +202,14 @@ public interface BaseContext {
     default PulsarClient getPulsarClient() {
         throw new UnsupportedOperationException("not implemented");
     }
+
+    /**
+     * Get the pulsar client builder.
+     *
+     * @return the instance of pulsar client builder.
+     */
+    default ClientBuilder getPulsarClientBuilder() {
+        throw new UnsupportedOperationException("not implemented");
+    }
+
 }
