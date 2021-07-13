@@ -74,7 +74,7 @@ public class ElasticSearchSinkTester extends SinkTester<ElasticSearchContainer> 
 
     public ElasticSearchSinkTester(boolean schemaEnable) {
         super(ElasticSearchContainer.NAME, SinkType.ELASTIC_SEARCH);
-        
+
         sinkConfig.put("elasticSearchUrl", "http://" + ElasticSearchContainer.NAME + ":9200");
         sinkConfig.put("indexName", "test-index");
         this.schemaEnable = schemaEnable;

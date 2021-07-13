@@ -44,7 +44,6 @@ import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
 import org.apache.http.nio.reactor.ConnectingIOReactor;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.SSLContexts;
-import org.apache.lucene.search.TotalHits;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.functions.api.Record;
 import org.elasticsearch.action.DocWriteRequest;
@@ -185,6 +184,7 @@ public class ElasticSearchClient {
         );
 
         URL url = new URL(config.getElasticSearchUrl());
+        log.info("ElasticSearch URL {}", url);
         RestClientBuilder builder = RestClient.builder(new HttpHost(url.getHost(), url.getPort(), url.getProtocol()))
                 .setRequestConfigCallback(new RestClientBuilder.RequestConfigCallback() {
                     @Override
@@ -275,7 +275,6 @@ public class ElasticSearchClient {
             indexRequest.type(config.getTypeName());
             indexRequest.source(idAndDoc.getRight(), XContentType.JSON);
             IndexResponse indexResponse = client.index(indexRequest, RequestOptions.DEFAULT);
-            log.debug("index id={} result={}", idAndDoc.getLeft(), indexResponse.getResult());
             if (indexResponse.getResult().equals(DocWriteResponse.Result.CREATED) ||
                     indexResponse.getResult().equals(DocWriteResponse.Result.UPDATED)) {
                 record.ack();
@@ -285,7 +284,7 @@ public class ElasticSearchClient {
                 return false;
             }
         } catch (final Exception ex) {
-            log.debug("index failed id=" + idAndDoc.getLeft(), ex);
+            log.error("index failed id=" + idAndDoc.getLeft(), ex);
             record.fail();
             throw ex;
         }
@@ -370,6 +369,9 @@ public class ElasticSearchClient {
     }
 
     private void checkIndexExists(Optional<String> topicName) throws IOException {
+        if (!config.isCreateIndexIfNeeded()) {
+            return;
+        }
         String indexName = indexName(topicName);
         if (!indexCache.contains(indexName)) {
             synchronized (this) {
@@ -450,10 +452,9 @@ public class ElasticSearchClient {
                         .source(new SearchSourceBuilder().query(QueryBuilders.matchAllQuery())),
                 RequestOptions.DEFAULT);
         for(SearchHit searchHit : response.getHits()) {
-            log.info(searchHit.getId()+": "+searchHit.getFields());
+            System.out.println(searchHit.getId()+": "+searchHit.getFields());
         }
-        TotalHits totalHits = response.getHits().getTotalHits();
-        return totalHits == null ? 0 : totalHits.value;
+        return response.getHits().getTotalHits().value;
     }
 
     @VisibleForTesting
@@ -470,6 +471,7 @@ public class ElasticSearchClient {
         try {
             return backoffRetry.retry(callable, config.getMaxRetries(), config.getRetryBackoffInMs(), source);
         } catch (Exception e) {
+            log.error("error in command {} wth retry", source, e);
             throw new ElasticSearchConnectionException(source + " failed", e);
         }
     }
