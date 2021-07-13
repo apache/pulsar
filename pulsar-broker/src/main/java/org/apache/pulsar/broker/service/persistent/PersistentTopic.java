@@ -705,7 +705,6 @@ public class PersistentTopic extends AbstractTopic
                         new NotAllowedException("Subscribe limited by subscribe rate limit per consumer."));
                 return future;
             }
-
         }
 
         lock.readLock().lock();
@@ -733,7 +732,7 @@ public class PersistentTopic extends AbstractTopic
         subscriptionFuture.thenAccept(subscription -> {
             Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName,
                     maxUnackedMessages, cnx, cnx.getAuthRole(), metadata,
-                    readCompacted, initialPosition, keySharedMeta);
+                    readCompacted, initialPosition, keySharedMeta, startMessageId);
             addConsumerToSubscription(subscription, consumer).thenAccept(v -> {
                 checkBackloggedCursors();
                 if (!cnx.isActive()) {

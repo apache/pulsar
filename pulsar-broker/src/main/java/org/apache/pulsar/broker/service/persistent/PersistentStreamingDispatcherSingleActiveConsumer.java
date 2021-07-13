@@ -121,6 +121,8 @@ public class PersistentStreamingDispatcherSingleActiveConsumer extends Persisten
             havePendingRead = false;
         }
 
+        isFirstRead = false;
+
         if (readBatchSize < serviceConfig.getDispatcherMaxReadBatchSize()) {
             int newReadBatchSize = Math.min(readBatchSize * 2, serviceConfig.getDispatcherMaxReadBatchSize());
             if (log.isDebugEnabled()) {
@@ -197,7 +199,8 @@ public class PersistentStreamingDispatcherSingleActiveConsumer extends Persisten
             havePendingRead = true;
 
             if (consumer.readCompacted()) {
-                topic.getCompactedTopic().asyncReadEntriesOrWait(cursor, messagesToRead, this, consumer);
+                topic.getCompactedTopic().asyncReadEntriesOrWait(cursor, messagesToRead, isFirstRead,
+                        this, consumer);
             } else {
                 streamingEntryReader.asyncReadEntries(messagesToRead, bytesToRead, consumer);
             }
