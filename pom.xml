@@ -1963,7 +1963,6 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-broker-auth-athenz</module>
         <module>pulsar-client-auth-athenz</module>
         <module>pulsar-sql</module>
-        <module>dashboard</module>
         <module>pulsar-broker-auth-sasl</module>
         <module>pulsar-client-auth-sasl</module>
         <module>pulsar-config-validation</module>
