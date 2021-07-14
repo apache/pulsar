@@ -550,7 +550,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         org.apache.avro.Schema v2SchemaAvroNative = new Parser().parse(new ByteArrayInputStream(v2SchemaBytes));
         AvroWriter<V2Data> v2Writer = new AvroWriter<>(v2SchemaAvroNative);
 
-        Consumer<byte[]> c = pulsarClient.newConsumer(Schema.NATIVE_AVRO(v2SchemaAvroNative))
+        Consumer<byte[]> c = pulsarClient.newConsumer(Schema.BYTES)
                 .topic(topic)
                 .subscriptionName("sub1").subscribe();
         Producer<byte[]> p = pulsarClient.newProducer(Schema.NATIVE_AVRO(v1SchemaAvroNative))
@@ -590,15 +590,16 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
             }
         }
         p.flush();
-        
-        AvroReader<V2Data> v2Reader = new AvroReader<>(v2SchemaAvroNative);
+    
         for (int i = 0; i < total; ++i) {
-            byte[] raw = c.receive().getValue();
-            V2Data value = v2Reader.read(raw);
+            byte[] raw = c.receive().getData();
             if (i / batch % 2 == 0) {
-                assertNull(value.j);
+                AvroReader<V1Data> reader = new AvroReader<>(v1SchemaAvroNative);
+                V1Data value = reader.read(raw);
                 Assert.assertEquals(value.i, i);
             } else {
+                AvroReader<V2Data> reader = new AvroReader<>(v2SchemaAvroNative);
+                V2Data value = reader.read(raw);
                 Assert.assertEquals(value, new V2Data(i, i + total));
             }
         }

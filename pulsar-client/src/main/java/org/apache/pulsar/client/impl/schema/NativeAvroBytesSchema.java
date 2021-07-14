@@ -29,9 +29,11 @@ import java.util.Optional;
 
 /**
  * Schema from a native Apache Avro schema.
- * This class is supposed to be used for working with existing data serialized in Avro, possibly stored in another system like Kafka.
- * For this reason, it will not perform bytes validation against the schema in encoding and decoding, which are just identify functions.
- * This class also makes it possible for users to bring in their own Avro serializer/deserializer. 
+ * This class is supposed to be used on the producer side for working with existing data serialized in Avro, 
+ * possibly stored in another system like Kafka.
+ * For this reason, it will not perform bytes validation against the schema in encoding and decoding, 
+ * which are just identify functions.
+ * This class also makes it possible for users to bring in their own Avro serialization method. 
  */
 public class NativeAvroBytesSchema<T> implements Schema<byte[]> {
 
@@ -73,11 +75,10 @@ public class NativeAvroBytesSchema<T> implements Schema<byte[]> {
         return message;
     }
 
+    /* decode should not be used because this is a Schema to be used on the Producer side */
     @Override
     public byte[] decode(byte[] bytes, byte[] schemaVersion) {
-        ensureSchemaInitialized();
-        
-        return bytes;
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -89,12 +90,12 @@ public class NativeAvroBytesSchema<T> implements Schema<byte[]> {
 
     @Override
     public Optional<Object> getNativeSchema() {
-        return Optional.ofNullable(this.nativeSchema);
+        return Optional.of(this.nativeSchema);
     }
 
     @Override
     public Schema<byte[]> clone() {
-        return new AutoProduceBytesSchema<>(schema.clone());
+        return new NativeAvroBytesSchema(nativeSchema);
     }
 
 }
