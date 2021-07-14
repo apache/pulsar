@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.transaction.pendingack;
 
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
@@ -36,6 +37,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -45,9 +47,11 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -60,6 +64,8 @@ import org.testng.annotations.Test;
 public class PendingAckPersistentTest extends TransactionTestBase {
 
     private static final String PENDING_ACK_REPLAY_TOPIC = "persistent://public/txn/pending-ack-replay";
+
+    private static final String NAMESPACE = "public/txn";
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -75,7 +81,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), 16);
         admin.tenants().createTenant("public",
                 new TenantInfoImpl(Sets.newHashSet(), Sets.newHashSet(CLUSTER_NAME)));
-        admin.namespaces().createNamespace("public/txn", 10);
+        admin.namespaces().createNamespace(NAMESPACE, 10);
         admin.topics().createNonPartitionedTopic(PENDING_ACK_REPLAY_TOPIC);
 
         pulsarClient = PulsarClient.builder()
@@ -297,5 +303,70 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         Awaitility.await()
                 .until(() -> ((PositionImpl) managedCursor.getMarkDeletedPosition())
                         .compareTo((PositionImpl) managedCursor.getManagedLedger().getLastConfirmedEntry()) == -1);
+    }
+
+    @Test
+    private void testDeleteSubThenDeletePendingAckManagedLedger() throws Exception {
+
+        String subName = "test-delete";
+
+        String topic = TopicName.get(TopicDomain.persistent.toString(),
+                NamespaceName.get(NAMESPACE), "test-delete").toString();
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Failover)
+                .enableBatchIndexAcknowledgment(true)
+                .subscribe();
+
+        consumer.close();
+
+        admin.topics().deleteSubscription(topic, subName);
+
+        List<String> topics = admin.namespaces().getTopics(NAMESPACE);
+
+        TopicStats topicStats = admin.topics().getStats(topic, false);
+
+        assertFalse(topics.contains(MLPendingAckStore.getTransactionPendingAckStoreSuffix(topic, subName)));
+
+        assertTrue(topics.contains(topic));
+    }
+
+    @Test
+    private void testDeleteTopicThenDeletePendingAckManagedLedger() throws Exception {
+
+        String subName1 = "test-delete";
+        String subName2 = "test-delete";
+
+        String topic = TopicName.get(TopicDomain.persistent.toString(),
+                NamespaceName.get(NAMESPACE), "test-delete").toString();
+        @Cleanup
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName(subName1)
+                .subscriptionType(SubscriptionType.Failover)
+                .enableBatchIndexAcknowledgment(true)
+                .subscribe();
+
+        consumer1.close();
+
+        @Cleanup
+        Consumer<byte[]> consumer2 = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName(subName2)
+                .subscriptionType(SubscriptionType.Failover)
+                .enableBatchIndexAcknowledgment(true)
+                .subscribe();
+
+        consumer2.close();
+
+        admin.topics().delete(topic);
+
+        List<String> topics = admin.namespaces().getTopics(NAMESPACE);
+
+        assertFalse(topics.contains(MLPendingAckStore.getTransactionPendingAckStoreSuffix(topic, subName1)));
+        assertFalse(topics.contains(MLPendingAckStore.getTransactionPendingAckStoreSuffix(topic, subName2)));
+        assertFalse(topics.contains(topic));
     }
 }
