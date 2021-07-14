@@ -553,7 +553,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         Consumer<byte[]> c = pulsarClient.newConsumer(Schema.NATIVE_AVRO(v2SchemaAvroNative))
                 .topic(topic)
                 .subscriptionName("sub1").subscribe();
-        Producer<byte[]> p = pulsarClient.newProducer(NATSchema.NATIVE_AVRO(v1SchemaAvroNative))
+        Producer<byte[]> p = pulsarClient.newProducer(Schema.NATIVE_AVRO(v1SchemaAvroNative))
                 .topic(topic)
                 .enableBatching(true)
                 .batchingMaxPublishDelay(10, TimeUnit.SECONDS).create();
