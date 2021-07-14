@@ -2300,7 +2300,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public CompletableFuture<PartitionedTopicMetadata> fetchPartitionedTopicMetadataAsync(TopicName topicName) {
         // gets the number of partitions from the configuration cache
         return pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
-                .getAsync(partitionedTopicPath(topicName)).thenApply(metadata -> {
+                .getAsync(partitionedTopicPath(topicName), true).thenApply(metadata -> {
                     // if the partitioned topic is not found in zk, then the topic is not partitioned
                     return metadata.orElseGet(() -> new PartitionedTopicMetadata());
                 });
