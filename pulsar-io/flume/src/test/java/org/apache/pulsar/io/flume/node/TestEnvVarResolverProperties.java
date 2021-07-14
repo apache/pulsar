@@ -35,19 +35,19 @@ public final class TestEnvVarResolverProperties {
     private PropertiesFileConfigurationProvider provider;
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
         provider = new PropertiesFileConfigurationProvider("a1", TESTFILE);
     }
 
     @Test
-    public void resolveEnvVar() throws Exception {
+    public void resolveEnvVar() {
         environmentVariables.set("VARNAME", "varvalue");
         String resolved = EnvVarResolverProperties.resolveEnvVars("padding ${VARNAME} padding");
         Assert.assertEquals("padding varvalue padding", resolved);
     }
 
     @Test
-    public void resolveEnvVars() throws Exception {
+    public void resolveEnvVars() {
         environmentVariables.set("VARNAME1", "varvalue1");
         environmentVariables.set("VARNAME2", "varvalue2");
         String resolved = EnvVarResolverProperties
@@ -56,7 +56,7 @@ public final class TestEnvVarResolverProperties {
     }
 
     @Test
-    public void getProperty() throws Exception {
+    public void getProperty() {
         String NC_PORT = "6667";
         environmentVariables.set("NC_PORT", NC_PORT);
         System.setProperty("propertiesImplementation",
