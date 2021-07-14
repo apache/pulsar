@@ -29,6 +29,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.tests.integration.io.sinks.SinkTester;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 
 import lombok.Cleanup;
@@ -82,27 +83,14 @@ public abstract class PulsarIOTestRunner {
     }
     
     protected Map<String, String> produceMessagesToInputTopic(String inputTopicName,
-                                                              int numMessages) throws Exception {
+                                                              int numMessages, SinkTester<?> tester) throws Exception {
+
         @Cleanup
         PulsarClient client = PulsarClient.builder()
-            .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
-            .build();
-
-        @Cleanup
-        Producer<String> producer = client.newProducer(Schema.STRING)
-            .topic(inputTopicName)
-            .create();
-
+                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+                .build();
         LinkedHashMap<String, String> kvs = new LinkedHashMap<>();
-        for (int i = 0; i < numMessages; i++) {
-            String key = "key-" + i;
-            String value = "value-" + i;
-            kvs.put(key, value);
-            producer.newMessage()
-                .key(key)
-                .value(value)
-                .send();
-        }
+        tester.produceMessage(numMessages, client, inputTopicName, kvs);
         return kvs;
     }  
 }
