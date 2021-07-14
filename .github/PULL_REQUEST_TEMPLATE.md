@@ -68,6 +68,16 @@ This change added tests and can be verified as follows:
 
 ### Documentation
 
+#### For contributor
+
+For this PR, do we need to update docs?
+
+- If yes, please update docs or create a follow-up issue if you need help.
+  
+- If no, please explain why.
+
+#### For committer
+
 For this PR, do we need to update docs?
 
 - If yes,
