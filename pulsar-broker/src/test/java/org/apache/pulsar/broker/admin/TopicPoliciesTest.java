@@ -99,6 +99,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         this.conf.setSystemTopicEnabled(true);
         this.conf.setTopicLevelPoliciesEnabled(true);
         this.conf.setDefaultNumberOfNamespaceBundles(1);
+        this.conf.setMaxMessageSizeCheckIntervalInSeconds(1);
         super.internalSetup();
 
         admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
@@ -1780,8 +1781,14 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             assertEquals(e.getStatusCode(), 412);
         }
 
-        MessageId messageId = producer.send(new byte[1024]);
-        assertNotNull(messageId);
+        Awaitility.await().untilAsserted(() -> {
+            try {
+                MessageId messageId = producer.send(new byte[1024]);
+                assertNotNull(messageId);
+            } catch (PulsarClientException e) {
+                fail("failed to send message");
+            }
+        });
         producer.close();
     }
 
