@@ -1913,15 +1913,17 @@ public class BrokerService implements Closeable {
                 (maxConcurrentTopicLoadRequest) -> topicLoadRequestSemaphore.set(
                         new Semaphore((int) maxConcurrentTopicLoadRequest, false)));
         registerConfigurationListener("loadManagerClassName", className -> {
-            try {
-                final LoadManager newLoadManager = LoadManager.create(pulsar);
-                log.info("Created load manager: {}", className);
-                pulsar.getLoadManager().get().stop();
-                newLoadManager.start();
-                pulsar.getLoadManager().set(newLoadManager);
-            } catch (Exception ex) {
-                log.warn("Failed to change load manager", ex);
-            }
+            pulsar.getExecutor().execute(() -> {
+                try {
+                    final LoadManager newLoadManager = LoadManager.create(pulsar);
+                    log.info("Created load manager: {}", className);
+                    pulsar.getLoadManager().get().stop();
+                    newLoadManager.start();
+                    pulsar.getLoadManager().set(newLoadManager);
+                } catch (Exception ex) {
+                    log.warn("Failed to change load manager", ex);
+                }
+            });
         });
         // add listener to update message-dispatch-rate in msg for topic
         registerConfigurationListener("dispatchThrottlingRatePerTopicInMsg", (dispatchRatePerTopicInMsg) -> {
