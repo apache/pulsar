@@ -1930,7 +1930,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             log.debug("[{}] handleEndTxnOnPartition txnId: [{}], txnAction: [{}]", topic,
                     txnID, txnAction);
         }
-        CompletableFuture<Optional<Topic>> topicFuture = service.getTopics().get(TopicName.get(topic).toString());
+        CompletableFuture<Optional<Topic>> topicFuture = service.getTopic(topic, true);
         if (topicFuture != null) {
             topicFuture.whenComplete((optionalTopic, t) -> {
                 if (!optionalTopic.isPresent()) {
@@ -1978,7 +1978,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     new TxnID(txnidMostBits, txnidLeastBits), txnAction);
         }
 
-        CompletableFuture<Optional<Topic>> topicFuture = service.getTopics().get(TopicName.get(topic).toString());
+        CompletableFuture<Optional<Topic>> topicFuture = service.getTopic(topic, true);
         if (topicFuture != null) {
             topicFuture.thenAccept(optionalTopic -> {
 
@@ -1995,12 +1995,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
                 Subscription subscription = optionalTopic.get().getSubscription(subName);
                 if (subscription == null) {
-                    log.error("Topic {} subscription {} is not exist.", optionalTopic.get().getName(), subName);
-                    ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(
-                            requestId, txnidLeastBits, txnidMostBits,
-                            ServerError.ServiceNotReady,
-                            "Topic " + optionalTopic.get().getName()
-                                    + " subscription " + subName + " is not exist."));
+                    log.warn("Topic {} subscription {} is not exist.", optionalTopic.get().getName(), subName);
+                    ctx.writeAndFlush(
+                            Commands.newEndTxnOnSubscriptionResponse(requestId, txnidLeastBits, txnidMostBits));
                     return;
                 }
 
