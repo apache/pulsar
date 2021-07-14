@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import lombok.AllArgsConstructor;
@@ -51,7 +52,9 @@ import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsExcept
 import org.apache.pulsar.metadata.api.MetadataStoreException.ContentDeserializationException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
+import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
+import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
 import org.awaitility.Awaitility;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -102,7 +105,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
     }
 
     @Test(dataProvider = "zk")
-    public void crossStoreUpdates(String provider, String url) throws Exception {
+    public void crossStoreAddDelete(String provider, String url) throws Exception {
         @Cleanup
         MetadataStore store1 = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
 
@@ -163,6 +166,51 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
                 assertEquals(cache.get(key1).join(), Optional.empty());
             }
         });
+    }
+
+    @Test(dataProvider = "zk")
+    public void crossStoreUpdates(String provider, String url) throws Exception {
+        String testName = "cross store updates";
+        @Cleanup
+        MetadataStore store1 = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
+
+        @Cleanup
+        MetadataStore store2 = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
+
+        MetadataCacheImpl<MyClass> objCache1 = (MetadataCacheImpl<MyClass>) store1.getMetadataCache(MyClass.class);
+
+        MetadataCacheImpl<MyClass> objCache2 = (MetadataCacheImpl<MyClass>) store2.getMetadataCache(MyClass.class);
+        AtomicReference<MyClass> storeObj = new AtomicReference<MyClass>();
+        store2.registerListener(n -> {
+            if (n.getType() == NotificationType.Modified) {
+                try {
+                    MyClass obj = objCache2.get(n.getPath()).get().get();
+                    storeObj.set(obj);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                } catch (ExecutionException e) {
+                    e.printStackTrace();
+                }
+            };
+        });
+
+        String key1 = "/test-key1";
+        assertEquals(objCache1.getIfCached(key1), Optional.empty());
+        assertEquals(objCache2.getIfCached(key1), Optional.empty());
+
+        MyClass value1 = new MyClass(testName, 1);
+        objCache1.create(key1, value1).join();
+
+        Awaitility.await().ignoreNoExceptions().untilAsserted(() -> {
+            assertEquals(objCache1.getIfCached(key1), Optional.of(value1));
+            assertEquals(objCache2.get(key1).join(), Optional.of(value1));
+            assertEquals(objCache2.getIfCached(key1), Optional.of(value1));
+        });
+
+        MyClass value2 = new MyClass(testName, 2);
+        objCache1.readModifyUpdate(key1, (oldData) -> {return value2;}).join();
+
+        assertEquals(storeObj.get(), value2);
     }
 
     @Test(dataProvider = "impl")
