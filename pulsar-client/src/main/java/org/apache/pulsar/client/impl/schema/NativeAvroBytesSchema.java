@@ -36,21 +36,20 @@ import java.util.Optional;
 public class NativeAvroBytesSchema<T> implements Schema<byte[]> {
 
     private Schema<T> schema;
+    private org.apache.avro.Schema nativeSchema;
     
     public NativeAvroBytesSchema(org.apache.avro.Schema schema) {
-        SchemaDefinition schemaDefinition = SchemaDefinition.builder().withJsonDef(schema.toString(false)).build();
-        this.schema = AvroSchema.of(schemaDefinition);
+        setSchema(schema);
     }
 
     public NativeAvroBytesSchema(Object schema) {
         this(validateSchema(schema));
     }
 
-    public void setSchema(Schema<T> schema) {
-        if (SchemaType.AVRO != schema.getSchemaInfo().getType()) {
-            throw new IllegalArgumentException("The type of input schema is not 'SchemaType.AVRO'.");
-        }
-        this.schema = schema;
+    public void setSchema(org.apache.avro.Schema schema) {
+        SchemaDefinition schemaDefinition = SchemaDefinition.builder().withJsonDef(schema.toString(false)).build();
+        this.nativeSchema = schema;
+        this.schema = AvroSchema.of(schemaDefinition);
     }
 
     public boolean schemaInitialized() {
@@ -58,7 +57,8 @@ public class NativeAvroBytesSchema<T> implements Schema<byte[]> {
     }
 
     private static org.apache.avro.Schema validateSchema (Object schema) {
-        if (! (schema instanceof org.apache.avro.Schema)) throw new IllegalArgumentException("The input schema is not of type 'org.apache.avro.Schema'.");
+        if (! (schema instanceof org.apache.avro.Schema)) 
+            throw new IllegalArgumentException("The input schema is not of type 'org.apache.avro.Schema'.");
         return (org.apache.avro.Schema) schema;
     }
 
@@ -89,7 +89,7 @@ public class NativeAvroBytesSchema<T> implements Schema<byte[]> {
 
     @Override
     public Optional<Object> getNativeSchema() {
-        return Optional.ofNullable(schema);
+        return Optional.ofNullable(this.nativeSchema);
     }
 
     @Override
