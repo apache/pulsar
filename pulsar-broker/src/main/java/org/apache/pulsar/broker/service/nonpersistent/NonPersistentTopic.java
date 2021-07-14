@@ -367,7 +367,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                 closeClientFuture.complete(null);
             }
 
-            closeClientFuture.thenAccept(delete -> {
+            closeClientFuture.thenCompose(__ -> deleteTopicPolicies()).thenAccept(delete -> {
 
                 if (currentUsageCount() == 0) {
                     isFenced = true;
