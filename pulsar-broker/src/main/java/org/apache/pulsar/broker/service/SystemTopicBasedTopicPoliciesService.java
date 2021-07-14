@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
@@ -102,7 +102,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                                                 .domain(topicName.getDomain().toString())
                                                 .tenant(topicName.getTenant())
                                                 .namespace(topicName.getNamespaceObject().getLocalName())
-                                                .topic(topicName.getLocalName())
+                                                .topic(TopicName.get(topicName.getPartitionedTopicName())
+                                                        .getLocalName())
                                                 .policies(policies)
                                                 .build())
                                 .build()).whenComplete(((messageId, e) -> {
@@ -158,7 +159,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 && !policyCacheInitMap.get(topicName.getNamespaceObject())) {
             throw new TopicPoliciesCacheNotInitException();
         }
-        return policiesCache.get(topicName);
+        return policiesCache.get(TopicName.get(topicName.getPartitionedTopicName()));
     }
 
     @Override

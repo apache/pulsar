@@ -1304,12 +1304,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             OffloadPoliciesImpl topicLevelOffloadPolicies = null;
 
             if (pulsar.getConfig().isTopicLevelPoliciesEnabled()) {
-                TopicName cloneTopicName = topicName;
-                if (topicName.isPartitioned()) {
-                    cloneTopicName = TopicName.get(topicName.getPartitionedTopicName());
-                }
                 try {
-                    TopicPolicies topicPolicies = pulsar.getTopicPoliciesService().getTopicPolicies(cloneTopicName);
+                    TopicPolicies topicPolicies = pulsar.getTopicPoliciesService().getTopicPolicies(topicName);
                     if (topicPolicies != null) {
                         persistencePolicies = topicPolicies.getPersistence();
                         retentionPolicies = topicPolicies.getRetentionPolicies();
@@ -1684,7 +1680,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public void cleanUnloadedTopicFromCache(NamespaceBundle serviceUnit) {
         for (String topic : topics.keys()) {
             TopicName topicName = TopicName.get(topic);
-            if (serviceUnit.includes(topicName)) {
+            if (getTopicReference(topic).isPresent() && serviceUnit.includes(topicName)) {
+                log.info("[{}][{}] Clean unloaded topic from cache.", serviceUnit.toString(), topic);
                 pulsar.getBrokerService().removeTopicFromCache(topicName.toString(), serviceUnit);
             }
         }
@@ -1711,9 +1708,11 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                     .get(namespaceName);
             if (namespaceMap != null) {
                 ConcurrentOpenHashMap<String, Topic> bundleMap = namespaceMap.get(bundleName);
-                bundleMap.remove(topic);
-                if (bundleMap.isEmpty()) {
-                    namespaceMap.remove(bundleName);
+                if (bundleMap != null) {
+                    bundleMap.remove(topic);
+                    if (bundleMap.isEmpty()) {
+                        namespaceMap.remove(bundleName);
+                    }
                 }
 
                 if (namespaceMap.isEmpty()) {
@@ -2575,12 +2574,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         if (!pulsar().getConfig().isTopicLevelPoliciesEnabled()) {
             return Optional.empty();
         }
-        TopicName cloneTopicName = topicName;
-        if (topicName.isPartitioned()) {
-            cloneTopicName = TopicName.get(topicName.getPartitionedTopicName());
-        }
         try {
-            return Optional.ofNullable(pulsar.getTopicPoliciesService().getTopicPolicies(cloneTopicName));
+            return Optional.ofNullable(pulsar.getTopicPoliciesService().getTopicPolicies(topicName));
         } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
             log.debug("Topic {} policies have not been initialized yet.", topicName.getPartitionedTopicName());
             return Optional.empty();
