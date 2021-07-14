@@ -39,6 +39,7 @@ import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.common.util.CmdGenerateDocs;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZookeeperBkClientFactoryImpl;
@@ -57,6 +58,9 @@ public class CompactorTool {
 
         @Parameter(names = {"-h", "--help"}, description = "Show this help message")
         private boolean help = false;
+
+        @Parameter(names = {"-g", "--generate-docs"}, description = "Generate docs")
+        private boolean generateDocs = false;
     }
 
     public static void main(String[] args) throws Exception {
@@ -68,6 +72,13 @@ public class CompactorTool {
         jcommander.parse(args);
         if (arguments.help) {
             jcommander.usage();
+            System.exit(-1);
+        }
+
+        if (arguments.generateDocs) {
+            CmdGenerateDocs cmd = new CmdGenerateDocs("pulsar");
+            cmd.addCommand("compact-topic", arguments);
+            cmd.run(null);
             System.exit(-1);
         }
 

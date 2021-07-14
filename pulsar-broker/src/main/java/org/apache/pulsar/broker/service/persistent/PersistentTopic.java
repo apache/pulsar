@@ -731,7 +731,7 @@ public class PersistentTopic extends AbstractTopic
             CompletableFuture<Consumer> future = subscriptionFuture.thenCompose(subscription -> {
                 Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel,
                         consumerName, maxUnackedMessages, cnx, cnx.getAuthRole(), metadata,
-                        readCompacted, initialPosition, keySharedMeta);
+                        readCompacted, initialPosition, keySharedMeta, startMessageId);
                 return addConsumerToSubscription(subscription, consumer).thenCompose(v -> {
                     checkBackloggedCursors();
                     if (!cnx.isActive()) {
@@ -2153,10 +2153,9 @@ public class PersistentTopic extends AbstractTopic
                     .orElseThrow(() -> new MetadataStoreException.NotFoundException());
             final int defaultExpirationTime = brokerService.pulsar().getConfiguration()
                     .getSubscriptionExpirationTimeMinutes();
+            final Integer nsExpirationTime = policies.subscription_expiration_time_minutes;
             final long expirationTimeMillis = TimeUnit.MINUTES
-                    .toMillis((policies.subscription_expiration_time_minutes <= 0 && defaultExpirationTime > 0)
-                            ? defaultExpirationTime
-                            : policies.subscription_expiration_time_minutes);
+                    .toMillis(nsExpirationTime == null ? defaultExpirationTime : nsExpirationTime);
             if (expirationTimeMillis > 0) {
                 subscriptions.forEach((subName, sub) -> {
                     if (sub.dispatcher != null && sub.dispatcher.isConsumerConnected() || sub.isReplicated()) {

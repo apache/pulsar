@@ -1,8 +1,0 @@
-chardet
-Django <2.0
-hexdump
-psycopg2
-pulsar-client
-pytz
-requests
-uwsgi

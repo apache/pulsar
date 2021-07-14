@@ -41,6 +41,7 @@ import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
@@ -123,12 +124,13 @@ public class Consumer {
     private boolean preciseDispatcherFlowControl;
     private PositionImpl readPositionWhenJoining;
     private final String clientAddress; // IP address only, no port number included
+    private final MessageId startMessageId;
 
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
                     int maxUnackedMessages, TransportCnx cnx, String appId,
                     Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition,
-                    KeySharedMeta keySharedMeta) {
+                    KeySharedMeta keySharedMeta, MessageId startMessageId) {
 
         this.subscription = subscription;
         this.subType = subType;
@@ -148,6 +150,10 @@ public class Consumer {
         this.bytesOutCounter = new LongAdder();
         this.msgOutCounter = new LongAdder();
         this.appId = appId;
+
+        // Ensure we start from compacted view
+        this.startMessageId = (readCompacted && startMessageId == null) ? MessageId.earliest : startMessageId;
+
         this.preciseDispatcherFlowControl = cnx.isPreciseDispatcherFlowControl();
         PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.set(this, 0);
         MESSAGE_PERMITS_UPDATER.set(this, 0);
@@ -833,6 +839,10 @@ public class Consumer {
 
     public String getClientAddress() {
         return clientAddress;
+    }
+
+    public MessageId getStartMessageId() {
+        return startMessageId;
     }
 
     private static final Logger log = LoggerFactory.getLogger(Consumer.class);
