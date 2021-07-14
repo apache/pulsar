@@ -32,6 +32,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -41,7 +42,9 @@ public class ResourceGroupRateLimiterTest extends BrokerTestBase {
     org.apache.pulsar.common.policies.data.ResourceGroup testAddRg =
     new org.apache.pulsar.common.policies.data.ResourceGroup();
     final String namespaceName = "prop/ns-abc";
-    final String topicString = "persistent://prop/ns-abc/test-topic";
+    final String persistentTopicString = "persistent://prop/ns-abc/test-topic";
+    final String nonPersistentTopicString = "non-persistent://prop/ns-abc/test-topic";
+    final int MESSAGE_SIZE = 10;
 
     @BeforeClass
     @Override
@@ -76,25 +79,24 @@ public class ResourceGroupRateLimiterTest extends BrokerTestBase {
             .untilAsserted(() -> assertNull(pulsar.getResourceGroupServiceManager().resourceGroupGet(rgName)));
     }
 
-    @Test
-    public void testResourceGroupPublishRateLimit() throws Exception {
-
+    public void testRateLimit(String topicString) throws PulsarAdminException, PulsarClientException,
+      InterruptedException, ExecutionException, TimeoutException {
         createResourceGroup(rgName, testAddRg);
         admin.namespaces().setNamespaceResourceGroup(namespaceName, rgName);
 
         Awaitility.await().untilAsserted(() ->
-            assertNotNull(pulsar.getResourceGroupServiceManager()
-                .getNamespaceResourceGroup(namespaceName)));
+          assertNotNull(pulsar.getResourceGroupServiceManager()
+            .getNamespaceResourceGroup(namespaceName)));
 
         Awaitility.await().untilAsserted(() ->
-            assertNotNull(pulsar.getResourceGroupServiceManager()
+          assertNotNull(pulsar.getResourceGroupServiceManager()
             .resourceGroupGet(rgName).getResourceGroupPublishLimiter()));
 
         Producer<byte[]> producer = null;
         try {
             producer = pulsarClient.newProducer()
-                .topic(topicString)
-                .create();
+              .topic(persistentTopicString)
+              .create();
         } catch (PulsarClientException p) {
             final String errMesg = String.format("Got exception while building producer: ex=%s", p.getMessage());
             Assert.fail(errMesg);
@@ -103,7 +105,7 @@ public class ResourceGroupRateLimiterTest extends BrokerTestBase {
         MessageId messageId = null;
         try {
             // first will be success
-            messageId = producer.sendAsync(new byte[10]).get(100, TimeUnit.MILLISECONDS);
+            messageId = producer.sendAsync(new byte[MESSAGE_SIZE]).get(100, TimeUnit.MILLISECONDS);
             Assert.assertNotNull(messageId);
         } catch (TimeoutException e) {
             Assert.fail("should not fail");
@@ -112,7 +114,7 @@ public class ResourceGroupRateLimiterTest extends BrokerTestBase {
         // Second message should fail with timeout.
         Producer<byte[]> finalProducer = producer;
         Assert.assertThrows(TimeoutException.class, () -> {
-            finalProducer.sendAsync(new byte[10]).get(500, TimeUnit.MILLISECONDS);});
+            finalProducer.sendAsync(new byte[MESSAGE_SIZE]).get(500, TimeUnit.MILLISECONDS);});
 
         // In the next interval, the above message will be accepted. Wait for one more second (total 2s),
         // to publish the next message.
@@ -120,7 +122,7 @@ public class ResourceGroupRateLimiterTest extends BrokerTestBase {
 
         try {
             // third one should succeed
-            messageId = producer.sendAsync(new byte[10]).get(100, TimeUnit.MILLISECONDS);
+            messageId = producer.sendAsync(new byte[MESSAGE_SIZE]).get(100, TimeUnit.MILLISECONDS);
             Assert.assertNotNull(messageId);
         } catch (TimeoutException e) {
             Assert.fail("should not fail");
@@ -132,16 +134,20 @@ public class ResourceGroupRateLimiterTest extends BrokerTestBase {
 
         // No rate limits should be applied.
         for (int i = 0; i < 5; i++) {
-            messageId = producer.sendAsync(new byte[10]).get(100, TimeUnit.MILLISECONDS);
+            messageId = producer.sendAsync(new byte[MESSAGE_SIZE]).get(100, TimeUnit.MILLISECONDS);
             Assert.assertNotNull(messageId);
         }
-
         producer.close();
+    }
 
+    @Test
+    public void testResourceGroupPublishRateLimit() throws Exception {
+        testRateLimit(persistentTopicString);
+        testRateLimit(nonPersistentTopicString);
     }
 
     private void prepareData() {
-        testAddRg.setPublishRateInBytes(10);
+        testAddRg.setPublishRateInBytes(MESSAGE_SIZE);
         testAddRg.setPublishRateInMsgs(1);
         testAddRg.setDispatchRateInMsgs(-1);
         testAddRg.setDispatchRateInBytes(-1);

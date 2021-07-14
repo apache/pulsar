@@ -37,11 +37,11 @@ public class ResourceGroupPublishLimiter implements PublishRateLimiter, RateLimi
     private volatile RateLimiter publishRateLimiterOnByte;
     private final ScheduledExecutorService scheduledExecutorService;
 
-  ConcurrentHashMap<String, RateLimitFunction> rateLimitFunctionMap = new ConcurrentHashMap<>();
+    ConcurrentHashMap<String, RateLimitFunction> rateLimitFunctionMap = new ConcurrentHashMap<>();
 
     public ResourceGroupPublishLimiter(ResourceGroup resourceGroup, ScheduledExecutorService scheduledExecutorService) {
-      this.scheduledExecutorService = scheduledExecutorService;
-      update(resourceGroup);
+        this.scheduledExecutorService = scheduledExecutorService;
+        update(resourceGroup);
     }
 
     @Override
@@ -56,13 +56,13 @@ public class ResourceGroupPublishLimiter implements PublishRateLimiter, RateLimi
 
     @Override
     public boolean resetPublishCount() {
-    return true;
-  }
+        return true;
+    }
 
     @Override
     public boolean isPublishRateExceeded() {
-    return false;
-  }
+        return false;
+    }
 
     @Override
     public void update(Policies policies, String clusterName) {
