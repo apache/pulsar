@@ -1170,8 +1170,8 @@ public class BrokerService implements Closeable {
             return;
         }
 
-        CompletableFuture<Void> maxTopicsCheck = createIfMissing ?
-                checkMaxTopicsPerNamespace(topicName, 1)
+        CompletableFuture<Void> maxTopicsCheck = createIfMissing
+                ? checkMaxTopicsPerNamespace(topicName, 1)
                 : CompletableFuture.completedFuture(null);
 
         maxTopicsCheck.thenCompose(__ -> getManagedLedgerConfig(topicName)).thenAccept(managedLedgerConfig -> {
