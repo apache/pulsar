@@ -234,11 +234,14 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
 
         String key1 = newKey();
 
+        assertEquals(objCache.getIfCached(key1), Optional.empty());
+        assertEquals(objCache.get(key1).join(), Optional.empty());
+
         MyClass value1 = new MyClass("a", 1);
         store.put(key1, ObjectMapperFactory.getThreadLocal().writeValueAsBytes(value1), Optional.of(-1L)).join();
 
-        assertEquals(objCache.getIfCached(key1), Optional.empty());
         assertEquals(objCache.get(key1).join(), Optional.of(value1));
+        assertEquals(objCache.getIfCached(key1), Optional.of(value1));
     }
 
     @Test(dataProvider = "impl")
