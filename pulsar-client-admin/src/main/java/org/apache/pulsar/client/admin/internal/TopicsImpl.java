@@ -101,7 +101,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     private static final String DELIVER_AT_TIME = "X-Pulsar-deliver-at-time";
     private static final String BROKER_ENTRY_TIMESTAMP = "X-Pulsar-Broker-Entry-METADATA-timestamp";
     private static final String BROKER_ENTRY_INDEX =  "X-Pulsar-Broker-Entry-METADATA-index";
-    static private final String PRODUCER_NAME = "X-Pulsar-producer-name";
+    private static final String PRODUCER_NAME = "X-Pulsar-producer-name";
     // CHECKSTYLE.ON: MemberName
 
     public TopicsImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
