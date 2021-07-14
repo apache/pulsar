@@ -447,10 +447,10 @@ public class CmdFunctions extends CmdBase {
             if (null != userConfigString) {
                 Type type = new TypeToken<Map<String, String>>() {}.getType();
                 Map<String, Object> userConfigMap = new Gson().fromJson(userConfigString, type);
+                if (userConfigMap == null) {
+                    userConfigMap = new HashMap<>();
+                }
                 functionConfig.setUserConfig(userConfigMap);
-            }
-            if (functionConfig.getUserConfig() == null) {
-                functionConfig.setUserConfig(new HashMap<>());
             }
 
             if (parallelism != null) {
