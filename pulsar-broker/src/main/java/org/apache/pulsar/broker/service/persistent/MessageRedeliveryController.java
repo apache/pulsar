@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import com.google.common.collect.ComparisonChain;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -58,14 +60,15 @@ public class MessageRedeliveryController {
 
     public int removeAllUpTo(long markDeleteLedgerId, long markDeleteEntryId) {
         if (hashesToBeBlocked != null) {
-            for (LongPair longPair : hashesToBeBlocked.keys()) {
-                long ledgerId = longPair.first;
-                long entryId = longPair.second;
+            List<LongPair> keysToRemove = new ArrayList<>();
+            hashesToBeBlocked.forEach((ledgerId, entryId, stickyKeyHash, none) -> {
                 if (ComparisonChain.start().compare(ledgerId, markDeleteLedgerId).compare(entryId, markDeleteEntryId)
                         .result() <= 0) {
-                    hashesToBeBlocked.remove(ledgerId, entryId);
+                    keysToRemove.add(new LongPair(ledgerId, entryId));
                 }
-            }
+            });
+            keysToRemove.forEach(longPair -> hashesToBeBlocked.remove(longPair.first, longPair.second));
+            keysToRemove.clear();
         }
         return messagesToRedeliver.removeIf((ledgerId, entryId) -> {
             return ComparisonChain.start().compare(ledgerId, markDeleteLedgerId).compare(entryId, markDeleteEntryId)
