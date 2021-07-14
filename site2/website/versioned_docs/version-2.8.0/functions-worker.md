@@ -66,7 +66,7 @@ This section illustrates how to run `functions-worker` as a separate process in 
 ![assets/functions-worker-separated.png](assets/functions-worker-separated.png)
 
 > Note    
-> In this mode, make sure `functionsWorkerEnabled` is set to `false`, so you won't start `functions-worker` with brokers by mistake. Also, while accessing the `functions-worker` to manage any of the functions, the `pulsar-admin` CLI tool or any of the client should use the `workerHostname` and `workerPort` that you set in [Worker parameters](#worker-parameters) to generate an `--admin-url`.  
+> In this mode, make sure `functionsWorkerEnabled` is set to `false`, so you won't start `functions-worker` with brokers by mistake. Also, while accessing the `functions-worker` to manage any of the functions, the `pulsar-admin` CLI tool or any of the clients should use the `workerHostname` and `workerPort` that you set in [Worker parameters](#worker-parameters) to generate an `--admin-url`.  
 
 ### Configure Functions-worker to run separately
 
