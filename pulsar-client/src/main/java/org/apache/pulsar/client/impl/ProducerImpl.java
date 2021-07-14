@@ -1212,12 +1212,15 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     TimeoutException te = (TimeoutException) e;
                     long sequenceId = te.getSequenceId();
                     long ns = System.nanoTime();
+
+                    String firstSentString = firstSentAt == 0 ? "never" : String.format("%d ns ago", ns - firstSentAt);
+                    String lastSentString = lastSentAt == 0 ? "never" : String.format("%d ns ago", ns - lastSentAt);
                     String errMsg = String.format(
-                        "%s : createdAt %s ns ago, firstSentAt %s ns ago, lastSentAt %s ns ago, retryCount %s",
+                        "%s : createdAt %d ns ago, firstSentAt %s, lastSentAt %s, retryCount %d",
                         te.getMessage(),
                         ns - this.createdAt,
-                        ns - this.firstSentAt,
-                        ns - this.lastSentAt,
+                        firstSentString,
+                        lastSentString,
                         retryCount
                     );
 

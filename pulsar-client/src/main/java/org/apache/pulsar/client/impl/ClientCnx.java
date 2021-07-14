@@ -46,6 +46,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.function.Supplier;
 import javax.net.ssl.SSLSession;
 import lombok.Getter;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -330,48 +331,54 @@ public class ClientCnx extends PulsarHandler {
         checkArgument(authChallenge.hasChallenge());
         checkArgument(authChallenge.getChallenge().hasAuthData());
 
-        if (Arrays.equals(AuthData.REFRESH_AUTH_DATA_BYTES, authChallenge.getChallenge().getAuthData())) {
+        // Run this the code to respond to the authentication challenge in another thread so we are not potentially
+        // blocking a pulsar-client-io thread.  A portion of the code is user supplied, such as getting a token, which is another
+        // reason to run in a separate thread so user code cannot block pulsar-client-io thread. Potential blocking code
+        // will also render send timeouts to be not respected since it uses pulsar-client-io thread as well.
+        CompletableFuture.runAsync(() -> {
+            if (Arrays.equals(AuthData.REFRESH_AUTH_DATA_BYTES, authChallenge.getChallenge().getAuthData())) {
+                try {
+                    authenticationDataProvider = authentication.getAuthData(remoteHostName);
+                } catch (PulsarClientException e) {
+                    log.error("{} Error when refreshing authentication data provider: {}", ctx.channel(), e);
+                    connectionFuture.completeExceptionally(e);
+                    return;
+                }
+            }
+
+            // mutual authn. If auth not complete, continue auth; if auth complete, complete connectionFuture.
             try {
-                authenticationDataProvider = authentication.getAuthData(remoteHostName);
-            } catch (PulsarClientException e) {
-                log.error("{} Error when refreshing authentication data provider: {}", ctx.channel(), e);
+                AuthData authData = authenticationDataProvider
+                        .authenticate(AuthData.of(authChallenge.getChallenge().getAuthData()));
+
+                checkState(!authData.isComplete());
+
+                ByteBuf request = Commands.newAuthResponse(authentication.getAuthMethodName(),
+                        authData,
+                        protocolVersion,
+                        PulsarVersion.getVersion());
+
+                if (log.isDebugEnabled()) {
+                    log.debug("{} Mutual auth {}", ctx.channel(), authentication.getAuthMethodName());
+                }
+
+                ctx.writeAndFlush(request).addListener(writeFuture -> {
+                    if (!writeFuture.isSuccess()) {
+                        log.warn("{} Failed to send request for mutual auth to broker: {}", ctx.channel(),
+                                writeFuture.cause().getMessage());
+                        connectionFuture.completeExceptionally(writeFuture.cause());
+                    }
+                });
+
+                if (state == State.SentConnectFrame) {
+                    state = State.Connecting;
+                }
+            } catch (Exception e) {
+                log.error("{} Error mutual verify: {}", ctx.channel(), e);
                 connectionFuture.completeExceptionally(e);
                 return;
             }
-        }
-
-        // mutual authn. If auth not complete, continue auth; if auth complete, complete connectionFuture.
-        try {
-            AuthData authData = authenticationDataProvider
-                .authenticate(AuthData.of(authChallenge.getChallenge().getAuthData()));
-
-            checkState(!authData.isComplete());
-
-            ByteBuf request = Commands.newAuthResponse(authentication.getAuthMethodName(),
-                authData,
-                this.protocolVersion,
-                PulsarVersion.getVersion());
-
-            if (log.isDebugEnabled()) {
-                log.debug("{} Mutual auth {}", ctx.channel(), authentication.getAuthMethodName());
-            }
-
-            ctx.writeAndFlush(request).addListener(writeFuture -> {
-                if (!writeFuture.isSuccess()) {
-                    log.warn("{} Failed to send request for mutual auth to broker: {}", ctx.channel(),
-                        writeFuture.cause().getMessage());
-                    connectionFuture.completeExceptionally(writeFuture.cause());
-                }
-            });
-
-            if (state == State.SentConnectFrame) {
-                state = State.Connecting;
-            }
-        } catch (Exception e) {
-            log.error("{} Error mutual verify: {}", ctx.channel(), e);
-            connectionFuture.completeExceptionally(e);
-            return;
-        }
+        });
     }
 
     @Override
