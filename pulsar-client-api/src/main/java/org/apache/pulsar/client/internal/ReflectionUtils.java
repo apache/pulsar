@@ -21,15 +21,30 @@ package org.apache.pulsar.client.internal;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import lombok.experimental.UtilityClass;
 
 @UtilityClass
-class ReflectionUtils {
-    interface SupplierWithException<T> {
+public class ReflectionUtils {
+
+    private static final Map<String, Class<?>> loadedClasses = new ConcurrentHashMap<>();
+
+    private static volatile ClassLoader classLoader = ReflectionUtils.class.getClassLoader();
+
+    /**
+     * Change the classloader to be used for loading Pulsar client implementation classes
+     * @param newClassLoader
+     */
+    public static void setClassLoader(ClassLoader newClassLoader) {
+        classLoader = newClassLoader;
+    }
+
+    public interface SupplierWithException<T> {
         T get() throws Exception;
     }
 
-    static <T> T catchExceptions(SupplierWithException<T> s) {
+    public static <T> T catchExceptions(SupplierWithException<T> s) {
         try {
             return s.get();
         } catch (Throwable t) {
@@ -47,23 +62,17 @@ class ReflectionUtils {
     }
 
     @SuppressWarnings("unchecked")
-    static <T> Class<T> newClassInstance(String className) {
-        try {
+    public static <T> Class<T> newClassInstance(String className) {
+        return (Class<T>) loadedClasses.computeIfAbsent(className, name -> {
             try {
-                // when the API is loaded in the same classloader as the impl
-                return (Class<T>) Class.forName(className, true, DefaultImplementation.class.getClassLoader());
-            } catch (Exception e) {
-                // when the API is loaded in a separate classloader as the impl
-                // the classloader that loaded the impl needs to be a child classloader of the classloader
-                // that loaded the API
-                return (Class<T>) Class.forName(className, true, Thread.currentThread().getContextClassLoader());
+                return Class.forName(className, true, classLoader);
+            } catch (ClassNotFoundException | NoClassDefFoundError e) {
+                throw new RuntimeException(e);
             }
-        } catch (ClassNotFoundException | NoClassDefFoundError e) {
-            throw new RuntimeException(e);
-        }
+        });
     }
 
-    static <T> Constructor<T> getConstructor(String className, Class<?>... argTypes) {
+    public static <T> Constructor<T> getConstructor(String className, Class<?>... argTypes) {
         try {
             Class<T> clazz = newClassInstance(className);
             return clazz.getConstructor(argTypes);
@@ -72,12 +81,19 @@ class ReflectionUtils {
         }
     }
 
-    static <T> Method getStaticMethod(String className, String method, Class<?>... argTypes) {
+    public static <T> Method getStaticMethod(String className, String method, Class<?>... argTypes) {
         try {
             Class<T> clazz = newClassInstance(className);
             return clazz.getMethod(method, argTypes);
         } catch (NoSuchMethodException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public static <T> T newBuilder(String className) {
+        return catchExceptions(
+                () -> (T) ReflectionUtils.getStaticMethod(
+                        className, "builder", null)
+                        .invoke(null, null));
     }
 }

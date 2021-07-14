@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import org.apache.pulsar.client.admin.utils.ReflectionUtils;
+import org.apache.pulsar.client.internal.ReflectionUtils;
 
 public interface OffloadPolicies {
     String getOffloadersDirectory();
