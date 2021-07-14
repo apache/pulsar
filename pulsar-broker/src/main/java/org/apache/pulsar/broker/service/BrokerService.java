@@ -1170,12 +1170,11 @@ public class BrokerService implements Closeable {
             return;
         }
 
-        if (createIfMissing && !checkMaxTopicsPerNamespace(topicName, 1, topicFuture)) {
-            return;
-        }
+        CompletableFuture<Void> maxTopicsCheck = createIfMissing ?
+                checkMaxTopicsPerNamespace(topicName, 1)
+                : CompletableFuture.completedFuture(null);
 
-        getManagedLedgerConfig(topicName).thenAccept(managedLedgerConfig -> {
-
+        maxTopicsCheck.thenCompose(__ -> getManagedLedgerConfig(topicName)).thenAccept(managedLedgerConfig -> {
             if (isBrokerEntryMetadataEnabled()) {
                 // init managedLedger interceptor
                 Set<BrokerEntryMetadataInterceptor> interceptors = new HashSet<>();
@@ -2257,28 +2256,17 @@ public class BrokerService implements Closeable {
                 "Number of partitions should be less than or equal to " + maxPartitions);
 
         PartitionedTopicMetadata configMetadata = new PartitionedTopicMetadata(defaultNumPartitions);
-        CompletableFuture<PartitionedTopicMetadata> partitionedTopicFuture = futureWithDeadline();
 
-        if (!checkMaxTopicsPerNamespace(topicName, defaultNumPartitions, partitionedTopicFuture)) {
-            return partitionedTopicFuture;
-        }
-
-        try {
-            PartitionedTopicResources partitionResources = pulsar.getPulsarResources().getNamespaceResources()
-                    .getPartitionedTopicResources();
-            partitionResources.createAsync(partitionedTopicPath(topicName), configMetadata).thenAccept((r) -> {
-                log.info("partitioned metadata successfully created for {}", topicName);
-                partitionedTopicFuture.complete(configMetadata);
-            }).exceptionally(ex -> {
-                partitionedTopicFuture.completeExceptionally(ex.getCause());
-                return null;
-            });
-        } catch (Exception e) {
-            log.error("Failed to create default partitioned topic.", e);
-            return FutureUtil.failedFuture(e);
-        }
-
-        return partitionedTopicFuture;
+        return checkMaxTopicsPerNamespace(topicName, defaultNumPartitions)
+                .thenCompose(__ -> {
+                    PartitionedTopicResources partitionResources = pulsar.getPulsarResources().getNamespaceResources()
+                            .getPartitionedTopicResources();
+                    return partitionResources.createAsync(partitionedTopicPath(topicName), configMetadata)
+                            .thenApply(v -> {
+                                log.info("partitioned metadata successfully created for {}", topicName);
+                                return configMetadata;
+                            });
+                });
     }
 
     public CompletableFuture<PartitionedTopicMetadata> fetchPartitionedTopicMetadataAsync(TopicName topicName) {
@@ -2564,42 +2552,35 @@ public class BrokerService implements Closeable {
         }
     }
 
-    private <T> boolean checkMaxTopicsPerNamespace(TopicName topicName, int numPartitions,
-                                            CompletableFuture<T> topicFuture) {
-        Integer maxTopicsPerNamespace;
-        try {
-            maxTopicsPerNamespace = pulsar.getPulsarResources().getNamespaceResources()
-                    .getPolicies(topicName.getNamespaceObject())
-                    .get()
-                    .map(p -> p.max_topics_per_namespace)
-                    .orElse(null);
+    private CompletableFuture<Void> checkMaxTopicsPerNamespace(TopicName topicName, int numPartitions) {
+        return pulsar.getPulsarResources().getNamespaceResources()
+                .getPolicies(topicName.getNamespaceObject())
+                .thenCompose(optPolicies -> {
+                    int maxTopicsPerNamespace = optPolicies.map(p -> p.max_topics_per_namespace)
+                            .orElse(pulsar.getConfig().getMaxTopicsPerNamespace());
 
-            if (maxTopicsPerNamespace == null) {
-                maxTopicsPerNamespace = pulsar.getConfig().getMaxTopicsPerNamespace();
-            }
-
-            // new create check
-            if (maxTopicsPerNamespace > 0 && !SystemTopicClient.isSystemTopic(topicName)) {
-                List<String> topics = pulsar().getPulsarResources().getTopicResources()
-                        .getExistingPartitions(topicName).get();
-                // exclude created system topic
-                long topicsCount =
-                        topics.stream().filter(t -> !SystemTopicClient.isSystemTopic(TopicName.get(t))).count();
-                if (topicsCount + numPartitions > maxTopicsPerNamespace) {
-                    log.error("Failed to create persistent topic {}, "
-                            + "exceed maximum number of topics in namespace", topicName);
-                    topicFuture.completeExceptionally(new RestException(Response.Status.PRECONDITION_FAILED,
-                            "Exceed maximum number of topics in namespace."));
-                    return false;
-                }
-            }
-        } catch (Exception e) {
-            log.error("Failed to create partitioned topic {}", topicName, e);
-                topicFuture.completeExceptionally(new RestException(e));
-                return false;
-        }
-
-        return true;
+                    if (maxTopicsPerNamespace > 0 && !SystemTopicClient.isSystemTopic(topicName)) {
+                        return pulsar().getPulsarResources().getTopicResources()
+                                .getExistingPartitions(topicName)
+                                .thenCompose(topics -> {
+                                    // exclude created system topic
+                                    long topicsCount = topics.stream()
+                                            .filter(t -> !SystemTopicClient.isSystemTopic(TopicName.get(t)))
+                                            .count();
+                                    if (topicsCount + numPartitions > maxTopicsPerNamespace) {
+                                        log.error("Failed to create persistent topic {}, "
+                                                + "exceed maximum number of topics in namespace", topicName);
+                                        return FutureUtil.failedFuture(
+                                                new RestException(Response.Status.PRECONDITION_FAILED,
+                                                        "Exceed maximum number of topics in namespace."));
+                                    } else {
+                                        return CompletableFuture.completedFuture(null);
+                                    }
+                                });
+                    } else {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                });
     }
 
     public void setInterceptor(BrokerInterceptor interceptor) {
