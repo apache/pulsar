@@ -2515,6 +2515,9 @@ public class PersistentTopicsBase extends AdminResource {
         if (metadata.hasPublishTime()) {
             responseBuilder.header("X-Pulsar-publish-time", DateFormatter.format(metadata.getPublishTime()));
         }
+        if (metadata.hasProducerName()) {
+            responseBuilder.header("X-Pulsar-producer-name", metadata.getProducerName());
+        }
         if (metadata.hasEventTime()) {
             responseBuilder.header("X-Pulsar-event-time", DateFormatter.format(metadata.getEventTime()));
         }
