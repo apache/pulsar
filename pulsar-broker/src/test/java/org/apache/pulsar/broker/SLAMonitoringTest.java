@@ -162,7 +162,7 @@ public class SLAMonitoringTest {
 
                 Map<String, NamespaceOwnershipStatus> nsMap = pulsarAdmins[i].brokers().getOwnedNamespaces("my-cluster",
                         list.get(0));
-                Assert.assertEquals(nsMap.size(), 2);
+                Assert.assertEquals(nsMap.size(), 3);
             }
         } catch (Exception e) {
             e.printStackTrace();
