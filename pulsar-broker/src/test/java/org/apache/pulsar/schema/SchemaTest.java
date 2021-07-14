@@ -763,7 +763,6 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(allSchemas.get(2), Schema.AVRO(Schemas.PersonThree.class).getSchemaInfo());
         Assert.assertEquals(allSchemas.get(3), Schema.AVRO(Schemas.PersonOne.class).getSchemaInfo());
         Assert.assertEquals(allSchemas.get(4), Schema.BOOL.getSchemaInfo());
-        Assert.assertEquals(allSchemas.get(5), Schema.AVRO(Schemas.PersonThree.class).getSchemaInfo());
     }
 
     @Test
