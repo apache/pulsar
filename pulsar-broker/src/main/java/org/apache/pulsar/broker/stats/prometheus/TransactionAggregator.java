@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.stats.prometheus;
 
 import io.netty.util.concurrent.FastThreadLocal;
+import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
@@ -62,10 +63,12 @@ public class TransactionAggregator {
                             topic.getSubscriptions().values().forEach(subscription -> {
                                 try {
                                     localManageLedgerStats.get().reset();
-                                    ManagedLedger managedLedger =
+                                    Optional<ManagedLedger> managedLedger =
                                             ((PersistentSubscription) subscription).getPendingAckManageLedger().get();
-                                    generateManageLedgerStats(managedLedger,
-                                            stream, cluster, namespace, name, subscription.getName());
+                                    if (managedLedger.isPresent()) {
+                                        generateManageLedgerStats(managedLedger.get(),
+                                                stream, cluster, namespace, name, subscription.getName());
+                                    }
                                 } catch (Exception e) {
                                     log.warn("Transaction pending ack generate managedLedgerStats fail!", e);
                                 }

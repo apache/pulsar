@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import lombok.extern.slf4j.Slf4j;
@@ -745,14 +746,13 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         }
     }
 
-    public CompletableFuture<ManagedLedger> getStoreManageLedger() {
+    public CompletableFuture<Optional<ManagedLedger>> getStoreManageLedger() {
         if (this.pendingAckStoreFuture.isDone()) {
             return this.pendingAckStoreFuture.thenCompose(pendingAckStore -> {
                 if (pendingAckStore instanceof MLPendingAckStore) {
                     return ((MLPendingAckStore) pendingAckStore).getManagedLedger();
                 } else {
-                    return FutureUtil.failedFuture(
-                            new NotAllowedException("Pending ack handle don't use managedLedger!"));
+                    return CompletableFuture.completedFuture(Optional.empty());
                 }
             });
         } else {

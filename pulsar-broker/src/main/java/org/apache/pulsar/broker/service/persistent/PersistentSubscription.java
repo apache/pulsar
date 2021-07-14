@@ -1166,11 +1166,11 @@ public class PersistentSubscription implements Subscription {
         return this.pendingAckHandle.getTransactionInPendingAckStats(txnID);
     }
 
-    public CompletableFuture<ManagedLedger> getPendingAckManageLedger() {
+    public CompletableFuture<Optional<ManagedLedger>> getPendingAckManageLedger() {
         if (this.pendingAckHandle instanceof PendingAckHandleImpl) {
             return ((PendingAckHandleImpl) this.pendingAckHandle).getStoreManageLedger();
         } else {
-            return FutureUtil.failedFuture(new NotAllowedException("Pending ack handle don't use managedLedger!"));
+            return CompletableFuture.completedFuture(Optional.empty());
         }
     }
 
