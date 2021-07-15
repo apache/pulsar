@@ -19,7 +19,6 @@
 package org.apache.pulsar.common.policies.data;
 
 import lombok.Data;
-import lombok.experimental.Accessors;
 
 /**
  * Resource quota for a namespace or namespace bundle.
