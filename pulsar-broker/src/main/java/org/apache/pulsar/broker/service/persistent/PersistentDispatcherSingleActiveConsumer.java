@@ -428,8 +428,8 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             if (dispatchRateLimiter.isPresent()) {
                 if (reachDispatchRateLimit(dispatchRateLimiter.get(), calculateToRead)) {
                     if (log.isDebugEnabled()) {
-                        log.debug("[{}] message-read exceeded topic message-rate {}/{}, schedule after a {}", name,
-                                dispatchRateLimiter.get().getDispatchRateOnMsg(),
+                        log.debug("[{}] message-read exceeded subscription message-rate {}/{}, schedule after a {}",
+                                name, dispatchRateLimiter.get().getDispatchRateOnMsg(),
                                 dispatchRateLimiter.get().getDispatchRateOnByte(),
                                 MESSAGE_RATE_BACKOFF_MS);
                     }
