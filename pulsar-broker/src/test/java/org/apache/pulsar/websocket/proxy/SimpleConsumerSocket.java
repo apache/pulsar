@@ -40,11 +40,11 @@ import org.slf4j.LoggerFactory;
 
 @WebSocket(maxTextMessageSize = 64 * 1024)
 public class SimpleConsumerSocket {
-    private static final String X_PULSAR_MESSAGE_ID = "messageId";
+    protected static final String X_PULSAR_MESSAGE_ID = "messageId";
     private final CountDownLatch closeLatch;
     private Session session;
-    private final ArrayList<String> consumerBuffer;
-    private final AtomicInteger receivedMessages = new AtomicInteger();
+    protected final ArrayList<String> consumerBuffer;
+    protected final AtomicInteger receivedMessages = new AtomicInteger();
     // Custom message handler to override standard message processing, if it's needed
     private SimpleConsumerMessageHandler customMessageHandler;
 

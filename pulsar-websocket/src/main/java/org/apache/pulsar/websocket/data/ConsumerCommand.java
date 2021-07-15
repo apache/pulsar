@@ -22,4 +22,5 @@ public class ConsumerCommand {
     public String type;
     public String messageId;
     public Integer permitMessages;
+    public String ackType;
 }

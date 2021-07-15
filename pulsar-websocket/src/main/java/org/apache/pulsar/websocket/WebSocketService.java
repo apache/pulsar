@@ -26,6 +26,7 @@ import java.net.MalformedURLException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReadWriteLock;
 
 import javax.servlet.ServletException;
 import javax.websocket.DeploymentException;
@@ -38,6 +39,8 @@ import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.cache.ConfigurationMetadataCacheService;
 import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -64,6 +67,7 @@ public class WebSocketService implements Closeable {
     AuthenticationService authenticationService;
     AuthorizationService authorizationService;
     PulsarClient pulsarClient;
+    PulsarAdmin adminClient;
 
     private final ScheduledExecutorService executor = Executors
             .newScheduledThreadPool(WebSocketProxyConfiguration.WEBSOCKET_SERVICE_THREADS,
@@ -79,6 +83,7 @@ public class WebSocketService implements Closeable {
     private final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ProducerHandler>> topicProducerMap;
     private final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ConsumerHandler>> topicConsumerMap;
     private final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ReaderHandler>> topicReaderMap;
+    private final ConcurrentOpenHashMap<String, ReadWriteLock> cumulativeAckLocks;
     private final ProxyStats proxyStats;
 
     public WebSocketService(WebSocketProxyConfiguration config) {
@@ -91,6 +96,7 @@ public class WebSocketService implements Closeable {
         this.topicProducerMap = new ConcurrentOpenHashMap<>();
         this.topicConsumerMap = new ConcurrentOpenHashMap<>();
         this.topicReaderMap = new ConcurrentOpenHashMap<>();
+        this.cumulativeAckLocks = new ConcurrentOpenHashMap<>();
         this.proxyStats = new ProxyStats(this);
     }
 
@@ -168,6 +174,18 @@ public class WebSocketService implements Closeable {
         return pulsarClient;
     }
 
+    public synchronized PulsarAdmin getAdminClient() throws IOException {
+        // Do lazy initialization of client
+        if (adminClient == null) {
+            if (localCluster == null) {
+                // If not explicitly set, read clusters data from ZK
+                localCluster = retrieveClusterData();
+            }
+            adminClient = createAdminClientInstance(localCluster);
+        }
+        return adminClient;
+    }
+
     public synchronized void setLocalCluster(ClusterData clusterData) {
         this.localCluster = clusterData;
     }
@@ -200,6 +218,26 @@ public class WebSocketService implements Closeable {
         }
 
         return clientBuilder.build();
+    }
+
+    private PulsarAdmin createAdminClientInstance(ClusterData clusterData) throws IOException {
+        PulsarAdminBuilder adminBuilder = PulsarAdmin.builder()
+                .allowTlsInsecureConnection(config.isTlsAllowInsecureConnection())
+                .tlsTrustCertsFilePath(config.getBrokerClientTrustCertsFilePath());
+
+        if (isNotBlank(config.getBrokerClientAuthenticationPlugin())
+                && isNotBlank(config.getBrokerClientAuthenticationParameters())) {
+            adminBuilder.authentication(config.getBrokerClientAuthenticationPlugin(),
+                    config.getBrokerClientAuthenticationParameters());
+        }
+
+        if (config.isBrokerClientTlsEnabled()) {
+            adminBuilder.serviceHttpUrl(clusterData.getServiceUrlTls());
+        } else {
+            adminBuilder.serviceHttpUrl(clusterData.getServiceUrl());
+        }
+
+        return adminBuilder.build();
     }
 
     private static ClusterData createClusterData(WebSocketProxyConfiguration config) {
@@ -309,6 +347,10 @@ public class WebSocketService implements Closeable {
             return topicReaderMap.get(topicName).remove(reader);
         }
         return false;
+    }
+
+    public ConcurrentOpenHashMap<String, ReadWriteLock> getCumulativeAckLocks() {
+        return cumulativeAckLocks;
     }
 
     public ServiceConfiguration getConfig() {

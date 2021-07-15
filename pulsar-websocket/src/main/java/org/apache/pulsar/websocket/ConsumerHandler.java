@@ -31,10 +31,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import javax.servlet.http.HttpServletRequest;
 
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
@@ -46,6 +49,7 @@ import org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerBuilderImpl;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -78,7 +82,10 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
     private int maxPendingMessages = 0;
     private final AtomicInteger pendingMessages = new AtomicInteger();
+    private final ReadWriteLock pendingMessagesLock = new ReentrantReadWriteLock();
+    private final ReadWriteLock producerConsumerSyncLock;
     private final boolean pullMode;
+    private final boolean allowCumulativeAck;
 
     private final LongAdder numMsgsDelivered;
     private final LongAdder numBytesDelivered;
@@ -96,6 +103,9 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         this.numBytesDelivered = new LongAdder();
         this.numMsgsAcked = new LongAdder();
         this.pullMode = Boolean.valueOf(queryParams.get("pullMode"));
+        this.allowCumulativeAck = Boolean.valueOf(queryParams.get("allowCumulativeAck"));
+        this.producerConsumerSyncLock = service.getCumulativeAckLocks()
+                .computeIfAbsent(topic.toString(), (ignored) -> new ReentrantReadWriteLock());
 
         try {
             // checkAuth() and getConsumerConfiguration() should be called after assigning a value to this.subscription
@@ -112,7 +122,6 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             if (!checkAuth(response)) {
                 return;
             }
-
             this.consumer = builder.topic(topic.toString()).subscriptionName(subscription).subscribe();
             if (!this.service.addConsumer(this)) {
                 log.warn("[{}:{}] Failed to add consumer handler for topic {}", request.getRemoteAddr(),
@@ -276,8 +285,66 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         // We should have received an ack
         MessageId msgId = MessageId.fromByteArrayWithTopic(Base64.getDecoder().decode(command.messageId),
                 topic.toString());
-        consumer.acknowledgeAsync(msgId).thenAccept(consumer -> numMsgsAcked.increment());
-        checkResumeReceive();
+        if ("cumulative".equals(command.ackType)) {
+            if (allowCumulativeAck) {
+                // If not pull mode, then we need to calculate how many messages have been acked in a cumulative ack request
+                // to properly calculate how many more messages we should dispatch to consumer. Use precise backlog size before
+                // and after the cumulative ack for the calculation.
+                // Use a writelock to prevent individual ack during the process which might cause incorrect result.
+                if (!this.pullMode) {
+                    try {
+                        pendingMessagesLock.writeLock().lock();
+                        producerConsumerSyncLock.writeLock().lock();
+                        TopicStats stats = service.getAdminClient().topics().getStats(topic.toString(), true, true);
+                        Long backlogBefore = stats.getSubscriptions().get(subscription).getMsgBacklogNoDelayed();
+                        consumer.acknowledgeCumulative(msgId);
+                        stats = service.getAdminClient().topics().getStats(topic.toString(), true, true);
+                        Long backlogAfter = stats.getSubscriptions().get(subscription).getMsgBacklogNoDelayed();
+                        int ack = (int) (backlogBefore - backlogAfter) > pendingMessages.get() ? pendingMessages.get() : (int) (backlogBefore - backlogAfter);
+                        int pending = pendingMessages.getAndAdd(-ack);
+                        if (pending >= maxPendingMessages) {
+                            // Resume delivery
+                            receiveMessage();
+                        }
+                    } catch (PulsarAdminException e) {
+                        log.warn("[{}] Fail to handle websocket consumer cumulative ack request: {}", consumer.getTopic(), e.getMessage());
+                    } finally {
+                        pendingMessagesLock.writeLock().unlock();
+                        producerConsumerSyncLock.writeLock().unlock();
+                    }
+                } else {
+                    // for pull mode no need to keep track of how many messages to dispatch, so simply do cumulative ack.
+                    consumer.acknowledgeCumulativeAsync(msgId).exceptionally(exception -> {
+                        log.warn("[{}] Fail to handle websocket consumer cumulative ack request: {}", consumer.getTopic(), exception.getMessage());
+                        return null;
+                    });
+                }
+            } else {
+                log.warn("[{}] Websocket consumer cumulative ack request not enabled", consumer.getTopic());
+            }
+        } else {
+            if (allowCumulativeAck) {
+                // multiple individual acks can happen at the same time, but individual ack and cumulative ack can't
+                // happen at the same time, as it'll interfere calculation of pending message, hence use a readlock.
+                // if not pull mode, produce request can also change backlog msg count so can't happen at the same
+                // time as cumulative ack.
+                try {
+                    pendingMessagesLock.readLock().lock();
+                    consumer.acknowledge(msgId);
+                    checkResumeReceive();
+                } finally {
+                    pendingMessagesLock.readLock().unlock();
+                }
+            } else {
+                consumer.acknowledgeAsync(msgId)
+                        .thenAccept(consumer -> numMsgsAcked.increment())
+                        .exceptionally(exception -> {
+                            log.warn("[{}] Fail to handle websocket consumer ack request: {}", consumer.getTopic(), exception.getMessage());
+                            return null;
+                        });
+                checkResumeReceive();
+            }
+        }
     }
 
     private void handleNack(ConsumerCommand command) throws IOException {

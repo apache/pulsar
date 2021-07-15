@@ -24,6 +24,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.websocket.data.ProducerMessage;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
 import org.testng.annotations.Test;
@@ -72,6 +73,7 @@ public class ProducerHandlerTest {
         when(service.isAuthenticationEnabled()).thenReturn(false);
         when(service.isAuthorizationEnabled()).thenReturn(false);
         when(service.getPulsarClient()).thenReturn(pulsarClient);
+        when(service.getCumulativeAckLocks()).thenReturn(new ConcurrentOpenHashMap<>());
 
         when(pulsarClient.newProducer()).thenReturn(producerBuilder);
         when(producerBuilder.enableBatching(anyBoolean())).thenReturn(producerBuilder);
