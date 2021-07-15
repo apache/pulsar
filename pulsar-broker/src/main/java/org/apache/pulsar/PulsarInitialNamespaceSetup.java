@@ -22,6 +22,7 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import java.util.List;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.util.CmdGenerateDocs;
 import org.apache.pulsar.metadata.api.MetadataStore;
 
 /**
@@ -49,6 +50,8 @@ public class PulsarInitialNamespaceSetup {
         @Parameter(names = { "-h", "--help" }, description = "Show this help message")
         private boolean help = false;
 
+        @Parameter(names = {"-g", "--generate-docs"}, description = "Generate docs")
+        private boolean generateDocs = false;
     }
 
     public static int doMain(String[] args) throws Exception {
@@ -59,6 +62,12 @@ public class PulsarInitialNamespaceSetup {
             jcommander.parse(args);
             if (arguments.help) {
                 jcommander.usage();
+                return 0;
+            }
+            if (arguments.generateDocs) {
+                CmdGenerateDocs cmd = new CmdGenerateDocs("pulsar");
+                cmd.addCommand("initialize-namespace", arguments);
+                cmd.run(null);
                 return 0;
             }
         } catch (Exception e) {
