@@ -47,6 +47,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.EntryCacheImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.pulsar.broker.service.persistent.MessageRedeliveryController;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -79,7 +80,6 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.stats.Metrics;
-import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -1667,9 +1667,10 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         PersistentSubscription subRef = topicRef.getSubscription(subName);
         PersistentDispatcherMultipleConsumers dispatcher = (PersistentDispatcherMultipleConsumers) subRef
                 .getDispatcher();
-        Field replayMap = PersistentDispatcherMultipleConsumers.class.getDeclaredField("messagesToRedeliver");
-        replayMap.setAccessible(true);
-        ConcurrentLongPairSet messagesToReplay = new ConcurrentLongPairSet(64, 1);
+        Field redeliveryMessagesField = PersistentDispatcherMultipleConsumers.class
+                .getDeclaredField("redeliveryMessages");
+        redeliveryMessagesField.setAccessible(true);
+        MessageRedeliveryController redeliveryMessages = new MessageRedeliveryController(true);
 
         assertNotNull(subRef);
 
@@ -1690,24 +1691,24 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
             }
             if (i < replayIndex) {
                 // (3) accumulate acked messages for replay
-                messagesToReplay.add(msgId.getLedgerId(), msgId.getEntryId());
+                redeliveryMessages.add(msgId.getLedgerId(), msgId.getEntryId());
             }
         }
 
         // (4) redelivery : should redeliver only unacked messages
         Thread.sleep(1000);
 
-        replayMap.set(dispatcher, messagesToReplay);
+        redeliveryMessagesField.set(dispatcher, redeliveryMessages);
         // (a) redelivery with all acked-message should clear messageReply bucket
         dispatcher.redeliverUnacknowledgedMessages(dispatcher.getConsumers().get(0));
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> {
-            return messagesToReplay.isEmpty();
+            return redeliveryMessages.isEmpty();
         });
-        assertEquals(messagesToReplay.size(), 0);
+        assertTrue(redeliveryMessages.isEmpty());
 
         // (b) fill messageReplyBucket with already acked entry again: and try to publish new msg and read it
-        messagesToReplay.add(firstAckedMsg.getLedgerId(), firstAckedMsg.getEntryId());
-        replayMap.set(dispatcher, messagesToReplay);
+        redeliveryMessages.add(firstAckedMsg.getLedgerId(), firstAckedMsg.getEntryId());
+        redeliveryMessagesField.set(dispatcher, redeliveryMessages);
         // send new message
         final String testMsg = "testMsg";
         producer.send(testMsg.getBytes());
