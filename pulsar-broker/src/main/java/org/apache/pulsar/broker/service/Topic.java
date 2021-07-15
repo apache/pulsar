@@ -238,6 +238,10 @@ public interface Topic {
         return Optional.empty();
     }
 
+    default Optional<DispatchRateLimiter> getBrokerDispatchRateLimiter() {
+        return Optional.empty();
+    }
+
     default boolean isSystemTopic() {
         return false;
     }

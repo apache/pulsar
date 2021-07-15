@@ -28,10 +28,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
@@ -236,6 +238,27 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
 
     public void resetCloseFuture() {
         // noop
+    }
+
+    protected abstract void reScheduleRead();
+
+    protected boolean reachDispatchRateLimit(DispatchRateLimiter dispatchRateLimiter,
+                                             MutablePair<Integer, Long> calculateToRead) {
+        if (dispatchRateLimiter.isDispatchRateLimitingEnabled()) {
+            if (!dispatchRateLimiter.hasMessageDispatchPermit()) {
+                reScheduleRead();
+                return true;
+            } else {
+                // update messagesToRead according to available dispatch rate limit.
+                Pair<Integer, Long> calculateResult = computeReadLimits(calculateToRead.getLeft(),
+                        (int) dispatchRateLimiter.getAvailableDispatchRateLimitOnMsg(),
+                        calculateToRead.getRight(),
+                        dispatchRateLimiter.getAvailableDispatchRateLimitOnByte());
+                calculateToRead.setLeft(calculateResult.getLeft());
+                calculateToRead.setRight(calculateResult.getRight());
+            }
+        }
+        return false;
     }
 
     protected static Pair<Integer, Long> computeReadLimits(int messagesToRead, int availablePermitsOnMsg,

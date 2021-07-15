@@ -635,6 +635,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private long brokerPublisherThrottlingMaxByteRate = 0;
     @FieldContext(
+            category = CATEGORY_SERVER,
+            dynamic = true,
+            doc = "Max Rate(in 1 seconds) of Message allowed to dispatch from a broker "
+                    + "when broker dispatch rate limiting enabled. (Disable message rate limit with value 0)"
+    )
+    private int brokerDispatchThrottlingMaxMessageRate = 0;
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            dynamic = true,
+            doc = "Max Rate(in 1 seconds) of Byte allowed to dispatch from a broker "
+                    + "when broker dispatch rate limiting enabled. (Disable byte rate limit with value 0)"
+    )
+    private long brokerDispatchThrottlingMaxByteRate = 0;
+    @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
         doc = "Max Rate(in 1 seconds) of Message allowed to publish for a topic "

@@ -34,6 +34,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadE
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.SafeRun;
+import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.service.AbstractDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.Consumer;
@@ -213,6 +214,11 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                 if (future.isSuccess()) {
                     // acquire message-dispatch permits for already delivered messages
                     if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
+                        if (topic.getBrokerDispatchRateLimiter().isPresent()) {
+                            topic.getBrokerDispatchRateLimiter().get().tryDispatchPermit(
+                                    sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes());
+                        }
+
                         if (topic.getDispatchRateLimiter().isPresent()) {
                             topic.getDispatchRateLimiter().get().tryDispatchPermit(sendMessageInfo.getTotalMessages(),
                                     sendMessageInfo.getTotalBytes());
@@ -352,6 +358,23 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         }
     }
 
+    @Override
+    protected void reScheduleRead() {
+        topic.getBrokerService().executor().schedule(() -> {
+            Consumer currentConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
+            if (currentConsumer != null && !havePendingRead) {
+                readMoreEntries(currentConsumer);
+            } else {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Skipping read retry for topic: Current Consumer {},"
+                                    + " havePendingRead {}",
+                            topic.getName(), currentConsumer, havePendingRead);
+                }
+            }
+        }, MESSAGE_RATE_BACKOFF_MS, TimeUnit.MILLISECONDS);
+
+    }
+
     protected Pair<Integer, Long> calculateToRead(Consumer consumer) {
         int availablePermits = consumer.getAvailablePermits();
         if (!consumer.isWritable()) {
@@ -370,79 +393,53 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             messagesToRead = Math.min((int) Math.ceil(availablePermits * 1.0 / avgMessagesPerEntry), readBatchSize);
         }
 
+        MutablePair<Integer, Long> calculateToRead = MutablePair.of(messagesToRead, bytesToRead);
+
         // throttle only if: (1) cursor is not active (or flag for throttle-nonBacklogConsumer is enabled) bcz
         // active-cursor reads message from cache rather from bookkeeper (2) if topic has reached message-rate
         // threshold: then schedule the read after MESSAGE_RATE_BACKOFF_MS
         if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
-            if (topic.getDispatchRateLimiter().isPresent()
-                    && topic.getDispatchRateLimiter().get().isDispatchRateLimitingEnabled()) {
+            if (topic.getBrokerDispatchRateLimiter().isPresent()) {
+                DispatchRateLimiter brokerRateLimiter = topic.getBrokerDispatchRateLimiter().get();
+                if (reachDispatchRateLimit(brokerRateLimiter, calculateToRead)) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] message-read exceeded broker message-rate {}/{}, schedule after a {}", name,
+                                brokerRateLimiter.getDispatchRateOnMsg(), brokerRateLimiter.getDispatchRateOnByte(),
+                                MESSAGE_RATE_BACKOFF_MS);
+                    }
+                    return Pair.of(-1, -1L);
+                }
+            }
+
+            if (topic.getDispatchRateLimiter().isPresent()) {
                 DispatchRateLimiter topicRateLimiter = topic.getDispatchRateLimiter().get();
-                if (!topicRateLimiter.hasMessageDispatchPermit()) {
+                if (reachDispatchRateLimit(topicRateLimiter, calculateToRead)) {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] message-read exceeded topic message-rate {}/{}, schedule after a {}", name,
                                 topicRateLimiter.getDispatchRateOnMsg(), topicRateLimiter.getDispatchRateOnByte(),
                                 MESSAGE_RATE_BACKOFF_MS);
                     }
-                    topic.getBrokerService().executor().schedule(() -> {
-                        Consumer currentConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
-                        if (currentConsumer != null && !havePendingRead) {
-                            readMoreEntries(currentConsumer);
-                        } else {
-                            if (log.isDebugEnabled()) {
-                                log.debug("[{}] Skipping read retry for topic: Current Consumer {},"
-                                                + " havePendingRead {}",
-                                        topic.getName(), currentConsumer, havePendingRead);
-                            }
-                        }
-                    }, MESSAGE_RATE_BACKOFF_MS, TimeUnit.MILLISECONDS);
                     return Pair.of(-1, -1L);
-                } else {
-
-                    Pair<Integer, Long> calculateResult = computeReadLimits(messagesToRead,
-                            (int) topicRateLimiter.getAvailableDispatchRateLimitOnMsg(),
-                            bytesToRead, topicRateLimiter.getAvailableDispatchRateLimitOnByte());
-
-                    messagesToRead = calculateResult.getLeft();
-                    bytesToRead = calculateResult.getRight();
-
                 }
             }
 
-            if (dispatchRateLimiter.isPresent() && dispatchRateLimiter.get().isDispatchRateLimitingEnabled()) {
-                if (!dispatchRateLimiter.get().hasMessageDispatchPermit()) {
+            if (dispatchRateLimiter.isPresent()) {
+                if (reachDispatchRateLimit(dispatchRateLimiter.get(), calculateToRead)) {
                     if (log.isDebugEnabled()) {
-                        log.debug("[{}] message-read exceeded subscription message-rate {}/{},"
-                                        + " schedule after a {}",
+                        log.debug("[{}] message-read exceeded subscription message-rate {}/{}, schedule after a {}",
                                 name, dispatchRateLimiter.get().getDispatchRateOnMsg(),
                                 dispatchRateLimiter.get().getDispatchRateOnByte(),
                                 MESSAGE_RATE_BACKOFF_MS);
                     }
-                    topic.getBrokerService().executor().schedule(() -> {
-                        Consumer currentConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
-                        if (currentConsumer != null && !havePendingRead) {
-                            readMoreEntries(currentConsumer);
-                        } else {
-                            if (log.isDebugEnabled()) {
-                                log.debug("[{}] Skipping read retry: Current Consumer {}, havePendingRead {}",
-                                        topic.getName(), currentConsumer, havePendingRead);
-                            }
-                        }
-                    }, MESSAGE_RATE_BACKOFF_MS, TimeUnit.MILLISECONDS);
                     return Pair.of(-1, -1L);
-                } else {
-
-                    Pair<Integer, Long> calculateResult = computeReadLimits(messagesToRead,
-                            (int) dispatchRateLimiter.get().getAvailableDispatchRateLimitOnMsg(),
-                            bytesToRead, dispatchRateLimiter.get().getAvailableDispatchRateLimitOnByte());
-
-                    messagesToRead = calculateResult.getLeft();
-                    bytesToRead = calculateResult.getRight();
                 }
             }
         }
 
         // If messagesToRead is 0 or less, correct it to 1 to prevent IllegalArgumentException
-        return Pair.of(Math.max(messagesToRead, 1), Math.max(bytesToRead, 1));
+        calculateToRead.setLeft(Math.max(calculateToRead.getLeft(), 1));
+        calculateToRead.setRight(Math.max(calculateToRead.getRight(), 1));
+        return calculateToRead;
     }
 
     @Override

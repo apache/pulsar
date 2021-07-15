@@ -43,7 +43,8 @@ public class DispatchRateLimiter {
     public enum Type {
         TOPIC,
         SUBSCRIPTION,
-        REPLICATOR
+        REPLICATOR,
+        BROKER
     }
 
     private final PersistentTopic topic;
@@ -61,6 +62,16 @@ public class DispatchRateLimiter {
         this.topicName = topic.getName();
         this.brokerService = topic.getBrokerService();
         this.type = type;
+        this.subscriptionRelativeRatelimiterOnMessage = -1;
+        this.subscriptionRelativeRatelimiterOnByte = -1;
+        updateDispatchRate();
+    }
+
+    public DispatchRateLimiter(BrokerService brokerService) {
+        this.topic = null;
+        this.topicName = null;
+        this.brokerService = brokerService;
+        this.type = Type.BROKER;
         this.subscriptionRelativeRatelimiterOnMessage = -1;
         this.subscriptionRelativeRatelimiterOnByte = -1;
         updateDispatchRate();
@@ -143,6 +154,10 @@ public class DispatchRateLimiter {
                 dispatchThrottlingRateInMsg = config.getDispatchThrottlingRatePerReplicatorInMsg();
                 dispatchThrottlingRateInByte = config.getDispatchThrottlingRatePerReplicatorInByte();
                 break;
+            case BROKER:
+                dispatchThrottlingRateInMsg = config.getBrokerDispatchThrottlingMaxMessageRate();
+                dispatchThrottlingRateInByte = config.getBrokerDispatchThrottlingMaxByteRate();
+                break;
             default:
                 dispatchThrottlingRateInMsg = -1;
                 dispatchThrottlingRateInByte = -1;
@@ -153,7 +168,7 @@ public class DispatchRateLimiter {
                 .dispatchThrottlingRateInMsg(dispatchThrottlingRateInMsg)
                 .dispatchThrottlingRateInByte(dispatchThrottlingRateInByte)
                 .ratePeriodInSecond(1)
-                .relativeToPublishRate(config.isDispatchThrottlingRateRelativeToPublishRate())
+                .relativeToPublishRate(type != Type.BROKER && config.isDispatchThrottlingRateRelativeToPublishRate())
                 .build();
     }
 
@@ -173,12 +188,20 @@ public class DispatchRateLimiter {
         }
 
         updateDispatchRate(dispatchRate.get());
-        log.info("[{}] configured {} message-dispatch rate at broker {}", this.topicName, type, dispatchRate.get());
-    }
+        if (type == Type.BROKER) {
+            log.info("configured broker message-dispatch rate {}", dispatchRate.get());
+        } else {
+            log.info("[{}] configured {} message-dispatch rate at broker {}", this.topicName, type, dispatchRate.get());
+        }
+}
 
     public static boolean isDispatchRateNeeded(BrokerService brokerService, Optional<Policies> policies,
             String topicName, Type type) {
         final ServiceConfiguration serviceConfig = brokerService.pulsar().getConfiguration();
+        if (type == Type.BROKER) {
+            return brokerService.getBrokerDispatchRateLimiter().isDispatchRateLimitingEnabled();
+        }
+
         Optional<DispatchRate> dispatchRate = getTopicPolicyDispatchRate(brokerService, topicName, type);
         if (dispatchRate.isPresent()) {
             return true;
@@ -317,6 +340,9 @@ public class DispatchRateLimiter {
      * @return
      */
     public DispatchRate getPoliciesDispatchRate(BrokerService brokerService) {
+        if (type == Type.BROKER) {
+            return null;
+        }
         final String cluster = brokerService.pulsar().getConfiguration().getClusterName();
         final Optional<Policies> policies = getPolicies(brokerService, topicName);
         return getPoliciesDispatchRate(cluster, policies, type);
