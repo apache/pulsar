@@ -57,7 +57,7 @@ import java.util.concurrent.TimeUnit;
 // The tenants and namespaces in those topics are associated with a set of resource-groups (RGs).
 // After sending/receiving all the messages, traffic usage statistics, and Prometheus-metrics
 // are verified on the RGs.
-public class RGUsageMTAggrWaitForAllMesgs extends ProducerConsumerBase {
+public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
     @BeforeClass
     @Override
     protected void setup() throws Exception {
@@ -397,6 +397,7 @@ public class RGUsageMTAggrWaitForAllMesgs extends ProducerConsumerBase {
     // Produce/consume messages on the given topics, and verify that the resource-group stats are updated.
     private void testProduceConsumeUsageOnRG(String[] topicStrings) throws Exception {
         createRGs();
+        // Comment out the following line to make the test pass (see https://github.com/apache/pulsar/issues/11289)
         createTopics(topicStrings);
         registerTenantsAndNamespaces(topicStrings);
 
@@ -532,6 +533,8 @@ public class RGUsageMTAggrWaitForAllMesgs extends ProducerConsumerBase {
         this.verifyRGMetrics(topicStrings, sentNumBytes, sentNumMsgs, recvdNumBytes, recvdNumMsgs);
 
         unRegisterTenantsAndNamespaces(topicStrings);
+        // Comment out the following line if createTopics() [see above] is not performed
+        // (see https://github.com/apache/pulsar/issues/11289)
         destroyTopics(topicStrings);
         destroyRGs();
     }
@@ -690,24 +693,24 @@ public class RGUsageMTAggrWaitForAllMesgs extends ProducerConsumerBase {
             for (ResourceGroupMonitoringClass mc : ResourceGroupMonitoringClass.values()) {
                 String mcName = mc.name();
                 int mcIndex = mc.ordinal();
-                double quotaBytes = rgs.getRgQuotaByteCount(rgName, mcName);
+                double quotaBytes = ResourceGroupService.getRgQuotaByteCount(rgName, mcName);
                 totalQuotaBytes[mcIndex] += quotaBytes;
-                double quotaMesgs = rgs.getRgQuotaMessageCount(rgName, mcName);
+                double quotaMesgs = ResourceGroupService.getRgQuotaMessageCount(rgName, mcName);
                 totalQuotaMessages[mcIndex] += quotaMesgs;
-                double usedBytes = rgs.getRgLocalUsageByteCount(rgName, mcName);
+                double usedBytes = ResourceGroupService.getRgLocalUsageByteCount(rgName, mcName);
                 totalUsedBytes[mcIndex] += usedBytes;
-                double usedMesgs = rgs.getRgLocalUsageMessageCount(rgName, mcName);
+                double usedMesgs = ResourceGroupService.getRgLocalUsageMessageCount(rgName, mcName);
                 totalUsedMessages[mcIndex] += usedMesgs;
 
                 double usageReportedCount = ResourceGroup.getRgUsageReportedCount(rgName, mcName);
                 totalUsageReportCounts[mcIndex] += usageReportedCount;
             }
 
-            totalTenantRegisters += rgs.getRgTenantRegistersCount(rgName);
-            totalTenantUnRegisters += rgs.getRgTenantUnRegistersCount(rgName);
-            totalNamespaceRegisters += rgs.getRgNamespaceRegistersCount(rgName);
-            totalNamespaceUnRegisters += rgs.getRgNamespaceUnRegistersCount(rgName);;
-            totalUpdates += rgs.getRgUpdatesCount(rgName);
+            totalTenantRegisters += ResourceGroupService.getRgTenantRegistersCount(rgName);
+            totalTenantUnRegisters += ResourceGroupService.getRgTenantUnRegistersCount(rgName);
+            totalNamespaceRegisters += ResourceGroupService.getRgNamespaceRegistersCount(rgName);
+            totalNamespaceUnRegisters += ResourceGroupService.getRgNamespaceUnRegistersCount(rgName);;
+            totalUpdates += ResourceGroupService.getRgUpdatesCount(rgName);
         }
         log.info("totalTenantRegisters={}, totalTenantUnRegisters={}, " +
                         "totalNamespaceRegisters={}, totalNamespaceUnRegisters={}",
@@ -760,7 +763,7 @@ public class RGUsageMTAggrWaitForAllMesgs extends ProducerConsumerBase {
         Assert.assertEquals(totalUpdates, 0);  // currently, we don't update the RGs in this UT
 
         // Basic check that latency metrics are doing some work.
-        Summary.Child.Value usageAggrLatency = rgs.getRgUsageAggregationLatency();
+        Summary.Child.Value usageAggrLatency = ResourceGroupService.getRgUsageAggregationLatency();
         Assert.assertNotEquals(usageAggrLatency.count, 0);
         Assert.assertNotEquals(usageAggrLatency.sum, 0);
         double fiftiethPercentileValue = usageAggrLatency.quantiles.get(0.5);
@@ -768,7 +771,7 @@ public class RGUsageMTAggrWaitForAllMesgs extends ProducerConsumerBase {
         double ninetethPercentileValue = usageAggrLatency.quantiles.get(0.9);
         Assert.assertNotEquals(ninetethPercentileValue, 0);
 
-        Summary.Child.Value quotaCalcLatency = rgs.getRgQuotaCalculationTime();
+        Summary.Child.Value quotaCalcLatency = ResourceGroupService.getRgQuotaCalculationTime();
         Assert.assertNotEquals(quotaCalcLatency.count, 0);
         Assert.assertNotEquals(quotaCalcLatency.sum, 0);
         fiftiethPercentileValue = quotaCalcLatency.quantiles.get(0.5);
@@ -777,7 +780,7 @@ public class RGUsageMTAggrWaitForAllMesgs extends ProducerConsumerBase {
         Assert.assertNotEquals(ninetethPercentileValue, 0);
     }
 
-    private static final Logger log = LoggerFactory.getLogger(RGUsageMTAggrWaitForAllMesgs.class);
+    private static final Logger log = LoggerFactory.getLogger(RGUsageMTAggrWaitForAllMesgsTest.class);
 
     // Empirically, there appears to be a 45-byte overhead for metadata, imposed by Pulsar runtime.
     private final int PER_MESSAGE_METADATA_OHEAD = 45;
