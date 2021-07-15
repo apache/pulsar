@@ -379,12 +379,12 @@ public class PersistentTopic extends AbstractTopic
 
             // dispatch rate limiter for each replicator
             replicators.forEach((name, replicator) ->
-                    replicator.initializeDispatchRateLimiterIfNeeded(policies));
+                replicator.initializeDispatchRateLimiterIfNeeded(policies));
         }
     }
 
     private PersistentSubscription createPersistentSubscription(String subscriptionName, ManagedCursor cursor,
-                                                                boolean replicated) {
+            boolean replicated) {
         checkNotNull(compactedTopic);
         if (subscriptionName.equals(COMPACTION_SUBSCRIPTION)) {
             return new CompactorSubscription(this, compactedTopic, subscriptionName, cursor);
@@ -542,7 +542,7 @@ public class PersistentTopic extends AbstractTopic
 
     @Override
     public CompletableFuture<Optional<Long>> addProducer(Producer producer,
-                                                         CompletableFuture<Void> producerQueuedFuture) {
+            CompletableFuture<Void> producerQueuedFuture) {
         return super.addProducer(producer, producerQueuedFuture).thenCompose(topicEpoch -> {
             messageDeduplication.producerAdded(producer.getProducerName());
 
@@ -606,13 +606,12 @@ public class PersistentTopic extends AbstractTopic
                         replicators.forEach((region, replicator) -> replicator.startProducer());
                     }
                 }).exceptionally(ex -> {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Error getting policies while starting repl-producers {}", topic,
-                                ex.getMessage());
-                    }
-                    replicators.forEach((region, replicator) -> replicator.startProducer());
-                    return null;
-                });
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Error getting policies while starting repl-producers {}", topic, ex.getMessage());
+            }
+            replicators.forEach((region, replicator) -> replicator.startProducer());
+            return null;
+        });
     }
 
     public CompletableFuture<Void> stopReplProducers() {
@@ -811,9 +810,7 @@ public class PersistentTopic extends AbstractTopic
     }
 
     private CompletableFuture<Subscription> getDurableSubscription(String subscriptionName,
-                                                                   InitialPosition initialPosition,
-                                                                   long startMessageRollbackDurationSec,
-                                                                   boolean replicated) {
+            InitialPosition initialPosition, long startMessageRollbackDurationSec, boolean replicated) {
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
         if (checkMaxSubscriptionsPerTopicExceed(subscriptionName)) {
             subscriptionFuture.completeExceptionally(new NotAllowedException(
@@ -861,9 +858,7 @@ public class PersistentTopic extends AbstractTopic
     }
 
     private CompletableFuture<? extends Subscription> getNonDurableSubscription(String subscriptionName,
-                                                                                MessageId startMessageId,
-                                                                                InitialPosition initialPosition,
-                                                                                long startMessageRollbackDurationSec) {
+            MessageId startMessageId, InitialPosition initialPosition, long startMessageRollbackDurationSec) {
         log.info("[{}][{}] Creating non-durable subscription at msg id {}", topic, subscriptionName, startMessageId);
 
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
@@ -941,7 +936,7 @@ public class PersistentTopic extends AbstractTopic
      *
      * @param subscriptionName Subscription for which the cursor ledger is to be deleted
      * @return Completable future indicating completion of unsubscribe operation Completed exceptionally with:
-     * ManagedLedgerException if cursor ledger delete fails
+     *         ManagedLedgerException if cursor ledger delete fails
      */
     @Override
     public CompletableFuture<Void> unsubscribe(String subscriptionName) {
@@ -982,7 +977,7 @@ public class PersistentTopic extends AbstractTopic
      * Delete the managed ledger associated with this topic.
      *
      * @return Completable future indicating completion of delete operation Completed exceptionally with:
-     * IllegalStateException if topic is still active ManagedLedgerException if ledger delete operation fails
+     *         IllegalStateException if topic is still active ManagedLedgerException if ledger delete operation fails
      */
     @Override
     public CompletableFuture<Void> delete() {
@@ -1009,18 +1004,19 @@ public class PersistentTopic extends AbstractTopic
     /**
      * Delete the managed ledger associated with this topic.
      *
-     * @param failIfHasSubscriptions  Flag indicating whether delete should succeed if topic still has unconnected
-     *                                subscriptions. Set to
-     *                                false when called from admin API (it will delete the subs too), and set to true
-     *                                when called from GC
-     *                                thread
-     * @param closeIfClientsConnected Flag indicate whether explicitly close connected
-     *                                producers/consumers/replicators before trying to delete topic.
-     *                                If any client is connected to a topic and if this flag is disable then this
-     *                                operation fails.
-     * @param deleteSchema            Flag indicating whether delete the schema defined for topic if exist.
+     * @param failIfHasSubscriptions
+     *            Flag indicating whether delete should succeed if topic still has unconnected subscriptions. Set to
+     *            false when called from admin API (it will delete the subs too), and set to true when called from GC
+     *            thread
+     * @param closeIfClientsConnected
+     *            Flag indicate whether explicitly close connected
+     *            producers/consumers/replicators before trying to delete topic.
+     *            If any client is connected to a topic and if this flag is disable then this operation fails.
+     * @param deleteSchema
+     *            Flag indicating whether delete the schema defined for topic if exist.
+     *
      * @return Completable future indicating completion of delete operation Completed exceptionally with:
-     * IllegalStateException if topic is still active ManagedLedgerException if ledger delete operation fails
+     *         IllegalStateException if topic is still active ManagedLedgerException if ledger delete operation fails
      */
     private CompletableFuture<Void> delete(boolean failIfHasSubscriptions,
                                            boolean failIfHasBacklogs,
@@ -1063,7 +1059,7 @@ public class PersistentTopic extends AbstractTopic
                 //  1. No one is connected
                 //  2. We want to kick out everyone and forcefully delete the topic.
                 //     In this case, we shouldn't care if the usageCount is 0 or not, just proceed
-                if (currentUsageCount() == 0 || (closeIfClientsConnected && !failIfHasSubscriptions)) {
+                if (currentUsageCount() ==  0 || (closeIfClientsConnected && !failIfHasSubscriptions)) {
                     CompletableFuture<SchemaVersion> deleteSchemaFuture =
                             deleteSchema ? deleteSchema() : CompletableFuture.completedFuture(null);
 
@@ -1106,7 +1102,7 @@ public class PersistentTopic extends AbstractTopic
                     deleteFuture.completeExceptionally(new TopicBusyException(
                             "Topic has " + currentUsageCount() + " connected producers/consumers"));
                 }
-            }).exceptionally(ex -> {
+            }).exceptionally(ex->{
                 unfenceTopicToResume();
                 deleteFuture.completeExceptionally(
                         new TopicBusyException("Failed to close clients before deleting topic."));
@@ -1177,10 +1173,10 @@ public class PersistentTopic extends AbstractTopic
                                 log.info("[{}] Topic closed", topic);
                                 closeFuture.complete(null);
                             })
-                            .exceptionally(ex -> {
-                                closeFuture.completeExceptionally(ex);
-                                return null;
-                            });
+                    .exceptionally(ex -> {
+                        closeFuture.completeExceptionally(ex);
+                        return null;
+                    });
                 }
 
                 @Override
@@ -1254,14 +1250,14 @@ public class PersistentTopic extends AbstractTopic
                 .getNamespaceResources()
                 .getAsync(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
                 .thenCompose(optPolicies -> {
-                    if (!optPolicies.isPresent()) {
-                        return FutureUtil.failedFuture(
-                                new ServerMetadataException(
-                                        new MetadataStoreException.NotFoundException()));
-                    }
+                            if (!optPolicies.isPresent()) {
+                                return FutureUtil.failedFuture(
+                                        new ServerMetadataException(
+                                                new MetadataStoreException.NotFoundException()));
+                            }
 
-                    return CompletableFuture.completedFuture(optPolicies.get());
-                });
+                            return CompletableFuture.completedFuture(optPolicies.get());
+                        });
 
         CompletableFuture<Integer> ttlFuture = getMessageTTL();
 
@@ -1339,12 +1335,12 @@ public class PersistentTopic extends AbstractTopic
         TopicName name = TopicName.get(topic);
         try {
             Long compactionThreshold = getTopicPolicies()
-                    .map(TopicPolicies::getCompactionThreshold)
-                    .orElse(null);
+                .map(TopicPolicies::getCompactionThreshold)
+                .orElse(null);
             if (compactionThreshold == null) {
                 Policies policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                        .get(AdminResource.path(POLICIES, name.getNamespace()))
-                        .orElseThrow(() -> new MetadataStoreException.NotFoundException());
+                    .get(AdminResource.path(POLICIES, name.getNamespace()))
+                    .orElseThrow(() -> new MetadataStoreException.NotFoundException());
                 compactionThreshold = policies.compaction_threshold;
             }
             if (compactionThreshold == null) {
@@ -1353,7 +1349,7 @@ public class PersistentTopic extends AbstractTopic
             }
 
             if (isSystemTopic() || compactionThreshold != 0
-                    && currentCompaction.isDone()) {
+                && currentCompaction.isDone()) {
 
                 long backlogEstimate = 0;
 
@@ -1375,7 +1371,7 @@ public class PersistentTopic extends AbstractTopic
                     } catch (AlreadyRunningException are) {
                         log.debug("[{}] Compaction already running, so don't trigger again, "
                                   + "even though backlog({}) is over threshold({})",
-                                name, backlogEstimate, compactionThreshold);
+                                  name, backlogEstimate, compactionThreshold);
                     }
                 }
             }
@@ -2308,6 +2304,7 @@ public class PersistentTopic extends AbstractTopic
     }
 
     /**
+     *
      * @return Backlog quota for topic
      */
     @Override
@@ -2317,6 +2314,7 @@ public class PersistentTopic extends AbstractTopic
     }
 
     /**
+     *
      * @return quota exceeded status for blocking producer creation
      */
     @Override
@@ -2388,8 +2386,7 @@ public class PersistentTopic extends AbstractTopic
                                 boolean expired = MessageImpl.isEntryExpired(backlogQuotaLimitInSecond, entryTimestamp);
                                 if (expired && log.isDebugEnabled()) {
                                     log.debug("Time based backlog quota exceeded, oldest entry in cursor {}'s backlog"
-                                                    + "exceeded quota {}",
-                                            ((ManagedLedgerImpl) ledger).getSlowestConsumer().getName(),
+                                    + "exceeded quota {}", ((ManagedLedgerImpl) ledger).getSlowestConsumer().getName(),
                                             backlogQuotaLimitInSecond);
                                 }
                                 future.complete(expired);
@@ -2666,7 +2663,6 @@ public class PersistentTopic extends AbstractTopic
 
     /**
      * Get message TTL for this topic.
-     *
      * @return Message TTL in second.
      */
     private CompletableFuture<Integer> getMessageTTL() {
@@ -2696,20 +2692,20 @@ public class PersistentTopic extends AbstractTopic
     @Override
     public CompletableFuture<Void> addSchemaIfIdleOrCheckCompatible(SchemaData schema) {
         return hasSchema()
-                .thenCompose((hasSchema) -> {
-                    int numActiveConsumers = subscriptions.values().stream()
-                            .mapToInt(subscription -> subscription.getConsumers().size())
-                            .sum();
-                    if (hasSchema
-                            || (!producers.isEmpty())
-                            || (numActiveConsumers != 0)
-                            || (ledger.getTotalSize() != 0)) {
-                        return checkSchemaCompatibleForConsumer(schema);
-                    } else {
-                        return addSchema(schema).thenCompose(schemaVersion ->
-                                CompletableFuture.completedFuture(null));
-                    }
-                });
+            .thenCompose((hasSchema) -> {
+                int numActiveConsumers = subscriptions.values().stream()
+                        .mapToInt(subscription -> subscription.getConsumers().size())
+                        .sum();
+                if (hasSchema
+                        || (!producers.isEmpty())
+                        || (numActiveConsumers != 0)
+                        || (ledger.getTotalSize() != 0)) {
+                    return checkSchemaCompatibleForConsumer(schema);
+                } else {
+                    return addSchema(schema).thenCompose(schemaVersion ->
+                            CompletableFuture.completedFuture(null));
+                }
+            });
     }
 
     public synchronized void checkReplicatedSubscriptionControllerState() {
@@ -2752,7 +2748,7 @@ public class PersistentTopic extends AbstractTopic
         }
 
         ctrl.receivedReplicatedSubscriptionMarker(position, markerType, payload);
-    }
+     }
 
     public Optional<ReplicatedSubscriptionsController> getReplicatedSubscriptionController() {
         return replicatedSubscriptionsController;
@@ -2956,7 +2952,7 @@ public class PersistentTopic extends AbstractTopic
         initializeTopicSubscribeRateLimiterIfNeeded(Optional.ofNullable(policies));
         if (this.subscribeRateLimiter.isPresent()) {
             subscribeRateLimiter.ifPresent(subscribeRateLimiter ->
-                    subscribeRateLimiter.onSubscribeRateUpdate(policies.getSubscribeRate()));
+                subscribeRateLimiter.onSubscribeRateUpdate(policies.getSubscribeRate()));
         }
         replicators.forEach((name, replicator) -> replicator.getRateLimiter()
                 .ifPresent(DispatchRateLimiter::updateDispatchRate));

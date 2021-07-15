@@ -96,16 +96,15 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 writer.writeAsync(
                         PulsarEvent.builder()
                                 .actionType(actionType)
-                                .eventType(EventType.TOPIC_POLICY)
-                                .topicPoliciesEvent(
-                                        TopicPoliciesEvent.builder()
-                                                .domain(topicName.getDomain().toString())
-                                                .tenant(topicName.getTenant())
-                                                .namespace(topicName.getNamespaceObject().getLocalName())
-                                                .topic(TopicName.get(topicName.getPartitionedTopicName())
-                                                        .getLocalName())
-                                                .policies(policies)
-                                                .build())
+                        .eventType(EventType.TOPIC_POLICY)
+                        .topicPoliciesEvent(
+                            TopicPoliciesEvent.builder()
+                                .domain(topicName.getDomain().toString())
+                                .tenant(topicName.getTenant())
+                                .namespace(topicName.getNamespaceObject().getLocalName())
+                                .topic(TopicName.get(topicName.getPartitionedTopicName()).getLocalName())
+                                .policies(policies)
+                                .build())
                                 .build()).whenComplete(((messageId, e) -> {
                             if (e != null) {
                                 result.completeExceptionally(e);
@@ -241,12 +240,12 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         removeOwnedNamespaceBundleAsync(bundle);
                     }
 
-                    @Override
-                    public boolean test(NamespaceBundle namespaceBundle) {
-                        return true;
-                    }
+            @Override
+            public boolean test(NamespaceBundle namespaceBundle) {
+                return true;
+            }
 
-                });
+        });
     }
 
     private void initPolicesCache(SystemTopicClient.Reader<PulsarEvent> reader, CompletableFuture<Void> future) {
