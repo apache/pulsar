@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service;
 
 import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.util.Murmur3_32Hash;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -66,11 +65,6 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
     }
 
     @Override
-    public Consumer select(byte[] stickyKey) {
-        return select(Murmur3_32Hash.getInstance().makeHash(stickyKey));
-    }
-
-    @Override
     public Map<String, List<String>> getConsumerKeyHashRanges() {
         Map<String, List<String>> result = new HashMap<>();
         Map.Entry<Integer, Consumer> prev = null;
@@ -88,7 +82,8 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
         return result;
     }
 
-    Consumer select(int hash) {
+    @Override
+    public Consumer select(int hash) {
         if (rangeMap.size() > 0) {
             int slot = hash % rangeSize;
             Map.Entry<Integer, Consumer> ceilingEntry = rangeMap.ceilingEntry(slot);

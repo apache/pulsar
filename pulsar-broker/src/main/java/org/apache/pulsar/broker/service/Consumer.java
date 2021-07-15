@@ -54,6 +54,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -236,7 +237,8 @@ public class Consumer {
                 Entry entry = entries.get(i);
                 if (entry != null) {
                     int batchSize = batchSizes.getBatchSize(i);
-                    pendingAcks.put(entry.getLedgerId(), entry.getEntryId(), batchSize, 0);
+                    int stickyKeyHash = getStickyKeyHash(entry);
+                    pendingAcks.put(entry.getLedgerId(), entry.getEntryId(), batchSize, stickyKeyHash);
                     if (log.isDebugEnabled()){
                         log.debug("[{}-{}] Added {}:{} ledger entry with batchSize of {} to pendingAcks in"
                                         + " broker.service.Consumer for consumerId: {}",
@@ -729,7 +731,7 @@ public class Consumer {
         if (pendingAcks != null) {
             List<PositionImpl> pendingPositions = new ArrayList<>((int) pendingAcks.size());
             MutableInt totalRedeliveryMessages = new MutableInt(0);
-            pendingAcks.forEach((ledgerId, entryId, batchSize, none) -> {
+            pendingAcks.forEach((ledgerId, entryId, batchSize, stickyKeyHash) -> {
                 totalRedeliveryMessages.add((int) batchSize);
                 pendingPositions.add(new PositionImpl(ledgerId, entryId));
             });
@@ -752,10 +754,11 @@ public class Consumer {
         List<PositionImpl> pendingPositions = Lists.newArrayList();
         for (MessageIdData msg : messageIds) {
             PositionImpl position = PositionImpl.get(msg.getLedgerId(), msg.getEntryId());
-            LongPair batchSize = pendingAcks.get(position.getLedgerId(), position.getEntryId());
-            if (batchSize != null) {
+            LongPair longPair = pendingAcks.get(position.getLedgerId(), position.getEntryId());
+            if (longPair != null) {
+                long batchSize = longPair.first;
                 pendingAcks.remove(position.getLedgerId(), position.getEntryId());
-                totalRedeliveryMessages += batchSize.first;
+                totalRedeliveryMessages += batchSize;
                 pendingPositions.add(position);
             }
         }
@@ -808,6 +811,11 @@ public class Consumer {
 
     public TransportCnx cnx() {
         return cnx;
+    }
+
+    private int getStickyKeyHash(Entry entry) {
+        byte[] stickyKey = Commands.peekStickyKey(entry.getDataBuffer(), topicName, subscription.getName());
+        return StickyKeyConsumerSelector.makeStickyKeyHash(stickyKey);
     }
 
     private static final Logger log = LoggerFactory.getLogger(Consumer.class);

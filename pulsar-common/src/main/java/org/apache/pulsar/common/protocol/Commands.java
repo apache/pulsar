@@ -30,6 +30,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -1527,6 +1528,23 @@ public class Commands {
                                                    .setGetOrCreateSchemaResponse(schemaResponse.build()));
         schemaResponse.recycle();
         return res;
+    }
+
+    private static final byte[] NONE_KEY = "NONE_KEY".getBytes(StandardCharsets.UTF_8);
+    public static byte[] peekStickyKey(ByteBuf metadataAndPayload, String topic, String subscription) {
+        try {
+            int readerIdx = metadataAndPayload.readerIndex();
+            MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
+            metadataAndPayload.readerIndex(readerIdx);
+            if (metadata.hasOrderingKey()) {
+                return metadata.getOrderingKey().toByteArray();
+            } else if (metadata.hasPartitionKey()) {
+                return metadata.getPartitionKey().getBytes(StandardCharsets.UTF_8);
+            }
+        } catch (Throwable t) {
+            log.error("[{}] [{}] Failed to peek sticky key from the message metadata", topic, subscription, t);
+        }
+        return Commands.NONE_KEY;
     }
 
     // ---- transaction related ----
