@@ -26,6 +26,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import lombok.Getter;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.BytesAndMessagesCount;
@@ -163,6 +164,8 @@ public class ResourceGroupService {
             throw new PulsarAdminException(errMesg);
         }
 
+        rg.resourceGroupPublishLimiter.close();
+        rg.resourceGroupPublishLimiter = null;
         resourceGroupsMap.remove(name);
     }
 
@@ -651,7 +654,10 @@ public class ResourceGroupService {
     }
 
     private static final Logger log = LoggerFactory.getLogger(ResourceGroupService.class);
+
+    @Getter
     private final PulsarService pulsar;
+
     protected final ResourceQuotaCalculator quotaCalculator;
     private ResourceUsageTransportManager resourceUsageTransportManagerMgr;
     private final ResourceGroupConfigListener rgConfigListener;
