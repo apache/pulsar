@@ -262,6 +262,9 @@ func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 
 	funcDetails := gi.context.instanceConf.funcDetails
 	subscriptionName := funcDetails.Tenant + "/" + funcDetails.Namespace + "/" + funcDetails.Name
+	if funcDetails.Source != nil && funcDetails.Source.SubscriptionName != "" {
+		subscriptionName = funcDetails.Source.SubscriptionName
+	}
 
 	properties := getProperties(getDefaultSubscriptionName(
 		funcDetails.Tenant,
