@@ -105,7 +105,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                                 .topic(TopicName.get(topicName.getPartitionedTopicName()).getLocalName())
                                 .policies(policies)
                                 .build())
-                                .build()).whenComplete(((messageId, e) -> {
+                        .build()).whenComplete(((messageId, e) -> {
                             if (e != null) {
                                 result.completeExceptionally(e);
                             } else {
@@ -124,7 +124,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                                     }
                                 }
                             });
-                        })
+                    })
                 );
             }
         });
