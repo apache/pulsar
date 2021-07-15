@@ -33,13 +33,16 @@ public class BundlesQuotas {
     private final MetadataCache<ResourceQuota> resourceQuotaCache;
 
     // Default initial quota
-    static final ResourceQuota INITIAL_QUOTA = new ResourceQuota()
-            .setMsgRateIn(40) // incoming msg / sec
-            .setMsgRateOut(120) // outgoing msg / sec
-            .setBandwidthIn(100000) // incoming bytes / sec
-            .setBandwidthOut(300000) // outgoing bytes / sec
-            .setMemory(80) // Mbytes
-            .setDynamic(true); // allow dynamically re-calculating
+    static final ResourceQuota INITIAL_QUOTA = new ResourceQuota();
+
+    static {
+        INITIAL_QUOTA.setMsgRateIn(40); // incoming msg / sec
+        INITIAL_QUOTA.setMsgRateOut(120); // outgoing msg / sec
+        INITIAL_QUOTA.setBandwidthIn(100000); // incoming bytes / sec
+        INITIAL_QUOTA.setBandwidthOut(300000); // outgoing bytes / sec
+        INITIAL_QUOTA.setMemory(80); // Mbytes
+        INITIAL_QUOTA.setDynamic(true); // allow dynamically re-calculating
+    }
 
     public BundlesQuotas(MetadataStore localStore) {
         this.resourceQuotaCache = localStore.getMetadataCache(ResourceQuota.class);

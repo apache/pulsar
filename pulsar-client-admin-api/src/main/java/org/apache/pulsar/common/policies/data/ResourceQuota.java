@@ -25,7 +25,6 @@ import lombok.experimental.Accessors;
  * Resource quota for a namespace or namespace bundle.
  */
 @Data
-@Accessors(chain = true)
 public class ResourceQuota {
 
     // messages published per second
@@ -48,6 +47,10 @@ public class ResourceQuota {
         bandwidthOut = 0.0;
         memory = 0.0;
         dynamic = true;
+    }
+
+    public boolean getDynamic() {
+        return dynamic;
     }
 
     /**

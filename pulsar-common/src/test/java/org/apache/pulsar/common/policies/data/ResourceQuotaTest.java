@@ -30,7 +30,7 @@ public class ResourceQuotaTest {
         Assert.assertEquals(quota.getBandwidthIn(), 0.0);
         Assert.assertEquals(quota.getBandwidthOut(), 0.0);
         Assert.assertEquals(quota.getMemory(), 0.0);
-        Assert.assertTrue(quota.isDynamic());
+        Assert.assertTrue(quota.getDynamic());
 
         quota.setMsgRateIn(10);
         quota.setMsgRateOut(20);
@@ -43,7 +43,7 @@ public class ResourceQuotaTest {
         Assert.assertEquals(quota.getBandwidthIn(), 10000.0);
         Assert.assertEquals(quota.getBandwidthOut(), 20000.0);
         Assert.assertEquals(quota.getMemory(), 100.0);
-        Assert.assertFalse(quota.isDynamic());
+        Assert.assertFalse(quota.getDynamic());
     }
 
     @Test

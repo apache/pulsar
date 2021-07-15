@@ -59,13 +59,13 @@ public class BundlesQuotasTest {
     @Test
     public void testGetSetDefaultQuota() throws Exception {
         BundlesQuotas bundlesQuotas = new BundlesQuotas(store);
-        ResourceQuota quota2 = new ResourceQuota()
-                .setMsgRateIn(10)
-                .setMsgRateOut(20)
-                .setBandwidthIn(10000)
-                .setBandwidthOut(20000)
-                .setMemory(100)
-                .setDynamic(false);
+        ResourceQuota quota2 = new ResourceQuota();
+        quota2.setMsgRateIn(10);
+        quota2.setMsgRateOut(20);
+        quota2.setBandwidthIn(10000);
+        quota2.setBandwidthOut(20000);
+        quota2.setMemory(100);
+        quota2.setDynamic(false);
 
         assertEquals(bundlesQuotas.getDefaultResourceQuota().join(), BundlesQuotas.INITIAL_QUOTA);
         bundlesQuotas.setDefaultResourceQuota(quota2).join();
@@ -76,13 +76,13 @@ public class BundlesQuotasTest {
     public void testGetSetBundleQuota() throws Exception {
         BundlesQuotas bundlesQuotas = new BundlesQuotas(store);
         NamespaceBundle testBundle = bundleFactory.getFullBundle(NamespaceName.get("pulsar/test/ns-2"));
-        ResourceQuota quota2 = new ResourceQuota()
-                .setMsgRateIn(10)
-                .setMsgRateOut(20)
-                .setBandwidthIn(10000)
-                .setBandwidthOut(20000)
-                .setMemory(100)
-                .setDynamic(false);
+        ResourceQuota quota2 = new ResourceQuota();
+        quota2.setMsgRateIn(10);
+        quota2.setMsgRateOut(20);
+        quota2.setBandwidthIn(10000);
+        quota2.setBandwidthOut(20000);
+        quota2.setMemory(100);
+        quota2.setDynamic(false);
 
         assertEquals(bundlesQuotas.getResourceQuota(testBundle).join(), BundlesQuotas.INITIAL_QUOTA);
         bundlesQuotas.setResourceQuota(testBundle, quota2).join();

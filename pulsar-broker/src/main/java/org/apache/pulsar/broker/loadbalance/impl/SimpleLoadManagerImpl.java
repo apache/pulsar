@@ -450,7 +450,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
 
     private ResourceQuota timeSmoothQuota(ResourceQuota oldQuota, double msgRateIn, double msgRateOut,
             double bandwidthIn, double bandwidthOut, double memory, long timePast) {
-        if (oldQuota.isDynamic()) {
+        if (oldQuota.getDynamic()) {
             ResourceQuota newQuota = new ResourceQuota();
             newQuota.setMsgRateIn(timeSmoothValue(oldQuota.getMsgRateIn(), msgRateIn, RESOURCE_QUOTA_MIN_MSGRATE_IN,
                     RESOURCE_QUOTA_MAX_MSGRATE_IN, timePast));
@@ -524,7 +524,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
             }
 
             // calculate average bundle
-            if (totalBundles > 30 && this.realtimeAvgResourceQuota.isDynamic()) {
+            if (totalBundles > 30 && this.realtimeAvgResourceQuota.getDynamic()) {
                 ResourceQuota oldQuota = this.realtimeAvgResourceQuota;
                 ResourceQuota newQuota = timeSmoothQuota(oldQuota, totalMsgRateIn / totalBundles,
                         totalMsgRateOut / totalBundles, totalBandwidthIn / totalBundles,
@@ -560,7 +560,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
 
     private void compareAndWriteQuota(String bundle, ResourceQuota oldQuota, ResourceQuota newQuota) throws Exception {
         boolean needUpdate = true;
-        if (!oldQuota.isDynamic() || (Math
+        if (!oldQuota.getDynamic() || (Math
                 .abs(newQuota.getMsgRateIn() - oldQuota.getMsgRateIn()) < RESOURCE_QUOTA_MIN_MSGRATE_IN
                 && Math.abs(newQuota.getMsgRateOut() - oldQuota.getMsgRateOut()) < RESOURCE_QUOTA_MIN_MSGRATE_OUT
                 && Math.abs(newQuota.getBandwidthIn() - oldQuota.getBandwidthOut()) < RESOURCE_QUOTA_MIN_BANDWIDTH_IN
