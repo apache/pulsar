@@ -39,6 +39,7 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.util.CmdGenerateDocs;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.metadata.api.GetResult;
@@ -122,6 +123,9 @@ public class PulsarClusterMetadataSetup {
 
         @Parameter(names = { "-h", "--help" }, description = "Show this help message")
         private boolean help = false;
+
+        @Parameter(names = {"-g", "--generate-docs"}, description = "Generate docs")
+        private boolean generateDocs = false;
     }
 
     /**
@@ -159,6 +163,12 @@ public class PulsarClusterMetadataSetup {
             jcommander.parse(args);
             if (arguments.help) {
                 jcommander.usage();
+                return;
+            }
+            if (arguments.generateDocs) {
+                CmdGenerateDocs cmd = new CmdGenerateDocs("pulsar");
+                cmd.addCommand("initialize-cluster-metadata", arguments);
+                cmd.run(null);
                 return;
             }
         } catch (Exception e) {
