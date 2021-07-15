@@ -225,6 +225,7 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("remove-subscribe-rate", new RemoveSubscribeRate());
 
         jcommander.addCommand("set-replicated-subscription-status", new SetReplicatedSubscriptionStatus());
+        jcommander.addCommand("get-backlog-size", new GetBacklogSizeByMessageId());
 
         initDeprecatedCommands();
     }
@@ -2423,5 +2424,28 @@ public class CmdTopics extends CmdBase {
 
     private Topics getTopics() {
         return getAdmin().topics();
+    }
+
+    @Parameters(commandDescription = "Calculate backlog size by a message ID (in bytes).")
+    private class GetBacklogSizeByMessageId extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--messageId",
+                "-m" }, description = "messageId used to calculate backlog size. It can be (ledgerId:entryId).", required = false)
+        private String messagePosition = "-1:-1";
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            MessageId messageId;
+            if("-1:-1".equals(messagePosition)) {
+                messageId = MessageId.earliest;
+            } else {
+                messageId = validateMessageIdString(messagePosition);
+            }
+            print(getTopics().getBacklogSizeByMessageId(persistentTopic, messageId));
+
+        }
     }
 }
