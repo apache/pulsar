@@ -46,6 +46,7 @@ import org.apache.pulsar.client.impl.BinaryProtoLookupService;
 import org.apache.pulsar.client.impl.HttpLookupService;
 import org.apache.pulsar.client.impl.LookupService;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.schema.reader.AvroReader;
 import org.apache.pulsar.client.impl.schema.writer.AvroWriter;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
@@ -242,6 +243,17 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         } catch (PulsarClientException e) {
             assertTrue(e.getCause() instanceof SchemaSerializationException);
         }
+
+        Schema<V1Data> v1Schema = Schema.AVRO(V1Data.class);
+        byte[] v1SchemaBytes = v1Schema.getSchemaInfo().getSchema();
+        org.apache.avro.Schema v1SchemaAvroNative = new Parser().parse(new ByteArrayInputStream(v1SchemaBytes));
+        // if using NATIVE_AVRO, producer can connect but the publish will fail
+        try (Producer<byte[]> p = pulsarClient.newProducer(Schema.NATIVE_AVRO(v1SchemaAvroNative)).topic(topic).create()) {
+            p.send("junkdata".getBytes(UTF_8));
+        } catch (PulsarClientException e) {
+            assertTrue(e.getCause() instanceof SchemaSerializationException);
+        }
+   
     }
 
     @Test
@@ -276,6 +288,67 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
             p.newMessage(Schema.AUTO_PRODUCE_BYTES(Schema.AVRO(V1Data.class)))
                     .value(contentV1).send();
             p.send(contentV2);
+            Message<V2Data> msg1 = c.receive();
+            V2Data msg1Value = msg1.getValue();
+            Assert.assertEquals(dataV1.i, msg1Value.i);
+            assertNull(msg1Value.j);
+            Assert.assertEquals(msg1.getSchemaVersion(), new LongSchemaVersion(0).bytes());
+
+            Message<V2Data> msg2 = c.receive();
+            Assert.assertEquals(dataV2, msg2.getValue());
+            Assert.assertEquals(msg2.getSchemaVersion(), new LongSchemaVersion(1).bytes());
+
+            try {
+                p.newMessage(Schema.BYTES).value(contentV1).send();
+                if (schemaValidationEnforced) {
+                    Assert.fail("Shouldn't be able to send to a schema'd topic with no schema"
+                            + " if SchemaValidationEnabled is enabled");
+                }
+                Message<V2Data> msg3 = c.receive();
+                Assert.assertEquals(msg3.getSchemaVersion(), SchemaVersion.Empty.bytes());
+            } catch (PulsarClientException e) {
+                if (schemaValidationEnforced) {
+                    Assert.assertTrue(e instanceof IncompatibleSchemaException);
+                } else {
+                    Assert.fail("Shouldn't throw IncompatibleSchemaException"
+                            + " if SchemaValidationEnforced is disabled");
+                }
+            }
+        }
+    }
+
+    @Test
+    public void newNativeAvroProducerForMessageSchemaOnTopicWithMultiVersionSchema() throws Exception {
+        String topic = "my-property/my-ns/schema-test";
+        Schema<V1Data> v1Schema = Schema.AVRO(V1Data.class);
+        byte[] v1SchemaBytes = v1Schema.getSchemaInfo().getSchema();
+        org.apache.avro.Schema v1SchemaAvroNative = new Parser().parse(new ByteArrayInputStream(v1SchemaBytes));
+        AvroWriter<V1Data> v1Writer = new AvroWriter<>(v1SchemaAvroNative);
+        Schema<V2Data> v2Schema = Schema.AVRO(V2Data.class);
+        byte[] v2SchemaBytes = v2Schema.getSchemaInfo().getSchema();
+        org.apache.avro.Schema v2SchemaAvroNative = new Parser().parse(new ByteArrayInputStream(v2SchemaBytes));
+        AvroWriter<V2Data> v2Writer = new AvroWriter<>(v2SchemaAvroNative);
+        V1Data dataV1 = new V1Data(2);
+        V2Data dataV2 = new V2Data(3, 5);
+        byte[] contentV1 = v1Writer.write(dataV1);
+        byte[] contentV2 = v2Writer.write(dataV2);
+        try (Producer<byte[]> ignored = pulsarClient.newProducer(Schema.NATIVE_AVRO(v1SchemaAvroNative))
+                .topic(topic).create()) {
+        }
+        try (Producer<byte[]> p = pulsarClient.newProducer(Schema.NATIVE_AVRO(v2SchemaAvroNative))
+                .topic(topic).create()) {
+            p.send(contentV2);
+        }
+        try (Producer<byte[]> p = pulsarClient.newProducer(Schema.NATIVE_AVRO(v1SchemaAvroNative))
+                .topic(topic).create();
+             Consumer<V2Data> c = pulsarClient.newConsumer(v2Schema)
+                     .topic(topic)
+                     .subscriptionName("sub1").subscribe()) {
+
+            p.newMessage(Schema.NATIVE_AVRO(v1SchemaAvroNative))
+                    .value(contentV1).send();
+            p.newMessage(Schema.NATIVE_AVRO(v2SchemaAvroNative))
+                    .value(contentV2).send();
             Message<V2Data> msg1 = c.receive();
             V2Data msg1Value = msg1.getValue();
             Assert.assertEquals(dataV1.i, msg1Value.i);
@@ -375,6 +448,44 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
     }
 
     @Test
+    public void newNativeAvroProducerForMessageSchemaOnTopicInitialWithNoSchema() throws Exception {
+        String topic = "my-property/my-ns/schema-test";
+        Schema<V1Data> v1Schema = Schema.AVRO(V1Data.class);
+        byte[] v1SchemaBytes = v1Schema.getSchemaInfo().getSchema();
+        org.apache.avro.Schema v1SchemaAvroNative = new Parser().parse(new ByteArrayInputStream(v1SchemaBytes));
+        AvroWriter<V1Data> v1Writer = new AvroWriter<>(v1SchemaAvroNative);
+        Schema<V2Data> v2Schema = Schema.AVRO(V2Data.class);
+        byte[] v2SchemaBytes = v2Schema.getSchemaInfo().getSchema();
+        org.apache.avro.Schema v2SchemaAvroNative = new Parser().parse(new ByteArrayInputStream(v2SchemaBytes));
+        AvroWriter<V2Data> v2Writer = new AvroWriter<>(v2SchemaAvroNative);
+
+        try (Producer<byte[]> p = pulsarClient.newProducer()
+                .topic(topic).create();
+             Consumer<byte[]> c = pulsarClient.newConsumer()
+                     .topic(topic)
+                     .subscriptionName("sub1").subscribe()) {
+            for (int i = 0; i < 2; ++i) {
+                V1Data dataV1 = new V1Data(i);
+                V2Data dataV2 = new V2Data(i, -i);
+                byte[] contentV1 = v1Writer.write(dataV1);
+                byte[] contentV2 = v2Writer.write(dataV2);
+                p.newMessage(Schema.NATIVE_AVRO(v1SchemaAvroNative)).value(contentV1).send();
+                Message<byte[]> msg1 = c.receive();
+                Assert.assertEquals(msg1.getSchemaVersion(), new LongSchemaVersion(0).bytes());
+                Assert.assertEquals(msg1.getData(), contentV1);
+                p.newMessage(Schema.NATIVE_AVRO(v2SchemaAvroNative)).value(contentV2).send();
+                Message<byte[]> msg2 = c.receive();
+                Assert.assertEquals(msg2.getSchemaVersion(), new LongSchemaVersion(1).bytes());
+                Assert.assertEquals(msg2.getData(), contentV2);
+            }
+        }
+
+        List<SchemaInfo> allSchemas = admin.schemas().getAllSchemas(topic);
+        Assert.assertEquals(allSchemas, Arrays.asList(v1Schema.getSchemaInfo(),
+                v2Schema.getSchemaInfo()));
+    }
+
+    @Test
     public void newProducerForMessageSchemaWithBatch() throws Exception {
         String topic = "my-property/my-ns/schema-test";
         Consumer<V2Data> c = pulsarClient.newConsumer(Schema.AVRO(V2Data.class))
@@ -420,6 +531,75 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                 assertNull(value.j);
                 Assert.assertEquals(value.i, i);
             } else {
+                Assert.assertEquals(value, new V2Data(i, i + total));
+            }
+        }
+        c.close();
+    }
+
+
+    @Test
+    public void newNativeAvroProducerForMessageSchemaWithBatch() throws Exception {
+        String topic = "my-property/my-ns/schema-test";
+        Schema<V1Data> v1Schema = Schema.AVRO(V1Data.class);
+        byte[] v1SchemaBytes = v1Schema.getSchemaInfo().getSchema();
+        org.apache.avro.Schema v1SchemaAvroNative = new Parser().parse(new ByteArrayInputStream(v1SchemaBytes));
+        AvroWriter<V1Data> v1Writer = new AvroWriter<>(v1SchemaAvroNative);
+        Schema<V2Data> v2Schema = Schema.AVRO(V2Data.class);
+        byte[] v2SchemaBytes = v2Schema.getSchemaInfo().getSchema();
+        org.apache.avro.Schema v2SchemaAvroNative = new Parser().parse(new ByteArrayInputStream(v2SchemaBytes));
+        AvroWriter<V2Data> v2Writer = new AvroWriter<>(v2SchemaAvroNative);
+
+        Consumer<byte[]> c = pulsarClient.newConsumer(Schema.BYTES)
+                .topic(topic)
+                .subscriptionName("sub1").subscribe();
+        Producer<byte[]> p = pulsarClient.newProducer(Schema.NATIVE_AVRO(v1SchemaAvroNative))
+                .topic(topic)
+                .enableBatching(true)
+                .batchingMaxPublishDelay(10, TimeUnit.SECONDS).create();
+        AvroWriter<V1Data> v1DataAvroWriter = new AvroWriter<>(
+                ReflectData.AllowNull.get().getSchema(V1Data.class));
+        AvroWriter<V2Data> v2DataAvroWriter = new AvroWriter<>(
+                ReflectData.AllowNull.get().getSchema(V2Data.class));
+        AvroWriter<IncompatibleData> incompatibleDataAvroWriter = new AvroWriter<>(
+                ReflectData.AllowNull.get().getSchema(IncompatibleData.class));
+        int total = 20;
+        int batch = 5;
+        int incompatible = 3;
+        for (int i = 0; i < total; ++i) {
+            if (i / batch % 2 == 0) {
+                byte[] content = v1DataAvroWriter.write(new V1Data(i));
+                p.newMessage(Schema.NATIVE_AVRO(v1SchemaAvroNative))
+                        .value(content).sendAsync();
+            } else {
+                byte[] content = v2DataAvroWriter.write(new V2Data(i, i + total));
+                p.newMessage(Schema.NATIVE_AVRO(v2SchemaAvroNative))
+                        .value(content).sendAsync();
+            }
+            if ((i + 1) % incompatible == 0) {
+                Schema<IncompatibleData> incompatibleSchema = Schema.AVRO(IncompatibleData.class);
+                byte[] incompatibleSchemaBytes = incompatibleSchema.getSchemaInfo().getSchema();
+                org.apache.avro.Schema incompatibleSchemaAvroNative = new Parser().parse(new ByteArrayInputStream(incompatibleSchemaBytes));
+                byte[] content = incompatibleDataAvroWriter.write(new IncompatibleData(-i, -i));
+                try {
+                    p.newMessage(Schema.NATIVE_AVRO(incompatibleSchemaAvroNative))
+                            .value(content).send();
+                } catch (Exception e) {
+                    Assert.assertTrue(e instanceof IncompatibleSchemaException, e.getMessage());
+                }
+            }
+        }
+        p.flush();
+    
+        for (int i = 0; i < total; ++i) {
+            byte[] raw = c.receive().getData();
+            if (i / batch % 2 == 0) {
+                AvroReader<V1Data> reader = new AvroReader<>(v1SchemaAvroNative);
+                V1Data value = reader.read(raw);
+                Assert.assertEquals(value.i, i);
+            } else {
+                AvroReader<V2Data> reader = new AvroReader<>(v2SchemaAvroNative);
+                V2Data value = reader.read(raw);
                 Assert.assertEquals(value, new V2Data(i, i + total));
             }
         }
