@@ -2583,12 +2583,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     public CompletableFuture<Void> deleteTopicPolicies(TopicName topicName) {
         if (!pulsar().getConfig().isTopicLevelPoliciesEnabled()) {
-            return new CompletableFuture<>();
+            return CompletableFuture.completedFuture(null);
         }
-        TopicName cloneTopicName = topicName;
-        if (topicName.isPartitioned()) {
-            cloneTopicName = TopicName.get(topicName.getPartitionedTopicName());
-        }
+        TopicName cloneTopicName = TopicName.get(topicName.getPartitionedTopicName());
         return pulsar.getTopicPoliciesService().deleteTopicPoliciesAsync(cloneTopicName);
     }
 
