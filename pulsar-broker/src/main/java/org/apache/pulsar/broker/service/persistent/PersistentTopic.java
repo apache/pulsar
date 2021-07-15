@@ -1054,7 +1054,7 @@ public class PersistentTopic extends AbstractTopic
                 closeClientFuture.complete(null);
             }
 
-            closeClientFuture.thenCompose(__ -> deleteTopicPolicies()).thenAccept(delete -> {
+            closeClientFuture.thenAccept(delete -> {
                 // We can proceed with the deletion if either:
                 //  1. No one is connected
                 //  2. We want to kick out everyone and forcefully delete the topic.
@@ -1063,7 +1063,7 @@ public class PersistentTopic extends AbstractTopic
                     CompletableFuture<SchemaVersion> deleteSchemaFuture =
                             deleteSchema ? deleteSchema() : CompletableFuture.completedFuture(null);
 
-                    deleteSchemaFuture.whenComplete((v, ex) -> {
+                    deleteSchemaFuture.thenAccept(__ -> deleteTopicPolicies()).whenComplete((v, ex) -> {
                         if (ex != null) {
                             log.error("[{}] Error deleting topic", topic, ex);
                             unfenceTopicToResume();

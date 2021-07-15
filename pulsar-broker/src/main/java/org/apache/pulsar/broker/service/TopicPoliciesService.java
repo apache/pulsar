@@ -39,7 +39,6 @@ public interface TopicPoliciesService {
      */
     CompletableFuture<Void> deleteTopicPoliciesAsync(TopicName topicName);
 
-
     /**
      * Update policies for a topic async.
      *

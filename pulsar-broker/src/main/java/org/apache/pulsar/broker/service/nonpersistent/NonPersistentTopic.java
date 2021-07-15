@@ -367,7 +367,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                 closeClientFuture.complete(null);
             }
 
-            closeClientFuture.thenCompose(__ -> deleteTopicPolicies()).thenAccept(delete -> {
+            closeClientFuture.thenAccept(delete -> {
 
                 if (currentUsageCount() == 0) {
                     isFenced = true;
@@ -386,6 +386,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                     if (deleteSchema) {
                         futures.add(deleteSchema().thenApply(schemaVersion -> null));
                     }
+                    futures.add(deleteTopicPolicies());
                     FutureUtil.waitForAll(futures).whenComplete((v, ex) -> {
                         if (ex != null) {
                             log.error("[{}] Error deleting topic", topic, ex);
