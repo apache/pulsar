@@ -70,6 +70,8 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.metadata.api.MetadataStore;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
@@ -91,6 +93,7 @@ public class PersistentSubscriptionTest {
     private PulsarService pulsarMock;
     private BrokerService brokerMock;
     private ManagedLedgerFactory mlFactoryMock;
+    private MetadataStore store;
     private ManagedLedger ledgerMock;
     private ManagedCursorImpl cursorMock;
     private ConfigurationCacheService configCacheServiceMock;
@@ -192,6 +195,10 @@ public class PersistentSubscriptionTest {
         doReturn(zkPoliciesDataCacheMock).when(zkCacheMock).policiesCache();
         doReturn(zkCacheMock).when(pulsarMock).getLocalZkCacheService();
 
+        store = new ZKMetadataStore(zkMock);
+        doReturn(store).when(pulsarMock).getLocalMetadataStore();
+        doReturn(store).when(pulsarMock).getConfigurationMetadataStore();
+
         brokerMock = spy(new BrokerService(pulsarMock, eventLoopGroup));
         doNothing().when(brokerMock).unloadNamespaceBundlesGracefully();
         doReturn(brokerMock).when(pulsarMock).getBrokerService();
@@ -223,6 +230,7 @@ public class PersistentSubscriptionTest {
             throw e;
         }
 
+        store.close();
         executor.shutdownNow();
         eventLoopGroup.shutdownGracefully().get();
     }

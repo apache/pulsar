@@ -205,12 +205,15 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(zkCache).when(pulsar).getLocalZkCacheService();
         doReturn(executor).when(pulsar).getOrderedExecutor();
 
-        brokerService = spy(new BrokerService(pulsar, eventLoopGroup));
-        doReturn(brokerService).when(pulsar).getBrokerService();
-
         store = new ZKMetadataStore(mockZk);
         PulsarResources pulsarResources = spy(new PulsarResources(store, store));
         doReturn(pulsarResources).when(pulsar).getPulsarResources();
+
+        doReturn(store).when(pulsar).getLocalMetadataStore();
+        doReturn(store).when(pulsar).getConfigurationMetadataStore();
+
+        brokerService = spy(new BrokerService(pulsar, eventLoopGroup));
+        doReturn(brokerService).when(pulsar).getBrokerService();
 
         serverCnx = spy(new ServerCnx(pulsar));
         doReturn(true).when(serverCnx).isActive();
