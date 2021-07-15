@@ -85,7 +85,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -102,6 +101,7 @@ import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.ZooDefs;
+import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mockito;
@@ -1246,8 +1246,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         // Subscribe Rate Limiter is enabled, will limited by broker
         pulsarClient.updateServiceUrl(lookupUrl.toString());
-        Thread.sleep(1000L);
-        assertFalse(consumer.isConnected());
+        Awaitility.await().untilAsserted(() -> assertFalse(consumer.isConnected()));
 
         // Out of limit period
         Thread.sleep(6000L);
@@ -1258,8 +1257,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         subscribeRate = new SubscribeRate(0, 10);
         admin.namespaces().setSubscribeRate(namespace, subscribeRate);
         pulsarClient.updateServiceUrl(lookupUrl.toString());
-        Thread.sleep(1000L);
-        assertTrue(consumer.isConnected());
+        Awaitility.await().untilAsserted(() -> assertTrue(consumer.isConnected()));
         pulsar.getConfiguration().setAuthorizationEnabled(true);
         admin.topics().deletePartitionedTopic(topicName, true);
         admin.namespaces().deleteNamespace(namespace);

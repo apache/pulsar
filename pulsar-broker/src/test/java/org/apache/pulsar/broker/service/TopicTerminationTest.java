@@ -42,6 +42,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderListener;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -220,8 +221,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         Message<byte[]> msg4 = consumer.receive(100, TimeUnit.MILLISECONDS);
         assertNull(msg4);
 
-        Thread.sleep(100);
-        assertTrue(consumer.hasReachedEndOfTopic());
+        Awaitility.await().untilAsserted(() -> assertTrue(consumer.hasReachedEndOfTopic()));
     }
 
     @Test(timeOut = 20000)
@@ -254,8 +254,7 @@ public class TopicTerminationTest extends BrokerTestBase {
 
         consumer.acknowledgeCumulative(msgId3);
 
-        Thread.sleep(100);
-        assertFalse(consumer.hasReachedEndOfTopic());
+        Awaitility.await().untilAsserted(() -> assertFalse(consumer.hasReachedEndOfTopic()));
 
         MessageId lastMessageId = admin.topics().terminateTopicAsync(topicName).get();
         assertEquals(lastMessageId, msgId3);
@@ -292,8 +291,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         Message<byte[]> msg4 = reader.readNext(100, TimeUnit.MILLISECONDS);
         assertNull(msg4);
 
-        Thread.sleep(100);
-        assertTrue(reader.hasReachedEndOfTopic());
+        Awaitility.await().untilAsserted(() -> assertTrue(reader.hasReachedEndOfTopic()));
     }
 
     @Test(timeOut = 20000)
@@ -323,8 +321,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         /* MessageId msgId2 = */ producer.send("test-msg-2".getBytes());
         MessageId msgId3 = producer.send("test-msg-3".getBytes());
 
-        Thread.sleep(100);
-        assertFalse(reader.hasReachedEndOfTopic());
+        Awaitility.await().untilAsserted(() -> assertFalse(reader.hasReachedEndOfTopic()));
 
         MessageId lastMessageId = admin.topics().terminateTopicAsync(topicName).get();
         assertEquals(lastMessageId, msgId3);
@@ -348,8 +345,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName("my-sub").subscribe();
 
-        Thread.sleep(200);
-        assertTrue(consumer.hasReachedEndOfTopic());
+        Awaitility.await().untilAsserted(() -> assertTrue(consumer.hasReachedEndOfTopic()));
     }
 
     @Test(timeOut = 20000)
@@ -363,7 +359,6 @@ public class TopicTerminationTest extends BrokerTestBase {
         org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName("my-sub").subscribe();
 
-        Thread.sleep(200);
-        assertTrue(consumer.hasReachedEndOfTopic());
+        Awaitility.await().untilAsserted(() -> assertTrue(consumer.hasReachedEndOfTopic()));
     }
 }

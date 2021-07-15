@@ -453,8 +453,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         assertTrue(latch.get().await(receiverQueueSize, TimeUnit.SECONDS), "Timed out waiting for message listener acks");
 
         log.info("Giving message listener an opportunity to receive messages while paused");
-        Thread.sleep(2000);     // hopefully this is long enough
-        assertEquals(received.intValue(), receiverQueueSize, "Consumer received messages while paused");
+        Awaitility.await().untilAsserted(
+                () -> assertEquals(received.intValue(), receiverQueueSize, "Consumer received messages while paused"));
 
         latch.set(new CountDownLatch(receiverQueueSize));
 
@@ -498,8 +498,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         // Make sure no flow permits are sent when the consumer reconnects to the topic
         admin.topics().unload(topicName);
-        Thread.sleep(2000);
-        assertEquals(received.intValue(), receiverQueueSize, "Consumer received messages while paused");
+        Awaitility.await().untilAsserted(
+                () -> assertEquals(received.intValue(), receiverQueueSize, "Consumer received messages while paused"));
+
 
         latch.set(new CountDownLatch(receiverQueueSize));
         consumer.resume();
@@ -1216,22 +1217,26 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
              CompletableFuture<MessageId> future = producer.newMessage().sequenceId(i).value(message.getBytes()).sendAsync();
              futures.add(future);
         }
-        Thread.sleep(3000);
-        futures.get(0).exceptionally(ex -> {
-            long sequenceId = ((PulsarClientException) ex.getCause()).getSequenceId();
-            Assert.assertEquals(sequenceId, 0L);
-            return null;
+        Awaitility.await().until(() -> {
+            futures.get(0).exceptionally(ex -> {
+                long sequenceId = ((PulsarClientException) ex.getCause()).getSequenceId();
+                Assert.assertEquals(sequenceId, 0L);
+                return null;
+            });
+            futures.get(1).exceptionally(ex -> {
+                long sequenceId = ((PulsarClientException) ex.getCause()).getSequenceId();
+                Assert.assertEquals(sequenceId, 1L);
+                return null;
+            });
+            futures.get(2).exceptionally(ex -> {
+                long sequenceId = ((PulsarClientException) ex.getCause()).getSequenceId();
+                Assert.assertEquals(sequenceId, 2L);
+                return null;
+            });
+
+            return true;
         });
-        futures.get(1).exceptionally(ex -> {
-            long sequenceId = ((PulsarClientException) ex.getCause()).getSequenceId();
-            Assert.assertEquals(sequenceId, 1L);
-            return null;
-        });
-        futures.get(2).exceptionally(ex -> {
-            long sequenceId = ((PulsarClientException) ex.getCause()).getSequenceId();
-            Assert.assertEquals(sequenceId, 2L);
-            return null;
-        });
+
         log.info("-- Exiting {} test --", methodName);
     }
 
@@ -1639,12 +1644,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             }
 
             // (2) wait for consumer to receive messages
-            Thread.sleep(1000);
-            assertEquals(consumer.numMessagesInQueue(), receiverQueueSize);
+            Awaitility.await().untilAsserted(() -> assertEquals(consumer.numMessagesInQueue(), receiverQueueSize));
 
             // (3) wait for messages to expire, we should've received more
-            Thread.sleep(2000);
-            assertEquals(consumer.numMessagesInQueue(), receiverQueueSize);
+            Awaitility.await().untilAsserted(() -> assertEquals(consumer.numMessagesInQueue(), receiverQueueSize));
 
             for (int i = 0; i < totalProducedMsgs; i++) {
                 Message<byte[]> msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
@@ -2065,8 +2068,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             for (int i = 0; i < totalProducedMsgs; i++) {
                 String message = "my-message-" + i;
                 producer.send(message.getBytes());
-                Thread.sleep(10);
             }
+            producer.flush();
 
             // (1.a) start consumer again
             consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer()
@@ -2348,8 +2351,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         for (int i = 0; i < receiverQueueSize; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
-            Thread.sleep(10);
         }
+        producer.flush();
         // (1.a) consume first consumeMsgInParts msgs and trigger redeliver
         Message<byte[]> msg;
         List<Message<byte[]>> messages1 = Lists.newArrayList();
@@ -2387,8 +2390,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         for (int i = 0; i < receiverQueueSize; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
-            Thread.sleep(100);
         }
+        producer.flush();
 
         int remainingMsgs = (2 * receiverQueueSize) - (2 * consumeMsgInParts);
         messages1.clear();
@@ -3190,9 +3193,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         admin.topics().updatePartitionedTopic(topicName, 3);
 
         // 4. wait for client to update partitions
-        while(((MultiTopicsConsumerImpl)consumer).getConsumers().size() <= 1) {
-            Thread.sleep(1);
-        }
+        Awaitility.await().until(() -> ((MultiTopicsConsumerImpl) consumer).getConsumers().size() <= 1);
 
         // 5. produce 5 more messages
         for (int i = 5; i < 10; i++) {
@@ -3288,7 +3289,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
 
         // 6. should not consume any messages
-        assertNull(consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS));
+        Awaitility.await().untilAsserted(() -> assertNull(consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS)));
 
         // 7. resume multi-topic consumer
         consumer.resume();

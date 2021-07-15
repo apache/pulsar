@@ -484,11 +484,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         // unload the topic
         unloadTopic(topicName);
         // producer will retry and recreate the topic
-        for (int i = 0; i < 5; i++) {
-            if (!pulsar.getBrokerService().getTopicReference(topicName).isPresent() || i != 4) {
-                Thread.sleep(200);
-            }
-        }
+        Awaitility.await().until(() -> pulsar.getBrokerService().getTopicReference(topicName).isPresent());
         // topic should be loaded by this time
         topic = pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topic);
@@ -1255,12 +1251,12 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         consumer.acknowledge(message);
 
         // wait for ack send
-        Thread.sleep(500);
-
-        // Consumer acks the message, so the precise backlog is 0
-        topicStats = admin.topics().getStats(topic, true, true);
-        assertEquals(topicStats.getSubscriptions().get(subName).getBacklogSize(), 0);
-        assertEquals(topicStats.getSubscriptions().get(subName).getMsgBacklog(), 0);
+        Awaitility.await().untilAsserted(() -> {
+            // Consumer acks the message, so the precise backlog is 0
+            TopicStats topicStats2 = admin.topics().getStats(topic, true, true);
+            assertEquals(topicStats2.getSubscriptions().get(subName).getBacklogSize(), 0);
+            assertEquals(topicStats2.getSubscriptions().get(subName).getMsgBacklog(), 0);
+        });
 
         topicStats = admin.topics().getStats(topic);
         assertEquals(topicStats.getSubscriptions().get(subName).getMsgBacklog(), 9);
@@ -1302,20 +1298,24 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         // Wait for messages to be tracked for delayed delivery. This happens
         // on the consumer dispatch side, so when the send() is complete we're
         // not yet guaranteed to see the stats updated.
-        Thread.sleep(500);
+        Awaitility.await().untilAsserted(() -> {
+            TopicStats topicStats = admin.topics().getStats(topic, true, true);
+            assertEquals(topicStats.getSubscriptions().get(subName).getMsgBacklog(), 10);
+            assertEquals(topicStats.getSubscriptions().get(subName).getMsgBacklogNoDelayed(), 5);
+        });
 
-        TopicStats topicStats = admin.topics().getStats(topic, true, true);
-        assertEquals(topicStats.getSubscriptions().get(subName).getMsgBacklog(), 10);
-        assertEquals(topicStats.getSubscriptions().get(subName).getMsgBacklogNoDelayed(), 5);
 
         for (int i = 0; i < 5; i++) {
             consumer.acknowledge(consumer.receive());
         }
+
         // Wait the ack send.
-        Thread.sleep(500);
-        topicStats = admin.topics().getStats(topic, true, true);
-        assertEquals(topicStats.getSubscriptions().get(subName).getMsgBacklog(), 5);
-        assertEquals(topicStats.getSubscriptions().get(subName).getMsgBacklogNoDelayed(), 0);
+        Awaitility.await().untilAsserted(() -> {
+            TopicStats topicStats = admin.topics().getStats(topic, true, true);
+            assertEquals(topicStats.getSubscriptions().get(subName).getMsgBacklog(), 5);
+            assertEquals(topicStats.getSubscriptions().get(subName).getMsgBacklogNoDelayed(), 0);
+        });
+
     }
 
     @Test
@@ -1403,11 +1403,13 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
             consumer.acknowledge(consumer.receive());
         }
         // Wait the ack send.
-        Thread.sleep(500);
-        topicStats = admin.topics().getPartitionedStats(topic, false, true, true);
-        assertEquals(topicStats.getSubscriptions().get(subName).getMsgBacklog(), 5);
-        assertEquals(topicStats.getSubscriptions().get(subName).getBacklogSize(), 238);
-        assertEquals(topicStats.getSubscriptions().get(subName).getMsgBacklogNoDelayed(), 0);
+        Awaitility.await().untilAsserted(() -> {
+            TopicStats topicStats2 = admin.topics().getPartitionedStats(topic, false, true, true);
+            assertEquals(topicStats2.getSubscriptions().get(subName).getMsgBacklog(), 5);
+            assertEquals(topicStats2.getSubscriptions().get(subName).getBacklogSize(), 238);
+            assertEquals(topicStats2.getSubscriptions().get(subName).getMsgBacklogNoDelayed(), 0);
+        });
+
     }
 
     @Test

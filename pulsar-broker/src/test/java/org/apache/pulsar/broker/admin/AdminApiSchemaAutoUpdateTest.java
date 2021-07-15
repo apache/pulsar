@@ -18,25 +18,20 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import com.google.common.collect.Sets;
+import java.lang.reflect.Field;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.reflect.AvroAlias;
 import org.apache.avro.reflect.AvroDefault;
-import com.google.common.collect.Sets;
-
-import java.lang.reflect.Field;
-
-import lombok.extern.slf4j.Slf4j;
-
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
-
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -192,7 +187,6 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
             if (strategy.get(t) == SchemaCompatibilityStrategy.FULL) {
                 break;
             }
-            Thread.sleep(100);
         }
         log.info("try with fully compat, again");
         try (Producer<V4Data> p = pulsarClient.newProducer(Schema.AVRO(V4Data.class)).topic(topicName).create()) {

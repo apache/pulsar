@@ -19,9 +19,7 @@
 package org.apache.pulsar.broker.transaction;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import com.google.common.collect.Sets;
-
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -31,10 +29,8 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
@@ -57,7 +53,6 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.awaitility.Awaitility;
@@ -289,10 +284,9 @@ public class TransactionProduceTest extends TransactionTestBase {
             consumer.acknowledgeAsync(message.getMessageId(), txn);
         }
 
-        Thread.sleep(1000);
-
         // The pending messages count should be the incomingMessageCnt
-        Assert.assertEquals(getPendingAckCount(ACK_COMMIT_TOPIC, subscriptionName), incomingMessageCnt);
+        Awaitility.await().untilAsserted(
+                () -> Assert.assertEquals(getPendingAckCount(ACK_COMMIT_TOPIC, subscriptionName), incomingMessageCnt));
 
         consumer.redeliverUnacknowledgedMessages();
         Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
@@ -303,10 +297,9 @@ public class TransactionProduceTest extends TransactionTestBase {
 
         txn.commit().get();
 
-        Thread.sleep(1000);
-
         // After commit, the pending messages count should be 0
-        Assert.assertEquals(getPendingAckCount(ACK_COMMIT_TOPIC, subscriptionName), 0);
+        Awaitility.await().untilAsserted(
+                () -> Assert.assertEquals(getPendingAckCount(ACK_COMMIT_TOPIC, subscriptionName), 0));
 
         consumer.redeliverUnacknowledgedMessages();
         for (int i = 0; i < incomingMessageCnt; i++) {
@@ -352,10 +345,9 @@ public class TransactionProduceTest extends TransactionTestBase {
             consumer.acknowledgeAsync(message.getMessageId(), txn);
         }
 
-        Thread.sleep(1000);
-
         // The pending messages count should be the incomingMessageCnt
-        Assert.assertEquals(getPendingAckCount(ACK_ABORT_TOPIC, subscriptionName), incomingMessageCnt);
+        Awaitility.await().untilAsserted(
+                () -> Assert.assertEquals(getPendingAckCount(ACK_ABORT_TOPIC, subscriptionName), incomingMessageCnt));
 
         consumer.redeliverUnacknowledgedMessages();
         Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
@@ -366,10 +358,9 @@ public class TransactionProduceTest extends TransactionTestBase {
 
         txn.abort().get();
 
-        Thread.sleep(1000);
-
         // After commit, the pending messages count should be 0
-        Assert.assertEquals(getPendingAckCount(ACK_ABORT_TOPIC, subscriptionName), 0);
+        Awaitility.await().untilAsserted(
+                () -> Assert.assertEquals(getPendingAckCount(ACK_ABORT_TOPIC, subscriptionName), 0));
 
         consumer.redeliverUnacknowledgedMessages();
         for (int i = 0; i < incomingMessageCnt; i++) {

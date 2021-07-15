@@ -22,13 +22,11 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
-
 import com.beust.jcommander.internal.Maps;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
-
 import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.Collections;
@@ -40,7 +38,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.PulsarService;
@@ -57,9 +54,7 @@ import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.FailureDomain;
-import org.apache.pulsar.common.policies.data.FailureDomainImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
@@ -68,6 +63,7 @@ import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.ZooDefs.Ids;
 import org.apache.zookeeper.ZooKeeper;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -152,7 +148,11 @@ public class AntiAffinityNamespaceGroupTest {
         primaryLoadManager = (ModularLoadManagerImpl) getField(pulsar1.getLoadManager().get(), "loadManager");
         secondaryLoadManager = (ModularLoadManagerImpl) getField(pulsar2.getLoadManager().get(), "loadManager");
         nsFactory = new NamespaceBundleFactory(pulsar1, Hashing.crc32());
-        Thread.sleep(100);
+
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(pulsar1.getState(), PulsarService.State.Started);
+            assertEquals(pulsar2.getState(), PulsarService.State.Started);
+        });
     }
 
     @AfterMethod(alwaysRun = true)
@@ -423,16 +423,10 @@ public class AntiAffinityNamespaceGroupTest {
         admin1.namespaces().setNamespaceAntiAffinityGroup(namespace2, namespaceAntiAffinityGroup);
 
         // validate strategically if brokerToDomainCache updated
-        for (int i = 0; i < 5; i++) {
-            if (!isLoadManagerUpdatedDomainCache(primaryLoadManager)
-                    || !isLoadManagerUpdatedDomainCache(secondaryLoadManager)) {
-                Thread.sleep(200);
-            } else {
-                break;
-            }
-        }
-        assertTrue(isLoadManagerUpdatedDomainCache(primaryLoadManager));
-        assertTrue(isLoadManagerUpdatedDomainCache(secondaryLoadManager));
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(isLoadManagerUpdatedDomainCache(primaryLoadManager));
+            assertTrue(isLoadManagerUpdatedDomainCache(secondaryLoadManager));
+        });
 
         ServiceUnitId serviceUnit1 = makeBundle(tenant, cluster, "ns1");
         String selectedBroker1 = primaryLoadManager.selectBrokerForAssignment(serviceUnit1).get();
