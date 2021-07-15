@@ -44,6 +44,7 @@ import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.internal.TopicsImpl;
+import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -741,7 +742,28 @@ public abstract class AdminResource extends PulsarWebResource {
      * @param topicName given topic name
      */
     protected CompletableFuture<Boolean> checkTopicExistsAsync(TopicName topicName) {
-        return pulsar().getNamespaceService().checkTopicExists(topicName);
+        if (topicName.isPersistent()) {
+            String path = ZkAdminPaths.partitionedTopicPath(topicName);
+            return pulsar().getPulsarResources().getNamespaceResources().getPartitionedTopicResources().
+                    existsAsync(path).thenCombine(pulsar().getLocalZkCacheService().
+                            managedLedgerExists(topicName.getPersistenceNamingEncoding()),
+                    (isPartitionedExists, isNonPartitionedExists) -> isPartitionedExists || isNonPartitionedExists);
+
+        } else {
+            return pulsar().getNamespaceService().getListOfTopics(topicName.getNamespaceObject(),
+                    CommandGetTopicsOfNamespace.Mode.NON_PERSISTENT)
+                    .thenCompose(topics -> {
+                        boolean exists = false;
+                        for (String topic : topics) {
+                            if (topicName.getPartitionedTopicName().equals(
+                                    TopicName.get(topic).getPartitionedTopicName())) {
+                                exists = true;
+                                break;
+                            }
+                        }
+                        return CompletableFuture.completedFuture(exists);
+                    });
+        }
     }
 
     private CompletableFuture<Void> provisionPartitionedTopicPath(AsyncResponse asyncResponse,
