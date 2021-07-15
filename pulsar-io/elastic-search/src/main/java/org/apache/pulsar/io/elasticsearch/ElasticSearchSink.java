@@ -63,6 +63,11 @@ public class ElasticSearchSink implements Sink<byte[]> {
     private CredentialsProvider credentialsProvider;
     private ElasticSearchConfig elasticSearchConfig;
 
+    protected void loadConfig(Map<String, Object> config) throws Exception {
+        elasticSearchConfig = ElasticSearchConfig.load(config);
+        elasticSearchConfig.validate();
+    }
+
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
         elasticSearchConfig = ElasticSearchConfig.load(config);
@@ -145,7 +150,7 @@ public class ElasticSearchSink implements Sink<byte[]> {
         }).toArray(HttpHost[]::new);
     }
 
-    private RestHighLevelClient getClient() throws MalformedURLException {
+    protected RestHighLevelClient getClient() throws MalformedURLException {
         if (client == null) {
           CredentialsProvider cp = getCredentialsProvider();
           RestClientBuilder builder = RestClient.builder(getHttpHost());
