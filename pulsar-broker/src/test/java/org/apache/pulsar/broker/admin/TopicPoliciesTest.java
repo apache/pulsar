@@ -2395,4 +2395,31 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         });
     }
 
+    @Test
+    public void testPolicyIsDeleteTogether() throws Exception {
+        final String topic = testTopic + UUID.randomUUID();
+        pulsarClient.newProducer().topic(topic).create().close();
+
+        Awaitility.await()
+                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
+        assertNull(pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic)));
+
+        int maxConsumersPerSubscription = 10;
+        admin.topics().setMaxConsumersPerSubscription(topic, maxConsumersPerSubscription);
+
+        Awaitility.await().until(() -> pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic)) != null);
+        assertNotNull(pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic)));
+
+        Awaitility.await().until(() -> pulsar.getBrokerService().getTopic(topic, false).get().isPresent());
+        assertTrue(pulsar.getBrokerService().getTopic(topic, false).get().isPresent());
+
+        admin.topics().delete(topic);
+
+        Awaitility.await().until(() -> !pulsar.getBrokerService().getTopic(topic, false).get().isPresent());
+        assertFalse(pulsar.getBrokerService().getTopic(topic, false).get().isPresent());
+
+        Awaitility.await().until(() -> pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic)) == null);
+        assertNull(pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic)));
+    }
+
 }

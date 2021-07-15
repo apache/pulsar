@@ -39,6 +39,7 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.ssl.SslContext;
+import io.netty.util.concurrent.CompleteFuture;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.Closeable;
 import java.io.IOException;
@@ -2578,6 +2579,17 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             log.debug("Topic {} policies have not been initialized yet.", topicName.getPartitionedTopicName());
             return Optional.empty();
         }
+    }
+
+    public CompletableFuture<Void> deleteTopicPolicies(TopicName topicName) {
+        if (!pulsar().getConfig().isTopicLevelPoliciesEnabled()) {
+            return new CompletableFuture<>();
+        }
+        TopicName cloneTopicName = topicName;
+        if (topicName.isPartitioned()) {
+            cloneTopicName = TopicName.get(topicName.getPartitionedTopicName());
+        }
+        return pulsar.getTopicPoliciesService().deleteTopicPoliciesAsync(cloneTopicName);
     }
 
     private <T> boolean checkMaxTopicsPerNamespace(TopicName topicName, int numPartitions,

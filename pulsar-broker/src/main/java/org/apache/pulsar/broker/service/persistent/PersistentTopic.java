@@ -1063,7 +1063,7 @@ public class PersistentTopic extends AbstractTopic
                     CompletableFuture<SchemaVersion> deleteSchemaFuture =
                             deleteSchema ? deleteSchema() : CompletableFuture.completedFuture(null);
 
-                    deleteSchemaFuture.whenComplete((v, ex) -> {
+                    deleteSchemaFuture.thenAccept(__ -> deleteTopicPolicies()).whenComplete((v, ex) -> {
                         if (ex != null) {
                             log.error("[{}] Error deleting topic", topic, ex);
                             unfenceTopicToResume();
