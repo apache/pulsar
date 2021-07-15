@@ -2646,6 +2646,43 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ledger.close();
     }
 
+    @Test
+    public void testManagedLedgerWithReadEntryWithoutNewerEntry() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("op_read_no_ledgers_test", config);
+        BookKeeper bk = mock(BookKeeper.class);
+        ReadHandle ledgerHandle = mock(ReadHandle.class);
+        doNothing().when(bk).asyncCreateLedger(anyInt(), anyInt(), anyInt(), any(), any(), any(), any(), any());
+        ManagedCursorImpl cursor = new ManagedCursorImpl(bk, config, ledger, "cursor");
+
+        PositionImpl readPositionRef = PositionImpl.latest;
+        assertNull(ledger.ledgers.ceilingKey(readPositionRef.ledgerId));
+
+
+        AtomicReference<ManagedLedgerException> responseException = new AtomicReference<>();
+        OpReadEntry opReadEntry = OpReadEntry.create(cursor, readPositionRef, 1, new ReadEntriesCallback() {
+
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                responseException.set(exception);
+            }
+
+        }, null, PositionImpl.latest);
+        if (opReadEntry.checkReadPositionValidation()) {
+            ledger.asyncReadEntries(opReadEntry);
+        }
+
+        retryStrategically((test) -> {
+            return responseException.get() != null;
+        }, 5, 1000);
+        assertNotNull(responseException.get());
+        assertTrue(responseException.get() instanceof ManagedLedgerException.NoMoreEntriesToReadException);
+    }
+
     /**
      * It verifies that if bk-client doesn't complete the add-entry in given time out then broker is resilient enought
      * to create new ledger and add entry successfully.
