@@ -32,6 +32,16 @@ $ROOT_DIR/bin/pulsar broker -g > $ROOT_DIR/site2/website/brodocs/documents/broke
 $ROOT_DIR/bin/pulsar broker-tool gen-doc > $ROOT_DIR/site2/website/brodocs/documents/broker-tool.md
 $ROOT_DIR/bin/pulsar compact-topic -t tmp -g > $ROOT_DIR/site2/website/brodocs/documents/compact-topic.md
 $ROOT_DIR/bin/pulsar tokens gen-doc > $ROOT_DIR/site2/website/brodocs/documents/tokens.md
+$ROOT_DIR/bin/pulsar proxy -g > $ROOT_DIR/site2/website/brodocs/documents/proxy.md
+$ROOT_DIR/bin/pulsar functions-worker -g > $ROOT_DIR/site2/website/brodocs/documents/functions-worker.md
+$ROOT_DIR/bin/pulsar standalone -g > $ROOT_DIR/site2/website/brodocs/documents/standalone.md
+$ROOT_DIR/bin/pulsar initialize-cluster-metadata -cs cs -uw uw -zk zk -c c -g > $ROOT_DIR/site2/website/brodocs/documents/initialize-cluster-metadata.md
+$ROOT_DIR/bin/pulsar delete-cluster-metadata -zk zk -g > $ROOT_DIR/site2/website/brodocs/documents/delete-cluster-metadata.md
+$ROOT_DIR/bin/pulsar initialize-transaction-coordinator-metadata -cs cs -c c -g > $ROOT_DIR/site2/website/brodocs/documents/initialize-transaction-coordinator-metadata.md
+$ROOT_DIR/bin/pulsar initialize-namespace -cs cs -c c -g demo > $ROOT_DIR/site2/website/brodocs/documents/initialize-namespace.md
+$ROOT_DIR/bin/pulsar version -g > $ROOT_DIR/site2/website/brodocs/documents/version.md
+$ROOT_DIR/bin/pulsar discovery -g > $ROOT_DIR/site2/website/brodocs/documents/discovery.md
+$ROOT_DIR/bin/pulsar websocket -g > $ROOT_DIR/site2/website/brodocs/documents/websocket.md
 
 cd $ROOT_DIR/site2/website/brodocs
 cp pulsar-manifest.json manifest.json

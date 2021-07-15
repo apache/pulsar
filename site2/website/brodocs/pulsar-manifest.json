@@ -11,6 +11,36 @@
     },
     {
       "filename": "tokens.md"
+    },
+    {
+      "filename": "discovery.md"
+    },
+    {
+      "filename": "proxy.md"
+    },
+    {
+      "filename": "websocket.md"
+    },
+    {
+      "filename": "functions-worker.md"
+    },
+    {
+      "filename": "standalone.md"
+    },
+    {
+      "filename": "initialize-cluster-metadata.md"
+    },
+    {
+      "filename": "delete-cluster-metadata.md"
+    },
+    {
+      "filename": "initialize-transaction-coordinator-metadata.md"
+    },
+    {
+      "filename": "initialize-namespace.md"
+    },
+    {
+      "filename": "version.md"
     }
   ],
   "title": "Docs",
