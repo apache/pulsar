@@ -38,6 +38,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadE
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTracker;
 import org.apache.pulsar.broker.service.AbstractDispatcherMultipleConsumers;
@@ -279,6 +280,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         }
     }
 
+    @Override
+    protected void reScheduleRead() {
+        topic.getBrokerService().executor().schedule(() -> readMoreEntries(), MESSAGE_RATE_BACKOFF_MS,
+                TimeUnit.MILLISECONDS);
+    }
+
     // left pair is messagesToRead, right pair is bytesToRead
     protected Pair<Integer, Long> calculateToRead(int currentTotalAvailablePermits) {
         int messagesToRead = Math.min(currentTotalAvailablePermits, readBatchSize);
@@ -300,55 +307,47 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             messagesToRead = 1;
         }
 
+        MutablePair<Integer, Long> calculateToRead = MutablePair.of(messagesToRead, bytesToRead);
+
         // throttle only if: (1) cursor is not active (or flag for throttle-nonBacklogConsumer is enabled) bcz
         // active-cursor reads message from cache rather from bookkeeper (2) if topic has reached message-rate
         // threshold: then schedule the read after MESSAGE_RATE_BACKOFF_MS
         if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
-            if (topic.getDispatchRateLimiter().isPresent()
-                    && topic.getDispatchRateLimiter().get().isDispatchRateLimitingEnabled()) {
+            if (topic.getBrokerDispatchRateLimiter().isPresent()) {
+                DispatchRateLimiter brokerRateLimiter = topic.getBrokerDispatchRateLimiter().get();
+                if (reachDispatchRateLimit(brokerRateLimiter, calculateToRead)) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] message-read exceeded broker message-rate {}/{}, schedule after a {}", name,
+                                brokerRateLimiter.getDispatchRateOnMsg(), brokerRateLimiter.getDispatchRateOnByte(),
+                                MESSAGE_RATE_BACKOFF_MS);
+                    }
+                    return Pair.of(-1, -1L);
+                }
+            }
+
+            if (topic.getDispatchRateLimiter().isPresent()) {
                 DispatchRateLimiter topicRateLimiter = topic.getDispatchRateLimiter().get();
-                if (!topicRateLimiter.hasMessageDispatchPermit()) {
+                if (reachDispatchRateLimit(topicRateLimiter, calculateToRead)) {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] message-read exceeded topic message-rate {}/{}, schedule after a {}", name,
                                 topicRateLimiter.getDispatchRateOnMsg(), topicRateLimiter.getDispatchRateOnByte(),
                                 MESSAGE_RATE_BACKOFF_MS);
                     }
-                    topic.getBrokerService().executor().schedule(() -> readMoreEntries(), MESSAGE_RATE_BACKOFF_MS,
-                            TimeUnit.MILLISECONDS);
                     return Pair.of(-1, -1L);
-                } else {
-                    Pair<Integer, Long> calculateResult = computeReadLimits(messagesToRead,
-                            (int) topicRateLimiter.getAvailableDispatchRateLimitOnMsg(),
-                            bytesToRead, topicRateLimiter.getAvailableDispatchRateLimitOnByte());
-
-                    messagesToRead = calculateResult.getLeft();
-                    bytesToRead = calculateResult.getRight();
-
                 }
             }
 
-            if (dispatchRateLimiter.isPresent() && dispatchRateLimiter.get().isDispatchRateLimitingEnabled()) {
-                if (!dispatchRateLimiter.get().hasMessageDispatchPermit()) {
+            if (dispatchRateLimiter.isPresent()) {
+                if (reachDispatchRateLimit(dispatchRateLimiter.get(), calculateToRead)) {
                     if (log.isDebugEnabled()) {
-                        log.debug("[{}] message-read exceeded subscription message-rate {}/{},"
-                                        + " schedule after a {}", name,
+                        log.debug("[{}] message-read exceeded topic message-rate {}/{}, schedule after a {}", name,
                                 dispatchRateLimiter.get().getDispatchRateOnMsg(),
                                 dispatchRateLimiter.get().getDispatchRateOnByte(),
                                 MESSAGE_RATE_BACKOFF_MS);
                     }
-                    topic.getBrokerService().executor().schedule(() -> readMoreEntries(), MESSAGE_RATE_BACKOFF_MS,
-                            TimeUnit.MILLISECONDS);
                     return Pair.of(-1, -1L);
-                } else {
-                    Pair<Integer, Long> calculateResult = computeReadLimits(messagesToRead,
-                            (int) dispatchRateLimiter.get().getAvailableDispatchRateLimitOnMsg(),
-                            bytesToRead, dispatchRateLimiter.get().getAvailableDispatchRateLimitOnByte());
-
-                    messagesToRead = calculateResult.getLeft();
-                    bytesToRead = calculateResult.getRight();
                 }
             }
-
         }
 
         if (havePendingReplayRead) {
@@ -359,7 +358,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         }
 
         // If messagesToRead is 0 or less, correct it to 1 to prevent IllegalArgumentException
-        return Pair.of(Math.max(messagesToRead, 1), Math.max(bytesToRead, 1));
+        calculateToRead.setLeft(Math.max(calculateToRead.getLeft(), 1));
+        calculateToRead.setRight(Math.max(calculateToRead.getRight(), 1));
+        return calculateToRead;
     }
 
     protected Set<? extends Position> asyncReplayEntries(Set<? extends Position> positions) {
@@ -572,6 +573,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
         // acquire message-dispatch permits for already delivered messages
         if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
+            if (topic.getBrokerDispatchRateLimiter().isPresent()) {
+                topic.getBrokerDispatchRateLimiter().get().tryDispatchPermit(totalMessagesSent,
+                        totalBytesSent);
+            }
             if (topic.getDispatchRateLimiter().isPresent()) {
                 topic.getDispatchRateLimiter().get().tryDispatchPermit(totalMessagesSent, totalBytesSent);
             }
