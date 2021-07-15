@@ -23,9 +23,9 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
 import io.debezium.config.Configuration;
+import io.debezium.connector.mysql.antlr.MySqlAntlrDdlParser;
 import io.debezium.relational.Tables;
-import io.debezium.relational.ddl.DdlParserSql2003;
-import io.debezium.relational.ddl.LegacyDdlParser;
+import io.debezium.relational.ddl.DdlParser;
 import io.debezium.relational.history.DatabaseHistory;
 import io.debezium.relational.history.DatabaseHistoryListener;
 import io.debezium.text.ParsingException;
@@ -86,8 +86,8 @@ public class PulsarDatabaseHistoryTest extends ProducerConsumerBase {
         // Calling it another time to ensure we can work with the DB history topic already existing
         history.initializeStorage();
 
-        LegacyDdlParser recoveryParser = new DdlParserSql2003();
-        LegacyDdlParser ddlParser = new DdlParserSql2003();
+        DdlParser recoveryParser = new MySqlAntlrDdlParser();
+        DdlParser ddlParser = new MySqlAntlrDdlParser();
         ddlParser.setCurrentSchema("db1"); // recover does this, so we need to as well
         Tables tables1 = new Tables();
         Tables tables2 = new Tables();
@@ -102,9 +102,9 @@ public class PulsarDatabaseHistoryTest extends ProducerConsumerBase {
 
         // Now record schema changes, which writes out to kafka but doesn't actually change the Tables ...
         setLogPosition(10);
-        ddl = "CREATE TABLE foo ( name VARCHAR(255) NOT NULL PRIMARY KEY); \n" +
+        ddl = "CREATE TABLE foo ( first VARCHAR(22) NOT NULL ); \n" +
             "CREATE TABLE customers ( id INTEGER NOT NULL PRIMARY KEY, name VARCHAR(100) NOT NULL ); \n" +
-            "CREATE TABLE products ( productId INTEGER NOT NULL PRIMARY KEY, desc VARCHAR(255) NOT NULL); \n";
+            "CREATE TABLE products ( productId INTEGER NOT NULL PRIMARY KEY, description VARCHAR(255) NOT NULL ); \n";
         history.record(source, position, "db1", ddl);
 
         // Parse the DDL statement 3x and each time update a different Tables object ...

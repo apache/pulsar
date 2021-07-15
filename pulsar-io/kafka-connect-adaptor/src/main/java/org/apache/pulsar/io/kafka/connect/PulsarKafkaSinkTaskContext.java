@@ -97,30 +97,21 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
             List<ByteBuffer> req = Lists.newLinkedList();
             ByteBuffer key = topicPartitionAsKey(topicPartition);
             req.add(key);
-            CompletableFuture<Long> offsetFuture = new CompletableFuture<>();
-            offsetStore.get(req, (Throwable ex, Map<ByteBuffer, ByteBuffer> result) -> {
-                if (ex == null) {
-                    if (result != null && result.size() != 0) {
-                        Optional<ByteBuffer> val = result.entrySet().stream()
-                                .filter(entry -> entry.getKey().equals(key))
-                                .findFirst().map(entry -> entry.getValue());
-                        if (val.isPresent()) {
-                            long received = val.get().getLong();
-                            if (log.isDebugEnabled()) {
-                                log.debug("read initial offset for {} == {}", topicPartition, received);
-                            }
-                            offsetFuture.complete(received);
-                            return;
-                        }
-                    }
-                    offsetFuture.complete(-1L);
-                } else {
-                    offsetFuture.completeExceptionally(ex);
-                }
-            });
-
             try {
-                return offsetFuture.get();
+                Map<ByteBuffer, ByteBuffer> result = offsetStore.get(req).get();
+                if (result != null && result.size() != 0) {
+                    Optional<ByteBuffer> val = result.entrySet().stream()
+                            .filter(entry -> entry.getKey().equals(key))
+                            .findFirst().map(entry -> entry.getValue());
+                    if (val.isPresent()) {
+                        long received = val.get().getLong();
+                        if (log.isDebugEnabled()) {
+                            log.debug("read initial offset for {} == {}", topicPartition, received);
+                        }
+                        return received;
+                    }
+                }
+                return -1L;
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 log.error("error getting initial state of {}", topicPartition, e);
