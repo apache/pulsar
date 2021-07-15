@@ -140,6 +140,7 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
+                .producerName("my-producer")
                 .topic(topic)
                 .create();
 
@@ -155,6 +156,7 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
                 .getMessageById(topic, messageId.getLedgerId(), messageId.getEntryId());
         Assert.assertEquals(message.getData(), "hello".getBytes());
         Assert.assertEquals(message.getEventTime(), eventTime);
+        Assert.assertEquals(message.getProducerName(), "my-producer");
         Assert.assertEquals(message.getDeliverAtTime(), deliverAtTime);
         Assert.assertTrue(message.getPublishTime() >= sendTime);
 
@@ -173,6 +175,7 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
+                .producerName("my-producer")
                 .topic(topic)
                 .create();
 
@@ -189,6 +192,7 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
         Assert.assertEquals(message.getData(), "hello".getBytes());
         Assert.assertEquals(message.getEventTime(), eventTime);
         Assert.assertEquals(message.getDeliverAtTime(), deliverAtTime);
+        Assert.assertEquals(message.getProducerName(), "my-producer");
         Assert.assertTrue(message.getPublishTime() >= sendTime);
 
         BrokerEntryMetadata entryMetadata = message.getBrokerEntryMetadata();

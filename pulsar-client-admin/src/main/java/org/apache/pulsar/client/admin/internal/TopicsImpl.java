@@ -101,6 +101,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     private static final String DELIVER_AT_TIME = "X-Pulsar-deliver-at-time";
     private static final String BROKER_ENTRY_TIMESTAMP = "X-Pulsar-Broker-Entry-METADATA-timestamp";
     private static final String BROKER_ENTRY_INDEX =  "X-Pulsar-Broker-Entry-METADATA-index";
+    private static final String PRODUCER_NAME = "X-Pulsar-producer-name";
     // CHECKSTYLE.ON: MemberName
 
     public TopicsImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
@@ -1558,6 +1559,11 @@ public class TopicsImpl extends BaseResource implements Topics {
             tmp = headers.getFirst(BATCH_SIZE_HEADER);
             if (tmp != null) {
                 properties.put(BATCH_SIZE_HEADER, (String) tmp);
+            }
+
+            tmp = headers.getFirst(PRODUCER_NAME);
+            if (tmp != null) {
+                messageMetadata.setProducerName((String) tmp);
             }
 
             for (Entry<String, List<Object>> entry : headers.entrySet()) {
