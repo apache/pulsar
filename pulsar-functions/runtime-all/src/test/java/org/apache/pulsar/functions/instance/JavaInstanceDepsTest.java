@@ -60,11 +60,14 @@ public class JavaInstanceDepsTest {
             if (e == null)
                 break;
             String name = e.getName();
-            if (name.endsWith(".class") && !name.startsWith("META-INF")) {
+            if (name.endsWith(".class") && !name.startsWith("META-INF") && !name.equals("module-info.class")) {
                 // The only classes in the java-instance.jar should be org.apache.pulsar, slf4j, and log4j classes
                 // filter out those classes to see if there are any other classes that should not be allowed
                 if (!name.startsWith("org/apache/pulsar")
                         && !name.startsWith("org/slf4j")
+                        && !name.startsWith("org/apache/avro")
+                        && !name.startsWith("com/fasterxml/jackson")
+                        && !name.startsWith("org/apache/commons/compress")
                         && !name.startsWith("org/apache/logging/slf4j")
                         && !name.startsWith("org/apache/logging/log4j")) {
                     notAllowedClasses.add(name);
