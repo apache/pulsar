@@ -1976,7 +1976,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         // lazy init broker Publish-rateLimiting monitoring if not initialized yet
         this.setupBrokerPublishRateLimiterMonitor();
         if (brokerPublishRateLimiter == null
-                || brokerPublishRateLimiter == PublishRateLimiter.DISABLED_RATE_LIMITER) {
+            || brokerPublishRateLimiter == PublishRateLimiter.DISABLED_RATE_LIMITER) {
             // create new rateLimiter if rate-limiter is disabled
             brokerPublishRateLimiter = new PublishRateLimiterImpl(publishRate);
         } else {
@@ -2513,7 +2513,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private AutoTopicCreationOverride getAutoTopicCreationOverride(final TopicName topicName) {
         try {
             Optional<Policies> policies = pulsar.getConfigurationCache().policiesCache()
-                    .get(AdminResource.path(POLICIES, topicName.getNamespace()));
+                            .get(AdminResource.path(POLICIES, topicName.getNamespace()));
             // If namespace policies have the field set, it will override the broker-level setting
             if (policies.isPresent() && policies.get().autoTopicCreationOverride != null) {
                 return policies.get().autoTopicCreationOverride;
