@@ -61,6 +61,8 @@ PULSAR_PUBLIC const char *strSchemaType(SchemaType schemaType) {
             return "AUTO_PUBLISH";
         case KEY_VALUE:
             return "KEY_VALUE";
+        case PROTOBUF_NATIVE:
+            return "PROTOBUF_NATIVE";
     };
     // NOTE : Do not add default case in the switch above. In future if we get new cases for
     // Schema and miss them in the switch above we would like to get notified. Adding
