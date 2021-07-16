@@ -78,7 +78,7 @@ public class NarUnpackerTest {
                 try {
                     NarUnpacker.doUnpackNar(sampleZipFile, extractDirectory, extractCounter::incrementAndGet);
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    log.error("Unpacking failed", e);
                     exceptionCounter.incrementAndGet();
                 } finally {
                     countDownLatch.countDown();
@@ -103,7 +103,7 @@ public class NarUnpackerTest {
                     System.exit(100);
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                log.error("Unpacking failed", e);
                 System.exit(99);
             }
         }
@@ -140,7 +140,7 @@ public class NarUnpackerTest {
                         exceptionCounter.incrementAndGet();
                     }
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    log.error("Unpacking in a separate process failed", e);
                     exceptionCounter.incrementAndGet();
                 } finally {
                     countDownLatch.countDown();
