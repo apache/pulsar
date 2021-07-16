@@ -24,16 +24,20 @@
 
 package org.apache.pulsar.common.nar;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
+import java.io.RandomAccessFile;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
+import java.util.Base64;
 import java.util.Enumeration;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import lombok.extern.slf4j.Slf4j;
@@ -43,8 +47,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class NarUnpacker {
-
-    private static final String HASH_FILENAME = "nar-md5sum";
+    private static final ConcurrentHashMap<String, Object> CURRENT_JVM_FILE_LOCKS = new ConcurrentHashMap<>();
 
     /**
      * Unpacks the specified nar into the specified base working directory.
@@ -58,43 +61,55 @@ public class NarUnpacker {
      *             if unable to explode nar
      */
     public static File unpackNar(final File nar, final File baseWorkingDirectory) throws IOException {
-        final File narWorkingDirectory = new File(baseWorkingDirectory, nar.getName() + "-unpacked");
+        return doUnpackNar(nar, baseWorkingDirectory, null);
+    }
 
-        // if the working directory doesn't exist, unpack the nar
-        if (!narWorkingDirectory.exists()) {
-            unpack(nar, narWorkingDirectory, calculateMd5sum(nar));
-        } else {
-            // the working directory does exist. Run MD5 sum against the nar
-            // file and check if the nar has changed since it was deployed.
-            final byte[] narMd5 = calculateMd5sum(nar);
-            final File workingHashFile = new File(narWorkingDirectory, HASH_FILENAME);
-            if (!workingHashFile.exists()) {
-                FileUtils.deleteFile(narWorkingDirectory, true);
-                unpack(nar, narWorkingDirectory, narMd5);
-            } else {
-                final byte[] hashFileContents = Files.readAllBytes(workingHashFile.toPath());
-                if (!Arrays.equals(hashFileContents, narMd5)) {
-                    log.info("Contents of nar {} have changed. Reloading.", nar.getAbsolutePath());
-                    FileUtils.deleteFile(narWorkingDirectory, true);
-                    unpack(nar, narWorkingDirectory, narMd5);
+    @VisibleForTesting
+    static File doUnpackNar(final File nar, final File baseWorkingDirectory, Runnable extractCallback)
+            throws IOException {
+        File parentDirectory = new File(baseWorkingDirectory, nar.getName() + "-unpacked");
+        if (!parentDirectory.exists()) {
+            parentDirectory.mkdirs();
+        }
+        String sha256Sum = Base64.getUrlEncoder().withoutPadding().encodeToString(calculateSha256Sum(nar));
+        // ensure that one process can extract the files
+        File lockFile = new File(parentDirectory, "." + sha256Sum + ".lock");
+        // prevent OverlappingFileLockException by ensuring that one thread tries to create a lock in this JVM
+        Object localLock = CURRENT_JVM_FILE_LOCKS.computeIfAbsent(lockFile.getAbsolutePath(), key -> new Object());
+        synchronized (localLock) {
+            // create file lock that ensures that other processes
+            // using the same lock file don't execute concurrently
+            try (FileChannel channel = new RandomAccessFile(lockFile, "rw").getChannel();
+                 FileLock lock = channel.lock()) {
+                File narWorkingDirectory = new File(parentDirectory, sha256Sum);
+                if (narWorkingDirectory.mkdir()) {
+                    try {
+                        log.info("Extracting {} to {}", nar, narWorkingDirectory);
+                        if (extractCallback != null) {
+                            extractCallback.run();
+                        }
+                        unpack(nar, narWorkingDirectory);
+                    } catch (IOException e) {
+                        log.error("There was a problem extracting the nar file. Deleting {} to clean up state.",
+                                narWorkingDirectory, e);
+                        FileUtils.deleteFile(narWorkingDirectory, true);
+                        throw e;
+                    }
                 }
+                return narWorkingDirectory;
             }
         }
-
-        return narWorkingDirectory;
     }
 
     /**
-     * Unpacks the NAR to the specified directory. Creates a checksum file that used to determine if future expansion is
-     * necessary.
+     * Unpacks the NAR to the specified directory.
      *
      * @param workingDirectory
      *            the root directory to which the NAR should be unpacked.
      * @throws IOException
      *             if the NAR could not be unpacked.
      */
-    private static void unpack(final File nar, final File workingDirectory, final byte[] hash) throws IOException {
-
+    private static void unpack(final File nar, final File workingDirectory) throws IOException {
         try (JarFile jarFile = new JarFile(nar)) {
             Enumeration<JarEntry> jarEntries = jarFile.entries();
             while (jarEntries.hasMoreElements()) {
@@ -107,11 +122,6 @@ public class NarUnpacker {
                     makeFile(jarFile.getInputStream(jarEntry), f);
                 }
             }
-        }
-
-        final File hashFile = new File(workingDirectory, HASH_FILENAME);
-        try (final FileOutputStream fos = new FileOutputStream(hashFile)) {
-            fos.write(hash);
         }
     }
 
@@ -136,27 +146,27 @@ public class NarUnpacker {
     }
 
     /**
-     * Calculates an md5 sum of the specified file.
+     * Calculates an sha256 sum of the specified file.
      *
      * @param file
-     *            to calculate the md5sum of
-     * @return the md5sum bytes
+     *            to calculate the sha256 of
+     * @return the sha256 bytes
      * @throws IOException
      *             if cannot read file
      */
-    private static byte[] calculateMd5sum(final File file) throws IOException {
+    private static byte[] calculateSha256Sum(final File file) throws IOException {
         try (final FileInputStream inputStream = new FileInputStream(file)) {
-            final MessageDigest md5 = MessageDigest.getInstance("md5");
+            final MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
 
             final byte[] buffer = new byte[1024];
             int read = inputStream.read(buffer);
 
             while (read > -1) {
-                md5.update(buffer, 0, read);
+                sha256.update(buffer, 0, read);
                 read = inputStream.read(buffer);
             }
 
-            return md5.digest();
+            return sha256.digest();
         } catch (NoSuchAlgorithmException nsae) {
             throw new IllegalArgumentException(nsae);
         }
