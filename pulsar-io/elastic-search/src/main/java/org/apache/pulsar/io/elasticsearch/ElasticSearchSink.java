@@ -137,7 +137,7 @@ public class ElasticSearchSink implements Sink<byte[]> {
         return credentialsProvider;
     }
 
-    private HttpHost[] getHttpHost() {
+    private HttpHost[] getHttpHosts() {
         String url = elasticSearchConfig.getElasticSearchUrl();
         return Arrays.stream(url.split(",")).map(host -> {
             try {
@@ -153,7 +153,7 @@ public class ElasticSearchSink implements Sink<byte[]> {
     protected RestHighLevelClient getClient() throws MalformedURLException {
         if (client == null) {
           CredentialsProvider cp = getCredentialsProvider();
-          RestClientBuilder builder = RestClient.builder(getHttpHost());
+          RestClientBuilder builder = RestClient.builder(getHttpHosts());
 
           if (cp != null) {
               builder.setHttpClientConfigCallback(httpClientBuilder ->
