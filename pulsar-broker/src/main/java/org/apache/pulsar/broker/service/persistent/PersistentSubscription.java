@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.common.events.EventsTopicNames.checkTopicIsEventsNames;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
@@ -47,6 +48,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
+import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
@@ -70,6 +72,7 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
@@ -140,11 +143,21 @@ public class PersistentSubscription implements Subscription {
         this.fullName = MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
         this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, subscriptionName, cursor, this);
         this.setReplicated(replicated);
+        TopicName topicName1 = TopicName.get(getTopicName());
+        Optional<Policies> policies = null;
+        try {
+            policies = topic.getBrokerService().pulsar().getConfigurationCache().policiesCache()
+                     .get(AdminResource.path(POLICIES, topicName1.getNamespaceObject().toString()));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
+                && policies.get().transaction_enable
                 && !checkTopicIsEventsNames(TopicName.get(topicName))
                 && !topicName.startsWith(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getLocalName())
                 && !topicName.startsWith(MLTransactionLogImpl.TRANSACTION_LOG_PREFIX)
-                && !topicName.endsWith(MLPendingAckStore.PENDING_ACK_STORE_SUFFIX)) {
+                && !topicName.endsWith(MLPendingAckStore.PENDING_ACK_STORE_SUFFIX)
+        ) {
             this.pendingAckHandle = new PendingAckHandleImpl(this);
         } else {
             this.pendingAckHandle = new PendingAckHandleDisabled();
@@ -367,7 +380,16 @@ public class PersistentSubscription implements Subscription {
                 log.debug("[{}][{}] Individual acks on {}", topicName, subName, positions);
             }
             cursor.asyncDelete(positions, deleteCallback, previousMarkDeletePosition);
-            if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()) {
+            TopicName topicName1 = TopicName.get(getTopicName());
+            Optional<Policies> policies = null;
+            try {
+                policies = topic.getBrokerService().pulsar().getConfigurationCache().policiesCache()
+                        .get(AdminResource.path(POLICIES, topicName1.getNamespaceObject().toString()));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
+                    && policies.get().transaction_enable) {
                 positions.forEach(position -> {
                     if (((ManagedCursorImpl) cursor).isMessageDeleted(position)) {
                         pendingAckHandle.clearIndividualPosition(position);
@@ -394,8 +416,16 @@ public class PersistentSubscription implements Subscription {
                 }
             }
         }
-
+        TopicName topicName1 = TopicName.get(getTopicName());
+        Optional<Policies> policies = null;
+        try {
+            policies = topic.getBrokerService().pulsar().getConfigurationCache().policiesCache()
+                    .get(AdminResource.path(POLICIES, topicName1.getNamespaceObject().toString()));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
+                && policies.get().transaction_enable
                 && this.pendingAckHandle.isTransactionAckPresent()) {
             Position currentMarkDeletePosition = cursor.getMarkDeletedPosition();
             if ((lastMarkDeleteForTransactionMarker == null

@@ -1348,6 +1348,8 @@ public interface Namespaces {
     CompletableFuture<Void> setSubscriptionTypesEnabledAsync(String namespace,
                                                         Set<SubscriptionType> subscriptionTypesEnabled);
 
+
+
     /**
      * Get the subscriptionTypesEnabled policy for a given namespace, overriding broker settings.
      *
@@ -4199,4 +4201,48 @@ public interface Namespaces {
      * @return
      */
     CompletableFuture<Void> removeNamespaceResourceGroupAsync(String namespace);
+
+
+    /**
+     * Sets the transactionEnable policy for a given namespace, overriding broker setting.
+     * @param namespace Namespace name.
+     * @param transactionEnable
+     *           is enable transaction
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     */
+    void setTransactionEnable(String namespace, boolean transactionEnable) throws  PulsarAdminException;
+    /**
+     * Sets the transactionEnable policy for a given namespace, overriding broker setting.
+     * @param namespace Namespace name.
+     * @param transactionEnable
+     *           is enable transaction.
+     */
+    CompletableFuture<Void> setTransactionEnableAsync(String namespace, boolean transactionEnable);
+
+
+    /**
+     * Get the transactionEnable policy for a given namespace, overriding broker settings.
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    boolean getTransactionEnabled(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the transactionEnable policy for a given namespace, overriding broker settings.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Boolean> getTransactionEnabledAsync(String namespace);
 }

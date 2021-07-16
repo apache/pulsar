@@ -1853,6 +1853,32 @@ public class Namespaces extends NamespacesBase {
         validateNamespaceName(tenant, namespace);
         internalSetNamespaceResourceGroup(null);
     }
+    @POST
+    @Path("/{tenant}/{namespace}/transactionEnabled")
+    @ApiOperation(value = "Update boolean of whether allow transaction of  namespace")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void setTransactionEnable(
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "boolean of whether allow transaction of  namespace", required = true)
+                    boolean transactionEnable) {
+        validateNamespaceName(tenant, namespace);
+        internalSetTransactionEnabled(transactionEnable);
+    }
+    @GET
+    @Path("/{tenant}/{namespace}/transactionEnabled")
+    @ApiOperation(value = "The boolean of whether allow transaction of  namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification") })
+    public Boolean getTransactionEnabled(
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        return internalGetTransactionEnabled();
+    }
 
     private static final Logger log = LoggerFactory.getLogger(Namespaces.class);
 }

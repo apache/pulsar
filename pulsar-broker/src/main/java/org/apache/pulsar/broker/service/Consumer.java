@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Lists;
 import io.netty.util.concurrent.Future;
@@ -28,6 +29,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
@@ -39,6 +41,7 @@ import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap.LongPair;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.tuple.MutablePair;
+import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -50,6 +53,7 @@ import org.apache.pulsar.common.api.proto.KeyLongValue;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.DateFormatter;
@@ -482,9 +486,18 @@ public class Consumer {
     }
 
     private boolean isTransactionEnabled() {
+        TopicName topicName = TopicName.get(subscription.getTopicName());
+        Optional<Policies> policies = null;
+        try {
+            policies = cnx.getBrokerService().pulsar().getConfigurationCache().policiesCache()
+                    .get(AdminResource.path(POLICIES, topicName.getNamespaceObject().toString()));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         return subscription instanceof PersistentSubscription
                 && ((PersistentTopic) subscription.getTopic())
-                .getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled();
+                .getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
+                && policies.get().transaction_enable;
     }
 
     private CompletableFuture<Void> transactionIndividualAcknowledge(

@@ -316,7 +316,15 @@ public class PersistentTopic extends AbstractTopic
 
         checkReplicatedSubscriptionControllerState();
         TopicName topicName = TopicName.get(topic);
+        Optional<Policies> policies = null;
+        try {
+            policies = brokerService.pulsar().getConfigurationCache().policiesCache()
+                    .get(AdminResource.path(POLICIES, topicName.getNamespaceObject().toString()));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         if (brokerService.getPulsar().getConfiguration().isTransactionCoordinatorEnabled()
+                && policies.get().transaction_enable
                 && !checkTopicIsEventsNames(topicName)
                 && !topicName.getEncodedLocalName().startsWith(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getLocalName())
                 && !topicName.getEncodedLocalName().startsWith(MLTransactionLogImpl.TRANSACTION_LOG_PREFIX)
@@ -343,7 +351,16 @@ public class PersistentTopic extends AbstractTopic
         this.backloggedCursorThresholdEntries =
                 brokerService.pulsar().getConfiguration().getManagedLedgerCursorBackloggedThreshold();
         this.transactionCompletableFuture = new CompletableFuture<>();
-        if (brokerService.pulsar().getConfiguration().isTransactionCoordinatorEnabled()) {
+        TopicName topicName = TopicName.get(topic);
+        Optional<Policies> policies = null;
+        try {
+            policies = brokerService.pulsar().getConfigurationCache().policiesCache()
+                    .get(AdminResource.path(POLICIES, topicName.getNamespaceObject().toString()));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        if (brokerService.pulsar().getConfiguration().isTransactionCoordinatorEnabled()
+                && policies.get().transaction_enable) {
             this.transactionBuffer = brokerService.getPulsar()
                     .getTransactionBufferProvider().newTransactionBuffer(this, transactionCompletableFuture);
         } else {

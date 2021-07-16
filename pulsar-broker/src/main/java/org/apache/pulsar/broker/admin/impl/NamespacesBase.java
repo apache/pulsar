@@ -2423,7 +2423,22 @@ public abstract class NamespacesBase extends AdminResource {
                 }, (policies) -> policies.subscription_types_enabled,
                 "subscriptionTypesEnabled");
     }
+    protected boolean internalGetTransactionEnabled() {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.TransactionEnable,
+                PolicyOperation.READ);
+        return  getNamespacePolicies(namespaceName).transaction_enable;
+    }
 
+    protected void internalSetTransactionEnabled(boolean transaction) {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.TransactionEnable,
+                PolicyOperation.WRITE);
+        validatePoliciesReadOnlyAccess();
+        mutatePolicy((policies) -> {
+                    policies.transaction_enable = transaction;
+                    return policies;
+                }, (policies) -> policies.transaction_enable,
+                "transactionEnabled");
+    }
 
     private <T> void mutatePolicy(Function<Policies, Policies> policyTransformation,
                                   Function<Policies, T> getter,
