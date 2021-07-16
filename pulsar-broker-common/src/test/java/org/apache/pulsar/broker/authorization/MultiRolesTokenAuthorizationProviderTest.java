@@ -20,29 +20,13 @@ package org.apache.pulsar.broker.authorization;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
-import lombok.var;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.broker.authentication.AuthenticationProvider;
-import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
-import org.apache.pulsar.broker.authentication.AuthenticationService;
-import org.apache.pulsar.broker.authentication.AuthenticationState;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
-import org.apache.pulsar.broker.cache.ConfigurationCacheService;
-import org.apache.pulsar.common.api.AuthData;
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.zookeeper.ZooKeeperCache;
-import org.apache.zookeeper.ZooKeeper;
 import org.junit.Assert;
 import org.testng.annotations.Test;
 
 import javax.crypto.SecretKey;
-import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
 
 public class MultiRolesTokenAuthorizationProviderTest {
 
