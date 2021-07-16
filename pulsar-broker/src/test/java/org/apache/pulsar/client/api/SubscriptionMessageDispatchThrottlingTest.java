@@ -314,10 +314,10 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
      * Verify whether the broker level rate-limiting is throttle message-dispatching based on byte-rate or not
      *
      * <pre>
-     *  1. broker level dispatch-byte-rate = 1000 bytes/sec
-     *  2. start two consumers for two topics
-     *  3. send 15 msgs to each of the two topics: each msgs with 100 byte, total 3000 byte
-     *  4. it should take up to 2 second to receive all messages of the two topic
+     *  1. Broker level dispatch-byte-rate is equal to 1000 bytes per second.
+     *  2. Start two consumers for two topics.
+     *  3. Send 15 msgs to each of the two topics. Each msgs with 100 bytes, thus 3000 bytes in total.
+     *  4. It should take up to 2 seconds to receive all messages of the two topics.
      * </pre>
      *
      * @param subscription
