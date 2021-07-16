@@ -492,11 +492,12 @@ public class Consumer {
             policies = cnx.getBrokerService().pulsar().getConfigurationCache().policiesCache()
                     .get(AdminResource.path(POLICIES, topicName.getNamespaceObject().toString()));
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Failed to get policies with Exception: " + e);
         }
         return subscription instanceof PersistentSubscription
                 && ((PersistentTopic) subscription.getTopic())
                 .getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
+                && policies.isPresent()
                 && policies.get().transaction_enable;
     }
 

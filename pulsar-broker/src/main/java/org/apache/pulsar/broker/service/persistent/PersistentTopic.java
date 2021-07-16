@@ -321,9 +321,10 @@ public class PersistentTopic extends AbstractTopic
             policies = brokerService.pulsar().getConfigurationCache().policiesCache()
                     .get(AdminResource.path(POLICIES, topicName.getNamespaceObject().toString()));
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Failed to get policies with Exception: " + e);
         }
         if (brokerService.getPulsar().getConfiguration().isTransactionCoordinatorEnabled()
+                && policies.isPresent()
                 && policies.get().transaction_enable
                 && !checkTopicIsEventsNames(topicName)
                 && !topicName.getEncodedLocalName().startsWith(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getLocalName())
@@ -357,9 +358,10 @@ public class PersistentTopic extends AbstractTopic
             policies = brokerService.pulsar().getConfigurationCache().policiesCache()
                     .get(AdminResource.path(POLICIES, topicName.getNamespaceObject().toString()));
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Failed to get policies with Exception: " + e);
         }
         if (brokerService.pulsar().getConfiguration().isTransactionCoordinatorEnabled()
+                && policies.isPresent()
                 && policies.get().transaction_enable) {
             this.transactionBuffer = brokerService.getPulsar()
                     .getTransactionBufferProvider().newTransactionBuffer(this, transactionCompletableFuture);
