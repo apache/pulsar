@@ -148,6 +148,8 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
     }
 
     public void invalidateBundleCache(NamespaceName namespace) {
+        pulsar.getLocalZkCacheService().policiesCache().invalidate(
+                AdminResource.joinPath(LOCAL_POLICIES_ROOT, namespace.toString()));
         bundlesCache.synchronous().invalidate(namespace);
     }
 
