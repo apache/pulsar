@@ -311,7 +311,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
     }
 
     /**
-     * verify broker level rate-limiting should throttle message-dispatching based on byte-rate
+     * Verify whether the broker level rate-limiting is throttle message-dispatching based on byte-rate or not
      *
      * <pre>
      *  1. broker level dispatch-byte-rate = 1000 bytes/sec
