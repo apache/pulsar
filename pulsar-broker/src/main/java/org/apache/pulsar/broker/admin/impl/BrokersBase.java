@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.admin.impl;
 import static org.apache.pulsar.broker.service.BrokerService.BROKER_SERVICE_CONFIGURATION_PATH;
 import com.google.common.collect.Maps;
 import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import java.time.Duration;
@@ -36,11 +37,13 @@ import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import org.apache.pulsar.PulsarVersion;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService.State;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
@@ -56,6 +59,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
+import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.policies.data.BrokerInfo;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -299,13 +303,35 @@ public class BrokersBase extends PulsarWebResource {
         @ApiResponse(code = 403, message = "Don't have admin permission"),
         @ApiResponse(code = 404, message = "Cluster doesn't exist"),
         @ApiResponse(code = 500, message = "Internal server error")})
-    public void healthcheck(@Suspended AsyncResponse asyncResponse) throws Exception {
-        validateSuperUserAccess();
-        String heartbeatNamespace = NamespaceService.getHeartbeatNamespace(
-                pulsar().getAdvertisedAddress(), pulsar().getConfiguration());
-        String topic = String.format("persistent://%s/healthcheck", heartbeatNamespace);
+    @ApiParam(value = "Topic Version")
+    public void healthcheck(@Suspended AsyncResponse asyncResponse,
+                            @QueryParam("topicVersion") TopicVersion topicVersion) throws Exception {
+        String topic;
+        PulsarClient client;
+        try {
+            validateSuperUserAccess();
+            String heartbeatNamespace;
 
-        PulsarClient client = pulsar().getClient();
+            heartbeatNamespace = (topicVersion == TopicVersion.V2)
+                    ?
+                    NamespaceService.getHeartbeatNamespaceV2(
+                            pulsar().getAdvertisedAddress(),
+                            pulsar().getConfiguration())
+                    :
+                    NamespaceService.getHeartbeatNamespace(
+                            pulsar().getAdvertisedAddress(),
+                            pulsar().getConfiguration());
+
+
+            topic = String.format("persistent://%s/healthcheck", heartbeatNamespace);
+
+            LOG.info("Running healthCheck with topic={}", topic);
+
+            client = pulsar().getClient();
+        } catch (Exception e) {
+            LOG.error("Error getting heathcheck topic info", e);
+            throw new PulsarServerException(e);
+        }
 
         String messageStr = UUID.randomUUID().toString();
         // create non-partitioned topic manually and close the previous reader if present.
@@ -322,10 +348,11 @@ public class BrokersBase extends PulsarWebResource {
         } catch (Exception e) {
             LOG.warn("Failed to try to delete subscriptions for health check", e);
         }
+
         CompletableFuture<Producer<String>> producerFuture =
-            client.newProducer(Schema.STRING).topic(topic).createAsync();
+                client.newProducer(Schema.STRING).topic(topic).createAsync();
         CompletableFuture<Reader<String>> readerFuture = client.newReader(Schema.STRING)
-            .topic(topic).startMessageId(MessageId.latest).createAsync();
+                .topic(topic).startMessageId(MessageId.latest).createAsync();
 
         CompletableFuture<Void> completePromise = new CompletableFuture<>();
 
@@ -335,7 +362,7 @@ public class BrokersBase extends PulsarWebResource {
                         completePromise.completeExceptionally(exception);
                     } else {
                         producerFuture.thenCompose((producer) -> producer.sendAsync(messageStr))
-                            .whenComplete((ignore2, exception2) -> {
+                                .whenComplete((ignore2, exception2) -> {
                                     if (exception2 != null) {
                                         completePromise.completeExceptionally(exception2);
                                     }
@@ -352,26 +379,26 @@ public class BrokersBase extends PulsarWebResource {
                 });
 
         completePromise.whenComplete((ignore, exception) -> {
-                producerFuture.thenAccept((producer) -> {
-                        producer.closeAsync().whenComplete((ignore2, exception2) -> {
-                                if (exception2 != null) {
-                                    LOG.warn("Error closing producer for healthcheck", exception2);
-                                }
-                            });
-                    });
-                readerFuture.thenAccept((reader) -> {
-                        reader.closeAsync().whenComplete((ignore2, exception2) -> {
-                                if (exception2 != null) {
-                                    LOG.warn("Error closing reader for healthcheck", exception2);
-                                }
-                            });
-                    });
-                if (exception != null) {
-                    asyncResponse.resume(new RestException(exception));
-                } else {
-                    asyncResponse.resume("ok");
-                }
+            producerFuture.thenAccept((producer) -> {
+                producer.closeAsync().whenComplete((ignore2, exception2) -> {
+                    if (exception2 != null) {
+                        LOG.warn("Error closing producer for healthcheck", exception2);
+                    }
+                });
             });
+            readerFuture.thenAccept((reader) -> {
+                reader.closeAsync().whenComplete((ignore2, exception2) -> {
+                    if (exception2 != null) {
+                        LOG.warn("Error closing reader for healthcheck", exception2);
+                    }
+                });
+            });
+            if (exception != null) {
+                asyncResponse.resume(new RestException(exception));
+            } else {
+                asyncResponse.resume("ok");
+            }
+        });
     }
 
     private void healthcheckReadLoop(CompletableFuture<Reader<String>> readerFuture,

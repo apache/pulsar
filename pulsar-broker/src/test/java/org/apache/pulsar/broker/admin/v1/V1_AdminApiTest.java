@@ -410,7 +410,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
 
         Map<String, NamespaceOwnershipStatus> nsMap = admin.brokers().getOwnedNamespaces("use", list.get(0));
         // since sla-monitor ns is not created nsMap.size() == 1 (for HeartBeat Namespace)
-        Assert.assertEquals(nsMap.size(), 1);
+        Assert.assertEquals(nsMap.size(), 2);
         for (String ns : nsMap.keySet()) {
             NamespaceOwnershipStatus nsStatus = nsMap.get(ns);
             if (ns.equals(
@@ -426,7 +426,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(parts.length, 2);
         Map<String, NamespaceOwnershipStatus> nsMap2 = adminTls.brokers().getOwnedNamespaces("use",
                 String.format("%s:%d", parts[0], pulsar.getListenPortHTTPS().get()));
-        Assert.assertEquals(nsMap2.size(), 1);
+        Assert.assertEquals(nsMap2.size(), 2);
 
         admin.namespaces().deleteNamespace("prop-xyz/use/ns1");
         admin.clusters().deleteCluster("use");
