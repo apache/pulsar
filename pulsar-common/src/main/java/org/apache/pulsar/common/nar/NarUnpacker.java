@@ -69,7 +69,11 @@ public class NarUnpacker {
             throws IOException {
         File parentDirectory = new File(baseWorkingDirectory, nar.getName() + "-unpacked");
         if (!parentDirectory.exists()) {
-            parentDirectory.mkdirs();
+            if (parentDirectory.mkdirs()) {
+                log.info("Created directory {}", parentDirectory);
+            } else if (!parentDirectory.exists()) {
+                throw new IOException("Cannot create " + parentDirectory);
+            }
         }
         String sha256Sum = Base64.getUrlEncoder().withoutPadding().encodeToString(calculateSha256Sum(nar));
         // ensure that one process can extract the files
