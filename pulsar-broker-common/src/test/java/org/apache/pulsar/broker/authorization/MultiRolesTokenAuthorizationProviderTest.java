@@ -46,23 +46,6 @@ import static org.mockito.Mockito.mock;
 
 public class MultiRolesTokenAuthorizationProviderTest {
 
-    public static CompletableFuture<Boolean> testAuthz(String role){
-        if(role.equals("b"))
-            return CompletableFuture.completedFuture(true);
-        return CompletableFuture.completedFuture(false);
-    }
-
-    public static CompletableFuture<Boolean> testAuthz2(String role){
-        return CompletableFuture.completedFuture(false);
-    }
-
-    @Test
-    public void test(){
-        SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
-        String token = Jwts.builder().claim("sub", new String[]{"a", "b"}).signWith(secretKey)
-        .compact();
-    }
-
     @Test
     public void testMultiRolesAuthz() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
@@ -89,7 +72,7 @@ public class MultiRolesTokenAuthorizationProviderTest {
         };
 
         Assert.assertTrue(provider.authorize(ads, role -> {
-            if(role.equals(userB))return CompletableFuture.completedFuture(true); // only userB has permission
+            if (role.equals(userB)) return CompletableFuture.completedFuture(true); // only userB has permission
             return CompletableFuture.completedFuture(false);
         }).get());
 
