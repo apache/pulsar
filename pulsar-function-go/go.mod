@@ -3,8 +3,8 @@ module github.com/apache/pulsar/pulsar-function-go
 go 1.13
 
 require (
-	github.com/DataDog/zstd v1.4.6-0.20200617134701-89f69fb7df32 // indirect
-	github.com/apache/pulsar-client-go v0.3.1-0.20201201083639-154bff0bb825
+	github.com/apache/pulsar-client-go v0.5.0
+	github.com/datadog/zstd v1.4.6-0.20200617134701-89f69fb7df32 // indirect
 	github.com/golang/protobuf v1.4.3
 	github.com/prometheus/client_golang v1.7.1
 	github.com/prometheus/client_model v0.2.0
