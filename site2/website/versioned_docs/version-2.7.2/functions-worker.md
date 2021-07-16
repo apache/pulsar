@@ -46,35 +46,37 @@ If authentication is enabled on the BookKeeper cluster, configure the following 
 
 ### Configure Stateful-Functions to run with broker
 
-If you want to use Stateful-Functions related functions, for example, if you want to use `putState()` and `queryState()` related interfaces.
+If you want to use Stateful-Functions related functions (for example,  `putState()` and `queryState()` related interfaces), follow steps below.
 
-1. You need to enable the **streamStorage** service in the bookkeeper. Currently, the service uses the form of loading the nar package, so you need to configure the following in `bookkeeper.conf`:
+1. Enable the **streamStorage** service in the BookKeeper.
 
-```text
-extraServerComponents=org.apache.bookkeeper.stream.server.StreamStorageLifecycleComponent
-```
+   Currently, the service uses the NAR package, so you need to set the configuration in `bookkeeper.conf`.
 
-After bookie is started, you can use the following methods to check whether the streamStorage service is started correctly:
+    ```text
+    extraServerComponents=org.apache.bookkeeper.stream.server.StreamStorageLifecycleComponent
+    ```
 
-```shell
-telnet localhost 4181
-```
+   After starting bookie, use the following methods to check whether the streamStorage service is started correctly.
 
-Output:
+   Input:
 
-```text
-Trying 127.0.0.1...
-Connected to localhost.
-Escape character is '^]'.
-```
+    ```shell
+    telnet localhost 4181
+    ```
+   Output:
+    ```text
+    Trying 127.0.0.1...
+    Connected to localhost.
+    Escape character is '^]'.
+    ```
 
-2. Turn on this function in `functions_worker.yml`, as follows:
+2. Turn on this function in `functions_worker.yml`.
 
-```text
-stateStorageServiceUrl: bk://<bk-service-url>:4181
-```
-
-- bk-service-url: the service url points to bookkeeper table service.
+    ```text
+    stateStorageServiceUrl: bk://<bk-service-url>:4181
+    ```
+    
+    `bk-service-url` is the service URL pointing to the BookKeeper table service.
 
 ### Start Functions-worker with broker
 
