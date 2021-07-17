@@ -19,14 +19,13 @@
 package org.apache.pulsar.functions.instance.stats;
 
 import com.google.common.collect.EvictingQueue;
-import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Summary;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.common.util.RateLimiter;
+import org.apache.pulsar.common.util.FixedWindowRateLimiter;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 
 import java.util.Arrays;
@@ -115,9 +114,9 @@ public class FunctionStatsManager extends ComponentStatsManager{
     @Getter
     private EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> latestSystemExceptions = EvictingQueue.create(10);
 
-    private final RateLimiter userExceptionRateLimiter;
+    private final FixedWindowRateLimiter userExceptionRateLimiter;
 
-    private final RateLimiter sysExceptionRateLimiter;
+    private final FixedWindowRateLimiter sysExceptionRateLimiter;
 
     public FunctionStatsManager(FunctionCollectorRegistry collectorRegistry,
                                 String[] metricsLabels,
@@ -262,8 +261,8 @@ public class FunctionStatsManager extends ComponentStatsManager{
                 .help("Exception from sink.")
                 .create());
 
-        userExceptionRateLimiter = new RateLimiter(scheduledExecutorService, 5, 1, TimeUnit.MINUTES, null);
-        sysExceptionRateLimiter = new RateLimiter(scheduledExecutorService, 5, 1, TimeUnit.MINUTES, null);
+        userExceptionRateLimiter = new FixedWindowRateLimiter(scheduledExecutorService, 5, 1, TimeUnit.MINUTES, null);
+        sysExceptionRateLimiter = new FixedWindowRateLimiter(scheduledExecutorService, 5, 1, TimeUnit.MINUTES, null);
     }
 
     public void addUserException(Throwable ex) {

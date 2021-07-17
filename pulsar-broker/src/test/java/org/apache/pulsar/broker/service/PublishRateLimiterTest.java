@@ -35,7 +35,7 @@ public class PublishRateLimiterTest {
     private final PublishRate publishRate = new PublishRate(10, 100);
     private final PublishRate newPublishRate = new PublishRate(20, 200);
 
-    private PrecisPublishLimiter precisPublishLimiter;
+    private PrecisePublishLimiter precisePublishLimiter;
     private PublishRateLimiterImpl publishRateLimiter;
 
 
@@ -43,7 +43,7 @@ public class PublishRateLimiterTest {
     public void setup() throws Exception {
         policies.publishMaxMessageRate = new HashMap<>();
         policies.publishMaxMessageRate.put(CLUSTER_NAME, publishRate);
-        precisPublishLimiter = new PrecisPublishLimiter(policies, CLUSTER_NAME,
+        precisePublishLimiter = new PrecisePublishLimiter(policies, CLUSTER_NAME,
                 () -> System.out.print("Refresh permit"));
         publishRateLimiter = new PublishRateLimiterImpl(policies, CLUSTER_NAME);
     }
@@ -85,28 +85,28 @@ public class PublishRateLimiterTest {
 
     @Test
     public void testPrecisePublishRateLimiterUpdate() {
-        assertFalse(precisPublishLimiter.tryAcquire(15, 150));
+        assertFalse(precisePublishLimiter.tryAcquire(15, 150));
 
         //update
-        precisPublishLimiter.update(newPublishRate);
-        assertTrue(precisPublishLimiter.tryAcquire(15, 150));
+        precisePublishLimiter.update(newPublishRate);
+        assertTrue(precisePublishLimiter.tryAcquire(15, 150));
     }
 
     @Test
     public void testPrecisePublishRateLimiterAcquire() throws Exception {
         // tryAcquire not exceeded
-        assertTrue(precisPublishLimiter.tryAcquire(1, 10));
+        assertTrue(precisePublishLimiter.tryAcquire(1, 10));
         Thread.sleep(1100);
 
         // tryAcquire numOfMessages exceeded
-        assertFalse(precisPublishLimiter.tryAcquire(11, 100));
+        assertFalse(precisePublishLimiter.tryAcquire(11, 100));
         Thread.sleep(1100);
 
         // tryAcquire msgSizeInBytes exceeded
-        assertFalse(precisPublishLimiter.tryAcquire(10, 101));
+        assertFalse(precisePublishLimiter.tryAcquire(10, 101));
         Thread.sleep(1100);
 
         // tryAcquire not exceeded
-        assertTrue(precisPublishLimiter.tryAcquire(10, 100));
+        assertTrue(precisePublishLimiter.tryAcquire(10, 100));
     }
 }

@@ -32,7 +32,8 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
-import org.apache.pulsar.common.util.RateLimiter;
+import org.apache.pulsar.common.util.AbstractRateLimiter;
+import org.apache.pulsar.common.util.FixedWindowRateLimiter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,7 +41,7 @@ public class SubscribeRateLimiter {
 
     private final String topicName;
     private final BrokerService brokerService;
-    private ConcurrentHashMap<ConsumerIdentifier, RateLimiter> subscribeRateLimiter;
+    private ConcurrentHashMap<ConsumerIdentifier, AbstractRateLimiter> subscribeRateLimiter;
     private final ScheduledExecutorService executorService;
     private ScheduledFuture<?> resetTask;
     private SubscribeRate subscribeRate;
@@ -139,7 +140,7 @@ public class SubscribeRateLimiter {
         if (ratePerConsumer > 0) {
             if (this.subscribeRateLimiter.get(consumerIdentifier) == null) {
                 this.subscribeRateLimiter.put(consumerIdentifier,
-                        new RateLimiter(brokerService.pulsar().getExecutor(), ratePerConsumer,
+                        new FixedWindowRateLimiter(brokerService.pulsar().getExecutor(), ratePerConsumer,
                                 ratePeriod, TimeUnit.SECONDS, null));
             } else {
                 this.subscribeRateLimiter.get(consumerIdentifier)

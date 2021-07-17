@@ -19,11 +19,10 @@
 package org.apache.pulsar.functions.instance.stats;
 
 import com.google.common.collect.EvictingQueue;
-import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
 import lombok.Getter;
-import org.apache.pulsar.common.util.RateLimiter;
+import org.apache.pulsar.common.util.FixedWindowRateLimiter;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 
 import java.util.Arrays;
@@ -90,9 +89,9 @@ public class SourceStatsManager extends ComponentStatsManager {
     @Getter
     private EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> latestSourceExceptions = EvictingQueue.create(10);
 
-    protected final RateLimiter sysExceptionRateLimiter;
+    protected final FixedWindowRateLimiter sysExceptionRateLimiter;
 
-    protected final RateLimiter sourceExceptionRateLimiter;
+    protected final FixedWindowRateLimiter sourceExceptionRateLimiter;
 
     public SourceStatsManager(FunctionCollectorRegistry collectorRegistry, String[] metricsLabels, ScheduledExecutorService
             scheduledExecutorService) {
@@ -195,8 +194,8 @@ public class SourceStatsManager extends ComponentStatsManager {
                 .help("Exception from source.")
                 .create());
 
-        sysExceptionRateLimiter = new RateLimiter(scheduledExecutorService, 5, 1, TimeUnit.MINUTES, null);
-        sourceExceptionRateLimiter = new RateLimiter(scheduledExecutorService, 5, 1, TimeUnit.MINUTES, null);
+        sysExceptionRateLimiter = new FixedWindowRateLimiter(scheduledExecutorService, 5, 1, TimeUnit.MINUTES, null);
+        sourceExceptionRateLimiter = new FixedWindowRateLimiter(scheduledExecutorService, 5, 1, TimeUnit.MINUTES, null);
     }
 
     @Override

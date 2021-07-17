@@ -26,15 +26,15 @@ import org.apache.pulsar.broker.service.PublishRateLimiter;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.ResourceGroup;
+import org.apache.pulsar.common.util.LeakyBucketRateLimiter;
 import org.apache.pulsar.common.util.RateLimitFunction;
-import org.apache.pulsar.common.util.RateLimiter;
 
 public class ResourceGroupPublishLimiter implements PublishRateLimiter, RateLimitFunction, AutoCloseable  {
     protected volatile int publishMaxMessageRate = 0;
     protected volatile long publishMaxByteRate = 0;
     protected volatile boolean publishThrottlingEnabled = false;
-    private volatile RateLimiter publishRateLimiterOnMessage;
-    private volatile RateLimiter publishRateLimiterOnByte;
+    private volatile LeakyBucketRateLimiter publishRateLimiterOnMessage;
+    private volatile LeakyBucketRateLimiter publishRateLimiterOnByte;
     private final ScheduledExecutorService scheduledExecutorService;
 
     ConcurrentHashMap<String, RateLimitFunction> rateLimitFunctionMap = new ConcurrentHashMap<>();
@@ -84,12 +84,12 @@ public class ResourceGroupPublishLimiter implements PublishRateLimiter, RateLimi
                 if (this.publishMaxMessageRate > 0) {
                     // TODO: pass the executor
                     publishRateLimiterOnMessage =
-                        new RateLimiter(publishMaxMessageRate, 1, TimeUnit.SECONDS, this::apply);
+                        new LeakyBucketRateLimiter(publishMaxMessageRate, 1, TimeUnit.SECONDS, this::apply);
                 }
                 if (this.publishMaxByteRate > 0) {
                     // TODO: pass the executor
                     publishRateLimiterOnByte =
-                        new RateLimiter(publishMaxByteRate, 1, TimeUnit.SECONDS, this::apply);
+                        new LeakyBucketRateLimiter(publishMaxByteRate, 1, TimeUnit.SECONDS, this::apply);
                 }
             } else {
                 this.publishMaxMessageRate = 0;
@@ -115,9 +115,9 @@ public class ResourceGroupPublishLimiter implements PublishRateLimiter, RateLimi
     }
 
     private void replaceLimiters(Runnable updater) {
-        RateLimiter previousPublishRateLimiterOnMessage = publishRateLimiterOnMessage;
+        LeakyBucketRateLimiter previousPublishRateLimiterOnMessage = publishRateLimiterOnMessage;
         publishRateLimiterOnMessage = null;
-        RateLimiter previousPublishRateLimiterOnByte = publishRateLimiterOnByte;
+        LeakyBucketRateLimiter previousPublishRateLimiterOnByte = publishRateLimiterOnByte;
         publishRateLimiterOnByte = null;
         try {
             if (updater != null) {

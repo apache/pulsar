@@ -22,25 +22,23 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import org.testng.annotations.Test;
 
-public class RateLimiterTest {
+public class FixedWindowRateLimiterTest {
 
     @Test
     public void testInvalidRenewTime() {
         try {
-            new RateLimiter(0, 100, TimeUnit.SECONDS);
+            new FixedWindowRateLimiter(null, 0, 100, TimeUnit.SECONDS, null);
             fail("should have thrown exception: invalid rate, must be > 0");
         } catch (IllegalArgumentException ie) {
             // Ok
         }
 
         try {
-            new RateLimiter(10, 0, TimeUnit.SECONDS);
+            new FixedWindowRateLimiter(null, 10, 0, TimeUnit.SECONDS, null);
             fail("should have thrown exception: invalid rateTime, must be > 0");
         } catch (IllegalArgumentException ie) {
             // Ok
@@ -49,7 +47,7 @@ public class RateLimiterTest {
 
     @Test
     public void testClose() throws Exception {
-        RateLimiter rate = new RateLimiter(1, 1000, TimeUnit.MILLISECONDS);
+        FixedWindowRateLimiter rate = new FixedWindowRateLimiter(null, 1, 1000, TimeUnit.MILLISECONDS, null);
         assertFalse(rate.isClosed());
         rate.close();
         assertTrue(rate.isClosed());
@@ -64,7 +62,8 @@ public class RateLimiterTest {
     @Test
     public void testAcquireBlock() throws Exception {
         final long rateTimeMSec = 1000;
-        RateLimiter rate = new RateLimiter(1, rateTimeMSec, TimeUnit.MILLISECONDS);
+        FixedWindowRateLimiter rate = new FixedWindowRateLimiter(null, 1, rateTimeMSec,
+                TimeUnit.MILLISECONDS, null);
         rate.acquire();
         assertEquals(rate.getAvailablePermits(), 0);
         long start = System.currentTimeMillis();
@@ -79,7 +78,8 @@ public class RateLimiterTest {
     public void testAcquire() throws Exception {
         final long rateTimeMSec = 1000;
         final int permits = 100;
-        RateLimiter rate = new RateLimiter(permits, rateTimeMSec, TimeUnit.MILLISECONDS);
+        FixedWindowRateLimiter rate = new FixedWindowRateLimiter(null, permits, rateTimeMSec,
+                TimeUnit.MILLISECONDS, null);
         long start = System.currentTimeMillis();
         for (int i = 0; i < permits; i++) {
             rate.acquire();
@@ -95,7 +95,8 @@ public class RateLimiterTest {
         final long rateTimeMSec = 1000;
         final int permits = 100;
         final int acquirePermits = 50;
-        RateLimiter rate = new RateLimiter(permits, rateTimeMSec, TimeUnit.MILLISECONDS);
+        FixedWindowRateLimiter rate = new FixedWindowRateLimiter(null, permits, rateTimeMSec,
+                TimeUnit.MILLISECONDS, null);
         long start = System.currentTimeMillis();
         for (int i = 0; i < permits / acquirePermits; i++) {
             rate.acquire(acquirePermits);
@@ -109,7 +110,8 @@ public class RateLimiterTest {
     @Test
     public void testTryAcquireNoPermits() {
         final long rateTimeMSec = 1000;
-        RateLimiter rate = new RateLimiter(1, rateTimeMSec, TimeUnit.MILLISECONDS);
+        FixedWindowRateLimiter rate = new FixedWindowRateLimiter(null, 1, rateTimeMSec,
+                TimeUnit.MILLISECONDS, null);
         assertTrue(rate.tryAcquire());
         assertFalse(rate.tryAcquire());
         assertEquals(rate.getAvailablePermits(), 0);
@@ -120,7 +122,8 @@ public class RateLimiterTest {
     public void testTryAcquire() {
         final long rateTimeMSec = 1000;
         final int permits = 100;
-        RateLimiter rate = new RateLimiter(permits, rateTimeMSec, TimeUnit.MILLISECONDS);
+        FixedWindowRateLimiter rate = new FixedWindowRateLimiter(null, permits, rateTimeMSec,
+                TimeUnit.MILLISECONDS, null);
         for (int i = 0; i < permits; i++) {
             rate.tryAcquire();
         }
@@ -133,7 +136,8 @@ public class RateLimiterTest {
         final long rateTimeMSec = 1000;
         final int permits = 100;
         final int acquirePermits = 50;
-        RateLimiter rate = new RateLimiter(permits, rateTimeMSec, TimeUnit.MILLISECONDS);
+        FixedWindowRateLimiter rate = new FixedWindowRateLimiter(null, permits, rateTimeMSec,
+                TimeUnit.MILLISECONDS, null);
         for (int i = 0; i < permits / acquirePermits; i++) {
             rate.tryAcquire(acquirePermits);
         }
@@ -145,7 +149,8 @@ public class RateLimiterTest {
     public void testResetRate() throws Exception {
         final long rateTimeMSec = 1000;
         final int permits = 100;
-        RateLimiter rate = new RateLimiter(permits, rateTimeMSec, TimeUnit.MILLISECONDS);
+        FixedWindowRateLimiter rate = new FixedWindowRateLimiter(null, permits, rateTimeMSec,
+                TimeUnit.MILLISECONDS, null);
         rate.tryAcquire(permits);
         assertEquals(rate.getAvailablePermits(), 0);
         // check after a rate-time: permits must be renewed
@@ -165,50 +170,14 @@ public class RateLimiterTest {
     }
 
     @Test
-    public void testDispatchRate() throws Exception {
-        final long rateTimeMSec = 1000;
-        final int permits = 100;
-        RateLimiter rate = new RateLimiter(null, permits, rateTimeMSec, TimeUnit.MILLISECONDS, null, true);
-        rate.tryAcquire(100);
-        rate.tryAcquire(100);
-        rate.tryAcquire(100);
-        assertEquals(rate.getAvailablePermits(), 0);
-
-        Thread.sleep(rateTimeMSec * 2);
-        // check after two rate-time: acquiredPermits is 100
-        assertEquals(rate.getAvailablePermits(), 0);
-
-        Thread.sleep(rateTimeMSec);
-        // check after three rate-time: acquiredPermits is 0
-        assertEquals(rate.getAvailablePermits() > 0, true);
-
-        rate.close();
-    }
-
-    @Test
     public void testRateLimiterWithPermitUpdater() throws Exception {
         long permits = 10;
         long rateTime = 1;
         long newUpdatedRateLimit = 100L;
         Supplier<Long> permitUpdater = () -> newUpdatedRateLimit;
-        RateLimiter limiter = new RateLimiter(null, permits, 1, TimeUnit.SECONDS, permitUpdater);
+        FixedWindowRateLimiter limiter = new FixedWindowRateLimiter(null, permits, 1, TimeUnit.SECONDS, permitUpdater);
         limiter.acquire();
         Thread.sleep(rateTime * 3 * 1000);
         assertEquals(limiter.getAvailablePermits(), newUpdatedRateLimit);
     }
-
-    @Test
-    public void testRateLimiterWithFunction() {
-        final AtomicInteger atomicInteger = new AtomicInteger(0);
-        long permits = 10;
-        long rateTime = 1;
-        int reNewTime = 3;
-        RateLimitFunction rateLimitFunction = atomicInteger::incrementAndGet;
-        RateLimiter rateLimiter = new RateLimiter(permits, rateTime, TimeUnit.SECONDS, rateLimitFunction);
-        for (int i = 0 ; i < reNewTime; i++) {
-            rateLimiter.renew();
-        }
-        assertEquals(reNewTime, atomicInteger.get());
-    }
-
 }

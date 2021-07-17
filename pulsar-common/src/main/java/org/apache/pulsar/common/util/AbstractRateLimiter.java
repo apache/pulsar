@@ -47,38 +47,33 @@ import java.util.function.Supplier;
  * <li><b>Faster: </b>RateLimiter is light-weight and faster than Guava-RateLimiter</li>
  * </ul>
  */
-public class RateLimiter implements AutoCloseable{
+public abstract class AbstractRateLimiter implements AutoCloseable{
 
-    private final ScheduledExecutorService executorService;
-    private long rateTime;
-    private TimeUnit timeUnit;
-    private final boolean externalExecutor;
-    private ScheduledFuture<?> renewTask;
-    private long permits;
-    private long acquiredPermits;
-    private boolean isClosed;
+    protected final ScheduledExecutorService executorService;
+    protected long rateTime;
+    protected TimeUnit timeUnit;
+    protected final boolean externalExecutor;
+    protected ScheduledFuture<?> renewTask;
+    protected long permits;
+    protected long acquiredPermits;
+    protected boolean isClosed;
     // permitUpdate helps to update permit-rate at runtime
-    private Supplier<Long> permitUpdater;
-    private RateLimitFunction rateLimitFunction;
-    private boolean isDispatchRateLimiter;
+    protected Supplier<Long> permitUpdater;
+    protected RateLimitFunction rateLimitFunction;
 
-    public RateLimiter(final long permits, final long rateTime, final TimeUnit timeUnit) {
+    public AbstractRateLimiter(final long permits, final long rateTime, final TimeUnit timeUnit) {
         this(null, permits, rateTime, timeUnit, null);
     }
 
-    public RateLimiter(final long permits, final long rateTime, final TimeUnit timeUnit,
-                       RateLimitFunction autoReadResetFunction) {
+    public AbstractRateLimiter(final long permits, final long rateTime, final TimeUnit timeUnit,
+                               RateLimitFunction autoReadResetFunction) {
         this(null, permits, rateTime, timeUnit, null);
         this.rateLimitFunction = autoReadResetFunction;
     }
 
-    public RateLimiter(final ScheduledExecutorService service, final long permits, final long rateTime,
-                       final TimeUnit timeUnit, Supplier<Long> permitUpdater) {
-        this(service, permits, rateTime, timeUnit, permitUpdater, false);
-    }
 
-    public RateLimiter(final ScheduledExecutorService service, final long permits, final long rateTime,
-            final TimeUnit timeUnit, Supplier<Long> permitUpdater, boolean isDispatchRateLimiter) {
+    public AbstractRateLimiter(final ScheduledExecutorService service, final long permits, final long rateTime,
+                               final TimeUnit timeUnit, Supplier<Long> permitUpdater) {
         checkArgument(permits > 0, "rate must be > 0");
         checkArgument(rateTime > 0, "Renew permit time must be > 0");
 
@@ -86,7 +81,6 @@ public class RateLimiter implements AutoCloseable{
         this.timeUnit = timeUnit;
         this.permits = permits;
         this.permitUpdater = permitUpdater;
-        this.isDispatchRateLimiter = isDispatchRateLimiter;
 
         if (service != null) {
             this.executorService = service;
@@ -155,7 +149,7 @@ public class RateLimiter implements AutoCloseable{
     }
 
     /**
-     * Acquires permits from this {@link RateLimiter} if it can be acquired immediately without delay.
+     * Acquires permits from this {@link AbstractRateLimiter} if it can be acquired immediately without delay.
      *
      * <p>This method is equivalent to {@code tryAcquire(1)}.
      *
@@ -166,40 +160,16 @@ public class RateLimiter implements AutoCloseable{
     }
 
     /**
-     * Acquires permits from this {@link RateLimiter} if it can be acquired immediately without delay.
+     * Acquires permits from this {@link AbstractRateLimiter} if it can be acquired immediately without delay.
      *
      * @param acquirePermit
      *            the number of permits to acquire
      * @return {@code true} if the permits were acquired, {@code false} otherwise
      */
-    public synchronized boolean tryAcquire(long acquirePermit) {
-        checkArgument(!isClosed(), "Rate limiter is already shutdown");
-        // lazy init and start task only once application start using it
-        if (renewTask == null) {
-            renewTask = createTask();
-        }
-
-        boolean canAcquire = acquirePermit < 0 || acquiredPermits < this.permits;
-        if (isDispatchRateLimiter) {
-            // for dispatch rate limiter just add acquirePermit
-            acquiredPermits += acquirePermit;
-        } else {
-            // acquired-permits can't be larger than the rate
-            if (acquirePermit > this.permits) {
-                acquiredPermits = this.permits;
-                return false;
-            }
-
-            if (canAcquire) {
-                acquiredPermits += acquirePermit;
-            }
-        }
-
-        return canAcquire;
-    }
+    abstract boolean tryAcquire(long acquirePermit);
 
     /**
-     * Return available permits for this {@link RateLimiter}.
+     * Return available permits for this {@link AbstractRateLimiter}.
      *
      * @return returns 0 if permits is not available
      */
@@ -256,19 +226,7 @@ public class RateLimiter implements AutoCloseable{
         return executorService.scheduleAtFixedRate(this::renew, this.rateTime, this.rateTime, this.timeUnit);
     }
 
-    synchronized void renew() {
-        acquiredPermits = isDispatchRateLimiter ? Math.max(0, acquiredPermits - permits) : 0;
-        if (permitUpdater != null) {
-            long newPermitRate = permitUpdater.get();
-            if (newPermitRate > 0) {
-                setRate(newPermitRate);
-            }
-        }
-        if (rateLimitFunction != null) {
-            rateLimitFunction.apply();
-        }
-        notifyAll();
-    }
+    abstract void renew();
 
     @Override
     public String toString() {

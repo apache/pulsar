@@ -21,24 +21,24 @@ package org.apache.pulsar.broker.service;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
+import org.apache.pulsar.common.util.LeakyBucketRateLimiter;
 import org.apache.pulsar.common.util.RateLimitFunction;
-import org.apache.pulsar.common.util.RateLimiter;
 
-public class PrecisPublishLimiter implements PublishRateLimiter {
+public class PrecisePublishLimiter implements PublishRateLimiter {
     protected volatile int publishMaxMessageRate = 0;
     protected volatile long publishMaxByteRate = 0;
     protected volatile boolean publishThrottlingEnabled = false;
     // precise mode for publish rate limiter
-    private RateLimiter topicPublishRateLimiterOnMessage;
-    private RateLimiter topicPublishRateLimiterOnByte;
+    private LeakyBucketRateLimiter topicPublishRateLimiterOnMessage;
+    private LeakyBucketRateLimiter topicPublishRateLimiterOnByte;
     private final RateLimitFunction rateLimitFunction;
 
-    public PrecisPublishLimiter(Policies policies, String clusterName, RateLimitFunction rateLimitFunction) {
+    public PrecisePublishLimiter(Policies policies, String clusterName, RateLimitFunction rateLimitFunction) {
         this.rateLimitFunction = rateLimitFunction;
         update(policies, clusterName);
     }
 
-    public PrecisPublishLimiter(PublishRate publishRate, RateLimitFunction rateLimitFunction) {
+    public PrecisePublishLimiter(PublishRate publishRate, RateLimitFunction rateLimitFunction) {
         this.rateLimitFunction = rateLimitFunction;
         update(publishRate);
     }
@@ -79,10 +79,10 @@ public class PrecisPublishLimiter implements PublishRateLimiter {
             this.publishMaxByteRate = Math.max(maxPublishRate.publishThrottlingRateInByte, 0);
             if (this.publishMaxMessageRate > 0) {
                 topicPublishRateLimiterOnMessage =
-                        new RateLimiter(publishMaxMessageRate, 1, TimeUnit.SECONDS, rateLimitFunction);
+                        new LeakyBucketRateLimiter(publishMaxMessageRate, 1, TimeUnit.SECONDS, rateLimitFunction);
             }
             if (this.publishMaxByteRate > 0) {
-                topicPublishRateLimiterOnByte = new RateLimiter(publishMaxByteRate, 1, TimeUnit.SECONDS);
+                topicPublishRateLimiterOnByte = new LeakyBucketRateLimiter(publishMaxByteRate, 1, TimeUnit.SECONDS);
             }
         } else {
             this.publishMaxMessageRate = 0;
