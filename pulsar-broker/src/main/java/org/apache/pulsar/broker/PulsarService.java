@@ -605,7 +605,7 @@ public class PulsarService implements AutoCloseable {
             configurationMetadataStore = createConfigurationMetadataStore();
             pulsarResources = new PulsarResources(localMetadataStore, configurationMetadataStore,
                     config.getZooKeeperOperationTimeoutSeconds());
-            
+
             pulsarResources.getClusterResources().getStore().registerListener(this::handleDeleteCluster);
 
             orderedExecutor = OrderedExecutor.newBuilder()
