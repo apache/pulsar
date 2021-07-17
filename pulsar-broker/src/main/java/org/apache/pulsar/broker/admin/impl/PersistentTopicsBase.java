@@ -2495,6 +2495,7 @@ public class PersistentTopicsBase extends AdminResource {
         PositionImpl pos = (PositionImpl) entry.getPosition();
         ByteBuf metadataAndPayload = entry.getDataBuffer();
 
+        long totalSize = metadataAndPayload.readableBytes();
         BrokerEntryMetadata brokerEntryMetadata = Commands.peekBrokerEntryMetadataIfExist(metadataAndPayload);
         MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
 
@@ -2523,7 +2524,7 @@ public class PersistentTopicsBase extends AdminResource {
         }
         if (metadata.hasNumMessagesInBatch()) {
             responseBuilder.header("X-Pulsar-num-batch-message", metadata.getNumMessagesInBatch());
-            responseBuilder.header("X-Pulsar-batch-size", metadataAndPayload.readableBytes()
+            responseBuilder.header("X-Pulsar-batch-size", totalSize
                     - metadata.getSerializedSize());
         }
         if (metadata.hasNullValue()) {

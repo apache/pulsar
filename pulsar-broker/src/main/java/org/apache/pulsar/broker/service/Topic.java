@@ -170,6 +170,10 @@ public interface Topic {
 
     boolean isTopicPublishRateExceeded(int msgSize, int numMessages);
 
+    boolean isResourceGroupRateLimitingEnabled();
+
+    boolean isResourceGroupPublishRateExceeded(int msgSize, int numMessages);
+
     boolean isBrokerPublishRateExceeded();
 
     void disableCnxAutoRead();

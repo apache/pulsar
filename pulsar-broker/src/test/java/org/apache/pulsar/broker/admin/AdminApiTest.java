@@ -473,7 +473,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         Map<String, NamespaceOwnershipStatus> nsMap = admin.brokers().getOwnedNamespaces("test", list.get(0));
         // since sla-monitor ns is not created nsMap.size() == 1 (for HeartBeat Namespace)
-        Assert.assertEquals(nsMap.size(), 1);
+        Assert.assertEquals(nsMap.size(), 2);
         for (String ns : nsMap.keySet()) {
             NamespaceOwnershipStatus nsStatus = nsMap.get(ns);
             if (ns.equals(
@@ -489,7 +489,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(parts.length, 2);
         Map<String, NamespaceOwnershipStatus> nsMap2 = adminTls.brokers().getOwnedNamespaces("test",
                 String.format("%s:%d", parts[0], pulsar.getListenPortHTTPS().get()));
-        Assert.assertEquals(nsMap2.size(), 1);
+        Assert.assertEquals(nsMap2.size(), 2);
 
         admin.namespaces().deleteNamespace("prop-xyz/ns1");
         admin.clusters().deleteCluster("test");
@@ -581,17 +581,21 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testInvalidDynamicConfigContentInZK() throws Exception {
         final int newValue = 10;
-        stopBroker();
         // set invalid data into dynamic-config znode so, broker startup fail to deserialize data
-        mockZooKeeper.setData(BrokerService.BROKER_SERVICE_CONFIGURATION_PATH, "$".getBytes(), -1);
+        pulsar.getLocalMetadataStore().put(BrokerService.BROKER_SERVICE_CONFIGURATION_PATH, "$".getBytes(),
+                Optional.empty()).join();
+        stopBroker();
+
         // start broker: it should have set watch even if with failure of deserialization
         startBroker();
         Assert.assertNotEquals(pulsar.getConfiguration().getBrokerShutdownTimeoutMs(), newValue);
         // update zk with config-value which should fire watch and broker should update the config value
         Map<String, String> configMap = Maps.newHashMap();
         configMap.put("brokerShutdownTimeoutMs", Integer.toString(newValue));
-        mockZooKeeper.setData(BrokerService.BROKER_SERVICE_CONFIGURATION_PATH,
-                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(configMap), -1);
+
+        pulsar.getLocalMetadataStore().put(BrokerService.BROKER_SERVICE_CONFIGURATION_PATH,
+                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(configMap),
+                Optional.empty()).join();
         // wait config to be updated
         Awaitility.await().until(() -> pulsar.getConfiguration().getBrokerShutdownTimeoutMs() == newValue);
         // verify value is updated
