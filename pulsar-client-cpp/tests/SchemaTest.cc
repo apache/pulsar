@@ -18,6 +18,8 @@
  */
 #include <gtest/gtest.h>
 #include <pulsar/Client.h>
+#include <pulsar/ProtobufNativeSchema.h>
+#include "Test.pb.h"  // generated from "pulsar-client/src/test/proto/Test.proto"
 
 using namespace pulsar;
 
@@ -36,6 +38,7 @@ TEST(SchemaTest, testSchema) {
     ProducerConfiguration producerConf;
     producerConf.setSchema(SchemaInfo(AVRO, "Avro", exampleSchema));
     res = client.createProducer("topic-avro", producerConf, producer);
+    ASSERT_EQ(res, ResultOk);
 
     // Check schema version
     ASSERT_FALSE(producer.getSchemaVersion().empty());
@@ -69,4 +72,27 @@ TEST(SchemaTest, testSchema) {
     consumerConf.setSchema(SchemaInfo(JSON, "Json", "{}"));
     res = client.subscribe("topic-avro", "sub-2", consumerConf, consumer);
     ASSERT_EQ(ResultIncompatibleSchema, res);
+
+    client.close();
+}
+
+TEST(SchemaTest, testProtobufNativeSchema) {
+    const std::string expectedSchemaJson =
+        "{\"fileDescriptorSet\":"
+        "\"CtMDCgpUZXN0LnByb3RvEgVwcm90bxoSRXh0ZXJuYWxUZXN0LnByb3RvImUKClN1Yk1lc3NhZ2USCwoDZm9vGAEgASgJEgsKA2"
+        "JhchgCIAEoARo9Cg1OZXN0ZWRNZXNzYWdlEgsKA3VybBgBIAEoCRINCgV0aXRsZRgCIAEoCRIQCghzbmlwcGV0cxgDIAMoCSLlAQ"
+        "oLVGVzdE1lc3NhZ2USEwoLc3RyaW5nRmllbGQYASABKAkSEwoLZG91YmxlRmllbGQYAiABKAESEAoIaW50RmllbGQYBiABKAUSIQ"
+        "oIdGVzdEVudW0YBCABKA4yDy5wcm90by5UZXN0RW51bRImCgtuZXN0ZWRGaWVsZBgFIAEoCzIRLnByb3RvLlN1Yk1lc3NhZ2USFQ"
+        "oNcmVwZWF0ZWRGaWVsZBgKIAMoCRI4Cg9leHRlcm5hbE1lc3NhZ2UYCyABKAsyHy5wcm90by5leHRlcm5hbC5FeHRlcm5hbE1lc3"
+        "NhZ2UqJAoIVGVzdEVudW0SCgoGU0hBUkVEEAASDAoIRkFJTE9WRVIQAUItCiVvcmcuYXBhY2hlLnB1bHNhci5jbGllbnQuc2NoZW"
+        "1hLnByb3RvQgRUZXN0YgZwcm90bzMKoAEKEkV4dGVybmFsVGVzdC5wcm90bxIOcHJvdG8uZXh0ZXJuYWwiOwoPRXh0ZXJuYWxNZX"
+        "NzYWdlEhMKC3N0cmluZ0ZpZWxkGAEgASgJEhMKC2RvdWJsZUZpZWxkGAIgASgBQjUKJW9yZy5hcGFjaGUucHVsc2FyLmNsaWVudC"
+        "5zY2hlbWEucHJvdG9CDEV4dGVybmFsVGVzdGIGcHJvdG8z\",\"rootMessageTypeName\":\"proto.TestMessage\","
+        "\"rootFileDescriptorName\":\"Test.proto\"}";
+    const auto schemaInfo = createProtobufNativeSchema(::proto::TestMessage::GetDescriptor());
+
+    ASSERT_EQ(schemaInfo.getSchemaType(), pulsar::PROTOBUF_NATIVE);
+    ASSERT_TRUE(schemaInfo.getName().empty());
+    ASSERT_EQ(schemaInfo.getSchema(), expectedSchemaJson);
+    ASSERT_TRUE(schemaInfo.getProperties().empty());
 }
