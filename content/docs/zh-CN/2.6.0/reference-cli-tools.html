@@ -297,6 +297,7 @@
 </thead>
 <tbody>
 <tr><td><code>-c</code>, <code>--conf</code></td><td>ZooKeeper 的配置文件</td><td></td></tr>
+<tr><td><code>-server</code></td><td>Configuration zk address, eg: <code>127.0.0.1:2181</code></td><td></td></tr>
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="pulsar-client"></a><a href="#pulsar-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>pulsar-client</code></h2>
@@ -462,6 +463,7 @@
 <tr><td><code>--auth_params</code></td><td>认证参数，其格式取决于认证插件类中 <code>configure</code> 方法的实现，例如 &quot;key1:val1,key2:val2&quot; 或 &quot;{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}.</td><td></td></tr>
 <tr><td><code>--auth_plugin</code></td><td>认证插件类名称</td><td></td></tr>
 <tr><td><code>-b</code>, <code>--batch-time-window</code></td><td>Batch messages in a window of the specified number of milliseconds</td><td>1</td></tr>
+<tr><td><code>-d</code>, <code>--delay</code></td><td>Mark messages with a given delay in seconds</td><td>0s</td></tr>
 <tr><td><code>-z</code>, <code>--compression</code></td><td>Compress messages’ payload. Possible values are NONE, LZ4, ZLIB, ZSTD or SNAPPY.</td><td></td></tr>
 <tr><td><code>--conf-file</code></td><td>Configuration file</td><td></td></tr>
 <tr><td><code>-k</code>, <code>--encryption-key-name</code></td><td>The public key name to encrypt payload</td><td></td></tr>
