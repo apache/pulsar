@@ -103,11 +103,11 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         assertEquals(sub.getNumberOfEntriesInBacklog(false), 0);
 
         // Wait for consumer to reconnect
-        Awaitility.await().until(() -> consumer.isConnected());
+        Awaitility.await().until(consumer::isConnected);
         consumer.seek(MessageId.earliest);
         assertEquals(sub.getNumberOfEntriesInBacklog(false), 10);
 
-        Awaitility.await().until(() -> consumer.isConnected());
+        Awaitility.await().until(consumer::isConnected);
         consumer.seek(messageIds.get(5));
         assertEquals(sub.getNumberOfEntriesInBacklog(false), 5);
 
@@ -119,11 +119,11 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
         log.info("MessageId {}: beforeEarliest: {}, afterLatest: {}", messageId, beforeEarliest, afterLatest);
 
-        Awaitility.await().until(() -> consumer.isConnected());
+        Awaitility.await().until(consumer::isConnected);
         consumer.seek(beforeEarliest);
         assertEquals(sub.getNumberOfEntriesInBacklog(false), 10);
 
-        Awaitility.await().until(() -> consumer.isConnected());
+        Awaitility.await().until(consumer::isConnected);
         consumer.seek(afterLatest);
         assertEquals(sub.getNumberOfEntriesInBacklog(false), 0);
     }
@@ -222,43 +222,43 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         admin.topics().resetCursor(topicName, subscriptionName, MessageId.earliest);
 
         // Wait consumer reconnect
-        Awaitility.await().until(() -> consumer.isConnected());
+        Awaitility.await().until(consumer::isConnected);
         Message<String> receiveBeforeEarliest = consumer.receive();
         assertEquals(receiveBeforeEarliest.getValue(), messages.get(0));
 
         admin.topics().resetCursor(topicName, subscriptionName, MessageId.latest);
         // Wait consumer reconnect
-        Awaitility.await().until(() -> consumer.isConnected());
+        Awaitility.await().until(consumer::isConnected);
         Message<String> receiveAfterLatest = consumer.receive(1, TimeUnit.SECONDS);
         assertNull(receiveAfterLatest);
 
         admin.topics().resetCursor(topicName, subscriptionName, messageIds.get(0), true);
         // Wait consumer reconnect
-        Awaitility.await().until(() -> consumer.isConnected());
+        Awaitility.await().until(consumer::isConnected);
         Message<String> received = consumer.receive();
         assertEquals(received.getMessageId(), messageIds.get(1));
 
         admin.topics().resetCursor(topicName, subscriptionName, messageIds.get(0), false);
         // Wait consumer reconnect
-        Awaitility.await().until(() -> consumer.isConnected());
+        Awaitility.await().until(consumer::isConnected);
         received = consumer.receive();
         assertEquals(received.getMessageId(), messageIds.get(0));
 
         admin.topics().resetCursor(topicName, subscriptionName, messageIds.get(messageIds.size() - 1), true);
         // Wait consumer reconnect
-        Awaitility.await().until(() -> consumer.isConnected());
+        Awaitility.await().until(consumer::isConnected);
         received = consumer.receive(1, TimeUnit.SECONDS);
         assertNull(received);
 
         admin.topics().resetCursor(topicName, subscriptionName, messageIds.get(messageIds.size() - 1), false);
         // Wait consumer reconnect
-        Awaitility.await().until(() -> consumer.isConnected());
+        Awaitility.await().until(consumer::isConnected);
         received = consumer.receive();
         assertEquals(received.getMessageId(), messageIds.get(messageIds.size() - 1));
 
         admin.topics().resetCursor(topicName, subscriptionName, new BatchMessageIdImpl(-1, -1, -1 ,10), true);
         // Wait consumer reconnect
-        Awaitility.await().until(() -> consumer.isConnected());
+        Awaitility.await().until(consumer::isConnected);
         received = consumer.receive();
         assertEquals(received.getMessageId(), messageIds.get(0));
     }
@@ -359,7 +359,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         assertEquals(sub.getNumberOfEntriesInBacklog(false), 0);
 
         // Wait for consumer to reconnect
-        Awaitility.await().until(() -> consumer.isConnected());
+        Awaitility.await().until(consumer::isConnected);
         consumer.seek(currentTimestamp - resetTimeInMillis);
         assertEquals(sub.getNumberOfEntriesInBacklog(false), 10);
     }
@@ -457,7 +457,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         assertEquals(backlogs, 0);
 
         // Wait for consumer to reconnect
-        Awaitility.await().until(() -> consumer.isConnected());
+        Awaitility.await().until(consumer::isConnected);
         consumer.seek(currentTimestamp - resetTimeInMillis);
         backlogs = 0;
 
@@ -495,7 +495,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         assertEquals(connectedSinceSet.size(), 2);
         consumer1.seek(MessageId.earliest);
         // Wait for consumer to reconnect
-        Awaitility.await().until(() -> consumer1.isConnected() == true);
+        Awaitility.await().until(consumer1::isConnected);
 
         consumers = topicRef.getSubscriptions().get("my-subscription").getConsumers();
         assertEquals(consumers.size(), 2);
@@ -532,7 +532,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         assertEquals(connectedSinceSet.size(), 2);
         consumer1.seek(MessageId.earliest);
         // Wait for consumer to reconnect
-        Awaitility.await().until(() -> consumer1.isConnected() == true);
+        Awaitility.await().until(consumer1::isConnected);
 
         consumers = topicRef.getSubscriptions().get("my-subscription").getConsumers();
         assertEquals(consumers.size(), 2);

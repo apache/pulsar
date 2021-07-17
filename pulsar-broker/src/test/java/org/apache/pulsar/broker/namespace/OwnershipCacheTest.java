@@ -355,12 +355,10 @@ public class OwnershipCacheTest {
         assertFalse(data1.isDisabled());
         assertEquals(cache.getOwnedBundles().size(), 1);
         cache.removeOwnership(bundle);
-        Thread.sleep(500);
-        Awaitility.await().untilAsserted(() -> assertTrue(cache.getOwnedBundles().isEmpty()));
-
-
-
-        assertFalse(store.exists(ServiceUnitUtils.path(bundle)).join());
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(cache.getOwnedBundles().isEmpty());
+            assertFalse(store.exists(ServiceUnitUtils.path(bundle)).join());
+        });
     }
 
     @Test
