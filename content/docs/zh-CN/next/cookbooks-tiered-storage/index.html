@@ -34,11 +34,11 @@
 <p>当 ledger 被卸载到长期存储时，你仍然可以通过 Pulsar SQL 在卸载的 ledger 中查询数据。</p>
 <h2><a class="anchor" aria-hidden="true" id="配置卸载驱动"></a><a href="#配置卸载驱动" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置卸载驱动</h2>
 <p>可以在 <code>broker.conf</code> 配置卸载操作。</p>
-<p>At a minimum, the administrator must configure the driver, the bucket and the authenticating credentials. There is also some other knobs to configure, like the bucket region, the max block size in backed storage, etc.</p>
-<p>Currently we support driver of types:</p>
+<p>最低程度，管理员必须配置 driver、bucket 和认证凭证。 还有一些其他节点需要配置，比如 bucket 区域、备份存储中的最大区块大小等。</p>
+<p>目前，我们支持以下类型驱动：</p>
 <ul>
-<li><code>aws-s3</code>: <a href="https://aws.amazon.com/s3/">Simple Cloud Storage Service</a></li>
-<li><code>google-cloud-storage</code>: <a href="https://cloud.google.com/storage/">Google Cloud Storage</a></li>
+<li><code>aws-s3</code>: <a href="https://aws.amazon.com/s3/">S3 对象存储服务</a></li>
+<li><code>google-cloud-storage</code>: <a href="https://cloud.google.com/storage/">Google 云存储</a></li>
 <li><code>filesystem</code>: <a href="http://hadoop.apache.org/">文件系统存储</a></li>
 </ul>
 <blockquote>
@@ -48,11 +48,11 @@
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="aws-s3驱动程序配置"></a><a href="#aws-s3驱动程序配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>&quot;aws-s3&quot;驱动程序配置</h3>
 <h4><a class="anchor" aria-hidden="true" id="bucket-与地区"></a><a href="#bucket-与地区" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Bucket 与地区</h4>
-<p>Buckets are the basic containers that hold your data. Everything that you store in Cloud Storage must be contained in a bucket. You can use buckets to organize your data and control access to your data, but unlike directories and folders, you cannot nest buckets.</p>
+<p>Bucket 是存储数据的基本容器。 你在云存储的所有东西都必须包含在一个 bucket 里。 您可以使用 bucket 来管理数据并控制对数据的访问，但与目录和文件夹不同，你不能嵌套 bucket。</p>
 <pre><code class="hljs css language-conf"><span class="hljs-attr">s3ManagedLedgerOffloadBucket</span>=pulsar-topic-<span class="hljs-literal">off</span>load
 </code></pre>
-<p>Bucket Region is the region where bucket located. Bucket Region is not a required but a recommended configuration. If it is not configured, It will use the default region.</p>
-<p>With AWS S3, the default region is <code>US East (N. Virginia)</code>. Page <a href="https://docs.aws.amazon.com/general/latest/gr/rande.html">AWS Regions and Endpoints</a> contains more information.</p>
+<p>Bucket 区域是指 Bucket 所处的区域。 Bucket 区域不是必须的，但推荐做好配置。 如果未配置，将使用默认区域。</p>
+<p>AWS S3 默认区域是 <code>US East (N. Virginia)</code>。 可参阅 <a href="https://docs.aws.amazon.com/general/latest/gr/rande.html">AWS Regions and Endpoints</a> 查看更多信息。</p>
 <pre><code class="hljs css language-conf"><span class="hljs-attr">s3ManagedLedgerOffloadRegion</span>=eu-west-<span class="hljs-number">3</span>
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="使用-aws-验证身份"></a><a href="#使用-aws-验证身份" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>使用 AWS 验证身份</h4>
