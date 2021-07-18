@@ -126,7 +126,7 @@ public class Policies {
     public String resource_group_name = null;
 
     @SuppressWarnings("checkstyle:MemberName")
-    public boolean transaction_enable = false;
+    public boolean transaction_enable = true;
     @Override
     public int hashCode() {
         return Objects.hash(auth_policies, replication_clusters,

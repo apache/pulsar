@@ -149,9 +149,15 @@ public class PersistentSubscription implements Subscription {
             policies = topic.getBrokerService().pulsar().getConfigurationCache().policiesCache()
                      .get(AdminResource.path(POLICIES, topicName1.getNamespaceObject().toString()));
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Failed to get policies with Exception: " + e);
+            try {
+                throw  new BrokerServiceException.PolicesGetException("Failed to get policies with Exception: " + e);
+            } catch (BrokerServiceException.PolicesGetException policesGetException) {
+                policesGetException.printStackTrace();
+            }
         }
         if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
+                && policies.isPresent()
                 && policies.get().transaction_enable
                 && !checkTopicIsEventsNames(TopicName.get(topicName))
                 && !topicName.startsWith(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getLocalName())
@@ -386,9 +392,15 @@ public class PersistentSubscription implements Subscription {
                 policies = topic.getBrokerService().pulsar().getConfigurationCache().policiesCache()
                         .get(AdminResource.path(POLICIES, topicName1.getNamespaceObject().toString()));
             } catch (Exception e) {
-                e.printStackTrace();
+                log.error("Failed to get policies with Exception: " + e);
+                try {
+                    throw  new BrokerServiceException.PolicesGetException("Failed to get policies with Exception: " + e);
+                } catch (BrokerServiceException.PolicesGetException policesGetException) {
+                    policesGetException.printStackTrace();
+                }
             }
             if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
+                    && policies.isPresent()
                     && policies.get().transaction_enable) {
                 positions.forEach(position -> {
                     if (((ManagedCursorImpl) cursor).isMessageDeleted(position)) {
@@ -422,9 +434,15 @@ public class PersistentSubscription implements Subscription {
             policies = topic.getBrokerService().pulsar().getConfigurationCache().policiesCache()
                     .get(AdminResource.path(POLICIES, topicName1.getNamespaceObject().toString()));
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Failed to get policies with Exception: " + e);
+            try {
+                throw  new BrokerServiceException.PolicesGetException("Failed to get policies with Exception: " + e);
+            } catch (BrokerServiceException.PolicesGetException policesGetException) {
+                policesGetException.printStackTrace();
+            }
         }
         if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
+                && policies.isPresent()
                 && policies.get().transaction_enable
                 && this.pendingAckHandle.isTransactionAckPresent()) {
             Position currentMarkDeletePosition = cursor.getMarkDeletedPosition();
