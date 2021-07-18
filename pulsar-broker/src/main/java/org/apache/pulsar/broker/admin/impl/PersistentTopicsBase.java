@@ -1030,34 +1030,35 @@ public class PersistentTopicsBase extends AdminResource {
                     false).thenAccept(partitionMetadata -> {
                 if (partitionMetadata.partitions > 0) {
                     try {
-                        // get the subscriptions only from the 1st partition
-                        // since all the other partitions will have the same
-                        // subscriptions
-                        pulsar().getAdminClient().topics().getSubscriptionsAsync(topicName.getPartition(0).toString())
-                                .whenComplete((r, ex) -> {
-                                    if (ex != null) {
-                                        log.warn("[{}] Failed to get list of subscriptions for {}: {}", clientAppId(),
-                                                topicName, ex.getMessage());
-
-                                        if (ex instanceof PulsarAdminException) {
-                                            PulsarAdminException pae = (PulsarAdminException) ex;
-                                            if (pae.getStatusCode() == Status.NOT_FOUND.getStatusCode()) {
-                                                asyncResponse.resume(new RestException(Status.NOT_FOUND,
-                                                        "Internal topics have not been generated yet"));
-                                                return;
-                                            } else {
-                                                asyncResponse.resume(new RestException(pae));
-                                                return;
-                                            }
-                                        } else {
-                                            asyncResponse.resume(new RestException(ex));
-                                            return;
-                                        }
+                        final Set<String> subscriptions = Sets.newConcurrentHashSet();
+                        final List<CompletableFuture<Object>> subscriptionFutures = Lists.newArrayList();
+                        for (int i = 0; i < partitionMetadata.partitions; i++) {
+                            CompletableFuture<List<String>> subscriptionsAsync = pulsar().getAdminClient().topics()
+                                    .getSubscriptionsAsync(topicName.getPartition(i).toString());
+                            subscriptionFutures.add(subscriptionsAsync.thenApply(r -> subscriptions.addAll(r)));
+                        }
+                        FutureUtil.waitForAll(subscriptionFutures).whenComplete((r, ex) -> {
+                            if (ex != null) {
+                                log.warn("[{}] Failed to get list of subscriptions for {}: {}", clientAppId(),
+                                        topicName, ex.getMessage());
+                                if (ex instanceof PulsarAdminException) {
+                                    PulsarAdminException pae = (PulsarAdminException) ex;
+                                    if (pae.getStatusCode() == Status.NOT_FOUND.getStatusCode()) {
+                                        asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                                                "Internal topics have not been generated yet"));
+                                        return;
+                                    } else {
+                                        asyncResponse.resume(new RestException(pae));
+                                        return;
                                     }
-                                    final List<String> subscriptions = Lists.newArrayList();
-                                    subscriptions.addAll(r);
-                                    asyncResponse.resume(subscriptions);
-                                });
+                                } else {
+                                    asyncResponse.resume(new RestException(ex));
+                                    return;
+                                }
+                            } else {
+                                asyncResponse.resume(new ArrayList<>(subscriptions));
+                            }
+                        });
                     } catch (Exception e) {
                         log.error("[{}] Failed to get list of subscriptions for {}", clientAppId(), topicName, e);
                         asyncResponse.resume(e);
