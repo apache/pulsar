@@ -179,6 +179,12 @@ public class BrokerServiceException extends Exception {
         }
     }
 
+    public static  class PolicesGetException extends  BrokerServiceException {
+        public PolicesGetException(String msg){
+            super(msg);
+        }
+    }
+
     public static class ConsumerAssignException extends BrokerServiceException {
         public ConsumerAssignException(String msg) {
             super(msg);

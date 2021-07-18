@@ -150,6 +150,11 @@ public class PersistentSubscription implements Subscription {
                      .get(AdminResource.path(POLICIES, topicName1.getNamespaceObject().toString()));
         } catch (Exception e) {
             log.error("Failed to get policies with Exception: " + e);
+            try {
+                throw  new BrokerServiceException.PolicesGetException("Failed to get policies with Exception: " + e);
+            } catch (BrokerServiceException.PolicesGetException policesGetException) {
+                policesGetException.printStackTrace();
+            }
         }
         if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
                 && policies.isPresent()
@@ -388,6 +393,11 @@ public class PersistentSubscription implements Subscription {
                         .get(AdminResource.path(POLICIES, topicName1.getNamespaceObject().toString()));
             } catch (Exception e) {
                 log.error("Failed to get policies with Exception: " + e);
+                try {
+                    throw  new BrokerServiceException.PolicesGetException("Failed to get policies with Exception: " + e);
+                } catch (BrokerServiceException.PolicesGetException policesGetException) {
+                    policesGetException.printStackTrace();
+                }
             }
             if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
                     && policies.isPresent()
@@ -425,6 +435,11 @@ public class PersistentSubscription implements Subscription {
                     .get(AdminResource.path(POLICIES, topicName1.getNamespaceObject().toString()));
         } catch (Exception e) {
             log.error("Failed to get policies with Exception: " + e);
+            try {
+                throw  new BrokerServiceException.PolicesGetException("Failed to get policies with Exception: " + e);
+            } catch (BrokerServiceException.PolicesGetException policesGetException) {
+                policesGetException.printStackTrace();
+            }
         }
         if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
                 && policies.isPresent()

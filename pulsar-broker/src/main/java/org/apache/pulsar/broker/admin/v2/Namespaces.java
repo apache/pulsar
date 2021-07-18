@@ -1855,7 +1855,7 @@ public class Namespaces extends NamespacesBase {
     }
     @POST
     @Path("/{tenant}/{namespace}/transactionEnabled")
-    @ApiOperation(value = "Update boolean of whether allow transaction of  namespace")
+    @ApiOperation(value = "Enable or disable transactions on the given namespace")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
@@ -1869,7 +1869,7 @@ public class Namespaces extends NamespacesBase {
     }
     @GET
     @Path("/{tenant}/{namespace}/transactionEnabled")
-    @ApiOperation(value = "The boolean of whether allow transaction of  namespace")
+    @ApiOperation(value = "Return information about the activation of transactions on the given namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Concurrent modification") })

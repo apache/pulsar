@@ -493,6 +493,11 @@ public class Consumer {
                     .get(AdminResource.path(POLICIES, topicName.getNamespaceObject().toString()));
         } catch (Exception e) {
             log.error("Failed to get policies with Exception: " + e);
+            try {
+                throw  new BrokerServiceException.PolicesGetException("Failed to get policies with Exception: " + e);
+            } catch (BrokerServiceException.PolicesGetException policesGetException) {
+                policesGetException.printStackTrace();
+            }
         }
         return subscription instanceof PersistentSubscription
                 && ((PersistentTopic) subscription.getTopic())

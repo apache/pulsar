@@ -322,6 +322,11 @@ public class PersistentTopic extends AbstractTopic
                     .get(AdminResource.path(POLICIES, topicName.getNamespaceObject().toString()));
         } catch (Exception e) {
             log.error("Failed to get policies with Exception: " + e);
+            try {
+                throw  new BrokerServiceException.PolicesGetException("Failed to get policies with Exception: " + e);
+            } catch (BrokerServiceException.PolicesGetException policesGetException) {
+                policesGetException.printStackTrace();
+            }
         }
         if (brokerService.getPulsar().getConfiguration().isTransactionCoordinatorEnabled()
                 && policies.isPresent()
@@ -359,6 +364,11 @@ public class PersistentTopic extends AbstractTopic
                     .get(AdminResource.path(POLICIES, topicName.getNamespaceObject().toString()));
         } catch (Exception e) {
             log.error("Failed to get policies with Exception: " + e);
+            try {
+                throw  new BrokerServiceException.PolicesGetException("Failed to get policies with Exception: " + e);
+            } catch (BrokerServiceException.PolicesGetException policesGetException) {
+                policesGetException.printStackTrace();
+            }
         }
         if (brokerService.pulsar().getConfiguration().isTransactionCoordinatorEnabled()
                 && policies.isPresent()
