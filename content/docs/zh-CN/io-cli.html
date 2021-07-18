@@ -114,14 +114,14 @@
 <tr><td><code>--name</code></td><td>The source's name.</td></tr>
 <tr><td><code>--namespace</code></td><td>The source's namespace.</td></tr>
 <tr><td><code>--parallelism</code></td><td>The source's parallelism factor, that is, the number of source instances to run.</td></tr>
-<tr><td><code>--processing-guarantees</code></td><td>The processing guarantees (also named as delivery semantics) applied to the source. A source connector receives messages from external system and writes messages to a Pulsar topic. The <code>--processing-guarantees</code> is used to ensure the processing guarantees for writing messages to the Pulsar topic. <br>The available values are ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.</td></tr>
+<tr><td><code>--processing-guarantees</code></td><td>应用于 source 的处理保证(也称为传递语义)。 Source 连接器接收来自外部系统的消息，并将消息写入到 Pulsar 主题。 <code>--processing-guarantees</code> 用于确保将消息写入 Pulsar 主题的处理保证。 <br>可用值为 ATLEAST_ONCE，ATMOST_ONCE， EFFECTIVELY_ONCE。</td></tr>
 <tr><td><code>--ram</code></td><td>The RAM (in bytes) that needs to be allocated per source instance (applicable only to the process and Docker runtimes).</td></tr>
 <tr><td><code>-st</code>, <code>--schema-type</code></td><td>The schema type.<br> Either a builtin schema (for example, AVRO and JSON) or custom schema class name to be used to encode messages emitted from source.</td></tr>
 <tr><td><code>--source-config</code></td><td>Source config key/values.</td></tr>
 <tr><td><code>--source-config-file</code></td><td>The path to a YAML config file specifying the source's configuration.</td></tr>
-<tr><td><code>-t</code>, <code>--source-type</code></td><td>The source's connector provider.</td></tr>
+<tr><td><code>-t</code>, <code>--source-type</code></td><td>Source 连接器的提供者。</td></tr>
 <tr><td><code>--tenant</code></td><td>The source's tenant.</td></tr>
-<tr><td><code>--producer-config</code></td><td>The custom producer configuration (as a JSON string).</td></tr>
+<tr><td><code>--producer-config</code></td><td>自定义生产者配置(作为JSON字符串)。</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="update"></a><a href="#update" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>update</code></h3>
@@ -144,12 +144,12 @@
 <tr><td><code>--name</code></td><td>The source's name.</td></tr>
 <tr><td><code>--namespace</code></td><td>The source's namespace.</td></tr>
 <tr><td><code>--parallelism</code></td><td>The source's parallelism factor, that is, the number of source instances to run.</td></tr>
-<tr><td><code>--processing-guarantees</code></td><td>The processing guarantees (also named as delivery semantics) applied to the source. A source connector receives messages from external system and writes messages to a Pulsar topic. The <code>--processing-guarantees</code> is used to ensure the processing guarantees for writing messages to the Pulsar topic. <br>The available values are ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.</td></tr>
+<tr><td><code>--processing-guarantees</code></td><td>应用于 source 的处理保证(也称为传递语义)。 Source 连接器接收来自外部系统的消息，并将消息写入到 Pulsar 主题。 <code>--processing-guarantees</code> 用于确保将消息写入 Pulsar 主题的处理保证。 <br>可用值为 ATLEAST_ONCE，ATMOST_ONCE， EFFECTIVELY_ONCE。</td></tr>
 <tr><td><code>--ram</code></td><td>The RAM (in bytes) that needs to be allocated per source instance (applicable only to the process and Docker runtimes).</td></tr>
 <tr><td><code>-st</code>, <code>--schema-type</code></td><td>The schema type.<br> Either a builtin schema (for example, AVRO and JSON) or custom schema class name to be used to encode messages emitted from source.</td></tr>
 <tr><td><code>--source-config</code></td><td>Source config key/values.</td></tr>
 <tr><td><code>--source-config-file</code></td><td>The path to a YAML config file specifying the source's configuration.</td></tr>
-<tr><td><code>-t</code>, <code>--source-type</code></td><td>The source's connector provider. The <code>source-type</code> parameter of the currently built-in connectors is determined by the setting of the <code>name</code> parameter specified in the pulsar-io.yaml file.</td></tr>
+<tr><td><code>-t</code>, <code>--source-type</code></td><td>Source 连接器的提供者。 当前内置连接器 <code>source-type</code> 的参数是由 pulsar-io.yaml 文件中指定的 <code>name</code> 参数的设置决定的。</td></tr>
 <tr><td><code>--tenant</code></td><td>The source's tenant.</td></tr>
 <tr><td><code>--update-auth-data</code></td><td>是否更新认证数据。<br><strong>默认值：false。</strong></td></tr>
 </tbody>
@@ -293,17 +293,17 @@
 <tr><td><code>--name</code></td><td>The source’s name.</td></tr>
 <tr><td><code>--namespace</code></td><td>The source’s namespace.</td></tr>
 <tr><td><code>--parallelism</code></td><td>The source’s parallelism factor, that is, the number of source instances to run).</td></tr>
-<tr><td><code>--processing-guarantees</code></td><td>The processing guarantees (also named as delivery semantics) applied to the source. A source connector receives messages from external system and writes messages to a Pulsar topic. The <code>--processing-guarantees</code> is used to ensure the processing guarantees for writing messages to the Pulsar topic. <br>The available values are ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.</td></tr>
+<tr><td><code>--processing-guarantees</code></td><td>应用于 source 的处理保证(也称为传递语义)。 Source 连接器接收来自外部系统的消息，并将消息写入到 Pulsar 主题。 <code>--processing-guarantees</code> 用于确保将消息写入 Pulsar 主题的处理保证。 <br>可用值为 ATLEAST_ONCE，ATMOST_ONCE， EFFECTIVELY_ONCE。</td></tr>
 <tr><td><code>--ram</code></td><td>The RAM (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime).</td></tr>
 <tr><td><code>-st</code>, <code>--schema-type</code></td><td>The schema type.<br> Either a builtin schema (for example, AVRO and JSON) or custom schema class name to be used to encode messages emitted from source.</td></tr>
 <tr><td><code>--source-config</code></td><td>Source config key/values.</td></tr>
 <tr><td><code>--source-config-file</code></td><td>The path to a YAML config file specifying the source’s configuration.</td></tr>
-<tr><td><code>--source-type</code></td><td>The source's connector provider.</td></tr>
+<tr><td><code>--source-type</code></td><td>Source 连接器的提供者。</td></tr>
 <tr><td><code>--tenant</code></td><td>The source’s tenant.</td></tr>
 <tr><td><code>--tls-allow-insecure</code></td><td>允许不安全的 tls 连接。<br><strong>默认值：false</strong>。</td></tr>
 <tr><td><code>--tls-trust-cert-path</code></td><td>The tls trust cert file path.</td></tr>
 <tr><td><code>--use-tls</code></td><td>使用 tls 连接。<br><strong>默认值：false</strong>。</td></tr>
-<tr><td><code>--producer-config</code></td><td>The custom producer configuration (as a JSON string).</td></tr>
+<tr><td><code>--producer-config</code></td><td>自定义生产者配置(作为JSON字符串)。</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="available-sources"></a><a href="#available-sources" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>available-sources</code></h3>
@@ -357,12 +357,12 @@
 <tr><td><code>--name</code></td><td>The sink's name.</td></tr>
 <tr><td><code>--namespace</code></td><td>The sink's namespace.</td></tr>
 <tr><td><code>--parallelism</code></td><td>The sink's parallelism factor, that is, the number of sink instances to run.</td></tr>
-<tr><td><code>--processing-guarantees</code></td><td>The processing guarantees (also known as delivery semantics) applied to the sink. The <code>--processing-guarantees</code> implementation in Pulsar also relies on sink implementation. <br>The available values are ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.</td></tr>
+<tr><td><code>--processing-guarantees</code></td><td>应用于 sink 的处理保证(也称为传递语义)。 Pulsar 中 <code>--processing-guarantees</code> 的实现也依赖于 sink 的实现。 <br>可用值为 ATLEAST_ONCE，ATMOST_ONCE， EFFECTIVELY_ONCE。</td></tr>
 <tr><td><code>--ram</code></td><td>The RAM (in bytes) that needs to be allocated per sink instance (applicable only to the process and Docker runtimes).</td></tr>
 <tr><td><code>--retain-ordering</code></td><td>Sink consumes and sinks messages in order.</td></tr>
 <tr><td><code>--sink-config</code></td><td>sink config key/values.</td></tr>
 <tr><td><code>--sink-config-file</code></td><td>The path to a YAML config file specifying the sink's configuration.</td></tr>
-<tr><td><code>-t</code>, <code>--sink-type</code></td><td>The sink's connector provider. The <code>sink-type</code> parameter of the currently built-in connectors is determined by the setting of the <code>name</code> parameter specified in the pulsar-io.yaml file.</td></tr>
+<tr><td><code>-t</code>, <code>--sink-type</code></td><td>Sink 连接器的提供者。 当前内置连接器 <code>sink-type</code> 的参数是由 pulsar-io.yaml 文件中指定的 <code>name</code> 参数的设置决定的。</td></tr>
 <tr><td><code>--subs-name</code></td><td>Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer.</td></tr>
 <tr><td><code>--tenant</code></td><td>The sink's tenant.</td></tr>
 <tr><td><code>--timeout-ms</code></td><td>消息超时（以毫秒为单位）。</td></tr>
@@ -391,12 +391,12 @@
 <tr><td><code>--name</code></td><td>The sink's name.</td></tr>
 <tr><td><code>--namespace</code></td><td>The sink's namespace.</td></tr>
 <tr><td><code>--parallelism</code></td><td>The sink's parallelism factor, that is, the number of sink instances to run.</td></tr>
-<tr><td><code>--processing-guarantees</code></td><td>The processing guarantees (also known as delivery semantics) applied to the sink. The <code>--processing-guarantees</code> implementation in Pulsar also relies on sink implementation. <br>The available values are ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.</td></tr>
+<tr><td><code>--processing-guarantees</code></td><td>应用于 sink 的处理保证(也称为传递语义)。 Pulsar 中 <code>--processing-guarantees</code> 的实现也依赖于 sink 的实现。 <br>可用值为 ATLEAST_ONCE，ATMOST_ONCE， EFFECTIVELY_ONCE。</td></tr>
 <tr><td><code>--ram</code></td><td>The RAM (in bytes) that needs to be allocated per sink instance (applicable only to the process and Docker runtimes).</td></tr>
 <tr><td><code>--retain-ordering</code></td><td>Sink consumes and sinks messages in order.</td></tr>
 <tr><td><code>--sink-config</code></td><td>sink config key/values.</td></tr>
 <tr><td><code>--sink-config-file</code></td><td>The path to a YAML config file specifying the sink's configuration.</td></tr>
-<tr><td><code>-t</code>, <code>--sink-type</code></td><td>The sink's connector provider.</td></tr>
+<tr><td><code>-t</code>, <code>--sink-type</code></td><td>Sink 连接器的提供者。</td></tr>
 <tr><td><code>--subs-name</code></td><td>Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer.</td></tr>
 <tr><td><code>--tenant</code></td><td>The sink's tenant.</td></tr>
 <tr><td><code>--timeout-ms</code></td><td>消息超时（以毫秒为单位）。</td></tr>
@@ -538,8 +538,8 @@
 <tr><td><code>--client-auth-plugin</code></td><td>客户端身份验证插件，function 进程需要通过此插件连接到 broker。</td></tr>
 <tr><td><code>--cpu</code></td><td>The CPU (in cores) that needs to be allocated per sink instance (applicable only to the Docker runtime).</td></tr>
 <tr><td><code>--custom-schema-inputs</code></td><td>The map of input topics to Schema types or class names (as a JSON string).</td></tr>
-<tr><td><code>--max-redeliver-count</code></td><td>Maximum number of times that a message is redelivered before being sent to the dead letter queue.</td></tr>
-<tr><td><code>--dead-letter-topic</code></td><td>Name of the dead letter topic where the failing messages are sent.</td></tr>
+<tr><td><code>--max-redeliver-count</code></td><td>消息在发送到死信队列之前重新传递的最大次数。</td></tr>
+<tr><td><code>--dead-letter-topic</code></td><td>发送失败消息的死信主题的名称。</td></tr>
 <tr><td><code>--custom-serde-inputs</code></td><td>输入 topic 到 SerDe 类名称的映射（以 JSON 字符串的形式）。</td></tr>
 <tr><td><code>--disk</code></td><td>The disk (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime).</td></tr>
 <tr><td><code>--hostname-verification-enabled</code></td><td>启用主机名验证。<br><strong>默认值：false</strong>。</td></tr>
@@ -547,16 +547,16 @@
 <tr><td><code>--name</code></td><td>The sink’s name.</td></tr>
 <tr><td><code>--namespace</code></td><td>The sink’s namespace.</td></tr>
 <tr><td><code>--parallelism</code></td><td>The sink’s parallelism factor, that is, the number of sink instances to run).</td></tr>
-<tr><td><code>--processing-guarantees</code></td><td>The processing guarantees (also known as delivery semantics) applied to the sink. The <code>--processing-guarantees</code> implementation in Pulsar also relies on sink implementation. <br>The available values are ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.</td></tr>
+<tr><td><code>--processing-guarantees</code></td><td>应用于 sink 的处理保证(也称为传递语义)。 Pulsar 中 <code>--processing-guarantees</code> 的实现也依赖于 sink 的实现。 <br>可用值为 ATLEAST_ONCE，ATMOST_ONCE， EFFECTIVELY_ONCE。</td></tr>
 <tr><td><code>--ram</code></td><td>The RAM (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime).</td></tr>
 <tr><td><code>--retain-ordering</code></td><td>Sink consumes and sinks messages in order.</td></tr>
 <tr><td><code>--sink-config</code></td><td>sink config key/values.</td></tr>
 <tr><td><code>--sink-config-file</code></td><td>The path to a YAML config file specifying the sink’s configuration.</td></tr>
-<tr><td><code>--sink-type</code></td><td>The sink's connector provider.</td></tr>
+<tr><td><code>--sink-type</code></td><td>Sink 连接器的提供者。</td></tr>
 <tr><td><code>--subs-name</code></td><td>Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer.</td></tr>
 <tr><td><code>--tenant</code></td><td>The sink’s tenant.</td></tr>
 <tr><td><code>--timeout-ms</code></td><td>消息超时（以毫秒为单位）。</td></tr>
-<tr><td><code>--negative-ack-redelivery-delay-ms</code></td><td>The negatively-acknowledged message redelivery delay in milliseconds.</td></tr>
+<tr><td><code>--negative-ack-redelivery-delay-ms</code></td><td>以毫秒为单位的否认消息重新传递的延迟。</td></tr>
 <tr><td><code>--tls-allow-insecure</code></td><td>允许不安全的 tls 连接。<br><strong>默认值：false</strong>。</td></tr>
 <tr><td><code>--tls-trust-cert-path</code></td><td>The tls trust cert file path.</td></tr>
 <tr><td><code>--topics-pattern</code></td><td>TopicsPattern to consume from list of topics under a namespace that match the pattern. <br><code>--input</code> and <code>--topics-Pattern</code> are mutually exclusive. <br>Add SerDe class name for a pattern in <code>--customSerdeInputs</code> (supported for java fun only).</td></tr>
