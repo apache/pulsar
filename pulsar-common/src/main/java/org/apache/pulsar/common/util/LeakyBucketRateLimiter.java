@@ -65,7 +65,7 @@ public class LeakyBucketRateLimiter extends AbstractRateLimiter{
         super(permits, rateTime, timeUnit, rateLimitFunction);
     }
 
-    private synchronized boolean isIncomplete() {
+    private synchronized boolean isUnfilled() {
         return acquiredPermits < this.permits;
     }
 
@@ -79,7 +79,7 @@ public class LeakyBucketRateLimiter extends AbstractRateLimiter{
 
         acquiredPermits += acquirePermit;
 
-        return acquirePermit < 0 || isIncomplete();
+        return acquirePermit < 0 || isUnfilled();
     }
 
     @Override
@@ -94,7 +94,7 @@ public class LeakyBucketRateLimiter extends AbstractRateLimiter{
             }
         }
 
-        if (rateLimitFunction != null && isIncomplete()) {
+        if (rateLimitFunction != null && isUnfilled()) {
             rateLimitFunction.apply();
         }
 
