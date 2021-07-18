@@ -646,7 +646,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 if (ot.isPresent()) {
                     Replicator r = ot.get().getReplicators().get(clusterName);
                     if (r != null && r.isConnected()) {
-                        r.disconnect(true).whenComplete((v, e) -> f.complete(null));
+                        r.disconnect(false).whenComplete((v, e) -> f.complete(null));
                         return;
                     }
                 }
