@@ -191,19 +191,19 @@ REST API 中 <code>:schema</code> 分为 persistent（持久化）和 non-persis
 <li><p><strong>lastAckedTimestamp</strong>：消费者所有已被 ack 消息的最新时间戳</p></li>
 <li><p><strong>bytesOutCounter</strong>: Total bytes delivered to consumer.</p></li>
 <li><p><strong>msgOutCounter</strong>: Total messages delivered to consumer.</p></li>
-<li><p><strong>msgRateRedeliver</strong>: Total rate of messages redelivered on this subscription (msg/s).</p></li>
-<li><p><strong>chunkedMessageRate</strong>: Chunked message dispatch rate.</p></li>
-<li><p><strong>backlogSize</strong>: Size of backlog for this subscription (in bytes).</p></li>
-<li><p><strong>msgBacklogNoDelayed</strong>: Number of messages in the subscription backlog that do not contain the delay messages.</p></li>
-<li><p><strong>blockedSubscriptionOnUnackedMsgs</strong>: Flag to verify if a subscription is blocked due to reaching threshold of unacked messages.</p></li>
-<li><p><strong>msgDelayed</strong>: Number of delayed messages currently being tracked.</p></li>
-<li><p><strong>unackedMessages</strong>: Number of unacknowledged messages for the subscription.</p></li>
-<li><p><strong>activeConsumerName</strong>: The name of the consumer that is active for single active consumer subscriptions. For example, failover or exclusive.</p></li>
-<li><p><strong>totalMsgExpired</strong>: Total messages expired on this subscription.</p></li>
+<li><p><strong>msgRateOut</strong>：在此订阅中发送消息的总速率 (msg/s) 。</p></li>
+<li><p><strong>chunkedMessageRate</strong>: Chunked 消息发送率。</p></li>
+<li><p><strong>积压大小</strong>: 此订阅的积压大小(字节)。</p></li>
+<li><p><strong>msgBacklogNoDelayed</strong>: 订阅积压中不包含延迟消息的消息数量。</p></li>
+<li><p><strong>blockedConsumerOnUnackedMsgs</strong>：用于验证订阅是否因达到未确认消息阈值而被阻止的标志。</p></li>
+<li><p><strong>msgDelayed</strong>: 当前正在跟踪的延迟消息数量。</p></li>
+<li><p><strong>unackedMessages</strong>：消费者未确认消息的数量。</p></li>
+<li><p><strong>activeConsumerName</strong>: 一个活动消费者订阅中处于活动状态的消费者的名称。 For example, failover or exclusive.</p></li>
+<li><p><strong>totalMsgExpired</strong>: 此订阅过期的消息总数。</p></li>
 <li><p><strong>lastMarkDeleteAdvancedTimestamp</strong>: Last MarkDelete position advanced timestamp.</p></li>
-<li><p><strong>durable</strong>: Whether the subscription is durable or ephemeral (for example, from a reader).</p></li>
-<li><p><strong>replicated</strong>: Mark that the subscription state is kept in sync across different regions.</p></li>
-<li><p><strong>consumersAfterMarkDeletePosition</strong>: This is for Key_Shared subscription to get the recentJoinedConsumers in the Key_Shared subscription.</p></li>
+<li><p><strong>durable</strong>: 订阅是持久的还是短暂的(例如来自一个reader)。</p></li>
+<li><p><strong>replicated</strong>: 标记订阅状态在不同区域保持同步。</p></li>
+<li><p><strong>消费者AfterMarkDeletePosition</strong>: 这是Key_Shared 订阅的，以便在Key_Shared 订阅中获得最近加入的消费者。</p></li>
 <li><p><strong>nonContiguousDeletedMessagesRanges</strong>: The number of non-contiguous deleted messages ranges.</p></li>
 <li><p><strong>nonContiguousDeletedMessagesRangesSerializedSize</strong>: The serialized size of non-contiguous deleted messages ranges.</p></li>
 <li><p><strong>consumers</strong>：连接到此订阅的消费者列表。</p>
@@ -216,7 +216,7 @@ REST API 中 <code>:schema</code> 分为 persistent（持久化）和 non-persis
 <li><p><strong>blockedConsumerOnUnackedMsgs</strong>：验证消费者是否因达到未确认消息数的阀值而被阻塞。</p></li>
 <li><p><strong>lastConsumedTimestamp</strong>：消费者最后一次读取消息的时间戳。</p></li>
 <li><p><strong>lastAckedTimestamp</strong>：消费者最后一次确认消息的时间戳。</p></li>
-<li><p><strong>address</strong>: The IP address and source port for the connection of this consumer.</p></li>
+<li><p><strong>address</strong>：连接生产者所需的 IP 地址和端口号。</p></li>
 <li><p><strong>connectedSince</strong>: The timestamp when this consumer is created or reconnected last time.</p></li>
 <li><p><strong>clientVersion</strong>: The client library version of this consumer.</p></li>
 <li><p><strong>bytesOutCounter</strong>: Total bytes delivered to consumer.</p></li>
@@ -225,7 +225,7 @@ REST API 中 <code>:schema</code> 分为 persistent（持久化）和 non-persis
 <li><p><strong>chunkedMessageRate</strong>: Total chunked messages dispatched.</p></li>
 <li><p><strong>avgMessagesPerEntry</strong>: Number of average messages per entry for the consumer consumed.</p></li>
 <li><p><strong>readPositionWhenJoining</strong>: The read position of the cursor when the consumer joining.</p></li>
-<li><p><strong>keyHashRanges</strong>: Hash ranges assigned to this consumer if is Key_Shared sub mode.</p></li>
+<li><p><strong>keyHashRanges</strong>: 如果是Key_Shared 子模式，指派给该消费者的哈希范围。</p></li>
 <li><p><strong>metadata</strong>: Metadata (key/value strings) associated with this consumer.</p></li>
 </ul></li>
 </ul></li>
