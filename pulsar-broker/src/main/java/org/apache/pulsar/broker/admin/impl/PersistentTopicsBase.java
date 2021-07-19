@@ -1037,14 +1037,16 @@ public class PersistentTopicsBase extends AdminResource {
                         if (topicName.getDomain() == TopicDomain.persistent) {
                             String path = String.format("/managed-ledgers/%s/%s", namespaceName.toString(), domain());
                             List<String> children = getLocalPolicies().getChildren(path);
-                            List<String> activeTopics = children.stream().filter(topic -> topic.contains(topicName.getEncodedLocalName()))
+                            List<String> activeTopics = children.stream()
+                                    .filter(topic -> topic.contains(topicName.getEncodedLocalName()))
                                     .map(topic -> Codec.decode(topic)).collect(Collectors.toList());
                             if (log.isDebugEnabled()) {
                                 log.debug("activeTopics : {}", activeTopics);
                             }
                             for (String topic : activeTopics) {
                                 CompletableFuture<List<String>> subscriptionsAsync = pulsar().getAdminClient().topics()
-                                        .getSubscriptionsAsync(TopicName.get(domain(), namespaceName, topic).toString());
+                                        .getSubscriptionsAsync(
+                                                TopicName.get(domain(), namespaceName, topic).toString());
                                 subscriptionFutures.add(subscriptionsAsync.thenApply(subscriptions::addAll));
                             }
                         } else {
