@@ -111,7 +111,7 @@ public abstract class BaseGenerateDocumentation {
 
         sb.append("# ").append(type).append("\n");
         sb.append("|Name|Description|Default|\n");
-        sb.append("|---|---|---|---|---|\n");
+        sb.append("|---|---|---|\n");
         for (Field field : fields) {
             ApiModelProperty fieldContext = field.getAnnotation(ApiModelProperty.class);
             if (fieldContext == null) {
