@@ -21,6 +21,7 @@ package org.apache.pulsar.broker;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
+import io.swagger.annotations.ApiModelProperty;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -28,6 +29,7 @@ import java.util.List;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.configuration.FieldContext;
 
 @Data
@@ -97,6 +99,29 @@ public abstract class BaseGenerateDocumentation {
             sb.append(field.get(obj)).append(" | ");
             sb.append(fieldContext.dynamic()).append(" | ");
             sb.append(fieldContext.category()).append(" | ");
+            sb.append("\n");
+        }
+        return sb.toString();
+    }
+
+    protected String generateDocByApiModelProperty(String className, String type, StringBuilder sb) throws Exception {
+        Class<?> clazz = Class.forName(className);
+        Object obj = clazz.getDeclaredConstructor().newInstance();
+        Field[] fields = clazz.getDeclaredFields();
+
+        sb.append("# ").append(type).append("\n");
+        sb.append("|Name|Description|Default|\n");
+        sb.append("|---|---|---|---|---|\n");
+        for (Field field : fields) {
+            ApiModelProperty fieldContext = field.getAnnotation(ApiModelProperty.class);
+            if (fieldContext == null) {
+                continue;
+            }
+            field.setAccessible(true);
+            String name = StringUtils.isBlank(fieldContext.name()) ? field.getName() : fieldContext.name();
+            sb.append("| ").append(name).append(" | ");
+            sb.append(fieldContext.value().replace("\n", "<br>")).append(" | ");
+            sb.append(field.get(obj)).append(" | ");
             sb.append("\n");
         }
         return sb.toString();

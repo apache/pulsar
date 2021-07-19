@@ -33,7 +33,7 @@ public class CmdGenerateDocumentation extends BaseGenerateDocumentation {
     public String generateDocumentByClassName(String className) throws Exception {
         StringBuilder sb = new StringBuilder();
         if (ServiceConfig.class.getName().equals(className)) {
-            return generateDocByFieldContext(className, "Service discovery", sb);
+            return generateDocByApiModelProperty(className, "Service discovery", sb);
         }
         return "Class [" + className + "] not found";
     }
