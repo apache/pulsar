@@ -93,6 +93,7 @@ import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.protocol.ProtocolHandlers;
 import org.apache.pulsar.broker.resourcegroup.ResourceUsageTransportManager;
+import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.GracefulExecutorServicesShutdown;
@@ -138,6 +139,8 @@ import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.Notification;
+import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -597,6 +600,8 @@ public class PulsarService implements AutoCloseable {
             pulsarResources = new PulsarResources(localMetadataStore, configurationMetadataStore,
                     config.getZooKeeperOperationTimeoutSeconds());
 
+            pulsarResources.getClusterResources().getStore().registerListener(this::handleDeleteCluster);
+
             orderedExecutor = OrderedExecutor.newBuilder()
                     .numThreads(config.getNumOrderedExecutorThreads())
                     .name("pulsar-ordered")
@@ -824,6 +829,14 @@ public class PulsarService implements AutoCloseable {
             throw new PulsarServerException(e);
         } finally {
             mutex.unlock();
+        }
+    }
+
+    private void handleDeleteCluster(Notification notification) {
+        if (notification.getPath().startsWith(ClusterResources.CLUSTERS_ROOT)
+                && notification.getType() == NotificationType.Deleted) {
+            final String clusterName = notification.getPath().substring(ClusterResources.CLUSTERS_ROOT.length() + 1);
+            getBrokerService().closeAndRemoveReplicationClient(clusterName);
         }
     }
 
