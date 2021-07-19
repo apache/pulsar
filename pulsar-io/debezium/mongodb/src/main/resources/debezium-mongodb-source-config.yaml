@@ -34,5 +34,4 @@ configs:
   mongodb.task.id: "1"
   database.whitelist: "inventory"
 
-  ## PULSAR_SERVICE_URL_CONFIG
-  pulsar.service.url: "pulsar://127.0.0.1:6650"
+  database.history.pulsar.service.url: "pulsar://127.0.0.1:6650"

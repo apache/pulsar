@@ -1,6 +1,6 @@
 {
   "version-2.6.1-docs": {
-    "Get started": [
+    "Get Started": [
       "version-2.6.1-pulsar-2.0",
       "version-2.6.1-standalone",
       "version-2.6.1-standalone-docker",
@@ -94,7 +94,7 @@
     "Performance": [
       "version-2.6.1-performance-pulsar-perf"
     ],
-    "Client libraries": [
+    "Client Libraries": [
       "version-2.6.1-client-libraries-java",
       "version-2.6.1-client-libraries-go",
       "version-2.6.1-client-libraries-python",

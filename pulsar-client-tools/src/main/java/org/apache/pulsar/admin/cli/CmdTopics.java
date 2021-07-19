@@ -52,6 +52,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -66,6 +67,7 @@ import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
+import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 
 @Parameters(commandDescription = "Operations on persistent topics")
@@ -112,6 +114,7 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("peek-messages", new PeekMessages());
         jcommander.addCommand("examine-messages", new ExamineMessages());
         jcommander.addCommand("get-message-by-id", new GetMessageById());
+        jcommander.addCommand("get-message-id", new GetMessageId());
         jcommander.addCommand("reset-cursor", new ResetCursor());
         jcommander.addCommand("terminate", new Terminate());
         jcommander.addCommand("compact", new Compact());
@@ -220,6 +223,8 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("get-subscribe-rate", new GetSubscribeRate());
         jcommander.addCommand("set-subscribe-rate", new SetSubscribeRate());
         jcommander.addCommand("remove-subscribe-rate", new RemoveSubscribeRate());
+
+        jcommander.addCommand("set-replicated-subscription-status", new SetReplicatedSubscriptionStatus());
 
         initDeprecatedCommands();
     }
@@ -833,18 +838,36 @@ public class CmdTopics extends CmdBase {
             List<Message<byte[]>> messages = getTopics().peekMessages(persistentTopic, subName, numMessages);
             int position = 0;
             for (Message<byte[]> msg : messages) {
+                MessageImpl message = (MessageImpl) msg;
                 if (++position != 1) {
                     System.out.println("-------------------------------------------------------------------------\n");
                 }
-                if (msg.getMessageId() instanceof BatchMessageIdImpl) {
-                    BatchMessageIdImpl msgId = (BatchMessageIdImpl) msg.getMessageId();
+                if (message.getMessageId() instanceof BatchMessageIdImpl) {
+                    BatchMessageIdImpl msgId = (BatchMessageIdImpl) message.getMessageId();
                     System.out.println("Batch Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId() + ":" + msgId.getBatchIndex());
                 } else {
                     MessageIdImpl msgId = (MessageIdImpl) msg.getMessageId();
                     System.out.println("Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId());
                 }
-                if (msg.getProperties().size() > 0) {
-                    System.out.println("Tenants:");
+
+                System.out.println("Publish time: " + message.getPublishTime());
+                System.out.println("Event time: " + message.getEventTime());
+
+                if (message.getDeliverAtTime() != 0) {
+                    System.out.println("Deliver at time: " + message.getDeliverAtTime());
+                }
+
+                if (message.getBrokerEntryMetadata() != null) {
+                    if (message.getBrokerEntryMetadata().hasBrokerTimestamp()) {
+                        System.out.println("Broker entry metadata timestamp: " + message.getBrokerEntryMetadata().getBrokerTimestamp());
+                    }
+                    if (message.getBrokerEntryMetadata().hasIndex()) {
+                        System.out.println("Broker entry metadata index: " + message.getBrokerEntryMetadata().getIndex());
+                    }
+                }
+
+                if (message.getProperties().size() > 0) {
+                    System.out.println("Properties:");
                     print(msg.getProperties());
                 }
                 ByteBuf data = Unpooled.wrappedBuffer(msg.getData());
@@ -872,16 +895,38 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            Message<byte[]> messages = getTopics().examineMessage(persistentTopic, initialPosition, messagePosition);
-            MessageIdImpl msgId = (MessageIdImpl) messages.getMessageId();
-            System.out.println("Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId());
+            MessageImpl message =
+                    (MessageImpl) getTopics().examineMessage(persistentTopic, initialPosition, messagePosition);
 
-            if (messages.getProperties().size() > 0) {
-                System.out.println("Tenants:");
-                print(messages.getProperties());
+            if (message.getMessageId() instanceof BatchMessageIdImpl) {
+                BatchMessageIdImpl msgId = (BatchMessageIdImpl) message.getMessageId();
+                System.out.println("Batch Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId() + ":" + msgId.getBatchIndex());
+            } else {
+                MessageIdImpl msgId = (MessageIdImpl) message.getMessageId();
+                System.out.println("Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId());
             }
 
-            ByteBuf data = Unpooled.wrappedBuffer(messages.getData());
+            System.out.println("Publish time: " + message.getPublishTime());
+            System.out.println("Event time: " + message.getEventTime());
+
+            if (message.getDeliverAtTime() != 0) {
+                System.out.println("Deliver at time: " + message.getDeliverAtTime());
+            }
+
+            if (message.getBrokerEntryMetadata() != null) {
+                if (message.getBrokerEntryMetadata().hasBrokerTimestamp()) {
+                    System.out.println("Broker entry metadata timestamp: " + message.getBrokerEntryMetadata().getBrokerTimestamp());
+                }
+                if (message.getBrokerEntryMetadata().hasIndex()) {
+                    System.out.println("Broker entry metadata index: " + message.getBrokerEntryMetadata().getIndex());
+                }
+            }
+
+            if (message.getProperties().size() > 0) {
+                System.out.println("Properties:");
+                print(message.getProperties());
+            }
+            ByteBuf data = Unpooled.wrappedBuffer(message.getData());
             System.out.println(ByteBufUtil.prettyHexDump(data));
         }
     }
@@ -905,13 +950,66 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
 
-            Message<byte[]> message = getTopics().getMessageById(persistentTopic, ledgerId, entryId);
+            MessageImpl message = (MessageImpl) getTopics().getMessageById(persistentTopic, ledgerId, entryId);
             if (message == null) {
                 System.out.println("Cannot find any messages based on ledgerId:"
                         + ledgerId + " entryId:" + entryId);
             } else {
+                if (message.getMessageId() instanceof BatchMessageIdImpl) {
+                    BatchMessageIdImpl msgId = (BatchMessageIdImpl) message.getMessageId();
+                    System.out.println("Batch Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId() + ":" + msgId.getBatchIndex());
+                } else {
+                    MessageIdImpl msgId = (MessageIdImpl) message.getMessageId();
+                    System.out.println("Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId());
+                }
+
+                System.out.println("Publish time: " + message.getPublishTime());
+                System.out.println("Event time: " + message.getEventTime());
+
+                if (message.getDeliverAtTime() != 0) {
+                    System.out.println("Deliver at time: " + message.getDeliverAtTime());
+                }
+
+                if (message.getBrokerEntryMetadata() != null) {
+                    if (message.getBrokerEntryMetadata().hasBrokerTimestamp()) {
+                        System.out.println("Broker entry metadata timestamp: " + message.getBrokerEntryMetadata().getBrokerTimestamp());
+                    }
+                    if (message.getBrokerEntryMetadata().hasIndex()) {
+                        System.out.println("Broker entry metadata index: " + message.getBrokerEntryMetadata().getIndex());
+                    }
+                }
+
+                if (message.getProperties().size() > 0) {
+                    System.out.println("Properties:");
+                    print(message.getProperties());
+                }
                 ByteBuf date = Unpooled.wrappedBuffer(message.getData());
                 System.out.println(ByteBufUtil.prettyHexDump(date));
+            }
+        }
+    }
+
+    @Parameters(commandDescription = "Get message ID")
+    private class GetMessageId extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-d", "--datetime" },
+                description = "datetime at or before this messageId. This datetime is in format of ISO_OFFSET_DATE_TIME,"
+                        + " e.g. 2021-06-28T16:53:08Z or 2021-06-28T16:53:08.123456789+08:00",
+                required = true)
+        private String datetime;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+
+            long timestamp = DateFormatter.parse(datetime);
+            MessageId messageId = getTopics().getMessageIdByTimestamp(persistentTopic, timestamp);
+            if (messageId == null) {
+                System.out.println("Cannot find any messages based on timestamp " + timestamp);
+            } else {
+                print(messageId);
             }
         }
     }
@@ -2295,6 +2393,31 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             getTopics().removeSubscribeRate(persistentTopic);
+        }
+    }
+
+    @Parameters(commandDescription = "Enable or disable a replicated subscription on a topic")
+    private class SetReplicatedSubscriptionStatus extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-s",
+                "--subscription" }, description = "Subscription name to enable or disable replication", required = true)
+        private String subName;
+
+        @Parameter(names = { "--enable", "-e" }, description = "Enable replication")
+        private boolean enable = false;
+
+        @Parameter(names = { "--disable", "-d" }, description = "Disable replication")
+        private boolean disable = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            if (enable == disable) {
+                throw new ParameterException("Need to specify either --enable or --disable");
+            }
+            getTopics().setReplicatedSubscriptionStatus(persistentTopic, subName, enable);
         }
     }
 

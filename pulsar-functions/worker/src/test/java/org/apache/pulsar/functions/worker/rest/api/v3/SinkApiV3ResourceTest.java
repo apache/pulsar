@@ -33,6 +33,7 @@ import static org.powermock.api.mockito.PowerMockito.doReturn;
 import static org.powermock.api.mockito.PowerMockito.doThrow;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import com.google.common.collect.Lists;
 import java.io.File;
 import java.io.FileInputStream;
@@ -41,6 +42,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -1461,6 +1463,10 @@ public class SinkApiV3ResourceTest {
         when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(sink))).thenReturn(metaData);
 
         getDefaultSinkInfo();
+
+        assertNotNull(getDefaultSinkInfo().getInputs());
+        assertEquals(getDefaultSinkInfo().getInputs(), Collections.singleton("input"));
+
         assertEquals(
                 SinkConfigUtils.convertFromDetails(functionDetails),
                 getDefaultSinkInfo());

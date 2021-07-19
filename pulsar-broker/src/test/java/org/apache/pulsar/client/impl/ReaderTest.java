@@ -32,8 +32,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -51,10 +54,11 @@ import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
+import org.apache.pulsar.schema.Schemas;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -510,4 +514,44 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
 
     }
 
+    @Test(timeOut = 30000)
+    public void testAvoidUsingIoThreadToGetValueOfMessage() throws Exception {
+        final String topic = "persistent://my-property/my-ns/testAvoidUsingIoThreadToGetValueOfMessage";
+
+        @Cleanup
+        Producer<Schemas.PersonOne> producer = pulsarClient.newProducer(Schema.AVRO(Schemas.PersonOne.class))
+                .topic(topic)
+                .create();
+
+        producer.send(new Schemas.PersonOne(1));
+
+        @Cleanup
+        Reader<Schemas.PersonOne> reader = pulsarClient.newReader(Schema.AVRO(Schemas.PersonOne.class))
+                .topic(topic)
+                .startMessageId(MessageId.earliest)
+                .create();
+
+        CountDownLatch latch = new CountDownLatch(1);
+        List<Schemas.PersonOne> received = new ArrayList<>(1);
+        // Make sure the message is added to the incoming queue
+        Awaitility.await().untilAsserted(() ->
+                assertTrue(((ReaderImpl<?>) reader).getConsumer().incomingMessages.size() > 0));
+        reader.hasMessageAvailableAsync().whenComplete((has, e) -> {
+            if (e == null && has) {
+                CompletableFuture<Message<Schemas.PersonOne>> future = reader.readNextAsync();
+                // Make sure the future completed
+                Awaitility.await().pollInterval(1, TimeUnit.MILLISECONDS).untilAsserted(future::isDone);
+                future.whenComplete((msg, ex) -> {
+                    if (ex == null) {
+                        received.add(msg.getValue());
+                    }
+                    latch.countDown();
+                });
+            } else {
+                latch.countDown();
+            }
+        });
+        latch.await();
+        Assert.assertEquals(received.size(), 1);
+    }
 }

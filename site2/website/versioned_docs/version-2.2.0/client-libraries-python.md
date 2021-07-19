@@ -68,6 +68,10 @@ client.close()
 This creates a consumer with the `my-subscription` subscription on the `my-topic` topic, listen for incoming messages, print the content and ID of messages that arrive, and acknowledge each message to the Pulsar broker:
 
 ```python
+import pulsar
+
+client = pulsar.Client('pulsar://localhost:6650')
+
 consumer = client.subscribe('my-topic', 'my-subscription')
 
 while True:

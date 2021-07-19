@@ -204,7 +204,7 @@ public class ValidatorImpls {
             if (count == 0) {
                 throw new IllegalArgumentException(
                         String.format("Field '%s' with value '%s' does not implement any of these classes %s",
-                                name, o, classesImplements));
+                                name, o, Arrays.toString(classesImplements)));
             }
         }
     }

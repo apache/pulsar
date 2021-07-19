@@ -442,21 +442,13 @@ public class PulsarSplitManager implements ConnectorSplitManager {
         return (PositionImpl) readOnlyCursor.findNewestMatching(SearchAllAvailableEntries, new Predicate<Entry>() {
             @Override
             public boolean apply(Entry entry) {
-
-                MessageImpl<byte[]> msg = null;
                 try {
-                    msg = MessageImpl.deserializeBrokerEntryMetaDataFirst(entry.getDataBuffer());
-                    return msg.getBrokerEntryMetadata() != null
-                            ? msg.getBrokerEntryMetadata().getBrokerTimestamp() <= timestamp
-                            : msg.getPublishTime() <= timestamp;
-
+                    long entryTimestamp = MessageImpl.getEntryTimestamp(entry.getDataBuffer());
+                    return entryTimestamp <= timestamp;
                 } catch (Exception e) {
                     log.error(e, "Failed To deserialize message when finding position with error: %s", e);
                 } finally {
                     entry.release();
-                    if (msg != null) {
-                        msg.recycle();
-                    }
                 }
                 return false;
             }

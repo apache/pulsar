@@ -175,6 +175,8 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
       error_(boost::system::error_code()),
       incomingBuffer_(SharedBuffer::allocate(DefaultBufferSize)),
       incomingCmd_(),
+      connectTimeoutTask_(std::make_shared<PeriodicTask>(executor_->getIOService(),
+                                                         clientConfiguration.getConnectionTimeout())),
       pendingWriteBuffers_(),
       pendingWriteOperations_(0),
       outgoingBuffer_(SharedBuffer::allocate(DefaultBufferSize)),
@@ -374,20 +376,38 @@ void ClientConnection::handleTcpConnected(const boost::system::error_code& err,
             LOG_INFO(cnxString_ << "Connected to broker through proxy. Logical broker: " << logicalAddress_);
         }
         state_ = TcpConnected;
-        socket_->set_option(tcp::no_delay(true));
+        connectTimeoutTask_->stop();
 
-        socket_->set_option(tcp::socket::keep_alive(true));
+        boost::system::error_code error;
+        socket_->set_option(tcp::no_delay(true), error);
+        if (error) {
+            LOG_WARN(cnxString_ << "Socket failed to set tcp::no_delay: " << error.message());
+        }
+
+        socket_->set_option(tcp::socket::keep_alive(true), error);
+        if (error) {
+            LOG_WARN(cnxString_ << "Socket failed to set tcp::socket::keep_alive: " << error.message());
+        }
 
         // Start TCP keep-alive probes after connection has been idle after 1 minute. Ideally this
         // should never happen, given that we're sending our own keep-alive probes (within the TCP
         // connection) every 30 seconds
-        socket_->set_option(tcp_keep_alive_idle(1 * 60));
+        socket_->set_option(tcp_keep_alive_idle(1 * 60), error);
+        if (error) {
+            LOG_DEBUG(cnxString_ << "Socket failed to set tcp_keep_alive_idle: " << error.message());
+        }
 
         // Send up to 10 probes before declaring the connection broken
-        socket_->set_option(tcp_keep_alive_count(10));
+        socket_->set_option(tcp_keep_alive_count(10), error);
+        if (error) {
+            LOG_DEBUG(cnxString_ << "Socket failed to set tcp_keep_alive_count: " << error.message());
+        }
 
         // Interval between probes: 6 seconds
-        socket_->set_option(tcp_keep_alive_interval(6));
+        socket_->set_option(tcp_keep_alive_interval(6), error);
+        if (error) {
+            LOG_DEBUG(cnxString_ << "Socket failed to set tcp_keep_alive_interval: " << error.message());
+        }
 
         if (tlsSocket_) {
             if (!isTlsAllowInsecureConnection_) {
@@ -414,7 +434,13 @@ void ClientConnection::handleTcpConnected(const boost::system::error_code& err,
         }
     } else if (endpointIterator != tcp::resolver::iterator()) {
         // The connection failed. Try the next endpoint in the list.
-        socket_->close();
+        boost::system::error_code err;
+        socket_->close(err);  // ignore the error of close
+        if (err) {
+            LOG_WARN(cnxString_ << "Failed to close socket: " << err.message());
+        }
+        connectTimeoutTask_->stop();
+        connectTimeoutTask_->start();
         tcp::endpoint endpoint = *endpointIterator;
         socket_->async_connect(endpoint, std::bind(&ClientConnection::handleTcpConnected, shared_from_this(),
                                                    std::placeholders::_1, ++endpointIterator));
@@ -500,6 +526,18 @@ void ClientConnection::handleResolve(const boost::system::error_code& err,
         return;
     }
 
+    auto self = shared_from_this();
+    connectTimeoutTask_->setCallback([this, self](const PeriodicTask::ErrorCode& ec) {
+        if (state_ != TcpConnected) {
+            LOG_ERROR(cnxString_ << "Connection was not established in " << connectTimeoutTask_->getPeriodMs()
+                                 << " ms, close the socket");
+            PeriodicTask::ErrorCode ignoredError;
+            socket_->close(ignoredError);
+        }
+        connectTimeoutTask_->stop();
+    });
+
+    connectTimeoutTask_->start();
     if (endpointIterator != tcp::resolver::iterator()) {
         LOG_DEBUG(cnxString_ << "Resolved hostname " << endpointIterator->host_name()  //
                              << " to " << endpointIterator->endpoint());
@@ -1412,6 +1450,9 @@ void ClientConnection::close() {
     state_ = Disconnected;
     boost::system::error_code err;
     socket_->close(err);
+    if (err) {
+        LOG_WARN(cnxString_ << "Failed to close socket: " << err.message());
+    }
 
     if (tlsSocket_) {
         tlsSocket_->lowest_layer().close();
@@ -1441,6 +1482,8 @@ void ClientConnection::close() {
         consumerStatsRequestTimer_->cancel();
         consumerStatsRequestTimer_.reset();
     }
+
+    connectTimeoutTask_->stop();
 
     lock.unlock();
     LOG_INFO(cnxString_ << "Connection closed");

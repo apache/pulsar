@@ -26,6 +26,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
@@ -54,9 +55,12 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
             AtomicIntegerFieldUpdater.newUpdater(AbstractDispatcherSingleActiveConsumer.class, "isClosed");
     private volatile int isClosed = FALSE;
 
+    protected boolean isFirstRead = true;
+
     public AbstractDispatcherSingleActiveConsumer(SubType subscriptionType, int partitionIndex,
-            String topicName, Subscription subscription) {
-        super(subscription);
+                                                  String topicName, Subscription subscription,
+                                                  ServiceConfiguration serviceConfig) {
+        super(subscription, serviceConfig);
         this.topicName = topicName;
         this.consumers = new CopyOnWriteArrayList<>();
         this.partitionIndex = partitionIndex;
@@ -155,6 +159,10 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
             isKeyHashRangeFiltered = true;
         } else {
             isKeyHashRangeFiltered = false;
+        }
+
+        if (consumers.isEmpty()) {
+            isFirstRead = true;
         }
 
         consumers.add(consumer);

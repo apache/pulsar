@@ -78,12 +78,11 @@ public abstract class DebeziumSource extends KafkaConnectSource {
         // database.history : implementation class for database history.
         setConfigIfNull(config, HistorizedRelationalDatabaseConnectorConfig.DATABASE_HISTORY.name(), DEFAULT_HISTORY);
 
-        // database.history.pulsar.service.url, this is set as the value of pulsar.service.url if null.
-        String serviceUrl = (String) config.get(PulsarKafkaWorkerConfig.PULSAR_SERVICE_URL_CONFIG);
-        if (serviceUrl == null) {
-            throw new IllegalArgumentException("Pulsar service URL not provided.");
+        // database.history.pulsar.service.url
+        String pulsarUrl = (String) config.get(PulsarDatabaseHistory.SERVICE_URL.name());
+        if (StringUtils.isEmpty(pulsarUrl)) {
+            throw new IllegalArgumentException("Pulsar service URL for History Database not provided.");
         }
-        setConfigIfNull(config, PulsarDatabaseHistory.SERVICE_URL.name(), serviceUrl);
 
         String topicNamespace = topicNamespace(sourceContext);
         // topic.namespace

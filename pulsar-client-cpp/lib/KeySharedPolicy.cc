@@ -18,7 +18,12 @@
  */
 #include <lib/KeySharedPolicyImpl.h>
 
+#include <algorithm>
+#include <stdexcept>
+
 namespace pulsar {
+
+static const int DefaultHashRangeSize = 2 << 15;
 
 KeySharedPolicy::KeySharedPolicy() : impl_(std::make_shared<KeySharedPolicyImpl>()) {}
 
@@ -44,6 +49,30 @@ KeySharedPolicy &KeySharedPolicy::setAllowOutOfOrderDelivery(bool allowOutOfOrde
 }
 
 bool KeySharedPolicy::isAllowOutOfOrderDelivery() const { return impl_->allowOutOfOrderDelivery; }
+
+KeySharedPolicy &KeySharedPolicy::setStickyRanges(std::initializer_list<StickyRange> ranges) {
+    if (ranges.size() == 0) {
+        throw std::invalid_argument("Ranges for KeyShared policy must not be empty.");
+    }
+    for (StickyRange range : ranges) {
+        if (range.first < 0 || range.second >= DefaultHashRangeSize) {
+            throw std::invalid_argument("KeySharedPolicy Exception: Ranges must be [0, 65535].");
+        }
+        for (StickyRange range2 : ranges) {
+            int start = std::max(range.first, range2.first);
+            int end = std::min(range.second, range2.second);
+            if (range != range2 && end >= start) {
+                throw std::invalid_argument("Ranges for KeyShared policy with overlap.");
+            }
+        }
+        for (StickyRange range : ranges) {
+            impl_->ranges.push_back(range);
+        }
+    }
+    return *this;
+}
+
+StickyRanges KeySharedPolicy::getStickyRanges() const { return impl_->ranges; }
 
 KeySharedPolicy KeySharedPolicy::clone() const {
     KeySharedPolicy newConf;

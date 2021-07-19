@@ -96,6 +96,8 @@ public interface Topic {
         }
     }
 
+    CompletableFuture<Void> initialize();
+
     void publishMessage(ByteBuf headersAndPayload, PublishContext callback);
 
     /**
@@ -167,6 +169,10 @@ public interface Topic {
     boolean isPublishRateExceeded();
 
     boolean isTopicPublishRateExceeded(int msgSize, int numMessages);
+
+    boolean isResourceGroupRateLimitingEnabled();
+
+    boolean isResourceGroupPublishRateExceeded(int msgSize, int numMessages);
 
     boolean isBrokerPublishRateExceeded();
 
