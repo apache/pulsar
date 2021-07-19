@@ -29,6 +29,7 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.io.BatchSourceConfig;
 import org.apache.pulsar.common.io.ConnectorDefinition;
@@ -51,6 +52,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 import static org.apache.pulsar.functions.utils.FunctionCommon.convertProcessingGuarantee;
 import static org.apache.pulsar.functions.utils.FunctionCommon.getSourceType;
 
@@ -145,7 +147,24 @@ public class SourceConfigUtils {
         }
 
         if (sourceConfig.getProducerConfig() != null) {
-            sinkSpecBuilder.setProducerSpec(ProducerConfigUtils.convert(sourceConfig.getProducerConfig()));
+            ProducerConfig conf = sourceConfig.getProducerConfig();
+            Function.ProducerSpec.Builder pbldr = Function.ProducerSpec.newBuilder();
+            if (conf.getMaxPendingMessages() != null) {
+                pbldr.setMaxPendingMessages(conf.getMaxPendingMessages());
+            }
+            if (conf.getMaxPendingMessagesAcrossPartitions() != null) {
+                pbldr.setMaxPendingMessagesAcrossPartitions(conf.getMaxPendingMessagesAcrossPartitions());
+            }
+            if (conf.getUseThreadLocalProducers() != null) {
+                pbldr.setUseThreadLocalProducers(conf.getUseThreadLocalProducers());
+            }
+            if (conf.getCryptoConfig() != null) {
+                pbldr.setCryptoSpec(CryptoUtils.convert(conf.getCryptoConfig()));
+            }
+            if (conf.getBatchBuilder() != null) {
+                pbldr.setBatchBuilder(conf.getBatchBuilder());
+            }
+            sinkSpecBuilder.setProducerSpec(pbldr.build());
         }
 
         sinkSpecBuilder.setForwardSourceMessageProperty(true);
@@ -220,7 +239,22 @@ public class SourceConfigUtils {
             sourceConfig.setSerdeClassName(sinkSpec.getSerDeClassName());
         }
         if (sinkSpec.getProducerSpec() != null) {
-            sourceConfig.setProducerConfig(ProducerConfigUtils.convertFromSpec(sinkSpec.getProducerSpec()));
+            Function.ProducerSpec spec = sinkSpec.getProducerSpec();
+            ProducerConfig producerConfig = new ProducerConfig();
+            if (spec.getMaxPendingMessages() != 0) {
+                producerConfig.setMaxPendingMessages(spec.getMaxPendingMessages());
+            }
+            if (spec.getMaxPendingMessagesAcrossPartitions() != 0) {
+                producerConfig.setMaxPendingMessagesAcrossPartitions(spec.getMaxPendingMessagesAcrossPartitions());
+            }
+            if (spec.hasCryptoSpec()) {
+                producerConfig.setCryptoConfig(CryptoUtils.convertFromSpec(spec.getCryptoSpec()));
+            }
+            if (spec.getBatchBuilder() != null) {
+                producerConfig.setBatchBuilder(spec.getBatchBuilder());
+            }
+            producerConfig.setUseThreadLocalProducers(spec.getUseThreadLocalProducers());
+            sourceConfig.setProducerConfig(producerConfig);
         }
         if (functionDetails.hasResources()) {
             Resources resources = new Resources();

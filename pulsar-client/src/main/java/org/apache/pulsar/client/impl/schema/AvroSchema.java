@@ -102,12 +102,7 @@ public class AvroSchema<T> extends AvroBaseStructSchema<T> {
     }
 
     public static <T> AvroSchema<T> of(Class<T> pojo, Map<String, String> properties) {
-        ClassLoader pojoClassLoader = null;
-        if (pojo != null) {
-            pojoClassLoader = pojo.getClassLoader();
-        }
-        SchemaDefinition<T> schemaDefinition = SchemaDefinition.<T>builder().withPojo(pojo).withProperties(properties).build();
-        return new AvroSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.AVRO), pojoClassLoader);
+        return AvroSchema.of(SchemaDefinition.<T>builder().withPojo(pojo).withProperties(properties).build());
     }
 
     public static void addLogicalTypeConversions(ReflectData reflectData, boolean jsr310ConversionEnabled) {
@@ -126,6 +121,7 @@ public class AvroSchema<T> extends AvroBaseStructSchema<T> {
                 // Skip if have not provide joda-time dependency.
             }
         }
+        reflectData.addLogicalTypeConversion(new Conversions.UUIDConversion());
     }
 
     public static class TimestampConversion extends Conversion<DateTime> {

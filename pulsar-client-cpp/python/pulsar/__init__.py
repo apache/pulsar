@@ -99,9 +99,12 @@ To install the Python bindings:
     client.close()
 """
 
+import logging
 import _pulsar
 
 from _pulsar import Result, CompressionType, ConsumerType, InitialPosition, PartitionsRoutingMode, BatchingType  # noqa: F401
+
+from pulsar.exceptions import *
 
 from pulsar.functions.function import Function
 from pulsar.functions.context import Context
@@ -360,6 +363,8 @@ class Client:
                  tls_trust_certs_file_path=None,
                  tls_allow_insecure_connection=False,
                  tls_validate_hostname=False,
+                 logger=None,
+                 connection_timeout_ms=10000,
                  ):
         """
         Create a new Pulsar client instance.
@@ -403,10 +408,15 @@ class Client:
           Configure whether the Pulsar client validates that the hostname of the
           endpoint, matches the common name on the TLS certificate presented by
           the endpoint.
+        * `logger`:
+          Set a Python logger for this Pulsar client. Should be an instance of `logging.Logger`.
+        * `connection_timeout_ms`:
+          Set timeout in milliseconds on TCP connections.
         """
         _check_type(str, service_url, 'service_url')
         _check_type_or_none(Authentication, authentication, 'authentication')
         _check_type(int, operation_timeout_seconds, 'operation_timeout_seconds')
+        _check_type(int, connection_timeout_ms, 'connection_timeout_ms')
         _check_type(int, io_threads, 'io_threads')
         _check_type(int, message_listener_threads, 'message_listener_threads')
         _check_type(int, concurrent_lookup_requests, 'concurrent_lookup_requests')
@@ -415,16 +425,20 @@ class Client:
         _check_type_or_none(str, tls_trust_certs_file_path, 'tls_trust_certs_file_path')
         _check_type(bool, tls_allow_insecure_connection, 'tls_allow_insecure_connection')
         _check_type(bool, tls_validate_hostname, 'tls_validate_hostname')
+        _check_type_or_none(logging.Logger, logger, 'logger')
 
         conf = _pulsar.ClientConfiguration()
         if authentication:
             conf.authentication(authentication.auth)
         conf.operation_timeout_seconds(operation_timeout_seconds)
+        conf.connection_timeout(connection_timeout_ms)
         conf.io_threads(io_threads)
         conf.message_listener_threads(message_listener_threads)
         conf.concurrent_lookup_requests(concurrent_lookup_requests)
         if log_conf_file_path:
             conf.log_conf_file_path(log_conf_file_path)
+        if logger:
+            conf.set_logger(logger)
         if use_tls or service_url.startswith('pulsar+ssl://') or service_url.startswith('https://'):
             conf.use_tls(True)
         if tls_trust_certs_file_path:
@@ -590,7 +604,8 @@ class Client:
                   properties=None,
                   pattern_auto_discovery_period=60,
                   initial_position=InitialPosition.Latest,
-                  crypto_key_reader=None
+                  crypto_key_reader=None,
+                  replicate_subscription_state_enabled=False
                   ):
         """
         Subscribe to the given topic and subscription combination.
@@ -666,6 +681,9 @@ class Client:
         * crypto_key_reader:
            Symmetric encryption class implementation, configuring public key encryption messages for the producer
            and private key decryption messages for the consumer
+        * replicate_subscription_state_enabled:
+          Set whether the subscription status should be replicated.
+          Default: `False`.
         """
         _check_type(str, subscription_name, 'subscription_name')
         _check_type(ConsumerType, consumer_type, 'consumer_type')
@@ -706,6 +724,8 @@ class Client:
 
         if crypto_key_reader:
             conf.crypto_key_reader(crypto_key_reader.cryptoKeyReader)
+
+        conf.replicate_subscription_state_enabled(replicate_subscription_state_enabled)
 
         c = Consumer()
         if isinstance(topic, str):

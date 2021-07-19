@@ -18,6 +18,7 @@
  */
 #include <gtest/gtest.h>
 
+#include <future>
 #include <pulsar/Client.h>
 #include "../lib/checksum/ChecksumProvider.h"
 
@@ -85,4 +86,31 @@ TEST(ClientTest, testServerConnectError) {
     ReaderConfiguration readerConf;
     ASSERT_EQ(ResultConnectError, client.createReader(topic, MessageId::earliest(), readerConf, reader));
     client.close();
+}
+
+TEST(ClientTest, testConnectTimeout) {
+    // 192.0.2.0/24 is assigned for documentation, should be a deadend
+    const std::string blackHoleBroker = "pulsar://192.0.2.1:1234";
+    const std::string topic = "test-connect-timeout";
+
+    Client clientLow(blackHoleBroker, ClientConfiguration().setConnectionTimeout(1000));
+    Client clientDefault(blackHoleBroker);
+
+    std::promise<Result> promiseLow;
+    clientLow.createProducerAsync(
+        topic, [&promiseLow](Result result, Producer producer) { promiseLow.set_value(result); });
+
+    std::promise<Result> promiseDefault;
+    clientDefault.createProducerAsync(
+        topic, [&promiseDefault](Result result, Producer producer) { promiseDefault.set_value(result); });
+
+    auto futureLow = promiseLow.get_future();
+    ASSERT_EQ(futureLow.wait_for(std::chrono::milliseconds(1500)), std::future_status::ready);
+    ASSERT_EQ(futureLow.get(), ResultConnectError);
+
+    auto futureDefault = promiseDefault.get_future();
+    ASSERT_EQ(futureDefault.wait_for(std::chrono::milliseconds(10)), std::future_status::timeout);
+
+    clientLow.close();
+    clientDefault.close();
 }

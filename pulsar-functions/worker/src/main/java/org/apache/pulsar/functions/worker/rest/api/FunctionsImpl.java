@@ -47,7 +47,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.common.functions.UpdateOptions;
+import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.ExceptionInformation;
@@ -106,7 +106,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
                 log.error("{}/{}/{} Client [{}] is not authorized to register {}", tenant, namespace,
                         functionName, clientRole, ComponentTypeUtils.toString(componentType));
-                throw new RestException(Response.Status.UNAUTHORIZED, "client is not authorize to perform operation");
+                throw new RestException(Response.Status.UNAUTHORIZED, "Client is not authorized to perform operation");
             }
         } catch (PulsarAdminException e) {
             log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, functionName, e);
@@ -130,7 +130,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
         } catch (PulsarAdminException.NotAuthorizedException e) {
             log.error("{}/{}/{} Client [{}] is not authorized to operate {} on tenant", tenant, namespace,
                     functionName, clientRole, ComponentTypeUtils.toString(componentType));
-            throw new RestException(Response.Status.UNAUTHORIZED, "client is not authorize to perform operation");
+            throw new RestException(Response.Status.UNAUTHORIZED, "Client is not authorized to perform operation");
         } catch (PulsarAdminException.NotFoundException e) {
             log.error("{}/{}/{} Tenant {} does not exist", tenant, namespace, functionName, tenant);
             throw new RestException(Response.Status.BAD_REQUEST, "Tenant does not exist");
@@ -255,7 +255,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
                                final FunctionConfig functionConfig,
                                final String clientRole,
                                AuthenticationDataHttps clientAuthenticationDataHttps,
-                               UpdateOptions updateOptions) {
+                               UpdateOptionsImpl updateOptions) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
@@ -278,7 +278,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
                 log.error("{}/{}/{} Client [{}] is not authorized to update {}", tenant, namespace,
                         functionName, clientRole, ComponentTypeUtils.toString(componentType));
-                throw new RestException(Response.Status.UNAUTHORIZED, "client is not authorize to perform operation");
+                throw new RestException(Response.Status.UNAUTHORIZED, "Client is not authorized to perform operation");
 
             }
         } catch (PulsarAdminException e) {
@@ -670,17 +670,18 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
                                final InputStream uploadedInputStream,
                                final boolean delete,
                                URI uri,
-                               final String clientRole) {
+                               final String clientRole,
+                               AuthenticationDataSource authenticationData) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
 
         if (worker().getWorkerConfig().isAuthorizationEnabled()) {
-            if (!isSuperUser(clientRole)) {
+            if (!isSuperUser(clientRole, authenticationData)) {
                 log.error("{}/{}/{} Client [{}] is not superuser to update on worker leader {}", tenant, namespace,
                         functionName, clientRole, ComponentTypeUtils.toString(componentType));
-                throw new RestException(Response.Status.UNAUTHORIZED, "client is not authorize to perform operation");
+                throw new RestException(Response.Status.UNAUTHORIZED, "Client is not authorized to perform operation");
             }
         }
 

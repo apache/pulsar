@@ -20,38 +20,38 @@ package org.apache.pulsar.client.impl.schema;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.client.impl.schema.SchemaTestUtils.FOO_FIELDS;
-import static org.apache.pulsar.client.impl.schema.SchemaTestUtils.SCHEMA_AVRO_NOT_ALLOW_NULL;
 import static org.apache.pulsar.client.impl.schema.SchemaTestUtils.SCHEMA_AVRO_ALLOW_NULL;
+import static org.apache.pulsar.client.impl.schema.SchemaTestUtils.SCHEMA_AVRO_NOT_ALLOW_NULL;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.fail;
-
+import static org.testng.AssertJUnit.assertSame;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
+import java.util.UUID;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.avro.Schema;
-import org.apache.avro.io.BinaryEncoder;
-import org.apache.avro.io.BufferedBinaryEncoder;
-import org.apache.pulsar.client.api.SchemaSerializationException;
-import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.avro.SchemaValidationException;
 import org.apache.avro.SchemaValidator;
 import org.apache.avro.SchemaValidatorBuilder;
+import org.apache.avro.io.BinaryEncoder;
+import org.apache.avro.io.BufferedBinaryEncoder;
 import org.apache.avro.reflect.AvroDefault;
 import org.apache.avro.reflect.Nullable;
 import org.apache.avro.reflect.ReflectData;
+import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.RecordSchemaBuilder;
 import org.apache.pulsar.client.api.schema.SchemaBuilder;
-import org.apache.pulsar.client.api.schema.SchemaDefinitionBuilder;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaReader;
 import org.apache.pulsar.client.api.schema.SchemaWriter;
 import org.apache.pulsar.client.avro.generated.NasaMission;
@@ -65,8 +65,8 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.joda.time.DateTime;
 import org.joda.time.chrono.ISOChronology;
 import org.json.JSONException;
-import org.skyscreamer.jsonassert.JSONAssert;
 import org.powermock.reflect.Whitebox;
+import org.skyscreamer.jsonassert.JSONAssert;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -126,10 +126,16 @@ public class AvroSchemaTest {
     }
 
     @Test
+    public void testGetNativeSchema() throws SchemaValidationException {
+        AvroSchema<StructWithAnnotations> schema2 = AvroSchema.of(StructWithAnnotations.class);
+        org.apache.avro.Schema avroSchema2 = (Schema) schema2.getNativeSchema().get();
+        assertSame(schema2.schema, avroSchema2);
+    }
+
+    @Test
     public void testSchemaDefinition() throws SchemaValidationException {
         org.apache.avro.Schema schema1 = ReflectData.get().getSchema(DefaultStruct.class);
         AvroSchema<StructWithAnnotations> schema2 = AvroSchema.of(StructWithAnnotations.class);
-
         String schemaDef1 = schema1.toString();
         String schemaDef2 = new String(schema2.getSchemaInfo().getSchema(), UTF_8);
         assertNotEquals(
@@ -286,7 +292,7 @@ public class AvroSchemaTest {
         schemaLogicalType.setDecimal(new BigDecimal("12.34"));
         schemaLogicalType.setDate(LocalDate.now());
         schemaLogicalType.setTimeMicros(System.currentTimeMillis()*1000);
-        schemaLogicalType.setTimeMillis(LocalTime.now());
+        schemaLogicalType.setTimeMillis(LocalTime.now().truncatedTo(ChronoUnit.MILLIS));
 
         byte[] bytes1 = avroSchema.encode(schemaLogicalType);
         Assert.assertTrue(bytes1.length > 0);
@@ -306,7 +312,7 @@ public class AvroSchemaTest {
         schemaLogicalType.setTimestampMillis(new DateTime("2019-03-26T04:39:58.469Z", ISOChronology.getInstanceUTC()));
         schemaLogicalType.setDate(LocalDate.now());
         schemaLogicalType.setTimeMicros(System.currentTimeMillis()*1000);
-        schemaLogicalType.setTimeMillis(LocalTime.now());
+        schemaLogicalType.setTimeMillis(LocalTime.now().truncatedTo(ChronoUnit.MILLIS));
 
         byte[] bytes1 = avroSchema.encode(schemaLogicalType);
         Assert.assertTrue(bytes1.length > 0);
@@ -417,6 +423,19 @@ public class AvroSchemaTest {
         foo = schema.decode(schema.encode(foo));
         assertEquals(foo.getColor(), SchemaTestUtils.Color.RED);
         assertEquals(field1, foo.getField1());
+    }
+
+    static class MyPojo {
+        public UUID uid;
+    }
+
+    @Test
+    public void testAvroUUID() {
+        org.apache.pulsar.client.api.Schema<MyPojo> schema = org.apache.pulsar.client.api.Schema.AVRO(MyPojo.class);
+        MyPojo pojo1 = new MyPojo();
+        pojo1.uid = UUID.randomUUID();
+        MyPojo pojo2 = schema.decode(schema.encode(pojo1));
+        assertEquals(pojo1.uid, pojo2.uid);
     }
 
 }

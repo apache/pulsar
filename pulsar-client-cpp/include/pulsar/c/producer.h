@@ -123,6 +123,8 @@ PULSAR_PUBLIC void pulsar_producer_flush_async(pulsar_producer_t *producer, puls
 
 PULSAR_PUBLIC void pulsar_producer_free(pulsar_producer_t *producer);
 
+PULSAR_PUBLIC int pulsar_producer_is_connected(pulsar_producer_t *producer);
+
 #ifdef __cplusplus
 }
 #endif

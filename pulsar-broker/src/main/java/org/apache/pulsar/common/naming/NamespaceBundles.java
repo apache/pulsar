@@ -20,20 +20,28 @@ package org.apache.pulsar.common.naming;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static java.lang.String.format;
+import static org.apache.pulsar.common.policies.data.Policies.FIRST_BOUNDARY;
+import static org.apache.pulsar.common.policies.data.Policies.LAST_BOUNDARY;
 import com.google.common.base.Objects;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.SortedSet;
+import java.util.stream.Collectors;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.common.policies.data.BundlesData;
+import org.apache.pulsar.common.policies.data.LocalPolicies;
 
 public class NamespaceBundles {
     private final NamespaceName nsname;
     private final ArrayList<NamespaceBundle> bundles;
     private final NamespaceBundleFactory factory;
-    private final long version;
 
     protected final long[] partitions;
 
@@ -41,51 +49,50 @@ public class NamespaceBundles {
     public static final Long FULL_UPPER_BOUND = 0xffffffffL;
     private final NamespaceBundle fullBundle;
 
-    public NamespaceBundles(NamespaceName nsname, SortedSet<Long> partitionsSet, NamespaceBundleFactory factory)
-            throws Exception {
-        this(nsname, convertPartitions(partitionsSet), factory);
+    private final Optional<Pair<LocalPolicies, Long>> localPolicies;
+
+    public NamespaceBundles(NamespaceName nsname, NamespaceBundleFactory factory,
+                            Optional<Pair<LocalPolicies, Long>> localPolicies) {
+        this(nsname, factory, localPolicies, getPartitions(localPolicies.map(Pair::getLeft)));
     }
 
-    public NamespaceBundles(NamespaceName nsname, long[] partitions, NamespaceBundleFactory factory, long version) {
+    NamespaceBundles(NamespaceName nsname, NamespaceBundleFactory factory,
+                     Optional<Pair<LocalPolicies, Long>> localPolicies, Collection<Long> partitions) {
+        this(nsname, factory, localPolicies, getPartitions(partitions));
+    }
+
+    NamespaceBundles(NamespaceName nsname, NamespaceBundleFactory factory,
+                     Optional<Pair<LocalPolicies, Long>> localPolicies, long[] partitions) {
         // check input arguments
         this.nsname = checkNotNull(nsname);
         this.factory = checkNotNull(factory);
-        this.version = version;
+        this.localPolicies = localPolicies;
         checkArgument(partitions.length > 0, "Can't create bundles w/o partition boundaries");
 
         // calculate bundles based on partition boundaries
         this.bundles = Lists.newArrayList();
         fullBundle = new NamespaceBundle(nsname,
-            Range.range(FULL_LOWER_BOUND, BoundType.CLOSED, FULL_UPPER_BOUND, BoundType.CLOSED), factory);
+                Range.range(FULL_LOWER_BOUND, BoundType.CLOSED, FULL_UPPER_BOUND, BoundType.CLOSED), factory);
 
-        if (partitions.length > 0) {
-            if (partitions.length == 1) {
-                throw new IllegalArgumentException("Need to specify at least 2 boundaries");
-            }
-
-            this.partitions = partitions;
-            long lowerBound = partitions[0];
-            for (int i = 1; i < partitions.length; i++) {
-                long upperBound = partitions[i];
-                checkArgument(upperBound >= lowerBound);
-                Range<Long> newRange = null;
-                if (i != partitions.length - 1) {
-                    newRange = Range.range(lowerBound, BoundType.CLOSED, upperBound, BoundType.OPEN);
-                } else {
-                    // last one has a closed right end
-                    newRange = Range.range(lowerBound, BoundType.CLOSED, upperBound, BoundType.CLOSED);
-                }
-                bundles.add(new NamespaceBundle(nsname, newRange, factory));
-                lowerBound = upperBound;
-            }
-        } else {
-            this.partitions = new long[]{0L};
-            bundles.add(fullBundle);
+        if (partitions.length == 1) {
+            throw new IllegalArgumentException("Need to specify at least 2 boundaries");
         }
-    }
 
-    public NamespaceBundles(NamespaceName nsname, long[] partitions, NamespaceBundleFactory factory) {
-        this(nsname, partitions, factory, -1);
+        this.partitions = partitions;
+        long lowerBound = partitions[0];
+        for (int i = 1; i < partitions.length; i++) {
+            long upperBound = partitions[i];
+            checkArgument(upperBound >= lowerBound);
+            Range<Long> newRange = null;
+            if (i != partitions.length - 1) {
+                newRange = Range.range(lowerBound, BoundType.CLOSED, upperBound, BoundType.OPEN);
+            } else {
+                // last one has a closed right end
+                newRange = Range.range(lowerBound, BoundType.CLOSED, upperBound, BoundType.CLOSED);
+            }
+            bundles.add(new NamespaceBundle(nsname, newRange, factory));
+            lowerBound = upperBound;
+        }
     }
 
     public NamespaceBundle findBundle(TopicName topicName) {
@@ -148,7 +155,55 @@ public class NamespaceBundles {
         return false;
     }
 
-    public long getVersion() {
-        return version;
+    public Optional<Pair<LocalPolicies, Long>> getLocalPolicies() {
+        return localPolicies;
+    }
+
+    public Optional<Long> getVersion() {
+        return localPolicies.map(Pair::getRight);
+    }
+
+    static long[] getPartitions(BundlesData bundlesData) {
+        if (bundlesData == null) {
+            return new long[]{Long.decode(FIRST_BOUNDARY), Long.decode(LAST_BOUNDARY)};
+        } else {
+            List<String> boundaries = bundlesData.getBoundaries();
+            long[] partitions = new long[boundaries.size()];
+            for (int i = 0; i < boundaries.size(); i++) {
+                partitions[i] = Long.decode(boundaries.get(i));
+            }
+
+            return partitions;
+        }
+    }
+
+    private static long[] getPartitions(Optional<LocalPolicies> lp) {
+        return getPartitions(lp.map(x -> x.bundles).orElse(null));
+    }
+
+    private static long[] getPartitions(Collection<Long> partitions) {
+        long[] res = new long[partitions.size()];
+        int i = 0;
+        for (long p : partitions) {
+            res[i++] = p;
+        }
+        return res;
+    }
+
+    public BundlesData getBundlesData() {
+        List<String> boundaries = Arrays.stream(partitions)
+                .boxed()
+                .map(p -> format("0x%08x", p))
+                .collect(Collectors.toList());
+        return BundlesData.builder()
+                .boundaries(boundaries)
+                .numBundles(boundaries.size() - 1)
+                .build();
+    }
+
+    public LocalPolicies toLocalPolicies() {
+        return new LocalPolicies(this.getBundlesData(),
+                localPolicies.map(lp -> lp.getLeft().bookieAffinityGroup).orElse(null),
+                localPolicies.map(lp -> lp.getLeft().namespaceAntiAffinityGroup).orElse(null));
     }
 }

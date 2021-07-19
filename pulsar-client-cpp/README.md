@@ -37,14 +37,31 @@ https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/examples
 
 ## Requirements
 
- * CMake
+ * A C++ compiler that supports C++11, like GCC >= 4.8
+ * CMake >= 3.4
  * [Boost](http://www.boost.org/)
- * [Protocol Buffer 2.6](https://developers.google.com/protocol-buffers/)
- * [Log4CXX](https://logging.apache.org/log4cxx)
- * LibCurl
- * [GTest](https://github.com/google/googletest)
- * JsonCpp
+ * [Protocol Buffer](https://developers.google.com/protocol-buffers/)
+ * [libcurl](https://curl.se/libcurl/)
+ * [openssl](https://github.com/openssl/openssl)
 
+It's recommended to use Protocol Buffer 2.6 because it's verified by CI, but 3.x also works.
+
+The default supported [compression types](include/pulsar/CompressionType.h) are:
+
+- `CompressionNone`
+- `CompressionLZ4`
+
+If you want to enable other compression types, you need to install:
+
+- `CompressionZLib`: [zlib](https://zlib.net/)
+- `CompressionZSTD`: [zstd](https://github.com/facebook/zstd)
+- `CompressionSNAPPY`: [snappy](https://github.com/google/snappy)
+
+If you want to build and run the tests, you need to install [GTest](https://github.com/google/googletest). Otherwise, you need to add CMake option `-DBUILD_TESTS=OFF`.
+
+If you don't want to build Python client since `boost-python` may not be easy to install, you need to add CMake option `-DBUILD_PYTHON_WRAPPER=OFF`.
+
+If you want to use `ClientConfiguration::setLogConfFilePath`, you need to install the [Log4CXX](https://logging.apache.org/log4cxx) and add CMake option `-DUSE_LOG4CXX=ON`.
 
 ## Platforms
 
@@ -52,6 +69,7 @@ Pulsar C++ Client Library has been tested on:
 
 * Linux
 * Mac OS X
+* Windows x64
 
 ## Compilation
 
@@ -76,7 +94,7 @@ Run unit tests:
 ```shell
 apt-get install -y g++ cmake libssl-dev libcurl4-openssl-dev liblog4cxx-dev \
                 libprotobuf-dev libboost-all-dev  libgtest-dev google-mock \
-                libjsoncpp-dev libxml2-utils protobuf-compiler python-setuptools
+                protobuf-compiler python-setuptools
 ```
 
 #### Compile and install Google Test:
@@ -167,22 +185,45 @@ ${PULSAR_PATH}/pulsar-client-cpp/perf/perfConsumer
 
 ### Compile on Windows
 
-#### Install all dependencies:
+#### Install with [vcpkg](https://github.com/microsoft/vcpkg)
 
-Clone and build all dependencies from source if a binary distro can't be found.
+It's highly recommended to use `vcpkg` for C++ package management on Windows. It's easy to install and well supported by Visual Studio (2015/2017/2019) and CMake. See [here](https://github.com/microsoft/vcpkg#quick-start-windows) for quick start.
 
-- [Boost](https://github.com/boostorg/boost)
-- [LibCurl](https://github.com/curl/curl)
-- [zlib](https://github.com/madler/zlib)
-- [OpenSSL](https://github.com/openssl/openssl)
-- [ProtoBuf](https://github.com/protocolbuffers/protobuf)
-- [dlfcn-win32](https://github.com/dlfcn-win32/dlfcn-win32)
-- [LLVM](https://llvm.org/builds/) (for clang-tidy and clang-format)
+Take Windows 64-bit library as an example, you only need to run
 
-If you want to build and run the tests, then also install
-- [GTest and GMock](https://github.com/google/googletest)
+```bash
+vcpkg install --feature-flags=manifests --triplet x64-windows
+```
 
-#### Compile Pulsar client library:
+> NOTE: For Windows 32-bit library, change `x64-windows` to `x86-windows`, see [here](https://github.com/microsoft/vcpkg/blob/master/docs/users/triplets.md) for more details about the triplet concept in Vcpkg.
+
+The all dependencies, which are specified by [vcpkg.json](vcpkg.json), will be installed in `vcpkg_installed/` subdirectory,
+
+With `vcpkg`, you only need to run two commands:
+
+```bash
+cmake \
+ -B ./build \
+ -A x64 \
+ -DBUILD_PYTHON_WRAPPER=OFF -DBUILD_TESTS=OFF \
+ -DVCPKG_TRIPLET=x64-windows \
+ -DCMAKE_BUILD_TYPE=Release \
+ -S .
+cmake --build ./build --config Release
+```
+
+Then all artifacts will be built into `build` subdirectory.
+
+> **NOTE**
+>
+> 1. For Windows 32-bit, you need to use `-A Win32` and `-DVCPKG_TRIPLET=x86-windows`.
+> 2. For MSVC Debug mode, you need to replace `Release` with `Debug` for both `CMAKE_BUILD_TYPE` variable and `--config` option.
+
+#### Install dependencies manually
+
+You need to install [dlfcn-win32](https://github.com/dlfcn-win32/dlfcn-win32) in addition.
+
+If you installed the dependencies manually, you need to run
 
 ```shell
 #If all dependencies are in your path, all that is necessary is
@@ -212,4 +253,7 @@ ${PULSAR_PATH}/pulsar-test-service-stop.sh
 ```
 
 ## Requirements for Contributors
-We welcome contributions from the open source community, kindly make sure your changes are backward compatible with gcc-4.4.7 and Boost 1.41.
+
+It's recommended to install [LLVM](https://llvm.org/builds/) for `clang-tidy` and `clang-format`. Pulsar C++ client use `clang-format` 5.0 to format files, which is a little different with latest `clang-format`.
+
+We welcome contributions from the open source community, kindly make sure your changes are backward compatible with GCC 4.8 and Boost 1.53.

@@ -36,6 +36,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 
@@ -115,6 +116,11 @@ public class GenericAvroReader implements SchemaReader<GenericRecord> {
 
     public int getOffset() {
         return offset;
+    }
+
+    @Override
+    public Optional<Object> getNativeSchema() {
+        return Optional.of(schema);
     }
 
     private static final Logger log = LoggerFactory.getLogger(GenericAvroReader.class);

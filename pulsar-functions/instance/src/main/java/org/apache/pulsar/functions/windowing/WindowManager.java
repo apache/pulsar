@@ -121,8 +121,8 @@ public class WindowManager<T> implements TriggerHandler {
         List<Event<T>> windowEvents = null;
         List<Event<T>> expired = null;
 
+        lock.lock();
         try {
-            lock.lock();
     /*
      * scan the entire window to handle out of order events in
      * the case of time based windows.
@@ -196,8 +196,8 @@ public class WindowManager<T> implements TriggerHandler {
         List<Event<T>> eventsToExpire = new ArrayList<>();
         List<Event<T>> eventsToProcess = new ArrayList<>();
 
+        lock.lock();
         try {
-            lock.lock();
             Iterator<Event<T>> it = queue.iterator();
             while (it.hasNext()) {
                 Event<T> windowEvent = it.next();

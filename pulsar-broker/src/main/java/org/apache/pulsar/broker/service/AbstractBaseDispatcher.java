@@ -29,6 +29,7 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -47,8 +48,35 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
 
     protected final Subscription subscription;
 
-    protected AbstractBaseDispatcher(Subscription subscription) {
+    protected final ServiceConfiguration serviceConfig;
+
+    protected AbstractBaseDispatcher(Subscription subscription, ServiceConfiguration serviceConfig) {
         this.subscription = subscription;
+        this.serviceConfig = serviceConfig;
+    }
+
+    /**
+     * Update Entries with the metadata of each entry.
+     *
+     * @param entries
+     * @return
+     */
+    protected int updateEntryWrapperWithMetadata(EntryWrapper[] entryWrappers, List<Entry> entries) {
+        int totalMessages = 0;
+        for (int i = 0, entriesSize = entries.size(); i < entriesSize; i++) {
+            Entry entry = entries.get(i);
+            if (entry == null) {
+                continue;
+            }
+
+            ByteBuf metadataAndPayload = entry.getDataBuffer();
+            MessageMetadata msgMetadata = Commands.peekMessageMetadata(metadataAndPayload, subscription.toString(), -1);
+            EntryWrapper entryWrapper = EntryWrapper.get(entry, msgMetadata);
+            entryWrappers[i] = entryWrapper;
+            int batchSize = msgMetadata.getNumMessagesInBatch();
+            totalMessages += batchSize;
+        }
+        return totalMessages;
     }
 
     /**
@@ -72,8 +100,15 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
      *            an object where the total size in messages and bytes will be returned back to the caller
      */
     public void filterEntriesForConsumer(List<Entry> entries, EntryBatchSizes batchSizes,
-                                         SendMessageInfo sendMessageInfo, EntryBatchIndexesAcks indexesAcks,
-                                         ManagedCursor cursor, boolean isReplayRead) {
+            SendMessageInfo sendMessageInfo, EntryBatchIndexesAcks indexesAcks,
+            ManagedCursor cursor, boolean isReplayRead) {
+        filterEntriesForConsumer(Optional.empty(), 0, entries, batchSizes, sendMessageInfo, indexesAcks, cursor,
+                isReplayRead);
+    }
+
+    public void filterEntriesForConsumer(Optional<EntryWrapper[]> entryWrapper, int entryWrapperOffset,
+             List<Entry> entries, EntryBatchSizes batchSizes, SendMessageInfo sendMessageInfo,
+             EntryBatchIndexesAcks indexesAcks, ManagedCursor cursor, boolean isReplayRead) {
         int totalMessages = 0;
         long totalBytes = 0;
         int totalChunkedMessages = 0;
@@ -82,19 +117,22 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
             if (entry == null) {
                 continue;
             }
-
             ByteBuf metadataAndPayload = entry.getDataBuffer();
-
-            MessageMetadata msgMetadata = Commands.peekMessageMetadata(metadataAndPayload, subscription.toString(), -1);
-
-            if (!isReplayRead && msgMetadata != null
-                    && msgMetadata.hasTxnidMostBits() && msgMetadata.hasTxnidLeastBits()) {
+            int entryWrapperIndex = i + entryWrapperOffset;
+            MessageMetadata msgMetadata = entryWrapper.isPresent() && entryWrapper.get()[entryWrapperIndex] != null
+                    ? entryWrapper.get()[entryWrapperIndex].getMetadata()
+                    : null;
+            msgMetadata = msgMetadata == null
+                    ? Commands.peekMessageMetadata(metadataAndPayload, subscription.toString(), -1)
+                    : msgMetadata;
+            if (!isReplayRead && msgMetadata != null && msgMetadata.hasTxnidMostBits()
+                    && msgMetadata.hasTxnidLeastBits()) {
                 if (Markers.isTxnMarker(msgMetadata)) {
                     entries.set(i, null);
                     entry.release();
                     continue;
-                } else if (((PersistentTopic) subscription.getTopic()).isTxnAborted(
-                        new TxnID(msgMetadata.getTxnidMostBits(), msgMetadata.getTxnidLeastBits()))) {
+                } else if (((PersistentTopic) subscription.getTopic())
+                        .isTxnAborted(new TxnID(msgMetadata.getTxnidMostBits(), msgMetadata.getTxnidLeastBits()))) {
                     subscription.acknowledgeMessage(Collections.singletonList(entry.getPosition()), AckType.Individual,
                             Collections.emptyMap());
                     entries.set(i, null);
@@ -129,8 +167,8 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
             batchSizes.setBatchSize(i, batchSize);
             long[] ackSet = null;
             if (indexesAcks != null && cursor != null) {
-                ackSet = cursor.getDeletedBatchIndexesAsLongArray(
-                        PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
+                ackSet = cursor
+                        .getDeletedBatchIndexesAsLongArray(PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
                 if (ackSet != null) {
                     indexesAcks.setIndexesAcks(i, Pair.of(batchSize, ackSet));
                 } else {
@@ -140,15 +178,9 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
 
             BrokerInterceptor interceptor = subscription.interceptor();
             if (null != interceptor) {
-                interceptor.beforeSendMessage(
-                    subscription,
-                    entry,
-                    ackSet,
-                    msgMetadata
-                );
+                interceptor.beforeSendMessage(subscription, entry, ackSet, msgMetadata);
             }
         }
-
         sendMessageInfo.setTotalMessages(totalMessages);
         sendMessageInfo.setTotalBytes(totalBytes);
         sendMessageInfo.setTotalChunkedMessages(totalChunkedMessages);
@@ -165,8 +197,8 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         Policies policies = null;
         Integer maxConsumersPerSubscription = null;
         try {
-            maxConsumersPerSubscription = Optional.ofNullable(brokerService
-                    .getTopicPolicies(TopicName.get(topic)))
+            maxConsumersPerSubscription = brokerService
+                    .getTopicPolicies(TopicName.get(topic))
                     .map(TopicPolicies::getMaxConsumersPerSubscription)
                     .orElse(null);
             if (maxConsumersPerSubscription == null) {
@@ -179,7 +211,9 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         }
 
         if (maxConsumersPerSubscription == null) {
-            maxConsumersPerSubscription = policies != null && policies.max_consumers_per_subscription > 0
+            maxConsumersPerSubscription = policies != null
+                    && policies.max_consumers_per_subscription != null
+                    && policies.max_consumers_per_subscription >= 0
                     ? policies.max_consumers_per_subscription :
                     brokerService.pulsar().getConfiguration().getMaxConsumersPerSubscription();
         }
@@ -204,11 +238,20 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         // noop
     }
 
-    protected byte[] peekStickyKey(ByteBuf metadataAndPayload) {
-        return Commands.peekStickyKey(metadataAndPayload, subscription.getTopicName(), subscription.getName());
+    protected static Pair<Integer, Long> computeReadLimits(int messagesToRead, int availablePermitsOnMsg,
+                                                           long bytesToRead, long availablePermitsOnByte) {
+        if (availablePermitsOnMsg > 0) {
+            messagesToRead = Math.min(messagesToRead, availablePermitsOnMsg);
+        }
+
+        if (availablePermitsOnByte > 0) {
+            bytesToRead = Math.min(bytesToRead, availablePermitsOnByte);
+        }
+
+        return Pair.of(messagesToRead, bytesToRead);
     }
 
-    protected void addMessageToReplay(long ledgerId, long entryId) {
-        // No-op
+    protected byte[] peekStickyKey(ByteBuf metadataAndPayload) {
+        return Commands.peekStickyKey(metadataAndPayload, subscription.getTopicName(), subscription.getName());
     }
 }

@@ -131,12 +131,13 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     }
 
     public void setMaxPendingMessages(int maxPendingMessages) {
-        checkArgument(maxPendingMessages > 0, "maxPendingMessages needs to be > 0");
+        checkArgument(maxPendingMessages >= 0, "maxPendingMessages needs to be >= 0");
         this.maxPendingMessages = maxPendingMessages;
     }
 
     public void setMaxPendingMessagesAcrossPartitions(int maxPendingMessagesAcrossPartitions) {
-        checkArgument(maxPendingMessagesAcrossPartitions >= maxPendingMessages);
+        checkArgument(maxPendingMessagesAcrossPartitions >= maxPendingMessages,
+                "maxPendingMessagesAcrossPartitions needs to be >= maxPendingMessages");
         this.maxPendingMessagesAcrossPartitions = maxPendingMessagesAcrossPartitions;
     }
 

@@ -26,6 +26,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 
+import lombok.Cleanup;
 import org.apache.pulsar.broker.service.BkEnsemblesTestBase;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -51,6 +52,7 @@ public class PartitionedTopicsSchemaTest extends BkEnsemblesTestBase {
 
         int N = 10;
 
+        @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
 
         CompletableFuture<Producer<String>> producerFuture = client.newProducer(Schema.STRING)
@@ -103,8 +105,6 @@ public class PartitionedTopicsSchemaTest extends BkEnsemblesTestBase {
         for (int i = 0; i < N; i++) {
             assertTrue(messages.contains("Hello-" + i));
         }
-
-        client.close();
     }
 
 }

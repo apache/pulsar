@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -39,16 +40,19 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
@@ -58,18 +62,22 @@ import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientExce
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.internal.DefaultImplementation;
+import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
+import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -79,12 +87,12 @@ import org.testng.annotations.Test;
 @Test(groups = "flaky")
 public class TransactionEndToEndTest extends TransactionTestBase {
 
-    private final static int TOPIC_PARTITION = 3;
+    private static final int TOPIC_PARTITION = 3;
 
-    private final static String TENANT = "tnx";
-    private final static String NAMESPACE1 = TENANT + "/ns1";
-    private final static String TOPIC_OUTPUT = NAMESPACE1 + "/output";
-    private final static String TOPIC_MESSAGE_ACK_TEST = NAMESPACE1 + "/message-ack-test";
+    private static final String TENANT = "tnx";
+    private static final String NAMESPACE1 = TENANT + "/ns1";
+    private static final String TOPIC_OUTPUT = NAMESPACE1 + "/output";
+    private static final String TOPIC_MESSAGE_ACK_TEST = NAMESPACE1 + "/message-ack-test";
 
     @BeforeMethod
     protected void setup() throws Exception {
@@ -92,18 +100,21 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
         String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length -1];
-        admin.clusters().createCluster(CLUSTER_NAME, new ClusterData("http://localhost:" + webServicePort));
+        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl("http://localhost:" + webServicePort).build());
         admin.tenants().createTenant(TENANT,
-                new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
+                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(NAMESPACE1);
         admin.topics().createPartitionedTopic(TOPIC_OUTPUT, TOPIC_PARTITION);
-        admin.topics().createPartitionedTopic(TOPIC_MESSAGE_ACK_TEST, TOPIC_PARTITION);
+        admin.topics().createPartitionedTopic(TOPIC_MESSAGE_ACK_TEST, 1);
 
         admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
-                new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
+                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
         admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), 16);
 
+        if (pulsarClient != null) {
+            pulsarClient.close();
+        }
         pulsarClient = PulsarClient.builder()
                 .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
                 .statsInterval(0, TimeUnit.SECONDS)
@@ -136,6 +147,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .subscriptionName("test")
                 .enableBatchIndexAcknowledgment(true)
                 .subscribe();
+        Awaitility.await().until(consumer::isConnected);
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient
                 .newProducer()
@@ -209,6 +221,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .subscriptionName(subName)
                 .enableBatchIndexAcknowledgment(true)
                 .subscribe();
+        Awaitility.await().until(consumer::isConnected);
 
         // Can't receive transaction messages before abort.
         Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
@@ -219,7 +232,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         // Cant't receive transaction messages after abort.
         message = consumer.receive(2, TimeUnit.SECONDS);
         Assert.assertNull(message);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).until(() -> {
+        Awaitility.await().until(() -> {
             boolean flag = true;
             for (int partition = 0; partition < TOPIC_PARTITION; partition ++) {
                 String topic;
@@ -299,6 +312,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(subscriptionType)
                 .subscribe();
+        Awaitility.await().until(consumer::isConnected);
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
@@ -374,6 +388,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .enableBatchIndexAcknowledgment(true)
                 .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS)
                 .subscribe();
+        Awaitility.await().until(consumer::isConnected);
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient
@@ -392,7 +407,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         log.info("produce transaction messages finished");
 
         // Can't receive transaction messages before commit.
-        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
+        Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
         Assert.assertNull(message);
         log.info("transaction messages can't be received before transaction committed");
 
@@ -411,10 +426,13 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         }
         Assert.assertEquals(messageCnt, receiveCnt);
 
-        message = consumer.receive(5, TimeUnit.SECONDS);
+        message = consumer.receive(2, TimeUnit.SECONDS);
         Assert.assertNull(message);
 
-        markDeletePositionCheck(topic, subName, false);
+        String checkTopic = TopicName.get(topic).getPartition(0).toString();
+        PersistentTopicInternalStats stats = admin.topics().getInternalStats(checkTopic, false);;
+
+        Assert.assertNotEquals(stats.cursors.get(subName).markDeletePosition, stats.lastConfirmedEntry);
 
         consumer.redeliverUnacknowledgedMessages();
 
@@ -429,46 +447,45 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         message = consumer.receive(2, TimeUnit.SECONDS);
         Assert.assertNull(message);
-        for (int partition = 0; partition < TOPIC_PARTITION; partition ++) {
-            topic = TopicName.get(topic).getPartition(partition).toString();
-            boolean exist = false;
-            for (int i = 0; i < getPulsarServiceList().size(); i++) {
 
-                Field field = BrokerService.class.getDeclaredField("topics");
-                field.setAccessible(true);
-                ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics =
-                        (ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>>) field
-                                .get(getPulsarServiceList().get(i).getBrokerService());
-                CompletableFuture<Optional<Topic>> topicFuture = topics.get(topic);
+        topic = TopicName.get(topic).getPartition(0).toString();
+        boolean exist = false;
+        for (int i = 0; i < getPulsarServiceList().size(); i++) {
 
-                if (topicFuture != null) {
-                    Optional<Topic> topicOptional = topicFuture.get();
-                    if (topicOptional.isPresent()) {
-                        PersistentSubscription persistentSubscription =
-                                (PersistentSubscription) topicOptional.get().getSubscription(subName);
-                        Position markDeletePosition = persistentSubscription.getCursor().getMarkDeletedPosition();
-                        Position lastConfirmedEntry = persistentSubscription.getCursor()
-                                .getManagedLedger().getLastConfirmedEntry();
-                        exist = true;
-                        if (!markDeletePosition.equals(lastConfirmedEntry)) {
-                            //this because of the transaction commit marker have't delete
-                            //delete commit marker after ack position
-                            //when delete commit marker operation is processing, next delete operation will not do again
-                            //when delete commit marker operation finish, it can run next delete commit marker operation
-                            //so this test may not delete all the position in this manageLedger.
-                            Position markerPosition = ((ManagedLedgerImpl) persistentSubscription.getCursor()
-                                    .getManagedLedger()).getNextValidPosition((PositionImpl) markDeletePosition);
-                            //marker is the lastConfirmedEntry, after commit the marker will only be write in
-                            if (!markerPosition.equals(lastConfirmedEntry)) {
-                                log.error("Mark delete position is not commit marker position!");
-                                fail();
-                            }
+            Field field = BrokerService.class.getDeclaredField("topics");
+            field.setAccessible(true);
+            ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics =
+                    (ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>>) field
+                            .get(getPulsarServiceList().get(i).getBrokerService());
+            CompletableFuture<Optional<Topic>> topicFuture = topics.get(topic);
+
+            if (topicFuture != null) {
+                Optional<Topic> topicOptional = topicFuture.get();
+                if (topicOptional.isPresent()) {
+                    PersistentSubscription persistentSubscription =
+                            (PersistentSubscription) topicOptional.get().getSubscription(subName);
+                    Position markDeletePosition = persistentSubscription.getCursor().getMarkDeletedPosition();
+                    Position lastConfirmedEntry = persistentSubscription.getCursor()
+                            .getManagedLedger().getLastConfirmedEntry();
+                    exist = true;
+                    if (!markDeletePosition.equals(lastConfirmedEntry)) {
+                        //this because of the transaction commit marker have't delete
+                        //delete commit marker after ack position
+                        //when delete commit marker operation is processing, next delete operation will not do again
+                        //when delete commit marker operation finish, it can run next delete commit marker operation
+                        //so this test may not delete all the position in this manageLedger.
+                        Position markerPosition = ((ManagedLedgerImpl) persistentSubscription.getCursor()
+                                .getManagedLedger()).getNextValidPosition((PositionImpl) markDeletePosition);
+                        //marker is the lastConfirmedEntry, after commit the marker will only be write in
+                        if (!markerPosition.equals(lastConfirmedEntry)) {
+                            log.error("Mark delete position is not commit marker position!");
+                            fail();
                         }
                     }
                 }
             }
-            assertTrue(exist);
         }
+        assertTrue(exist);
 
         log.info("receive transaction messages count: {}", receiveCnt);
     }
@@ -495,6 +512,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .subscriptionType(subscriptionType)
                 .ackTimeout(1, TimeUnit.MINUTES)
                 .subscribe();
+        Awaitility.await().until(consumer::isConnected);
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
@@ -622,7 +640,6 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             txnIDList.add(new TxnID(txn.getTxnIdMostBits(), txn.getTxnIdLeastBits()));
         }
 
-        pulsarClient.close();
         @Cleanup
         PulsarClientImpl recoverPulsarClient = (PulsarClientImpl) PulsarClient.builder()
                 .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
@@ -641,6 +658,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .subscriptionName("test")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
+        Awaitility.await().until(consumer::isConnected);
 
         for (int i = 0; i < txnCnt * messageCnt; i++) {
             Message<byte[]> message = consumer.receive();
@@ -657,6 +675,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .topic(topic)
                 .subscriptionName("test")
                 .subscribe();
+        Awaitility.await().until(consumer::isConnected);
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
@@ -758,7 +777,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             }
         });
 
-        Awaitility.await().atMost(3000, TimeUnit.MILLISECONDS).until(() -> {
+        Awaitility.await().until(() -> {
             try {
                 transactionMetadataStore.get().getTxnMeta(new TxnID(((TransactionImpl) timeoutTxn)
                         .getTxnIdMostBits(), ((TransactionImpl) timeoutTxn).getTxnIdLeastBits())).get();
@@ -778,5 +797,167 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         field.setAccessible(true);
         TransactionImpl.State state = (TransactionImpl.State) field.get(timeoutTxn);
         assertEquals(state, TransactionImpl.State.ERROR);
+    }
+
+    @Test
+    public void transactionTimeoutTest() throws Exception {
+        String topic = NAMESPACE1 + "/txn-timeout";
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("test")
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .enableBatching(false)
+                .producerName("txn-timeout")
+                .create();
+
+        producer.send("Hello Pulsar!");
+
+        Transaction consumeTimeoutTxn = pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(3, TimeUnit.SECONDS)
+                .build().get();
+
+        Message<String> message = consumer.receive();
+
+        consumer.acknowledgeAsync(message.getMessageId(), consumeTimeoutTxn).get();
+
+        Message<String> reReceiveMessage = consumer.receive(2, TimeUnit.SECONDS);
+        assertNull(reReceiveMessage);
+
+        reReceiveMessage = consumer.receive(2, TimeUnit.SECONDS);
+
+        assertEquals(reReceiveMessage.getValue(), message.getValue());
+
+        assertEquals(reReceiveMessage.getMessageId(), message.getMessageId());
+
+    }
+
+    @DataProvider(name = "ackType")
+    public static Object[] ackType() {
+        return new Object[] {CommandAck.AckType.Cumulative, CommandAck.AckType.Individual};
+    }
+
+    @Test(dataProvider = "ackType")
+    public void txnTransactionRedeliverNullDispatcher(CommandAck.AckType ackType) throws Exception {
+        String topic = NAMESPACE1 + "/txnTransactionRedeliverNullDispatcher";
+        final String subName = "test";
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topic)
+                .subscriptionName(subName)
+                .enableBatchIndexAcknowledgment(true)
+                .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS)
+                .subscribe();
+        Awaitility.await().until(consumer::isConnected);
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topic)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .enableBatching(false)
+                .create();
+
+
+        int messageCnt = 10;
+        for (int i = 0; i < messageCnt; i++) {
+            producer.send(("Hello Txn - " + i).getBytes(UTF_8));
+        }
+        Transaction txn = getTxn();
+        if (ackType == CommandAck.AckType.Individual) {
+            consumer.acknowledgeAsync(consumer.receive().getMessageId(), txn);
+        } else {
+            consumer.acknowledgeCumulativeAsync(consumer.receive().getMessageId(), txn);
+        }
+        topic = TopicName.get(topic).toString();
+        boolean exist = false;
+        for (int i = 0; i < getPulsarServiceList().size(); i++) {
+
+            Field field = BrokerService.class.getDeclaredField("topics");
+            field.setAccessible(true);
+            ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics =
+                    (ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>>) field
+                            .get(getPulsarServiceList().get(i).getBrokerService());
+            CompletableFuture<Optional<Topic>> topicFuture = topics.get(topic);
+
+            if (topicFuture != null) {
+                Optional<Topic> topicOptional = topicFuture.get();
+                if (topicOptional.isPresent()) {
+                    PersistentSubscription persistentSubscription =
+                            (PersistentSubscription) topicOptional.get().getSubscription(subName);
+                    field = persistentSubscription.getClass().getDeclaredField("dispatcher");
+                    field.setAccessible(true);
+                    field.set(persistentSubscription, null);
+                    exist = true;
+                }
+            }
+        }
+        txn.abort().get();
+        assertTrue(exist);
+    }
+
+    @Test
+    public void oneTransactionOneTopicWithMultiSubTest() throws Exception {
+        String topic = NAMESPACE1 + "/oneTransactionOneTopicWithMultiSubTest";
+        final String subName1 = "test1";
+        final String subName2 = "test2";
+        @Cleanup
+        Consumer<byte[]> consumer1 = pulsarClient
+                .newConsumer()
+                .topic(topic)
+                .subscriptionName(subName1)
+                .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS)
+                .subscribe();
+        Awaitility.await().until(consumer1::isConnected);
+
+        @Cleanup
+        Consumer<byte[]> consumer2 = pulsarClient
+                .newConsumer()
+                .topic(topic)
+                .subscriptionName(subName2)
+                .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS)
+                .subscribe();
+        Awaitility.await().until(consumer2::isConnected);
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topic)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .enableBatching(false)
+                .create();
+
+        MessageId messageId = producer.send(("Hello Pulsar").getBytes(UTF_8));
+        TransactionImpl txn = (TransactionImpl) getTxn();
+        consumer1.acknowledgeAsync(messageId, txn).get();
+        consumer2.acknowledgeAsync(messageId, txn).get();
+
+        boolean flag = false;
+        for (int i = 0; i < getPulsarServiceList().size(); i++) {
+            TransactionMetadataStoreService transactionMetadataStoreService =
+                    getPulsarServiceList().get(i).getTransactionMetadataStoreService();
+            if (transactionMetadataStoreService.getStores()
+                    .containsKey(TransactionCoordinatorID.get(txn.getTxnIdMostBits()))) {
+                List<TransactionSubscription> list = transactionMetadataStoreService
+                        .getTxnMeta(new TxnID(txn.getTxnIdMostBits(), txn.getTxnIdLeastBits())).get().ackedPartitions();
+                flag = true;
+                assertEquals(list.size(), 2);
+                if (list.get(0).getSubscription().equals(subName1)) {
+                    assertEquals(list.get(1).getSubscription(), subName2);
+                } else {
+                    assertEquals(list.get(0).getSubscription(), subName2);
+                    assertEquals(list.get(1).getSubscription(), subName1);
+                }
+            }
+        }
+        assertTrue(flag);
     }
 }

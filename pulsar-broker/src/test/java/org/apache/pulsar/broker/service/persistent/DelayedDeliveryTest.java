@@ -44,6 +44,7 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -331,11 +332,17 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
 
     @Test(timeOut = 20000)
     public void testEnableAndDisableTopicDelayedDelivery() throws Exception {
-        String topicName = "persistent://public/default/topic-" + UUID.randomUUID().toString();
+        String topicName = "persistent://public/default/topic-" + UUID.randomUUID();
 
         admin.topics().createPartitionedTopic(topicName, 3);
+        pulsarClient.newProducer().topic(topicName).create().close();
+        Awaitility.await().untilAsserted(() -> pulsar.getTopicPoliciesService()
+                .cacheIsInitialized(TopicName.get(topicName)));
         assertNull(admin.topics().getDelayedDeliveryPolicy(topicName));
-        DelayedDeliveryPolicies delayedDeliveryPolicies = new DelayedDeliveryPolicies(2000, false);
+        DelayedDeliveryPolicies delayedDeliveryPolicies = DelayedDeliveryPolicies.builder()
+                .tickTime(2000)
+                .active(false)
+                .build();;
         admin.topics().setDelayedDeliveryPolicy(topicName, delayedDeliveryPolicies);
         //wait for update
         for (int i = 0; i < 50; i++) {
@@ -364,9 +371,15 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         final String topicName = "persistent://public/default/test" + UUID.randomUUID().toString();
 
         admin.topics().createPartitionedTopic(topicName, 3);
+        pulsarClient.newProducer().topic(topicName).create().close();
+        Awaitility.await().untilAsserted(() -> pulsar.getTopicPoliciesService()
+                .cacheIsInitialized(TopicName.get(topicName)));
         assertNull(admin.topics().getDelayedDeliveryPolicy(topicName));
         //1 Set topic policy
-        DelayedDeliveryPolicies delayedDeliveryPolicies = new DelayedDeliveryPolicies(2000, true);
+        DelayedDeliveryPolicies delayedDeliveryPolicies = DelayedDeliveryPolicies.builder()
+                .tickTime(2000)
+                .active(true)
+                .build();
         admin.topics().setDelayedDeliveryPolicy(topicName, delayedDeliveryPolicies);
         //wait for update
         for (int i = 0; i < 50; i++) {
@@ -408,7 +421,10 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
             assertTrue(delayedMessages.contains("delayed-msg-" + i));
         }
         //5 Disable delayed delivery
-        delayedDeliveryPolicies.setActive(false);
+        delayedDeliveryPolicies = DelayedDeliveryPolicies.builder()
+                .tickTime(2000)
+                .active(false)
+                .build();
         admin.topics().setDelayedDeliveryPolicy(topicName, delayedDeliveryPolicies);
         //wait for update
         for (int i = 0; i < 50; i++) {
@@ -423,8 +439,10 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         assertNotNull(msg);
         consumer.acknowledge(msg);
         //7 Set a very long tick time, so that trackDelayedDelivery will fail. we can receive msg immediately.
-        delayedDeliveryPolicies.setActive(true);
-        delayedDeliveryPolicies.setTickTime(Integer.MAX_VALUE);
+        delayedDeliveryPolicies = DelayedDeliveryPolicies.builder()
+                .tickTime(Integer.MAX_VALUE)
+                .active(true)
+                .build();
         admin.topics().setDelayedDeliveryPolicy(topicName, delayedDeliveryPolicies);
         //wait for update
         for (int i = 0; i < 50; i++) {
@@ -474,9 +492,9 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         }
 
         Dispatcher dispatcher = pulsar.getBrokerService().getTopicReference(topic).get().getSubscription(subName).getDispatcher();
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), messages));
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), messages));
 
         admin.topics().skipAllMessages(topic, subName);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 0));
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 0));
     }
 }

@@ -34,7 +34,7 @@ public class ByteBufferSchema extends AbstractSchema<ByteBuffer> {
     private static final SchemaInfo SCHEMA_INFO;
 
     static {
-        SCHEMA_INFO = new SchemaInfo()
+        SCHEMA_INFO = new SchemaInfoImpl()
             .setName("ByteBuffer")
             .setType(SchemaType.BYTES)
             .setSchema(new byte[0]);
@@ -76,15 +76,20 @@ public class ByteBufferSchema extends AbstractSchema<ByteBuffer> {
     }
 
     @Override
-    public ByteBuffer decode(ByteBuf byteBuf) {
-        if (null == byteBuf) {
+    public ByteBuffer decode(ByteBuf byteBuffer) {
+        if (null == byteBuffer) {
             return null;
         } else {
-            int size = byteBuf.readableBytes();
+            int size = byteBuffer.readableBytes();
             byte[] bytes = new byte[size];
-            byteBuf.readBytes(bytes);
+            byteBuffer.readBytes(bytes);
             return ByteBuffer.wrap(bytes);
         }
+    }
+
+    @Override
+    public ByteBuffer decode(ByteBuffer byteBuffer, byte[] schemaVersion) {
+        return byteBuffer;
     }
 
     @Override

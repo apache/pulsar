@@ -28,12 +28,17 @@ import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedExcepti
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
+import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
 import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * The disabled implementation of {@link PendingAckHandle}.
  */
 public class PendingAckHandleDisabled implements PendingAckHandle {
+
+    private final CompletableFuture<PendingAckHandle> pendingAckHandleCompletableFuture =
+            CompletableFuture.completedFuture(PendingAckHandleDisabled.this);
 
     @Override
     public CompletableFuture<Void> individualAcknowledgeMessage(TxnID txnID,
@@ -68,6 +73,26 @@ public class PendingAckHandleDisabled implements PendingAckHandle {
 
     @Override
     public void clearIndividualPosition(Position position) {
-        //no operation
+        //no-op
+    }
+
+    @Override
+    public CompletableFuture<PendingAckHandle> pendingAckHandleFuture() {
+        return pendingAckHandleCompletableFuture;
+    }
+
+    @Override
+    public TransactionInPendingAckStats getTransactionInPendingAckStats(TxnID txnID) {
+        return null;
+    }
+
+    @Override
+    public TransactionPendingAckStats getStats() {
+        return null;
+    }
+
+    @Override
+    public CompletableFuture<Void> close() {
+        return CompletableFuture.completedFuture(null);
     }
 }

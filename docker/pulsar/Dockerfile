@@ -17,8 +17,7 @@
 # under the License.
 #
 
-# First create a stage with the Pulsar tarball, the scripts, the python client,
-# the cpp client, and the data directory. Then ensure correct file permissions.
+# First create a stage with just the Pulsar tarball and scripts
 FROM busybox as pulsar
 
 ARG PULSAR_TARBALL
@@ -34,23 +33,12 @@ COPY scripts/pulsar-zookeeper-ruok.sh /pulsar/bin
 COPY scripts/watch-znode.py /pulsar/bin
 COPY scripts/install-pulsar-client-37.sh /pulsar/bin
 
-COPY target/python-client/ /pulsar/pulsar-client
-
 RUN mkdir /pulsar/data
-
-# In order to support running this docker image as a container on OpenShift
-# the final image needs to give the root group enough permission.
-# The file permissions are maintained when copied into the target image.
-RUN chmod -R g=u /pulsar
 
 ### Create 2nd stage from OpenJDK image
 ### and add Python dependencies (for Pulsar functions)
 
-FROM openjdk:8-jdk-slim
-
-# Create the pulsar group and user to make docker container run as a non root user by default
-RUN groupadd -g 10001 pulsar
-RUN adduser -u 10000 --gid 10001 --disabled-login --disabled-password --gecos '' pulsar
+FROM openjdk:11-jdk-slim
 
 # Install some utilities
 RUN apt-get update \
@@ -66,21 +54,16 @@ RUN python3.7 get-pip.py
 
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 10
 
-# The pulsar directory is staged correctly in the first stage, above.
-# The chown and chmod ensure proper permissions for running as a non root user and non root group
-# as well as running on OpenShift with a random user that is part of the root group
-RUN mkdir /pulsar && chown pulsar:0 /pulsar && chmod g=u /pulsar
-COPY --from=pulsar --chown=pulsar:0 /pulsar /pulsar
+RUN echo networkaddress.cache.ttl=1 >> $JAVA_HOME/conf/security/java.security
+ADD target/python-client/ /pulsar/pulsar-client
 
-RUN echo networkaddress.cache.ttl=1 >> $JAVA_HOME/jre/lib/security/java.security
+VOLUME  ["/pulsar/conf", "/pulsar/data"]
 
 ENV PULSAR_ROOT_LOGGER=INFO,CONSOLE
 
+
+COPY --from=pulsar /pulsar /pulsar
 WORKDIR /pulsar
 
-# This script is intentionally run as the root user to make the dependencies
-# available to the root user and the pulsar user
 RUN /pulsar/bin/install-pulsar-client-37.sh
 
-# Switch to the pulsar user to ensure container defaults to run as a non root user
-USER pulsar

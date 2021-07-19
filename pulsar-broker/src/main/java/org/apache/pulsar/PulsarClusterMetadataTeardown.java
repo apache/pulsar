@@ -21,9 +21,10 @@ package org.apache.pulsar;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.google.protobuf.InvalidProtocolBufferException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.ExecutionException;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
+import lombok.Cleanup;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.conf.ClientConfiguration;
@@ -32,11 +33,10 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.pulsar.broker.service.schema.SchemaStorageFormat.SchemaLocator;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
-import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
-import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.ZKUtil;
-import org.apache.zookeeper.ZooKeeper;
+import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.MetadataStore;
+import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,73 +86,51 @@ public class PulsarClusterMetadataTeardown {
             throw e;
         }
 
+        @Cleanup
+        MetadataStore metadataStore = MetadataStoreFactory.create(arguments.zookeeper,
+                MetadataStoreConfig.builder().sessionTimeoutMillis(arguments.zkSessionTimeoutMillis).build());
+
         if (arguments.bkMetadataServiceUri != null) {
+            @Cleanup
             BookKeeper bookKeeper =
                     new BookKeeper(new ClientConfiguration().setMetadataServiceUri(arguments.bkMetadataServiceUri));
-            ZooKeeper localZk = initZk(arguments.zookeeper, arguments.zkSessionTimeoutMillis);
-            ManagedLedgerFactory managedLedgerFactory = new ManagedLedgerFactoryImpl(bookKeeper, localZk);
 
-            deleteManagedLedgers(localZk, managedLedgerFactory);
-            deleteSchemaLedgers(localZk, bookKeeper);
+            @Cleanup("shutdown")
+            ManagedLedgerFactory managedLedgerFactory = new ManagedLedgerFactoryImpl(metadataStore, bookKeeper);
 
-            managedLedgerFactory.shutdown();  // `localZk` would be closed here
-            bookKeeper.close();
+            deleteManagedLedgers(metadataStore, managedLedgerFactory);
+            deleteSchemaLedgers(metadataStore, bookKeeper);
         }
 
-        ZooKeeper localZk = initZk(arguments.zookeeper, arguments.zkSessionTimeoutMillis);
-
         for (String localZkNode : localZkNodes) {
-            deleteZkNodeRecursively(localZk, "/" + localZkNode);
+            deleteRecursively(metadataStore, "/" + localZkNode).join();
         }
 
         if (arguments.configurationStore != null && arguments.cluster != null) {
             // Should it be done by REST API before broker is down?
-            ZooKeeper configStoreZk = initZk(arguments.configurationStore, arguments.zkSessionTimeoutMillis);
-            deleteZkNodeRecursively(configStoreZk, "/admin/clusters/" + arguments.cluster);
-            configStoreZk.close();
+            @Cleanup
+            MetadataStore configMetadataStore = MetadataStoreFactory.create(arguments.configurationStore,
+                    MetadataStoreConfig.builder().sessionTimeoutMillis(arguments.zkSessionTimeoutMillis).build());
+            deleteRecursively(configMetadataStore, "/admin/clusters/" + arguments.cluster).join();
         }
 
-        localZk.close();
         log.info("Cluster metadata for '{}' teardown.", arguments.cluster);
     }
 
-    public static ZooKeeper initZk(String connection, int sessionTimeout) throws InterruptedException {
-        ZooKeeperClientFactory zkFactory = new ZookeeperClientFactoryImpl();
-        try {
-            return zkFactory.create(connection, ZooKeeperClientFactory.SessionType.ReadWrite, sessionTimeout).get();
-        } catch (ExecutionException e) {
-            log.error("Failed to connect to '{}': {}", connection, e.getMessage());
-            throw new RuntimeException(e);
-        }
-    }
-
-    public static void deleteZkNodeRecursively(ZooKeeper zooKeeper, String path) throws InterruptedException {
-        try {
-            ZKUtil.deleteRecursive(zooKeeper, path);
-        } catch (KeeperException e) {
-            log.warn("Failed to delete node {} from ZK [{}]: {}", path, zooKeeper, e);
-        }
-    }
-
-    private static List<String> getChildren(ZooKeeper zooKeeper, String path) {
-        try {
-            return zooKeeper.getChildren(path, null);
-        } catch (InterruptedException | KeeperException e) {
-            if (e instanceof KeeperException.NoNodeException) {
-                return new ArrayList<>();
-            }
-            log.error("Failed to get children of {}: {}", path, e);
-            throw new RuntimeException(e);
-        }
-    }
-
-    private static byte[] getData(ZooKeeper zooKeeper, String path) {
-        try {
-            return zooKeeper.getData(path, null, null);
-        } catch (KeeperException | InterruptedException e) {
-            log.error("Failed to get data from {}: {}", path, e);
-            throw new RuntimeException(e);
-        }
+    private static CompletableFuture<Void> deleteRecursively(MetadataStore metadataStore, String path) {
+        return metadataStore.getChildren(path)
+                .thenCompose(children -> FutureUtil.waitForAll(
+                        children.stream()
+                                .map(child -> deleteRecursively(metadataStore, path + "/" + child))
+                                .collect(Collectors.toList())))
+                .thenCompose(__ -> metadataStore.exists(path))
+                .thenCompose(exists -> {
+                    if (exists) {
+                        return metadataStore.delete(path, Optional.empty());
+                    } else {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                });
     }
 
     private static void deleteLedger(BookKeeper bookKeeper, long ledgerId) {
@@ -167,13 +145,13 @@ public class PulsarClusterMetadataTeardown {
         }
     }
 
-    private static void deleteManagedLedgers(ZooKeeper zooKeeper, ManagedLedgerFactory managedLedgerFactory) {
+    private static void deleteManagedLedgers(MetadataStore metadataStore, ManagedLedgerFactory managedLedgerFactory) {
         final String managedLedgersRoot = "/managed-ledgers";
-        getChildren(zooKeeper, managedLedgersRoot).forEach(tenant -> {
+        metadataStore.getChildren(managedLedgersRoot).join().forEach(tenant -> {
             final String tenantRoot = managedLedgersRoot + "/" + tenant;
-            getChildren(zooKeeper, tenantRoot).forEach(namespace -> {
+            metadataStore.getChildren(tenantRoot).join().forEach(namespace -> {
                 final String namespaceRoot = String.join("/", tenantRoot, namespace, "persistent");
-                getChildren(zooKeeper, namespaceRoot).forEach(topic -> {
+                metadataStore.getChildren(namespaceRoot).join().forEach(topic -> {
                     final TopicName topicName = TopicName.get(String.join("/", tenant, namespace, topic));
                     try {
                         managedLedgerFactory.delete(topicName.getPersistenceNamingEncoding());
@@ -186,16 +164,17 @@ public class PulsarClusterMetadataTeardown {
         });
     }
 
-    private static void deleteSchemaLedgers(ZooKeeper zooKeeper, BookKeeper bookKeeper) {
+    private static void deleteSchemaLedgers(MetadataStore metadataStore, BookKeeper bookKeeper) {
         final String schemaLedgersRoot = "/schemas";
-        getChildren(zooKeeper, schemaLedgersRoot).forEach(tenant -> {
+        metadataStore.getChildren(schemaLedgersRoot).join().forEach(tenant -> {
             final String tenantRoot = schemaLedgersRoot + "/" + tenant;
-            getChildren(zooKeeper, tenantRoot).forEach(namespace -> {
+            metadataStore.getChildren(tenantRoot).join().forEach(namespace -> {
                 final String namespaceRoot = tenantRoot + "/" + namespace;
-                getChildren(zooKeeper, namespaceRoot).forEach(topic -> {
+                metadataStore.getChildren(namespaceRoot).join().forEach(topic -> {
                     final String topicRoot = namespaceRoot + "/" + topic;
                     try {
-                        SchemaLocator.parseFrom(getData(zooKeeper, topicRoot)).getIndexList().stream()
+                        SchemaLocator.parseFrom(metadataStore.get(topicRoot).join().get().getValue())
+                                .getIndexList().stream()
                                 .map(indexEntry -> indexEntry.getPosition().getLedgerId())
                                 .forEach(ledgerId -> deleteLedger(bookKeeper, ledgerId));
                     } catch (InvalidProtocolBufferException e) {

@@ -64,6 +64,10 @@ func (m *MockMessage) Key() string {
 	return "key"
 }
 
+func (m *MockMessage) OrderingKey() string {
+	return "orderingKey"
+}
+
 func (m *MockMessage) RedeliveryCount() uint32 {
 	return 1
 }

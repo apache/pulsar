@@ -22,6 +22,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
+import org.apache.pulsar.common.naming.TopicVersion;
 
 import java.util.function.Supplier;
 
@@ -30,7 +31,7 @@ public class CmdBrokers extends CmdBase {
 
     @Parameters(commandDescription = "List active brokers of the cluster")
     private class List extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -51,9 +52,9 @@ public class CmdBrokers extends CmdBase {
 
     @Parameters(commandDescription = "List namespaces owned by the broker")
     private class Namespaces extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
-        @Parameter(names = "--url", description = "broker-url\n", required = true)
+        @Parameter(names = "--url", description = "broker-url", required = true)
         private String brokerUrl;
 
         @Override
@@ -127,9 +128,12 @@ public class CmdBrokers extends CmdBase {
     @Parameters(commandDescription = "Run a health check against the broker")
     private class HealthcheckCmd extends CliCommand {
 
+        @Parameter(names = "--topic-version", description = "topic version V1 is default")
+        private TopicVersion topicVersion;
+
         @Override
         void run() throws Exception {
-            getAdmin().brokers().healthcheck();
+            getAdmin().brokers().healthcheck(topicVersion);
             System.out.println("ok");
         }
 

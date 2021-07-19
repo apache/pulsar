@@ -735,3 +735,17 @@ void MultiTopicsConsumerImpl::setNegativeAcknowledgeEnabledForTesting(bool enabl
         c.second->setNegativeAcknowledgeEnabledForTesting(enabled);
     }
 }
+
+bool MultiTopicsConsumerImpl::isConnected() const {
+    Lock lock(mutex_);
+    if (state_ != Ready) {
+        return false;
+    }
+
+    for (const auto& topicAndConsumer : consumers_) {
+        if (!topicAndConsumer.second->isConnected()) {
+            return false;
+        }
+    }
+    return true;
+}

@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
-import static org.apache.commons.lang3.StringUtils.isNotEmpty;
-import static org.apache.pulsar.broker.admin.AdminResource.jsonMapper;
-import static org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.LOAD_REPORT_UPDATE_MIMIMUM_INTERVAL;
-import com.google.common.base.Charsets;
+import static org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.LOAD_REPORT_UPDATE_MINIMUM_INTERVAL;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -33,7 +32,6 @@ import com.google.common.collect.TreeMultimap;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -43,11 +41,13 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import org.apache.bookkeeper.util.ZkUtils;
+import java.util.function.Consumer;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -60,26 +60,22 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.stats.Metrics;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
+import org.apache.pulsar.metadata.api.MetadataCache;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.Notification;
+import org.apache.pulsar.metadata.api.coordination.LockManager;
+import org.apache.pulsar.metadata.api.coordination.ResourceLock;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUnitRanking;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage.ResourceType;
-import org.apache.pulsar.zookeeper.ZooKeeperCache.Deserializer;
-import org.apache.pulsar.zookeeper.ZooKeeperCacheListener;
-import org.apache.pulsar.zookeeper.ZooKeeperChildrenCache;
-import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.ZooDefs.Ids;
-import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListener<LoadReport> {
+public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification> {
 
     private static final Logger log = LoggerFactory.getLogger(SimpleLoadManagerImpl.class);
     private SimpleResourceAllocationPolicies policies;
@@ -143,8 +139,10 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
 
     private final PlacementStrategy placementStrategy;
 
-    private ZooKeeperDataCache<LoadReport> loadReportCacheZk;
-    private ZooKeeperDataCache<Map<String, String>> dynamicConfigurationCache;
+    private LockManager<LoadReport> loadReports;
+    private ResourceLock<LoadReport> brokerLock;
+    private MetadataCache<Map<String, String>> dynamicConfigurationCache;
+
     private BrokerHostUsage brokerHostUsage;
     private LoadingCache<String, Long> unloadedHotNamespaceCache;
 
@@ -173,21 +171,19 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     public static final String LOADBALANCER_STRATEGY_RAND = "weightedRandomSelection";
     public static final String LOADBALANCER_STRATEGY_LEAST_MSG = "leastMsgPerSecond";
 
-    private String brokerZnodePath;
     private final ScheduledExecutorService scheduler;
-    private ZooKeeperChildrenCache availableActiveBrokers;
 
     private static final long MBytes = 1024 * 1024;
-    // last LoadReport stored in ZK
+    // last LoadReport stored in metadata store
     private volatile LoadReport lastLoadReport;
     // last timestamp resource usage was checked
     private long lastResourceUsageTimestamp = -1;
     // flag to force update load report
     private boolean forceLoadReportUpdate = false;
-    private static final Deserializer<LoadReport> loadReportDeserializer = (key, content) -> jsonMapper()
-            .readValue(content, LoadReport.class);
     // check if given broker can load persistent/non-persistent topic
     private final BrokerTopicLoadingPredicate brokerTopicLoadingPredicate;
+
+    private volatile Future<?> updateRankingHandle;
 
     // Perform initializations which may be done without a PulsarService.
     public SimpleLoadManagerImpl() {
@@ -236,19 +232,12 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         lastLoadReport.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
         lastLoadReport.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
 
-        loadReportCacheZk = new ZooKeeperDataCache<LoadReport>(pulsar.getLocalZkCache()) {
-            @Override
-            public LoadReport deserialize(String key, byte[] content) throws Exception {
-                return ObjectMapperFactory.getThreadLocal().readValue(content, LoadReport.class);
-            }
-        };
-        loadReportCacheZk.registerListener(this);
-        this.dynamicConfigurationCache = new ZooKeeperDataCache<Map<String, String>>(pulsar.getLocalZkCache()) {
-            @Override
-            public Map<String, String> deserialize(String key, byte[] content) throws Exception {
-                return ObjectMapperFactory.getThreadLocal().readValue(content, HashMap.class);
-            }
-        };
+        loadReports = pulsar.getCoordinationService().getLockManager(LoadReport.class);
+        pulsar.getLocalMetadataStore().registerListener(this);
+        this.dynamicConfigurationCache = pulsar.getLocalMetadataStore().getMetadataCache(
+                new TypeReference<Map<String, String>>() {
+                });
+
         int entryExpiryTime = (int) pulsar.getConfiguration().getLoadBalancerSheddingGracePeriodMinutes();
         unloadedHotNamespaceCache = CacheBuilder.newBuilder().expireAfterWrite(entryExpiryTime, TimeUnit.MINUTES)
                 .build(new CacheLoader<String, Long>() {
@@ -257,17 +246,6 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                         return System.currentTimeMillis();
                     }
                 });
-
-        availableActiveBrokers = new ZooKeeperChildrenCache(pulsar.getLocalZkCache(), LOADBALANCE_BROKERS_ROOT);
-        availableActiveBrokers.registerListener(new ZooKeeperCacheListener<Set<String>>() {
-            @Override
-            public void onUpdate(String path, Set<String> data, Stat stat) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Update Received for path {}", path);
-                }
-                scheduler.submit(SimpleLoadManagerImpl.this::updateRanking);
-            }
-        });
         this.pulsar = pulsar;
     }
 
@@ -278,58 +256,24 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
 
     @Override
     public void start() throws PulsarServerException {
+        // Register the brokers in metadata store
+        String lookupServiceAddress = getBrokerAddress();
+        String brokerLockPath = LOADBALANCE_BROKERS_ROOT + "/" + lookupServiceAddress;
+
         try {
-            // Register the brokers in zk list
-            if (pulsar.getZkClient().exists(LOADBALANCE_BROKERS_ROOT, false) == null) {
-                try {
-                    ZkUtils.createFullPathOptimistic(pulsar.getZkClient(), LOADBALANCE_BROKERS_ROOT, new byte[0],
-                            Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-                } catch (KeeperException.NodeExistsException e) {
-                    // ignore the exception, node might be present already
-                }
-            }
-            String lookupServiceAddress = getBrokerAddress();
-            brokerZnodePath = LOADBALANCE_BROKERS_ROOT + "/" + lookupServiceAddress;
             LoadReport loadReport = null;
             try {
                 loadReport = generateLoadReport();
                 this.lastResourceUsageTimestamp = loadReport.getTimestamp();
             } catch (Exception e) {
-                log.warn("Unable to get load report to write it on zookeeper", e);
+                log.warn("Unable to get load report to write it on metadata store", e);
             }
-            String loadReportJson = "";
-            if (loadReport != null) {
-                loadReportJson = ObjectMapperFactory.getThreadLocal().writeValueAsString(loadReport);
-            }
-            try {
-                if (!org.apache.pulsar.zookeeper.ZkUtils.checkNodeAndWaitExpired(
-                    pulsar.getZkClient(), brokerZnodePath,
-                    pulsar.getConfig().getZooKeeperSessionTimeoutMillis())) {
-                    ZkUtils.createFullPathOptimistic(pulsar.getZkClient(), brokerZnodePath,
-                        loadReportJson.getBytes(Charsets.UTF_8), Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
-                } else {
-                    // Node may already be created by another load manager: in this case update the data.
-                    if (loadReport != null) {
-                        pulsar.getZkClient().setData(brokerZnodePath, loadReportJson.getBytes(Charsets.UTF_8), -1);
-                    }
-                }
-            } catch (KeeperException.NodeExistsException e) {
-                log.error("Broker znode - [{}] is own by different zookeeper-session", brokerZnodePath);
-                throw new PulsarServerException(
-                    "Broker znode - [" + brokerZnodePath + "] is owned by different zk-session");
-            } catch (InterruptedException ie) {
-                Thread.currentThread().interrupt();
-                // Catching exception here to print the right error message
-                log.error("Interrupted at creating znode - [{}] for load balance on zookeeper ", brokerZnodePath, ie);
-                throw ie;
-            } catch (Exception e) {
-                // Catching excption here to print the right error message
-                log.error("Unable to create znode - [{}] for load balance on zookeeper ", brokerZnodePath, e);
-                throw e;
-            }
+
+            brokerLock = loadReports.acquireLock(brokerLockPath, loadReport).join();
+
             // first time, populate the broker ranking
             updateRanking();
-            log.info("Created broker ephemeral node on {}", brokerZnodePath);
+            log.info("Created broker ephemeral node on {}", brokerLockPath);
 
             // load default resource quota
             this.realtimeAvgResourceQuota = pulsar.getLocalZkCacheService().getResourceQuotaCache().getDefaultQuota();
@@ -341,88 +285,62 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                     LOADBALANCER_DYNAMIC_SETTING_LOAD_FACTOR_MEM_ZPATH, SETTING_NAME_LOAD_FACTOR_MEM,
                     this.realtimeMemoryLoadFactor);
         } catch (Exception e) {
-            log.error("Unable to create znode - [{}] for load balance on zookeeper ", brokerZnodePath, e);
+            log.error("Unable to create node - [{}] for load balance on metadata store", brokerLockPath, e);
             throw new PulsarServerException(e);
         }
     }
 
     @Override
     public void disableBroker() throws Exception {
-        if (isNotEmpty(brokerZnodePath)) {
-            pulsar.getZkClient().delete(brokerZnodePath, -1);
+        if (brokerLock != null) {
+            brokerLock.release().join();
         }
-    }
-
-    @Override
-    public Deserializer<LoadReport> getLoadReportDeserializer() {
-        return loadReportDeserializer;
-    }
-
-    public ZooKeeperChildrenCache getActiveBrokersCache() {
-        return this.availableActiveBrokers;
     }
 
     @Override
     public Set<String> getAvailableBrokers() throws Exception {
-        return this.availableActiveBrokers.get();
+        return new HashSet<>(loadReports.listLocks(LOADBALANCE_BROKERS_ROOT).join());
     }
 
-    public ZooKeeperDataCache<LoadReport> getLoadReportCache() {
-        return this.loadReportCacheZk;
-    }
-
-    private void setDynamicConfigurationToZK(String zkPath, Map<String, String> settings) throws IOException {
-        byte[] settingBytes = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(settings);
+    private void setDynamicConfigurationToStore(String path, Map<String, String> settings) {
         try {
-            if (pulsar.getLocalZkCache().exists(zkPath)) {
-                pulsar.getZkClient().setData(zkPath, settingBytes, -1);
-            } else {
-                ZkUtils.createFullPathOptimistic(pulsar.getZkClient(), zkPath, settingBytes, Ids.OPEN_ACL_UNSAFE,
-                        CreateMode.PERSISTENT);
-            }
-        } catch (Exception e) {
-            log.warn("Got exception when writing to ZooKeeper path [{}]:", zkPath, e);
+            dynamicConfigurationCache.readModifyUpdateOrCreate(path, __ -> settings).join();
+        } catch (CompletionException e) {
+            log.warn("Got exception when writing to metadata store [{}]:", path, MetadataStoreException.unwrap(e));
         }
-
     }
 
-    private String getDynamicConfigurationFromZK(String zkPath, String settingName, String defaultValue) {
+    private String getDynamicConfigurationFromStore(String path, String settingName, String defaultValue) {
         try {
-            return dynamicConfigurationCache.get(zkPath).map(c -> c.get(settingName)).orElse(defaultValue);
+            return dynamicConfigurationCache.get(path).join().map(c -> c.get(settingName)).orElse(defaultValue);
         } catch (Exception e) {
-            log.warn("Got exception when reading ZooKeeper path [{}]:", zkPath, e);
+            log.warn("Got exception when reading path from metadata store [{}]:", path, e);
             return defaultValue;
         }
     }
 
-    private double getDynamicConfigurationDouble(String zkPath, String settingName, double defaultValue) {
-        double result = defaultValue;
+    private double getDynamicConfigurationDouble(String path, String settingName, double defaultValue) {
         try {
-            String setting = this.getDynamicConfigurationFromZK(zkPath, settingName, null);
-            if (setting != null) {
-                result = Double.parseDouble(setting);
-            }
+            return Double.parseDouble(getDynamicConfigurationFromStore(path, settingName,
+                    String.valueOf(defaultValue)));
         } catch (Exception e) {
-            log.warn("Got exception when parsing configuration from ZooKeeper path [{}]:", zkPath, e);
+            log.warn("Got exception when parsing configuration from path [{}]:", path, e);
         }
-        return result;
+        return defaultValue;
     }
 
-    private boolean getDynamicConfigurationBoolean(String zkPath, String settingName, boolean defaultValue) {
-        boolean result = defaultValue;
+    private boolean getDynamicConfigurationBoolean(String path, String settingName, boolean defaultValue) {
         try {
-            String setting = this.getDynamicConfigurationFromZK(zkPath, settingName, null);
-            if (setting != null) {
-                result = Boolean.parseBoolean(setting);
-            }
+            return Boolean.parseBoolean(getDynamicConfigurationFromStore(path, settingName,
+                    String.valueOf(defaultValue)));
         } catch (Exception e) {
-            log.warn("Got exception when parsing configuration from ZooKeeper path [{}]:", zkPath, e);
+            log.warn("Got exception when parsing configuration from path [{}]:", path, e);
         }
-        return result;
+        return defaultValue;
     }
 
     private String getLoadBalancerPlacementStrategy() {
-        String strategy = this.getDynamicConfigurationFromZK(LOADBALANCER_DYNAMIC_SETTING_STRATEGY_ZPATH,
+        String strategy = this.getDynamicConfigurationFromStore(LOADBALANCER_DYNAMIC_SETTING_STRATEGY_ZPATH,
                 SETTING_NAME_STRATEGY, pulsar.getConfiguration().getLoadBalancerPlacementStrategy());
         if (!LOADBALANCER_STRATEGY_LLS.equals(strategy) && !LOADBALANCER_STRATEGY_RAND.equals(strategy)
                 && !LOADBALANCER_STRATEGY_LEAST_MSG.equals(strategy)) {
@@ -598,7 +516,9 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 this.realtimeCpuLoadFactor = timeSmoothValue(this.realtimeCpuLoadFactor, totalCpuUsage / totalMsgRate,
                         RESOURCE_QUOTA_MIN_CPU_FACTOR, RESOURCE_QUOTA_MAX_CPU_FACTOR, timePast);
                 this.realtimeMemoryLoadFactor = timeSmoothValue(this.realtimeMemoryLoadFactor,
-                        totalMemoryUsage / totalMemGroups, RESOURCE_QUOTA_MIN_MEM_FACTOR, RESOURCE_QUOTA_MAX_MEM_FACTOR,
+                        totalMemoryUsage / totalMemGroups,
+                        RESOURCE_QUOTA_MIN_MEM_FACTOR,
+                        RESOURCE_QUOTA_MAX_MEM_FACTOR,
                         timePast);
             }
 
@@ -668,16 +588,14 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         log.info("Writing namespace bundle resource quotas to ZooKeeper as leader broker");
 
         // write the load factors
-        setDynamicConfigurationToZK(LOADBALANCER_DYNAMIC_SETTING_LOAD_FACTOR_CPU_ZPATH, new HashMap<String, String>() {
-            {
-                put(SETTING_NAME_LOAD_FACTOR_CPU, Double.toString(realtimeCpuLoadFactor));
-            }
-        });
-        setDynamicConfigurationToZK(LOADBALANCER_DYNAMIC_SETTING_LOAD_FACTOR_MEM_ZPATH, new HashMap<String, String>() {
-            {
-                put(SETTING_NAME_LOAD_FACTOR_MEM, Double.toString(realtimeMemoryLoadFactor));
-            }
-        });
+        setDynamicConfigurationToStore(LOADBALANCER_DYNAMIC_SETTING_LOAD_FACTOR_CPU_ZPATH,
+                new HashMap<String, String>() {{
+                    put(SETTING_NAME_LOAD_FACTOR_CPU, Double.toString(realtimeCpuLoadFactor));
+                }});
+        setDynamicConfigurationToStore(LOADBALANCER_DYNAMIC_SETTING_LOAD_FACTOR_MEM_ZPATH,
+                new HashMap<String, String>() {{
+                    put(SETTING_NAME_LOAD_FACTOR_MEM, Double.toString(realtimeMemoryLoadFactor));
+                }});
 
         // write default quota
         ResourceQuota defaultQuota = pulsar.getLocalZkCacheService().getResourceQuotaCache().getDefaultQuota();
@@ -798,15 +716,15 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
      * another idle broker in; 2) Even distribution: once all brokers' load are above optimum level, maintain all
      * brokers to have even load; 3) Set the underload threshold to small value (like 1) for pure even distribution, and
      * high value (like 80) for pure optimum distribution;
-     *
+     * <p>
      * Strategy to select broker: 1) The first choice is the least loaded broker which is underload but not idle; 2) The
-     * second choice is idle broker (if there is any); 3) Othewise simply select the least loaded broker if it is NOT
+     * second choice is idle broker (if there is any); 3) Otherwise simply select the least loaded broker if it is NOT
      * overloaded; 4) If all brokers are overloaded, select the broker with maximum available capacity (considering
      * brokers could have different hardware configuration, this usually means to select the broker with more hardware
      * resource);
-     *
+     * <p>
      * Broker's load level: 1) Load ranking (triggered by LoadReport update) estimate the load level according to the
-     * resourse usage and namespace bundles already loaded by each broker; 2) When leader broker decide the owner for a
+     * resource usage and namespace bundles already loaded by each broker; 2) When leader broker decide the owner for a
      * new namespace bundle, it may take time for the real owner to actually load the bundle and refresh LoadReport,
      * leader broker will store the bundle in a list called preAllocatedBundles, and the quota of all
      * preAllocatedBundles in preAllocatedQuotas, and re-estimate the broker's load level by putting the
@@ -976,10 +894,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
 
         if (availableBrokers.isEmpty()) {
             // Create a map with all available brokers with no load information
-            Set<String> activeBrokers = availableActiveBrokers.get(LOADBALANCE_BROKERS_ROOT);
-            List<String> brokersToShuffle = new ArrayList<>(activeBrokers);
-            Collections.shuffle(brokersToShuffle);
-            activeBrokers = new HashSet<>(brokersToShuffle);
+            List<String> activeBrokers = loadReports.listLocks(LOADBALANCE_BROKERS_ROOT).join();
+            Collections.shuffle(activeBrokers);
 
             availableBrokers = Maps.newTreeMap();
             for (String broker : activeBrokers) {
@@ -1005,9 +921,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         }
         Multimap<Long, ResourceUnit> finalCandidates = getFinalCandidates(serviceUnit, availableBrokers);
         // Remove candidates that point to inactive brokers
-        Set<String> activeBrokers = Collections.emptySet();
         try {
-            activeBrokers = availableActiveBrokers.get();
+            Set<String> activeBrokers = getAvailableBrokers();
             // Need to use an explicit Iterator object to prevent concurrent modification exceptions
             Iterator<Map.Entry<Long, ResourceUnit>> candidateIterator = finalCandidates.entries().iterator();
             while (candidateIterator.hasNext()) {
@@ -1037,28 +952,30 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         }
     }
 
-    /*
-     * only update the report if a minute has elapsed since last update, since brokers update their report every minute.
-     *
-     * we should calculate the rank only for updated path but for now we read all the reports and re-calculate
-     * everything
-     */
     @Override
-    public void onUpdate(String path, LoadReport data, Stat stat) {
-        log.debug("Received updated load report from broker node - [{}], scheduling re-ranking of brokers.", path);
-        scheduler.submit(this::updateRanking);
+    public void accept(Notification n) {
+        if (n.getPath().startsWith(LOADBALANCE_BROKERS_ROOT)) {
+            if (log.isDebugEnabled()) {
+                log.debug("Received updated load report from broker node - [{}], scheduling re-ranking of brokers.",
+                        n.getPath());
+            }
+            updateRankingHandle = scheduler.submit(this::updateRanking);
+        }
+    }
+
+    @VisibleForTesting
+    public Future<?> getUpdateRankingHandle(){
+        return updateRankingHandle;
     }
 
     private void updateRanking() {
         try {
             synchronized (currentLoadReports) {
                 currentLoadReports.clear();
-                Set<String> activeBrokers = availableActiveBrokers.get();
-                for (String broker : activeBrokers) {
+                for (String broker : getAvailableBrokers()) {
                     try {
                         String key = String.format("%s/%s", LOADBALANCE_BROKERS_ROOT, broker);
-                        LoadReport lr = loadReportCacheZk.get(key)
-                                .orElseThrow(() -> new KeeperException.NoNodeException());
+                        LoadReport lr = loadReports.readLock(key).join().get();
                         ResourceUnit ru = new SimpleResourceUnit(String.format("http://%s", lr.getName()),
                                 fromLoadReport(lr));
                         this.currentLoadReports.put(ru, lr);
@@ -1218,7 +1135,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         if (this.avgJvmHeapUsageMBytes <= 0) {
             this.avgJvmHeapUsageMBytes = realtimeJvmHeapUsage;
         } else {
-            long weight = Math.max(1, TimeUnit.SECONDS.toMillis(120) / LOAD_REPORT_UPDATE_MIMIMUM_INTERVAL);
+            long weight = Math.max(1, TimeUnit.SECONDS.toMillis(120) / LOAD_REPORT_UPDATE_MINIMUM_INTERVAL);
             this.avgJvmHeapUsageMBytes = ((weight - 1) * this.avgJvmHeapUsageMBytes + realtimeJvmHeapUsage) / weight;
         }
 
@@ -1237,7 +1154,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
             int maxUpdateIntervalInMinutes = pulsar.getConfiguration().getLoadBalancerReportUpdateMaxIntervalMinutes();
             if (timeElapsedSinceLastReport > TimeUnit.MINUTES.toMillis(maxUpdateIntervalInMinutes)) {
                 needUpdate = true;
-            } else if (timeElapsedSinceLastReport > LOAD_REPORT_UPDATE_MIMIMUM_INTERVAL) {
+            } else if (timeElapsedSinceLastReport > LOAD_REPORT_UPDATE_MINIMUM_INTERVAL) {
                 // check number of bundles assigned, comparing with last LoadReport
                 long oldBundleCount = lastLoadReport.getNumBundles();
                 long newBundleCount = pulsar.getBrokerService().getNumberOfNamespaceBundles();
@@ -1293,8 +1210,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
 
         if (needUpdate) {
             LoadReport lr = generateLoadReportForcefully();
-            pulsar.getZkClient().setData(brokerZnodePath, ObjectMapperFactory.getThreadLocal().writeValueAsBytes(lr),
-                    -1);
+            this.brokerLock.updateValue(lr).join();
             this.lastLoadReport = lr;
             this.lastResourceUsageTimestamp = lr.getTimestamp();
             // split-bundle if requires
@@ -1310,7 +1226,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
      */
     private boolean isLoadReportGenerationIntervalPassed() {
         long timeSinceLastGenMillis = System.currentTimeMillis() - lastLoadReport.getTimestamp();
-        return timeSinceLastGenMillis > LOAD_REPORT_UPDATE_MIMIMUM_INTERVAL;
+        return timeSinceLastGenMillis > LOAD_REPORT_UPDATE_MINIMUM_INTERVAL;
     }
 
     // todo: changeme: this can be optimized, we don't have to iterate through everytime
@@ -1320,9 +1236,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         // this does not have "http://" in front, hacky but no time to pretty up
         Multimap<Long, ResourceUnit> brokers = getFinalCandidates(namespaceName, availableBrokers);
 
-        for (Object broker : brokers.values()) {
-            ResourceUnit underloadedRU = (ResourceUnit) broker;
-            LoadReport currentLoadReport = currentLoadReports.get(underloadedRU);
+        for (ResourceUnit broker : brokers.values()) {
+            LoadReport currentLoadReport = currentLoadReports.get(broker);
             if (isBelowLoadLevel(currentLoadReport.getSystemResourceUsage(), maxLoadLevel)) {
                 return true;
             }
@@ -1509,20 +1424,12 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
 
     @Override
     public void stop() throws PulsarServerException {
-        loadReportCacheZk.close();
-        loadReportCacheZk.clear();
-        availableActiveBrokers.close();
-        scheduler.shutdownNow();
-    }
-
-    private long getBrokerZnodeOwner() {
         try {
-            Stat stat = new Stat();
-            pulsar.getZkClient().getData(brokerZnodePath, false, stat);
-            return stat.getEphemeralOwner();
+            loadReports.close();
+            scheduler.shutdownNow();
+            scheduler.awaitTermination(5, TimeUnit.SECONDS);
         } catch (Exception e) {
-            log.warn("Failed to get stat of {}", brokerZnodePath, e);
+            throw new PulsarServerException(e);
         }
-        return 0;
     }
 }

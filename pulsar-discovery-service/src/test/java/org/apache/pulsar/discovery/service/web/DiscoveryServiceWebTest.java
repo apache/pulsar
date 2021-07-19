@@ -181,10 +181,10 @@ public class DiscoveryServiceWebTest extends BaseZKStarterTest{
          * must get unknown host exception with above brokers in a sequential manner.
          **/
 
-        assertEquals(brokers, validateRequest(brokers, HttpMethod.PUT, requestUrl, new BundlesData(1)),
+        assertEquals(brokers, validateRequest(brokers, HttpMethod.PUT, requestUrl, BundlesData.builder().numBundles(1).build()),
                 "redirection failed");
         assertEquals(brokers, validateRequest(brokers, HttpMethod.GET, requestUrl, null), "redirection failed");
-        assertEquals(brokers, validateRequest(brokers, HttpMethod.POST, requestUrl, new BundlesData(1)),
+        assertEquals(brokers, validateRequest(brokers, HttpMethod.POST, requestUrl, BundlesData.builder().numBundles(1).build()),
                 "redirection failed");
 
         server.stop();

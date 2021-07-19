@@ -23,6 +23,8 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import io.netty.channel.EventLoopGroup;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.nio.file.Paths;
 import java.util.Optional;
 import java.util.concurrent.Executors;
@@ -33,9 +35,12 @@ import org.apache.pulsar.broker.BookKeeperClientFactory;
 import org.apache.pulsar.broker.BookKeeperClientFactoryImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.common.util.CmdGenerateDocs;
+import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZookeeperBkClientFactoryImpl;
 import org.apache.zookeeper.ZooKeeper;
@@ -53,6 +58,9 @@ public class CompactorTool {
 
         @Parameter(names = {"-h", "--help"}, description = "Show this help message")
         private boolean help = false;
+
+        @Parameter(names = {"-g", "--generate-docs"}, description = "Generate docs")
+        private boolean generateDocs = false;
     }
 
     public static void main(String[] args) throws Exception {
@@ -64,6 +72,13 @@ public class CompactorTool {
         jcommander.parse(args);
         if (arguments.help) {
             jcommander.usage();
+            System.exit(-1);
+        }
+
+        if (arguments.generateDocs) {
+            CmdGenerateDocs cmd = new CmdGenerateDocs("pulsar");
+            cmd.addCommand("compact-topic", arguments);
+            cmd.run(null);
             System.exit(-1);
         }
 
@@ -100,13 +115,15 @@ public class CompactorTool {
             log.info("Found `brokerServicePortTls` in configuration file. \n"
                     + "Will connect pulsar use TLS.");
             clientBuilder
-                    .serviceUrl(PulsarService.brokerUrlTls(PulsarService.advertisedAddress(brokerConfig),
+                    .serviceUrl(PulsarService.brokerUrlTls(
+                            ServiceConfigurationUtils.getAppliedAdvertisedAddress(brokerConfig, true),
                             brokerConfig.getBrokerServicePortTls().get()))
                     .allowTlsInsecureConnection(brokerConfig.isTlsAllowInsecureConnection())
                     .tlsTrustCertsFilePath(brokerConfig.getTlsCertificateFilePath());
 
         } else {
-            clientBuilder.serviceUrl(PulsarService.brokerUrl(PulsarService.advertisedAddress(brokerConfig),
+            clientBuilder.serviceUrl(PulsarService.brokerUrl(
+                    ServiceConfigurationUtils.getAppliedAdvertisedAddress(brokerConfig, true),
                     brokerConfig.getBrokerServicePort().get()));
         }
 
@@ -120,7 +137,10 @@ public class CompactorTool {
                 ZooKeeperClientFactory.SessionType.ReadWrite,
                 (int) brokerConfig.getZooKeeperSessionTimeoutMillis()).get();
         BookKeeperClientFactory bkClientFactory = new BookKeeperClientFactoryImpl();
-        BookKeeper bk = bkClientFactory.create(brokerConfig, zk, Optional.empty(), null);
+
+        EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(1, false,
+                new DefaultThreadFactory("compactor-io"));
+        BookKeeper bk = bkClientFactory.create(brokerConfig, zk, eventLoopGroup, Optional.empty(), null);
         try (PulsarClient pulsar = clientBuilder.build()) {
             Compactor compactor = new TwoPhaseCompactor(brokerConfig, pulsar, bk, scheduler);
             long ledgerId = compactor.compact(arguments.topic).get();
@@ -131,6 +151,7 @@ public class CompactorTool {
             zk.close();
             scheduler.shutdownNow();
             executor.shutdown();
+            eventLoopGroup.shutdownGracefully();
         }
     }
 

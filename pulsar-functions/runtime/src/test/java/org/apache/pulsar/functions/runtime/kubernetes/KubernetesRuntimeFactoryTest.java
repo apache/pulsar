@@ -32,7 +32,7 @@ import org.apache.pulsar.functions.auth.FunctionAuthData;
 import org.apache.pulsar.functions.auth.FunctionAuthProvider;
 import org.apache.pulsar.functions.auth.KubernetesFunctionAuthProvider;
 import org.apache.pulsar.functions.auth.KubernetesSecretsTokenAuthProvider;
-import org.apache.pulsar.common.functions.AuthenticationConfig;
+import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.runtime.RuntimeCustomizer;
@@ -139,13 +139,18 @@ public class KubernetesRuntimeFactoryTest {
     }
 
     KubernetesRuntimeFactory createKubernetesRuntimeFactory(String extraDepsDir, Resources minResources,
-                                                            Resources maxResources) throws Exception {
-        return createKubernetesRuntimeFactory(extraDepsDir, minResources, maxResources, Optional.empty(), Optional.empty());
+                                                            Resources maxResources,
+                                                            Resources resourceGranularities,
+                                                            boolean resourceChangeInLockStep) throws Exception {
+        return createKubernetesRuntimeFactory(extraDepsDir, minResources, maxResources, resourceGranularities,
+                resourceChangeInLockStep, Optional.empty(), Optional.empty());
     }
 
     KubernetesRuntimeFactory createKubernetesRuntimeFactory(String extraDepsDir,
                                                             Resources minResources,
                                                             Resources maxResources,
+                                                            Resources resourceGranularities,
+                                                            boolean resourceChangeInLockStep,
                                                             Optional<FunctionAuthProvider> functionAuthProvider,
                                                             Optional<RuntimeCustomizer> manifestCustomizer) throws Exception {
         KubernetesRuntimeFactory factory = spy(new KubernetesRuntimeFactory());
@@ -182,6 +187,8 @@ public class KubernetesRuntimeFactoryTest {
 
         workerConfig.setFunctionInstanceMinResources(minResources);
         workerConfig.setFunctionInstanceMaxResources(maxResources);
+        workerConfig.setFunctionInstanceResourceGranularities(resourceGranularities);
+        workerConfig.setFunctionInstanceResourceChangeInLockStep(resourceChangeInLockStep);
         workerConfig.setStateStorageServiceUrl(null);
         workerConfig.setAuthenticationEnabled(false);
 
@@ -201,14 +208,14 @@ public class KubernetesRuntimeFactoryTest {
 
     @Test
     public void testAdmissionChecks() throws Exception {
-        factory = createKubernetesRuntimeFactory(null, null, null);
+        factory = createKubernetesRuntimeFactory(null, null, null, null, false);
         FunctionDetails functionDetails = createFunctionDetails();
         factory.doAdmissionChecks(functionDetails);
     }
 
     @Test
     public void testValidateMinResourcesRequired() throws Exception {
-        factory = createKubernetesRuntimeFactory(null, null, null);
+        factory = createKubernetesRuntimeFactory(null, null, null, null, false);
 
         FunctionDetails functionDetailsBase = createFunctionDetails();
 
@@ -233,7 +240,7 @@ public class KubernetesRuntimeFactoryTest {
 
     @Test
     public void testValidateMaxResourcesRequired() throws Exception {
-        factory = createKubernetesRuntimeFactory(null, null, null);
+        factory = createKubernetesRuntimeFactory(null, null, null, null, false);
 
         FunctionDetails functionDetailsBase = createFunctionDetails();
 
@@ -271,8 +278,64 @@ public class KubernetesRuntimeFactoryTest {
         testMinMaxResource(0.2, null, true, "Per instance RAM requested, 0, for function is less than the minimum required, 1024");
     }
 
+    @Test
+    public void testValidateResourcesGranularityAndProportion() throws Exception {
+        factory = createKubernetesRuntimeFactory(null, null, null, null, false);
+
+        Resources granularities = Resources.builder()
+                .cpu(0.1)
+                .ram(1000L)
+                .build();
+
+        // when resources granularities are not set
+        testResourceGranularities(null, null, null, false, false, null);
+        testResourceGranularities(0.05, 100L, null, false, false, null);
+
+        // only accept positive resource values when granularities are set
+        testResourceGranularities(null, null, granularities, false, true,
+                "Per instance cpu requested, 0.0, for function should be positive and a multiple of the granularity, 0.1");
+        testResourceGranularities(0.1, null, granularities, false, true,
+                "Per instance ram requested, 0, for function should be positive and a multiple of the granularity, 1000");
+        testResourceGranularities(0.1, 0L, granularities, false, true,
+                "Per instance ram requested, 0, for function should be positive and a multiple of the granularity, 1000");
+        testResourceGranularities(null, 1000L, granularities, false, true,
+                "Per instance cpu requested, 0.0, for function should be positive and a multiple of the granularity, 0.1");
+        testResourceGranularities(0.0, 1000L, granularities, false, true,
+                "Per instance cpu requested, 0.0, for function should be positive and a multiple of the granularity, 0.1");
+
+        // requested resources must be multiples of granularities
+        testResourceGranularities(0.05, 100L, granularities, false, true,
+                "Per instance cpu requested, 0.05, for function should be positive and a multiple of the granularity, 0.1");
+        testResourceGranularities(0.1, 100L, granularities, false, true,
+                "Per instance ram requested, 100, for function should be positive and a multiple of the granularity, 1000");
+        testResourceGranularities(1.01, 100L, granularities, false, true,
+                "Per instance cpu requested, 1.01, for function should be positive and a multiple of the granularity, 0.1");
+        testResourceGranularities(0.999, 100L, granularities, false, true,
+                "Per instance cpu requested, 0.999, for function should be positive and a multiple of the granularity, 0.1");
+        testResourceGranularities(1.001, 100L, granularities, false, true,
+                "Per instance cpu requested, 1.001, for function should be positive and a multiple of the granularity, 0.1");
+        testResourceGranularities(0.1, 1000L, granularities, false, false, null);
+        testResourceGranularities(1.0, 1000L, granularities, false, false, null);
+        testResourceGranularities(5.0, 1000L, granularities, false, false, null);
+
+        // resource values of different dimensions should respect lock step configs
+        testResourceGranularities(0.2, 1000L, granularities, false, false, null);
+        testResourceGranularities(0.1, 2000L, granularities, false, false, null);
+        testResourceGranularities(0.1, 2000L, granularities, true, true,
+                "Per instance cpu requested, 0.1, ram requested, 2000, for function should be positive and the same multiple of the granularity, cpu, 0.1, ram, 1000");
+        testResourceGranularities(0.2, 1000L, granularities, true, true,
+                "Per instance cpu requested, 0.2, ram requested, 1000, for function should be positive and the same multiple of the granularity, cpu, 0.1, ram, 1000");
+        testResourceGranularities(0.1, 1000L, granularities, true, false, null);
+        testResourceGranularities(0.2, 2000L, granularities, true, false, null);
+        testResourceGranularities(1.0, 10000L, granularities, true, false, null);
+        testResourceGranularities(10.0, 100000L, granularities, true, false, null);
+        testResourceGranularities(10.0, null, granularities, true, true,
+                "Per instance ram requested, 0, for function should be positive and a multiple of the granularity, 1000");
+    }
+
     public void testAuthProvider(Optional<FunctionAuthProvider> authProvider) throws Exception {
-        factory = createKubernetesRuntimeFactory(null, null, null, authProvider, Optional.empty());
+        factory = createKubernetesRuntimeFactory(null, null, null, null, false,
+                authProvider, Optional.empty());
     }
 
 
@@ -354,22 +417,29 @@ public class KubernetesRuntimeFactoryTest {
     }
 
     private void testMinResource(Double cpu, Long ram, boolean fail, String failError) throws Exception {
-        testResourceRestrictions(cpu, ram, Resources.builder().cpu(0.1).ram(1024L).build(), null, fail, failError);
+        testResourceRestrictions(cpu, ram, Resources.builder().cpu(0.1).ram(1024L).build(), null, null, false, fail, failError);
     }
 
     private void testMaxResource(Double cpu, Long ram, boolean fail, String failError) throws Exception {
-        testResourceRestrictions(cpu, ram, null, Resources.builder().cpu(1.0).ram(2048L).build(), fail, failError);
+        testResourceRestrictions(cpu, ram, null, Resources.builder().cpu(1.0).ram(2048L).build(), null, false, fail, failError);
     }
 
     private void testMinMaxResource(Double cpu, Long ram, boolean fail, String failError) throws Exception {
         testResourceRestrictions(cpu, ram, Resources.builder().cpu(0.1).ram(1024L).build(),
-                Resources.builder().cpu(1.0).ram(2048L).build(), fail, failError);
+                Resources.builder().cpu(1.0).ram(2048L).build(), null, false, fail, failError);
+    }
+
+    private void testResourceGranularities(Double cpu, Long ram, Resources granularities, boolean changeInLockStep,
+                                           boolean fail, String failError) throws Exception {
+        testResourceRestrictions(cpu, ram, null, null, granularities, changeInLockStep,
+                fail, failError);
     }
 
     private void testResourceRestrictions(Double cpu, Long ram, Resources minResources, Resources maxResources,
+                                          Resources granularities, boolean changeInLockStep,
                                           boolean fail, String failError) throws Exception {
 
-        factory = createKubernetesRuntimeFactory(null, minResources, maxResources);
+        factory = createKubernetesRuntimeFactory(null, minResources, maxResources, granularities, changeInLockStep);
         FunctionDetails functionDetailsBase = createFunctionDetails();
 
         Function.Resources.Builder resources = Function.Resources.newBuilder();

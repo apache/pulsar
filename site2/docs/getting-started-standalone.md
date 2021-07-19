@@ -15,10 +15,14 @@ This tutorial guides you through every step of the installation process.
 
 ### System requirements
 
-Pulsar is currently available for **MacOS** and **Linux**. To use Pulsar, you need to install Java 8 from [Oracle download center](http://www.oracle.com/).
+Currently, Pulsar is available for 64-bit **macOS**, **Linux**, and **Windows**. To use Pulsar, you need to install 64-bit JRE/JDK 8 or later versions.
 
 > #### Tip
 > By default, Pulsar allocates 2G JVM heap memory to start. It can be changed in `conf/pulsar_env.sh` file under `PULSAR_MEM`. This is extra options passed into JVM. 
+
+> **Note**
+> 
+> Broker is only supported on 64-bit JVM.
 
 ### Install Pulsar using binary release
 
@@ -49,7 +53,7 @@ The Pulsar binary package initially contains the following directories:
 
 Directory | Contains
 :---------|:--------
-`bin` | Pulsar's command-line tools, such as [`pulsar`](reference-cli-tools.md#pulsar) and [`pulsar-admin`](reference-pulsar-admin.md).
+`bin` | Pulsar's command-line tools, such as [`pulsar`](reference-cli-tools.md#pulsar) and [`pulsar-admin`](https://pulsar.apache.org/tools/pulsar-admin/).
 `conf` | Configuration files for Pulsar, including [broker configuration](reference-configuration.md#broker), [ZooKeeper configuration](reference-configuration.md#zookeeper), and more.
 `examples` | A Java JAR file containing [Pulsar Functions](functions-overview.md) example.
 `lib` | The [JAR](https://en.wikipedia.org/wiki/JAR_(file_format)) files used by Pulsar.
@@ -164,9 +168,9 @@ $ bin/pulsar standalone
 If you have started Pulsar successfully, you will see `INFO`-level log messages like this:
 
 ```bash
-2017-06-01 14:46:29,192 - INFO  - [main:WebSocketService@95] - Configuration Store cache started
-2017-06-01 14:46:29,192 - INFO  - [main:AuthenticationService@61] - Authentication is disabled
-2017-06-01 14:46:29,192 - INFO  - [main:WebSocketService@108] - Pulsar WebSocket Service started
+21:59:29.327 [DLM-/stream/storage-OrderedScheduler-3-0] INFO  org.apache.bookkeeper.stream.storage.impl.sc.StorageContainerImpl - Successfully started storage container (0).
+21:59:34.576 [main] INFO  org.apache.pulsar.broker.authentication.AuthenticationService - Authentication is disabled
+21:59:34.576 [main] INFO  org.apache.pulsar.websocket.WebSocketService - Pulsar WebSocket Service started
 ```
 
 > #### Tip
@@ -193,7 +197,7 @@ $ bin/pulsar-client consume my-topic -s "first-subscription"
 If the message has been successfully consumed, you will see a confirmation like the following in the `pulsar-client` logs:
 
 ```
-09:56:55.566 [pulsar-client-io-1-1] INFO  org.apache.pulsar.client.impl.MultiTopicsConsumerImpl - [TopicsConsumerFakeTopicNamee2df9] [first-subscription] Success subscribe new topic my-topic in topics consumer, partitions: 4, allTopicPartitionsNumber: 4
+22:17:16.781 [main] INFO  org.apache.pulsar.client.cli.PulsarClientTool - 1 messages successfully consumed
 ```
 
 > #### Tip
@@ -211,7 +215,7 @@ $ bin/pulsar-client produce my-topic --messages "hello-pulsar"
 If the message has been successfully published to the topic, you will see a confirmation like the following in the `pulsar-client` logs:
 
 ```
-13:09:39.356 [main] INFO  org.apache.pulsar.client.cli.PulsarClientTool - 1 messages successfully produced
+22:21:08.693 [main] INFO  org.apache.pulsar.client.cli.PulsarClientTool - 1 messages successfully produced
 ```
 
 ## Stop Pulsar standalone

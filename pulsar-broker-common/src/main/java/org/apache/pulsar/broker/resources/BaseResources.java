@@ -27,8 +27,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import lombok.Getter;
 import org.apache.pulsar.metadata.api.MetadataCache;
+import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
-import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 /**
  * Base class for all configuration resources to access configurations from metadata-store.
@@ -39,18 +39,18 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 public class BaseResources<T> {
 
     @Getter
-    private final MetadataStoreExtended store;
+    private final MetadataStore store;
     @Getter
     private final MetadataCache<T> cache;
     private int operationTimeoutSec;
 
-    public BaseResources(MetadataStoreExtended store, Class<T> clazz, int operationTimeoutSec) {
+    public BaseResources(MetadataStore store, Class<T> clazz, int operationTimeoutSec) {
         this.store = store;
         this.cache = store.getMetadataCache(clazz);
         this.operationTimeoutSec = operationTimeoutSec;
     }
 
-    public BaseResources(MetadataStoreExtended store, TypeReference<T> typeRef, int operationTimeoutSec) {
+    public BaseResources(MetadataStore store, TypeReference<T> typeRef, int operationTimeoutSec) {
         this.store = store;
         this.cache = store.getMetadataCache(typeRef);
         this.operationTimeoutSec = operationTimeoutSec;
@@ -98,7 +98,7 @@ public class BaseResources<T> {
     }
 
     public CompletableFuture<Void> setAsync(String path, Function<T, T> modifyFunction) {
-        return cache.readModifyUpdate(path, modifyFunction);
+        return cache.readModifyUpdate(path, modifyFunction).thenApply(__ -> null);
     }
 
     public void setWithCreate(String path, Function<Optional<T>, T> createFunction) throws MetadataStoreException {
@@ -113,7 +113,7 @@ public class BaseResources<T> {
     }
 
     public CompletableFuture<Void> setWithCreateAsync(String path, Function<Optional<T>, T> createFunction) {
-        return cache.readModifyUpdateOrCreate(path, createFunction);
+        return cache.readModifyUpdateOrCreate(path, createFunction).thenApply(__ -> null);
     }
 
     public void create(String path, T data) throws MetadataStoreException {
@@ -155,6 +155,10 @@ public class BaseResources<T> {
         } catch (Exception e) {
             throw new MetadataStoreException("Failed to check exist " + path, e);
         }
+    }
+
+    public int getOperationTimeoutSec() {
+        return operationTimeoutSec;
     }
 
     public CompletableFuture<Boolean> existsAsync(String path) {

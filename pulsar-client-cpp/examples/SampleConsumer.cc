@@ -30,7 +30,7 @@ int main() {
     Client client("pulsar://localhost:6650");
 
     Consumer consumer;
-    Result result = client.subscribe("persistent://prop/r1/ns1/my-topic", "consumer-1", consumer);
+    Result result = client.subscribe("persistent://public/default/my-topic", "consumer-1", consumer);
     if (result != ResultOk) {
         LOG_ERROR("Failed to subscribe: " << result);
         return -1;

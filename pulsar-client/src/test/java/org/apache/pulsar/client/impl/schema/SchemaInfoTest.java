@@ -289,7 +289,7 @@ public class SchemaInfoTest {
 
         @Test
         public void testUnsetProperties() {
-            final SchemaInfo schemaInfo = SchemaInfo.builder()
+            final SchemaInfo schemaInfo = SchemaInfoImpl.builder()
                     .type(SchemaType.STRING)
                     .schema(new byte[0])
                     .name("string")
@@ -305,7 +305,7 @@ public class SchemaInfoTest {
         public void testSetProperties() {
             final Map<String, String> map = Maps.newHashMap();
             map.put("test", "value");
-            final SchemaInfo schemaInfo = SchemaInfo.builder()
+            final SchemaInfo schemaInfo = SchemaInfoImpl.builder()
                     .type(SchemaType.STRING)
                     .schema(new byte[0])
                     .name("string")
@@ -322,10 +322,16 @@ public class SchemaInfoTest {
         public void testNullPropertyValue() {
             final Map<String, String> map = new HashMap<>();
             map.put("key", null);
-            final IntSchema schema = new IntSchema();
-            schema.getSchemaInfo().setProperties(map);
+
+            SchemaInfo si = SchemaInfoImpl.builder()
+                    .name("INT32")
+                    .schema(new byte[0])
+                    .type(SchemaType.INT32)
+                    .properties(map)
+                    .build();
+
             // null key will be skipped by Gson when serializing JSON to String
-            assertEquals(schema.getSchemaInfo().toString(), INT32_SCHEMA_INFO);
+            assertEquals(si.toString(), INT32_SCHEMA_INFO);
         }
     }
 }

@@ -36,7 +36,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.functions.auth.FunctionAuthProvider;
 import org.apache.pulsar.functions.auth.KubernetesFunctionAuthProvider;
-import org.apache.pulsar.common.functions.AuthenticationConfig;
+import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.runtime.RuntimeCustomizer;
@@ -95,6 +95,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private final String logDirectory = "logs/functions";
     private Resources functionInstanceMinResources;
     private Resources functionInstanceMaxResources;
+    private Resources functionInstanceResourceGranularities;
+    private boolean functionInstanceResourceChangeInLockStep;
     private boolean authenticationEnabled;
     private Integer grpcPort;
     private Integer metricsPort;
@@ -210,6 +212,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         this.changeConfigMapNamespace = factoryConfig.getChangeConfigMapNamespace();
         this.functionInstanceMinResources = workerConfig.getFunctionInstanceMinResources();
         this.functionInstanceMaxResources = workerConfig.getFunctionInstanceMaxResources();
+        this.functionInstanceResourceGranularities = workerConfig.getFunctionInstanceResourceGranularities();
+        this.functionInstanceResourceChangeInLockStep = workerConfig.isFunctionInstanceResourceChangeInLockStep();
         this.secretsProviderConfigurator = secretsProviderConfigurator;
         this.authenticationEnabled = workerConfig.isAuthenticationEnabled();
         this.javaInstanceJarFile = this.pulsarRootDir + "/instances/java-instance.jar";
@@ -333,6 +337,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         KubernetesRuntime.doChecks(functionDetails, overriddenJobName);
         validateMinResourcesRequired(functionDetails);
         validateMaxResourcesRequired(functionDetails);
+        validateResourcesGranularityAndProportion(functionDetails);
         secretsProviderConfigurator.doAdmissionChecks(appsClient, coreClient,
         		getOverriddenNamespace(functionDetails), overriddenJobName, functionDetails);
     }
@@ -443,6 +448,47 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                 throw new IllegalArgumentException(
                         String.format("Per instance RAM requested, %s, for function is greater than the maximum required, %s",
                                 functionDetails.getResources().getRam(), maxRam));
+            }
+        }
+    }
+
+    void validateResourcesGranularityAndProportion(Function.FunctionDetails functionDetails) {
+        final long baseMillis = 1000;
+        long multiples = 0L;
+        if (functionInstanceResourceGranularities != null) {
+            Double grnCpu = functionInstanceResourceGranularities.getCpu();
+            Long grnRam = functionInstanceResourceGranularities.getRam();
+            if (grnCpu != null) {
+                // convert cpus to milli-cores to avoid loss of precision
+                long grnCpuMillis = Math.round(baseMillis * grnCpu);
+                if (grnCpuMillis > 0) {
+                    long cpuMillis = Math.round(baseMillis * functionDetails.getResources().getCpu());
+                    if (cpuMillis == 0 || cpuMillis % grnCpuMillis != 0) {
+                        throw new IllegalArgumentException(
+                                String.format("Per instance cpu requested, %s, for function should be positive and a multiple of the granularity, %s",
+                                        functionDetails.getResources().getCpu(), grnCpu));
+                    }
+                    if (functionInstanceResourceChangeInLockStep) {
+                        multiples = cpuMillis / grnCpuMillis;
+                    }
+                }
+            }
+            if (grnRam != null && grnRam > 0) {
+                if (functionDetails.getResources().getRam() == 0 || functionDetails.getResources().getRam() % grnRam != 0) {
+                    throw new IllegalArgumentException(
+                            String.format("Per instance ram requested, %s, for function should be positive and a multiple of the granularity, %s",
+                                    functionDetails.getResources().getRam(), grnRam));
+                }
+                if (functionInstanceResourceChangeInLockStep && multiples > 0) {
+                    long ramMultiples = functionDetails.getResources().getRam() / grnRam;
+                    if (multiples != ramMultiples) {
+                        throw new IllegalArgumentException(
+                                String.format("Per instance cpu requested, %s, ram requested, %s," +
+                                                " for function should be positive and the same multiple of the granularity, cpu, %s, ram, %s",
+                                        functionDetails.getResources().getCpu(), functionDetails.getResources().getRam(),
+                                        grnCpu, grnRam));
+                    }
+                }
             }
         }
     }

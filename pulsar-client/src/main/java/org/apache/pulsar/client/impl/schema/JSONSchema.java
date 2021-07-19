@@ -74,11 +74,11 @@ public class JSONSchema<T> extends AvroBaseStructSchema<T> {
             ObjectMapper objectMapper = new ObjectMapper();
             JsonSchemaGenerator schemaGen = new JsonSchemaGenerator(objectMapper);
             JsonSchema jsonBackwardsCompatibleSchema = schemaGen.generateSchema(pojo);
-            backwardsCompatibleSchemaInfo = new SchemaInfo();
-            backwardsCompatibleSchemaInfo.setName("");
-            backwardsCompatibleSchemaInfo.setProperties(schemaInfo.getProperties());
-            backwardsCompatibleSchemaInfo.setType(SchemaType.JSON);
-            backwardsCompatibleSchemaInfo.setSchema(objectMapper.writeValueAsBytes(jsonBackwardsCompatibleSchema));
+            backwardsCompatibleSchemaInfo = new SchemaInfoImpl()
+                    .setName("")
+                    .setProperties(schemaInfo.getProperties())
+                    .setType(SchemaType.JSON)
+                    .setSchema(objectMapper.writeValueAsBytes(jsonBackwardsCompatibleSchema));
         } catch (JsonProcessingException ex) {
             throw new RuntimeException(ex);
         }

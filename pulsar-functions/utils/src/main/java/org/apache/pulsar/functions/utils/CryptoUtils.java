@@ -19,22 +19,20 @@
 
 package org.apache.pulsar.functions.utils;
 
+import static org.apache.commons.lang.StringUtils.isEmpty;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.Map;
-
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
 import org.apache.pulsar.common.functions.CryptoConfig;
 import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.functions.proto.Function;
-
-import static org.apache.commons.lang.StringUtils.isEmpty;
 
 public final class CryptoUtils {
 
@@ -94,7 +92,7 @@ public final class CryptoUtils {
         }
 
         try {
-            Constructor<?> ctor = cryptoClass.getConstructor(java.util.Map.class);
+            Constructor<?> ctor = cryptoClass.getConstructor(Map.class);
             return (CryptoKeyReader) ctor.newInstance(configs);
         } catch (NoSuchMethodException e) {
             throw new RuntimeException("Key reader class does not have constructor accepts map", e);

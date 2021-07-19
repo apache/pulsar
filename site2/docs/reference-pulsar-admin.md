@@ -4,6 +4,10 @@ title: Pulsar admin CLI
 sidebar_label: Pulsar Admin CLI
 ---
 
+> **Important**
+>
+> This page is deprecated and not updated anymore. For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more, see [Pulsar admin doc](https://pulsar.apache.org/tools/pulsar-admin/)
+
 The `pulsar-admin` tool enables you to manage Pulsar installations, including clusters, brokers, namespaces, tenants, and more.
 
 Usage
@@ -1707,6 +1711,8 @@ Options
 |`-e`, `--endpoint`|Alternative endpoint to connect to||
 |`-i`, `--aws-id`|AWS Credential Id to use when using driver S3 or aws-s3||
 |`-s`, `--aws-secret`|AWS Credential Secret to use when using driver S3 or aws-s3||
+|`-ro`, `--s3-role`|S3 Role used for STSAssumeRoleSessionCredentialsProvider using driver S3 or aws-s3||
+|`-rsn`, `--s3-role-session-name`|S3 role session name used for STSAssumeRoleSessionCredentialsProvider using driver S3 or aws-s3||
 |`-mbs`, `--maxBlockSize`|Max block size|64MB|
 |`-rbs`, `--readBufferSize`|Read buffer size|1MB|
 |`-oat`, `--offloadAfterThreshold`|Offload after threshold size (eg: 1M, 5M)||
@@ -2448,9 +2454,6 @@ Usage
 $ pulsar-admin topics remove-deduplication tenant/namespace/topic
 ```
 
-
-```
-
 ## `tenants`
 Operations for managing tenants
 
@@ -2656,4 +2659,3 @@ Options
 |`-c`, `--classname`|The Java class name||
 |`-j`, `--jar`|A path to the JAR file which contains the above Java class||
 |`-t`, `--type`|The type of the schema (avro or json)||
-

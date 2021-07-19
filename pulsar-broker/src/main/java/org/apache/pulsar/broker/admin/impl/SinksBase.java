@@ -37,7 +37,7 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.common.functions.UpdateOptions;
+import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.io.ConfigFieldDefinition;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
@@ -252,7 +252,7 @@ public class SinksBase extends AdminResource {
                            )
                            final @FormDataParam("sinkConfig") SinkConfig sinkConfig,
                            @ApiParam(value = "Update options for the Pulsar Sink")
-                           final @FormDataParam("updateOptions") UpdateOptions updateOptions) {
+                           final @FormDataParam("updateOptions") UpdateOptionsImpl updateOptions) {
          sinks().updateSink(tenant, namespace, sinkName, uploadedInputStream, fileDetail,
                 sinkPkgUrl, sinkConfig, clientAppId(), clientAuthData(), updateOptions);
 
@@ -554,6 +554,6 @@ public class SinksBase extends AdminResource {
     })
     @Path("/reloadBuiltInSinks")
     public void reloadSinks() {
-        sinks().reloadConnectors(clientAppId());
+        sinks().reloadConnectors(clientAppId(), clientAuthData());
     }
 }

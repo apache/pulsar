@@ -52,11 +52,10 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.functions.ConsumerConfig;
-import org.apache.pulsar.common.functions.ExternalPulsarConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Resources;
-import org.apache.pulsar.common.functions.UpdateOptions;
+import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.functions.WindowConfig;
 import org.apache.pulsar.common.functions.FunctionState;
@@ -322,8 +321,6 @@ public class CmdFunctions extends CmdBase {
         protected String customRuntimeOptions;
         @Parameter(names = "--dead-letter-topic", description = "The topic where messages that are not processed successfully are sent to")
         protected String deadLetterTopic;
-        @Parameter(names = "--external-pulsars", description = "The map of external pulsar cluster name to its configuration (as a JSON string)")
-        protected String externalPulsars;
         protected FunctionConfig functionConfig;
         protected String userCodeFile;
 
@@ -402,11 +399,6 @@ public class CmdFunctions extends CmdBase {
             if (null != output) {
                 functionConfig.setOutput(output);
             }
-            if (null != externalPulsars) {
-                Type type = new TypeToken<Map<String, ExternalPulsarConfig>>() {
-                }.getType();
-                functionConfig.setExternalPulsars(new Gson().fromJson(externalPulsars, type));
-            }
             if (null != producerConfig) {
                 Type type = new TypeToken<ProducerConfig>() {}.getType();
                 functionConfig.setProducerConfig(new Gson().fromJson(producerConfig, type));
@@ -455,10 +447,10 @@ public class CmdFunctions extends CmdBase {
             if (null != userConfigString) {
                 Type type = new TypeToken<Map<String, String>>() {}.getType();
                 Map<String, Object> userConfigMap = new Gson().fromJson(userConfigString, type);
+                if (userConfigMap == null) {
+                    userConfigMap = new HashMap<>();
+                }
                 functionConfig.setUserConfig(userConfigMap);
-            }
-            if (functionConfig.getUserConfig() == null) {
-                functionConfig.setUserConfig(new HashMap<>());
             }
 
             if (parallelism != null) {
@@ -631,14 +623,14 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--client-auth-params", description = "Client authentication param")
         protected String clientAuthParams;
         // for backwards compatibility purposes
-        @Parameter(names = "--use_tls", description = "Use tls connection\n", hidden = true)
+        @Parameter(names = "--use_tls", description = "Use tls connection", hidden = true)
         protected Boolean DEPRECATED_useTls = null;
-        @Parameter(names = "--use-tls", description = "Use tls connection\n")
+        @Parameter(names = "--use-tls", description = "Use tls connection")
         protected boolean useTls;
         // for backwards compatibility purposes
-        @Parameter(names = "--tls_allow_insecure", description = "Allow insecure tls connection\n", hidden = true)
+        @Parameter(names = "--tls_allow_insecure", description = "Allow insecure tls connection", hidden = true)
         protected Boolean DEPRECATED_tlsAllowInsecureConnection = null;
-        @Parameter(names = "--tls-allow-insecure", description = "Allow insecure tls connection\n")
+        @Parameter(names = "--tls-allow-insecure", description = "Allow insecure tls connection")
         protected boolean tlsAllowInsecureConnection;
         // for backwards compatibility purposes
         @Parameter(names = "--hostname_verification_enabled", description = "Enable hostname verification", hidden = true)
@@ -661,6 +653,8 @@ public class CmdFunctions extends CmdBase {
         protected String secretsProviderClassName;
         @Parameter(names = "--secrets-provider-config", description = "Config that needs to be passed to secrets provider")
         protected String secretsProviderConfig;
+        @Parameter(names = "--metrics-port-start", description = "The starting port range for metrics server")
+        protected String metricsPortStart;
 
         private void mergeArgs() {
             if (!StringUtils.isBlank(DEPRECATED_stateStorageServiceUrl)) stateStorageServiceUrl = DEPRECATED_stateStorageServiceUrl;
@@ -856,7 +850,7 @@ public class CmdFunctions extends CmdBase {
         @Override
         void runCmd() throws Exception {
 
-            UpdateOptions updateOptions = new UpdateOptions();
+            UpdateOptionsImpl updateOptions = new UpdateOptionsImpl();
             updateOptions.setUpdateAuthData(updateAuthData);
             if (Utils.isFunctionPackageUrlSupported(functionConfig.getJar())) {
                 getAdmin().functions().updateFunctionWithUrl(functionConfig, functionConfig.getJar(), updateOptions);

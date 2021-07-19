@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.topologies;
 
+import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
 import org.testng.annotations.DataProvider;
 
@@ -27,18 +28,27 @@ import static java.util.stream.Collectors.joining;
 
 @Slf4j
 public abstract class PulsarClusterTestBase extends PulsarTestBase {
+    @Override
+    protected final void setup() throws Exception {
+        setupCluster();
+    }
+
+    @Override
+    protected final void cleanup() throws Exception {
+        tearDownCluster();
+    }
 
     @DataProvider(name = "ServiceUrlAndTopics")
     public Object[][] serviceUrlAndTopics() {
         return new Object[][] {
                 // plain text, persistent topic
                 {
-                        pulsarCluster.getPlainTextServiceUrl(),
+                        stringSupplier(() -> getPulsarCluster().getPlainTextServiceUrl()),
                         true,
                 },
                 // plain text, non-persistent topic
                 {
-                        pulsarCluster.getPlainTextServiceUrl(),
+                        stringSupplier(() -> getPulsarCluster().getPlainTextServiceUrl()),
                         false
                 }
         };
@@ -49,7 +59,7 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
         return new Object[][] {
                 // plain text
                 {
-                        pulsarCluster.getPlainTextServiceUrl()
+                        stringSupplier(() -> getPulsarCluster().getPlainTextServiceUrl())
                 }
         };
     }
@@ -59,13 +69,21 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
         return new Object[][] {
                 // plain text
                 {
-                        pulsarCluster.getPlainTextServiceUrl(),
-                        pulsarCluster.getHttpServiceUrl()
+                        stringSupplier(() -> getPulsarCluster().getPlainTextServiceUrl()),
+                        stringSupplier(() -> getPulsarCluster().getHttpServiceUrl())
                 }
         };
     }
 
     protected PulsarCluster pulsarCluster;
+
+    public PulsarCluster getPulsarCluster() {
+        return pulsarCluster;
+    }
+
+    private static Supplier<String> stringSupplier(Supplier<String> supplier) {
+        return supplier;
+    }
 
     public void setupCluster() throws Exception {
         this.setupCluster("");
@@ -93,6 +111,7 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
     }
 
     protected void setupCluster(PulsarClusterSpec spec) throws Exception {
+        incrementSetupNumber();
         log.info("Setting up cluster {} with {} bookies, {} brokers",
                 spec.clusterName(), spec.numBookies(), spec.numBrokers());
 
@@ -105,10 +124,10 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
         log.info("Cluster {} is setup", spec.clusterName());
     }
 
-    public void tearDownCluster() {
+    public void tearDownCluster() throws Exception {
+        markCurrentSetupNumberCleaned();
         if (null != pulsarCluster) {
             pulsarCluster.stop();
         }
     }
-
 }

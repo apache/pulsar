@@ -21,15 +21,13 @@ package org.apache.pulsar.compaction;
 import com.google.common.collect.ImmutableMap;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
@@ -62,12 +60,14 @@ public class TwoPhaseCompactor extends Compactor {
     private static final Logger log = LoggerFactory.getLogger(TwoPhaseCompactor.class);
     private static final int MAX_OUTSTANDING = 500;
     private static final String COMPACTED_TOPIC_LEDGER_PROPERTY = "CompactedTopicLedger";
+    private final Duration phaseOneLoopReadTimeout;
 
     public TwoPhaseCompactor(ServiceConfiguration conf,
                              PulsarClient pulsar,
                              BookKeeper bk,
                              ScheduledExecutorService scheduler) {
         super(conf, pulsar, bk, scheduler);
+        phaseOneLoopReadTimeout = Duration.ofSeconds(conf.getBrokerServiceCompactionPhaseOneLoopTimeInSeconds());
     }
 
     @Override
@@ -116,7 +116,9 @@ public class TwoPhaseCompactor extends Compactor {
             return;
         }
         CompletableFuture<RawMessage> future = reader.readNextAsync();
-        scheduleTimeout(future);
+        FutureUtil.addTimeoutHandling(future,
+                phaseOneLoopReadTimeout, scheduler,
+                () -> FutureUtil.createTimeoutException("Timeout", getClass(), "phaseOneLoop(...)"));
 
         future.thenAcceptAsync(m -> {
             try {
@@ -169,15 +171,6 @@ public class TwoPhaseCompactor extends Compactor {
         }, scheduler).exceptionally(ex -> {
             loopPromise.completeExceptionally(ex);
             return null;
-        });
-    }
-
-    private void scheduleTimeout(CompletableFuture<RawMessage> future) {
-        Future<?> timeout = scheduler.schedule(() -> {
-            future.completeExceptionally(new TimeoutException("Timeout"));
-        }, 10, TimeUnit.SECONDS);
-        future.whenComplete((res, exception) -> {
-            timeout.cancel(true);
         });
     }
 
@@ -406,5 +399,9 @@ public class TwoPhaseCompactor extends Compactor {
             this.lastReadId = lastReadId;
             this.latestForKey = latestForKey;
         }
+    }
+
+    public long getPhaseOneLoopReadTimeoutInSeconds() {
+        return phaseOneLoopReadTimeout.getSeconds();
     }
 }

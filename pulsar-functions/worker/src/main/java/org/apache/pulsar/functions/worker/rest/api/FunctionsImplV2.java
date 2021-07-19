@@ -195,7 +195,7 @@ public class FunctionsImplV2 implements FunctionsV2<PulsarWorkerService> {
 
     @Override
     public Response uploadFunction(InputStream uploadedInputStream, String path, String clientRole) {
-        delegate.uploadFunction(uploadedInputStream, path, clientRole);
+        delegate.uploadFunction(uploadedInputStream, path, clientRole, null);
         return Response.ok().build();
     }
 

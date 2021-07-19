@@ -48,8 +48,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
-import org.apache.zookeeper.MockZooKeeper;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
@@ -992,13 +991,14 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
             return deletes.keySet();
         }
 
-        OffloadPolicies offloadPolicies = OffloadPolicies.create("S3", "", "", "",
+        OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create("S3", "", "", "",
                 null, null,
-                OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
-                OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
-                OffloadPolicies.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES,
-                OffloadPolicies.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS,
-                OffloadPolicies.DEFAULT_OFFLOADED_READ_PRIORITY);
+                null, null,
+                OffloadPoliciesImpl.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
+                OffloadPoliciesImpl.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
+                OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES,
+                OffloadPoliciesImpl.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS,
+                OffloadPoliciesImpl.DEFAULT_OFFLOADED_READ_PRIORITY);
 
         @Override
         public String getOffloadDriverName() {
@@ -1044,7 +1044,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         };
 
         @Override
-        public OffloadPolicies getOffloadPolicies() {
+        public OffloadPoliciesImpl getOffloadPolicies() {
             return offloadPolicies;
         }
 
@@ -1074,7 +1074,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
 
         offloader.inject = () -> {
             try {
-                stopZooKeeper();
+                stopMetadataStore();
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -1089,7 +1089,6 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         final MLDataFormats.OffloadContext offloadContext = ledgerInfo.getOffloadContext();
         //should not set complete when
         assertEquals(offloadContext.getComplete(), false);
-        zkc = MockZooKeeper.newInstance();
     }
 
     static class ErroringMockLedgerOffloader extends MockLedgerOffloader {

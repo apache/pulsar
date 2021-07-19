@@ -171,6 +171,9 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
 
     @Override
     public Range<T> span() {
+        if (rangeBitSetMap.size() == 0) {
+            return null;
+        }
         Entry<Long, BitSet> firstSet = rangeBitSetMap.firstEntry();
         Entry<Long, BitSet> lastSet = rangeBitSetMap.lastEntry();
         int first = firstSet.getValue().nextSetBit(0);
@@ -343,7 +346,7 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
 
         // remove all the keys between two endpoint keys
         rangeBitSetMap.forEach((key, set) -> {
-            if (lowerEndpoint.getKey() == upperEndpoint.getKey()) {
+            if (lowerEndpoint.getKey() == upperEndpoint.getKey() && key == upperEndpoint.getKey()) {
                 set.clear((int) lower, (int) upper + 1);
             } else {
                 // eg: remove-range: [(3,5) - (5,5)] -> Delete all items from 3,6->3,N,4.*,5,0->5,5

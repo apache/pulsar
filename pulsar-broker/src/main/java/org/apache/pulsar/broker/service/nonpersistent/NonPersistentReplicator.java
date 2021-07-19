@@ -35,7 +35,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.SendCallback;
-import org.apache.pulsar.common.policies.data.NonPersistentReplicatorStats;
+import org.apache.pulsar.common.policies.data.stats.NonPersistentReplicatorStatsImpl;
 import org.apache.pulsar.common.stats.Rate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,7 +45,7 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
     private final Rate msgOut = new Rate();
     private final Rate msgDrop = new Rate();
 
-    private final NonPersistentReplicatorStats stats = new NonPersistentReplicatorStats();
+    private final NonPersistentReplicatorStatsImpl stats = new NonPersistentReplicatorStatsImpl();
 
     public NonPersistentReplicator(NonPersistentTopic topic, String localCluster, String remoteCluster,
             BrokerService brokerService) throws NamingException {
@@ -134,7 +134,7 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
     }
 
     @Override
-    public NonPersistentReplicatorStats getStats() {
+    public NonPersistentReplicatorStatsImpl getStats() {
         stats.connected = producer != null && producer.isConnected();
         stats.replicationDelayInSeconds = getReplicationDelayInSeconds();
 
@@ -248,11 +248,6 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
     @Override
     protected void disableReplicatorRead() {
         // No-op
-    }
-
-    @Override
-    protected CompletableFuture<Void> openCursorAsync() {
-        return CompletableFuture.completedFuture(null);
     }
 
     @Override

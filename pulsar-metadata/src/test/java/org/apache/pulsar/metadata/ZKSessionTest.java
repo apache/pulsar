@@ -19,17 +19,24 @@
 package org.apache.pulsar.metadata;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
-
+import static org.testng.Assert.assertTrue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
-
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.coordination.CoordinationService;
+import org.apache.pulsar.metadata.api.coordination.LeaderElection;
+import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
+import org.apache.pulsar.metadata.api.coordination.LockManager;
+import org.apache.pulsar.metadata.api.coordination.ResourceLock;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
+import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
+import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 public class ZKSessionTest extends BaseMetadataStoreTest {
@@ -51,10 +58,10 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
         assertEquals(e, SessionEvent.ConnectionLost);
 
         zks.start();
-        e = sessionEvents.poll(10, TimeUnit.SECONDS);
+        e = sessionEvents.poll(20, TimeUnit.SECONDS);
         assertEquals(e, SessionEvent.Reconnected);
 
-        e = sessionEvents.poll(1, TimeUnit.SECONDS);
+        e = sessionEvents.poll(5, TimeUnit.SECONDS);
         assertNull(e);
     }
 
@@ -85,5 +92,90 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
 
         e = sessionEvents.poll(1, TimeUnit.SECONDS);
         assertNull(e);
+    }
+
+    @Test
+    public void testReacquireLocksAfterSessionLost() throws Exception {
+        @Cleanup
+        MetadataStoreExtended store = MetadataStoreExtended.create(zks.getConnectionString(),
+                MetadataStoreConfig.builder()
+                        .sessionTimeoutMillis(2_000)
+                        .build());
+
+        BlockingQueue<SessionEvent> sessionEvents = new LinkedBlockingQueue<>();
+        store.registerSessionListener(sessionEvents::add);
+
+        @Cleanup
+        CoordinationService coordinationService = new CoordinationServiceImpl(store);
+        @Cleanup
+        LockManager<String> lm1 = coordinationService.getLockManager(String.class);
+
+        String path = newKey();
+
+        ResourceLock<String> lock = lm1.acquireLock(path, "value-1").join();
+
+        zks.expireSession(((ZKMetadataStore) store).getZkSessionId());
+
+        SessionEvent e = sessionEvents.poll(5, TimeUnit.SECONDS);
+        assertEquals(e, SessionEvent.ConnectionLost);
+
+        e = sessionEvents.poll(10, TimeUnit.SECONDS);
+        assertEquals(e, SessionEvent.SessionLost);
+
+        e = sessionEvents.poll(10, TimeUnit.SECONDS);
+        assertEquals(e, SessionEvent.Reconnected);
+        e = sessionEvents.poll(10, TimeUnit.SECONDS);
+        assertEquals(e, SessionEvent.SessionReestablished);
+
+        Awaitility.await().untilAsserted(() -> {
+            assertFalse(lock.getLockExpiredFuture().isDone());
+        });
+
+        assertTrue(store.get(path).join().isPresent());
+    }
+
+    @Test
+    public void testReacquireLeadershipAfterSessionLost() throws Exception {
+        //  ---  init
+        @Cleanup
+        MetadataStoreExtended store = MetadataStoreExtended.create(zks.getConnectionString(),
+                MetadataStoreConfig.builder()
+                        .sessionTimeoutMillis(2_000)
+                        .build());
+
+        BlockingQueue<SessionEvent> sessionEvents = new LinkedBlockingQueue<>();
+        store.registerSessionListener(sessionEvents::add);
+        BlockingQueue<LeaderElectionState> leaderElectionEvents = new LinkedBlockingQueue<>();
+        String path = newKey();
+
+        @Cleanup
+        CoordinationService coordinationService = new CoordinationServiceImpl(store);
+        @Cleanup
+        LeaderElection<String> le1 = coordinationService.getLeaderElection(String.class, path,
+                leaderElectionEvents::add);
+        // --- test manual elect
+        le1.elect("value-1").join();
+        assertEquals(le1.getState(), LeaderElectionState.Leading);
+
+        LeaderElectionState les = leaderElectionEvents.poll(5, TimeUnit.SECONDS);
+        assertEquals(les, LeaderElectionState.Leading);
+        // --- expire session
+        zks.expireSession(((ZKMetadataStore) store).getZkSessionId());
+
+        SessionEvent e = sessionEvents.poll(5, TimeUnit.SECONDS);
+        assertEquals(e, SessionEvent.ConnectionLost);
+
+        e = sessionEvents.poll(10, TimeUnit.SECONDS);
+        assertEquals(e, SessionEvent.SessionLost);
+        // --- test  le1 can be leader
+        Awaitility.await()
+                .untilAsserted(()-> assertEquals(le1.getState(),LeaderElectionState.Leading)); // reacquire leadership
+        e = sessionEvents.poll(10, TimeUnit.SECONDS);
+        assertEquals(e, SessionEvent.Reconnected);
+        e = sessionEvents.poll(10, TimeUnit.SECONDS);
+        assertEquals(e, SessionEvent.SessionReestablished);
+        Awaitility.await()
+                .untilAsserted(()-> assertEquals(le1.getState(),LeaderElectionState.Leading));
+        assertTrue(store.get(path).join().isPresent());
     }
 }

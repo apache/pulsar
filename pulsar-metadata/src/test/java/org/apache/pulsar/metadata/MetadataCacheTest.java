@@ -26,6 +26,10 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
@@ -38,13 +42,18 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.metadata.api.CacheGetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
+import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.ContentDeserializationException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
+import org.apache.pulsar.metadata.api.Stat;
+import org.awaitility.Awaitility;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class MetadataCacheTest extends BaseMetadataStoreTest {
@@ -83,6 +92,77 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         } catch (CompletionException e) {
             assertEquals(e.getCause().getClass(), NotFoundException.class);
         }
+    }
+
+    @DataProvider(name = "zk")
+    public Object[][] zkimplementations() {
+        return new Object[][] {
+            { "ZooKeeper", zks.getConnectionString() },
+        };
+    }
+
+    @Test(dataProvider = "zk")
+    public void crossStoreUpdates(String provider, String url) throws Exception {
+        @Cleanup
+        MetadataStore store1 = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
+
+        @Cleanup
+        MetadataStore store2 = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
+
+        @Cleanup
+        MetadataStore store3 = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
+
+        MetadataCache<MyClass> objCache1 = store1.getMetadataCache(MyClass.class);
+        MetadataCache<MyClass> objCache2 = store2.getMetadataCache(MyClass.class);
+        MetadataCache<MyClass> objCache3 = store3.getMetadataCache(MyClass.class);
+
+        List<MetadataCache<MyClass>> allCaches = new ArrayList<>();
+        allCaches.add(objCache1);
+        allCaches.add(objCache2);
+        allCaches.add(objCache3);
+
+        // Add on one cache and remove from another
+        multiStoreAddDelete(allCaches, 0, 1, "add cache0 del cache1");
+        // retry same order to rule out any stale state
+        multiStoreAddDelete(allCaches, 0, 1, "add cache0 del cache1");
+        // Reverse the operations
+        multiStoreAddDelete(allCaches, 1, 0, "add cache1 del cache0");
+        // Ensure that working on same cache continues to work.
+        multiStoreAddDelete(allCaches, 1, 1, "add cache1 del cache1");
+    }
+
+    private void multiStoreAddDelete(List<MetadataCache<MyClass>> caches, int addOn, int delFrom, String testName) throws InterruptedException {
+        MetadataCache<MyClass> addCache = caches.get(addOn);
+        MetadataCache<MyClass> delCache = caches.get(delFrom);
+
+        String key1 = "/test-key1";
+        assertEquals(addCache.getIfCached(key1), Optional.empty());
+
+        MyClass value1 = new MyClass(testName, 1);
+
+        addCache.create(key1, value1).join();
+
+        // all time for changes to propagate to other caches
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+            for (MetadataCache<MyClass> cache : caches) {
+                if (cache == addCache) {
+                    assertEquals(cache.getIfCached(key1), Optional.of(value1));
+                }
+                assertEquals(cache.get(key1).join(), Optional.of(value1));
+                assertEquals(cache.getIfCached(key1), Optional.of(value1));
+            }
+        });
+
+        delCache.delete(key1).join();
+
+        // all time for changes to propagate to other caches
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+            // The entry should get removed from all caches
+            for (MetadataCache<MyClass> cache : caches) {
+                assertEquals(cache.getIfCached(key1), Optional.empty());
+                assertEquals(cache.get(key1).join(), Optional.empty());
+            }
+        });
     }
 
     @Test(dataProvider = "impl")
@@ -135,6 +215,10 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
 
         assertEquals(objCache.getIfCached(key1), Optional.of(value1));
         assertEquals(objCache.get(key1).join(), Optional.of(value1));
+
+        assertEquals(objCache.readModifyUpdateOrCreate(key1, __ -> value2).join(), value2);
+        assertEquals(objCache.get(key1).join(), Optional.of(value2));
+        assertEquals(objCache.getIfCached(key1), Optional.of(value2));
 
         objCache.delete(key1).join();
 
@@ -284,9 +368,8 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         MyClass value1 = new MyClass("a", 1);
         objCache.create(key1, value1).join();
 
-        objCache.readModifyUpdate(key1, v -> {
-            return new MyClass(v.a, v.b + 1);
-        }).join();
+        assertEquals(objCache.readModifyUpdate(key1, v -> new MyClass(v.a, v.b + 1)).join(),
+                new MyClass("a", 2));
 
         Optional<MyClass> newValue1 = objCache.get(key1).join();
         assertTrue(newValue1.isPresent());
@@ -332,5 +415,46 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         objCache1.readModifyUpdate(key1, v -> {
             return new MyClass(v.a, v.b + 1);
         }).join();
+    }
+
+    @Test(dataProvider = "impl")
+    public void getWithStats(String provider, String url) throws Exception {
+        @Cleanup
+        MetadataStore store = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
+        MetadataCache<MyClass> objCache = store.getMetadataCache(MyClass.class);
+
+        String key1 = newKey();
+
+        MyClass value1 = new MyClass("a", 1);
+        Stat stat1 = store.put(key1, ObjectMapperFactory.getThreadLocal().writeValueAsBytes(value1), Optional.of(-1L)).join();
+
+        CacheGetResult<MyClass> res = objCache.getWithStats(key1).join().get();
+        assertEquals(res.getValue(), value1);
+        assertEquals(res.getStat().getVersion(), stat1.getVersion());
+    }
+
+    @Test(dataProvider = "impl")
+    public void cacheWithCustomSerde(String provider, String url) throws Exception {
+        @Cleanup
+        MetadataStore store = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
+
+        // Simple serde that convert numbers to ascii
+        MetadataCache<Integer> objCache = store.getMetadataCache(new MetadataSerde<Integer>() {
+            @Override
+            public byte[] serialize(Integer value) throws IOException {
+                return value.toString().getBytes(StandardCharsets.UTF_8);
+            }
+
+            @Override
+            public Integer deserialize(byte[] content) throws IOException {
+                return Integer.parseInt(new String(content, StandardCharsets.UTF_8));
+            }
+        });
+
+        String key1 = newKey();
+
+        objCache.create(key1, 1).join();
+
+        assertEquals(objCache.get(key1).join().get(), (Integer) 1);
     }
 }

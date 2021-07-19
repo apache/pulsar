@@ -18,10 +18,9 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import java.util.concurrent.atomic.LongAdder;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursorMXBean;
-
-import java.util.concurrent.atomic.LongAdder;
 
 public class ManagedCursorMXBeanImpl implements ManagedCursorMXBean {
 

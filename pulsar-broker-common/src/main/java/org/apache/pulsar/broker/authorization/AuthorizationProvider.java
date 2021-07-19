@@ -34,6 +34,7 @@ import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
@@ -56,7 +57,7 @@ public interface AuthorizationProvider extends Closeable {
                                                    AuthenticationDataSource authenticationData,
                                                    ServiceConfiguration serviceConfiguration) {
         Set<String> superUserRoles = serviceConfiguration.getSuperUserRoles();
-        return CompletableFuture.completedFuture(role != null && superUserRoles.contains(role) ? true : false);
+        return CompletableFuture.completedFuture(role != null && superUserRoles.contains(role));
     }
 
     /**
@@ -68,7 +69,7 @@ public interface AuthorizationProvider extends Closeable {
      */
     default CompletableFuture<Boolean> isSuperUser(String role, ServiceConfiguration serviceConfiguration) {
         Set<String> superUserRoles = serviceConfiguration.getSuperUserRoles();
-        return CompletableFuture.completedFuture(role != null && superUserRoles.contains(role) ? true : false);
+        return CompletableFuture.completedFuture(role != null && superUserRoles.contains(role));
     }
 
     /**
@@ -80,7 +81,7 @@ public interface AuthorizationProvider extends Closeable {
      */
     default CompletableFuture<Boolean> isTenantAdmin(String tenant, String role, TenantInfo tenantInfo,
                                                      AuthenticationDataSource authenticationData) {
-        return CompletableFuture.completedFuture(role != null && tenantInfo.getAdminRoles() != null && tenantInfo.getAdminRoles().contains(role) ? true : false);
+        return CompletableFuture.completedFuture(role != null && tenantInfo.getAdminRoles() != null && tenantInfo.getAdminRoles().contains(role));
     }
 
     /**
@@ -293,7 +294,8 @@ public interface AuthorizationProvider extends Closeable {
                                                                     NamespaceOperation operation,
                                                                     AuthenticationDataSource authData) {
         return FutureUtil.failedFuture(
-            new IllegalStateException("NamespaceOperation is not supported by the Authorization provider you are using."));
+            new IllegalStateException("NamespaceOperation [" + operation.name() + "] is not supported by "
+                    + "the Authorization provider you are using."));
     }
 
     default Boolean allowNamespaceOperation(NamespaceName namespaceName,
@@ -363,7 +365,8 @@ public interface AuthorizationProvider extends Closeable {
                                                                           String role,
                                                                           AuthenticationDataSource authData) {
         return FutureUtil.failedFuture(
-                new IllegalStateException("NamespacePolicyOperation is not supported by the Authorization provider you are using."));
+                new IllegalStateException("NamespacePolicyOperation  [" + policy.name() + "/" + operation.name() + "] "
+                        + "is not supported by is not supported by the Authorization provider you are using."));
     }
 
     default Boolean allowNamespacePolicyOperation(NamespaceName namespaceName,
@@ -436,7 +439,8 @@ public interface AuthorizationProvider extends Closeable {
                                                                 TopicOperation operation,
                                                                 AuthenticationDataSource authData) {
         return FutureUtil.failedFuture(
-            new IllegalStateException("TopicOperation is not supported by the Authorization provider you are using."));
+            new IllegalStateException("TopicOperation [" + operation.name() + "] is not supported by the Authorization"
+                    + "provider you are using."));
     }
 
     default Boolean allowTopicOperation(TopicName topicName,
@@ -483,6 +487,39 @@ public interface AuthorizationProvider extends Closeable {
                                         AuthenticationDataSource authData) {
         try {
             return allowTopicOperationAsync(topicName, originalRole, role, operation, authData).get();
+        } catch (InterruptedException e) {
+            throw new RestException(e);
+        } catch (ExecutionException e) {
+            throw new RestException(e.getCause());
+        }
+    }
+
+    /**
+     * Check if a given <tt>role</tt> is allowed to execute a given topic <tt>operation</tt> on topic's <tt>policy</tt>.
+     *
+     * @param topic topic name
+     * @param role role name
+     * @param operation topic operation
+     * @param authData authenticated data
+     * @return CompletableFuture<Boolean>
+     */
+    default CompletableFuture<Boolean> allowTopicPolicyOperationAsync(TopicName topic,
+                                                                      String role,
+                                                                      PolicyName policy,
+                                                                      PolicyOperation operation,
+                                                                      AuthenticationDataSource authData) {
+        return FutureUtil.failedFuture(
+                new IllegalStateException("TopicPolicyOperation [" + policy.name() + "/" + operation.name() + "] "
+                        + "is not supported by the Authorization provider you are using."));
+    }
+
+    default Boolean allowTopicPolicyOperation(TopicName topicName,
+                                              String role,
+                                              PolicyName policy,
+                                              PolicyOperation operation,
+                                              AuthenticationDataSource authData) {
+        try {
+            return allowTopicPolicyOperationAsync(topicName, role, policy, operation, authData).get();
         } catch (InterruptedException e) {
             throw new RestException(e);
         } catch (ExecutionException e) {

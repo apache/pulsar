@@ -43,6 +43,7 @@ public class PrometheusMetricsServlet extends HttpServlet {
     private final boolean shouldExportTopicMetrics;
     private final boolean shouldExportConsumerMetrics;
     private final boolean shouldExportProducerMetrics;
+    private final long metricsServletTimeoutMs;
     private List<PrometheusRawMetricsProvider> metricsProviders;
 
     private ExecutorService executor = null;
@@ -53,6 +54,7 @@ public class PrometheusMetricsServlet extends HttpServlet {
         this.shouldExportTopicMetrics = includeTopicMetrics;
         this.shouldExportConsumerMetrics = includeConsumerMetrics;
         this.shouldExportProducerMetrics = shouldExportProducerMetrics;
+        this.metricsServletTimeoutMs = pulsar.getConfiguration().getMetricsServletTimeoutMs();
     }
 
     @Override
@@ -64,6 +66,7 @@ public class PrometheusMetricsServlet extends HttpServlet {
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         AsyncContext context = request.startAsync();
+        context.setTimeout(metricsServletTimeoutMs);
         executor.execute(safeRun(() -> {
             HttpServletResponse res = (HttpServletResponse) context.getResponse();
             try {

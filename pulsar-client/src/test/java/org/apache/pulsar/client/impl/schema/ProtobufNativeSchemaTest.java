@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import com.google.protobuf.Descriptors;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +29,10 @@ import org.testng.annotations.Test;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
+
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.AssertJUnit.assertSame;
 
 @Slf4j
 public class ProtobufNativeSchemaTest {
@@ -51,7 +56,7 @@ public class ProtobufNativeSchemaTest {
         byte[] bytes = protobufSchema.encode(testMessage);
         org.apache.pulsar.client.schema.proto.Test.TestMessage message = protobufSchema.decode(bytes);
 
-        Assert.assertEquals(message.getStringField(), stringFieldValue);
+        assertEquals(message.getStringField(), stringFieldValue);
     }
 
     @Test
@@ -59,10 +64,10 @@ public class ProtobufNativeSchemaTest {
         ProtobufNativeSchema<org.apache.pulsar.client.schema.proto.Test.TestMessage> protobufSchema
                 = ProtobufNativeSchema.of(org.apache.pulsar.client.schema.proto.Test.TestMessage.class);
 
-        Assert.assertEquals(protobufSchema.getSchemaInfo().getType(), SchemaType.PROTOBUF_NATIVE);
+        assertEquals(protobufSchema.getSchemaInfo().getType(), SchemaType.PROTOBUF_NATIVE);
 
-        Assert.assertNotNull(ProtobufNativeSchemaUtils.deserialize(protobufSchema.getSchemaInfo().getSchema()));
-        Assert.assertEquals(new String(protobufSchema.getSchemaInfo().getSchema(), StandardCharsets.UTF_8), EXPECTED_SCHEMA_JSON);
+        assertNotNull(ProtobufNativeSchemaUtils.deserialize(protobufSchema.getSchemaInfo().getSchema()));
+        assertEquals(new String(protobufSchema.getSchemaInfo().getSchema(), StandardCharsets.UTF_8), EXPECTED_SCHEMA_JSON);
     }
 
     @Test
@@ -96,8 +101,16 @@ public class ProtobufNativeSchemaTest {
         ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer(bytes.length);
         byteBuf.writeBytes(bytes);
 
-        Assert.assertEquals(testMessage, protobufSchema.decode(byteBuf));
+        assertEquals(testMessage, protobufSchema.decode(byteBuf));
 
+    }
+
+    @Test
+    public void testGetNativeSchema()  {
+        ProtobufNativeSchema<org.apache.pulsar.client.schema.proto.Test.TestMessage> protobufSchema
+                = ProtobufNativeSchema.of(org.apache.pulsar.client.schema.proto.Test.TestMessage.class);
+        Descriptors.Descriptor nativeSchema = (Descriptors.Descriptor) protobufSchema.getNativeSchema().get();
+        assertNotNull(nativeSchema);
     }
 
 }

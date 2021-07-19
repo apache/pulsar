@@ -22,13 +22,19 @@ import com.google.common.collect.Sets;
 import org.apache.pulsar.broker.admin.v2.PersistentTopics;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
+import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -42,6 +48,8 @@ import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static org.mockito.Mockito.doNothing;
@@ -70,16 +78,15 @@ public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     protected void setup() throws Exception {
         super.internalSetup();
-        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
         admin.tenants().createTenant("prop",
-                new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
+                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("prop/ns-abc");
         admin.namespaces().setNamespaceReplicationClusters("prop/ns-abc", Sets.newHashSet("test"));
         persistentTopics = spy(new PersistentTopics());
         persistentTopics.setServletContext(new MockServletContext());
         persistentTopics.setPulsar(pulsar);
 
-        doReturn(mockZooKeeper).when(persistentTopics).localZk();
         doReturn(false).when(persistentTopics).isRequestHttps();
         doReturn(null).when(persistentTopics).originalPrincipal();
         doReturn("test").when(persistentTopics).clientAppId();
@@ -216,5 +223,41 @@ public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
         }
         Assert.assertTrue(((MessageIdImpl)id[0]).getLedgerId() > 0);
         Assert.assertEquals( 2 * numberOfMessages -1, ((MessageIdImpl)id[0]).getEntryId());
+    }
+
+    /**
+     * If a topic only have non-durable subscriptions or mark delete position of all the durable subscriptions
+     * are reached the LAC, all the ledgers except the current ledger will be deleted. Since the current ledger may not
+     * have any data, so the test is to ensure the get last message ID API can work in this case.
+     *
+     * In this case, the we should return the message ID (-1, -1).
+     */
+    @Test
+    public void testGetLastMessageIdWhenTopicWithoutData() throws Exception {
+        final String topic = "persistent://prop/ns-abc/testGetLastMessageIdWhenTopicWithoutData-" + UUID.randomUUID();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+        final int messages = 10;
+        for (int i = 0; i < messages; i++) {
+            producer.send("Message - " + i);
+        }
+        // To trigger the ledger rollover
+        admin.topics().unload(topic);
+        Topic topicRef = pulsar.getBrokerService().getTopicIfExists(topic).get().get();
+        ((PersistentTopic) topicRef).getManagedLedger().trimConsumedLedgersInBackground(new CompletableFuture<>());
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
+            Assert.assertEquals(stats.ledgers.size(), 1);
+        });
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+                .topic(topic)
+                .startMessageId(MessageId.earliest)
+                .create();
+        // This will call the get last message ID api.
+        boolean hasMessage = reader.hasMessageAvailable();
+        Assert.assertFalse(hasMessage);
+        MessageId messageId = admin.topics().getLastMessageId(topic);
+        Assert.assertEquals(messageId.toString(), "-1:-1:-1");
     }
 }

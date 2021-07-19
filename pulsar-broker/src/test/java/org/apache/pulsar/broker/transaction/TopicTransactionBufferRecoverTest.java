@@ -54,7 +54,8 @@ import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
@@ -71,13 +72,13 @@ import static org.testng.Assert.assertTrue;
 @Slf4j
 public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
-    private final static String TENANT = "tnx";
-    private final static String NAMESPACE1 = TENANT + "/ns1";
-    private final static String RECOVER_COMMIT = NAMESPACE1 + "/recover-commit";
-    private final static String RECOVER_ABORT = NAMESPACE1 + "/recover-abort";
-    private final static String SUBSCRIPTION_NAME = "test-recover";
-    private final static String TAKE_SNAPSHOT = NAMESPACE1 + "/take-snapshot";
-    private final static String ABORT_DELETE = NAMESPACE1 + "/abort-delete";
+    private static final String TENANT = "tnx";
+    private static final String NAMESPACE1 = TENANT + "/ns1";
+    private static final String RECOVER_COMMIT = NAMESPACE1 + "/recover-commit";
+    private static final String RECOVER_ABORT = NAMESPACE1 + "/recover-abort";
+    private static final String SUBSCRIPTION_NAME = "test-recover";
+    private static final String TAKE_SNAPSHOT = NAMESPACE1 + "/take-snapshot";
+    private static final String ABORT_DELETE = NAMESPACE1 + "/abort-delete";
 
     @BeforeMethod
     protected void setup() throws Exception {
@@ -85,19 +86,22 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
         String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
         String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length -1];
-        admin.clusters().createCluster(CLUSTER_NAME, new ClusterData("http://localhost:" + webServicePort));
+        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl("http://localhost:" + webServicePort).build());
         admin.tenants().createTenant(TENANT,
-                new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
+                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(NAMESPACE1);
         admin.topics().createNonPartitionedTopic(RECOVER_COMMIT);
         admin.topics().createNonPartitionedTopic(RECOVER_ABORT);
         admin.topics().createNonPartitionedTopic(TAKE_SNAPSHOT);
 
         admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
-                new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
+                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
         admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), 16);
 
+        if (pulsarClient != null) {
+            pulsarClient.shutdown();
+        }
         pulsarClient = PulsarClient.builder()
                 .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
                 .statsInterval(0, TimeUnit.SECONDS)
@@ -109,6 +113,10 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
     @AfterMethod(alwaysRun = true)
     protected void cleanup() throws Exception {
+        if (pulsarClient != null) {
+            pulsarClient.shutdown();
+            pulsarClient = null;
+        }
         super.internalCleanup();
     }
 
@@ -174,7 +182,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         assertNull(message);
         admin.topics().unload(RECOVER_COMMIT);
 
-        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> {
+        Awaitility.await().until(() -> {
             for (int i = 0; i < getPulsarServiceList().size(); i++) {
                 Field field = BrokerService.class.getDeclaredField("topics");
                 field.setAccessible(true);

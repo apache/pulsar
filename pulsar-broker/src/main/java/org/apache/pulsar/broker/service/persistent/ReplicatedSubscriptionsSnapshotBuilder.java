@@ -53,7 +53,7 @@ public class ReplicatedSubscriptionsSnapshotBuilder {
 
     private final Clock clock;
 
-    private final static Summary snapshotMetric = Summary.build("pulsar_replicated_subscriptions_snapshot_ms",
+    private static final Summary snapshotMetric = Summary.build("pulsar_replicated_subscriptions_snapshot_ms",
             "Time taken to create a consistent snapshot across clusters").register();
 
     public ReplicatedSubscriptionsSnapshotBuilder(ReplicatedSubscriptionsController controller,
@@ -90,7 +90,7 @@ public class ReplicatedSubscriptionsSnapshotBuilder {
                     response.getCluster().getCluster());
         }
         String cluster = response.getCluster().getCluster();
-        responses.putIfAbsent(cluster, response.getCluster().getMessageId());
+        responses.putIfAbsent(cluster, new MarkersMessageIdData().copyFrom(response.getCluster().getMessageId()));
         missingClusters.remove(cluster);
 
         if (log.isDebugEnabled()) {

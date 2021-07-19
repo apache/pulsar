@@ -30,7 +30,7 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 @Slf4j
 public class GenericAvroSchema extends GenericSchemaImpl {
 
-    public final static String OFFSET_PROP = "__AVRO_READ_OFFSET__";
+    public static final String OFFSET_PROP = "__AVRO_READ_OFFSET__";
 
     public GenericAvroSchema(SchemaInfo schemaInfo) {
         this(schemaInfo, true);

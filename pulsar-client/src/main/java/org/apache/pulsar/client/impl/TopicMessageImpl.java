@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.api.EncryptionContext;
 
 public class TopicMessageImpl<T> implements Message<T> {
@@ -90,6 +91,11 @@ public class TopicMessageImpl<T> implements Message<T> {
     @Override
     public byte[] getData() {
         return msg.getData();
+    }
+
+    @Override
+    public int size() {
+        return msg.size();
     }
 
     @Override
@@ -174,5 +180,23 @@ public class TopicMessageImpl<T> implements Message<T> {
 
     public Message<T> getMessage() {
         return msg;
+    }
+
+    public Schema<T> getSchemaInternal() {
+        if (this.msg instanceof MessageImpl) {
+            MessageImpl message = (MessageImpl) this.msg;
+            return message.getSchemaInternal();
+        }
+        return null;
+    }
+
+    @Override
+    public Optional<Schema<?>> getReaderSchema() {
+        return msg.getReaderSchema();
+    }
+
+    @Override
+    public void release() {
+        msg.release();
     }
 }

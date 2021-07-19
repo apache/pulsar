@@ -23,6 +23,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.admin.AdminResource.POLICIES_READONLY_FLAG_PATH;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.RESOURCEGROUPS;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Lists;
@@ -37,6 +38,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import javax.servlet.ServletContext;
@@ -48,6 +50,7 @@ import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriInfo;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
@@ -57,12 +60,14 @@ import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.BaseResources;
+import org.apache.pulsar.broker.resources.BookieResources;
 import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.resources.DynamicConfigurationResources;
 import org.apache.pulsar.broker.resources.LocalPoliciesResources;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.NamespaceResources.IsolationPolicyResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.broker.resources.ResourceGroupResources;
 import org.apache.pulsar.broker.resources.TenantResources;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
@@ -72,13 +77,14 @@ import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BundlesData;
-import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantOperation;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.path.PolicyPath;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -263,7 +269,7 @@ public abstract class PulsarWebResource {
                     (isClientAuthenticated(clientAppId)), clientAppId);
         }
 
-        TenantInfo tenantInfo = pulsar.getPulsarResources().getTenatResources().get(path(POLICIES, tenant))
+        TenantInfo tenantInfo = pulsar.getPulsarResources().getTenantResources().get(path(POLICIES, tenant))
                 .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Tenant does not exist"));
 
         if (pulsar.getConfiguration().isAuthenticationEnabled() && pulsar.getConfiguration().isAuthorizationEnabled()) {
@@ -319,7 +325,7 @@ public abstract class PulsarWebResource {
     protected void validateClusterForTenant(String tenant, String cluster) {
         TenantInfo tenantInfo;
         try {
-            tenantInfo = pulsar().getPulsarResources().getTenatResources().get(path(POLICIES, tenant))
+            tenantInfo = pulsar().getPulsarResources().getTenantResources().get(path(POLICIES, tenant))
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Tenant does not exist"));
         } catch (RestException e) {
             log.warn("Failed to get tenant admin data for tenant {}", tenant);
@@ -347,7 +353,8 @@ public abstract class PulsarWebResource {
      */
     protected void validateClusterOwnership(String cluster) throws WebApplicationException {
         try {
-            ClusterData differentClusterData = getClusterDataIfDifferentCluster(pulsar(), cluster, clientAppId()).get();
+            ClusterDataImpl differentClusterData =
+                    getClusterDataIfDifferentCluster(pulsar(), cluster, clientAppId()).get();
             if (differentClusterData != null) {
                 URI redirect = getRedirectionUrl(differentClusterData);
                 // redirect to the cluster requested
@@ -368,7 +375,7 @@ public abstract class PulsarWebResource {
 
     }
 
-    private URI getRedirectionUrl(ClusterData differentClusterData) throws MalformedURLException {
+    private URI getRedirectionUrl(ClusterDataImpl differentClusterData) throws MalformedURLException {
         try {
             PulsarServiceNameResolver serviceNameResolver = new PulsarServiceNameResolver();
             if (isRequestHttps() && pulsar.getConfiguration().getWebServicePortTls().isPresent()
@@ -384,10 +391,11 @@ public abstract class PulsarWebResource {
         }
     }
 
-    protected static CompletableFuture<ClusterData> getClusterDataIfDifferentCluster(PulsarService pulsar,
-         String cluster, String clientAppId) {
+    protected static CompletableFuture<ClusterDataImpl> getClusterDataIfDifferentCluster(PulsarService pulsar,
+                                                                                         String cluster,
+                                                                                         String clientAppId) {
 
-        CompletableFuture<ClusterData> clusterDataFuture = new CompletableFuture<>();
+        CompletableFuture<ClusterDataImpl> clusterDataFuture = new CompletableFuture<>();
 
         if (!isValidCluster(pulsar, cluster)) {
             try {
@@ -432,37 +440,6 @@ public abstract class PulsarWebResource {
             return true;
         }
         return false;
-    }
-
-    /**
-     * Checks whether the broker is the owner of all the namespace bundles. Otherwise, if authoritative is false, it
-     * will throw an exception to redirect to assigned owner or leader; if authoritative is true then it will try to
-     * acquire all the namespace bundles.
-     *
-     * @param tenant tenant name
-     * @param cluster cluster name
-     * @param namespace namespace name
-     * @param authoritative if it is an authoritative request
-     * @param readOnly if the request is read-only
-     * @param bundleData bundle data
-     */
-    protected void validateNamespaceOwnershipWithBundles(String tenant, String cluster, String namespace,
-            boolean authoritative, boolean readOnly, BundlesData bundleData) {
-        NamespaceName fqnn = NamespaceName.get(tenant, cluster, namespace);
-
-        try {
-            NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory().getBundles(fqnn,
-                    bundleData);
-            for (NamespaceBundle bundle : bundles.getBundles()) {
-                validateBundleOwnership(bundle, authoritative, readOnly);
-            }
-        } catch (WebApplicationException wae) {
-            // propagate already wrapped-up WebApplicationExceptions
-            throw wae;
-        } catch (Exception oe) {
-            log.debug("Failed to find owner for namespace {}", fqnn, oe);
-            throw new RestException(oe);
-        }
     }
 
     protected void validateBundleOwnership(String tenant, String cluster, String namespace, boolean authoritative,
@@ -611,48 +588,69 @@ public abstract class PulsarWebResource {
      * @param authoritative
      */
     protected void validateTopicOwnership(TopicName topicName, boolean authoritative) {
+        try {
+            validateTopicOwnershipAsync(topicName, authoritative).join();
+        } catch (CompletionException ce) {
+            if (ce.getCause() instanceof WebApplicationException) {
+                throw (WebApplicationException) ce.getCause();
+            } else {
+                throw new RestException(ce.getCause());
+            }
+        }
+    }
+
+    protected CompletableFuture<Void> validateTopicOwnershipAsync(TopicName topicName, boolean authoritative) {
         NamespaceService nsService = pulsar().getNamespaceService();
 
-        try {
-            // per function name, this is trying to acquire the whole namespace ownership
-            LookupOptions options = LookupOptions.builder()
-                    .authoritative(authoritative)
-                    .requestHttps(isRequestHttps())
-                    .readOnly(false)
-                    .loadTopicsInBundle(false).build();
-            Optional<URL> webUrl = nsService.getWebServiceUrl(topicName, options);
-            // Ensure we get a url
-            if (webUrl == null || !webUrl.isPresent()) {
-                log.info("Unable to get web service url");
-                throw new RestException(Status.PRECONDITION_FAILED, "Failed to find ownership for topic:" + topicName);
-            }
+        LookupOptions options = LookupOptions.builder()
+                .authoritative(authoritative)
+                .requestHttps(isRequestHttps())
+                .readOnly(false)
+                .loadTopicsInBundle(false)
+                .build();
 
-            if (!nsService.isServiceUnitOwned(topicName)) {
-                boolean newAuthoritative = isLeaderBroker(pulsar());
-                // Replace the host and port of the current request and redirect
-                URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(webUrl.get().getHost())
-                        .port(webUrl.get().getPort()).replaceQueryParam("authoritative", newAuthoritative).build();
-                // Redirect
-                log.debug("Redirecting the rest call to {}", redirect);
-                throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
-            }
-        } catch (TimeoutException te) {
-            String msg = String.format("Finding owner for topic %s timed out", topicName);
-            log.error(msg, te);
-            throw new RestException(Status.INTERNAL_SERVER_ERROR, msg);
-        } catch (IllegalArgumentException iae) {
-            // namespace format is not valid
-            log.debug("Failed to find owner for topic: {}", topicName, iae);
-            throw new RestException(Status.PRECONDITION_FAILED, "Can't find owner for topic " + topicName);
-        } catch (IllegalStateException ise) {
-            log.debug("Failed to find owner for topic: {}", topicName, ise);
-            throw new RestException(Status.PRECONDITION_FAILED, "Can't find owner for topic " + topicName);
-        } catch (WebApplicationException wae) {
-            throw wae;
-        } catch (Exception oe) {
-            log.debug("Failed to find owner for topic: {}", topicName, oe);
-            throw new RestException(oe);
-        }
+        return nsService.getWebServiceUrlAsync(topicName, options)
+                .thenApply(webUrl -> {
+                    // Ensure we get a url
+                    if (webUrl == null || !webUrl.isPresent()) {
+                        log.info("Unable to get web service url");
+                        throw new RestException(Status.PRECONDITION_FAILED,
+                                "Failed to find ownership for topic:" + topicName);
+                    }
+                    return webUrl.get();
+                }).thenCompose(webUrl -> nsService.isServiceUnitOwnedAsync(topicName)
+                        .thenApply(isTopicOwned -> Pair.of(webUrl, isTopicOwned))
+                ).thenAccept(pair -> {
+                    URL webUrl = pair.getLeft();
+                    boolean isTopicOwned = pair.getRight();
+
+                    if (!isTopicOwned) {
+                        boolean newAuthoritative = isLeaderBroker(pulsar());
+                        // Replace the host and port of the current request and redirect
+                        URI redirect = UriBuilder.fromUri(uri.getRequestUri())
+                                .host(webUrl.getHost())
+                                .port(webUrl.getPort())
+                                .replaceQueryParam("authoritative", newAuthoritative)
+                                .build();
+                        // Redirect
+                        if (log.isDebugEnabled()) {
+                            log.debug("Redirecting the rest call to {}", redirect);
+                        }
+                        throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+                    }
+                }).exceptionally(ex -> {
+                    if (ex.getCause() instanceof IllegalArgumentException
+                            || ex.getCause() instanceof IllegalStateException) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("Failed to find owner for topic: {}", topicName, ex);
+                        }
+                        throw new RestException(Status.PRECONDITION_FAILED, "Can't find owner for topic " + topicName);
+                    } else if (ex.getCause() instanceof WebApplicationException) {
+                        throw (WebApplicationException) ex.getCause();
+                    } else {
+                        throw new RestException(ex.getCause());
+                    }
+                });
     }
 
     /**
@@ -669,7 +667,7 @@ public abstract class PulsarWebResource {
     protected void validateGlobalNamespaceOwnership(NamespaceName namespace) {
         int timeout = pulsar().getConfiguration().getZooKeeperOperationTimeoutSeconds();
         try {
-            ClusterData peerClusterData = checkLocalOrGetPeerReplicationCluster(pulsar(), namespace)
+            ClusterDataImpl peerClusterData = checkLocalOrGetPeerReplicationCluster(pulsar(), namespace)
                     .get(timeout, SECONDS);
             // if peer-cluster-data is present it means namespace is owned by that peer-cluster and request should be
             // redirect to the peer-cluster
@@ -698,12 +696,36 @@ public abstract class PulsarWebResource {
         }
     }
 
-    public static CompletableFuture<ClusterData> checkLocalOrGetPeerReplicationCluster(PulsarService pulsarService,
-            NamespaceName namespace) {
+    protected CompletableFuture<Void> validateGlobalNamespaceOwnershipAsync(NamespaceName namespace) {
+        return checkLocalOrGetPeerReplicationCluster(pulsar(), namespace)
+                .thenAccept(peerClusterData -> {
+                    // if peer-cluster-data is present it means namespace is owned by that peer-cluster and request
+                    // should be redirect to the peer-cluster
+                    if (peerClusterData != null) {
+                        try {
+                            URI redirect = getRedirectionUrl(peerClusterData);
+                            // redirect to the cluster requested
+                            if (log.isDebugEnabled()) {
+                                log.debug("[{}] Redirecting the rest call to {}: cluster={}", clientAppId(),
+                                        redirect, peerClusterData);
+
+                            }
+                            throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+                        } catch (MalformedURLException mue) {
+                            throw new RestException(Status.SERVICE_UNAVAILABLE, String.format(
+                                    "Failed to validate global cluster configuration : ns=%s  emsg=%s", namespace,
+                                    mue.getMessage()));
+                        }
+                    }
+                });
+    }
+
+    public static CompletableFuture<ClusterDataImpl> checkLocalOrGetPeerReplicationCluster(PulsarService pulsarService,
+                                                                                           NamespaceName namespace) {
         if (!namespace.isGlobal()) {
             return CompletableFuture.completedFuture(null);
         }
-        final CompletableFuture<ClusterData> validationFuture = new CompletableFuture<>();
+        final CompletableFuture<ClusterDataImpl> validationFuture = new CompletableFuture<>();
         final String localCluster = pulsarService.getConfiguration().getClusterName();
         final String path = AdminResource.path(POLICIES, namespace.toString());
 
@@ -717,7 +739,7 @@ public abstract class PulsarWebResource {
                     log.warn(msg);
                     validationFuture.completeExceptionally(new RestException(Status.PRECONDITION_FAILED, msg));
                 } else if (!policies.replication_clusters.contains(localCluster)) {
-                    ClusterData ownerPeerCluster = getOwnerFromPeerClusterList(pulsarService,
+                    ClusterDataImpl ownerPeerCluster = getOwnerFromPeerClusterList(pulsarService,
                             policies.replication_clusters);
                     if (ownerPeerCluster != null) {
                         // found a peer that own this namespace
@@ -748,14 +770,14 @@ public abstract class PulsarWebResource {
         return validationFuture;
     }
 
-    private static ClusterData getOwnerFromPeerClusterList(PulsarService pulsar, Set<String> replicationClusters) {
+    private static ClusterDataImpl getOwnerFromPeerClusterList(PulsarService pulsar, Set<String> replicationClusters) {
         String currentCluster = pulsar.getConfiguration().getClusterName();
         if (replicationClusters == null || replicationClusters.isEmpty() || isBlank(currentCluster)) {
             return null;
         }
 
         try {
-            Optional<ClusterData> cluster = pulsar.getConfigurationCache().clustersCache()
+            Optional<ClusterDataImpl> cluster = pulsar.getConfigurationCache().clustersCache()
                     .get(path("clusters", currentCluster));
             if (!cluster.isPresent() || cluster.get().getPeerClusterNames() == null) {
                 return null;
@@ -778,10 +800,6 @@ public abstract class PulsarWebResource {
         return null;
     }
 
-    protected void checkConnect(TopicName topicName) throws Exception {
-        checkAuthorization(pulsar(), topicName, clientAppId(), clientAuthData());
-    }
-
     protected static void checkAuthorization(PulsarService pulsarService, TopicName topicName, String role,
             AuthenticationDataSource authenticationData) throws Exception {
         if (!pulsarService.getConfiguration().isAuthorizationEnabled()) {
@@ -789,8 +807,8 @@ public abstract class PulsarWebResource {
             return;
         }
         // get zk policy manager
-        if (!pulsarService.getBrokerService().getAuthorizationService().canLookup(topicName, role,
-                authenticationData)) {
+        if (!pulsarService.getBrokerService().getAuthorizationService().allowTopicOperation(topicName,
+                TopicOperation.LOOKUP, null, role, authenticationData)) {
             log.warn("[{}] Role {} is not allowed to lookup topic", topicName, role);
             throw new RestException(Status.UNAUTHORIZED, "Don't have permission to connect to this namespace");
         }
@@ -876,15 +894,23 @@ public abstract class PulsarWebResource {
     }
 
     protected TenantResources tenantResources() {
-        return pulsar().getPulsarResources().getTenatResources();
+        return pulsar().getPulsarResources().getTenantResources();
     }
 
     protected ClusterResources clusterResources() {
         return pulsar().getPulsarResources().getClusterResources();
     }
 
+    protected BookieResources bookieResources() {
+        return pulsar().getPulsarResources().getBookieResources();
+    }
+
     protected NamespaceResources namespaceResources() {
         return pulsar().getPulsarResources().getNamespaceResources();
+    }
+
+    protected ResourceGroupResources resourceGroupResources() {
+        return pulsar().getPulsarResources().getResourcegroupResources();
     }
 
     protected LocalPoliciesResources getLocalPolicies() {
@@ -1032,6 +1058,50 @@ public abstract class PulsarWebResource {
             URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(host).port(port).build();
             log.debug("[{}] Redirecting the rest call to {}: broker={}", clientAppId(), redirect, broker);
             throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+
+        }
+    }
+
+    public void validateTopicPolicyOperation(TopicName topicName, PolicyName policy, PolicyOperation operation) {
+        if (pulsar().getConfiguration().isAuthenticationEnabled()
+                && pulsar().getBrokerService().isAuthorizationEnabled()) {
+            if (!isClientAuthenticated(clientAppId())) {
+                throw new RestException(Status.FORBIDDEN, "Need to authenticate to perform the request");
+            }
+
+            Boolean isAuthorized = pulsar().getBrokerService().getAuthorizationService()
+                    .allowTopicPolicyOperation(topicName, policy, operation, originalPrincipal(), clientAppId(),
+                            clientAuthData());
+
+            if (!isAuthorized) {
+                throw new RestException(Status.FORBIDDEN, String.format("Unauthorized to validateTopicPolicyOperation"
+                        + " for operation [%s] on topic [%s] on policy [%s]", operation.toString(),
+                        topicName, policy.toString()));
+            }
+        }
+    }
+
+    public void validateTopicOperation(TopicName topicName, TopicOperation operation) {
+        validateTopicOperation(topicName, operation, null);
+    }
+
+    public void validateTopicOperation(TopicName topicName, TopicOperation operation, String subscription) {
+        if (pulsar().getConfiguration().isAuthenticationEnabled()
+                && pulsar().getBrokerService().isAuthorizationEnabled()) {
+            if (!isClientAuthenticated(clientAppId())) {
+                throw new RestException(Status.UNAUTHORIZED, "Need to authenticate to perform the request");
+            }
+
+            AuthenticationDataHttps authData = clientAuthData();
+            authData.setSubscription(subscription);
+
+            Boolean isAuthorized = pulsar().getBrokerService().getAuthorizationService()
+                    .allowTopicOperation(topicName, operation, originalPrincipal(), clientAppId(), authData);
+
+            if (!isAuthorized) {
+                throw new RestException(Status.UNAUTHORIZED, String.format("Unauthorized to validateTopicOperation for"
+                        + " operation [%s] on topic [%s]", operation.toString(), topicName));
+            }
         }
     }
 
@@ -1073,6 +1143,24 @@ public abstract class PulsarWebResource {
         namespaces.sort(null);
         return namespaces;
     }
+
+    /**
+     * Get the list of resourcegroups.
+     *
+     * @return the list of resourcegroups
+     */
+
+    protected List<String> getListOfResourcegroups(String property) throws Exception {
+        List<String> resourcegroups = Lists.newArrayList();
+
+        for (String resourcegroup : resourceGroupResources().getChildren(path(RESOURCEGROUPS))) {
+            resourcegroups.add(resourcegroup);
+        }
+
+        resourcegroups.sort(null);
+        return resourcegroups;
+    }
+
 
     public static void deleteRecursive(BaseResources resources, final String pathRoot) throws MetadataStoreException {
         PathUtils.validatePath(pathRoot);

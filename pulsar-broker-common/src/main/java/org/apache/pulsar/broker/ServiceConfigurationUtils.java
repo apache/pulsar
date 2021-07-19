@@ -18,11 +18,14 @@
  */
 package org.apache.pulsar.broker;
 
+import org.apache.pulsar.broker.validator.MultipleListenerValidator;
+import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.Map;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
@@ -45,6 +48,36 @@ public class ServiceConfigurationUtils {
             LOG.error(ex.getMessage(), ex);
             throw new IllegalStateException("Failed to resolve localhost name.", ex);
         }
+    }
+
+    /**
+     * Get the address of Broker, first try to get it from AdvertisedAddress.
+     * If it is not set, try to get the address set by advertisedListener.
+     * If it is still not set, get it through InetAddress.getLocalHost().
+     * @param configuration
+     * @param ignoreAdvertisedListener Sometimes we can’t use the default key of AdvertisedListener,
+     *                                 setting it to true can ignore AdvertisedListener.
+     * @return
+     */
+    public static String getAppliedAdvertisedAddress(ServiceConfiguration configuration,
+                                                     boolean ignoreAdvertisedListener) {
+        Map<String, AdvertisedListener> result = MultipleListenerValidator
+                .validateAndAnalysisAdvertisedListener(configuration);
+
+        String advertisedAddress = configuration.getAdvertisedAddress();
+        if (advertisedAddress != null) {
+            return advertisedAddress;
+        }
+
+        AdvertisedListener advertisedListener = result.get(configuration.getInternalListenerName());
+        if (advertisedListener != null && !ignoreAdvertisedListener) {
+            String address = advertisedListener.getBrokerServiceUrl().getHost();
+            if (address != null) {
+                return address;
+            }
+        }
+
+        return getDefaultOrConfiguredAddress(advertisedAddress);
     }
 
 }

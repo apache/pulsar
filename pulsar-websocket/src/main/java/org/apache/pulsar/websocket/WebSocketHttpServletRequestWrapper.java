@@ -22,14 +22,14 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
 import org.eclipse.jetty.websocket.servlet.UpgradeHttpServletRequest;
 
-
 /**
  * WebSocket HttpServletRequest wrapper.
  */
 public class WebSocketHttpServletRequestWrapper extends HttpServletRequestWrapper {
 
-    final static String HTTP_HEADER_NAME = "Authorization";
-    final static String TOKEN = "token";
+    static final String HTTP_HEADER_NAME = "Authorization";
+    static final String HTTP_HEADER_VALUE_PREFIX = "Bearer ";
+    static final String TOKEN = "token";
 
     public WebSocketHttpServletRequestWrapper(HttpServletRequest request) {
         super(request);
@@ -41,7 +41,11 @@ public class WebSocketHttpServletRequestWrapper extends HttpServletRequestWrappe
         // query param `token` to transport the auth token for the browser javascript WebSocket client.
         if (name.equals(HTTP_HEADER_NAME)
                 && !((UpgradeHttpServletRequest) this.getRequest()).getHeaders().containsKey(HTTP_HEADER_NAME)) {
-            return getRequest().getParameter(TOKEN);
+            String token = getRequest().getParameter(TOKEN);
+            if (token != null && !token.startsWith(HTTP_HEADER_VALUE_PREFIX)) {
+                return HTTP_HEADER_VALUE_PREFIX + token;
+            }
+            return token;
         }
         return super.getHeader(name);
     }

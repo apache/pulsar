@@ -46,14 +46,17 @@ import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.RawMessage;
+import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.RawMessageImpl;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -79,9 +82,9 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         super.internalSetup();
 
         admin.clusters().createCluster("use",
-                new ClusterData(pulsar.getWebServiceAddress()));
+                ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         admin.tenants().createTenant("my-property",
-                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
         admin.namespaces().createNamespace("my-property/use/my-ns");
     }
 
@@ -153,7 +156,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testEntryLookup() throws Exception {
         BookKeeper bk = pulsar.getBookKeeperClientFactory().create(
-                this.conf, null, Optional.empty(), null);
+                this.conf, null, null, Optional.empty(), null);
 
         Triple<Long, List<Pair<MessageIdData, Long>>, List<Pair<MessageIdData, Long>>> compactedLedgerData
             = buildCompactedLedger(bk, 500);
@@ -208,7 +211,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testCleanupOldCompactedTopicLedger() throws Exception {
         BookKeeper bk = pulsar.getBookKeeperClientFactory().create(
-                this.conf, null, Optional.empty(), null);
+                this.conf, null, null, Optional.empty(), null);
 
         LedgerHandle oldCompactedLedger = bk.createLedger(1, 1,
                 Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
@@ -303,5 +306,58 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         Assert.assertTrue(succeed);
 
         producer.close();
+    }
+
+    @Test(timeOut = 30000)
+    public void testReadMessageFromCompactedLedger() throws Exception {
+        final String key = "1";
+        String msg = "test compaction msg";
+        final String topic = "persistent://my-property/use/my-ns/testCompactWithEmptyMessage-" + UUID.randomUUID();
+        admin.topics().createPartitionedTopic(topic, 1);
+        final int numMessages = 10;
+
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).enableBatching(false).create();
+        for (int i = 0; i < numMessages; ++i) {
+            producer.newMessage().key(key).value(msg).send();
+        }
+
+        admin.topics().triggerCompaction(topic);
+        boolean succeed = retryStrategically((test) -> {
+            try {
+                return LongRunningProcessStatus.Status.SUCCESS.equals(admin.topics().compactionStatus(topic).status);
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 10, 200);
+
+        Assert.assertTrue(succeed);
+
+
+        final String newKey = "2";
+        String newMsg = "test compaction msg v2";
+        for (int i = 0; i < numMessages; ++i) {
+            producer.newMessage().key(newKey).value(newMsg).send();
+        }
+
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("test")
+                .readCompacted(true)
+                .startMessageId(MessageId.earliest)
+                .create();
+
+        int compactedMsgCount = 0;
+        int nonCompactedMsgCount = 0;
+        while (reader.hasMessageAvailable()) {
+            Message<String> message = reader.readNext();
+            if (key.equals(message.getKey()) && msg.equals(message.getValue())) {
+                compactedMsgCount++;
+            } else if (newKey.equals(message.getKey()) && newMsg.equals(message.getValue())) {
+                nonCompactedMsgCount++;
+            }
+        }
+
+        Assert.assertEquals(compactedMsgCount, 1);
+        Assert.assertEquals(nonCompactedMsgCount, numMessages);
     }
 }

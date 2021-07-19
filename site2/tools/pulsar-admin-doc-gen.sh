@@ -23,7 +23,6 @@ VERSION=`${ROOT_DIR}/src/get-project-version.py`
 DEST_DIR=$ROOT_DIR/generated-site
 
 cd $ROOT_DIR
-mvn install -DskipTests
 
 mkdir -p $DEST_DIR/tools/pulsar-admin/${VERSION}
 mkdir -p $DEST_DIR/tools/pulsar-admin/${VERSION}/node_modules
@@ -44,6 +43,7 @@ $ROOT_DIR/bin/pulsar-admin documents generate schemas > $ROOT_DIR/site2/website/
 $ROOT_DIR/bin/pulsar-admin documents generate packages > $ROOT_DIR/site2/website/brodocs/documents/packages.md
 
 cd $ROOT_DIR/site2/website/brodocs
+cp pulsar-admin-manifest.json manifest.json
 node brodoc.js
 
 cp index.html $DEST_DIR/tools/pulsar-admin/${VERSION}/

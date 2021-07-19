@@ -26,5 +26,6 @@ SQUASH_PARAM=""
 if [[ "$(docker version -f '{{.Server.Experimental}}' 2>/dev/null)" == "true" ]]; then
   SQUASH_PARAM="-Ddockerfile.build.squash=true"
 fi
-mvn -am -pl tests/docker-images/java-test-image install -Pcore-modules,integrationTests,docker \
-  -Dmaven.test.skip=true -DskipSourceReleaseAssembly=true -Dspotbugs.skip=true -Dlicense.skip=true $SQUASH_PARAM "$@"
+mvn -am -pl tests/docker-images/java-test-image -Pcore-modules,-main,integrationTests,docker \
+  -Dmaven.test.skip=true -DskipSourceReleaseAssembly=true -Dspotbugs.skip=true -Dlicense.skip=true $SQUASH_PARAM \
+  "$@" install

@@ -23,7 +23,7 @@ import java.net.URI;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.common.functions.UpdateOptions;
+import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.common.policies.data.FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData;
 import org.apache.pulsar.functions.worker.WorkerService;
@@ -53,7 +53,7 @@ public interface Functions<W extends WorkerService> extends Component<W> {
                         final FunctionConfig functionConfig,
                         final String clientRole,
                         AuthenticationDataHttps clientAuthenticationDataHttps,
-                        UpdateOptions updateOptions);
+                        UpdateOptionsImpl updateOptions);
 
     void updateFunctionOnWorkerLeader(final String tenant,
                                       final String namespace,
@@ -61,7 +61,8 @@ public interface Functions<W extends WorkerService> extends Component<W> {
                                       final InputStream uploadedInputStream,
                                       final boolean delete,
                                       URI uri,
-                                      final String clientRole);
+                                      final String clientRole,
+                                      final AuthenticationDataSource clientAuthenticationDataHttps);
 
     FunctionStatus getFunctionStatus(final String tenant,
                                      final String namespace,

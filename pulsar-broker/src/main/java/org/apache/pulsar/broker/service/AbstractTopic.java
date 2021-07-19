@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import com.google.common.base.MoreObjects;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -34,10 +35,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import lombok.Getter;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.resourcegroup.ResourceGroup;
+import org.apache.pulsar.broker.resourcegroup.ResourceGroupPublishLimiter;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ProducerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ProducerFencedException;
@@ -102,7 +106,12 @@ public abstract class AbstractTopic implements Topic {
 
     protected volatile PublishRateLimiter topicPublishRateLimiter;
 
+    protected volatile ResourceGroupPublishLimiter resourceGroupPublishLimiter;
+
     protected boolean preciseTopicPublishRateLimitingEnable;
+
+    @Getter
+    protected boolean resourceGroupRateLimitingEnabled;
 
     private LongAdder bytesInCounter = new LongAdder();
     private LongAdder msgInCounter = new LongAdder();
@@ -119,6 +128,10 @@ public abstract class AbstractTopic implements Topic {
             AtomicLongFieldUpdater.newUpdater(AbstractTopic.class, "usageCount");
     private volatile long usageCount = 0;
 
+    private volatile int topicMaxMessageSize = 0;
+    private volatile long lastTopicMaxMessageSizeCheckTimeStamp = 0;
+    private final long topicMaxMessageSizeCheckIntervalMs;
+
     public AbstractTopic(String topic, BrokerService brokerService) {
         this.topic = topic;
         this.brokerService = brokerService;
@@ -131,6 +144,8 @@ public abstract class AbstractTopic implements Topic {
                 .getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds());
         this.inactiveTopicPolicies.setInactiveTopicDeleteMode(brokerService.pulsar().getConfiguration()
                 .getBrokerDeleteInactiveTopicsMode());
+        this.topicMaxMessageSizeCheckIntervalMs = TimeUnit.SECONDS.toMillis(brokerService.pulsar().getConfiguration()
+                .getMaxMessageSizeCheckIntervalInSeconds());
         this.lastActive = System.nanoTime();
         Policies policies = null;
         try {
@@ -146,11 +161,7 @@ public abstract class AbstractTopic implements Topic {
     }
 
     protected boolean isProducersExceeded() {
-        Integer maxProducers = null;
-        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
-        if (topicPolicies != null) {
-            maxProducers = topicPolicies.getMaxProducerPerTopic();
-        }
+        Integer maxProducers = getTopicPolicies().map(TopicPolicies::getMaxProducerPerTopic).orElse(null);
 
         if (maxProducers == null) {
             Policies policies;
@@ -171,12 +182,32 @@ public abstract class AbstractTopic implements Topic {
         return false;
     }
 
-    protected boolean isConsumersExceededOnTopic() {
-        Integer maxConsumers = null;
-        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
-        if (topicPolicies != null) {
-            maxConsumers = topicPolicies.getMaxConsumerPerTopic();
+    protected boolean isSameAddressProducersExceeded(Producer producer) {
+        final int maxSameAddressProducers = brokerService.pulsar().getConfiguration()
+                .getMaxSameAddressProducersPerTopic();
+
+        if (maxSameAddressProducers > 0
+                && getNumberOfSameAddressProducers(producer.getClientAddress()) >= maxSameAddressProducers) {
+            return true;
         }
+
+        return false;
+    }
+
+    public int getNumberOfSameAddressProducers(final String clientAddress) {
+        int count = 0;
+        if (clientAddress != null) {
+            for (Producer producer : producers.values()) {
+                if (clientAddress.equals(producer.getClientAddress())) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    protected boolean isConsumersExceededOnTopic() {
+        Integer maxConsumers = getTopicPolicies().map(TopicPolicies::getMaxConsumerPerTopic).orElse(null);
         if (maxConsumers == null) {
             Policies policies;
             try {
@@ -202,29 +233,54 @@ public abstract class AbstractTopic implements Topic {
         return false;
     }
 
-    public abstract int getNumberOfConsumers();
+    protected boolean isSameAddressConsumersExceededOnTopic(Consumer consumer) {
+        final int maxSameAddressConsumers = brokerService.pulsar().getConfiguration()
+                .getMaxSameAddressConsumersPerTopic();
 
-    protected void addConsumerToSubscription(Subscription subscription, Consumer consumer)
-            throws BrokerServiceException {
+        if (maxSameAddressConsumers > 0
+                && getNumberOfSameAddressConsumers(consumer.getClientAddress()) >= maxSameAddressConsumers) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public abstract int getNumberOfConsumers();
+    public abstract int getNumberOfSameAddressConsumers(String clientAddress);
+
+    protected int getNumberOfSameAddressConsumers(final String clientAddress,
+            final List<? extends Subscription> subscriptions) {
+        int count = 0;
+        if (clientAddress != null) {
+            for (Subscription subscription : subscriptions) {
+                count += subscription.getNumberOfSameAddressConsumers(clientAddress);
+            }
+        }
+        return count;
+    }
+
+    protected CompletableFuture<Void> addConsumerToSubscription(Subscription subscription, Consumer consumer) {
         if (isConsumersExceededOnTopic()) {
             log.warn("[{}] Attempting to add consumer to topic which reached max consumers limit", topic);
-            throw new ConsumerBusyException("Topic reached max consumers limit");
+            return FutureUtil.failedFuture(new ConsumerBusyException("Topic reached max consumers limit"));
         }
-        subscription.addConsumer(consumer);
+
+        if (isSameAddressConsumersExceededOnTopic(consumer)) {
+            log.warn("[{}] Attempting to add consumer to topic which reached max same address consumers limit", topic);
+            return FutureUtil.failedFuture(new ConsumerBusyException("Topic reached max same address consumers limit"));
+        }
+
+        return subscription.addConsumer(consumer);
     }
 
     @Override
     public void disableCnxAutoRead() {
-        if (producers != null) {
-            producers.values().forEach(producer -> producer.getCnx().disableCnxAutoRead());
-        }
+        producers.values().forEach(producer -> producer.getCnx().disableCnxAutoRead());
     }
 
     @Override
     public void enableCnxAutoRead() {
-        if (producers != null) {
-            producers.values().forEach(producer -> producer.getCnx().enableCnxAutoRead());
-        }
+        producers.values().forEach(producer -> producer.getCnx().enableCnxAutoRead());
     }
 
     protected boolean hasLocalProducers() {
@@ -341,16 +397,15 @@ public abstract class AbstractTopic implements Topic {
 
     @Override
     public CompletableFuture<Optional<Long>> addProducer(Producer producer,
-            CompletableFuture<Void> producerQueuedFuture) {
+                                                         CompletableFuture<Void> producerQueuedFuture) {
         checkArgument(producer.getTopic() == this);
 
-        CompletableFuture<Optional<Long>> future = new CompletableFuture<>();
-
-        incrementTopicEpochIfNeeded(producer, producerQueuedFuture)
-                .thenAccept(producerEpoch -> {
+        return brokerService.checkTopicNsOwnership(getName())
+                .thenCompose(__ ->
+                        incrementTopicEpochIfNeeded(producer, producerQueuedFuture))
+                .thenCompose(producerEpoch -> {
                     lock.writeLock().lock();
                     try {
-                        brokerService.checkTopicNsOwnership(getName());
                         checkTopicFenced();
                         if (isTerminated()) {
                             log.warn("[{}] Attempting to add producer to a terminated topic", topic);
@@ -364,18 +419,13 @@ public abstract class AbstractTopic implements Topic {
                                     USAGE_COUNT_UPDATER.get(this));
                         }
 
-                        future.complete(producerEpoch);
-                    } catch (Throwable e) {
-                        future.completeExceptionally(e);
+                        return CompletableFuture.completedFuture(producerEpoch);
+                    } catch (BrokerServiceException e) {
+                        return FutureUtil.failedFuture(e);
                     } finally {
                         lock.writeLock().unlock();
                     }
-                }).exceptionally(ex -> {
-                    future.completeExceptionally(ex);
-                    return null;
                 });
-
-        return future;
     }
 
     protected CompletableFuture<Optional<Long>> incrementTopicEpochIfNeeded(Producer producer,
@@ -582,6 +632,11 @@ public abstract class AbstractTopic implements Topic {
             throw new BrokerServiceException.ProducerBusyException("Topic reached max producers limit");
         }
 
+        if (isSameAddressProducersExceeded(producer)) {
+            log.warn("[{}] Attempting to add producer to topic which reached max same address producers limit", topic);
+            throw new BrokerServiceException.ProducerBusyException("Topic reached max same address producers limit");
+        }
+
         if (log.isDebugEnabled()) {
             log.debug("[{}] {} Got request to create producer ", topic, producer.getProducerName());
         }
@@ -699,6 +754,17 @@ public abstract class AbstractTopic implements Topic {
     }
 
     @Override
+    public boolean isResourceGroupPublishRateExceeded(int numMessages, int bytes) {
+        return this.resourceGroupRateLimitingEnabled
+            && !this.resourceGroupPublishLimiter.tryAcquire(numMessages, bytes);
+    }
+
+    @Override
+    public boolean isResourceGroupRateLimitingEnabled() {
+        return this.resourceGroupRateLimitingEnabled;
+    }
+
+    @Override
     public boolean isTopicPublishRateExceeded(int numberMessages, int bytes) {
         // whether topic publish rate exceed if precise rate limit is enable
         return preciseTopicPublishRateLimitingEnable && !this.topicPublishRateLimiter.tryAcquire(numberMessages, bytes);
@@ -724,11 +790,11 @@ public abstract class AbstractTopic implements Topic {
 
     private void updatePublishDispatcher(Policies policies) {
         //if topic-level policy exists, try to use topic-level publish rate policy
-        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
-        if (topicPolicies != null && topicPolicies.isPublishRateSet()) {
+        Optional<PublishRate> topicPublishRate = getTopicPolicies().map(TopicPolicies::getPublishRate);
+        if (topicPublishRate.isPresent()) {
             log.info("Using topic policy publish rate instead of namespace level topic publish rate on topic {}",
                     this.topic);
-            updatePublishDispatcher(topicPolicies.getPublishRate());
+            updatePublishDispatcher(topicPublishRate.get());
             return;
         }
 
@@ -740,14 +806,39 @@ public abstract class AbstractTopic implements Topic {
 
         //both namespace-level and topic-level policy are not set, try to use broker-level policy
         ServiceConfiguration serviceConfiguration = brokerService.pulsar().getConfiguration();
-        if (publishRate == null) {
+        if (publishRate != null) {
+            //publishRate is not null , use namespace-level policy
+            updatePublishDispatcher(publishRate);
+        } else {
             PublishRate brokerPublishRate = new PublishRate(serviceConfiguration.getMaxPublishRatePerTopicInMessages()
-                    , serviceConfiguration.getMaxPublishRatePerTopicInBytes());
+              , serviceConfiguration.getMaxPublishRatePerTopicInBytes());
             updatePublishDispatcher(brokerPublishRate);
-            return;
         }
-        //publishRate is not null , use namespace-level policy
-        updatePublishDispatcher(publishRate);
+
+        // attach the resource-group level rate limiters, if set
+        String rgName = policies != null && policies.resource_group_name != null
+          ? policies.resource_group_name
+          : null;
+        if (rgName != null) {
+            final ResourceGroup resourceGroup =
+              brokerService.getPulsar().getResourceGroupServiceManager().resourceGroupGet(rgName);
+            if (resourceGroup != null) {
+                this.resourceGroupRateLimitingEnabled = true;
+                this.resourceGroupPublishLimiter = resourceGroup.getResourceGroupPublishLimiter();
+                this.resourceGroupPublishLimiter.registerRateLimitFunction(this.getName(),
+                  () -> this.enableCnxAutoRead());
+                log.info("Using resource group {} rate limiter for topic {}", rgName, topic);
+                return;
+            }
+        } else {
+            if (this.resourceGroupRateLimitingEnabled) {
+                this.resourceGroupPublishLimiter.unregisterRateLimitFunction(this.getName());
+                this.resourceGroupPublishLimiter = null;
+                this.resourceGroupRateLimitingEnabled = false;
+            }
+            /* Namespace detached from resource group. Enable the producer read */
+            enableProducerReadForPublishRateLimiting();
+        }
     }
 
     public long getMsgInCounter() {
@@ -795,24 +886,10 @@ public abstract class AbstractTopic implements Topic {
 
     /**
      * Get {@link TopicPolicies} for this topic.
-     * @param topicName
-     * @return TopicPolicies is exist else return null.
+     * @return TopicPolicies, if they exist. Otherwise, the value will not be present.
      */
-    public TopicPolicies getTopicPolicies(TopicName topicName) {
-        TopicName cloneTopicName = topicName;
-        if (topicName.isPartitioned()) {
-            cloneTopicName = TopicName.get(topicName.getPartitionedTopicName());
-        }
-        try {
-            return brokerService.pulsar().getTopicPoliciesService().getTopicPolicies(cloneTopicName);
-        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-            log.warn("Topic {} policies cache have not init.", topicName.getPartitionedTopicName());
-            return null;
-        } catch (NullPointerException e) {
-            log.warn("Topic level policies are not enabled. "
-                    + "Please refer to systemTopicEnabled and topicLevelPoliciesEnabled on broker.conf");
-            return null;
-        }
+    public Optional<TopicPolicies> getTopicPolicies() {
+        return brokerService.getTopicPolicies(TopicName.get(topic));
     }
 
     protected int getWaitingProducersCount() {
@@ -820,18 +897,16 @@ public abstract class AbstractTopic implements Topic {
     }
 
     protected boolean isExceedMaximumMessageSize(int size) {
-        Integer maxMessageSize = null;
-        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
-        if (topicPolicies != null && topicPolicies.isMaxMessageSizeSet()) {
-            maxMessageSize = topicPolicies.getMaxMessageSize();
+        if (lastTopicMaxMessageSizeCheckTimeStamp + topicMaxMessageSizeCheckIntervalMs < System.currentTimeMillis()) {
+            // refresh topicMaxMessageSize from topic policies
+            topicMaxMessageSize = getTopicPolicies().map(TopicPolicies::getMaxMessageSize).orElse(0);
+            lastTopicMaxMessageSizeCheckTimeStamp = System.currentTimeMillis();
         }
-        if (maxMessageSize != null) {
-            if (maxMessageSize == 0) {
-                return false;
-            }
-            return size > maxMessageSize;
+
+        if (topicMaxMessageSize == 0) {
+            return false;
         }
-        return false;
+        return size > topicMaxMessageSize;
     }
 
     /**

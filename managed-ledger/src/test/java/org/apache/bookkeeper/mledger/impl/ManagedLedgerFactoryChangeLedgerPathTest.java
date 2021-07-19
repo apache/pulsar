@@ -19,14 +19,15 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import java.util.List;
+import lombok.Cleanup;
 import org.apache.bookkeeper.common.allocator.PoolingPolicy;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.*;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -51,7 +52,8 @@ public class ManagedLedgerFactoryChangeLedgerPathTest extends BookKeeperClusterT
         configuration.setEnableDigestTypeAutodetection(true);
         configuration.setAllocatorPoolingPolicy(PoolingPolicy.UnpooledHeap);
 
-        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(configuration, zkConnectString);
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, configuration);
 
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setEnsembleSize(1)
@@ -74,7 +76,6 @@ public class ManagedLedgerFactoryChangeLedgerPathTest extends BookKeeperClusterT
             Entry entry = entryList.get(i);
             Assert.assertEquals(("entry" + i).getBytes("UTF8"), entry.getData());
         }
-        factory.shutdown();
     }
     @Test()
     public void testChangeZKPath2() throws Exception {
@@ -86,7 +87,10 @@ public class ManagedLedgerFactoryChangeLedgerPathTest extends BookKeeperClusterT
         configuration.setAllocatorPoolingPolicy(PoolingPolicy.UnpooledHeap);
 
         ManagedLedgerFactoryConfig managedLedgerFactoryConfig = new ManagedLedgerFactoryConfig();
-        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(configuration, zkConnectString,managedLedgerFactoryConfig);
+
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, configuration,
+                managedLedgerFactoryConfig);
 
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setEnsembleSize(1)
@@ -109,6 +113,5 @@ public class ManagedLedgerFactoryChangeLedgerPathTest extends BookKeeperClusterT
             Entry entry = entryList.get(i);
             Assert.assertEquals(("entry" + i).getBytes("UTF8"), entry.getData());
         }
-        factory.shutdown();
     }
 }

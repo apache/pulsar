@@ -20,9 +20,7 @@
 
 from abc import abstractmethod
 import json
-import fastavro
 import _pulsar
-import io
 import enum
 
 
@@ -87,32 +85,11 @@ class JsonSchema(Schema):
 
     def encode(self, obj):
         self._validate_object_type(obj)
+        del obj.__dict__['_default']
+        del obj.__dict__['_required']
+        del obj.__dict__['_required_default']
+
         return json.dumps(obj.__dict__, default=self._get_serialized_value, indent=True).encode('utf-8')
 
     def decode(self, data):
         return self._record_cls(**json.loads(data))
-
-
-class AvroSchema(Schema):
-    def __init__(self, record_cls):
-        super(AvroSchema, self).__init__(record_cls, _pulsar.SchemaType.AVRO,
-                                         record_cls.schema(), 'AVRO')
-        self._schema = record_cls.schema()
-
-    def _get_serialized_value(self, x):
-        if isinstance(x, enum.Enum):
-            return x.name
-        else:
-            return x
-
-    def encode(self, obj):
-        self._validate_object_type(obj)
-        buffer = io.BytesIO()
-        m = {k: self._get_serialized_value(v) for k, v in obj.__dict__.items()}
-        fastavro.schemaless_writer(buffer, self._schema, m)
-        return buffer.getvalue()
-
-    def decode(self, data):
-        buffer = io.BytesIO(data)
-        d = fastavro.schemaless_reader(buffer, self._schema)
-        return self._record_cls(**d)
