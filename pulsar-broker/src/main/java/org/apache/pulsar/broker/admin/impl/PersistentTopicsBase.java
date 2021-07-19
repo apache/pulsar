@@ -41,6 +41,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
+import java.util.stream.Collectors;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
@@ -1036,25 +1037,21 @@ public class PersistentTopicsBase extends AdminResource {
                         if (topicName.getDomain() == TopicDomain.persistent) {
                             String path = String.format("/managed-ledgers/%s/%s", namespaceName.toString(), domain());
                             List<String> children = getLocalPolicies().getChildren(path);
-                            List<String> activeTopics = Lists.newArrayList();
-                            for (String topic : children) {
-                                if (topic.contains(topicName.getEncodedLocalName())) {
-                                    activeTopics.add(Codec.decode(topic));
-                                }
-                            }
+                            List<String> activeTopics = children.stream().filter(topic -> topic.contains(topicName.getEncodedLocalName()))
+                                    .map(topic -> Codec.decode(topic)).collect(Collectors.toList());
                             if (log.isDebugEnabled()) {
                                 log.debug("activeTopics : {}", activeTopics);
                             }
                             for (String topic : activeTopics) {
                                 CompletableFuture<List<String>> subscriptionsAsync = pulsar().getAdminClient().topics()
                                         .getSubscriptionsAsync(TopicName.get(domain(), namespaceName, topic).toString());
-                                subscriptionFutures.add(subscriptionsAsync.thenApply(r -> subscriptions.addAll(r)));
+                                subscriptionFutures.add(subscriptionsAsync.thenApply(subscriptions::addAll));
                             }
                         } else {
                             for (int i = 0; i < partitionMetadata.partitions; i++) {
                                 CompletableFuture<List<String>> subscriptionsAsync = pulsar().getAdminClient().topics()
                                         .getSubscriptionsAsync(topicName.getPartition(i).toString());
-                                subscriptionFutures.add(subscriptionsAsync.thenApply(r -> subscriptions.addAll(r)));
+                                subscriptionFutures.add(subscriptionsAsync.thenApply(subscriptions::addAll));
                             }
                         }
                         FutureUtil.waitForAll(subscriptionFutures).whenComplete((r, ex) -> {
