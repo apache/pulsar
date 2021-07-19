@@ -60,7 +60,7 @@ public abstract class BkEnsemblesTestBase extends TestRetrySupport {
         this.numberOfBookies = numberOfBookies;
     }
 
-    protected void configurePulsar(ServiceConfiguration config) {
+    protected void configurePulsar(ServiceConfiguration config) throws Exception {
         //overridable by subclasses
     }
 

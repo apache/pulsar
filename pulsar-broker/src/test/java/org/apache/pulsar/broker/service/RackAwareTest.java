@@ -37,14 +37,13 @@ import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.stats.NullStatsLogger;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.zookeeper.ZkBookieRackAffinityMapping;
 import org.assertj.core.util.Lists;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
@@ -58,10 +57,8 @@ public class RackAwareTest extends BkEnsemblesTestBase {
         super(0);
     }
 
-    @BeforeClass(alwaysRun = true)
-    protected void setup() throws Exception {
-        super.setup();
-
+    @Override
+    protected void configurePulsar(ServiceConfiguration config) throws Exception {
         // Start bookies with specific racks
         for (int i = 0; i < NUM_BOOKIES; i++) {
             File bkDataDir = Files.createTempDirectory("bk" + Integer.toString(i) + "test").toFile();
@@ -87,7 +84,7 @@ public class RackAwareTest extends BkEnsemblesTestBase {
 
     }
 
-    @AfterClass(alwaysRun = true)
+    @Override
     protected void cleanup() throws Exception {
         super.cleanup();
 
